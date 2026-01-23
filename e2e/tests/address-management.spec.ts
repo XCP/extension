@@ -5,148 +5,105 @@
  */
 
 import { walletTest, expect, getCurrentAddress } from '../fixtures';
-import { index, selectAddress, viewAddress } from '../selectors';
+import { index, selectAddress } from '../selectors';
 
 walletTest.describe('Address Management', () => {
-  walletTest('copy address from blue button on index', async ({ page }) => {
+  walletTest('copy address from button on index shows feedback', async ({ page }) => {
     await expect(index.currentAddress(page)).toBeVisible({ timeout: 10000 });
     await index.currentAddress(page).click();
 
-    const hasCheckIcon = await page.locator('svg.text-green-500').first().isVisible().catch(() => false);
-
-    if (!hasCheckIcon) {
-      const hasClipboardIcon = await page.locator('svg[aria-hidden="true"]').first().isVisible().catch(() => false);
-      expect(hasClipboardIcon).toBe(true);
-    } else {
-      expect(hasCheckIcon).toBe(true);
-    }
+    // Should show green checkmark feedback after copy
+    await expect(page.locator('svg.text-green-500').first()).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('navigate to address selection via chevron', async ({ page }) => {
-    if (await selectAddress.chevronButton(page).isVisible()) {
-      await selectAddress.chevronButton(page).click();
+    const chevronButton = selectAddress.chevronButton(page);
+    await expect(chevronButton).toBeVisible({ timeout: 5000 });
+    await chevronButton.click();
 
-      await expect(page.locator('text="Addresses"')).toBeVisible();
-      await expect(selectAddress.addressLabel(page, 1)).toBeVisible();
-    } else {
-      const addressManagement = page.locator('text=/Address|Manage/i');
-      if (await addressManagement.isVisible()) {
-        await addressManagement.click();
-      }
-    }
+    await expect(page).toHaveURL(/select-address/);
+    await expect(page.locator('text="Addresses"')).toBeVisible();
+    await expect(selectAddress.addressLabel(page, 1)).toBeVisible();
   });
 
   walletTest('add new address', async ({ page }) => {
-    if (await selectAddress.chevronButton(page).isVisible()) {
-      await selectAddress.chevronButton(page).click();
+    const chevronButton = selectAddress.chevronButton(page);
+    await expect(chevronButton).toBeVisible({ timeout: 5000 });
+    await chevronButton.click();
 
-      const addressesBefore = await page.locator('text=/Address \\d+/').count();
+    await expect(page).toHaveURL(/select-address/);
 
-      if (await selectAddress.addAddressButton(page).isVisible()) {
-        await selectAddress.addAddressButton(page).click();
+    const addressesBefore = await page.locator('text=/Address \\d+/').count();
 
-        const addressesAfter = await page.locator('text=/Address \\d+/').count();
-        expect(addressesAfter).toBeGreaterThan(addressesBefore);
-      } else {
-        expect(page.url()).toContain('address');
-      }
-    } else {
-      // If chevron not visible, verify we're on index page with address displayed
-      const hasAddress = await index.addressText(page).isVisible({ timeout: 5000 });
-      expect(hasAddress).toBe(true);
-    }
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
+    await addButton.click();
+
+    // Wait for new address to appear
+    await expect(page.locator('text=/Address \\d+/')).toHaveCount(addressesBefore + 1, { timeout: 5000 });
   });
 
   walletTest('switch between addresses', async ({ page }) => {
-    const chevronButton = page.locator('[aria-label="Select another address"], button:has(svg)').last();
-    const isChevronVisible = await chevronButton.isVisible().catch(() => false);
+    const chevronButton = selectAddress.chevronButton(page);
+    await expect(chevronButton).toBeVisible({ timeout: 5000 });
+    await chevronButton.click();
 
-    if (isChevronVisible) {
-      await chevronButton.click();
+    await expect(page).toHaveURL(/select-address/);
 
-      const onAddressPage = page.url().includes('select-address') ||
-                           await page.locator('text=/Select.*Address/i').isVisible();
+    // Add a second address if there's only one
+    const addressLabels = page.locator('text=/Address \\d+/');
+    const initialCount = await addressLabels.count();
 
-      if (onAddressPage) {
-        const addressCount = await page.locator('text=/Address \\d+/').count();
-        if (addressCount < 2) {
-          if (await selectAddress.addAddressButton(page).isVisible()) {
-            await selectAddress.addAddressButton(page).click();
-          }
-        }
-
-        const addresses = page.locator('text=/Address \\d+/');
-        const count = await addresses.count();
-        if (count > 1) {
-          await addresses.nth(1).click();
-        }
-
-        const currentUrl = page.url();
-        expect(currentUrl).toBeTruthy();
-      }
-    } else {
-      expect(page.url()).toContain('extension');
+    if (initialCount < 2) {
+      const addButton = selectAddress.addAddressButton(page);
+      await expect(addButton).toBeVisible({ timeout: 5000 });
+      await addButton.click();
+      await expect(addressLabels).toHaveCount(initialCount + 1, { timeout: 5000 });
     }
+
+    // Click the second address
+    await addressLabels.nth(1).click();
+
+    // Should navigate back to index
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('copy address from address list', async ({ page }) => {
-    if (await selectAddress.chevronButton(page).isVisible()) {
-      await selectAddress.chevronButton(page).click();
+    const chevronButton = selectAddress.chevronButton(page);
+    await expect(chevronButton).toBeVisible({ timeout: 5000 });
+    await chevronButton.click();
 
-      if (await selectAddress.copyButton(page).isVisible()) {
-        await selectAddress.copyButton(page).click();
+    await expect(page).toHaveURL(/select-address/);
 
-        await expect(page.locator('.text-green-500').or(page.locator('text=/copied/i'))).toBeVisible();
-      }
-    }
+    const copyButton = selectAddress.copyButton(page);
+    await expect(copyButton).toBeVisible({ timeout: 5000 });
+    await copyButton.click();
+
+    // Should show success feedback
+    await expect(
+      page.locator('.text-green-500').or(page.locator('text=/copied/i'))
+    ).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('address type information display', async ({ page }) => {
-    if (await selectAddress.chevronButton(page).isVisible()) {
-      await selectAddress.chevronButton(page).click();
+    const chevronButton = selectAddress.chevronButton(page);
+    await expect(chevronButton).toBeVisible({ timeout: 5000 });
+    await chevronButton.click();
 
-      const addressTypes = ['P2WPKH', 'Native SegWit', 'SegWit', 'Legacy', 'P2PKH'];
-      let foundType = false;
+    await expect(page).toHaveURL(/select-address/);
 
-      for (const type of addressTypes) {
-        const typeElement = page.locator(`text=${type}`);
-        if (await typeElement.isVisible()) {
-          foundType = true;
-          break;
-        }
-      }
-
-      if (!foundType) {
-        const onAddressPage = page.url().includes('address');
-        expect(onAddressPage).toBe(true);
-      } else {
-        expect(foundType).toBe(true);
-      }
-    } else {
-      // If chevron not visible, verify we're on index page with address displayed
-      const hasAddress = await index.addressText(page).isVisible({ timeout: 5000 });
-      expect(hasAddress).toBe(true);
-    }
+    // Should show address type information
+    const addressType = page.locator('text=/P2WPKH|Native SegWit|SegWit|Legacy|P2PKH|P2TR|Taproot/i').first();
+    await expect(addressType).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('address validation and format checking', async ({ page }) => {
-    let currentAddress = await getCurrentAddress(page);
-
-    if (!currentAddress || currentAddress.length < 10) {
-      if (await index.currentAddress(page).isVisible()) {
-        currentAddress = await index.currentAddress(page).textContent() || '';
-      }
-    }
-
-    if (!currentAddress || currentAddress.length < 10) {
-      const copyButton = page.locator('button[aria-label*="Copy"]').first();
-      if (await copyButton.isVisible()) {
-        const parent = copyButton.locator('..');
-        currentAddress = await parent.locator('.font-mono').textContent() || '';
-      }
-    }
+    const currentAddress = await getCurrentAddress(page);
 
     expect(currentAddress).toBeTruthy();
     expect(currentAddress.length).toBeGreaterThan(10);
+
+    // Should be a valid Bitcoin address format
+    expect(currentAddress).toMatch(/^(bc1|1|3|tb1|m|n|2)[a-zA-Z0-9]{25,}/);
   });
 });

@@ -23,65 +23,62 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
     await page.waitForLoadState('networkidle');
 
     const newDispenserButton = page.locator('button:has-text("New Dispenser"), a:has-text("New Dispenser"), button:has-text("Create Dispenser")').first();
+    const buttonCount = await newDispenserButton.count();
 
-    if (await newDispenserButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (buttonCount > 0) {
+      await expect(newDispenserButton).toBeVisible({ timeout: 5000 });
       await newDispenserButton.click();
-      await page.waitForTimeout(500);
-
-      expect(page.url()).toContain('dispenser');
+      await expect(page).toHaveURL(/dispenser/, { timeout: 5000 });
     }
   });
 
-  walletTest('create dispenser form has asset selection', async ({ page }) => {
+  walletTest('create dispenser form has required fields', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/compose/dispenser')) {
-      const hasAssetField = await page.locator('text=/Asset|XCP/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasAssetSelect = await compose.common.assetSelect(page).isVisible({ timeout: 3000 }).catch(() => false);
-      const hasForm = await page.locator('input').first().isVisible({ timeout: 2000 }).catch(() => false);
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
-      // Asset may be pre-selected via URL param, form inputs should be visible
-      expect(hasAssetField || hasAssetSelect || hasForm).toBe(true);
-    }
+    // Form should have asset field or input
+    const assetField = page.locator('text=/Asset|XCP/i').first();
+    const assetSelect = compose.common.assetSelect(page);
+    const formInput = page.locator('input').first();
+
+    await expect(assetField.or(assetSelect).or(formInput)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser form has mainchain rate field', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/compose/dispenser')) {
-      const hasRateField = await page.locator('text=/Rate|Price|BTC|satoshi/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasRateInput = await compose.dispenser.mainchainRateInput(page).isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
-      expect(hasRateField || hasRateInput).toBe(true);
-    }
+    const rateField = page.locator('text=/Rate|Price|BTC|satoshi/i').first();
+    const rateInput = compose.dispenser.mainchainRateInput(page);
+
+    await expect(rateField.or(rateInput)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser form has escrow quantity field', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/compose/dispenser')) {
-      const hasEscrowField = await page.locator('text=/Escrow|Quantity|Amount/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEscrowInput = await compose.dispenser.escrowQuantityInput(page).isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
-      expect(hasEscrowField || hasEscrowInput).toBe(true);
-    }
+    const escrowField = page.locator('text=/Escrow|Quantity|Amount/i').first();
+    const escrowInput = compose.dispenser.escrowQuantityInput(page);
+
+    await expect(escrowField.or(escrowInput)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser validates required fields', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('/compose/dispenser')) {
-      const submitButton = compose.dispenser.createButton(page);
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
-      if (await submitButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isDisabled = await submitButton.isDisabled().catch(() => true);
-        expect(isDisabled).toBe(true);
-      }
-    }
+    const submitButton = compose.dispenser.createButton(page);
+    await expect(submitButton).toBeVisible({ timeout: 5000 });
+    await expect(submitButton).toBeDisabled();
   });
 });
 
@@ -95,46 +92,38 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('/compose/dispenser')) {
-      return; // Skip if navigation failed
-    }
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
     // Fill dispenser form
     const giveInput = compose.dispenser.giveQuantityInput(page);
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
 
-    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await giveInput.count() > 0) {
       await giveInput.fill('100');
     }
-    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await escrowInput.count() > 0) {
       await escrowInput.fill('1000');
     }
-    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await rateInput.count() > 0) {
       await rateInput.fill('0.0001');
     }
-    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (isEnabled) {
-        await submitBtn.click();
-        await waitForReview(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
 
-        const reviewContent = await page.content();
-        expect(reviewContent).toMatch(/review|confirm|sign/i);
-      }
-    }
+    await waitForReview(page);
+
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
   });
 
   walletTest('form → review → back: dispenser data preserved', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('/compose/dispenser')) {
-      return;
-    }
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
     const giveQuantity = '50';
     const escrowQuantity = '500';
@@ -144,72 +133,60 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
 
-    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await giveInput.count() > 0) {
       await giveInput.fill(giveQuantity);
     }
-    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await escrowInput.count() > 0) {
       await escrowInput.fill(escrowQuantity);
     }
-    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await rateInput.count() > 0) {
       await rateInput.fill(rate);
     }
-    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (isEnabled) {
-        await submitBtn.click();
-        await waitForReview(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
 
-        await clickBack(page);
-        await page.waitForTimeout(500);
+    await waitForReview(page);
+    await clickBack(page);
 
-        // Verify form data preserved
-        if (await giveInput.isVisible().catch(() => false)) {
-          await expect(giveInput).toHaveValue(giveQuantity);
-        }
-        if (await escrowInput.isVisible().catch(() => false)) {
-          await expect(escrowInput).toHaveValue(escrowQuantity);
-        }
-      }
+    // Verify form data preserved
+    if (await giveInput.count() > 0) {
+      await expect(giveInput).toHaveValue(giveQuantity);
+    }
+    if (await escrowInput.count() > 0) {
+      await expect(escrowInput).toHaveValue(escrowQuantity);
     }
   });
 
-  walletTest('full flow: dispenser form → review → sign → success', async ({ page }) => {
+  walletTest('full flow: dispenser form → review → verify content', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');
 
-    if (!page.url().includes('/compose/dispenser')) {
-      return;
-    }
+    await expect(page).toHaveURL(/compose\/dispenser/);
 
     const giveInput = compose.dispenser.giveQuantityInput(page);
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
 
-    if (await giveInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    if (await giveInput.count() > 0) {
       await giveInput.fill('100');
     }
-    if (await escrowInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await escrowInput.count() > 0) {
       await escrowInput.fill('1000');
     }
-    if (await rateInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await rateInput.count() > 0) {
       await rateInput.fill('0.0001');
     }
-    await page.waitForTimeout(500);
 
     const submitBtn = compose.dispenser.createButton(page);
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (isEnabled) {
-        await submitBtn.click();
-        await waitForReview(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
 
-        // Verify review page
-        const reviewContent = await page.content();
-        expect(reviewContent).toMatch(/review|confirm|sign/i);
-      }
-    }
+    await waitForReview(page);
+
+    // Verify review page content
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
   });
 });

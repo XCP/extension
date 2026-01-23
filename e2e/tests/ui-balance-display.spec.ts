@@ -50,10 +50,10 @@ walletTest.describe('Navigation', () => {
   walletTest('Receive button navigates to receive page', async ({ page }) => {
     await index.receiveButton(page).click();
     await expect(page).toHaveURL(/view-address/);
-    // Should show QR code or address
-    const hasQR = await viewAddress.qrCode(page).isVisible().catch(() => false);
-    const hasAddress = await viewAddress.addressDisplay(page).isVisible().catch(() => false);
-    expect(hasQR || hasAddress).toBe(true);
+    // Should show QR code or address display
+    await expect(
+      viewAddress.qrCode(page).or(viewAddress.addressDisplay(page))
+    ).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('History button navigates to history page', async ({ page }) => {
@@ -115,15 +115,15 @@ walletTest.describe('Error Recovery', () => {
     await page.goto(`chrome-extension://${extensionId}/popup.html#/invalid-route`);
     await page.waitForLoadState('domcontentloaded');
 
-    // Should redirect or show error
-    const hasError = await page.getByText(/Error|Not Found|404/i).isVisible().catch(() => false);
-    const redirected = page.url().includes('index') || page.url().includes('unlock');
+    // Should show error page or redirect to valid page
+    const errorText = page.getByText(/Error|Not Found|404/i);
+    const assetsTab = index.assetsTab(page);
 
-    expect(hasError || redirected).toBe(true);
+    await expect(errorText.or(assetsTab)).toBeVisible({ timeout: 5000 });
 
-    // Can still navigate to wallet (use direct URL since Not Found page has no footer)
+    // Navigate to wallet and verify it works
     await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);
     await page.waitForLoadState('domcontentloaded');
-    await expect(index.assetsTab(page)).toBeVisible();
+    await expect(index.assetsTab(page)).toBeVisible({ timeout: 5000 });
   });
 });
