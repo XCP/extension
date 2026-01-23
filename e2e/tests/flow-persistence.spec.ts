@@ -106,16 +106,21 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
 
     if (legacyCount > 0) {
       await legacyOption.click();
+      // Wait for the radio to be checked (UI update)
+      await expect(legacyOption).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
     }
 
-    // Wait for the address type change to take effect
+    // Wait for the address type change to take effect (async context update)
     await extensionPage.waitForLoadState('networkidle');
 
     await navigateTo(extensionPage, 'wallet');
 
-    // Wait for address to be visible
-    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
-    await extensionPage.waitForLoadState('networkidle');
+    // Wait for address with Legacy prefix (starts with "1") to appear
+    // The async context update may take a moment to propagate
+    const legacyAddressLocator = extensionPage.locator('[aria-label="Current address"]')
+      .locator('span.font-mono')
+      .filter({ hasText: /^1[a-zA-Z0-9]/ });
+    await expect(legacyAddressLocator).toBeVisible({ timeout: 15000 });
 
     const addressBefore = await index.addressText(extensionPage).textContent();
 
