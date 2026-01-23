@@ -228,7 +228,8 @@ export async function goToCompose(page: Page, path: string): Promise<void> {
 
   await page.goto(targetUrl);
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1000);
+  // Wait for form elements to be ready
+  await page.locator('input, textarea, button').first().waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
 }
 
 /**
@@ -265,8 +266,9 @@ export async function fillSendForm(
 
   if (options.memo) {
     const memoInput = page.locator('input[name="memo"], textarea[name="memo"]');
-    if (await memoInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await memoInput.fill(options.memo);
+    const memoCount = await memoInput.count();
+    if (memoCount > 0) {
+      await memoInput.first().fill(options.memo);
     }
   }
 }
@@ -284,29 +286,13 @@ export async function submitForm(page: Page): Promise<void> {
  * Wait for review page to appear
  */
 export async function waitForReview(page: Page): Promise<void> {
-  const reviewIndicators = [
-    page.locator('text=/Review Transaction|Confirm Transaction|Review/i').first(),
-    page.locator('text=Sign & Broadcast').first(),
-    page.locator('button:has-text("Sign"), button:has-text("Broadcast")').first(),
-  ];
+  // Combined locator that matches any review page indicator
+  const reviewIndicator = page.locator('text=/Review Transaction|Confirm Transaction|Review/i')
+    .or(page.locator('text=Sign & Broadcast'))
+    .or(page.locator('button:has-text("Sign"), button:has-text("Broadcast")'))
+    .first();
 
-  await Promise.race(
-    reviewIndicators.map((loc) =>
-      loc.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
-    )
-  );
-
-  let found = false;
-  for (const loc of reviewIndicators) {
-    if (await loc.isVisible().catch(() => false)) {
-      found = true;
-      break;
-    }
-  }
-
-  if (!found) {
-    throw new Error('Review page indicators not found after form submission');
-  }
+  await expect(reviewIndicator).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -339,8 +325,9 @@ export async function verifyFormPreserved(
 
   if (expected.memo) {
     const memoInput = page.locator('input[name="memo"], textarea[name="memo"]');
-    if (await memoInput.isVisible().catch(() => false)) {
-      await expect(memoInput).toHaveValue(expected.memo);
+    const memoCount = await memoInput.count();
+    if (memoCount > 0 && await memoInput.first().isVisible()) {
+      await expect(memoInput.first()).toHaveValue(expected.memo);
     }
   }
 }
@@ -357,8 +344,10 @@ export async function isSubmitDisabled(page: Page): Promise<boolean> {
  * Get error message text if visible
  */
 export async function getErrorMessage(page: Page): Promise<string | null> {
-  const errorLocator = page.locator('.text-red-500, [class*="error"]').first();
-  if (await errorLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
+  // Prefer role="alert" for accessibility, fall back to error styling classes
+  const errorLocator = page.locator('[role="alert"], .text-red-500, [class*="error"]').first();
+  const count = await errorLocator.count();
+  if (count > 0 && await errorLocator.isVisible()) {
     return await errorLocator.textContent();
   }
   return null;
@@ -376,7 +365,8 @@ export async function testFormValidation(
   await submitForm(page);
 
   if (expectedError) {
-    const error = page.locator('.text-red-500, [class*="error"]').first();
+    // Prefer role="alert" for accessibility, fall back to error styling classes
+    const error = page.locator('[role="alert"], .text-red-500, [class*="error"]').first();
     await expect(error).toBeVisible({ timeout: 5000 });
     if (typeof expectedError === 'string') {
       await expect(error).toContainText(expectedError);

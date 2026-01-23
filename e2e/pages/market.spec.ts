@@ -39,10 +39,9 @@ walletTest.describe('Market Page', () => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const hasSpinner = await page.locator('.animate-spin, text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasContent = await page.locator('text=/Dispensers|Orders|No open/i').first().isVisible({ timeout: 10000 }).catch(() => false);
-
-    expect(hasSpinner || hasContent).toBe(true);
+    // Page should show either loading spinner or content
+    const loadingOrContent = page.locator('.animate-spin').or(page.locator('text=/Loading|Dispensers|Orders|No open/i')).first();
+    await expect(loadingOrContent).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('browse tab shows dispensers section', async ({ page }) => {

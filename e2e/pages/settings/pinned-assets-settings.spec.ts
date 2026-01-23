@@ -45,14 +45,12 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     const searchInput = pinnedAssets.searchInput(page);
     if (await searchInput.isVisible({ timeout: 5000 }).catch(() => false)) {
       await searchInput.fill('XCP');
-      await page.waitForTimeout(1000);
-
-      // Should trigger search and show results or loading
-      const hasSearchResults = await pinnedAssets.searchResultsSection(page).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Searching/i, [class*="spinner"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasNoResults = await page.locator('text=/No results/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasSearchResults || hasLoading || hasNoResults).toBe(true);
+      // Should trigger search and show results, loading, or no results
+      const searchResponse = page.locator('text=/Searching|No results/i')
+        .or(page.locator('[class*="spinner"]'))
+        .or(pinnedAssets.searchResultsSection(page))
+        .first();
+      await expect(searchResponse).toBeVisible({ timeout: 5000 });
     }
   });
 

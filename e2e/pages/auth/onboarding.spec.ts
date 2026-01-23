@@ -68,13 +68,10 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
 
       if (isVisible) {
         await importButton.click();
-        await page.waitForTimeout(1000);
 
         // Should navigate to import wallet page
-        const onImportPage = page.url().includes('import-wallet') ||
-          await page.locator('input[name="word-0"], text=/enter.*phrase|recovery phrase/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(onImportPage).toBe(true);
+        const importPageContent = page.locator('input[name="word-0"]').or(page.locator('text=/enter.*phrase|recovery phrase/i')).first();
+        await expect(importPageContent).toBeVisible({ timeout: 5000 });
       }
     } finally {
       await cleanup(context);
@@ -93,13 +90,10 @@ test.describe('Onboarding Page (/auth/onboarding)', () => {
 
       if (isVisible) {
         await keyButton.click();
-        await page.waitForTimeout(1000);
 
         // Should navigate to import private key page
-        const onKeyPage = page.url().includes('import-private-key') ||
-          await page.locator('input[name="private-key"], text=/private key|WIF/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(onKeyPage).toBe(true);
+        const keyPageContent = page.locator('input[name="private-key"]').or(page.locator('text=/private key|WIF/i')).first();
+        await expect(keyPageContent).toBeVisible({ timeout: 5000 });
       }
     } finally {
       await cleanup(context);

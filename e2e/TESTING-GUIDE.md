@@ -2,6 +2,8 @@
 
 A cheatsheet for writing reliable, maintainable Playwright tests.
 
+> **See also:** [E2E-STANDARDS.md](./E2E-STANDARDS.md) for comprehensive standards, infrastructure usage, and audit guidelines.
+
 ## Core Principles
 
 1. **Test user-visible behavior** - Test what users see, not implementation details

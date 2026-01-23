@@ -13,9 +13,10 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     await page.waitForLoadState('networkidle');
 
     // Try to find reset wallet option in settings
-    const resetLink = page.locator('a[href*="reset-wallet"], button:has-text("Reset"), text=/Reset.*Wallet/i').first();
+    const resetLink = page.locator('a[href*="reset-wallet"], button:has-text("Reset")').or(page.locator('text=/Reset.*Wallet/i')).first();
 
-    if (await resetLink.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const resetLinkCount = await resetLink.count();
+    if (resetLinkCount > 0 && await resetLink.isVisible({ timeout: 3000 })) {
       await resetLink.click();
       await page.waitForLoadState('networkidle');
       return true;

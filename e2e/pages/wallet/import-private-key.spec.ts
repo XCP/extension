@@ -8,24 +8,21 @@ import { walletTest, test, expect, launchExtension, cleanup, TEST_PRIVATE_KEY, T
 
 // Tests for import when wallet already exists
 walletTest.describe('Import Private Key Page - With Existing Wallet (/import-private-key)', () => {
-  async function navigateToImportPrivateKey(page: any): Promise<boolean> {
+  async function navigateToImportPrivateKey(page: any): Promise<void> {
     // Navigate via add-wallet page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
     await page.goto(`${baseUrl}/import-private-key`);
     await page.waitForLoadState('networkidle');
-    return true;
   }
 
   walletTest('page loads with import form', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    // Should show import form
-    const hasTitle = await page.locator('text=/Import.*Private.*Key|Import.*Key/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasKeyInput = await page.locator('input[name="private-key"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTitle || hasKeyInput).toBe(true);
+    // Should show import form title or input
+    const titleOrInput = page.locator('text=/Import.*Private.*Key|Import.*Key/i').or(page.locator('input[name="private-key"]')).first();
+    await expect(titleOrInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has private key input field', async ({ page }) => {
@@ -39,22 +36,21 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await navigateToImportPrivateKey(page);
 
     const keyInput = page.locator('input[name="private-key"]').first();
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
 
-    if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const inputType = await keyInput.getAttribute('type');
-      // Should be password type for security
-      expect(inputType === 'password' || inputType === 'text').toBe(true);
-    }
+    const inputType = await keyInput.getAttribute('type');
+    // Should be password type for security
+    expect(inputType === 'password' || inputType === 'text').toBe(true);
   });
 
   walletTest('has address type selector', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    // Should have address type dropdown
-    const hasSelector = await page.locator('button:has-text("Legacy"), button:has-text("SegWit"), button:has-text("Taproot"), select, [role="listbox"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasAddressTypeLabel = await page.locator('text=/Address Type/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasSelector || hasAddressTypeLabel).toBe(true);
+    // Should have address type dropdown or label
+    const selectorOrLabel = page.locator('button:has-text("Legacy"), button:has-text("SegWit"), button:has-text("Taproot"), select, [role="listbox"]')
+      .or(page.locator('text=/Address Type/i'))
+      .first();
+    await expect(selectorOrLabel).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('address type options include Legacy, SegWit, Taproot', async ({ page }) => {
@@ -62,18 +58,14 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Click dropdown to open options
     const dropdown = page.locator('[role="listbox"], select, button:has-text("Legacy"), button:has-text("SegWit")').first();
+    const dropdownCount = await dropdown.count();
 
-    if (await dropdown.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (dropdownCount > 0 && await dropdown.isVisible()) {
       await dropdown.click();
-      await page.waitForTimeout(500);
 
       // Check for address type options
-      const hasLegacy = await page.locator('text=/Legacy|P2PKH|1\\.\\.\\.$/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasNestedSegwit = await page.locator('text=/Nested.*SegWit|P2SH|3\\.\\.\\.$/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasNativeSegwit = await page.locator('text=/Native.*SegWit|P2WPKH|bc1q/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasTaproot = await page.locator('text=/Taproot|P2TR|bc1p/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasLegacy || hasNestedSegwit || hasNativeSegwit || hasTaproot).toBe(true);
+      const addressTypeOption = page.locator('text=/Legacy|P2PKH|SegWit|Taproot|bc1/i').first();
+      await expect(addressTypeOption).toBeVisible({ timeout: 3000 });
     }
   });
 
@@ -82,16 +74,11 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // First fill in private key to enable checkbox
     const keyInput = page.locator('input[name="private-key"]').first();
-    if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await keyInput.fill(TEST_PRIVATE_KEY);
-      await page.waitForTimeout(500);
-    }
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
 
-    const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    const hasCheckbox = await checkbox.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCheckboxLabel = await page.locator('text=/backed up|I have backed up/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasCheckbox || hasCheckboxLabel).toBe(true);
+    const checkboxOrLabel = page.locator('input[type="checkbox"], input[name="confirmed"]').or(page.locator('text=/backed up|I have backed up/i')).first();
+    await expect(checkboxOrLabel).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('checkbox is disabled without private key', async ({ page }) => {
@@ -99,9 +86,10 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Don't fill in private key
     const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
+    const checkboxCount = await checkbox.count();
 
-    if (await checkbox.isVisible({ timeout: 5000 }).catch(() => false)) {
-      const isDisabled = await checkbox.isDisabled().catch(() => false);
+    if (checkboxCount > 0 && await checkbox.isVisible()) {
+      const isDisabled = await checkbox.isDisabled();
       expect(isDisabled).toBe(true);
     }
   });
@@ -111,23 +99,17 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Fill in private key
     const keyInput = page.locator('input[name="private-key"]').first();
-    if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await keyInput.fill(TEST_PRIVATE_KEY);
-      await page.waitForTimeout(1000); // Wait for checkbox to enable
-    }
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
 
-    // Check the confirmation checkbox (HeadlessUI Checkbox component)
+    // Wait for checkbox to enable
     const checkbox = page.locator('#checkbox-confirmed, [id^="checkbox-confirmed"]').first();
-    if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await checkbox.click(); // Use click() instead of check() for HeadlessUI
-      await page.waitForTimeout(500);
-    }
+    await expect(checkbox).toBeVisible({ timeout: 3000 });
+    await checkbox.click(); // Use click() instead of check() for HeadlessUI
 
     // Password field should appear
     const passwordInput = page.locator('input[name="password"]').first();
-    const isVisible = await passwordInput.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for invalid private key format', async ({ page }) => {
@@ -135,36 +117,33 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Fill in invalid private key
     const keyInput = page.locator('input[name="private-key"]').first();
-    if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await keyInput.fill('invalid-key-format');
-      await page.waitForTimeout(500);
-    }
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill('invalid-key-format');
 
     // Check confirmation
     const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false) && !await checkbox.isDisabled()) {
+    const checkboxCount = await checkbox.count();
+    if (checkboxCount > 0 && await checkbox.isVisible() && !await checkbox.isDisabled()) {
       await checkbox.check();
-      await page.waitForTimeout(500);
     }
 
     // Fill password
     const passwordInput = page.locator('input[name="password"]').first();
-    if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const passwordCount = await passwordInput.count();
+    if (passwordCount > 0 && await passwordInput.isVisible()) {
       await passwordInput.fill(TEST_PASSWORD);
     }
 
     // Submit
     const continueButton = page.locator('button:has-text("Continue"), button[type="submit"]').first();
-    if (await continueButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const buttonCount = await continueButton.count();
+    if (buttonCount > 0 && await continueButton.isVisible()) {
       await continueButton.click();
-      await page.waitForTimeout(1000);
     }
 
-    // Should show error
-    const hasError = await page.locator('text=/invalid|error|format/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnPage = page.url().includes('import-private-key');
-
-    expect(hasError || stillOnPage).toBe(true);
+    // Should show error or stay on page
+    const errorOrStillOnPage = page.url().includes('import-private-key');
+    expect(errorOrStillOnPage).toBe(true);
   });
 
   walletTest('shows error for wrong password (existing keychain)', async ({ page }) => {
@@ -172,54 +151,47 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Fill in valid private key
     const keyInput = page.locator('input[name="private-key"]').first();
-    if (await keyInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await keyInput.fill(TEST_PRIVATE_KEY);
-      await page.waitForTimeout(500);
-    }
+    await expect(keyInput).toBeVisible({ timeout: 5000 });
+    await keyInput.fill(TEST_PRIVATE_KEY);
 
     // Check confirmation
     const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    if (await checkbox.isVisible({ timeout: 3000 }).catch(() => false) && !await checkbox.isDisabled()) {
+    const checkboxCount = await checkbox.count();
+    if (checkboxCount > 0 && await checkbox.isVisible() && !await checkbox.isDisabled()) {
       await checkbox.check();
-      await page.waitForTimeout(500);
     }
 
     // Fill wrong password
     const passwordInput = page.locator('input[name="password"]').first();
-    if (await passwordInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const passwordCount = await passwordInput.count();
+    if (passwordCount > 0 && await passwordInput.isVisible()) {
       await passwordInput.fill('wrongpassword123');
     }
 
     // Submit
     const continueButton = page.locator('button:has-text("Continue"), button[type="submit"]').first();
-    if (await continueButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const buttonCount = await continueButton.count();
+    if (buttonCount > 0 && await continueButton.isVisible()) {
       await continueButton.click();
-      await page.waitForTimeout(1000);
     }
 
-    // Should show error
-    const hasError = await page.locator('text=/invalid|incorrect|wrong|password/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnPage = page.url().includes('import-private-key');
-
-    expect(hasError || stillOnPage).toBe(true);
+    // Should show error or stay on page
+    const errorOrStillOnPage = page.url().includes('import-private-key');
+    expect(errorOrStillOnPage).toBe(true);
   });
 
   walletTest('has back button', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
     const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has close button', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
     const closeButton = page.locator('button[aria-label="Close"]').first();
-    const isVisible = await closeButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(closeButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays instructions text', async ({ page }) => {
@@ -233,9 +205,8 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
   walletTest('displays instructions', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    const hasInstructions = await page.locator('text=/Enter.*private key|use its address/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasInstructions).toBe(true);
+    const instructions = page.locator('text=/Enter.*private key|use its address/i').first();
+    await expect(instructions).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -250,14 +221,14 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
 
       // Click import private key on onboarding
       const importKeyButton = page.locator('button:has-text("Import Private Key"), button:has-text("Private Key")').first();
+      const buttonCount = await importKeyButton.count();
 
-      if (await importKeyButton.isVisible({ timeout: 10000 }).catch(() => false)) {
+      if (buttonCount > 0 && await importKeyButton.isVisible({ timeout: 10000 })) {
         await importKeyButton.click();
-        await page.waitForTimeout(1000);
 
         // Should navigate to import-private-key page
-        const onImportPage = page.url().includes('import-private-key') ||
-          await page.locator('input[name="private-key"]').first().isVisible({ timeout: 5000 }).catch(() => false);
+        const keyInput = page.locator('input[name="private-key"]').first();
+        const onImportPage = page.url().includes('import-private-key') || await keyInput.count() > 0;
 
         expect(onImportPage).toBe(true);
       }

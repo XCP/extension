@@ -96,7 +96,7 @@ walletTest.describe('Address Management', () => {
       if (await selectAddress.copyButton(page).isVisible()) {
         await selectAddress.copyButton(page).click();
 
-        await expect(page.locator('.text-green-500, text=/copied/i')).toBeVisible();
+        await expect(page.locator('.text-green-500').or(page.locator('text=/copied/i'))).toBeVisible();
       }
     }
   });

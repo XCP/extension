@@ -11,10 +11,9 @@ import {
   expect,
   navigateTo,
   TEST_MNEMONIC,
-  TEST_PASSWORD
 } from '../fixtures';
 import { TEST_ADDRESSES, TEST_PRIVATE_KEYS } from '../test-data';
-import { onboarding, importWallet, createWallet, actions, signMessage, index, send } from '../selectors';
+import { onboarding, actions, index, send } from '../selectors';
 
 test.describe('Form Edge Cases - Mnemonic Input', () => {
   test('can paste full mnemonic into first input field', async ({ extensionPage }) => {
@@ -28,13 +27,13 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     // When you fill with multiple space-separated words, handleWordChange splits them
     await firstInput.fill(TEST_MNEMONIC);
 
-    await extensionPage.waitForTimeout(500);
-
     // After pasting full mnemonic, words get distributed across all 12 inputs
     // Check that the first word has the first mnemonic word
-    const firstWordValue = await firstInput.inputValue();
-    const expectedFirstWord = TEST_MNEMONIC.split(' ')[0];
-    expect(firstWordValue).toBe(expectedFirstWord);
+    await expect(async () => {
+      const firstWordValue = await firstInput.inputValue();
+      const expectedFirstWord = TEST_MNEMONIC.split(' ')[0];
+      expect(firstWordValue).toBe(expectedFirstWord);
+    }).toPass({ timeout: 3000 });
   });
 
   test('handles mnemonic with extra whitespace', async ({ extensionPage }) => {
@@ -87,12 +86,14 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     }
 
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
-    if (await continueButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await continueButton.click();
-      await extensionPage.waitForTimeout(1000);
+    const buttonCount = await continueButton.count();
 
-      const hasError = await extensionPage.locator('text=/invalid|error|incorrect/i').isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasError).toBe(true);
+    if (buttonCount > 0 && await continueButton.isVisible()) {
+      await continueButton.click();
+
+      // Should show error for invalid mnemonic
+      const error = extensionPage.locator('text=/invalid|error|incorrect/i');
+      await expect(error).toBeVisible({ timeout: 5000 });
     }
   });
 });
@@ -103,11 +104,12 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    if (await labelInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const labelCount = await labelInput.count();
+
+    if (labelCount > 0 && await labelInput.isVisible()) {
       const longLabel = 'A'.repeat(200);
       await labelInput.fill(longLabel);
       await labelInput.blur();
-      await extensionPage.waitForTimeout(500);
 
       const inputValue = await labelInput.inputValue();
       expect(inputValue.length).toBeLessThanOrEqual(200);
@@ -119,11 +121,12 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    if (await labelInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const labelCount = await labelInput.count();
+
+    if (labelCount > 0 && await labelInput.isVisible()) {
       const specialLabel = 'My Wallet <script>alert("xss")</script> & "quotes" \'single\'';
       await labelInput.fill(specialLabel);
       await labelInput.blur();
-      await extensionPage.waitForTimeout(500);
 
       const inputValue = await labelInput.inputValue();
       expect(inputValue).toBeTruthy();
@@ -135,10 +138,11 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    if (await labelInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const labelCount = await labelInput.count();
+
+    if (labelCount > 0 && await labelInput.isVisible()) {
       await labelInput.fill('My Wallet 123');
       await labelInput.blur();
-      await extensionPage.waitForTimeout(500);
 
       const inputValue = await labelInput.inputValue();
       expect(inputValue).toContain('123');
@@ -147,27 +151,24 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
 });
 
 walletTest.describe('Form Edge Cases - Message Signing', () => {
-  walletTest('handles very long message for signing', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await navigateTo(page, 'actions');
     await actions.signMessageOption(page).click();
     await expect(page).toHaveURL(/sign-message/, { timeout: 5000 });
+  });
 
+  walletTest('handles very long message for signing', async ({ page }) => {
     const messageInput = page.locator('textarea, input[name="message"]').first();
     await expect(messageInput).toBeVisible({ timeout: 5000 });
 
     const longMessage = 'A'.repeat(10000);
     await messageInput.fill(longMessage);
-    await page.waitForTimeout(500);
 
     const inputValue = await messageInput.inputValue();
     expect(inputValue.length).toBeGreaterThan(0);
   });
 
   walletTest('handles special characters in message signing', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await actions.signMessageOption(page).click();
-    await expect(page).toHaveURL(/sign-message/, { timeout: 5000 });
-
     const messageInput = page.locator('textarea, input[name="message"]').first();
     await expect(messageInput).toBeVisible({ timeout: 5000 });
 
@@ -180,25 +181,17 @@ walletTest.describe('Form Edge Cases - Message Signing', () => {
   });
 
   walletTest('handles empty message signing attempt', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await actions.signMessageOption(page).click();
-    await expect(page).toHaveURL(/sign-message/, { timeout: 5000 });
-
     const messageInput = page.locator('textarea, input[name="message"]').first();
     await expect(messageInput).toBeVisible({ timeout: 5000 });
 
     await messageInput.fill('');
 
     const signButton = page.locator('button:has-text("Sign")').last();
-    const isDisabled = await signButton.isDisabled().catch(() => true);
+    const isDisabled = await signButton.isDisabled();
     expect(isDisabled).toBe(true);
   });
 
   walletTest('handles unicode/multilingual message', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await actions.signMessageOption(page).click();
-    await expect(page).toHaveURL(/sign-message/, { timeout: 5000 });
-
     const messageInput = page.locator('textarea, input[name="message"]').first();
     await expect(messageInput).toBeVisible({ timeout: 5000 });
 
@@ -211,110 +204,98 @@ walletTest.describe('Form Edge Cases - Message Signing', () => {
 });
 
 walletTest.describe('Form Edge Cases - Send Amount', () => {
-  walletTest('handles zero amount send attempt', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
     await index.sendButton(page).click();
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
+  });
 
+  walletTest('handles zero amount send attempt', async ({ page }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    if (await amountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const amountCount = await amountInput.count();
+
+    if (amountCount > 0 && await amountInput.isVisible()) {
       await amountInput.fill('0');
       await amountInput.blur();
-      await page.waitForTimeout(500);
 
       const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled().catch(() => true);
-      const hasError = await page.locator('.text-red-600, .text-red-500').isVisible({ timeout: 1000 }).catch(() => false);
+      const isDisabled = await submitButton.isDisabled();
+      const errorCount = await page.locator('.text-red-600, .text-red-500').count();
 
-      expect(isDisabled || hasError).toBe(true);
+      expect(isDisabled || errorCount > 0).toBe(true);
     }
   });
 
   walletTest('handles negative amount send attempt', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    if (await amountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const amountCount = await amountInput.count();
+
+    if (amountCount > 0 && await amountInput.isVisible()) {
       await amountInput.fill('-1');
       await amountInput.blur();
-      await page.waitForTimeout(500);
 
       const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled().catch(() => true);
-      const hasError = await page.locator('.text-red-600, .text-red-500').isVisible({ timeout: 1000 }).catch(() => false);
+      const isDisabled = await submitButton.isDisabled();
+      const errorCount = await page.locator('.text-red-600, .text-red-500').count();
       const inputValue = await amountInput.inputValue();
 
-      expect(isDisabled || hasError || !inputValue.includes('-')).toBe(true);
+      expect(isDisabled || errorCount > 0 || !inputValue.includes('-')).toBe(true);
     }
   });
 
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    if (await amountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const amountCount = await amountInput.count();
+
+    if (amountCount > 0 && await amountInput.isVisible()) {
       await amountInput.fill('0.00000001');
       await amountInput.blur();
-      await page.waitForTimeout(500);
 
-      const hasWarning = await page.locator('text=/dust|minimum|too small/i').isVisible({ timeout: 2000 }).catch(() => false);
-      expect(true).toBe(true);
+      // Input accepted - validation may happen on submit
+      const inputValue = await amountInput.inputValue();
+      expect(inputValue).toBeTruthy();
     }
   });
 
   walletTest('handles very large amount (exceeds balance)', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    if (await amountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const amountCount = await amountInput.count();
+
+    if (amountCount > 0 && await amountInput.isVisible()) {
       await amountInput.fill('999999999');
       await amountInput.blur();
-      await page.waitForTimeout(500);
 
       const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      const isDisabled = await submitButton.isDisabled().catch(() => true);
-      const hasError = await page.locator('text=/insufficient|not enough|exceeds/i').isVisible({ timeout: 2000 }).catch(() => false);
+      const isDisabled = await submitButton.isDisabled();
+      const errorCount = await page.locator('text=/insufficient|not enough|exceeds/i').count();
 
-      expect(isDisabled || hasError).toBe(true);
+      expect(isDisabled || errorCount > 0).toBe(true);
     }
   });
 
   walletTest('handles decimal precision in amount', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    if (await amountInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    const amountCount = await amountInput.count();
+
+    if (amountCount > 0 && await amountInput.isVisible()) {
       await amountInput.fill('0.123456789012345');
       await amountInput.blur();
-      await page.waitForTimeout(500);
 
       const inputValue = await amountInput.inputValue();
       const decimalPart = inputValue.split('.')[1] || '';
@@ -324,45 +305,37 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
 });
 
 walletTest.describe('Form Edge Cases - Address Validation', () => {
-  walletTest('handles address with leading/trailing whitespace', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
     await index.sendButton(page).click();
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
+  });
 
+  walletTest('handles address with leading/trailing whitespace', async ({ page }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
 
     await send.recipientInput(page).fill(`  ${TEST_ADDRESSES.mainnet.p2wpkh}  `);
     await send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
 
-    const hasError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasError).toBe(false);
+    // Whitespace should be trimmed, address should be valid
+    const errorCount = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).count();
+    expect(errorCount).toBe(0);
   });
 
   walletTest('handles mixed case bech32 address', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
 
     const mixedCaseAddress = 'BC1QAR0SRRR7xfkvy5l643lydnw9re59gtzzwf5mdq';
     await send.recipientInput(page).fill(mixedCaseAddress);
     await send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
 
-    const hasError = await page.locator('.text-red-600, .text-red-500').isVisible({ timeout: 2000 }).catch(() => false);
-    expect(true).toBe(true);
+    // Mixed case bech32 should be handled (may be rejected or normalized)
+    const inputValue = await send.recipientInput(page).inputValue();
+    expect(inputValue).toBeTruthy();
   });
 
   walletTest('handles invalid address format', async ({ page }) => {
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
-    await index.sendButton(page).click();
-    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('domcontentloaded');
-
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
 
     // Use a truly invalid address (not a valid bech32 or base58 format)
@@ -376,12 +349,14 @@ walletTest.describe('Form Edge Cases - Address Validation', () => {
 });
 
 test.describe('Form Edge Cases - Password Fields', () => {
-  test('handles password with special characters', async ({ extensionPage }) => {
+  test.beforeEach(async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
     await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
     await extensionPage.getByText('View 12-word Secret Phrase').click();
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
+  });
 
+  test('handles password with special characters', async ({ extensionPage }) => {
     const specialPassword = 'P@ssw0rd!#$%^&*()_+-=[]{}|;:\'",.<>?/\\`~';
     const passwordInput = extensionPage.locator('input[name="password"]');
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
@@ -392,11 +367,6 @@ test.describe('Form Edge Cases - Password Fields', () => {
   });
 
   test('handles very long password', async ({ extensionPage }) => {
-    await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
-    await extensionPage.getByText('View 12-word Secret Phrase').click();
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-
     const longPassword = 'A'.repeat(500);
     const passwordInput = extensionPage.locator('input[name="password"]');
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
@@ -407,11 +377,6 @@ test.describe('Form Edge Cases - Password Fields', () => {
   });
 
   test('handles password with unicode characters', async ({ extensionPage }) => {
-    await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
-    await extensionPage.getByText('View 12-word Secret Phrase').click();
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-
     const unicodePassword = 'password123';
     const passwordInput = extensionPage.locator('input[name="password"]');
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
@@ -422,11 +387,6 @@ test.describe('Form Edge Cases - Password Fields', () => {
   });
 
   test('handles minimum password length validation', async ({ extensionPage }) => {
-    await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
-    await extensionPage.getByText('View 12-word Secret Phrase').click();
-    await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
-
     const passwordInput = extensionPage.locator('input[name="password"]');
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill('12345');
@@ -434,10 +394,10 @@ test.describe('Form Edge Cases - Password Fields', () => {
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
     await expect(continueButton).toBeVisible({ timeout: 5000 });
 
-    const isDisabled = await continueButton.isDisabled().catch(() => false);
-    const hasError = await extensionPage.locator('text=/minimum|too short|at least/i').isVisible({ timeout: 2000 }).catch(() => false);
+    const isDisabled = await continueButton.isDisabled();
+    const errorCount = await extensionPage.locator('text=/minimum|too short|at least/i').count();
 
-    expect(isDisabled || hasError).toBe(true);
+    expect(isDisabled || errorCount > 0).toBe(true);
   });
 });
 
@@ -447,19 +407,19 @@ test.describe('Form Edge Cases - Private Key Import', () => {
     await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
-    if (await privKeyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const optionCount = await privKeyOption.count();
+
+    if (optionCount > 0 && await privKeyOption.isVisible()) {
       await privKeyOption.click();
-      await extensionPage.waitForTimeout(500);
 
       const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
-      if (await privKeyInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await privKeyInput.fill('0x' + 'a'.repeat(64));
-        await privKeyInput.blur();
-        await extensionPage.waitForTimeout(500);
+      await expect(privKeyInput).toBeVisible({ timeout: 5000 });
 
-        const inputValue = await privKeyInput.inputValue();
-        expect(inputValue).toBeTruthy();
-      }
+      await privKeyInput.fill('0x' + 'a'.repeat(64));
+      await privKeyInput.blur();
+
+      const inputValue = await privKeyInput.inputValue();
+      expect(inputValue).toBeTruthy();
     }
   });
 
@@ -468,20 +428,20 @@ test.describe('Form Edge Cases - Private Key Import', () => {
     await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
-    if (await privKeyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const optionCount = await privKeyOption.count();
+
+    if (optionCount > 0 && await privKeyOption.isVisible()) {
       await privKeyOption.click();
-      await extensionPage.waitForTimeout(500);
 
       const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
-      if (await privKeyInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await privKeyInput.fill(TEST_PRIVATE_KEYS.mainnet);
-        await privKeyInput.blur();
-        await extensionPage.waitForTimeout(500);
+      await expect(privKeyInput).toBeVisible({ timeout: 5000 });
 
-        // Verify input accepted the value
-        const inputValue = await privKeyInput.inputValue();
-        expect(inputValue).toBe(TEST_PRIVATE_KEYS.mainnet);
-      }
+      await privKeyInput.fill(TEST_PRIVATE_KEYS.mainnet);
+      await privKeyInput.blur();
+
+      // Verify input accepted the value
+      const inputValue = await privKeyInput.inputValue();
+      expect(inputValue).toBe(TEST_PRIVATE_KEYS.mainnet);
     }
   });
 });
@@ -505,9 +465,6 @@ walletTest.describe('Form Edge Cases - Clipboard Interactions', () => {
     // Use Playwright's fill() which properly handles React controlled inputs
     await recipientInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
-    await page.waitForTimeout(300);
-
-    const inputValue = await recipientInput.inputValue();
-    expect(inputValue).toBe(TEST_ADDRESSES.mainnet.p2wpkh);
+    await expect(recipientInput).toHaveValue(TEST_ADDRESSES.mainnet.p2wpkh);
   });
 });

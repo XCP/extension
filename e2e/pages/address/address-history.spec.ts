@@ -42,11 +42,9 @@ walletTest.describe('Address History Page (/address-history)', () => {
   walletTest('shows loading spinner initially', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/address-history'));
 
-    // Should show loading spinner while fetching
-    const hasSpinner = await page.locator('[class*="spinner"], text=/Loading transactions/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasContent = await page.locator('text=/History|No Transactions/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasSpinner || hasContent).toBe(true);
+    // Should show loading spinner or content
+    const loadingOrContent = page.locator('[class*="spinner"]').or(page.locator('text=/Loading transactions|History|No Transactions/i')).first();
+    await expect(loadingOrContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has View on XChain button', async ({ page }) => {

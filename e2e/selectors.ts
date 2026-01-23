@@ -254,9 +254,9 @@ export const compose = {
     // Fee selection
     feeDisplay: (page: Page) => page.locator('text=/Fee|sat/i'),
     feeSlider: (page: Page) => page.locator('input[type="range"]'),
-    feeLow: (page: Page) => page.locator('button:has-text("Low"), text=/Low/i'),
-    feeMedium: (page: Page) => page.locator('button:has-text("Medium"), text=/Medium/i'),
-    feeHigh: (page: Page) => page.locator('button:has-text("High"), text=/High/i'),
+    feeLow: (page: Page) => page.locator('button:has-text("Low")').or(page.locator('text=/Low/i')),
+    feeMedium: (page: Page) => page.locator('button:has-text("Medium")').or(page.locator('text=/Medium/i')),
+    feeHigh: (page: Page) => page.locator('button:has-text("High")').or(page.locator('text=/High/i')),
     feeCustom: (page: Page) => page.locator('button:has-text("Custom"), input[placeholder*="sat"]'),
   },
 
@@ -316,7 +316,7 @@ export const compose = {
   broadcast: {
     messageInput: (page: Page) => page.locator('textarea[name="text"]'),
     broadcastButton: (page: Page) => page.locator('button:has-text("Broadcast"), button[type="submit"]').first(),
-    addressOptionsLink: (page: Page) => page.locator('text=/Address.*Option|Options|Configure/i, a[href*="address-options"]').first(),
+    addressOptionsLink: (page: Page) => page.locator('text=/Address.*Option|Options|Configure/i').or(page.locator('a[href*="address-options"]')).first(),
   },
 
   // Sweep address (/compose/sweep)
