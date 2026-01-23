@@ -25,7 +25,7 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
 
     // Wait for menu to appear and check if Remove button is disabled (only one wallet)
     const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
-    await expect(removeOption.or(page.getByRole('menu'))).toBeVisible({ timeout: 3000 }).catch(() => {});
+    await expect(removeOption.or(page.getByRole('menu')).first()).toBeVisible({ timeout: 3000 });
 
     const removeCount = await removeOption.count();
     if (removeCount === 0) {
@@ -55,7 +55,7 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     const warning = page.locator('text=/Warning|Remove|Delete/i').first();
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
 
-    await expect(warning.or(passwordInput)).toBeVisible({ timeout: 5000 });
+    await expect(warning.or(passwordInput).first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays security warning', async ({ page }) => {

@@ -117,7 +117,7 @@ walletTest.describe('Error Recovery', () => {
     const errorText = page.getByText(/Error|Not Found|404/i);
     const assetsTab = index.assetsTab(page);
 
-    await expect(errorText.or(assetsTab)).toBeVisible({ timeout: 5000 });
+    await expect(errorText.or(assetsTab).first()).toBeVisible({ timeout: 5000 });
 
     // Navigate to wallet and verify it works
     await page.goto(`chrome-extension://${extensionId}/popup.html#/index`);

@@ -49,7 +49,7 @@ walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
     ).first();
     const dispenserContent = page.locator('text=/Dispenser|satoshi|BTC/i').first();
 
-    await expect(createOption.or(dispenserContent)).toBeVisible({ timeout: 5000 });
+    await expect(createOption.or(dispenserContent).first()).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -64,7 +64,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     const priceContent = page.locator('text=/BTC|Price|USD/i').first();
     const chart = page.locator('canvas');
 
-    await expect(priceContent.or(chart)).toBeVisible({ timeout: 5000 });
+    await expect(priceContent.or(chart).first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('BTC price page shows price chart or data', async ({ page }) => {
@@ -77,7 +77,7 @@ walletTest.describe('BTC Price Page (/market/btc)', () => {
     const chart = market.priceChart(page);
     const priceData = page.locator('text=/\\$[0-9,]+|Price|USD/i').first();
 
-    await expect(chart.or(priceData)).toBeVisible({ timeout: 5000 });
+    await expect(chart.or(priceData).first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('BTC price page has back navigation', async ({ page }) => {

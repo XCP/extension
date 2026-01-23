@@ -23,7 +23,7 @@ walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
     // Wait for loading to complete - either UTXO Details heading or error alert appears
     const detailsHeading = page.getByRole('heading', { name: 'UTXO Details' });
     const errorAlert = page.locator('[role="alert"]');
-    await expect(detailsHeading.or(errorAlert)).toBeVisible({ timeout: 15000 });
+    await expect(detailsHeading.or(errorAlert).first()).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows Details or error', async ({ page }) => {

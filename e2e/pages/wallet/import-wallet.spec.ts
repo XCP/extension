@@ -113,12 +113,16 @@ walletTest.describe('Import Wallet - Private Key', () => {
     await importWallet.backedUpCheckbox(page).check();
     await importWallet.passwordInput(page).fill(TEST_PASSWORD);
 
-    // Try to click Continue
-    await importWallet.continueButton(page).click().catch(() => {});
-    await page.waitForLoadState('networkidle');
-
-    // Should stay on import page (not navigate to index with invalid key)
-    await expect(page).not.toHaveURL(/index/, { timeout: 2000 });
+    // Try to click Continue - button may be disabled with invalid key
+    const continueBtn = importWallet.continueButton(page);
+    const isEnabled = await continueBtn.isEnabled();
+    if (isEnabled) {
+      await continueBtn.click();
+      await page.waitForLoadState('networkidle');
+      // Should stay on import page (not navigate to index with invalid key)
+      await expect(page).not.toHaveURL(/index/, { timeout: 2000 });
+    }
+    // If button is disabled with invalid key, that's also correct behavior
   });
 });
 

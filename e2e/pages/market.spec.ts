@@ -103,7 +103,7 @@ walletTest.describe('Market Page', () => {
     // NOT loading spinners - test should wait for actual content
     const createButtons = page.locator('text=/New Order|New Dispenser|Create Order|Create Dispenser/i').first();
     const emptyState = page.locator('text=/No orders|No dispensers|You don\'t have any/i').first();
-    await expect(createButtons.or(emptyState)).toBeVisible({ timeout: 15000 });
+    await expect(createButtons.or(emptyState).first()).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('can navigate to market from footer', async ({ page }) => {
@@ -139,7 +139,8 @@ walletTest.describe('Market Page', () => {
     // Page should still show market structure (not crash)
     const pageStillWorks = page.getByText('Marketplace')
       .or(page.getByText('Browse'))
-      .or(page.getByText('Manage'));
+      .or(page.getByText('Manage'))
+      .first();
     await expect(pageStillWorks).toBeVisible({ timeout: 3000 });
   });
 
@@ -200,7 +201,7 @@ walletTest.describe('Market Page', () => {
     const cards = page.locator('.space-y-2 > div').first();
     const emptyState = page.getByText(/No open dispensers|No dispensers/i).first();
     const loading = page.getByText(/Loading/i).first();
-    await expect(cards.or(emptyState).or(loading)).toBeVisible({ timeout: 10000 });
+    await expect(cards.or(emptyState).or(loading).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('orders section displays cards or empty state', async ({ page }) => {
@@ -215,7 +216,7 @@ walletTest.describe('Market Page', () => {
     const cards = page.locator('.space-y-2 > div').first();
     const emptyState = page.getByText(/No open orders|No orders/i).first();
     const loading = page.getByText(/Loading/i).first();
-    await expect(cards.or(emptyState).or(loading)).toBeVisible({ timeout: 10000 });
+    await expect(cards.or(emptyState).or(loading).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('market page scrolling works with content', async ({ page }) => {

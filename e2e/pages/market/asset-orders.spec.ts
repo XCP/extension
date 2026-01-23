@@ -16,7 +16,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     // Should show orders UI - title, asset name, or loading state
     const content = market.pageTitle(page)
       .or(market.assetName(page))
-      .or(market.loadingState(page));
+      .or(market.loadingState(page))
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -41,7 +42,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     const content = market.openTab(page)
       .or(market.matchedTab(page))
       .or(market.loadingState(page))
-      .or(market.assetName(page));
+      .or(market.assetName(page))
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -56,7 +58,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     const content = market.floorPrice(page)
       .or(market.avgPrice(page))
       .or(market.loadingState(page))
-      .or(market.pageTitle(page));
+      .or(market.pageTitle(page))
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -91,7 +94,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     const content = market.orderCards(page)
       .or(market.emptyState(page))
       .or(market.loadingState(page))
-      .or(market.pageTitle(page));
+      .or(market.pageTitle(page))
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -104,7 +108,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
 
     const content = market.refreshButton(page)
       .or(market.retryButton(page))
-      .or(market.pageTitle(page));
+      .or(market.pageTitle(page))
+      .first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -115,7 +120,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     // Wait for content to load
     await page.waitForLoadState('networkidle');
 
-    const content = market.myOrdersLink(page).or(market.pageTitle(page));
+    const content = market.myOrdersLink(page).or(market.pageTitle(page)).first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
@@ -143,7 +148,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     // Wait for content to load
     await page.waitForLoadState('networkidle');
 
-    const content = market.priceUnitToggle(page).or(market.pageTitle(page));
+    const content = market.priceUnitToggle(page).or(market.pageTitle(page)).first();
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 });

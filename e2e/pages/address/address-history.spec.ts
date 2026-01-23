@@ -23,7 +23,7 @@ walletTest.describe('Address History Page (/address-history)', () => {
 
     // Wait for content to load - should show either transactions or empty state
     // Using .or() for genuinely alternative states (not loading)
-    const content = addressHistory.emptyState(page).or(addressHistory.transactionList(page));
+    const content = addressHistory.emptyState(page).or(addressHistory.transactionList(page)).first();
     await expect(content).toBeVisible({ timeout: 10000 });
   });
 
