@@ -11,7 +11,7 @@
  */
 
 import { walletTest, expect, navigateTo } from '../fixtures';
-import { index, viewAddress } from '../selectors';
+import { index, viewAddress, header } from '../selectors';
 
 walletTest.describe('Index Page', () => {
   walletTest.describe('Navigation', () => {
@@ -48,7 +48,7 @@ walletTest.describe('Index Page', () => {
     });
 
     walletTest('history button navigates to address-history page', async ({ page }) => {
-      const historyButton = page.getByRole('button', { name: 'Transaction history' });
+      const historyButton = index.historyButton(page);
       const buttonCount = await historyButton.count();
 
       if (buttonCount === 0) {
@@ -74,7 +74,7 @@ walletTest.describe('Index Page', () => {
     });
 
     walletTest('wallet selector in header is visible and clickable', async ({ page }) => {
-      const walletSelector = page.getByText(/Wallet \d+|Wallet/i).first();
+      const walletSelector = header.walletSelector(page);
       const selectorCount = await walletSelector.count();
 
       if (selectorCount === 0) {
