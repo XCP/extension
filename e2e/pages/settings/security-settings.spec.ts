@@ -8,91 +8,76 @@ import { walletTest, expect, TEST_PASSWORD } from '../../fixtures';
 import { securitySettings, common } from '../../selectors';
 
 walletTest.describe('Security Settings Page (/settings/security)', () => {
-  walletTest('security settings page loads', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
     await page.waitForLoadState('networkidle');
-
-    // Should show security settings UI
-    const hasTitle = await page.locator('text=/Security/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPasswordField = await securitySettings.currentPasswordInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTitle || hasPasswordField).toBe(true);
   });
 
-  walletTest('shows password change form', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
+  walletTest('security settings page loads with title', async ({ page }) => {
+    // Page should have Security title
+    const title = page.locator('text=/Security/i').first();
+    await expect(title).toBeVisible({ timeout: 5000 });
+  });
 
-    // Should show current password, new password, confirm password fields
-    const hasCurrentPassword = await securitySettings.currentPasswordInput(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasNewPassword = await securitySettings.newPasswordInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const hasConfirmPassword = await securitySettings.confirmPasswordInput(page).isVisible({ timeout: 3000 }).catch(() => false);
+  walletTest('shows current password field', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
+  });
 
-    expect(hasCurrentPassword || hasNewPassword || hasConfirmPassword).toBe(true);
+  walletTest('shows new password field', async ({ page }) => {
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    await expect(newPasswordInput).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('shows confirm password field', async ({ page }) => {
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
+    await expect(confirmPasswordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has Change Password button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
-
-    await expect(securitySettings.changePasswordButton(page)).toBeVisible({ timeout: 5000 });
+    const changeButton = securitySettings.changePasswordButton(page);
+    await expect(changeButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('Change Password button is disabled without input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
-
     const changeButton = securitySettings.changePasswordButton(page);
     await expect(changeButton).toBeVisible({ timeout: 5000 });
     await expect(changeButton).toBeDisabled();
   });
 
-  walletTest('shows security tip', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
+  walletTest('can fill all password fields', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
 
-    const hasSecurityTip = await securitySettings.securityTip(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPasswordAdvice = await page.locator('text=/strong|unique|password manager/i').first().isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
 
-    expect(hasSecurityTip || hasPasswordAdvice).toBe(true);
-  });
+    // Fill all fields
+    await currentPasswordInput.fill(TEST_PASSWORD);
+    await newPasswordInput.fill('NewPassword123!');
+    await confirmPasswordInput.fill('NewPassword123!');
 
-  walletTest('can fill in password fields', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
+    // Verify values were entered
+    await expect(currentPasswordInput).toHaveValue(TEST_PASSWORD);
+    await expect(newPasswordInput).toHaveValue('NewPassword123!');
+    await expect(confirmPasswordInput).toHaveValue('NewPassword123!');
 
-    if (await securitySettings.currentPasswordInput(page).isVisible({ timeout: 5000 }).catch(() => false)) {
-      await securitySettings.currentPasswordInput(page).fill(TEST_PASSWORD);
-      await securitySettings.newPasswordInput(page).fill('NewPassword123!');
-      await securitySettings.confirmPasswordInput(page).fill('NewPassword123!');
-
-      // Button should now be enabled
-      await expect(securitySettings.changePasswordButton(page)).toBeEnabled();
-    }
+    // Button should now be enabled
+    await expect(securitySettings.changePasswordButton(page)).toBeEnabled();
   });
 
   walletTest('has back navigation', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
-
     const backButton = common.headerBackButton(page);
-    if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await backButton.click();
-      await page.waitForTimeout(500);
-      expect(page.url()).toContain('settings');
-    }
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+
+    await backButton.click();
+
+    // Should navigate back to settings
+    await expect(page).toHaveURL(/settings/, { timeout: 5000 });
   });
 
-  walletTest('has help button to toggle help text', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/settings/security'));
-    await page.waitForLoadState('networkidle');
-
-    // Help button is a question mark icon in the header
-    const hasHelp = await common.helpButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasHelpIcon = await page.locator('header button').last().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasSecurityTip = await securitySettings.securityTip(page).isVisible({ timeout: 2000 }).catch(() => false);
-
-    // Either has help button or the security tip is already visible
-    expect(hasHelp || hasHelpIcon || hasSecurityTip).toBe(true);
+  walletTest('has help button in header', async ({ page }) => {
+    const helpButton = common.helpButton(page);
+    await expect(helpButton).toBeVisible({ timeout: 5000 });
   });
 });

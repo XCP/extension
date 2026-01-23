@@ -18,7 +18,8 @@ import {
   TEST_PASSWORD,
   TEST_MNEMONIC
 } from '../fixtures';
-import { index, viewAddress, selectAddress, settings, actions, send, unlock, onboarding, common } from '../selectors';
+import { index, selectAddress, settings, actions, send } from '../selectors';
+import { TEST_ADDRESSES } from '../test-data';
 
 test.describe('User Journey: New User Onboarding to First Transaction', () => {
   test('complete new user flow: create wallet -> explore dashboard -> attempt send', async ({ extensionPage }) => {
@@ -26,11 +27,9 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
     await createWallet(extensionPage, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
-    // Step 2: Verify dashboard loaded with address
-    const addressElement = extensionPage.locator('.font-mono').first();
-    await expect(addressElement).toBeVisible({ timeout: 5000 });
-    const address = await addressElement.textContent();
-    expect(address).toBeTruthy();
+    // Step 2: Verify dashboard loaded with address display
+    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
 
     // Step 3: Check balance section exists
     const balanceSection = extensionPage.locator('text=/BTC|Balance|Assets/i').first();
@@ -38,7 +37,7 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
 
     // Step 4: Navigate to send
     const sendButton = index.sendButton(extensionPage);
-    await expect(sendButton).toBeVisible();
+    await expect(sendButton).toBeVisible({ timeout: 5000 });
     await sendButton.click();
     await expect(extensionPage).toHaveURL(/compose\/send/, { timeout: 5000 });
 
@@ -48,69 +47,35 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
 
     // Step 6: Navigate back to dashboard
     const backButton = extensionPage.locator('button[aria-label*="back"], button[aria-label*="Back"], header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
     await expect(extensionPage).toHaveURL(/index/, { timeout: 5000 });
   });
 });
 
 test.describe('User Journey: Wallet Management Lifecycle', () => {
-  test('create wallet -> add addresses -> lock -> unlock -> verify addresses persist', async ({ extensionPage }) => {
+  test('create wallet -> lock -> unlock -> verify state persists', async ({ extensionPage }) => {
     // Step 1: Create wallet
     await createWallet(extensionPage, TEST_PASSWORD);
-    await extensionPage.waitForURL(/index/, { timeout: 10000 }).catch(() => {});
-    await extensionPage.waitForTimeout(2000);
+    await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
-    // Step 2: Navigate to address management
-    const addressChevron = selectAddress.chevronButton(extensionPage);
-    if (!await addressChevron.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // No chevron - might be a different UI
-      return;
-    }
-    await addressChevron.click();
-    await extensionPage.waitForURL(/select-address/, { timeout: 5000 }).catch(() => {});
-    await extensionPage.waitForTimeout(1000);
+    // Step 2: Verify address is displayed
+    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const addressBefore = await addressDisplay.textContent();
 
-    // Step 3: Add a new address
-    const addButton = extensionPage.locator('button:has-text("Add Address")').first();
-    if (await addButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await addButton.click();
-      await extensionPage.waitForTimeout(1000);
-    }
-
-    // Step 4: Count addresses before lock
-    const addressCards = extensionPage.locator('.font-mono');
-    const addressCountBefore = await addressCards.count();
-
-    // Step 5: Navigate back to index
-    await navigateTo(extensionPage, 'wallet');
-    await extensionPage.waitForURL(/index/, { timeout: 5000 }).catch(() => {});
-    await extensionPage.waitForTimeout(1000);
-
-    // Step 6: Lock the wallet
+    // Step 3: Lock the wallet
     await lockWallet(extensionPage);
-    await extensionPage.waitForURL(/unlock/, { timeout: 5000 }).catch(() => {});
+    await expect(extensionPage).toHaveURL(/unlock/, { timeout: 5000 });
 
-    // Step 7: Unlock the wallet
+    // Step 4: Unlock the wallet
     await unlockWallet(extensionPage, TEST_PASSWORD);
-    await extensionPage.waitForTimeout(2000);
+    await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
-    // Step 8: Verify we're back at index
-    const isAtIndex = extensionPage.url().includes('index');
-    if (!isAtIndex) {
-      return; // Test passes - we successfully locked and unlocked
-    }
-
-    // Step 9: Try to verify addresses persisted
-    const chevronAfter = selectAddress.chevronButton(extensionPage);
-    if (await chevronAfter.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await chevronAfter.click();
-      await extensionPage.waitForURL(/select-address/, { timeout: 5000 }).catch(() => {});
-      await extensionPage.waitForTimeout(1000);
-
-      const addressCardsAfter = extensionPage.locator('.font-mono');
-      const addressCountAfter = await addressCardsAfter.count();
-      expect(addressCountAfter).toBeGreaterThanOrEqual(addressCountBefore);
-    }
+    // Step 5: Verify address persisted
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const addressAfter = await addressDisplay.textContent();
+    expect(addressAfter).toBe(addressBefore);
   });
 
   test('import wallet -> change address type -> verify address updates', async ({ extensionPage }) => {
@@ -119,9 +84,10 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
 
     // Step 2: Get initial address
-    const addressElement = extensionPage.locator('.font-mono').first();
-    await expect(addressElement).toBeVisible({ timeout: 5000 });
-    const initialAddress = await addressElement.textContent();
+    const addressDisplay = extensionPage.locator('[aria-label="Current address"]');
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const initialAddress = await addressDisplay.textContent();
+    expect(initialAddress).toBeTruthy();
 
     // Step 3: Navigate to settings -> address type
     await navigateTo(extensionPage, 'settings');
@@ -134,67 +100,62 @@ test.describe('User Journey: Wallet Management Lifecycle', () => {
 
     // Step 4: Change to a different address type (Legacy P2PKH)
     const legacyOption = extensionPage.locator('text=/Legacy|P2PKH/i').first();
-    if (await legacyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await legacyOption.click();
-      await extensionPage.waitForTimeout(500);
-    }
+    await expect(legacyOption).toBeVisible({ timeout: 5000 });
+    await legacyOption.click();
 
     // Step 5: Navigate back to index
     await navigateTo(extensionPage, 'wallet');
     await expect(extensionPage).toHaveURL(/index/, { timeout: 5000 });
 
-    // Step 6: Verify address changed (or at least page still works)
-    const newAddressElement = extensionPage.locator('.font-mono').first();
-    await expect(newAddressElement).toBeVisible({ timeout: 5000 });
-    const newAddress = await newAddressElement.textContent();
+    // Step 6: Verify address is still displayed (may have changed format)
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const newAddress = await addressDisplay.textContent();
     expect(newAddress).toBeTruthy();
   });
 });
 
 walletTest.describe('User Journey: Settings Exploration', () => {
-  walletTest('explore all settings sections and return to dashboard', async ({ page }) => {
-    // Step 1: Navigate to settings
+  walletTest('visit address type settings and return', async ({ page }) => {
+    // Navigate to settings
     await navigateTo(page, 'settings');
     await expect(page).toHaveURL(/settings/);
 
-    // Step 2: Visit Address Type settings (only for mnemonic wallets)
+    // Visit Address Type settings
     const addressTypeOption = settings.addressTypeOption(page);
-    try {
-      await expect(addressTypeOption).toBeVisible({ timeout: 3000 });
-      await addressTypeOption.click();
-      await page.waitForURL(/address-type/, { timeout: 5000 });
-      await navigateTo(page, 'settings');
-    } catch {
-      // Address Type not available (e.g., private key wallet) - skip
-    }
+    await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
+    await addressTypeOption.click();
+    await expect(page).toHaveURL(/address-type/, { timeout: 5000 });
 
-    // Step 3: Visit Security (always available)
+    // Return to settings
+    await navigateTo(page, 'settings');
+    await expect(page).toHaveURL(/settings/);
+  });
+
+  walletTest('visit security settings and return', async ({ page }) => {
+    await navigateTo(page, 'settings');
+    await expect(page).toHaveURL(/settings/);
+
     const securityOption = settings.securityOption(page);
-    try {
-      await expect(securityOption).toBeVisible({ timeout: 3000 });
-      await securityOption.click();
-      await page.waitForURL(/security/, { timeout: 5000 });
-      await navigateTo(page, 'settings');
-    } catch {
-      // Security option not found - skip
-    }
+    await expect(securityOption).toBeVisible({ timeout: 5000 });
+    await securityOption.click();
+    await expect(page).toHaveURL(/security/, { timeout: 5000 });
 
-    // Step 4: Visit Advanced (always available)
+    await navigateTo(page, 'settings');
+    await expect(page).toHaveURL(/settings/);
+  });
+
+  walletTest('visit advanced settings and return', async ({ page }) => {
+    await navigateTo(page, 'settings');
+    await expect(page).toHaveURL(/settings/);
+
     const advancedOption = settings.advancedOption(page);
-    try {
-      await expect(advancedOption).toBeVisible({ timeout: 3000 });
-      await advancedOption.click();
-      await page.waitForURL(/advanced/, { timeout: 5000 });
-    } catch {
-      // Advanced option not found - skip
-    }
+    await expect(advancedOption).toBeVisible({ timeout: 5000 });
+    await advancedOption.click();
+    await expect(page).toHaveURL(/advanced/, { timeout: 5000 });
 
-    // Step 5: Return to dashboard
+    // Return to dashboard
     await navigateTo(page, 'wallet');
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
-
-    // Step 6: Verify dashboard still works
-    expect(page.url()).toContain('index');
   });
 
   walletTest('navigate through all footer tabs', async ({ page }) => {
@@ -230,7 +191,10 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     // Step 2: Fill in some data
     const destinationInput = send.recipientInput(page);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
-    await destinationInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    await destinationInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
+
+    // Verify data was entered
+    await expect(destinationInput).toHaveValue(TEST_ADDRESSES.mainnet.p2wpkh);
 
     // Step 3: Navigate away to settings
     await navigateTo(page, 'settings');
@@ -244,88 +208,95 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     await sendButton.click();
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
-    // Step 6: Verify form is fresh (field should be empty or reset)
+    // Step 6: Verify form is fresh (field should be empty)
     const destinationInputAgain = send.recipientInput(page);
     await expect(destinationInputAgain).toBeVisible({ timeout: 5000 });
-    const value = await destinationInputAgain.inputValue();
-    // Form should be empty after navigating away
-    expect(value).toBe('');
+    await expect(destinationInputAgain).toHaveValue('');
   });
 
-  walletTest('check transaction history after viewing send form', async ({ page }) => {
-    // Wait for page to be fully loaded before interacting
+  walletTest('check transaction history page loads', async ({ page }) => {
+    // Wait for page to be fully loaded
     await page.waitForLoadState('networkidle');
     await expect(index.addressText(page)).toBeVisible({ timeout: 10000 });
 
-    // Step 1: Check history first
+    // Click history button
+    const historyButton = index.historyButton(page);
+    await expect(historyButton).toBeVisible({ timeout: 10000 });
+    await historyButton.click();
+
+    // Verify navigation to history page
+    await expect(page).toHaveURL(/address-history/, { timeout: 10000 });
+
+    // Verify history page has expected content
+    const historyTitle = page.locator('text=/History|Transactions/i').first();
+    await expect(historyTitle).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('can navigate from history to send and back', async ({ page }) => {
+    await page.waitForLoadState('networkidle');
+    await expect(index.addressText(page)).toBeVisible({ timeout: 10000 });
+
+    // Go to history
     const historyButton = index.historyButton(page);
     await expect(historyButton).toBeVisible({ timeout: 10000 });
     await historyButton.click();
     await expect(page).toHaveURL(/address-history/, { timeout: 10000 });
 
-    // Step 2: Verify history page content
-    await page.waitForLoadState('networkidle');
-    const pageContent = await page.content();
-    const hasHistoryIndicator = pageContent.includes('History') ||
-                               pageContent.includes('Transactions') ||
-                               pageContent.includes('No transactions') ||
-                               pageContent.includes('Loading');
-    expect(hasHistoryIndicator).toBeTruthy();
-
-    // Step 3: Go back and try send
+    // Go back to index
     await navigateTo(page, 'wallet');
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
-    await expect(index.sendButton(page)).toBeVisible({ timeout: 5000 });
 
+    // Go to send
     const sendButton = index.sendButton(page);
+    await expect(sendButton).toBeVisible({ timeout: 5000 });
     await sendButton.click();
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
-    // Step 4: Verify send form works
+    // Verify send form loaded
     const destinationInput = send.recipientInput(page);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
   });
 });
 
 walletTest.describe('User Journey: Actions Exploration', () => {
-  walletTest('explore actions page and attempt each action type', async ({ page }) => {
-    // Step 1: Navigate to actions
+  walletTest('can access sign message from actions', async ({ page }) => {
     await navigateTo(page, 'actions');
     await expect(page).toHaveURL(/actions/, { timeout: 5000 });
 
-    // Step 2: Try Sign Message
     const signMessageOption = actions.signMessageOption(page);
-    try {
-      await expect(signMessageOption).toBeVisible({ timeout: 3000 });
-      await signMessageOption.click();
-      await page.waitForURL(/sign-message/, { timeout: 5000 });
-      await navigateTo(page, 'actions');
-    } catch {
-      // Sign Message not available - skip
-    }
+    await expect(signMessageOption).toBeVisible({ timeout: 5000 });
+    await signMessageOption.click();
+    await expect(page).toHaveURL(/sign-message/, { timeout: 5000 });
 
-    // Step 3: Try Verify Message
+    // Return to actions
+    await navigateTo(page, 'actions');
+    await expect(page).toHaveURL(/actions/, { timeout: 5000 });
+  });
+
+  walletTest('can access verify message from actions', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await expect(page).toHaveURL(/actions/, { timeout: 5000 });
+
     const verifyMessageOption = actions.verifyMessageOption(page);
-    try {
-      await expect(verifyMessageOption).toBeVisible({ timeout: 3000 });
-      await verifyMessageOption.click();
-      await page.waitForURL(/verify-message/, { timeout: 5000 });
-      await navigateTo(page, 'actions');
-    } catch {
-      // Verify Message not available - skip
-    }
+    await expect(verifyMessageOption).toBeVisible({ timeout: 5000 });
+    await verifyMessageOption.click();
+    await expect(page).toHaveURL(/verify-message/, { timeout: 5000 });
 
-    // Step 4: Try Issue Asset
+    // Return to actions
+    await navigateTo(page, 'actions');
+    await expect(page).toHaveURL(/actions/, { timeout: 5000 });
+  });
+
+  walletTest('can access issue asset from actions', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await expect(page).toHaveURL(/actions/, { timeout: 5000 });
+
     const issueAssetOption = actions.issueAssetOption(page);
-    try {
-      await expect(issueAssetOption).toBeVisible({ timeout: 3000 });
-      await issueAssetOption.click();
-      await page.waitForURL(/issuance/, { timeout: 5000 });
-    } catch {
-      // Issue Asset not available - skip
-    }
+    await expect(issueAssetOption).toBeVisible({ timeout: 5000 });
+    await issueAssetOption.click();
+    await expect(page).toHaveURL(/issuance/, { timeout: 5000 });
 
-    // Step 5: Return to wallet
+    // Return to wallet
     await navigateTo(page, 'wallet');
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
@@ -346,7 +317,8 @@ test.describe('User Journey: Error Recovery', () => {
     await extensionPage.locator('button:has-text("Unlock")').click();
 
     // Step 4: Verify error shown
-    await expect(extensionPage.locator('text=/Invalid.*password|Incorrect.*password|Wrong.*password/i')).toBeVisible({ timeout: 3000 });
+    const errorMessage = extensionPage.locator('text=/Invalid.*password|Incorrect.*password|Wrong.*password/i');
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
 
     // Step 5: Enter correct password
     await extensionPage.locator('input[name="password"]').fill(TEST_PASSWORD);
@@ -363,10 +335,12 @@ test.describe('User Journey: Error Recovery', () => {
   test('cancel during import -> start fresh create', async ({ extensionPage }) => {
     // Step 1: Start import
     await extensionPage.getByText('Import Wallet').click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    const wordInput = extensionPage.locator('input[name="word-0"]');
+    await expect(wordInput).toBeVisible({ timeout: 5000 });
 
     // Step 2: Cancel import by clicking back
     const backButton = extensionPage.locator('header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
 
     // Step 3: Wait for onboarding page to appear again
@@ -378,43 +352,37 @@ test.describe('User Journey: Error Recovery', () => {
   });
 });
 
-walletTest.describe('User Journey: Multi-Wallet Scenario', () => {
-  walletTest('switch between dashboard sections rapidly', async ({ page }) => {
-    // Rapid navigation to test state management
-
+walletTest.describe('User Journey: Dashboard Navigation', () => {
+  walletTest('can switch between Assets and Balances tabs', async ({ page }) => {
     // Assets tab
     const assetsTab = page.locator('button:has-text("Assets")').first();
-    if (await assetsTab.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await assetsTab.click();
-      await page.waitForTimeout(200);
-    }
+    await expect(assetsTab).toBeVisible({ timeout: 5000 });
+    await assetsTab.click();
 
     // Balances tab
     const balancesTab = page.locator('button:has-text("Balances")').first();
-    if (await balancesTab.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await balancesTab.click();
-      await page.waitForTimeout(200);
-    }
+    await expect(balancesTab).toBeVisible({ timeout: 5000 });
+    await balancesTab.click();
 
-    // Send button
-    const sendButton = index.sendButton(page);
-    await sendButton.click();
-    await page.waitForTimeout(200);
+    // Verify still on index page
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
+  });
 
-    // Back
-    const backButton = page.locator('button[aria-label*="back"], header button').first();
-    await backButton.click();
-    await page.waitForTimeout(200);
-
-    // Receive button
+  walletTest('can navigate to receive and back', async ({ page }) => {
+    // Click receive button
     const receiveButton = index.receiveButton(page);
+    await expect(receiveButton).toBeVisible({ timeout: 5000 });
     await receiveButton.click();
-    await page.waitForTimeout(200);
 
-    // Back
-    await page.locator('button[aria-label*="back"], header button').first().click();
+    // Should navigate to view-address
+    await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
-    // Verify still on valid page
-    await expect(page).toHaveURL(/index|view-address/, { timeout: 5000 });
+    // Go back
+    const backButton = page.locator('button[aria-label*="back"], header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await backButton.click();
+
+    // Should be back at index
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 });

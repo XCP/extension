@@ -31,12 +31,12 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await expect(sendButton).toBeVisible({ timeout: 5000 });
     await sendButton.click();
 
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
   });
 
   walletTest('send form has destination input', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
     await expect(destinationInput).toBeVisible({ timeout: 5000 });
@@ -44,7 +44,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('send form has quantity input', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const quantityInput = compose.send.quantityInput(page);
     await expect(quantityInput).toBeVisible({ timeout: 5000 });
@@ -52,7 +52,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('send form validates destination address', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
     await destinationInput.fill('invalid-address');
@@ -63,24 +63,29 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
-  walletTest('send form accepts valid address', async ({ page }) => {
+  walletTest('send form accepts valid address and enables submit', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
-    await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+    const testAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+    await destinationInput.fill(testAddress);
 
     const quantityInput = compose.send.quantityInput(page);
     await quantityInput.fill('0.001');
 
-    // Form should be fillable without errors
-    await expect(destinationInput).toHaveValue('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+    // Verify values were accepted
+    await expect(destinationInput).toHaveValue(testAddress);
     await expect(quantityInput).toHaveValue('0.001');
+
+    // Submit button should be enabled with valid inputs
+    const submitButton = compose.common.submitButton(page);
+    await expect(submitButton).toBeEnabled({ timeout: 5000 });
   });
 
-  walletTest('send form shows fee estimation', async ({ page }) => {
+  walletTest('send form shows fee rate selector', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
     await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
@@ -97,7 +102,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('can navigate back from send form', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const backButton = compose.common.headerBackButton(page);
     await backButton.click();
@@ -107,7 +112,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('validates amount - rejects zero', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
@@ -124,7 +129,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
   // This test verifies that large amounts can be entered (client allows any amount).
   walletTest('allows entering large amounts', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
@@ -138,7 +143,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('shows Max button for BTC', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     // Max button should be visible (part of AmountWithMaxInput component)
@@ -148,7 +153,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
   walletTest('shows balance header', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     const balanceInfo = page.locator('text=/BTC|Available|Balance/i').first();
@@ -159,7 +164,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     const testAddress = TEST_ADDRESSES.mainnet.p2tr;
@@ -167,64 +172,85 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
 
     await compose.send.recipientInput(page).focus();
     await page.keyboard.press('Control+V');
-    await page.waitForTimeout(500);
 
-    const filledAddress = await compose.send.recipientInput(page).inputValue();
-    expect(filledAddress).toBe(testAddress);
+    // Verify the address was pasted correctly
+    await expect(compose.send.recipientInput(page)).toHaveValue(testAddress, { timeout: 5000 });
   });
 });
 
 walletTest.describe('Send Flow - Address Type Compatibility', () => {
-  walletTest('accepts P2PKH (Legacy) addresses', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
+  });
 
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2pkh);
-    await compose.send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+  walletTest('accepts P2PKH (Legacy) addresses', async ({ page }) => {
+    const testAddress = TEST_ADDRESSES.mainnet.p2pkh;
+    const recipientInput = compose.send.recipientInput(page);
 
-    const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address|invalid/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasAddressError).toBe(false);
+    await recipientInput.fill(testAddress);
+    await recipientInput.blur();
+
+    // Positive verification: address is in the field
+    await expect(recipientInput).toHaveValue(testAddress);
+
+    // Fill amount to enable submit button
+    await compose.send.quantityInput(page).fill('0.001');
+
+    // Submit button should be enabled (address accepted)
+    await expect(compose.common.submitButton(page)).toBeEnabled({ timeout: 5000 });
   });
 
   walletTest('accepts P2SH (Nested SegWit) addresses', async ({ page }) => {
-    await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
+    const testAddress = TEST_ADDRESSES.mainnet['p2sh-p2wpkh'];
+    const recipientInput = compose.send.recipientInput(page);
 
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet['p2sh-p2wpkh']);
-    await compose.send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+    await recipientInput.fill(testAddress);
+    await recipientInput.blur();
 
-    const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address|invalid/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasAddressError).toBe(false);
+    // Positive verification: address is in the field
+    await expect(recipientInput).toHaveValue(testAddress);
+
+    // Fill amount to enable submit button
+    await compose.send.quantityInput(page).fill('0.001');
+
+    // Submit button should be enabled (address accepted)
+    await expect(compose.common.submitButton(page)).toBeEnabled({ timeout: 5000 });
   });
 
   walletTest('accepts P2WPKH (Native SegWit) addresses', async ({ page }) => {
-    await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
+    const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
+    const recipientInput = compose.send.recipientInput(page);
 
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
-    await compose.send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+    await recipientInput.fill(testAddress);
+    await recipientInput.blur();
 
-    const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address|invalid/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasAddressError).toBe(false);
+    // Positive verification: address is in the field
+    await expect(recipientInput).toHaveValue(testAddress);
+
+    // Fill amount to enable submit button
+    await compose.send.quantityInput(page).fill('0.001');
+
+    // Submit button should be enabled (address accepted)
+    await expect(compose.common.submitButton(page)).toBeEnabled({ timeout: 5000 });
   });
 
   walletTest('accepts P2TR (Taproot) addresses', async ({ page }) => {
-    await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
-    await page.waitForLoadState('networkidle');
+    const testAddress = TEST_ADDRESSES.mainnet.p2tr;
+    const recipientInput = compose.send.recipientInput(page);
 
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2tr);
-    await compose.send.recipientInput(page).blur();
-    await page.waitForTimeout(500);
+    await recipientInput.fill(testAddress);
+    await recipientInput.blur();
 
-    const hasAddressError = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address|invalid/i }).first().isVisible({ timeout: 1000 }).catch(() => false);
-    expect(hasAddressError).toBe(false);
+    // Positive verification: address is in the field
+    await expect(recipientInput).toHaveValue(testAddress);
+
+    // Fill amount to enable submit button
+    await compose.send.quantityInput(page).fill('0.001');
+
+    // Submit button should be enabled (address accepted)
+    await expect(compose.common.submitButton(page)).toBeEnabled({ timeout: 5000 });
   });
 });
 
@@ -237,13 +263,17 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
 
   walletTest('form → review: valid form shows review page', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     // Fill form
-    await compose.send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
+    const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
+    await compose.send.recipientInput(page).fill(testAddress);
     await compose.send.quantityInput(page).fill('0.001');
-    await page.waitForTimeout(500);
+
+    // Verify form is filled correctly
+    await expect(compose.send.recipientInput(page)).toHaveValue(testAddress);
+    await expect(compose.send.quantityInput(page)).toHaveValue('0.001');
 
     // Submit form
     const submitBtn = compose.common.submitButton(page);
@@ -260,7 +290,7 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
 
   walletTest('form → review → back: form data preserved', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
@@ -269,7 +299,6 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
     // Fill form
     await compose.send.recipientInput(page).fill(testAddress);
     await compose.send.quantityInput(page).fill(testAmount);
-    await page.waitForTimeout(500);
 
     // Submit and wait for review
     await compose.common.submitButton(page).click();
@@ -277,7 +306,6 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
 
     // Go back
     await clickBack(page);
-    await page.waitForTimeout(500);
 
     // Verify form data preserved
     await expect(compose.send.recipientInput(page)).toHaveValue(testAddress);
@@ -286,7 +314,7 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
 
   walletTest('form → review → back → edit → submit: recompose works', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     // Initial submission
@@ -298,7 +326,9 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
     // Go back and edit
     await clickBack(page);
     await compose.send.quantityInput(page).fill('0.002');
-    await page.waitForTimeout(500);
+
+    // Verify new value is in field
+    await expect(compose.send.quantityInput(page)).toHaveValue('0.002');
 
     // Resubmit
     await compose.common.submitButton(page).click();
@@ -311,7 +341,7 @@ walletTest.describe('Send Flow - Full Compose Flow', () => {
 
   walletTest('review page shows correct transaction details', async ({ page }) => {
     await index.sendButton(page).click();
-    await page.waitForURL(/compose\/send/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
 
     const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
