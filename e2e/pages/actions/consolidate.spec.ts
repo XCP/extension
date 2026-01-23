@@ -204,9 +204,10 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    // Should have fee rate input (common compose input component)
-    const feeInput = page.locator('input[name*="fee" i], input[placeholder*="fee" i], text=/fee rate/i');
-    await expect(feeInput.first()).toBeVisible({ timeout: 10000 });
+    // Should have fee rate input or label
+    const feeInput = page.locator('input[type="number"]').first();
+    const feeLabel = page.getByText(/fee rate/i).first();
+    await expect(feeInput.or(feeLabel)).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('consolidate page has destination address input', async ({ page }) => {
@@ -240,8 +241,8 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    // Find and interact with fee input
-    const feeInput = page.locator('input').filter({ hasNot: page.locator('[type="checkbox"]') }).first();
+    // Find the numeric fee input (type="number")
+    const feeInput = page.locator('input[type="number"]').first();
     await expect(feeInput).toBeVisible({ timeout: 10000 });
 
     // Type a fee value
@@ -293,9 +294,10 @@ walletTest.describe('Consolidation History', () => {
     // Just verify the page loads without error
     await expect(page).toHaveURL(/consolidate/);
 
-    // Page should have content (form or history)
-    const pageContent = page.locator('form, text=/Recovery|Consolidate|History/i').first();
-    await expect(pageContent).toBeVisible({ timeout: 10000 });
+    // Page should have content - form or text content
+    const form = page.locator('form');
+    const recoveryText = page.getByText(/Recovery|Consolidate|History/i).first();
+    await expect(form.or(recoveryText)).toBeVisible({ timeout: 10000 });
   });
 });
 

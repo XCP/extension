@@ -139,9 +139,9 @@ test.describe('Import Wallet - Mnemonic', () => {
     await onboarding.importWalletButton(extensionPage).click();
     await importWallet.wordInput(extensionPage, 0).waitFor();
 
-    // Should have show/hide toggle button
-    const toggleButton = extensionPage.locator('[aria-label*="recovery phrase" i]');
-    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+    // Should have show/hide toggle button in header (may have different aria-labels)
+    const toggleButton = extensionPage.locator('header button[aria-label*="recovery phrase" i], header button[aria-label*="Show" i], header button[aria-label*="Hide" i]');
+    await expect(toggleButton.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('Enter key moves to next word input', async ({ extensionPage }) => {
@@ -178,8 +178,8 @@ test.describe('Import Wallet - Mnemonic', () => {
     await onboarding.importWalletButton(extensionPage).click();
     await importWallet.wordInput(extensionPage, 0).waitFor();
 
-    // Should show tutorial link before confirmation
-    const tutorialLink = extensionPage.locator('a[href*="youtube"], button:has-text("Watch Tutorial")');
+    // Should show tutorial link before confirmation (uses youtu.be short URL)
+    const tutorialLink = extensionPage.locator('a[href*="youtu"], button:has-text("Watch Tutorial")');
     await expect(tutorialLink.first()).toBeVisible({ timeout: 5000 });
   });
 

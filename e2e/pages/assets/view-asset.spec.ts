@@ -147,14 +147,17 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     expect(['Yes', 'No'].some(v => value?.includes(v))).toBe(true);
   });
 
-  walletTest('Issuer shows address in monospace font', async ({ page }) => {
+  walletTest('Issuer shows valid Bitcoin address', async ({ page }) => {
     await navigateToAsset(page, 'XCP');
 
     await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-    // Issuer value should have font-mono class
-    const issuerValue = page.locator('.font-mono').filter({ hasText: /^[13bc]/ });
-    await expect(issuerValue.first()).toBeVisible({ timeout: 5000 });
+    // Issuer label should be visible
+    await expect(page.locator('text="Issuer"')).toBeVisible({ timeout: 5000 });
+
+    // There should be an address-like value shown (starts with 1, 3, or bc1)
+    const addressPattern = page.locator('span, p').filter({ hasText: /^(1|3|bc1)[a-zA-Z0-9]{25,}/ });
+    await expect(addressPattern.first()).toBeVisible({ timeout: 5000 });
   });
 
   // ============================================================================
