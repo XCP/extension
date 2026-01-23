@@ -15,14 +15,14 @@ import {
   TEST_PASSWORD
 } from '../fixtures';
 import { TEST_ADDRESSES } from '../test-data';
-import { index, settings, send, header, viewAddress, onboarding, unlock, common, selectWallet, importWallet, createWallet } from '../selectors';
+import { index, settings, send, header, viewAddress, onboarding, unlock, common, selectWallet, importWallet, createWallet as createWalletSelectors } from '../selectors';
 
 test.describe('Navigation Recovery - Cancel Flows', () => {
   test('can cancel create wallet and return to onboarding', async ({ extensionPage }) => {
     await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 5000 });
 
     await onboarding.createWalletButton(extensionPage).click();
-    await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     await expect(common.backButton(extensionPage)).toBeVisible({ timeout: 5000 });
     await common.backButton(extensionPage).click();
