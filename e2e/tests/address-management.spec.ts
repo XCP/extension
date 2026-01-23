@@ -75,14 +75,18 @@ walletTest.describe('Address Management', () => {
 
     await expect(page).toHaveURL(/select-address/);
 
-    const copyButton = selectAddress.copyButton(page);
-    await expect(copyButton).toBeVisible({ timeout: 5000 });
-    await copyButton.click();
+    // Open the address menu (three dots) to access copy
+    const addressMenu = page.locator('[aria-label="Address actions"]').first();
+    await expect(addressMenu).toBeVisible({ timeout: 5000 });
+    await addressMenu.click();
 
-    // Should show success feedback
-    await expect(
-      page.locator('.text-green-500').or(page.locator('text=/copied/i'))
-    ).toBeVisible({ timeout: 3000 });
+    // Click "Copy Address" from the menu
+    const copyOption = page.locator('button:has-text("Copy Address")');
+    await expect(copyOption).toBeVisible({ timeout: 3000 });
+    await copyOption.click();
+
+    // Should show success feedback (green checkmark)
+    await expect(page.locator('svg.text-green-500').first()).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('address type information display', async ({ page }) => {

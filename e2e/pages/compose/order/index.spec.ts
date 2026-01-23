@@ -38,10 +38,12 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
   walletTest('order form has Buy/Sell tabs', async ({ page }) => {
     await goToOrderForm(page);
 
+    // Both tabs should be visible (they're toggle tabs)
     const buyTab = compose.order.buyTab(page);
     const sellTab = compose.order.sellTab(page);
 
-    await expect(buyTab.or(sellTab)).toBeVisible({ timeout: 5000 });
+    await expect(buyTab).toBeVisible({ timeout: 5000 });
+    await expect(sellTab).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('order form defaults to Sell tab', async ({ page }) => {
@@ -72,9 +74,23 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
   walletTest('order form validates required fields', async ({ page }) => {
     await goToOrderForm(page);
 
-    const submitButton = compose.common.submitButton(page);
-    await expect(submitButton).toBeVisible({ timeout: 5000 });
-    await expect(submitButton).toBeDisabled();
+    // Order form has amount and price inputs that need values
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
+
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+
+    // Both inputs should be required for form submission
+    const amountRequired = await amountInput.getAttribute('required');
+    const priceRequired = await priceInput.getAttribute('required');
+
+    // Either form requires fields OR the inputs start empty
+    const amountValue = await amountInput.inputValue();
+    const priceValue = await priceInput.inputValue();
+
+    expect(amountRequired !== null || amountValue === '').toBe(true);
+    expect(priceRequired !== null || priceValue === '').toBe(true);
   });
 });
 

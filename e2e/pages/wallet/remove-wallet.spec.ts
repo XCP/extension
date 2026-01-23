@@ -21,8 +21,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
     await walletMenu.first().click();
 
-    // Click "Remove Wallet" option from the dropdown
-    const removeOption = page.locator('button:has-text("Remove Wallet")');
+    // Click "Remove ..." option from the dropdown (button text is "Remove {walletName}")
+    const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
     await expect(removeOption).toBeVisible({ timeout: 3000 });
     await removeOption.click();
 
