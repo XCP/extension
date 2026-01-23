@@ -311,9 +311,10 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Dispensers" section or loading/empty state
-    const dispensersContent = page.locator('text=/Your Dispensers|You don\'t have any dispensers|No dispensers|Loading/i').first();
-    await expect(dispensersContent).toBeVisible({ timeout: 5000 });
+    // Should show "Your Dispensers" section header or empty state (not loading spinner)
+    const dispensersContent = page.locator('text=/Your Dispensers/i').first()
+      .or(page.locator('text=/You don\'t have any dispensers|No dispensers/i').first());
+    await expect(dispensersContent).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('manage tab shows your orders section', async ({ page }) => {
@@ -326,9 +327,10 @@ walletTest.describe('Market Page', () => {
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Orders" section or loading/empty state
-    const ordersContent = page.locator('text=/Your Orders|You don\'t have any orders|No orders|Loading/i').first();
-    await expect(ordersContent).toBeVisible({ timeout: 5000 });
+    // Should show "Your Orders" section header or empty state (not loading spinner)
+    const ordersContent = page.locator('text=/Your Orders/i').first()
+      .or(page.locator('text=/You don\'t have any orders|No orders/i').first());
+    await expect(ordersContent).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('new order button navigates to order form', async ({ page }) => {

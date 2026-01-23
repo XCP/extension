@@ -100,20 +100,16 @@ walletTest.describe('DispenserInput Component', () => {
   });
 
   walletTest.describe('Dispenser Discovery', () => {
-    walletTest('shows loading or results after entering address', async ({ page }) => {
+    walletTest('shows results after entering address', async ({ page }) => {
       const input = getDispenserInput(page);
       // Enter a valid address to trigger fetch
       await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
       await input.blur();
 
-      // Wait for either loading indicator, no dispenser message, or dispenser list
-      await expect(async () => {
-        const loadingCount = await page.locator('text=/Loading/i').count();
-        const noDispenserCount = await page.locator('text=/No.*dispenser/i').count();
-        const dispenserListCount = await page.locator('[role="radiogroup"]').count();
-        // Any of these outcomes indicates the fetch was triggered
-        expect(loadingCount > 0 || noDispenserCount > 0 || dispenserListCount > 0).toBe(true);
-      }).toPass({ timeout: 5000 });
+      // Wait for actual results (not loading state) - either dispensers found or no dispensers message
+      const resultContent = page.locator('text=/No.*dispenser/i').first()
+        .or(page.locator('[role="radiogroup"]'));
+      await expect(resultContent).toBeVisible({ timeout: 10000 });
     });
 
     walletTest('handles address with no dispensers', async ({ page }) => {
@@ -122,13 +118,10 @@ walletTest.describe('DispenserInput Component', () => {
       await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
       await input.blur();
 
-      // Wait for fetch to complete - either shows no dispenser or found some
-      await expect(async () => {
-        const noDispenserCount = await page.locator('text=/No.*dispenser/i').count();
-        const dispenserListCount = await page.locator('[role="radiogroup"]').count();
-        // Either no dispenser message or dispenser list appears
-        expect(noDispenserCount > 0 || dispenserListCount > 0).toBe(true);
-      }).toPass({ timeout: 5000 });
+      // Wait for fetch to complete - should show result (dispensers or no dispensers message)
+      const resultContent = page.locator('text=/No.*dispenser/i').first()
+        .or(page.locator('[role="radiogroup"]'));
+      await expect(resultContent).toBeVisible({ timeout: 10000 });
     });
   });
 
