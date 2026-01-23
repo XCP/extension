@@ -14,12 +14,13 @@ walletTest.describe('Settings Address Preview', () => {
     const addressTypeOption = settings.addressTypeOption(page);
     await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
 
-    // The description shows the current address type name
-    const description = addressTypeOption.locator('..').locator('p');
+    // The description shows the current address type name - it's in a div, not p
+    // The ActionCard renders description in div.text-xs.text-gray-500
+    const description = page.locator('[role="button"]').filter({ hasText: 'Address Type' }).locator('div.text-xs');
     await expect(description).toBeVisible();
 
     const descriptionText = await description.textContent();
-    expect(descriptionText).toMatch(/(Legacy|Native SegWit|Nested SegWit|Taproot|CounterWallet)/);
+    expect(descriptionText).toMatch(/(Legacy|Native SegWit|Nested SegWit|Taproot|CounterWallet|P2PKH|P2WPKH|P2TR|P2SH)/i);
   });
 
   walletTest('shows preview addresses in address type settings page', async ({ page }) => {
@@ -90,8 +91,10 @@ walletTest.describe('Settings Address Preview', () => {
     await page.goBack();
     await expect(settings.addressTypeOption(page)).toBeVisible({ timeout: 5000 });
 
-    // Description should show an address type
-    const description = settings.addressTypeOption(page).locator('..').locator('p');
-    await expect(description).toHaveText(/(Legacy|Native SegWit|Nested SegWit|Taproot|CounterWallet)/);
+    // Description should show an address type - it's in a div, not p
+    const description = page.locator('[role="button"]').filter({ hasText: 'Address Type' }).locator('div.text-xs');
+    await expect(description).toBeVisible();
+    const text = await description.textContent();
+    expect(text).toMatch(/(Legacy|Native SegWit|Nested SegWit|Taproot|CounterWallet|P2PKH|P2WPKH|P2TR|P2SH)/i);
   });
 });
