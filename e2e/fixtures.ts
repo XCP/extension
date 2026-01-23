@@ -7,6 +7,7 @@
 import { test as base, expect, BrowserContext, Page } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import path from 'path';
+import fs from 'fs';
 import { TEST_PASSWORDS, TEST_MNEMONICS, TEST_PRIVATE_KEYS } from './test-data';
 import {
   onboarding,
@@ -50,12 +51,21 @@ async function launchExtension(testId: string): Promise<{
   context: BrowserContext;
   page: Page;
   extensionId: string;
+  contextPath: string;
 }> {
   const extensionPath = path.resolve('.output/chrome-mv3');
   const isCI = process.env.CI === 'true';
   const timeout = isCI ? 60000 : 30000;
+  const contextPath = `test-results/${testId}`;
 
-  const context = await chromium.launchPersistentContext(`test-results/${testId}`, {
+  // Clean up any existing context directory to ensure fresh state
+  try {
+    fs.rmSync(contextPath, { recursive: true, force: true });
+  } catch {
+    // Ignore if directory doesn't exist
+  }
+
+  const context = await chromium.launchPersistentContext(contextPath, {
     headless: false,
     args: [
       '--no-sandbox',
@@ -118,7 +128,7 @@ async function launchExtension(testId: string): Promise<{
   await page.goto(`chrome-extension://${extensionId}/popup.html`);
   await page.waitForLoadState('domcontentloaded');
 
-  return { context, page, extensionId };
+  return { context, page, extensionId, contextPath };
 }
 
 // ============================================================================
@@ -252,7 +262,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));
 }
 
-async function cleanup(context: BrowserContext): Promise<void> {
+async function cleanup(context: BrowserContext, contextPath?: string): Promise<void> {
   try {
     for (const page of context.pages()) {
       await page.close().catch(() => {});
@@ -260,6 +270,15 @@ async function cleanup(context: BrowserContext): Promise<void> {
     await context.close();
   } catch {
     await context.close().catch(() => {});
+  }
+
+  // Clean up persistent context directory to ensure fresh state on retry
+  if (contextPath) {
+    try {
+      fs.rmSync(contextPath, { recursive: true, force: true });
+    } catch {
+      // Ignore errors if directory doesn't exist or can't be deleted
+    }
   }
 }
 
@@ -283,9 +302,9 @@ async function grantClipboardPermissions(context: BrowserContext): Promise<void>
 export const test = base.extend<ExtensionFixtures>({
   extensionContext: async ({}, use, testInfo) => {
     const testId = testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 50);
-    const { context } = await launchExtension(testId);
+    const { context, contextPath } = await launchExtension(testId);
     await use(context);
-    await cleanup(context);
+    await cleanup(context, contextPath);
   },
 
   extensionPage: async ({ extensionContext }, use) => {
@@ -337,9 +356,9 @@ export const test = base.extend<ExtensionFixtures>({
 export const walletTest = base.extend<WalletFixtures>({
   context: async ({}, use, testInfo) => {
     const testId = `w-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 45)}`;
-    const { context } = await launchExtension(testId);
+    const { context, contextPath } = await launchExtension(testId);
     await use(context);
-    await cleanup(context);
+    await cleanup(context, contextPath);
   },
 
   page: async ({ context }, use) => {

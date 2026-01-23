@@ -364,11 +364,8 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
   });
 });
 
-// Skip: Fresh extension tests are slow and timing-sensitive in CI.
-// They require launching a completely new browser context without any existing wallet,
-// which can take 10-15 seconds and is prone to timeouts in CI environments.
-// The core import functionality is covered by the walletTest tests above.
-test.describe.skip('Import Private Key Page - Fresh Extension', () => {
+// Tests for import with no existing wallet (fresh extension)
+test.describe('Import Private Key Page - Fresh Extension', () => {
   test('can navigate to import private key from onboarding', async ({}, testInfo) => {
     const testId = `import-key-nav-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}`;
     const { context, page } = await launchExtension(testId);
@@ -376,12 +373,12 @@ test.describe.skip('Import Private Key Page - Fresh Extension', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      // Click import private key on onboarding
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      // Click import private key on onboarding (longer timeout for CI)
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
       await onboarding.importPrivateKeyButton(page).click();
 
       // Should navigate to import-private-key page
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
     } finally {
       await cleanup(context);
     }
@@ -394,10 +391,10 @@ test.describe.skip('Import Private Key Page - Fresh Extension', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      // Navigate to import private key
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      // Navigate to import private key (longer timeout for CI)
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
       await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill private key and check confirmation
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
@@ -421,10 +418,10 @@ test.describe.skip('Import Private Key Page - Fresh Extension', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      // Navigate to import private key
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      // Navigate to import private key (longer timeout for CI)
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
       await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill valid private key
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
@@ -452,10 +449,10 @@ test.describe.skip('Import Private Key Page - Fresh Extension', () => {
     try {
       await page.waitForLoadState('networkidle');
 
-      // Navigate to import private key
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 10000 });
+      // Navigate to import private key (longer timeout for CI)
+      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
       await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 5000 });
+      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill valid private key
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);

@@ -54,10 +54,7 @@ test.describe('User Journey: New User Onboarding to First Transaction', () => {
 });
 
 test.describe('User Journey: Wallet Management Lifecycle', () => {
-  // Skip: This test creates a wallet and locks/unlocks it. On retry after failure,
-  // the extension state isn't reset properly (still locked from previous attempt),
-  // causing the retry to fail waiting for "Create Wallet" button.
-  test.skip('create wallet -> lock -> unlock -> verify state persists', async ({ extensionPage }) => {
+  test('create wallet -> lock -> unlock -> verify state persists', async ({ extensionPage }) => {
     // Step 1: Create wallet
     await createWallet(extensionPage, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/, { timeout: 10000 });
