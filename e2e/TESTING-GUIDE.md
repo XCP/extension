@@ -317,22 +317,27 @@ walletTest.beforeEach(async ({ page }) => {
 });
 ```
 
-### Documenting Known Limitations
+### When to Skip vs Delete Tests
 
-When tests reveal application limitations, use `.skip` with a TODO:
+| Situation | Action | Example |
+|-----------|--------|---------|
+| Known app limitation | **Skip with TODO** | P2TR validation not implemented |
+| Feature not yet built | **Skip with TODO** | Test for upcoming feature |
+| Low-value test | **Delete** | Test for icon colors |
+| Flaky test | **Fix it** | Never skip flaky tests |
+| Duplicate coverage | **Delete** | Same behavior tested elsewhere |
 
 ```typescript
-// TODO: P2TR (bech32m) validation not yet implemented - shows error for valid addresses
+// ✅ Skip for known limitations (include issue number if available)
+// TODO(#123): P2TR (bech32m) validation not yet implemented
 walletTest.skip('accepts valid P2TR (Taproot) address', async ({ page }) => {
-  // Test code here
+  // Test code here - will be enabled when feature is implemented
 });
+
+// ❌ Don't skip low-value or flaky tests - delete or fix them
 ```
 
-This:
-- Documents the limitation in code
-- Keeps the test visible (not deleted)
-- Tracks when the feature gets implemented
-- Shows as "skipped" in test reports
+**Key principle:** Skip tests only for known application limitations that will be fixed. Never skip tests to hide failures or because they're flaky.
 
 ### Selector Helpers
 
@@ -361,6 +366,73 @@ await expect(async () => {
   const value = await input.inputValue();
   expect(value.length).toBeGreaterThan(0);
 }).toPass({ timeout: 5000 });
+```
+
+---
+
+## False Confidence Anti-Patterns
+
+These patterns create tests that pass without actually testing:
+
+### 1. Silent Early Returns
+
+```typescript
+// ❌ BAD - Test passes without testing if element not found
+test('verify feature works', async ({ page }) => {
+  const button = page.locator('button');
+  if (!await button.isVisible().catch(() => false)) {
+    return; // Silent pass!
+  }
+  // ... actual test
+});
+
+// ✅ GOOD - Let the test fail if element not found
+test('verify feature works', async ({ page }) => {
+  const button = page.locator('button');
+  await expect(button).toBeVisible();
+  // ... actual test
+});
+```
+
+### 2. Negative-Only Assertions
+
+```typescript
+// ❌ BAD - Only checks for absence of error
+const hasError = await page.locator('.error').isVisible().catch(() => false);
+expect(hasError).toBe(false);
+
+// ✅ GOOD - Verify positive outcome
+await expect(input).toHaveValue(expectedValue);
+await expect(page.locator('[role="alert"]')).toBeHidden();
+await expect(submitButton).toBeEnabled();
+```
+
+### 3. Deeply Nested Conditions
+
+```typescript
+// ❌ BAD - 4+ bypass paths where test silently passes
+if (await button.count() > 0) {
+  if (await button.isVisible()) {
+    if (await menu.isVisible()) {
+      expect(something).toBe(true); // Only assertion
+    }
+  }
+}
+
+// ✅ GOOD - Flat structure, fail if elements missing
+await expect(button).toBeVisible();
+await expect(menu).toBeVisible();
+expect(something).toBe(true);
+```
+
+### 4. Overly Flexible OR Assertions
+
+```typescript
+// ❌ BAD - Unclear which condition passed
+expect(hasTitle || hasContent || hasLoading).toBe(true);
+
+// ✅ GOOD - Specific assertion for expected state
+await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 ```
 
 ---
