@@ -511,7 +511,8 @@ test.describe('Provider Integration - Full Flow', () => {
         // Verify the connected sites page loads - should show site, empty state, or title
         const pageContent = extensionPage.locator('text=/localhost/i').first()
           .or(extensionPage.locator('text=/Sites you connect to will appear here/i').first())
-          .or(extensionPage.locator('text=/Connected Sites/i'));
+          .or(extensionPage.locator('text=/Connected Sites/i').first())
+          .first();
         await expect(pageContent).toBeVisible({ timeout: 5000 });
       }
 
