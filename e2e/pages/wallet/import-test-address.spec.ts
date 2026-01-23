@@ -7,6 +7,7 @@
 
 import { walletTest, expect } from '../../fixtures';
 import { common } from '../../selectors';
+import { TEST_ADDRESSES } from '../../test-data';
 
 walletTest.describe('Import Test Address Page (/import-test-address)', () => {
   // Note: This page only exists in development mode
@@ -120,7 +121,7 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     await expect(addressInput).toBeVisible({ timeout: 5000 });
 
     // Use a valid mainnet address format
-    await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    await addressInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     // Import button should be enabled with valid address
     const importButton = page.locator('button:has-text("Import Test Address")').first();
@@ -153,10 +154,10 @@ walletTest.describe('Import Test Address Page (/import-test-address)', () => {
     const addressInput = page.locator('input[id="test-address"], input[placeholder*="address" i]').first();
     await expect(addressInput).toBeVisible({ timeout: 5000 });
 
-    await addressInput.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    await addressInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     // Value should be set
-    await expect(addressInput).toHaveValue('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+    await expect(addressInput).toHaveValue(TEST_ADDRESSES.mainnet.p2wpkh);
   });
 
   walletTest('address input has placeholder text', async ({ page }) => {

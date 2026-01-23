@@ -13,9 +13,10 @@ import * as http from 'http';
 import path from 'path';
 import { chromium } from '@playwright/test';
 import { onboarding, createWallet as createWalletSelectors } from '../selectors';
+import { TEST_PASSWORDS } from '../test-data';
 
 // Test constants
-const TEST_PASSWORD = 'TestPassword123!';
+const TEST_PASSWORD = TEST_PASSWORDS.valid;
 
 // Helper to create a test dApp server
 function createTestDappServer(): Promise<{ server: http.Server; url: string }> {

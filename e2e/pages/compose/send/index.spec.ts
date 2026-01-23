@@ -68,7 +68,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
-    const testAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
+    const testAddress = TEST_ADDRESSES.mainnet.p2wpkh;
     await destinationInput.fill(testAddress);
 
     const quantityInput = compose.send.quantityInput(page);
@@ -88,7 +88,7 @@ walletTest.describe('Compose Send Page (/compose/send)', () => {
     await expect(page).toHaveURL(/compose\/send/, { timeout: 5000 });
 
     const destinationInput = compose.send.recipientInput(page);
-    await destinationInput.fill('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh');
+    await destinationInput.fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const quantityInput = compose.send.quantityInput(page);
     await quantityInput.fill('0.001');

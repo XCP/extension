@@ -133,7 +133,7 @@ walletTest.describe('Index Page', () => {
     });
 
     walletTest('search functionality filters results', async ({ page }) => {
-      const searchInput = page.locator('input[placeholder*="Search"], input[type="search"]').first();
+      const searchInput = index.searchInput(page);
       const searchCount = await searchInput.count();
 
       if (searchCount === 0) {

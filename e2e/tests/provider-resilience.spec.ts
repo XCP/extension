@@ -17,8 +17,9 @@ import * as http from 'http';
 import path from 'path';
 import { chromium } from '@playwright/test';
 import { onboarding, createWallet as createWalletSelectors, unlock, header } from '../selectors';
+import { TEST_PASSWORDS } from '../test-data';
 
-const TEST_PASSWORD = 'TestPassword123!';
+const TEST_PASSWORD = TEST_PASSWORDS.valid;
 
 // Create a more sophisticated test dApp that tracks state properly
 function createResilientTestDapp(): Promise<{ server: http.Server; url: string }> {

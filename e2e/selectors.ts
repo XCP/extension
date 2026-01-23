@@ -93,6 +93,9 @@ export const index = {
   // Balance display - use text content matching
   btcBalanceRow: (page: Page) => page.getByRole('button').filter({ hasText: 'BTC' }).first(),
   xcpBalanceRow: (page: Page) => page.getByRole('button').filter({ hasText: 'XCP' }).first(),
+
+  // Search input on index page
+  searchInput: (page: Page) => page.locator('input[placeholder*="Search"], input[type="search"]').first(),
 };
 
 // ============================================================================
@@ -556,5 +559,11 @@ export const common = {
   headerBackButton: (page: Page) => page.locator('header button[aria-label="Go Back"]'),
   helpButton: (page: Page) => page.locator('button[aria-label*="Help"]'),
   refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
+
+  // Common action buttons
+  removeButton: (page: Page) => page.locator('button').filter({ hasText: /Remove/i }),
+  deleteButton: (page: Page) => page.getByRole('button', { name: /delete/i }),
+  saveButton: (page: Page) => page.getByRole('button', { name: /save/i }),
+  submitButton: (page: Page) => page.locator('button[type="submit"]'),
 };
 
