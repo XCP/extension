@@ -275,7 +275,7 @@ export const compose = {
     mainchainRateInput: (page: Page) => page.locator('input[name*="rate"], input[name*="price"], input[placeholder*="satoshi"]').first(),
     escrowQuantityInput: (page: Page) => page.locator('input[name*="escrow"], input[name*="quantity"]').first(),
     giveQuantityInput: (page: Page) => page.locator('input[name*="give"], input[name*="dispense"]').first(),
-    createButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Open")').first(),
+    createButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Open"), button:has-text("Continue")').first(),
     // Close dispenser
     hashInput: (page: Page) => page.locator('input[name*="hash"], input[placeholder*="hash"]').first(),
     dispenserSelect: (page: Page) => page.locator('select, [role="combobox"]').first(),

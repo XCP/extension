@@ -96,9 +96,10 @@ walletTest.describe('Address Management', () => {
 
     await expect(page).toHaveURL(/select-address/);
 
-    // Should show address type information
-    const addressType = page.locator('text=/P2WPKH|Native SegWit|SegWit|Legacy|P2PKH|P2TR|Taproot/i').first();
-    await expect(addressType).toBeVisible({ timeout: 5000 });
+    // Select-address page shows derivation path (e.g., m/84'/0'/0'/0/0) not address type name
+    // Check that derivation path is displayed for each address
+    const derivationPath = page.locator('text=/m\\/\\d+/').first();
+    await expect(derivationPath).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('address validation and format checking', async ({ page }) => {

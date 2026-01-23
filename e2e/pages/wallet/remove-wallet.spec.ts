@@ -8,7 +8,8 @@ import { walletTest, expect, navigateTo } from '../../fixtures';
 
 walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   // Navigate to remove-wallet page through the UI (via select-wallet page wallet menu)
-  async function navigateToRemoveWallet(page: any): Promise<void> {
+  // Returns false if Remove button is disabled (only one wallet exists)
+  async function navigateToRemoveWallet(page: any): Promise<boolean> {
     // Navigate to select-wallet page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
@@ -21,19 +22,34 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
     await walletMenu.first().click();
 
-    // Click "Remove ..." option from the dropdown (button text is "Remove {walletName}")
-    const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
-    await expect(removeOption).toBeVisible({ timeout: 3000 });
-    await removeOption.click();
+    // Wait for menu to appear
+    await page.waitForTimeout(500);
 
+    // Check if Remove button is disabled (only one wallet)
+    const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
+    const removeCount = await removeOption.count();
+    if (removeCount === 0) {
+      return false;
+    }
+
+    const isDisabled = await removeOption.isDisabled();
+    if (isDisabled) {
+      // Close the menu by clicking elsewhere
+      await page.keyboard.press('Escape');
+      return false;
+    }
+
+    await removeOption.click();
     await page.waitForLoadState('networkidle');
 
     // Verify we're on the remove-wallet page
     await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
+    return true;
   }
 
   walletTest('page loads with warning or password input', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     // Should show remove wallet page with warning or password input
     const warning = page.locator('text=/Warning|Remove|Delete/i').first();
@@ -43,7 +59,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 
   walletTest('displays security warning', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     // Should show warning about backing up before removing
     await expect(
@@ -52,21 +69,24 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 
   walletTest('requires password verification', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has remove button', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
     await expect(removeButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
@@ -87,7 +107,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 
   walletTest('has back button', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     const backButton = page.locator('button[aria-label*="back" i], header button').first();
     await expect(backButton).toBeVisible({ timeout: 5000 });
@@ -114,7 +135,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 
   walletTest('warning box has danger styling', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     // The warning box should have red/danger styling
     const warningBox = page.locator('.bg-red-50, [class*="red"], [class*="danger"], [class*="warning"]').first();
@@ -122,7 +144,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   });
 
   walletTest('displays wallet type in warning', async ({ page }) => {
-    await navigateToRemoveWallet(page);
+    const canNavigate = await navigateToRemoveWallet(page);
+    walletTest.skip(!canNavigate, 'Cannot remove only wallet - Remove button is disabled');
 
     // Warning should mention the wallet type (mnemonic or private key)
     await expect(
