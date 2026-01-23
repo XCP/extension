@@ -181,8 +181,8 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       expect(ariaLabel?.toLowerCase()).toContain('max');
     });
 
-    walletTest('clicking Max fills amount field', async ({ page }) => {
-      // First fill destination to enable max calculation
+    walletTest('clicking Max shows no balance error when wallet is empty', async ({ page }) => {
+      // walletTest fixture wallet has no BTC balance (Available: 0.00000000)
       await fillDestination(page);
 
       const input = page.locator('input[name="quantity"]');
@@ -191,29 +191,16 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Clear any existing value
       await input.clear();
 
-      // Click Max
+      // Click Max - should show "No available balance." error
       await maxButton.click();
 
-      // Wait for max calculation to complete
-      // For test wallets with no balance, Max may:
-      // 1. Fill with "0" or "0.00000000"
-      // 2. Leave empty and show an error
-      // 3. Disable the button
-      const errorAlert = page.locator('[role="alert"], .text-red-600, p.text-red-500');
+      // Wait for the error to appear
+      const errorAlert = page.locator('[role="alert"]');
+      await expect(errorAlert).toBeVisible({ timeout: 10000 });
+      await expect(errorAlert).toContainText('No available balance');
 
-      // Wait for response - either a value appears, or an error, or button state changes
-      await page.waitForTimeout(1000); // Allow time for async max calculation
-
-      const value = await input.inputValue();
-      const errorCount = await errorAlert.count();
-      const isMaxDisabled = await maxButton.isDisabled().catch(() => false);
-
-      // Test passes if any of these occurred:
-      // - Input has a value (even "0")
-      // - An error is displayed
-      // - Max button became disabled (no balance)
-      const hasResponse = value !== '' || errorCount > 0 || isMaxDisabled;
-      expect(hasResponse, `Expected Max to provide feedback. Value: "${value}", Errors: ${errorCount}, MaxDisabled: ${isMaxDisabled}`).toBe(true);
+      // Input should remain empty since there's no balance
+      await expect(input).toHaveValue('');
     });
 
     walletTest('Max button shows loading state during calculation', async ({ page }) => {
