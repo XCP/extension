@@ -127,7 +127,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     }
 
     // Fill password
-    const passwordInput = page.locator('input[name="password"]').first();
+    const passwordInput = importWallet.passwordInput(page);
     const passwordCount = await passwordInput.count();
     if (passwordCount > 0 && await passwordInput.isVisible()) {
       await passwordInput.fill(TEST_PASSWORD);
@@ -161,7 +161,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     }
 
     // Fill wrong password
-    const passwordInput = page.locator('input[name="password"]').first();
+    const passwordInput = importWallet.passwordInput(page);
     const passwordCount = await passwordInput.count();
     if (passwordCount > 0 && await passwordInput.isVisible()) {
       await passwordInput.fill('wrongpassword123');

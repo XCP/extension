@@ -11,7 +11,7 @@ import {
   expect,
   TEST_PASSWORD
 } from '../fixtures';
-import { header, selectAddress } from '../selectors';
+import { header, selectAddress, unlock, secrets } from '../selectors';
 
 walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -40,7 +40,7 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
         await showPassphraseOption.click();
 
         // Should navigate to passphrase page or show password prompt
-        const passwordOrPage = page.locator('input[type="password"]').or(page.locator('text=/passphrase|recovery/i')).first();
+        const passwordOrPage = unlock.passwordInput(page).or(page.locator('text=/passphrase|recovery/i')).first();
         await expect(passwordOrPage).toBeVisible({ timeout: 5000 });
       }
     }
@@ -63,7 +63,7 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
         await showPassphraseOption.click();
 
         // Should require password
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
       }
     }
@@ -85,12 +85,12 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
       if (optionCount > 0) {
         await showPassphraseOption.click();
 
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
         await passwordInput.fill(TEST_PASSWORD);
 
-        const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm"), button:has-text("Reveal")').first();
+        const confirmButton = secrets.revealButton(page);
         await confirmButton.click();
 
         // Should show mnemonic words - wait for grid or word content
@@ -116,12 +116,12 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
       if (optionCount > 0) {
         await showPassphraseOption.click();
 
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
         await passwordInput.fill(TEST_PASSWORD);
 
-        const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm")').first();
+        const confirmButton = secrets.revealButton(page);
         await confirmButton.click();
 
         // Wait for passphrase to be revealed (grid of words should appear)
@@ -164,7 +164,7 @@ walletTest.describe('Show Private Key Page (/show-private-key)', () => {
         await showKeyOption.click();
 
         // Should show password prompt or navigate to key page
-        const passwordOrPage = page.locator('input[type="password"]').or(page.locator('text=/private.*key/i')).first();
+        const passwordOrPage = unlock.passwordInput(page).or(page.locator('text=/private.*key/i')).first();
         await expect(passwordOrPage).toBeVisible({ timeout: 5000 });
       }
     }
@@ -187,7 +187,7 @@ walletTest.describe('Show Private Key Page (/show-private-key)', () => {
         await showKeyOption.click();
 
         // Should require password
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
       }
     }
@@ -209,12 +209,12 @@ walletTest.describe('Show Private Key Page (/show-private-key)', () => {
       if (optionCount > 0) {
         await showKeyOption.click();
 
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
         await passwordInput.fill(TEST_PASSWORD);
 
-        const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm")').first();
+        const confirmButton = secrets.revealButton(page);
         await confirmButton.click();
 
         // Should show private key (long string of characters in monospace)
@@ -240,16 +240,16 @@ walletTest.describe('Show Private Key Page (/show-private-key)', () => {
       if (optionCount > 0) {
         await showKeyOption.click();
 
-        const passwordInput = page.locator('input[type="password"]');
+        const passwordInput = unlock.passwordInput(page);
         await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
         await passwordInput.fill(TEST_PASSWORD);
 
-        const confirmButton = page.locator('button:has-text("Show"), button:has-text("Confirm")').first();
+        const confirmButton = secrets.revealButton(page);
         await confirmButton.click();
 
         // Should have copy button
-        const copyButton = page.locator('button:has-text("Copy")').first();
+        const copyButton = secrets.copyButton(page);
         await expect(copyButton).toBeVisible({ timeout: 5000 });
       }
     }

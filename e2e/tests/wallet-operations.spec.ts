@@ -293,8 +293,8 @@ walletTest.describe('Reset Wallet', () => {
     await page.waitForURL(/onboarding/, { timeout: 10000 });
 
     // Verify onboarding options are visible
-    await expect(page.getByText('Create Wallet')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Import Wallet')).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.createWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await expect(onboarding.importWalletButton(page)).toBeVisible({ timeout: 5000 });
   });
 });
 
