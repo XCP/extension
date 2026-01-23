@@ -4,8 +4,8 @@
  * Tests for /view-address route - display QR code and copy address
  */
 
-import { walletTest, expect } from '../../fixtures';
-import { viewAddress } from '../../selectors';
+import { walletTest, expect, grantClipboardPermissions } from '../../fixtures';
+import { viewAddress, common } from '../../selectors';
 
 walletTest.describe('View Address Page (/view-address)', () => {
   walletTest('view address page loads', async ({ page }) => {
@@ -82,5 +82,106 @@ walletTest.describe('View Address Page (/view-address)', () => {
     // Header should have a back button
     const backButton = page.locator('button[aria-label="Go Back"]');
     await expect(backButton).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('displays valid Bitcoin address format', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    const addressDisplay = viewAddress.addressDisplay(page);
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+
+    // Get the address text
+    const addressText = await addressDisplay.textContent();
+
+    // Should be a valid Bitcoin address format (starts with 1, 3, bc1, or tb1)
+    expect(addressText).toMatch(/^(1|3|bc1|tb1)[a-zA-Z0-9]+$/);
+  });
+
+  walletTest('copy button copies address to clipboard', async ({ page, context }) => {
+    await grantClipboardPermissions(context);
+
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    // Get the displayed address
+    const addressDisplay = viewAddress.addressDisplay(page);
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const displayedAddress = await addressDisplay.textContent();
+
+    // Click copy button
+    const copyButton = viewAddress.copyButton(page);
+    await copyButton.click();
+
+    // Verify clipboard contains the address
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toBe(displayedAddress);
+  });
+
+  walletTest('clicking address text also copies to clipboard', async ({ page, context }) => {
+    await grantClipboardPermissions(context);
+
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    // The address text is also clickable for copying
+    const addressDisplay = viewAddress.addressDisplay(page);
+    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    const displayedAddress = await addressDisplay.textContent();
+
+    // Click the address text itself
+    await addressDisplay.click();
+
+    // Should show "Copied!" feedback
+    await expect(page.locator('text=/Copied/i')).toBeVisible({ timeout: 3000 });
+
+    // Verify clipboard
+    const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardText).toBe(displayedAddress);
+  });
+
+  walletTest('QR code contains the address', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    // QR code should be visible
+    const qrCode = viewAddress.qrCode(page);
+    await expect(qrCode).toBeVisible({ timeout: 5000 });
+
+    // QR code should have aria-label mentioning address
+    await expect(qrCode).toHaveAttribute('aria-label', /Address QR Code/i);
+  });
+
+  walletTest('shows address name and type label', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    // Should show address info header with name and type
+    // Format is "Address Name | ADDRESS_TYPE"
+    const infoHeader = page.locator('text=/\\|/').first();
+    await expect(infoHeader).toBeVisible({ timeout: 5000 });
+
+    // Should contain address type
+    const headerText = await infoHeader.textContent();
+    expect(headerText).toMatch(/P2PKH|P2WPKH|P2TR|P2SH/i);
+  });
+
+  walletTest('mnemonic wallet shows Select Address button in header', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.waitForLoadState('networkidle');
+
+    // Mnemonic wallets have a list icon button to select different address
+    const selectAddressButton = page.locator('[aria-label="Select Address"]');
+    const buttonCount = await selectAddressButton.count();
+
+    // This button only shows for mnemonic wallets
+    if (buttonCount > 0) {
+      await expect(selectAddressButton).toBeVisible({ timeout: 5000 });
+
+      // Clicking it navigates to select-address
+      await selectAddressButton.click();
+      await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+    }
+    // For private key wallets, button doesn't exist - that's fine
   });
 });

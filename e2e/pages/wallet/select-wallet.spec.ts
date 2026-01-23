@@ -117,4 +117,103 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     const interactiveElement = page.locator('button, a, [role="button"]').first();
     await expect(interactiveElement).toBeVisible({ timeout: 3000 });
   });
+
+  walletTest('wallet menu shows options when clicked', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // Find wallet options menu button (three dots)
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+
+    // Click to open menu
+    await walletMenu.first().click();
+
+    // Menu should appear with options
+    const menuOptions = page.getByRole('menu').or(page.locator('[role="menuitem"]')).first();
+    await expect(menuOptions).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('wallet menu has Show Passphrase option', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+    await walletMenu.first().click();
+
+    // Should have Show Passphrase option
+    const showPhraseOption = page.locator('button, [role="menuitem"]').filter({ hasText: /Show.*Passphrase|Recovery/i });
+    await expect(showPhraseOption.first()).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('wallet menu has Remove option (disabled when only wallet)', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+    await walletMenu.first().click();
+
+    // Should have Remove option
+    const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
+    await expect(removeOption.first()).toBeVisible({ timeout: 3000 });
+
+    // If only one wallet, Remove should be disabled
+    const walletCount = await page.locator('[role="radio"]').count();
+    if (walletCount === 1) {
+      await expect(removeOption.first()).toBeDisabled();
+    }
+  });
+
+  walletTest('selected wallet shows checkmark', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // The active wallet has aria-checked="true"
+    const checkedWallet = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(checkedWallet).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('wallet items show wallet name', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // Each wallet should display its name
+    const walletItems = page.locator('[role="radio"]');
+    const firstWallet = walletItems.first();
+    await expect(firstWallet).toBeVisible({ timeout: 5000 });
+
+    // Should contain text like "Wallet 1" or custom name
+    const walletText = await firstWallet.textContent();
+    expect(walletText).toBeTruthy();
+    expect(walletText!.length).toBeGreaterThan(0);
+  });
+});
+
+// Separate describe for multi-wallet scenarios
+walletTest.describe('Select Wallet - Multi-Wallet', () => {
+  walletTest('switching wallets changes header wallet name on index', async ({ page }) => {
+    // Navigate to select-wallet
+    await header.walletSelector(page).click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+
+    // Check if multiple wallets exist
+    const walletItems = page.locator('[role="radio"]');
+    const walletCount = await walletItems.count();
+
+    if (walletCount <= 1) {
+      walletTest.skip(true, 'Only one wallet exists - cannot test switching');
+      return;
+    }
+
+    // Get name of second wallet before switching
+    const secondWallet = walletItems.nth(1);
+    const secondWalletName = await secondWallet.locator('text=/Wallet/i').first().textContent();
+
+    // Select the second wallet
+    await secondWallet.click();
+
+    // Should navigate to index
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
+
+    // Wallet selector in header should show the new wallet name
+    const walletSelector = header.walletSelector(page);
+    await expect(walletSelector).toContainText(secondWalletName || 'Wallet', { timeout: 5000 });
+  });
 });
