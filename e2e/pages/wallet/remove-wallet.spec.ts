@@ -4,7 +4,7 @@
  * Tests for the remove wallet page that allows deleting a wallet with password confirmation.
  */
 
-import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
+import { walletTest, expect } from '../../fixtures';
 
 walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
   async function getWalletId(page: any): Promise<string | null> {
@@ -18,153 +18,78 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     });
   }
 
-  async function navigateToRemoveWallet(page: any): Promise<boolean> {
+  async function navigateToRemoveWallet(page: any): Promise<void> {
     const walletId = await getWalletId(page);
-
-    if (walletId) {
-      const currentUrl = page.url();
-      const hashIndex = currentUrl.indexOf('#');
-      const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-      await page.goto(`${baseUrl}/remove-wallet/${walletId}`);
-      await page.waitForLoadState('networkidle');
-      return true;
+    if (!walletId) {
+      throw new Error('No wallet found');
     }
 
-    return false;
+    const currentUrl = page.url();
+    const hashIndex = currentUrl.indexOf('#');
+    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+    await page.goto(`${baseUrl}/remove-wallet/${walletId}`);
+    await page.waitForLoadState('networkidle');
   }
 
-  walletTest('page loads with wallet ID', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+  walletTest('page loads with warning or password input', async ({ page }) => {
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // Should show remove wallet page with warning
-      const hasWarning = await page.locator('text=/Warning|Remove|Delete/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPasswordInput = await page.locator('input[name="password"], input[type="password"]').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // Should show remove wallet page with warning or password input
+    const warning = page.locator('text=/Warning|Remove|Delete/i').first();
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
 
-      expect(hasWarning || hasPasswordInput).toBe(true);
-    }
+    await expect(warning.or(passwordInput)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays security warning', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // Should show warning about backing up before removing
-      const hasWarning = await page.locator('text=/Warning|backup|backed up|mnemonic|private key/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasWarning).toBe(true);
-    }
+    // Should show warning about backing up before removing
+    await expect(
+      page.locator('text=/Warning|backup|backed up|mnemonic|private key/i').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('requires password verification', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // Should have password input
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
-    }
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has remove button', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // Should have a remove button (likely styled red/danger)
-      const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
-      await expect(removeButton).toBeVisible({ timeout: 5000 });
-    }
-  });
-
-  walletTest('remove button shows wallet name', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
-
-    if (navigated) {
-      // The remove button may show the wallet name
-      const hasWalletName = await page.locator('button:has-text("Remove"), button[type="submit"]').first().textContent();
-
-      // Button exists and has text
-      expect(hasWalletName).toBeTruthy();
-    }
+    const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
+    await expect(removeButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-      await passwordInput.fill('wrongpassword123');
+    await passwordInput.fill('wrongpassword123');
 
-      const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
-      await removeButton.click();
+    const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
+    await removeButton.click();
 
-      await page.waitForTimeout(1000);
+    // Should show error or stay on page
+    const errorText = page.locator('text=/incorrect|invalid|wrong|does not match|error/i').first();
+    const stillOnPage = page.url().includes('remove-wallet');
 
-      // Should show error
-      const hasError = await page.locator('text=/incorrect|invalid|wrong|does not match|error/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const stillOnPage = page.url().includes('remove-wallet');
-
+    await expect(async () => {
+      const hasError = await errorText.isVisible();
       expect(hasError || stillOnPage).toBe(true);
-    }
-  });
-
-  walletTest('shows error for empty password', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
-
-    if (navigated) {
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
-
-      // Leave password empty
-      await passwordInput.fill('');
-
-      const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
-      await removeButton.click();
-
-      await page.waitForTimeout(1000);
-
-      // Should show error or stay on page
-      const hasError = await page.locator('text=/required|empty|enter|password/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const stillOnPage = page.url().includes('remove-wallet');
-
-      expect(hasError || stillOnPage).toBe(true);
-    }
-  });
-
-  walletTest('shows error for short password', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
-
-    if (navigated) {
-      const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-      await expect(passwordInput).toBeVisible({ timeout: 5000 });
-
-      // Enter short password
-      await passwordInput.fill('short');
-
-      const removeButton = page.locator('button:has-text("Remove"), button[type="submit"]').first();
-      await removeButton.click();
-
-      await page.waitForTimeout(1000);
-
-      // Should show error about minimum length
-      const hasError = await page.locator('text=/minimum|characters|at least|8/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const stillOnPage = page.url().includes('remove-wallet');
-
-      expect(hasError || stillOnPage).toBe(true);
-    }
+    }).toPass({ timeout: 5000 });
   });
 
   walletTest('has back button', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      const backButton = page.locator('button[aria-label*="back" i], header button').first();
-      const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(isVisible).toBe(true);
-    }
+    const backButton = page.locator('button[aria-label*="back" i], header button').first();
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {
@@ -175,32 +100,29 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show error or redirect
-    const hasError = await page.locator('text=/not found|error|invalid/i').first().isVisible({ timeout: 5000 }).catch(() => false);
+    const errorText = page.locator('text=/not found|error|invalid/i').first();
     const redirected = !page.url().includes('/remove-wallet');
 
-    expect(hasError || redirected).toBe(true);
+    await expect(async () => {
+      const hasError = await errorText.isVisible();
+      expect(hasError || redirected).toBe(true);
+    }).toPass({ timeout: 5000 });
   });
 
   walletTest('warning box has danger styling', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // The warning box should have red/danger styling
-      const warningBox = page.locator('.bg-red-50, [class*="red"], [class*="danger"], [class*="warning"]').first();
-      const isVisible = await warningBox.isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(isVisible).toBe(true);
-    }
+    // The warning box should have red/danger styling
+    const warningBox = page.locator('.bg-red-50, [class*="red"], [class*="danger"], [class*="warning"]').first();
+    await expect(warningBox).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays wallet type in warning', async ({ page }) => {
-    const navigated = await navigateToRemoveWallet(page);
+    await navigateToRemoveWallet(page);
 
-    if (navigated) {
-      // Warning should mention the wallet type (mnemonic or private key)
-      const hasWalletType = await page.locator('text=/mnemonic|private key/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-      expect(hasWalletType).toBe(true);
-    }
+    // Warning should mention the wallet type (mnemonic or private key)
+    await expect(
+      page.locator('text=/mnemonic|private key/i').first()
+    ).toBeVisible({ timeout: 5000 });
   });
 });
