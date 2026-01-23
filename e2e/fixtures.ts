@@ -14,7 +14,6 @@ import {
   importWallet,
   unlock,
   header,
-  footer,
   index,
 } from './selectors';
 
@@ -233,34 +232,15 @@ async function setupWallet(page: Page, password = TEST_PASSWORD): Promise<void> 
 type NavTarget = 'wallet' | 'market' | 'actions' | 'settings';
 
 async function navigateTo(page: Page, target: NavTarget): Promise<void> {
-  const footerButtons = {
-    wallet: footer.walletButton,
-    market: footer.marketButton,
-    actions: footer.actionsButton,
-    settings: footer.settingsButton,
-  };
   const paths = { wallet: '/index', market: '/market', actions: '/actions', settings: '/settings' };
   const pattern = { wallet: /index/, market: /market/, actions: /actions/, settings: /settings/ };
 
-  // Use footer selectors from selectors.ts
-  const button = footerButtons[target](page);
-
-  // Wait for page to be stable before attempting navigation
-  await page.waitForLoadState('domcontentloaded');
-
-  // Try clicking the footer button first, fall back to direct navigation
-  const buttonCount = await button.count();
-  if (buttonCount > 0) {
-    // Wait for button to be stable (avoid "element detached from DOM" errors during React re-renders)
-    await button.waitFor({ state: 'attached', timeout: 5000 });
-    await button.click();
-  } else {
-    // Navigate directly - handle hash-based routing (e.g., popup/index.html#/settings/address-type)
-    const currentUrl = page.url();
-    const hashIndex = currentUrl.indexOf('#');
-    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}${paths[target]}`);
-  }
+  // Direct navigation is more reliable than clicking footer buttons
+  // (some pages don't show footer, or React re-renders cause stability issues)
+  const currentUrl = page.url();
+  const hashIndex = currentUrl.indexOf('#');
+  const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+  await page.goto(`${baseUrl}${paths[target]}`);
   await page.waitForURL(pattern[target], { timeout: 5000 });
 }
 
