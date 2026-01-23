@@ -18,9 +18,9 @@ import { onboarding, actions, index, send, createWallet as createWalletSelectors
 test.describe('Form Edge Cases - Mnemonic Input', () => {
   test('can paste full mnemonic into first input field', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
-    const firstInput = extensionPage.locator('input[name="word-0"]');
+    const firstInput = importWallet.wordInput(extensionPage, 0);
     await firstInput.focus();
 
     // The import-wallet page handles multi-word paste via onChange, not a paste event
@@ -38,11 +38,11 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
 
   test('handles mnemonic with extra whitespace', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const mnemonicWords = TEST_MNEMONIC.split(' ');
     for (let i = 0; i < Math.min(12, mnemonicWords.length); i++) {
-      const input = extensionPage.locator(`input[name="word-${i}"]`);
+      const input = importWallet.wordInput(extensionPage, i);
       await input.fill(`  ${mnemonicWords[i]}  `);
     }
 
@@ -57,11 +57,11 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
 
   test('handles mnemonic words in wrong case', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const mnemonicWords = TEST_MNEMONIC.split(' ');
     for (let i = 0; i < Math.min(12, mnemonicWords.length); i++) {
-      const input = extensionPage.locator(`input[name="word-${i}"]`);
+      const input = importWallet.wordInput(extensionPage, i);
       await input.fill(mnemonicWords[i].toUpperCase());
     }
 
@@ -76,12 +76,12 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
 
   test('rejects invalid mnemonic words', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const invalidWords = ['notaword', 'invalid', 'fake', 'wrong', 'bad', 'test',
       'garbage', 'random', 'stuff', 'here', 'more', 'words'];
     for (let i = 0; i < 12; i++) {
-      const input = extensionPage.locator(`input[name="word-${i}"]`);
+      const input = importWallet.wordInput(extensionPage, i);
       await input.fill(invalidWords[i]);
     }
 
@@ -101,7 +101,7 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
 test.describe('Form Edge Cases - Wallet Labels', () => {
   test('handles very long wallet label', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
     const labelCount = await labelInput.count();
@@ -118,7 +118,7 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
 
   test('handles special characters in wallet label', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
     const labelCount = await labelInput.count();
@@ -135,7 +135,7 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
 
   test('handles emoji in wallet label', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
     const labelCount = await labelInput.count();
@@ -344,7 +344,7 @@ walletTest.describe('Form Edge Cases - Address Validation', () => {
 test.describe('Form Edge Cases - Password Fields', () => {
   test.beforeEach(async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('text=View 12-word Secret Phrase', { timeout: 5000 });
+    await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
     await extensionPage.getByText('View 12-word Secret Phrase').click();
     await extensionPage.getByLabel(/I have saved my secret recovery phrase/).check();
   });
@@ -395,7 +395,7 @@ test.describe('Form Edge Cases - Password Fields', () => {
 test.describe('Form Edge Cases - Private Key Import', () => {
   test('handles private key with prefix', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
     const optionCount = await privKeyOption.count();
@@ -416,7 +416,7 @@ test.describe('Form Edge Cases - Private Key Import', () => {
 
   test('handles WIF private key format', async ({ extensionPage }) => {
     await onboarding.importWalletButton(extensionPage).click();
-    await extensionPage.waitForSelector('input[name="word-0"]', { timeout: 5000 });
+    await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
     const optionCount = await privKeyOption.count();
