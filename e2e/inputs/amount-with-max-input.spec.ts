@@ -123,15 +123,15 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await input.fill(TEST_AMOUNTS.negative);
       await input.blur();
 
-      // Component accepts negative input but should show validation error or disable submit
+      // Component accepts negative input - form should not allow submission
       const value = await input.inputValue();
 
       // Verify the input accepted the value (component handles validation via form, not input mask)
       expect(value).toContain('-');
 
-      // Check that form validation catches it via aria-invalid attribute
-      const hasAriaInvalid = await input.getAttribute('aria-invalid');
-      expect(hasAriaInvalid).toBe('true');
+      // Submit button should be disabled for invalid input
+      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
+      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
     });
 
     walletTest('handles non-numeric input', async ({ page }) => {
@@ -139,15 +139,15 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await input.fill(TEST_AMOUNTS.invalid);
       await input.blur();
 
-      // Component accepts non-numeric input but validates on form submission
+      // Component accepts non-numeric input - form should not allow submission
       const value = await input.inputValue();
 
       // Verify the input accepted the value
       expect(value).toBe(TEST_AMOUNTS.invalid);
 
-      // Check that form validation catches it via aria-invalid attribute
-      const hasAriaInvalid = await input.getAttribute('aria-invalid');
-      expect(hasAriaInvalid).toBe('true');
+      // Submit button should be disabled for invalid input
+      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
+      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
     });
   });
 

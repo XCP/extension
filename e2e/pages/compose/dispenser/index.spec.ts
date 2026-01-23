@@ -38,12 +38,9 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    // Form should have asset field or input
-    const assetField = page.locator('text=/Asset|XCP/i').first();
-    const assetSelect = compose.common.assetSelect(page);
-    const formInput = page.locator('input').first();
-
-    await expect(assetField.or(assetSelect).or(formInput).first()).toBeVisible({ timeout: 5000 });
+    // Form should show the XCP asset (from URL parameter)
+    const assetDisplay = page.locator('text=XCP').first();
+    await expect(assetDisplay).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser form has mainchain rate field', async ({ page }) => {

@@ -85,16 +85,18 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
       await input.fill(invalidWords[i]);
     }
 
+    // Check confirmation checkbox to enable Continue button
+    const checkbox = extensionPage.locator('#confirmed-checkbox');
+    await expect(checkbox).toBeEnabled({ timeout: 5000 });
+    await checkbox.check();
+
     const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
-    const buttonCount = await continueButton.count();
+    await expect(continueButton).toBeVisible({ timeout: 5000 });
+    await continueButton.click();
 
-    if (buttonCount > 0 && await continueButton.isVisible()) {
-      await continueButton.click();
-
-      // Should show error for invalid mnemonic
-      const error = extensionPage.locator('text=/invalid|error|incorrect/i');
-      await expect(error).toBeVisible({ timeout: 5000 });
-    }
+    // Should show error for invalid mnemonic
+    const error = extensionPage.locator('text=/invalid|error|incorrect/i');
+    await expect(error).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -104,16 +106,20 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    const labelCount = await labelInput.count();
 
-    if (labelCount > 0 && await labelInput.isVisible()) {
-      const longLabel = 'A'.repeat(200);
-      await labelInput.fill(longLabel);
-      await labelInput.blur();
-
-      const inputValue = await labelInput.inputValue();
-      expect(inputValue.length).toBeLessThanOrEqual(200);
+    // Skip if wallet name input is not on this page (optional feature)
+    try {
+      await expect(labelInput).toBeVisible({ timeout: 2000 });
+    } catch {
+      return; // Label input not present on this page
     }
+
+    const longLabel = 'A'.repeat(200);
+    await labelInput.fill(longLabel);
+    await labelInput.blur();
+
+    const inputValue = await labelInput.inputValue();
+    expect(inputValue.length).toBeLessThanOrEqual(200);
   });
 
   test('handles special characters in wallet label', async ({ extensionPage }) => {
@@ -121,16 +127,20 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    const labelCount = await labelInput.count();
 
-    if (labelCount > 0 && await labelInput.isVisible()) {
-      const specialLabel = 'My Wallet <script>alert("xss")</script> & "quotes" \'single\'';
-      await labelInput.fill(specialLabel);
-      await labelInput.blur();
-
-      const inputValue = await labelInput.inputValue();
-      expect(inputValue).toBeTruthy();
+    // Skip if wallet name input is not on this page (optional feature)
+    try {
+      await expect(labelInput).toBeVisible({ timeout: 2000 });
+    } catch {
+      return; // Label input not present on this page
     }
+
+    const specialLabel = 'My Wallet <script>alert("xss")</script> & "quotes" \'single\'';
+    await labelInput.fill(specialLabel);
+    await labelInput.blur();
+
+    const inputValue = await labelInput.inputValue();
+    expect(inputValue).toBeTruthy();
   });
 
   test('handles emoji in wallet label', async ({ extensionPage }) => {
@@ -138,15 +148,19 @@ test.describe('Form Edge Cases - Wallet Labels', () => {
     await expect(createWalletSelectors.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
 
     const labelInput = extensionPage.locator('input[name="name"], input[name="label"], input[placeholder*="name"], input[placeholder*="label"]').first();
-    const labelCount = await labelInput.count();
 
-    if (labelCount > 0 && await labelInput.isVisible()) {
-      await labelInput.fill('My Wallet 123');
-      await labelInput.blur();
-
-      const inputValue = await labelInput.inputValue();
-      expect(inputValue).toContain('123');
+    // Skip if wallet name input is not on this page (optional feature)
+    try {
+      await expect(labelInput).toBeVisible({ timeout: 2000 });
+    } catch {
+      return; // Label input not present on this page
     }
+
+    await labelInput.fill('My Wallet 123');
+    await labelInput.blur();
+
+    const inputValue = await labelInput.inputValue();
+    expect(inputValue).toContain('123');
   });
 });
 
@@ -216,16 +230,14 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    const amountCount = await amountInput.count();
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    if (amountCount > 0 && await amountInput.isVisible()) {
-      await amountInput.fill('0');
-      await amountInput.blur();
+    await amountInput.fill('0');
+    await amountInput.blur();
 
-      // Submit button should be disabled with zero amount
-      const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      await expect(submitButton).toBeDisabled();
-    }
+    // Submit button should be disabled with zero amount
+    const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
+    await expect(submitButton).toBeDisabled();
   });
 
   walletTest('handles negative amount send attempt', async ({ page }) => {
@@ -233,16 +245,14 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    const amountCount = await amountInput.count();
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    if (amountCount > 0 && await amountInput.isVisible()) {
-      await amountInput.fill('-1');
-      await amountInput.blur();
+    await amountInput.fill('-1');
+    await amountInput.blur();
 
-      // Negative values should be sanitized (stripped) or button disabled
-      const inputValue = await amountInput.inputValue();
-      expect(inputValue.includes('-')).toBe(false);
-    }
+    // Negative values should be sanitized (stripped) or button disabled
+    const inputValue = await amountInput.inputValue();
+    expect(inputValue.includes('-')).toBe(false);
   });
 
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {
@@ -250,16 +260,14 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    const amountCount = await amountInput.count();
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    if (amountCount > 0 && await amountInput.isVisible()) {
-      await amountInput.fill('0.00000001');
-      await amountInput.blur();
+    await amountInput.fill('0.00000001');
+    await amountInput.blur();
 
-      // Input accepted - validation may happen on submit
-      const inputValue = await amountInput.inputValue();
-      expect(inputValue).toBeTruthy();
-    }
+    // Input accepted - validation may happen on submit
+    const inputValue = await amountInput.inputValue();
+    expect(inputValue).toBeTruthy();
   });
 
   walletTest('handles very large amount (exceeds balance)', async ({ page }) => {
@@ -267,16 +275,14 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    const amountCount = await amountInput.count();
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    if (amountCount > 0 && await amountInput.isVisible()) {
-      await amountInput.fill('999999999');
-      await amountInput.blur();
+    await amountInput.fill('999999999');
+    await amountInput.blur();
 
-      // Submit button should be disabled with amount exceeding balance
-      const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
-      await expect(submitButton).toBeDisabled();
-    }
+    // Submit button should be disabled with amount exceeding balance
+    const submitButton = page.locator('button:has-text("Continue"), button:has-text("Send")').first();
+    await expect(submitButton).toBeDisabled();
   });
 
   walletTest('handles decimal precision in amount', async ({ page }) => {
@@ -284,16 +290,14 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
 
     const amountInput = send.amountInput(page);
-    const amountCount = await amountInput.count();
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    if (amountCount > 0 && await amountInput.isVisible()) {
-      await amountInput.fill('0.123456789012345');
-      await amountInput.blur();
+    await amountInput.fill('0.123456789012345');
+    await amountInput.blur();
 
-      const inputValue = await amountInput.inputValue();
-      const decimalPart = inputValue.split('.')[1] || '';
-      expect(decimalPart.length).toBeLessThanOrEqual(8);
-    }
+    const inputValue = await amountInput.inputValue();
+    const decimalPart = inputValue.split('.')[1] || '';
+    expect(decimalPart.length).toBeLessThanOrEqual(8);
   });
 });
 
@@ -398,20 +402,24 @@ test.describe('Form Edge Cases - Private Key Import', () => {
     await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
-    const optionCount = await privKeyOption.count();
 
-    if (optionCount > 0 && await privKeyOption.isVisible()) {
-      await privKeyOption.click();
-
-      const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
-      await expect(privKeyInput).toBeVisible({ timeout: 5000 });
-
-      await privKeyInput.fill('0x' + 'a'.repeat(64));
-      await privKeyInput.blur();
-
-      const inputValue = await privKeyInput.inputValue();
-      expect(inputValue).toBeTruthy();
+    // Skip if private key option is not available on import page
+    try {
+      await expect(privKeyOption).toBeVisible({ timeout: 2000 });
+    } catch {
+      return; // Private key import not available from this page
     }
+
+    await privKeyOption.click();
+
+    const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
+    await expect(privKeyInput).toBeVisible({ timeout: 5000 });
+
+    await privKeyInput.fill('0x' + 'a'.repeat(64));
+    await privKeyInput.blur();
+
+    const inputValue = await privKeyInput.inputValue();
+    expect(inputValue).toBeTruthy();
   });
 
   test('handles WIF private key format', async ({ extensionPage }) => {
@@ -419,21 +427,25 @@ test.describe('Form Edge Cases - Private Key Import', () => {
     await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 5000 });
 
     const privKeyOption = extensionPage.locator('text=/Private Key|WIF/i').first();
-    const optionCount = await privKeyOption.count();
 
-    if (optionCount > 0 && await privKeyOption.isVisible()) {
-      await privKeyOption.click();
-
-      const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
-      await expect(privKeyInput).toBeVisible({ timeout: 5000 });
-
-      await privKeyInput.fill(TEST_PRIVATE_KEYS.mainnet);
-      await privKeyInput.blur();
-
-      // Verify input accepted the value
-      const inputValue = await privKeyInput.inputValue();
-      expect(inputValue).toBe(TEST_PRIVATE_KEYS.mainnet);
+    // Skip if private key option is not available on import page
+    try {
+      await expect(privKeyOption).toBeVisible({ timeout: 2000 });
+    } catch {
+      return; // Private key import not available from this page
     }
+
+    await privKeyOption.click();
+
+    const privKeyInput = extensionPage.locator('input[name="privateKey"], input[placeholder*="private"], textarea').first();
+    await expect(privKeyInput).toBeVisible({ timeout: 5000 });
+
+    await privKeyInput.fill(TEST_PRIVATE_KEYS.mainnet);
+    await privKeyInput.blur();
+
+    // Verify input accepted the value
+    const inputValue = await privKeyInput.inputValue();
+    expect(inputValue).toBe(TEST_PRIVATE_KEYS.mainnet);
   });
 });
 

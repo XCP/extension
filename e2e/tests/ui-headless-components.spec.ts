@@ -13,85 +13,99 @@ walletTest.describe('Settings with Headless UI Components', () => {
     expect(originalAddress).toBeTruthy();
 
     await navigateTo(page, 'settings');
+    await expect(settings.addressTypeOption(page)).toBeVisible({ timeout: 5000 });
+    await settings.addressTypeOption(page).click();
 
-    if (await settings.addressTypeOption(page).isVisible()) {
-      await settings.addressTypeOption(page).click();
+    const radioOptions = await page.locator('[role="radio"]').all();
+    expect(radioOptions.length).toBeGreaterThan(1);
 
-      const radioOptions = await page.locator('[role="radio"]').all();
-
-      if (radioOptions.length > 1) {
-        let selectedIndex = -1;
-        for (let i = 0; i < radioOptions.length; i++) {
-          const checkedAttr = await radioOptions[i].getAttribute('aria-checked');
-          const isChecked = checkedAttr === 'true';
-          if (isChecked) {
-            selectedIndex = i;
-            break;
-          }
-        }
-
-        const nextIndex = selectedIndex === 0 ? 1 : 0;
-        await radioOptions[nextIndex].click();
-
-        const newChecked = await radioOptions[nextIndex].getAttribute('aria-checked');
-        expect(newChecked).toBe('true');
-
-        await navigateTo(page, 'wallet');
-
-        const newAddress = await getCurrentAddress(page);
-        expect(newAddress).toBeTruthy();
+    let selectedIndex = -1;
+    for (let i = 0; i < radioOptions.length; i++) {
+      const checkedAttr = await radioOptions[i].getAttribute('aria-checked');
+      const isChecked = checkedAttr === 'true';
+      if (isChecked) {
+        selectedIndex = i;
+        break;
       }
     }
+
+    const nextIndex = selectedIndex === 0 ? 1 : 0;
+    await radioOptions[nextIndex].click();
+
+    const newChecked = await radioOptions[nextIndex].getAttribute('aria-checked');
+    expect(newChecked).toBe('true');
+
+    await navigateTo(page, 'wallet');
+
+    const newAddress = await getCurrentAddress(page);
+    expect(newAddress).toBeTruthy();
   });
 
   walletTest('auto-lock timer settings with Headless UI', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    if (await settings.securityOption(page).isVisible()) {
-      await settings.securityOption(page).click();
-    } else if (await settings.advancedOption(page).isVisible()) {
-      await settings.advancedOption(page).click();
+    // Navigate to security or advanced settings (where auto-lock is found)
+    const securityOption = settings.securityOption(page);
+    const advancedOption = settings.advancedOption(page);
+
+    try {
+      await expect(securityOption).toBeVisible({ timeout: 2000 });
+      await securityOption.click();
+    } catch {
+      await expect(advancedOption).toBeVisible({ timeout: 2000 });
+      await advancedOption.click();
     }
 
     const autoLockLabel = page.locator('text=/Auto.*Lock.*Timer/i').first();
-    const autoLockCount = await autoLockLabel.count();
 
-    if (autoLockCount === 0) {
+    // Skip if auto-lock timer not on this page
+    try {
+      await expect(autoLockLabel).toBeVisible({ timeout: 3000 });
+    } catch {
       return; // Auto-lock timer not present on this page
     }
 
-    await expect(autoLockLabel).toBeVisible({ timeout: 5000 });
-
     const timeoutOptions = await page.locator('[role="radio"]').all();
-    if (timeoutOptions.length > 0) {
-      const firstOption = timeoutOptions[0];
-      await firstOption.click();
+    expect(timeoutOptions.length).toBeGreaterThan(0);
 
-      const isSelected = await firstOption.getAttribute('aria-checked');
-      expect(isSelected).toBe('true');
-    }
+    const firstOption = timeoutOptions[0];
+    await firstOption.click();
+
+    const isSelected = await firstOption.getAttribute('aria-checked');
+    expect(isSelected).toBe('true');
   });
 
   walletTest('currency selection using Headless UI components', async ({ page }) => {
     await navigateTo(page, 'settings');
 
     const generalOption = page.getByText('General');
-    if (await generalOption.isVisible()) {
+
+    // Navigate to General settings if visible
+    try {
+      await expect(generalOption).toBeVisible({ timeout: 2000 });
       await generalOption.click();
+    } catch {
+      // May already be on general settings page
     }
 
-    const currencyOption = page.locator('text=/Currency|Fiat/i');
-    if (await currencyOption.isVisible()) {
-      await currencyOption.click();
+    const currencyOption = page.locator('text=/Currency|Fiat/i').first();
 
-      const currencyRadios = await page.locator('[role="radio"]').all();
-      if (currencyRadios.length > 1) {
-        await currencyRadios[1].click();
-
-        const isSelected = await currencyRadios[1].getAttribute('aria-checked');
-        expect(isSelected).toBe('true');
-      }
+    // Skip if currency option not available
+    try {
+      await expect(currencyOption).toBeVisible({ timeout: 3000 });
+    } catch {
+      return; // Currency option not present
     }
+
+    await currencyOption.click();
+
+    const currencyRadios = await page.locator('[role="radio"]').all();
+    expect(currencyRadios.length).toBeGreaterThan(1);
+
+    await currencyRadios[1].click();
+
+    const isSelected = await currencyRadios[1].getAttribute('aria-checked');
+    expect(isSelected).toBe('true');
   });
 
   walletTest('headless UI dropdown menus in settings', async ({ page }) => {
@@ -99,34 +113,40 @@ walletTest.describe('Settings with Headless UI Components', () => {
 
     const dropdownButtons = await page.locator('[role="button"][aria-haspopup="listbox"]').all();
 
-    if (dropdownButtons.length > 0) {
-      const firstDropdown = dropdownButtons[0];
-      await firstDropdown.click();
-
-      const options = await page.locator('[role="option"]').all();
-      if (options.length > 1) {
-        await options[1].click();
-
-        const isVisible = await page.locator('[role="listbox"]').isVisible();
-        expect(isVisible).toBe(false);
-      }
+    // Skip if no dropdown menus on settings page
+    if (dropdownButtons.length === 0) {
+      return;
     }
+
+    const firstDropdown = dropdownButtons[0];
+    await firstDropdown.click();
+
+    const options = await page.locator('[role="option"]').all();
+    expect(options.length).toBeGreaterThan(1);
+
+    await options[1].click();
+
+    // Dropdown should close after selection
+    await expect(page.locator('[role="listbox"]')).not.toBeVisible({ timeout: 3000 });
   });
 
   walletTest('headless UI switch components for toggles', async ({ page }) => {
     await navigateTo(page, 'settings');
 
-    const switches = await page.locator('[role="switch"]').all();
+    const switchLocator = page.locator('[role="switch"]').first();
 
-    if (switches.length > 0) {
-      const firstSwitch = switches[0];
-      const initialState = await firstSwitch.getAttribute('aria-checked');
-
-      await firstSwitch.click();
-
-      const newState = await firstSwitch.getAttribute('aria-checked');
-      expect(newState).not.toBe(initialState);
+    // Skip if no switches on settings page
+    try {
+      await expect(switchLocator).toBeVisible({ timeout: 3000 });
+    } catch {
+      return; // No switch components on this page
     }
+
+    const initialState = await switchLocator.getAttribute('aria-checked');
+    await switchLocator.click();
+
+    const newState = await switchLocator.getAttribute('aria-checked');
+    expect(newState).not.toBe(initialState);
   });
 
   walletTest('headless UI modal dialogs in settings', async ({ page }) => {
@@ -140,34 +160,48 @@ walletTest.describe('Settings with Headless UI Components', () => {
       'Delete'
     ];
 
+    let foundModal = false;
+
     for (const buttonText of actionButtons) {
       const button = page.locator(`button:has-text("${buttonText}")`).first();
-      if (await button.isVisible()) {
-        await button.click();
 
-        const modal = page.locator('[role="dialog"], .modal');
-        if (await modal.isVisible()) {
-          let cancelButton;
-          const cancelBtn = modal.locator('button:has-text("Cancel")').first();
-          const closeBtn = modal.locator('button:has-text("Close")').first();
-          const ariaCloseBtn = modal.locator('[aria-label*="Close"]').first();
-
-          if (await cancelBtn.isVisible()) {
-            cancelButton = cancelBtn;
-          } else if (await closeBtn.isVisible()) {
-            cancelButton = closeBtn;
-          } else if (await ariaCloseBtn.isVisible()) {
-            cancelButton = ariaCloseBtn;
-          }
-          if (cancelButton && await cancelButton.isVisible()) {
-            await cancelButton.click();
-
-            const stillVisible = await modal.isVisible();
-            expect(stillVisible).toBe(false);
-          }
-          break;
-        }
+      // Check if this action button exists
+      try {
+        await expect(button).toBeVisible({ timeout: 1000 });
+      } catch {
+        continue; // Try next button
       }
+
+      await button.click();
+
+      const modal = page.locator('[role="dialog"], .modal').first();
+
+      // Check if modal opened
+      try {
+        await expect(modal).toBeVisible({ timeout: 2000 });
+      } catch {
+        continue; // No modal opened, try next button
+      }
+
+      foundModal = true;
+
+      // Find a close/cancel button
+      const cancelBtn = modal.locator('button:has-text("Cancel")').first();
+      const closeBtn = modal.locator('button:has-text("Close")').first();
+      const ariaCloseBtn = modal.locator('[aria-label*="Close"]').first();
+
+      const closeButton = cancelBtn.or(closeBtn).or(ariaCloseBtn).first();
+      await expect(closeButton).toBeVisible({ timeout: 3000 });
+      await closeButton.click();
+
+      // Modal should close
+      await expect(modal).not.toBeVisible({ timeout: 3000 });
+      break;
+    }
+
+    // Skip if no modal-triggering buttons found
+    if (!foundModal) {
+      return;
     }
   });
 

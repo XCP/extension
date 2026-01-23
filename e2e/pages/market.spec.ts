@@ -198,11 +198,10 @@ walletTest.describe('Market Page', () => {
     // Wait for dispensers section header
     await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
 
-    // Wait for content to load - cards, empty state, or loading
+    // Wait for content to load - should show cards OR empty state (not loading)
     const cards = page.locator('.space-y-2 > div').first();
     const emptyState = page.getByText(/No open dispensers|No dispensers/i).first();
-    const loading = page.getByText(/Loading/i).first();
-    await expect(cards.or(emptyState).or(loading).first()).toBeVisible({ timeout: 10000 });
+    await expect(cards.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('orders section displays cards or empty state', async ({ page }) => {
@@ -213,11 +212,10 @@ walletTest.describe('Market Page', () => {
     // Wait for orders section header
     await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
 
-    // Wait for content to load - cards, empty state, or loading
+    // Wait for content to load - should show cards OR empty state (not loading)
     const cards = page.locator('.space-y-2 > div').first();
     const emptyState = page.getByText(/No open orders|No orders/i).first();
-    const loading = page.getByText(/Loading/i).first();
-    await expect(cards.or(emptyState).or(loading).first()).toBeVisible({ timeout: 10000 });
+    await expect(cards.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('market page scrolling works with content', async ({ page }) => {

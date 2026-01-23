@@ -17,11 +17,10 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   async function navigateToBalance(page: any, asset: string) {
     await page.goto(page.url().replace(/\/index.*/, `/balance/${asset}`));
     await page.waitForLoadState('domcontentloaded');
-    // Wait for any of the three states: loading, error, or success (Send action)
-    const loading = page.getByText('Loading balance details');
-    const error = page.getByText('Failed to load balance information');
-    const success = page.getByText('Send');
-    await expect(loading.or(error).or(success).first()).toBeVisible({ timeout: 15000 });
+    // Wait for success state (Send action visible means content loaded)
+    // If loading or error, the test will fail with a meaningful message
+    const sendAction = page.getByText('Send');
+    await expect(sendAction).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows Send action for XCP', async ({ page }) => {

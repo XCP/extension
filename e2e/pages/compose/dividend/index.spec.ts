@@ -27,26 +27,15 @@ walletTest.describe('Compose Dividend Page (/compose/dividend)', () => {
     await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows form or loading state', async ({ page }) => {
-    // Either the form is loaded (with Fee Rate) or showing loading/error state
+  walletTest('shows form with Fee Rate label', async ({ page }) => {
+    // Form should load and show Fee Rate label
     const feeRateLabel = page.locator('label:has-text("Fee Rate")');
-    const loadingSpinner = page.locator('text=/Loading|loading/i');
-    const errorMessage = page.locator('text=/Unable to load|error/i');
-
-    // Wait for one of these states
-    await expect(
-      feeRateLabel.or(loadingSpinner).or(errorMessage)
-    ).toBeVisible({ timeout: 15000 });
+    await expect(feeRateLabel).toBeVisible({ timeout: 15000 });
   });
 
-  walletTest('has form elements or shows appropriate state', async ({ page }) => {
-    // Either submit button exists or page shows loading/error
+  walletTest('has submit button', async ({ page }) => {
+    // Form should have a submit button
     const submitButton = page.locator('button[type="submit"]');
-    const loadingSpinner = page.locator('text=/Loading|loading/i');
-    const errorMessage = page.locator('text=/Unable to load|error/i');
-
-    await expect(
-      submitButton.or(loadingSpinner).or(errorMessage)
-    ).toBeVisible({ timeout: 15000 });
+    await expect(submitButton).toBeVisible({ timeout: 15000 });
   });
 });

@@ -150,8 +150,9 @@ walletTest.describe('Verify Message', () => {
 
     await verifyMessage.verifyButton(page).click();
 
-    const errorResult = page.locator('text=/Failed to verify|Invalid signature|not supported/i');
-
-    await expect(verifyMessage.validResult(page).or(verifyMessage.invalidResult(page)).or(errorResult).first()).toBeVisible({ timeout: 5000 });
+    // Fake signature should show invalid result or error (not valid)
+    const invalidOrError = verifyMessage.invalidResult(page)
+      .or(page.locator('text=/Failed to verify|Invalid signature|not supported/i'));
+    await expect(invalidOrError.first()).toBeVisible({ timeout: 5000 });
   });
 });

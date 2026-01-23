@@ -17,11 +17,10 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
   async function navigateToAsset(page: any, asset: string) {
     await page.goto(page.url().replace(/\/index.*/, `/asset/${asset}`));
     await page.waitForLoadState('domcontentloaded');
-    // Wait for any of the three states: loading, error, or success
-    const loading = page.getByText('Loading asset details');
-    const error = page.getByText('Failed to load asset information');
-    const success = page.getByText('Asset Details');
-    await expect(loading.or(error).or(success).first()).toBeVisible({ timeout: 15000 });
+    // Wait for success state (Asset Details visible means content loaded)
+    // If loading or error, the test will fail with a meaningful message
+    const assetDetails = page.getByText('Asset Details');
+    await expect(assetDetails).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows content for XCP asset', async ({ page }) => {
