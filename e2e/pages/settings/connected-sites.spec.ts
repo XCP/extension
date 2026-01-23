@@ -12,8 +12,8 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/connected-sites'));
     await page.waitForLoadState('networkidle');
 
-    // Should show connected sites title
-    const title = page.getByRole('heading', { name: /Connected Sites/i });
+    // Should show connected sites title (first heading, not sr-only)
+    const title = page.getByRole('heading', { name: /Connected Sites/i }).first();
     await expect(title).toBeVisible({ timeout: 5000 });
   });
 
@@ -22,7 +22,7 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show page title - content depends on whether sites are connected
-    const pageTitle = page.getByRole('heading', { name: /Connected Sites/i });
+    const pageTitle = page.getByRole('heading', { name: /Connected Sites/i }).first();
     await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
@@ -31,7 +31,7 @@ walletTest.describe('Connected Sites Page (/settings/connected-sites)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show content after loading - either the heading or empty state
-    const heading = page.getByRole('heading', { name: /Connected Sites/i });
+    const heading = page.getByRole('heading', { name: /Connected Sites/i }).first();
     await expect(heading).toBeVisible({ timeout: 5000 });
   });
 

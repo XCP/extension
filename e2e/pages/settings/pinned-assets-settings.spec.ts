@@ -12,8 +12,8 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Should show pinned assets title
-    const title = page.getByRole('heading', { name: /Pinned Assets/i });
+    // Should show pinned assets title (first heading, not sr-only)
+    const title = page.getByRole('heading', { name: /Pinned Assets/i }).first();
     await expect(title).toBeVisible({ timeout: 5000 });
   });
 
@@ -29,7 +29,7 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.waitForLoadState('networkidle');
 
     // Should show page title - content depends on pinned assets
-    const pageTitle = page.getByRole('heading', { name: /Pinned Assets/i });
+    const pageTitle = page.getByRole('heading', { name: /Pinned Assets/i }).first();
     await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
