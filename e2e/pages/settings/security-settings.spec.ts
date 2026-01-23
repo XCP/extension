@@ -6,6 +6,7 @@
 
 import { walletTest, expect, TEST_PASSWORD } from '../../fixtures';
 import { securitySettings, common } from '../../selectors';
+import { TEST_PASSWORDS } from '../../test-data';
 
 walletTest.describe('Security Settings Page (/settings/security)', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -74,5 +75,95 @@ walletTest.describe('Security Settings Page (/settings/security)', () => {
 
     // Should navigate back to settings
     await expect(page).toHaveURL(/settings/, { timeout: 5000 });
+  });
+
+  walletTest('shows error for wrong current password', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
+
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
+
+    // Fill with wrong current password
+    await currentPasswordInput.fill('WrongPassword123!');
+    await newPasswordInput.fill('NewPassword123!');
+    await confirmPasswordInput.fill('NewPassword123!');
+
+    // Click change password
+    await securitySettings.changePasswordButton(page).click();
+
+    // Should show error message about incorrect password
+    const errorMessage = page.locator('text=/incorrect|invalid|wrong|does not match/i').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+
+    // Should still be on security settings page
+    expect(page.url()).toContain('security');
+  });
+
+  walletTest('shows error for mismatched new passwords', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
+
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
+
+    // Fill with correct current password but mismatched new passwords
+    await currentPasswordInput.fill(TEST_PASSWORD);
+    await newPasswordInput.fill('NewPassword123!');
+    await confirmPasswordInput.fill('DifferentPassword456!');
+
+    // Click change password
+    await securitySettings.changePasswordButton(page).click();
+
+    // Should show error about passwords not matching
+    const errorMessage = page.locator('text=/do not match|don\'t match|mismatch/i').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('shows error for password too short', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
+
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
+
+    // Fill with valid current password but too short new password
+    await currentPasswordInput.fill(TEST_PASSWORD);
+    await newPasswordInput.fill(TEST_PASSWORDS.tooShort);
+    await confirmPasswordInput.fill(TEST_PASSWORDS.tooShort);
+
+    // Button should remain disabled with short password
+    await expect(securitySettings.changePasswordButton(page)).toBeDisabled();
+  });
+
+  walletTest('shows security tip', async ({ page }) => {
+    // Should show security tip about strong passwords
+    const securityTip = page.locator('text=/Security Tip|strong|unique password/i').first();
+    await expect(securityTip).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('successfully changes password', async ({ page }) => {
+    const currentPasswordInput = securitySettings.currentPasswordInput(page);
+    const newPasswordInput = securitySettings.newPasswordInput(page);
+    const confirmPasswordInput = securitySettings.confirmPasswordInput(page);
+
+    await expect(currentPasswordInput).toBeVisible({ timeout: 5000 });
+
+    const newPassword = 'NewSecurePassword123!';
+
+    // Fill with correct current password and matching new passwords
+    await currentPasswordInput.fill(TEST_PASSWORD);
+    await newPasswordInput.fill(newPassword);
+    await confirmPasswordInput.fill(newPassword);
+
+    // Click change password
+    await securitySettings.changePasswordButton(page).click();
+
+    // Should show success message
+    const successMessage = page.locator('text=/success|changed|updated/i').first();
+    await expect(successMessage).toBeVisible({ timeout: 10000 });
+
+    // Note: After password change, wallet is locked, so we'd need to unlock with new password
+    // This test just verifies the success message appears
   });
 });

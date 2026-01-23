@@ -141,4 +141,41 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     // Wait for error handling and verify still on reset page
     await expect(page).toHaveURL(/reset-wallet/, { timeout: 5000 });
   });
+
+  walletTest('back button returns to settings', async ({ page }) => {
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
+
+    await common.headerBackButton(page).click();
+
+    // Should navigate back to settings
+    await expect(page).toHaveURL(/settings/, { timeout: 5000 });
+  });
+});
+
+// Separate describe for destructive reset operation
+// This test actually resets the wallet and verifies it redirects to onboarding
+walletTest.describe('Reset Wallet - Full Flow', () => {
+  walletTest('successfully resets wallet with correct password', async ({ page }) => {
+    // Navigate to reset-wallet page
+    const currentUrl = page.url();
+    const hashIndex = currentUrl.indexOf('#');
+    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+    await page.goto(`${baseUrl}/reset-wallet`);
+    await page.waitForLoadState('networkidle');
+
+    // Enter correct password
+    const passwordInput = resetWalletPage.passwordInput(page);
+    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await passwordInput.fill(TEST_PASSWORD);
+
+    // Click reset button
+    await resetWalletPage.resetButton(page).click();
+
+    // Should redirect to onboarding after successful reset
+    await expect(page).toHaveURL(/onboarding/, { timeout: 10000 });
+
+    // Should see create wallet button (fresh state)
+    const createButton = page.locator('button:has-text("Create"), a:has-text("Create")').first();
+    await expect(createButton).toBeVisible({ timeout: 5000 });
+  });
 });
