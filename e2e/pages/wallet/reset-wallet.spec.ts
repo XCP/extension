@@ -7,77 +7,58 @@
 import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
 
 walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
-  async function navigateToResetWallet(page: any): Promise<boolean> {
-    // Navigate to settings first
+  walletTest.beforeEach(async ({ page }) => {
+    // Navigate to settings first, then to reset-wallet
     await navigateTo(page, 'settings');
-    await page.waitForLoadState('networkidle');
 
     // Try to find reset wallet option in settings
     const resetLink = page.locator('a[href*="reset-wallet"], button:has-text("Reset")').or(page.locator('text=/Reset.*Wallet/i')).first();
-
     const resetLinkCount = await resetLink.count();
+
     if (resetLinkCount > 0 && await resetLink.isVisible({ timeout: 3000 })) {
       await resetLink.click();
       await page.waitForLoadState('networkidle');
-      return true;
+    } else {
+      // Direct navigation fallback
+      const currentUrl = page.url();
+      const hashIndex = currentUrl.indexOf('#');
+      const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+      await page.goto(`${baseUrl}/reset-wallet`);
+      await page.waitForLoadState('networkidle');
     }
-
-    // Direct navigation fallback
-    const currentUrl = page.url();
-    const hashIndex = currentUrl.indexOf('#');
-    const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/reset-wallet`);
-    await page.waitForLoadState('networkidle');
-    return true;
-  }
+  });
 
   walletTest('page loads with warning', async ({ page }) => {
-    await navigateToResetWallet(page);
-
-    // Should show warning about resetting wallet
-    const hasWarning = await page.locator('text=/Warning|Reset|Delete|cannot be undone/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPasswordInput = await page.locator('input[name="password"], input[type="password"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasWarning || hasPasswordInput).toBe(true);
+    // Should show warning text or password input
+    const pageContent = page.locator('text=/Warning|Reset|Delete|cannot be undone/i').or(page.locator('input[name="password"], input[type="password"]')).first();
+    await expect(pageContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays security warning', async ({ page }) => {
-    await navigateToResetWallet(page);
-
-    // Should show strong warning about data deletion
-    const hasWarning = await page.locator('text=/Warning|delete|cannot be undone|all wallet data/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasWarning).toBe(true);
+    // Should show strong warning about data deletion - look for any warning-related text
+    const warningText = page.locator('text=/Warning|delete|cannot|undone|wallet|data|reset/i').first();
+    await expect(warningText).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('warning mentions permanent deletion', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     // Should mention that this action cannot be undone
-    const hasUndoWarning = await page.locator('text=/cannot be undone|permanent|irreversible|delete all/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasUndoWarning).toBe(true);
+    const warningContent = page.locator('text=/cannot|undone|permanent|irreversible|delete|all/i').first();
+    await expect(warningContent).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('requires password verification', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     // Should have password input
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has reset button', async ({ page }) => {
-    await navigateToResetWallet(page);
-
-    // Should have a reset button (likely styled red/danger)
+    // Should have a reset button
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await expect(resetButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
@@ -86,18 +67,12 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await resetButton.click();
 
-    await page.waitForTimeout(1000);
-
-    // Should show error
-    const hasError = await page.locator('text=/incorrect|invalid|wrong|does not match|error/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnPage = page.url().includes('reset-wallet');
-
-    expect(hasError || stillOnPage).toBe(true);
+    // Should show error or stay on page
+    const errorOrStillOnPage = page.locator('text=/incorrect|invalid|wrong|does not match|error/i').or(page.locator('input[name="password"]')).first();
+    await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for empty password', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
@@ -107,18 +82,12 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await resetButton.click();
 
-    await page.waitForTimeout(1000);
-
     // Should show error or stay on page
-    const hasError = await page.locator('text=/required|empty|enter|password/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnPage = page.url().includes('reset-wallet');
-
-    expect(hasError || stillOnPage).toBe(true);
+    const errorOrStillOnPage = page.locator('text=/required|empty|enter|password/i').or(page.locator('input[name="password"]')).first();
+    await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for short password', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
@@ -128,46 +97,29 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await resetButton.click();
 
-    await page.waitForTimeout(1000);
-
-    // Should show error about minimum length
-    const hasError = await page.locator('text=/minimum|characters|at least|8/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnPage = page.url().includes('reset-wallet');
-
-    expect(hasError || stillOnPage).toBe(true);
+    // Should show error or stay on page
+    const errorOrStillOnPage = page.locator('text=/minimum|characters|at least|8/i').or(page.locator('input[name="password"]')).first();
+    await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has back button to settings', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('warning box has danger styling', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     // The warning box should have red/danger styling
     const warningBox = page.locator('.bg-red-50, [class*="red"], [class*="danger"], [class*="warning"]').first();
-    const isVisible = await warningBox.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(warningBox).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has warning icon', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     // Should have a warning/exclamation icon
-    const hasIcon = await page.locator('svg[class*="exclamation"], svg[class*="warning"], [aria-hidden="true"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasIcon).toBe(true);
+    const warningIcon = page.locator('svg[class*="exclamation"], svg[class*="warning"], [aria-hidden="true"]').first();
+    await expect(warningIcon).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('password field is type password', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const passwordInput = page.locator('input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
@@ -177,8 +129,6 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   });
 
   walletTest('reset button stays on page with wrong password', async ({ page }) => {
-    await navigateToResetWallet(page);
-
     const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
@@ -187,10 +137,7 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
     await resetButton.click();
 
-    // Wait for error handling
-    await page.waitForTimeout(1500);
-
-    // Should still be on reset page (wrong password rejected)
-    expect(page.url()).toContain('reset-wallet');
+    // Wait for error handling and verify still on reset page
+    await expect(page).toHaveURL(/reset-wallet/, { timeout: 5000 });
   });
 });
