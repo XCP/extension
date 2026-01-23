@@ -365,20 +365,24 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 });
 
 // Tests for import with no existing wallet (fresh extension)
+// Note: The onboarding page only has "Create Wallet" and "Import Wallet" (mnemonic) buttons.
+// "Import Private Key" is only available from /add-wallet after you already have a wallet.
+// These tests navigate directly to /import-private-key to test fresh extension behavior.
 test.describe('Import Private Key Page - Fresh Extension', () => {
-  test('can navigate to import private key from onboarding', async ({}, testInfo) => {
+  test('import-private-key page is accessible via direct URL', async ({}, testInfo) => {
     const testId = `import-key-nav-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}`;
-    const { context, page, contextPath } = await launchExtension(testId);
+    const { context, page, extensionId, contextPath } = await launchExtension(testId);
 
     try {
+      // Navigate directly to import-private-key page
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/import-private-key`);
       await page.waitForLoadState('networkidle');
 
-      // Click import private key on onboarding (longer timeout for CI)
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
-      await onboarding.importPrivateKeyButton(page).click();
-
-      // Should navigate to import-private-key page
+      // Should be on import-private-key page
       await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
+
+      // Should show private key input
+      await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
     } finally {
       await cleanup(context, contextPath);
     }
@@ -386,15 +390,12 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
 
   test('fresh extension shows "Create password" placeholder', async ({}, testInfo) => {
     const testId = `import-key-placeholder-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page, contextPath } = await launchExtension(testId);
+    const { context, page, extensionId, contextPath } = await launchExtension(testId);
 
     try {
+      // Navigate directly to import-private-key page
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/import-private-key`);
       await page.waitForLoadState('networkidle');
-
-      // Navigate to import private key (longer timeout for CI)
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
-      await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill private key and check confirmation
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
@@ -413,15 +414,12 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
 
   test('successful import creates wallet and navigates to index', async ({}, testInfo) => {
     const testId = `import-key-success-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page, contextPath } = await launchExtension(testId);
+    const { context, page, extensionId, contextPath } = await launchExtension(testId);
 
     try {
+      // Navigate directly to import-private-key page
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/import-private-key`);
       await page.waitForLoadState('networkidle');
-
-      // Navigate to import private key (longer timeout for CI)
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
-      await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill valid private key
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
@@ -444,15 +442,12 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
 
   test('shows error for password under 8 characters on fresh extension', async ({}, testInfo) => {
     const testId = `import-key-shortpwd-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page, contextPath } = await launchExtension(testId);
+    const { context, page, extensionId, contextPath } = await launchExtension(testId);
 
     try {
+      // Navigate directly to import-private-key page
+      await page.goto(`chrome-extension://${extensionId}/popup.html#/import-private-key`);
       await page.waitForLoadState('networkidle');
-
-      // Navigate to import private key (longer timeout for CI)
-      await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 20000 });
-      await onboarding.importPrivateKeyButton(page).click();
-      await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
 
       // Fill valid private key
       await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);

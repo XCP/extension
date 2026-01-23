@@ -234,8 +234,8 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    // Fee rate input uses type="text" with inputMode="decimal"
-    const feeInput = page.locator('input[name="sat_per_vbyte"]').first();
+    // Fee rate input uses type="text" with inputMode="decimal" (not the hidden input)
+    const feeInput = page.locator('input[name="sat_per_vbyte"][type="text"]').first();
     await expect(feeInput).toBeVisible({ timeout: 10000 });
 
     // Type a fee value
