@@ -17,6 +17,7 @@
  */
 
 import { walletTest, expect } from '../fixtures';
+import { TEST_ADDRESSES, INVALID_ADDRESSES } from '../test-data';
 
 walletTest.describe('DispenserInput Component', () => {
   // Navigate to dispense page which uses DispenserInput
@@ -57,8 +58,8 @@ walletTest.describe('DispenserInput Component', () => {
   walletTest.describe('Address Input', () => {
     walletTest('accepts text input', async ({ page }) => {
       const input = getDispenserInput(page);
-      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
-      await expect(input).toHaveValue('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.fill(TEST_ADDRESSES.mainnet.p2pkh);
+      await expect(input).toHaveValue(TEST_ADDRESSES.mainnet.p2pkh);
     });
 
     walletTest('allows clearing input', async ({ page }) => {
@@ -72,7 +73,7 @@ walletTest.describe('DispenserInput Component', () => {
   walletTest.describe('Address Validation', () => {
     walletTest('shows error border for invalid address', async ({ page }) => {
       const input = getDispenserInput(page);
-      await input.fill('notvalidaddress');
+      await input.fill(INVALID_ADDRESSES[0]);
       await input.blur();
 
       // Should show red border for invalid address
@@ -82,7 +83,7 @@ walletTest.describe('DispenserInput Component', () => {
     walletTest('no error border for valid address format', async ({ page }) => {
       const input = getDispenserInput(page);
       // Use a valid-format Bitcoin address
-      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.fill(TEST_ADDRESSES.mainnet.p2pkh);
       await input.blur();
 
       // Should not show red border
@@ -91,7 +92,7 @@ walletTest.describe('DispenserInput Component', () => {
 
     walletTest('accepts SegWit bech32 address', async ({ page }) => {
       const input = getDispenserInput(page);
-      await input.fill('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq');
+      await input.fill(TEST_ADDRESSES.mainnet.p2wpkh);
       await input.blur();
 
       // Valid format should not have red border
@@ -103,7 +104,7 @@ walletTest.describe('DispenserInput Component', () => {
     walletTest('shows results after entering address', async ({ page }) => {
       const input = getDispenserInput(page);
       // Enter a valid address to trigger fetch
-      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.fill(TEST_ADDRESSES.mainnet.p2pkh);
       await input.blur();
 
       // Wait for actual results (not loading state) - either dispensers found or no dispensers message
@@ -115,7 +116,7 @@ walletTest.describe('DispenserInput Component', () => {
     walletTest('handles address with no dispensers', async ({ page }) => {
       const input = getDispenserInput(page);
       // Use a random valid address unlikely to have dispensers
-      await input.fill('1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2');
+      await input.fill(TEST_ADDRESSES.mainnet.p2pkh);
       await input.blur();
 
       // Wait for fetch to complete - should show result (dispensers or no dispensers message)

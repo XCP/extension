@@ -15,7 +15,8 @@ import {
   navigateTo,
   TEST_PASSWORD
 } from '../fixtures';
-import { header, settings } from '../selectors';
+import { header, settings, createWallet as createWalletSelectors, selectWallet, common, index, unlock, securitySettings, onboarding } from '../selectors';
+import { TEST_PASSWORDS } from '../test-data';
 
 /**
  * Helper to create a second wallet for multi-wallet tests.
@@ -27,15 +28,14 @@ async function createSecondWallet(page: any): Promise<void> {
   await page.waitForURL(/select-wallet/);
 
   // Add second wallet
-  await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
-  await page.getByRole('button', { name: /Create.*Wallet/i }).click();
+  await selectWallet.addWalletButton(page).click();
+  await onboarding.createWalletButton(page).click();
 
   // Complete second wallet creation
-  await page.locator('text=View 12-word Secret Phrase').click();
-   // Required wait for animation/state change
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await createWalletSelectors.revealPhraseCard(page).click();
+  await createWalletSelectors.savedPhraseCheckbox(page).check();
+  await createWalletSelectors.passwordInput(page).fill(TEST_PASSWORD);
+  await createWalletSelectors.continueButton(page).click();
 
   await page.waitForURL(/index/, { timeout: 15000 });
 }
@@ -270,17 +270,15 @@ walletTest.describe('Reset Wallet', () => {
     await page.waitForURL(/reset-wallet/);
 
     // Click back button
-    const backButton = page.locator('button[aria-label*="back"], button[aria-label*="Back"], header button').first();
-    await expect(backButton).toBeVisible({ timeout: 5000 });
-    await backButton.click();
+    await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
+    await common.headerBackButton(page).click();
 
     // Should return to settings
     await expect(page).toHaveURL(/settings/, { timeout: 5000 });
 
     // Wallet should still work
     await navigateTo(page, 'wallet');
-    const addressDisplay = page.locator('[aria-label="Current address"]');
-    await expect(addressDisplay).toBeVisible({ timeout: 5000 });
+    await expect(index.currentAddress(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('correct password resets wallet to onboarding', async ({ page }) => {
@@ -352,8 +350,8 @@ walletTest.describe('Change Password', () => {
     await page.waitForURL(/security/);
 
     await page.locator('input[name="currentPassword"], input[placeholder*="current" i]').first().fill(TEST_PASSWORD);
-    await page.locator('input[name="newPassword"], input[placeholder*="new" i]').first().fill('short');
-    await page.locator('input[name="confirmPassword"], input[placeholder*="confirm" i]').first().fill('short');
+    await page.locator('input[name="newPassword"], input[placeholder*="new" i]').first().fill(TEST_PASSWORDS.tooShort);
+    await page.locator('input[name="confirmPassword"], input[placeholder*="confirm" i]').first().fill(TEST_PASSWORDS.tooShort);
 
     const submitButton = page.getByRole('button', { name: /Change.*Password|Update|Save/i });
 
@@ -407,8 +405,8 @@ walletTest.describe('Change Password', () => {
 
     // If redirected to unlock, verify new password works
     if (page.url().includes('unlock')) {
-      await page.locator('input[name="password"]').fill(NEW_PASSWORD);
-      await page.getByRole('button', { name: /Unlock/i }).click();
+      await unlock.passwordInput(page).fill(NEW_PASSWORD);
+      await unlock.unlockButton(page).click();
       await page.waitForURL(/index/, { timeout: 10000 });
     }
   });

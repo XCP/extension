@@ -13,7 +13,7 @@
 
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
-import { index, compose } from '../selectors';
+import { index, compose, common } from '../selectors';
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);
@@ -31,7 +31,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
     // Wait for the form to be ready (input visible means form rendered)
-    await page.locator('input[name="quantity"]').waitFor({ state: 'visible', timeout: 10000 });
+    await getAmountInput(page).waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to fill destination (needed for some tests)
@@ -54,7 +54,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('renders input field', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
       await expect(input).toBeEnabled({ timeout: 5000 });
     });
@@ -65,7 +65,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('has placeholder showing format', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
       const placeholder = await input.getAttribute('placeholder');
       expect(placeholder).toContain('0.00');
@@ -74,7 +74,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Valid Amount Input', () => {
     walletTest('accepts valid decimal amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.small);
       await input.blur();
 
@@ -84,7 +84,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts integer amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('1');
       await input.blur();
 
@@ -92,7 +92,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts small decimal amounts', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.00001');
       await input.blur();
 
@@ -100,7 +100,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts 8 decimal places (satoshi precision)', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.00000001');
       await input.blur();
 
@@ -110,7 +110,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Invalid Amount Input', () => {
     walletTest('handles zero amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.zero);
       await input.blur();
 
@@ -119,7 +119,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('handles negative amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.negative);
       await input.blur();
 
@@ -131,7 +131,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
       // Check that form validation catches it - submit button should be disabled
       // or error styling should be present
-      const submitButton = page.locator('button[type="submit"]');
+      const submitButton = compose.common.submitButton(page);
       const hasErrorStyling = await input.evaluate(el =>
         el.classList.contains('border-red-500') ||
         el.getAttribute('aria-invalid') === 'true'
@@ -143,7 +143,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('handles non-numeric input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.invalid);
       await input.blur();
 
@@ -155,7 +155,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
       // Check that form validation catches it - submit button should be disabled
       // or error styling should be present
-      const submitButton = page.locator('button[type="submit"]');
+      const submitButton = compose.common.submitButton(page);
       const hasErrorStyling = await input.evaluate(el =>
         el.classList.contains('border-red-500') ||
         el.getAttribute('aria-invalid') === 'true'
@@ -185,7 +185,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // walletTest fixture wallet has no BTC balance (Available: 0.00000000)
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       const maxButton = page.locator('button:has-text("Max")');
 
       // Clear any existing value
@@ -195,7 +195,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await maxButton.click();
 
       // Wait for the error to appear
-      const errorAlert = page.locator('[role="alert"]');
+      const errorAlert = common.errorAlert(page);
       await expect(errorAlert).toBeVisible({ timeout: 10000 });
       await expect(errorAlert).toContainText('No available balance');
 
@@ -223,7 +223,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Fill destination first
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       // Try to send more than any test wallet would have
       await input.fill(TEST_AMOUNTS.veryLarge);
       await input.blur();
@@ -249,7 +249,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Input Behavior', () => {
     walletTest('allows clearing input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.5');
       await expect(input).toHaveValue('0.5');
@@ -259,7 +259,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('allows editing input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.1');
       await input.clear();
@@ -269,7 +269,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('preserves input after blur', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.12345678');
       await input.blur();
@@ -286,7 +286,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     walletTest('valid amount does not prevent form submission', async ({ page }) => {
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.small);
 
       // Amount field should not show error
@@ -296,7 +296,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     walletTest('amount is included in form submission', async ({ page }) => {
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.001');
 
       // Check input has name attribute for form submission

@@ -5,7 +5,15 @@
  */
 
 import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
-import { common } from '../../selectors';
+import { common, settings, errors } from '../../selectors';
+import { TEST_PASSWORDS } from '../../test-data';
+
+// Local selectors for reset-wallet page (not common enough for selectors.ts)
+const resetWalletPage = {
+  passwordInput: (page: any) => page.locator('input[name="password"], input[type="password"]').first(),
+  resetButton: (page: any) => page.locator('button:has-text("Reset"), button[type="submit"]').first(),
+  warningText: (page: any) => page.locator('text=/Warning|delete|cannot|undone|wallet|data|reset/i').first(),
+};
 
 walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -36,9 +44,8 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   });
 
   walletTest('displays security warning', async ({ page }) => {
-    // Should show strong warning about data deletion - look for any warning-related text
-    const warningText = page.locator('text=/Warning|delete|cannot|undone|wallet|data|reset/i').first();
-    await expect(warningText).toBeVisible({ timeout: 5000 });
+    // Should show strong warning about data deletion
+    await expect(resetWalletPage.warningText(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('warning mentions permanent deletion', async ({ page }) => {
@@ -49,57 +56,52 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
 
   walletTest('requires password verification', async ({ page }) => {
     // Should have password input
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
-    await expect(passwordInput).toBeVisible({ timeout: 5000 });
+    await expect(resetWalletPage.passwordInput(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has reset button', async ({ page }) => {
     // Should have a reset button
-    const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
-    await expect(resetButton).toBeVisible({ timeout: 5000 });
+    await expect(resetWalletPage.resetButton(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = resetWalletPage.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     await passwordInput.fill('wrongpassword123');
 
-    const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
-    await resetButton.click();
+    await resetWalletPage.resetButton(page).click();
 
     // Should show error or stay on page
-    const errorOrStillOnPage = page.locator('text=/incorrect|invalid|wrong|does not match|error/i').or(page.locator('input[name="password"]')).first();
+    const errorOrStillOnPage = errors.genericError(page).or(resetWalletPage.passwordInput(page)).first();
     await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for empty password', async ({ page }) => {
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = resetWalletPage.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     // Leave password empty
     await passwordInput.fill('');
 
-    const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
-    await resetButton.click();
+    await resetWalletPage.resetButton(page).click();
 
     // Should show error or stay on page
-    const errorOrStillOnPage = page.locator('text=/required|empty|enter|password/i').or(page.locator('input[name="password"]')).first();
+    const errorOrStillOnPage = page.locator('text=/required|empty|enter|password/i').or(resetWalletPage.passwordInput(page)).first();
     await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows error for short password', async ({ page }) => {
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = resetWalletPage.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     // Enter short password
-    await passwordInput.fill('short');
+    await passwordInput.fill(TEST_PASSWORDS.tooShort);
 
-    const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
-    await resetButton.click();
+    await resetWalletPage.resetButton(page).click();
 
     // Should show error or stay on page
-    const errorOrStillOnPage = page.locator('text=/minimum|characters|at least|8/i').or(page.locator('input[name="password"]')).first();
+    const errorOrStillOnPage = page.locator('text=/minimum|characters|at least|8/i').or(resetWalletPage.passwordInput(page)).first();
     await expect(errorOrStillOnPage).toBeVisible({ timeout: 5000 });
   });
 
@@ -120,7 +122,7 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   });
 
   walletTest('password field is type password', async ({ page }) => {
-    const passwordInput = page.locator('input[type="password"]').first();
+    const passwordInput = resetWalletPage.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     // Verify the field hides input
@@ -129,13 +131,12 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
   });
 
   walletTest('reset button stays on page with wrong password', async ({ page }) => {
-    const passwordInput = page.locator('input[name="password"], input[type="password"]').first();
+    const passwordInput = resetWalletPage.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     await passwordInput.fill('wrongpassword123');
 
-    const resetButton = page.locator('button:has-text("Reset"), button[type="submit"]').first();
-    await resetButton.click();
+    await resetWalletPage.resetButton(page).click();
 
     // Wait for error handling and verify still on reset page
     await expect(page).toHaveURL(/reset-wallet/, { timeout: 5000 });
