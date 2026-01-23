@@ -52,10 +52,9 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    const rateField = page.locator('text=/Rate|Price|BTC|satoshi/i').first();
+    // Use the selector directly
     const rateInput = compose.dispenser.mainchainRateInput(page);
-
-    await expect(rateField.or(rateInput)).toBeVisible({ timeout: 5000 });
+    await expect(rateInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser form has escrow quantity field', async ({ page }) => {
@@ -64,10 +63,9 @@ walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    const escrowField = page.locator('text=/Escrow|Quantity|Amount/i').first();
+    // Use the selector directly
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
-
-    await expect(escrowField.or(escrowInput)).toBeVisible({ timeout: 5000 });
+    await expect(escrowInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('create dispenser validates required fields', async ({ page }) => {

@@ -56,7 +56,8 @@ walletTest.describe('Auto-Lock Timer', () => {
     await settings.advancedOption(page).click();
     await expect(page).toHaveURL(/advanced/);
 
-    const fiveMinOption = page.locator('[role="radio"]').filter({ hasText: '5 Minutes' });
+    // Use exact text match to avoid matching "15 Minutes"
+    const fiveMinOption = page.getByRole('radio', { name: /^5 Minutes$/ });
     await expect(fiveMinOption).toBeVisible({ timeout: 5000 });
     await fiveMinOption.click();
 
@@ -88,7 +89,8 @@ walletTest.describe('Auto-Lock Timer', () => {
     await settings.advancedOption(page).click();
     await expect(page).toHaveURL(/advanced/);
 
-    const fiveMinOption = page.locator('[role="radio"]').filter({ hasText: '5 Minutes' });
+    // Use exact text match to avoid matching "15 Minutes"
+    const fiveMinOption = page.getByRole('radio', { name: /^5 Minutes$/ });
     await expect(fiveMinOption).toBeVisible({ timeout: 5000 });
     await fiveMinOption.click();
 
@@ -100,8 +102,8 @@ walletTest.describe('Auto-Lock Timer', () => {
     await settings.advancedOption(page).click();
     await expect(page).toHaveURL(/advanced/);
 
-    // Verify 5 minutes is still selected
-    const fiveMinOptionAfter = page.locator('[role="radio"]').filter({ hasText: '5 Minutes' });
+    // Verify 5 minutes is still selected - use exact match
+    const fiveMinOptionAfter = page.getByRole('radio', { name: /^5 Minutes$/ });
     await expect(fiveMinOptionAfter).toBeVisible();
 
     await expect(async () => {
