@@ -92,20 +92,19 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    // Fill dispenser form
-    const giveInput = compose.dispenser.giveQuantityInput(page);
+    // Wait for form inputs to be visible and fill them
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
+    const giveInput = compose.dispenser.giveQuantityInput(page);
 
-    if (await giveInput.count() > 0) {
-      await giveInput.fill('100');
-    }
-    if (await escrowInput.count() > 0) {
-      await escrowInput.fill('1000');
-    }
-    if (await rateInput.count() > 0) {
-      await rateInput.fill('0.0001');
-    }
+    await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.fill('1000');
+
+    await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.fill('0.0001');
+
+    await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.fill('100');
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });
@@ -123,23 +122,22 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    const giveQuantity = '50';
     const escrowQuantity = '500';
     const rate = '0.00025';
+    const giveQuantity = '50';
 
-    const giveInput = compose.dispenser.giveQuantityInput(page);
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
+    const giveInput = compose.dispenser.giveQuantityInput(page);
 
-    if (await giveInput.count() > 0) {
-      await giveInput.fill(giveQuantity);
-    }
-    if (await escrowInput.count() > 0) {
-      await escrowInput.fill(escrowQuantity);
-    }
-    if (await rateInput.count() > 0) {
-      await rateInput.fill(rate);
-    }
+    await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.fill(escrowQuantity);
+
+    await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.fill(rate);
+
+    await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.fill(giveQuantity);
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });
@@ -149,12 +147,8 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
     await clickBack(page);
 
     // Verify form data preserved
-    if (await giveInput.count() > 0) {
-      await expect(giveInput).toHaveValue(giveQuantity);
-    }
-    if (await escrowInput.count() > 0) {
-      await expect(escrowInput).toHaveValue(escrowQuantity);
-    }
+    await expect(escrowInput).toHaveValue(escrowQuantity);
+    await expect(giveInput).toHaveValue(giveQuantity);
   });
 
   walletTest('full flow: dispenser form → review → verify content', async ({ page }) => {
@@ -163,19 +157,18 @@ walletTest.describe('Dispenser Flow - Full Compose Flow', () => {
 
     await expect(page).toHaveURL(/compose\/dispenser/);
 
-    const giveInput = compose.dispenser.giveQuantityInput(page);
     const escrowInput = compose.dispenser.escrowQuantityInput(page);
     const rateInput = compose.dispenser.mainchainRateInput(page);
+    const giveInput = compose.dispenser.giveQuantityInput(page);
 
-    if (await giveInput.count() > 0) {
-      await giveInput.fill('100');
-    }
-    if (await escrowInput.count() > 0) {
-      await escrowInput.fill('1000');
-    }
-    if (await rateInput.count() > 0) {
-      await rateInput.fill('0.0001');
-    }
+    await expect(escrowInput).toBeVisible({ timeout: 10000 });
+    await escrowInput.fill('1000');
+
+    await expect(rateInput).toBeVisible({ timeout: 5000 });
+    await rateInput.fill('0.0001');
+
+    await expect(giveInput).toBeVisible({ timeout: 5000 });
+    await giveInput.fill('100');
 
     const submitBtn = compose.dispenser.createButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });

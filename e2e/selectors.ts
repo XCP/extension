@@ -271,10 +271,10 @@ export const compose = {
 
   // Dispenser operations (/compose/dispenser/*)
   dispenser: {
-    // Create dispenser
-    mainchainRateInput: (page: Page) => page.locator('input[name*="rate"], input[name*="price"], input[placeholder*="satoshi"]').first(),
-    escrowQuantityInput: (page: Page) => page.locator('input[name*="escrow"], input[name*="quantity"]').first(),
-    giveQuantityInput: (page: Page) => page.locator('input[name*="give"], input[name*="dispense"]').first(),
+    // Create dispenser - use exact names from dispenser form.tsx
+    mainchainRateInput: (page: Page) => page.locator('input[name="mainchainrate_display"], input[name*="mainchainrate"], input[name*="rate"]').first(),
+    escrowQuantityInput: (page: Page) => page.locator('input[name="escrow_quantity_display"], input[name*="escrow"]').first(),
+    giveQuantityInput: (page: Page) => page.locator('input[name="give_quantity_display"], input[name*="give_quantity"]').first(),
     createButton: (page: Page) => page.locator('button:has-text("Create"), button:has-text("Open"), button:has-text("Continue")').first(),
     // Close dispenser
     hashInput: (page: Page) => page.locator('input[name*="hash"], input[placeholder*="hash"]').first(),
