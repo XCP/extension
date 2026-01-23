@@ -89,7 +89,7 @@ walletTest.describe('Index Page', () => {
 
       // Should navigate to wallet selection or show wallet list
       const walletSelectPage = page.locator('h1:has-text("Wallets")')
-        .or(page.locator('text=/Select.*Wallet/i'));
+        .or(page.locator('text=/Select.*Wallet/i')).first();
 
       // Either on select-wallet URL or heading visible
       const isOnWalletSelect = page.url().includes('select-wallet');

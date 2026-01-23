@@ -176,8 +176,8 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await expect(extensionPage).toHaveURL(/remove-wallet/, { timeout: 5000 });
     // Error message should appear
     const errorOrPasswordField = extensionPage.locator('text=/incorrect|invalid|wrong|error|failed|password/i')
-      .or(extensionPage.locator('input[name="password"]'));
-    await expect(errorOrPasswordField.first()).toBeVisible({ timeout: 5000 });
+      .or(extensionPage.locator('input[name="password"]')).first();
+    await expect(errorOrPasswordField).toBeVisible({ timeout: 5000 });
   });
 
   test('correct password removes wallet and updates count', async ({ extensionPage }) => {
@@ -402,8 +402,8 @@ walletTest.describe('Change Password', () => {
 
     // Should show success indicator or redirect to unlock page
     const successOrUnlock = page.locator('text=/success|changed|updated/i')
-      .or(page.locator('input[name="password"]'));
-    await expect(successOrUnlock.first()).toBeVisible({ timeout: 5000 });
+      .or(page.locator('input[name="password"]')).first();
+    await expect(successOrUnlock).toBeVisible({ timeout: 5000 });
 
     // If redirected to unlock, verify new password works
     if (page.url().includes('unlock')) {

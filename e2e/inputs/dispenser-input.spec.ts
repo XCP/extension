@@ -107,8 +107,8 @@ walletTest.describe('DispenserInput Component', () => {
       await input.blur();
 
       // Wait for actual results (not loading state) - either dispensers found or no dispensers message
-      const resultContent = page.locator('text=/No.*dispenser/i').first()
-        .or(page.locator('[role="radiogroup"]'));
+      const resultContent = page.locator('text=/No.*dispenser/i')
+        .or(page.locator('[role="radiogroup"]')).first();
       await expect(resultContent).toBeVisible({ timeout: 10000 });
     });
 
@@ -119,8 +119,8 @@ walletTest.describe('DispenserInput Component', () => {
       await input.blur();
 
       // Wait for fetch to complete - should show result (dispensers or no dispensers message)
-      const resultContent = page.locator('text=/No.*dispenser/i').first()
-        .or(page.locator('[role="radiogroup"]'));
+      const resultContent = page.locator('text=/No.*dispenser/i')
+        .or(page.locator('[role="radiogroup"]')).first();
       await expect(resultContent).toBeVisible({ timeout: 10000 });
     });
   });

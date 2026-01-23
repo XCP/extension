@@ -196,8 +196,8 @@ walletTest.describe('Address Type Selection', () => {
     // Should be on index page with Legacy address (starts with 1)
     await expect(page).toHaveURL(/index/);
     // Check for truncated Legacy address format (e.g., "1CE4Aw...BHLYxP") or Address 1 label
-    const addressContent = page.locator('text=/1[A-Za-z0-9]{3,}\\.\\.\\.[A-Za-z0-9]+/').first()
-      .or(page.locator('text=Address 1'));
+    const addressContent = page.locator('text=/1[A-Za-z0-9]{3,}\\.\\.\\.[A-Za-z0-9]+/')
+      .or(page.locator('text=Address 1')).first();
     await expect(addressContent).toBeVisible({ timeout: 5000 });
   });
 });
