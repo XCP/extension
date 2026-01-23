@@ -179,21 +179,30 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     }
 
     // Handle balance endpoints - return mock balance
+    // API returns PaginatedResponse<TokenBalance> with result as an array
     if (url.includes('/balances/')) {
       const assetMatch = url.match(/\/balances\/([^/?]+)/);
       const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
       console.log(`[E2E Mock] Balance for ${assetName} - returning mock balance`);
 
-      // Return a mock balance (enough for testing)
+      // Return a mock balance as array (API returns paginated response)
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          result: {
+          result: [{
             asset: assetName,
             quantity: assetName === 'BTC' ? 1000000 : 100000000000, // 0.01 BTC or 1000 units
             quantity_normalized: assetName === 'BTC' ? '0.01000000' : '1000.00000000',
-          },
+            asset_info: {
+              asset_longname: null,
+              description: `Mock ${assetName} asset`,
+              issuer: '1TestIssuer123456789abcdefgh',
+              divisible: true,
+              locked: true,
+            },
+          }],
+          result_count: 1,
         }),
       });
       return;
