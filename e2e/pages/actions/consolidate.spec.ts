@@ -85,15 +85,8 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
     await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
 
     // Page requires state to be passed via navigation - without it, should redirect to home
-    // Wait for potential redirect (the page navigates away if no state)
-    await page.waitForLoadState('networkidle');
-    await page.waitForLoadState('networkidle');
-
-    // Should have redirected away from consolidation-success (to home/index)
-    // because no consolidation state data was passed
-    const currentUrl = page.url();
-    const redirectedAway = !currentUrl.includes('consolidation-success') || currentUrl.includes('index');
-    expect(redirectedAway).toBe(true);
+    // Wait for the redirect to happen (React Router navigation is async)
+    await expect(page).toHaveURL(/index/, { timeout: 10000 });
   });
 
   walletTest('consolidation success page has correct route defined', async ({ page }) => {
@@ -241,8 +234,8 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    // Find the numeric fee input (type="number")
-    const feeInput = page.locator('input[type="number"]').first();
+    // Fee rate input uses type="text" with inputMode="decimal"
+    const feeInput = page.locator('input[name="sat_per_vbyte"]').first();
     await expect(feeInput).toBeVisible({ timeout: 10000 });
 
     // Type a fee value
@@ -291,13 +284,11 @@ walletTest.describe('Consolidation History', () => {
     await page.waitForLoadState('networkidle');
 
     // History section may or may not be visible depending on whether there is history
-    // Just verify the page loads without error
+    // Just verify the page loads without error and has content
     await expect(page).toHaveURL(/consolidate/);
 
-    // Page should have content - form or text content
-    const form = page.locator('form');
-    const recoveryText = page.getByText(/Recovery|Consolidate|History/i).first();
-    await expect(form.or(recoveryText)).toBeVisible({ timeout: 10000 });
+    // Page should have the form
+    await expect(page.locator('form')).toBeVisible({ timeout: 10000 });
   });
 });
 

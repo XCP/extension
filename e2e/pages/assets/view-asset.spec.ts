@@ -155,8 +155,9 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
     // Issuer label should be visible
     await expect(page.locator('text="Issuer"')).toBeVisible({ timeout: 5000 });
 
-    // There should be an address-like value shown (starts with 1, 3, or bc1)
-    const addressPattern = page.locator('span, p').filter({ hasText: /^(1|3|bc1)[a-zA-Z0-9]{25,}/ });
+    // Address is displayed truncated as "1A1zP1...DivfNa" format (6 chars + ... + 6 chars)
+    // Match truncated format: bc1xxx...xxxxxx, 1xxxxx...xxxxxx, or 3xxxxx...xxxxxx
+    const addressPattern = page.locator('span.font-mono').filter({ hasText: /^(1|3|bc1)[a-zA-Z0-9]{2,5}\.\.\.[a-zA-Z0-9]{6}$/ });
     await expect(addressPattern.first()).toBeVisible({ timeout: 5000 });
   });
 

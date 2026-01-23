@@ -164,8 +164,8 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await page.goto(`${baseUrl}/add-wallet`);
     await page.waitForLoadState('networkidle');
 
-    // Click Create Wallet option
-    const createWalletOption = page.locator('button:has-text("Create Wallet"), a:has-text("Create Wallet")').first();
+    // Click Create New Wallet option
+    const createWalletOption = page.locator('button:has-text("Create New Wallet")').first();
     await expect(createWalletOption).toBeVisible({ timeout: 5000 });
     await createWalletOption.click();
 

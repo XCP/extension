@@ -368,7 +368,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 test.describe('Import Private Key Page - Fresh Extension', () => {
   test('can navigate to import private key from onboarding', async ({}, testInfo) => {
     const testId = `import-key-nav-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 20)}`;
-    const { context, page } = await launchExtension(testId);
+    const { context, page, contextPath } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
@@ -380,13 +380,13 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
       // Should navigate to import-private-key page
       await expect(page).toHaveURL(/import-private-key/, { timeout: 10000 });
     } finally {
-      await cleanup(context);
+      await cleanup(context, contextPath);
     }
   });
 
   test('fresh extension shows "Create password" placeholder', async ({}, testInfo) => {
     const testId = `import-key-placeholder-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page } = await launchExtension(testId);
+    const { context, page, contextPath } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
@@ -407,13 +407,13 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
       const placeholder = await passwordInput.getAttribute('placeholder');
       expect(placeholder).toMatch(/Create password/i);
     } finally {
-      await cleanup(context);
+      await cleanup(context, contextPath);
     }
   });
 
   test('successful import creates wallet and navigates to index', async ({}, testInfo) => {
     const testId = `import-key-success-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page } = await launchExtension(testId);
+    const { context, page, contextPath } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
@@ -438,13 +438,13 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
       // Should navigate to index after successful import
       await expect(page).toHaveURL(/index/, { timeout: 15000 });
     } finally {
-      await cleanup(context);
+      await cleanup(context, contextPath);
     }
   });
 
   test('shows error for password under 8 characters on fresh extension', async ({}, testInfo) => {
     const testId = `import-key-shortpwd-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 15)}`;
-    const { context, page } = await launchExtension(testId);
+    const { context, page, contextPath } = await launchExtension(testId);
 
     try {
       await page.waitForLoadState('networkidle');
@@ -466,7 +466,7 @@ test.describe('Import Private Key Page - Fresh Extension', () => {
       // Continue button should be disabled
       await expect(importWallet.continueButton(page)).toBeDisabled();
     } finally {
-      await cleanup(context);
+      await cleanup(context, contextPath);
     }
   });
 });
