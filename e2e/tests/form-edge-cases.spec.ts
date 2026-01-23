@@ -13,7 +13,7 @@ import {
   TEST_MNEMONIC,
 } from '../fixtures';
 import { TEST_ADDRESSES, TEST_PRIVATE_KEYS } from '../test-data';
-import { onboarding, actions, index, send } from '../selectors';
+import { onboarding, actions, index, send, createWallet as createWalletSelectors, importWallet } from '../selectors';
 
 test.describe('Form Edge Cases - Mnemonic Input', () => {
   test('can paste full mnemonic into first input field', async ({ extensionPage }) => {
@@ -351,7 +351,7 @@ test.describe('Form Edge Cases - Password Fields', () => {
 
   test('handles password with special characters', async ({ extensionPage }) => {
     const specialPassword = 'P@ssw0rd!#$%^&*()_+-=[]{}|;:\'",.<>?/\\`~';
-    const passwordInput = extensionPage.locator('input[name="password"]');
+    const passwordInput = createWalletSelectors.passwordInput(extensionPage);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(specialPassword);
 
@@ -361,7 +361,7 @@ test.describe('Form Edge Cases - Password Fields', () => {
 
   test('handles very long password', async ({ extensionPage }) => {
     const longPassword = 'A'.repeat(500);
-    const passwordInput = extensionPage.locator('input[name="password"]');
+    const passwordInput = createWalletSelectors.passwordInput(extensionPage);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(longPassword);
 
@@ -371,7 +371,7 @@ test.describe('Form Edge Cases - Password Fields', () => {
 
   test('handles password with unicode characters', async ({ extensionPage }) => {
     const unicodePassword = 'password123';
-    const passwordInput = extensionPage.locator('input[name="password"]');
+    const passwordInput = createWalletSelectors.passwordInput(extensionPage);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill(unicodePassword);
 
@@ -380,11 +380,11 @@ test.describe('Form Edge Cases - Password Fields', () => {
   });
 
   test('handles minimum password length validation', async ({ extensionPage }) => {
-    const passwordInput = extensionPage.locator('input[name="password"]');
+    const passwordInput = createWalletSelectors.passwordInput(extensionPage);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
     await passwordInput.fill('12345');
 
-    const continueButton = extensionPage.getByRole('button', { name: /Continue/i });
+    const continueButton = createWalletSelectors.continueButton(extensionPage);
     await expect(continueButton).toBeVisible({ timeout: 5000 });
 
     // Button should be disabled with short password
@@ -440,8 +440,7 @@ test.describe('Form Edge Cases - Private Key Import', () => {
 walletTest.describe('Form Edge Cases - Clipboard Interactions', () => {
   walletTest('index page has clickable address card', async ({ page }) => {
     // The address card on index page should be clickable
-    const addressCard = page.locator('[aria-label="Current address"]');
-    await expect(addressCard).toBeVisible({ timeout: 5000 });
+    await expect(index.currentAddress(page)).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('paste into address field works', async ({ page }) => {

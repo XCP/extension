@@ -149,9 +149,8 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
 
     // Page checks wallet existence on load and shows "Wallet not found." error
     // (from source: line 37)
-    const errorAlert = page.locator('[role="alert"]');
-    await expect(errorAlert).toBeVisible({ timeout: 5000 });
-    await expect(errorAlert).toContainText(/Wallet not found/i);
+    await expect(common.errorAlert(page)).toBeVisible({ timeout: 5000 });
+    await expect(common.errorAlert(page)).toContainText(/Wallet not found/i);
   });
 
   walletTest('page shows Private Key title', async ({ page }) => {

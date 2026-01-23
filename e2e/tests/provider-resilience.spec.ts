@@ -16,6 +16,7 @@ import { test as base, expect, Page, BrowserContext } from '@playwright/test';
 import * as http from 'http';
 import path from 'path';
 import { chromium } from '@playwright/test';
+import { onboarding, createWallet as createWalletSelectors, unlock, header } from '../selectors';
 
 const TEST_PASSWORD = 'TestPassword123!';
 
@@ -366,25 +367,24 @@ async function launchExtension(testId: string): Promise<{
 }
 
 async function createWallet(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Create Wallet' }).click();
+  await onboarding.createWalletButton(page).click();
   await page.waitForURL(/create-wallet/);
-  await page.locator('text=View 12-word Secret Phrase').click();
-  
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await createWalletSelectors.revealPhraseCard(page).click();
+
+  await createWalletSelectors.savedPhraseCheckbox(page).check();
+  await createWalletSelectors.passwordInput(page).fill(TEST_PASSWORD);
+  await createWalletSelectors.continueButton(page).click();
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
 async function lockWallet(page: Page): Promise<void> {
-  const lockButton = page.locator('header button, nav button').last();
-  await lockButton.click();
+  await header.lockButton(page).click();
   await page.waitForURL(/unlock/);
 }
 
 async function unlockWallet(page: Page): Promise<void> {
-  await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-  await page.getByRole('button', { name: /unlock/i }).click();
+  await unlock.passwordInput(page).fill(TEST_PASSWORD);
+  await unlock.unlockButton(page).click();
   await page.waitForURL(/index/, { timeout: 10000 });
 }
 

@@ -14,7 +14,7 @@ import {
   navigateTo,
   TEST_PASSWORD
 } from '../fixtures';
-import { onboarding, unlock, importWallet, actions, signMessage, header } from '../selectors';
+import { onboarding, unlock, importWallet, actions, signMessage, header, common } from '../selectors';
 
 test.describe('Error Handling', () => {
   test('invalid mnemonic phrase shows error or prevents import', async ({ extensionPage }) => {
@@ -131,8 +131,8 @@ walletTest.describe('Error Handling - Forms', () => {
     // Check for any valid outcome: signature heading, textarea with value, or error
     const signatureHeading = page.locator('h3:has-text("Signature")');
     const signatureText = page.locator('text=/Signature/i');
-    const errorAlert = page.locator('[role="alert"]');
-    const loadingSpinner = page.locator('.animate-spin');
+    const errorAlert = common.errorAlert(page);
+    const loadingSpinner = common.loadingSpinner(page);
     const resultIndicator = page.locator('text=/Copy|Download|Success|Result/i');
 
     // Check counts for each possible outcome
