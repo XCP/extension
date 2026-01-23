@@ -20,13 +20,11 @@ test.describe('Error Handling', () => {
   test('invalid mnemonic phrase shows error or prevents import', async ({ extensionPage }) => {
     // Check if we're on onboarding
     const importButton = onboarding.importWalletButton(extensionPage);
-    const isOnboarding = await importButton.isVisible({ timeout: 5000 }).catch(() => false);
+    const buttonCount = await importButton.count();
 
-    if (!isOnboarding) {
-      test.skip(true, 'Wallet already exists, cannot test invalid mnemonic import');
-      return;
-    }
+    test.skip(buttonCount === 0, 'Wallet already exists, cannot test invalid mnemonic import');
 
+    await expect(importButton).toBeVisible({ timeout: 5000 });
     await importButton.click();
     await expect(importWallet.wordInput(extensionPage, 0)).toBeVisible({ timeout: 10000 });
 
@@ -106,8 +104,8 @@ walletTest.describe('Error Handling - Forms', () => {
     // Navigate to settings - app should still work
     await navigateTo(page, 'settings');
 
-    // Settings page should load
-    await expect(page.locator('text=/Settings/i')).toBeVisible({ timeout: 5000 });
+    // Settings page should load - use specific heading selector
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible({ timeout: 5000 });
 
     // Clean up
     await page.evaluate(() => {
