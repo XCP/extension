@@ -28,10 +28,8 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await common.backButton(extensionPage).click();
 
     await extensionPage.waitForTimeout(500);
-    // Should be back on onboarding page
-    const onboardingContent = onboarding.createWalletButton(extensionPage)
-      .or(onboarding.importWalletButton(extensionPage));
-    await expect(onboardingContent).toBeVisible({ timeout: 3000 });
+    // Should be back on onboarding page - verify Create button is visible again
+    await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 3000 });
   });
 
   test('can cancel import wallet and return to onboarding', async ({ extensionPage }) => {
@@ -44,10 +42,8 @@ test.describe('Navigation Recovery - Cancel Flows', () => {
     await common.backButton(extensionPage).click();
 
     await extensionPage.waitForTimeout(500);
-    // Should be back on onboarding page
-    const onboardingContent = onboarding.createWalletButton(extensionPage)
-      .or(onboarding.importWalletButton(extensionPage));
-    await expect(onboardingContent).toBeVisible({ timeout: 3000 });
+    // Should be back on onboarding page - verify Import button is visible again
+    await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 3000 });
   });
 });
 
@@ -135,11 +131,10 @@ walletTest.describe('Navigation Recovery - Retry After Error', () => {
     await send.recipientInput(page).blur();
     await page.waitForTimeout(500);
 
-    // Verify that either the button is disabled or an error is shown
-    const errorIndicator = page.locator('.text-red-600, .text-red-500').first();
-    const buttonDisabled = await send.sendButton(page).isDisabled();
+    // Verify that an error indicator is shown for invalid address
+    const errorIndicator = page.locator('.text-red-600, .text-red-500, .border-red-500').first();
     const errorCount = await errorIndicator.count();
-    expect(buttonDisabled || errorCount > 0).toBe(true);
+    expect(errorCount).toBeGreaterThan(0);
 
     await send.recipientInput(page).clear();
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
