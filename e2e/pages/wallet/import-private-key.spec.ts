@@ -58,15 +58,12 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
 
     // Click dropdown to open options
     const dropdown = page.locator('[role="listbox"], select, button:has-text("Legacy"), button:has-text("SegWit")').first();
-    const dropdownCount = await dropdown.count();
+    await expect(dropdown).toBeVisible({ timeout: 5000 });
+    await dropdown.click();
 
-    if (dropdownCount > 0 && await dropdown.isVisible()) {
-      await dropdown.click();
-
-      // Check for address type options
-      const addressTypeOption = page.locator('text=/Legacy|P2PKH|SegWit|Taproot|bc1/i').first();
-      await expect(addressTypeOption).toBeVisible({ timeout: 3000 });
-    }
+    // Check for address type options
+    const addressTypeOption = page.locator('text=/Legacy|P2PKH|SegWit|Taproot|bc1/i').first();
+    await expect(addressTypeOption).toBeVisible({ timeout: 3000 });
   });
 
   walletTest('has backup confirmation checkbox', async ({ page }) => {
@@ -84,14 +81,10 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
   walletTest('checkbox is disabled without private key', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
-    // Don't fill in private key
+    // Don't fill in private key - checkbox should be disabled
     const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    const checkboxCount = await checkbox.count();
-
-    if (checkboxCount > 0 && await checkbox.isVisible()) {
-      const isDisabled = await checkbox.isDisabled();
-      expect(isDisabled).toBe(true);
-    }
+    await expect(checkbox).toBeVisible({ timeout: 5000 });
+    await expect(checkbox).toBeDisabled();
   });
 
   walletTest('password field appears after checking confirmation', async ({ page }) => {
@@ -119,30 +112,17 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill('invalid-key-format');
 
-    // Check confirmation
-    const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    const checkboxCount = await checkbox.count();
-    if (checkboxCount > 0 && await checkbox.isVisible() && !await checkbox.isDisabled()) {
-      await checkbox.check();
-    }
+    // Check confirmation checkbox
+    await importWallet.backedUpCheckbox(page).check();
 
     // Fill password
-    const passwordInput = importWallet.passwordInput(page);
-    const passwordCount = await passwordInput.count();
-    if (passwordCount > 0 && await passwordInput.isVisible()) {
-      await passwordInput.fill(TEST_PASSWORD);
-    }
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
 
     // Submit
-    const continueButton = importWallet.continueButton(page);
-    const buttonCount = await continueButton.count();
-    if (buttonCount > 0 && await continueButton.isVisible()) {
-      await continueButton.click();
-    }
+    await importWallet.continueButton(page).click();
 
-    // Should show error or stay on page
-    const errorOrStillOnPage = page.url().includes('import-private-key');
-    expect(errorOrStillOnPage).toBe(true);
+    // Should stay on page (not navigate away with invalid key)
+    await expect(page).toHaveURL(/import-private-key/, { timeout: 3000 });
   });
 
   walletTest('shows error for wrong password (existing keychain)', async ({ page }) => {
@@ -153,30 +133,17 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill(TEST_PRIVATE_KEY);
 
-    // Check confirmation
-    const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
-    const checkboxCount = await checkbox.count();
-    if (checkboxCount > 0 && await checkbox.isVisible() && !await checkbox.isDisabled()) {
-      await checkbox.check();
-    }
+    // Check confirmation checkbox
+    await importWallet.backedUpCheckbox(page).check();
 
     // Fill wrong password
-    const passwordInput = importWallet.passwordInput(page);
-    const passwordCount = await passwordInput.count();
-    if (passwordCount > 0 && await passwordInput.isVisible()) {
-      await passwordInput.fill('wrongpassword123');
-    }
+    await importWallet.passwordInput(page).fill('wrongpassword123');
 
     // Submit
-    const continueButton = importWallet.continueButton(page);
-    const buttonCount = await continueButton.count();
-    if (buttonCount > 0 && await continueButton.isVisible()) {
-      await continueButton.click();
-    }
+    await importWallet.continueButton(page).click();
 
-    // Should show error or stay on page
-    const errorOrStillOnPage = page.url().includes('import-private-key');
-    expect(errorOrStillOnPage).toBe(true);
+    // Should stay on page (not navigate away with wrong password)
+    await expect(page).toHaveURL(/import-private-key/, { timeout: 3000 });
   });
 
   walletTest('has back button', async ({ page }) => {
