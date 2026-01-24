@@ -74,15 +74,17 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await expect(keyInput).toBeVisible({ timeout: 5000 });
     await keyInput.fill(TEST_PRIVATE_KEY);
 
-    const checkboxOrLabel = page.locator('input[type="checkbox"], input[name="confirmed"]').or(page.locator('text=/backed up|I have backed up/i')).first();
-    await expect(checkboxOrLabel).toBeVisible({ timeout: 5000 });
+    // HeadlessUI Checkbox renders as a button with role="checkbox"
+    const checkbox = page.getByRole('checkbox', { name: /backed up/i });
+    await expect(checkbox).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('checkbox is disabled without private key', async ({ page }) => {
     await navigateToImportPrivateKey(page);
 
     // Don't fill in private key - checkbox should be disabled
-    const checkbox = page.locator('input[type="checkbox"], input[name="confirmed"]').first();
+    // HeadlessUI Checkbox renders as a button with role="checkbox", not a native input
+    const checkbox = page.getByRole('checkbox', { name: /backed up/i });
     await expect(checkbox).toBeVisible({ timeout: 5000 });
     await expect(checkbox).toBeDisabled();
   });

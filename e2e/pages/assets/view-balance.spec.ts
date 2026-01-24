@@ -18,16 +18,16 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await page.goto(page.url().replace(/\/index.*/, `/balance/${asset}`));
     await page.waitForLoadState('domcontentloaded');
     // Wait for success state (Send action visible means content loaded)
-    // If loading or error, the test will fail with a meaningful message
-    const sendAction = page.getByText('Send');
+    // Use .first() to avoid strict mode violation - there's both a title "Send" and description
+    const sendAction = page.getByText('Send').first();
     await expect(sendAction).toBeVisible({ timeout: 15000 });
   }
 
   walletTest('page loads and shows Send action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    // XCP balance page should show Send action
-    const sendAction = page.locator('text="Send"');
+    // XCP balance page should show Send action (use .first() to target the action title, not description)
+    const sendAction = page.locator('text="Send"').first();
     await expect(sendAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -35,7 +35,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await navigateToBalance(page, 'XCP');
 
     // XCP balance page should show DEX Order action
-    const dexOrderAction = page.locator('text="DEX Order"');
+    const dexOrderAction = page.locator('text="DEX Order"').first();
     await expect(dexOrderAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -43,7 +43,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await navigateToBalance(page, 'XCP');
 
     // XCP balance page should show Dispenser action
-    const dispenserAction = page.locator('text="Dispenser"');
+    const dispenserAction = page.locator('text="Dispenser"').first();
     await expect(dispenserAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -51,7 +51,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await navigateToBalance(page, 'XCP');
 
     // XCP balance page should show Attach action (with green border)
-    const attachAction = page.locator('text="Attach"');
+    const attachAction = page.locator('text="Attach"').first();
     await expect(attachAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -59,15 +59,15 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await navigateToBalance(page, 'XCP');
 
     // XCP balance page should show Destroy action (with red border)
-    const destroyAction = page.locator('text="Destroy"');
+    const destroyAction = page.locator('text="Destroy"').first();
     await expect(destroyAction).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows Send action for BTC', async ({ page }) => {
     await navigateToBalance(page, 'BTC');
 
-    // BTC balance page should show Send action
-    const sendAction = page.locator('text="Send"');
+    // BTC balance page should show Send action (use .first() to target the action title)
+    const sendAction = page.locator('text="Send"').first();
     await expect(sendAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -75,7 +75,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await navigateToBalance(page, 'BTC');
 
     // BTC balance page should show Dispense action
-    const dispenseAction = page.locator('text="Dispense"');
+    const dispenseAction = page.locator('text="Dispense"').first();
     await expect(dispenseAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -95,14 +95,14 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   walletTest('shows Fairmint action for BTC', async ({ page }) => {
     await navigateToBalance(page, 'BTC');
 
-    const fairmintAction = page.locator('text="Fairmint"');
+    const fairmintAction = page.locator('text="Fairmint"').first();
     await expect(fairmintAction).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('shows BTCPay action for BTC', async ({ page }) => {
     await navigateToBalance(page, 'BTC');
 
-    const btcpayAction = page.locator('text="BTCPay"');
+    const btcpayAction = page.locator('text="BTCPay"').first();
     await expect(btcpayAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -113,7 +113,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   walletTest('shows Fairmint action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    const fairmintAction = page.locator('text="Fairmint"');
+    const fairmintAction = page.locator('text="Fairmint"').first();
     await expect(fairmintAction).toBeVisible({ timeout: 10000 });
   });
 
