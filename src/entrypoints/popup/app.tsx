@@ -171,10 +171,10 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route element={<Layout />}>
-            {/* Market */}
+            {/* Market - specific routes before parameterized routes */}
             <Route path="/market/btc" element={<BtcPrice />} />
-            <Route path="/market/dispensers/:asset" element={<AssetDispensers />} />
             <Route path="/market/dispensers/manage" element={<DispenserManagement />} />
+            <Route path="/market/dispensers/:asset" element={<AssetDispensers />} />
             <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrders />} />
 
             {/* Actions */}
@@ -201,14 +201,14 @@ export default function App() {
             <Route path="/wallet/secrets/show-passphrase/:walletId" element={<ShowPassphrase />} />
             <Route path="/wallet/secrets/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
             
-            {/* Viewing */}
+            {/* Viewing (specific routes before parameterized routes) */}
             <Route path="/address/history" element={<AddressHistory />} />
             <Route path="/address/select" element={<SelectAddress />} />
             <Route path="/address/view" element={<ViewAddress />} />
             <Route path="/assets/select" element={<SelectAssets />} />
-            <Route path="/assets/:asset" element={<ViewAsset />} />
-            <Route path="/assets/:asset/balance" element={<ViewBalance />} />
             <Route path="/assets/utxo/:txHash" element={<ViewUtxo />} />
+            <Route path="/assets/:asset/balance" element={<ViewBalance />} />
+            <Route path="/assets/:asset" element={<ViewAsset />} />
             <Route path="/transaction/:txHash" element={<ViewTransaction />} />
             
             {/* Compose - Send & Transfer */}
@@ -216,13 +216,12 @@ export default function App() {
             <Route path="/compose/send/:asset" element={<ComposeSend />} />
             <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
             
-            {/* Compose - Trading */}
-            <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
+            {/* Compose - Trading (specific routes before parameterized) */}
             <Route path="/compose/order/btcpay" element={<ComposeOrderBTCPay />} />
             <Route path="/compose/order/cancel/:hash?" element={<ComposeOrderCancel />} />
+            <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
             
-            {/* Compose - Issuance */}
-            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
+            {/* Compose - Issuance (specific routes before parameterized) */}
             <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
             <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
@@ -230,21 +229,22 @@ export default function App() {
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
             <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
             <Route path="/compose/issuance/destroy/:asset" element={<ComposeIssuanceDestroy />} />
+            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
             
-            {/* Compose - Dispensers */}
-            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
+            {/* Compose - Dispensers (specific routes before parameterized) */}
             <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
             <Route path="/compose/dispenser/close-by-hash/:tx_hash?" element={<ComposeDispenserCloseByHash />} />
             <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
+            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
             
             {/* Compose - Fairminting */}
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
             <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
             
-            {/* Compose - Other */}
+            {/* Compose - Other (specific routes before parameterized routes) */}
             <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
+            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             
             {/* Compose - UTXO */}
             <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />

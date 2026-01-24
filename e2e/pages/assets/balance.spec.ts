@@ -161,14 +161,14 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(page).toHaveURL(/compose\/utxo\/attach\/XCP/, { timeout: 5000 });
   });
 
-  walletTest('Destroy action navigates to compose/destroy for XCP', async ({ page }) => {
+  walletTest('Destroy action navigates to compose/issuance/destroy for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
     const destroyAction = page.locator('button:has-text("Destroy"), div[role="button"]:has-text("Destroy")').first();
     await expect(destroyAction).toBeVisible({ timeout: 10000 });
     await destroyAction.click();
 
-    await expect(page).toHaveURL(/compose\/destroy\/XCP/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/issuance\/destroy\/XCP/, { timeout: 5000 });
   });
 
   walletTest('Send action navigates to compose/send for BTC', async ({ page }) => {

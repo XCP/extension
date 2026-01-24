@@ -2,15 +2,15 @@
  * Dispensers Pages Tests
  *
  * Tests for dispenser management page:
- * - /market/market/dispensers/manage - View and manage user's dispensers
+ * - /market/dispensers/manage - View and manage user's dispensers
  */
 
 import { walletTest, expect } from '../../../fixtures';
 
 walletTest.describe('Dispensers Pages', () => {
-  walletTest.describe('Manage Dispensers (/market/market/dispensers/manage)', () => {
+  walletTest.describe('Manage Dispensers (/market/dispensers/manage)', () => {
     walletTest('manage dispensers page loads with content or redirects', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/market/market/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
       // Page may show dispensers, empty state, or redirect
@@ -25,7 +25,7 @@ walletTest.describe('Dispensers Pages', () => {
     });
 
     walletTest('manage dispensers shows dispenser list or empty state', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/market/market/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
       const isOnDispensersPage = page.url().includes('/market/dispensers/');
@@ -39,7 +39,7 @@ walletTest.describe('Dispensers Pages', () => {
     });
 
     walletTest('manage dispensers page has title', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/market/market/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
       const isOnDispensersPage = page.url().includes('/market/dispensers/');
