@@ -183,7 +183,7 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
 
     // Navigate to wallet selection page
     await header.walletSelector(page).click();
-    await page.waitForURL(/select-wallet/);
+    await page.waitForURL(/wallet\/select/);
 
     // Add a second wallet - target the green button at bottom (not header icon)
     await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });

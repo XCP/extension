@@ -26,7 +26,7 @@ walletTest.describe('Index Page', () => {
       await expect(receiveButton).toBeVisible();
       await receiveButton.click();
 
-      await expect(page).toHaveURL(/view-address/);
+      await expect(page).toHaveURL(/address\/view/);
 
       // Should show QR code or address display (both may be visible)
       const qrOrAddress = viewAddress.qrCode(page).or(viewAddress.addressDisplay(page)).first();

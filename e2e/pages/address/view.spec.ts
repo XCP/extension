@@ -180,7 +180,7 @@ walletTest.describe('View Address Page (/address/view)', () => {
 
       // Clicking it navigates to select-address
       await selectAddressButton.click();
-      await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+      await expect(page).toHaveURL(/address\/select/, { timeout: 5000 });
     }
     // For private key wallets, button doesn't exist - that's fine
   });

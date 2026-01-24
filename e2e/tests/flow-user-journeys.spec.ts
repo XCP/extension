@@ -375,7 +375,7 @@ walletTest.describe('User Journey: Dashboard Navigation', () => {
     await receiveButton.click();
 
     // Should navigate to view-address
-    await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address\/view/, { timeout: 5000 });
 
     // Go back
     const backButton = common.headerBackButton(page);

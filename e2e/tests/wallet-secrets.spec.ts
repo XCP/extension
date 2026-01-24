@@ -18,7 +18,7 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     // Navigate to select wallet
     const walletButton = header.walletSelector(page);
     await walletButton.click();
-    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
   });
 
   walletTest('can access show passphrase from wallet selection', async ({ page }) => {
@@ -118,7 +118,7 @@ walletTest.describe('Show Private Key Page (/show-private-key)', () => {
     const addressChevron = selectAddress.chevronButton(page);
     await expect(addressChevron).toBeVisible({ timeout: 5000 });
     await addressChevron.click();
-    await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address\/select/, { timeout: 5000 });
   });
 
   walletTest('can access show private key from address selection', async ({ page }) => {

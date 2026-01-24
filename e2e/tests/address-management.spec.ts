@@ -28,7 +28,7 @@ walletTest.describe('Address Management', () => {
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
 
-    await expect(page).toHaveURL(/select-address/);
+    await expect(page).toHaveURL(/address\/select/);
     await expect(page.locator('text="Addresses"')).toBeVisible();
     await expect(selectAddress.addressLabel(page, 1)).toBeVisible();
   });
@@ -38,7 +38,7 @@ walletTest.describe('Address Management', () => {
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
 
-    await expect(page).toHaveURL(/select-address/);
+    await expect(page).toHaveURL(/address\/select/);
 
     const addressesBefore = await page.locator('text=/Address \\d+/').count();
 
@@ -55,7 +55,7 @@ walletTest.describe('Address Management', () => {
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
 
-    await expect(page).toHaveURL(/select-address/);
+    await expect(page).toHaveURL(/address\/select/);
 
     // Add a second address if there's only one
     const addressLabels = page.locator('text=/Address \\d+/');
@@ -80,7 +80,7 @@ walletTest.describe('Address Management', () => {
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
 
-    await expect(page).toHaveURL(/select-address/);
+    await expect(page).toHaveURL(/address\/select/);
 
     // Open the address menu (three dots) to access copy
     const addressMenu = page.locator('[aria-label="Address actions"]').first();
@@ -108,7 +108,7 @@ walletTest.describe('Address Management', () => {
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
 
-    await expect(page).toHaveURL(/select-address/);
+    await expect(page).toHaveURL(/address\/select/);
 
     // Select-address page shows derivation path (e.g., m/84'/0'/0'/0/0) not address type name
     // Check that derivation path is displayed for each address
