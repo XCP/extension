@@ -83,7 +83,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await backButton.click();
 
     // Should navigate back (not on select-address anymore)
-    await expect(page).not.toHaveURL(/address/select/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/address\/select/, { timeout: 5000 });
   });
 
   walletTest('indicates currently selected address', async ({ page }) => {

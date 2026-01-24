@@ -43,7 +43,7 @@ walletTest.describe('Remove Wallet Page (/wallet/remove)', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify we're on the remove-wallet page
-    await expect(page).toHaveURL(/wallet/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
     return true;
   }
 
@@ -227,7 +227,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await removeOption.click();
 
     // Should be on remove-wallet page
-    await expect(page).toHaveURL(/wallet/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Enter correct password
     const passwordInput = page.locator('input[name="password"]');
@@ -241,7 +241,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
 
     // Should redirect away from remove-wallet page after successful removal
     // May go to /wallet/select or /unlock-wallet (if removing the active wallet triggers re-auth)
-    await expect(page).not.toHaveURL(/wallet/remove/, { timeout: 10000 });
+    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 10000 });
 
     // If redirected to unlock, unlock the wallet first
     if (page.url().includes('unlock-wallet')) {
@@ -274,13 +274,13 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await removeOption.click();
 
     // Should be on remove-wallet page
-    await expect(page).toHaveURL(/wallet/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Click back button instead of confirming
     await common.headerBackButton(page).click();
 
     // Wait for navigation away from remove-wallet
-    await expect(page).not.toHaveURL(/wallet/remove/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Verify wallet count is unchanged
     const countAfter = await getWalletCount(page);

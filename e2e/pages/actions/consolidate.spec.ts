@@ -27,7 +27,7 @@ walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
     await consolidateOption.click();
 
     // Should navigate to consolidate page
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
   });
 
   walletTest('consolidate page shows explanation or warning', async ({ page }) => {
@@ -43,7 +43,7 @@ walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Should show explanation about recovery
     const explanationText = page.locator('text=/Recover|Bitcoin|bare multisig/i').first();
@@ -54,7 +54,7 @@ walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Should show page title
     const pageTitle = page.locator('text=/Recover Bitcoin/i').first();
@@ -76,7 +76,7 @@ walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
     await backButton.click();
 
     // Should navigate away from consolidate page
-    await expect(page).not.toHaveURL(/\/actions/consolidate$/);
+    await expect(page).not.toHaveURL(/\/actions\/consolidate$/);
   });
 });
 
@@ -177,7 +177,7 @@ walletTest.describe('Consolidation Form', () => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Header should show "Recovery Tool"
     const headerTitle = page.locator('header').getByText('Recovery Tool');
@@ -269,7 +269,7 @@ walletTest.describe('Consolidation Form', () => {
     await page.waitForLoadState('networkidle');
 
     // Page should still be on consolidate (didn't navigate away)
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
   });
 
   walletTest('back button navigates away from consolidate page', async ({ page }) => {
@@ -281,7 +281,7 @@ walletTest.describe('Consolidation Form', () => {
     await backButton.click();
 
     // Should navigate away
-    await expect(page).not.toHaveURL(/\/actions/consolidate$/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/\/actions\/consolidate$/, { timeout: 5000 });
   });
 });
 
@@ -296,7 +296,7 @@ walletTest.describe('Consolidation History', () => {
 
     // History section may or may not be visible depending on whether there is history
     // Just verify the page loads without error and has content
-    await expect(page).toHaveURL(/actions/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Page should have the form
     await expect(page.locator('form')).toBeVisible({ timeout: 10000 });

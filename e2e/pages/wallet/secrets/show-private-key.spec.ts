@@ -372,14 +372,14 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await page.waitForLoadState('networkidle');
 
     // Navigate to show-private-key
-    await page.goto(page.url().replace(/\/wallet/select.*/, `/wallet/secrets/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/wallet\/select.*/, `/wallet/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Click back button
     await common.headerBackButton(page).click();
 
     // Should navigate back (URL should change)
-    await expect(page).not.toHaveURL(/wallet/secrets/show-private-key/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/wallet\/secrets\/show-private-key/, { timeout: 5000 });
   });
 
   // ============================================================================
