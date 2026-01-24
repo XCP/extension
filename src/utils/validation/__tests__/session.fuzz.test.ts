@@ -42,13 +42,23 @@ describe('Session Validation Fuzz Tests', () => {
     });
 
     it('should reject non-hex strings', () => {
+      // Generate a 64-char string with at least one non-hex char
+      // by inserting a non-hex char at a random position in a hex string
+      const nonHexChar = fc.constantFrom(...'ghijklmnopqrstuvwxyzGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()'.split(''));
+      const invalidIdArb = fc.tuple(
+        fc.integer({ min: 0, max: 63 }), // position to insert non-hex char
+        nonHexChar,
+        fc.array(hexCharArb, { minLength: 63, maxLength: 63 }) // 63 hex chars
+      ).map(([pos, badChar, hexChars]) => {
+        const result = [...hexChars];
+        result.splice(pos, 0, badChar);
+        return result.join('');
+      });
+
       fc.assert(
-        fc.property(
-          fc.string().filter(s => s.length === 64 && !/^[a-f0-9]+$/i.test(s)),
-          (invalidId) => {
-            expect(() => validateWalletId(invalidId)).toThrow('Invalid wallet ID format');
-          }
-        ),
+        fc.property(invalidIdArb, (invalidId) => {
+          expect(() => validateWalletId(invalidId)).toThrow('Invalid wallet ID format');
+        }),
         { numRuns: 100 }
       );
     });
@@ -127,10 +137,10 @@ describe('Session Validation Fuzz Tests', () => {
   });
 
   describe('validateSecret', () => {
-    it('should accept valid secrets', () => {
+    it('should accept valid non-empty secrets', () => {
       fc.assert(
         fc.property(
-          fc.string({ maxLength: MAX_SECRET_LENGTH }),
+          fc.string({ minLength: 1, maxLength: MAX_SECRET_LENGTH }),
           (secret) => {
             expect(() => validateSecret(secret)).not.toThrow();
           }
@@ -139,8 +149,8 @@ describe('Session Validation Fuzz Tests', () => {
       );
     });
 
-    it('should accept empty strings', () => {
-      expect(() => validateSecret('')).not.toThrow();
+    it('should reject empty strings', () => {
+      expect(() => validateSecret('')).toThrow('Secret cannot be empty');
     });
 
     it('should reject secrets exceeding max length', () => {
