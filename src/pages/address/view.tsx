@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   PATHS: {
     BACK: "/index",
-    SELECT_ADDRESS: "/select-address",
+    SELECT_ADDRESS: "/address/select",
   } as const,
 } as const;
 
@@ -43,7 +43,7 @@ export default function ViewAddress(): ReactElement {
           ? {
               icon: <FaList className="size-4" aria-hidden="true" />,
               onClick: () =>
-                navigate(CONSTANTS.PATHS.SELECT_ADDRESS, { state: { returnTo: "/view-address" } }),
+                navigate(CONSTANTS.PATHS.SELECT_ADDRESS, { state: { returnTo: "/address/view" } }),
               ariaLabel: "Select Address",
             }
           : undefined,

@@ -14,20 +14,20 @@ import UnlockWallet from '@/pages/auth/unlock-wallet';
 
 // Main navigation
 import Index from '@/pages/index';
-import Market from '@/pages/market';
+import Market from '@/pages/market/index';
 import Actions from '@/pages/actions';
 import Settings from '@/pages/settings';
 
 // Market
-import DispenserManagement from '@/pages/dispensers/manage';
+import DispenserManagement from '@/pages/market/dispensers/manage';
 import AssetDispensers from '@/pages/market/asset-dispensers';
 import AssetOrders from '@/pages/market/asset-orders';
 import BtcPrice from '@/pages/market/btc-price';
 
 // Actions
 import Consolidate from '@/pages/actions/consolidate';
-import ConsolidationSuccess from '@/pages/actions/consolidate/success';
-import ConsolidationStatus from '@/pages/actions/consolidate/status';
+import ConsolidateSuccess from '@/pages/actions/consolidate/success';
+import ConsolidateStatus from '@/pages/actions/consolidate/status';
 import SignMessage from '@/pages/actions/sign-message';
 import VerifyMessage from '@/pages/actions/verify-message';
 
@@ -39,25 +39,25 @@ import ConnectedSites from '@/pages/settings/connected-sites';
 import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
 
 // Wallet management
-import AddWallet from '@/pages/wallet/add-wallet';
-import SelectWallet from '@/pages/wallet/select-wallet';
-import CreateWallet from '@/pages/wallet/create-wallet';
-import ImportWallet from '@/pages/wallet/import-wallet';
+import AddWallet from '@/pages/wallet/add';
+import SelectWallet from '@/pages/wallet/select';
+import CreateWallet from '@/pages/wallet/create';
+import ImportWallet from '@/pages/wallet/import';
 import ImportPrivateKey from '@/pages/wallet/import-private-key';
 import ImportTestAddress from '@/pages/wallet/import-test-address';
-import ResetWallet from '@/pages/wallet/reset-wallet';
-import RemoveWallet from '@/pages/wallet/remove-wallet';
-import ShowPassphrase from '@/pages/secrets/show-passphrase';
-import ShowPrivateKey from '@/pages/secrets/show-private-key';
+import ResetWallet from '@/pages/wallet/reset';
+import RemoveWallet from '@/pages/wallet/remove';
+import ShowPassphrase from '@/pages/wallet/secrets/show-passphrase';
+import ShowPrivateKey from '@/pages/wallet/secrets/show-private-key';
 
 // Viewing
-import AddressHistory from '@/pages/address/address-history';
-import SelectAddress from '@/pages/address/select-address';
-import ViewAddress from '@/pages/address/view-address';
-import SelectAssets from '@/pages/assets/select-assets';
-import ViewAsset from '@/pages/assets/view-asset';
-import ViewBalance from '@/pages/assets/view-balance';
-import ViewUtxo from '@/pages/assets/view-utxo';
+import AddressHistory from '@/pages/address/history';
+import SelectAddress from '@/pages/address/select';
+import ViewAddress from '@/pages/address/view';
+import SelectAssets from '@/pages/assets/select';
+import ViewAsset from '@/pages/assets/[asset]';
+import ViewBalance from '@/pages/assets/balance';
+import ViewUtxo from '@/pages/assets/utxo/[txHash]';
 import ViewTransaction from '@/pages/transaction/view-transaction';
 
 // Provider/dApp integration
@@ -72,8 +72,8 @@ import ComposeSweep from '@/pages/compose/sweep';
 
 // Compose - Trading
 import ComposeOrder from '@/pages/compose/order';
-import ComposeBTCPay from '@/pages/compose/order/btcpay';
-import ComposeCancel from '@/pages/compose/order/cancel';
+import ComposeOrderBTCPay from '@/pages/compose/order/btcpay';
+import ComposeOrderCancel from '@/pages/compose/order/cancel';
 
 // Compose - Issuance
 import ComposeIssuance from '@/pages/compose/issuance';
@@ -83,7 +83,7 @@ import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply';
 import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership';
 import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description';
 import ComposeIssuanceLockDescription from '@/pages/compose/issuance/lock-description';
-import ComposeDestroy from '@/pages/compose/issuance/destroy-supply';
+import ComposeIssuanceDestroy from '@/pages/compose/issuance/destroy-supply';
 
 // Compose - Dispensers
 import ComposeDispenser from '@/pages/compose/dispenser';
@@ -157,8 +157,8 @@ export default function App() {
         {/* Public routes */}
         <Route element={<Layout />}>
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/create-wallet" element={<CreateWallet />} />
-          <Route path="/import-wallet" element={<ImportWallet />} />
+          <Route path="/wallet/create" element={<CreateWallet />} />
+          <Route path="/wallet/import" element={<ImportWallet />} />
           <Route path="/unlock-wallet" element={<UnlockWallet />} />
         </Route>
 
@@ -171,16 +171,16 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Route>
           <Route element={<Layout />}>
-            {/* Market */}
-            <Route path="/dispensers/manage" element={<DispenserManagement />} />
+            {/* Market - specific routes before parameterized routes */}
             <Route path="/market/btc" element={<BtcPrice />} />
+            <Route path="/market/dispensers/manage" element={<DispenserManagement />} />
             <Route path="/market/dispensers/:asset" element={<AssetDispensers />} />
             <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrders />} />
 
             {/* Actions */}
-            <Route path="/consolidate" element={<Consolidate />} />
-            <Route path="/consolidation-success" element={<ConsolidationSuccess />} />
-            <Route path="/consolidation-status" element={<ConsolidationStatus />} />
+            <Route path="/actions/consolidate" element={<Consolidate />} />
+            <Route path="/actions/consolidate/success" element={<ConsolidateSuccess />} />
+            <Route path="/actions/consolidate/status" element={<ConsolidateStatus />} />
             <Route path="/actions/sign-message" element={<SignMessage />} />
             <Route path="/actions/verify-message" element={<VerifyMessage />} />
             
@@ -192,23 +192,23 @@ export default function App() {
             <Route path="/settings/pinned-assets" element={<PinnedAssetsSettings />} />
             
             {/* Wallet management */}
-            <Route path="/add-wallet" element={<AddWallet />} />
-            <Route path="/select-wallet" element={<SelectWallet />} />
-            <Route path="/reset-wallet" element={<ResetWallet />} />
-            <Route path="/import-private-key" element={<ImportPrivateKey />} />
-            <Route path="/import-test-address" element={<ImportTestAddress />} />
-            <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
-            <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
-            <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+            <Route path="/wallet/add" element={<AddWallet />} />
+            <Route path="/wallet/select" element={<SelectWallet />} />
+            <Route path="/wallet/reset" element={<ResetWallet />} />
+            <Route path="/wallet/import-private-key" element={<ImportPrivateKey />} />
+            <Route path="/wallet/import-test-address" element={<ImportTestAddress />} />
+            <Route path="/wallet/remove/:walletId" element={<RemoveWallet />} />
+            <Route path="/wallet/secrets/show-passphrase/:walletId" element={<ShowPassphrase />} />
+            <Route path="/wallet/secrets/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
             
-            {/* Viewing */}
-            <Route path="/address-history" element={<AddressHistory />} />
-            <Route path="/select-address" element={<SelectAddress />} />
-            <Route path="/view-address" element={<ViewAddress />} />
-            <Route path="/select-assets" element={<SelectAssets />} />
-            <Route path="/asset/:asset" element={<ViewAsset />} />
-            <Route path="/balance/:asset" element={<ViewBalance />} />
-            <Route path="/utxo/:txid" element={<ViewUtxo />} />
+            {/* Viewing (specific routes before parameterized routes) */}
+            <Route path="/address/history" element={<AddressHistory />} />
+            <Route path="/address/select" element={<SelectAddress />} />
+            <Route path="/address/view" element={<ViewAddress />} />
+            <Route path="/assets/select" element={<SelectAssets />} />
+            <Route path="/assets/utxo/:txHash" element={<ViewUtxo />} />
+            <Route path="/assets/:asset/balance" element={<ViewBalance />} />
+            <Route path="/assets/:asset" element={<ViewAsset />} />
             <Route path="/transaction/:txHash" element={<ViewTransaction />} />
             
             {/* Compose - Send & Transfer */}
@@ -216,35 +216,35 @@ export default function App() {
             <Route path="/compose/send/:asset" element={<ComposeSend />} />
             <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
             
-            {/* Compose - Trading */}
+            {/* Compose - Trading (specific routes before parameterized) */}
+            <Route path="/compose/order/btcpay" element={<ComposeOrderBTCPay />} />
+            <Route path="/compose/order/cancel/:hash?" element={<ComposeOrderCancel />} />
             <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
-            <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
-            <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
             
-            {/* Compose - Issuance */}
-            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
+            {/* Compose - Issuance (specific routes before parameterized) */}
             <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
             <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
             <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
             <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
             <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
-            <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
+            <Route path="/compose/issuance/destroy/:asset" element={<ComposeIssuanceDestroy />} />
+            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
             
-            {/* Compose - Dispensers */}
-            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
+            {/* Compose - Dispensers (specific routes before parameterized) */}
             <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
             <Route path="/compose/dispenser/close-by-hash/:tx_hash?" element={<ComposeDispenserCloseByHash />} />
             <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
+            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
             
             {/* Compose - Fairminting */}
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
             <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
             
-            {/* Compose - Other */}
+            {/* Compose - Other (specific routes before parameterized routes) */}
             <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
+            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
             
             {/* Compose - UTXO */}
             <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />

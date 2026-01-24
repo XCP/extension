@@ -1,15 +1,15 @@
 /**
  * View Address Page Tests
  *
- * Tests for /view-address route - display QR code and copy address
+ * Tests for /address/view route - display QR code and copy address
  */
 
 import { walletTest, expect, grantClipboardPermissions } from '../../fixtures';
 import { viewAddress, common } from '../../selectors';
 
-walletTest.describe('View Address Page (/view-address)', () => {
+walletTest.describe('View Address Page (/address/view)', () => {
   walletTest('view address page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should show QR code
@@ -17,7 +17,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('shows QR code', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should show QR code for the address
@@ -25,7 +25,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('shows address text', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should show the address display
@@ -33,7 +33,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('has Copy Address button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should have Copy Address button
@@ -41,7 +41,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('shows address type label', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should show address type label (P2PKH, P2WPKH, etc.)
@@ -50,7 +50,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('can click copy button to copy address', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Click copy button
@@ -64,7 +64,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('has back navigation', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     const backButton = page.locator('button[aria-label="Go Back"]');
@@ -76,7 +76,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('page has header with back button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Header should have a back button
@@ -85,7 +85,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('displays valid Bitcoin address format', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     const addressDisplay = viewAddress.addressDisplay(page);
@@ -101,7 +101,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   walletTest('copy button copies address to clipboard', async ({ page, context }) => {
     await grantClipboardPermissions(context);
 
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Get the displayed address
@@ -121,7 +121,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   walletTest('clicking address text also copies to clipboard', async ({ page, context }) => {
     await grantClipboardPermissions(context);
 
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // The address text is also clickable for copying
@@ -141,7 +141,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('QR code contains the address', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // QR code should be visible
@@ -153,7 +153,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('shows address name and type label', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Should show address info header with name and type
@@ -167,7 +167,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
   });
 
   walletTest('mnemonic wallet shows Select Address button in header', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/view-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/view'));
     await page.waitForLoadState('networkidle');
 
     // Mnemonic wallets have a list icon button to select different address
@@ -180,7 +180,7 @@ walletTest.describe('View Address Page (/view-address)', () => {
 
       // Clicking it navigates to select-address
       await selectAddressButton.click();
-      await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+      await expect(page).toHaveURL(/address\/select/, { timeout: 5000 });
     }
     // For private key wallets, button doesn't exist - that's fine
   });

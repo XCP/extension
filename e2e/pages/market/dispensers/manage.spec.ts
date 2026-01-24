@@ -2,19 +2,19 @@
  * Dispensers Pages Tests
  *
  * Tests for dispenser management page:
- * - /dispensers/manage - View and manage user's dispensers
+ * - /market/dispensers/manage - View and manage user's dispensers
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { walletTest, expect } from '../../../fixtures';
 
 walletTest.describe('Dispensers Pages', () => {
-  walletTest.describe('Manage Dispensers (/dispensers/manage)', () => {
+  walletTest.describe('Manage Dispensers (/market/dispensers/manage)', () => {
     walletTest('manage dispensers page loads with content or redirects', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
       // Page may show dispensers, empty state, or redirect
-      const isOnDispensersPage = page.url().includes('/dispensers/');
+      const isOnDispensersPage = page.url().includes('/market/dispensers/');
 
       if (isOnDispensersPage) {
         // Should show dispensers content or empty state
@@ -25,10 +25,10 @@ walletTest.describe('Dispensers Pages', () => {
     });
 
     walletTest('manage dispensers shows dispenser list or empty state', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
-      const isOnDispensersPage = page.url().includes('/dispensers/');
+      const isOnDispensersPage = page.url().includes('/market/dispensers/');
       if (!isOnDispensersPage) {
         return; // Page redirected, skip test
       }
@@ -39,10 +39,10 @@ walletTest.describe('Dispensers Pages', () => {
     });
 
     walletTest('manage dispensers page has title', async ({ page }) => {
-      await page.goto(page.url().replace(/\/index.*/, '/dispensers/manage'));
+      await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
       await page.waitForLoadState('networkidle');
 
-      const isOnDispensersPage = page.url().includes('/dispensers/');
+      const isOnDispensersPage = page.url().includes('/market/dispensers/');
       if (!isOnDispensersPage) {
         return; // Page redirected, skip test
       }

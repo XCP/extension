@@ -25,7 +25,7 @@ function CreateWallet() {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
-    BACK: keychainExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/wallet/add" : "/onboarding",
     SUCCESS: "/index",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;

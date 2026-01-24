@@ -94,7 +94,7 @@ export default function ViewBalance(): ReactElement {
             id: "btcpay",
             title: "BTCPay",
             description: "Pay for an order match with BTC",
-            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/btcpay`),
+            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/order/btcpay`),
           },
         ]
       : isXCP
@@ -134,7 +134,7 @@ export default function ViewBalance(): ReactElement {
             id: "destroy",
             title: "Destroy",
             description: "Permanently destroy token supply",
-            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/destroy/${asset}`),
+            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/destroy/${asset}`),
             className: "!border !border-red-500",
           },
         ]
@@ -168,7 +168,7 @@ export default function ViewBalance(): ReactElement {
             id: "destroy",
             title: "Destroy",
             description: "Permanently destroy token supply",
-            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/destroy/${asset}`),
+            onClick: () => navigate(`${CONSTANTS.PATHS.COMPOSE}/issuance/destroy/${asset}`),
             className: "!border !border-red-500",
           },
         ];

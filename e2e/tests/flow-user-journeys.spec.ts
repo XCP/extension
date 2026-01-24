@@ -225,7 +225,7 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     await historyButton.click();
 
     // Verify navigation to history page
-    await expect(page).toHaveURL(/address-history/, { timeout: 10000 });
+    await expect(page).toHaveURL(/address\/history/, { timeout: 10000 });
 
     // Verify history page has expected content
     const historyTitle = page.locator('text=/History|Transactions/i').first();
@@ -240,7 +240,7 @@ walletTest.describe('User Journey: Transaction Flow with Interruptions', () => {
     const historyButton = index.historyButton(page);
     await expect(historyButton).toBeVisible({ timeout: 10000 });
     await historyButton.click();
-    await expect(page).toHaveURL(/address-history/, { timeout: 10000 });
+    await expect(page).toHaveURL(/address\/history/, { timeout: 10000 });
 
     // Go back to index
     await navigateTo(page, 'wallet');
@@ -375,7 +375,7 @@ walletTest.describe('User Journey: Dashboard Navigation', () => {
     await receiveButton.click();
 
     // Should navigate to view-address
-    await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address\/view/, { timeout: 5000 });
 
     // Go back
     const backButton = common.headerBackButton(page);

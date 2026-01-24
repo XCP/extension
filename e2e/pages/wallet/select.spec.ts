@@ -1,5 +1,5 @@
 /**
- * Select Wallet Page Tests (/wallet/select-wallet)
+ * Select Wallet Page Tests (/wallet/select)
  *
  * Tests for the wallet selection page that allows switching between wallets.
  */
@@ -7,11 +7,11 @@
 import { walletTest, expect } from '../../fixtures';
 import { header, selectWallet } from '../../selectors';
 
-walletTest.describe('Select Wallet Page (/select-wallet)', () => {
+walletTest.describe('Select Wallet Page (/wallet/select)', () => {
   async function navigateToSelectWallet(page: any): Promise<boolean> {
     // Navigate via header wallet selector
     await header.walletSelector(page).click();
-    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
     return true;
   }
 
@@ -56,7 +56,7 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await addButton.click();
 
     // Should navigate to add-wallet page
-    await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/add/, { timeout: 5000 });
   });
 
   walletTest('indicates active wallet with checked state', async ({ page }) => {
@@ -191,7 +191,7 @@ walletTest.describe('Select Wallet - Multi-Wallet', () => {
   walletTest('switching wallets changes header wallet name on index', async ({ page }) => {
     // Navigate to select-wallet
     await header.walletSelector(page).click();
-    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
 
     // Check if multiple wallets exist
     const walletItems = page.locator('[role="radio"]');

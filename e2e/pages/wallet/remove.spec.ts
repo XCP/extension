@@ -1,5 +1,5 @@
 /**
- * Remove Wallet Page Tests (/wallet/remove-wallet/:walletId)
+ * Remove Wallet Page Tests (/wallet/wallet/remove/:walletId)
  *
  * Tests for the remove wallet page that allows deleting a wallet with password confirmation.
  */
@@ -7,15 +7,15 @@
 import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
 import { common, createWallet } from '../../selectors';
 
-walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
-  // Navigate to remove-wallet page through the UI (via select-wallet page wallet menu)
+walletTest.describe('Remove Wallet Page (/wallet/remove)', () => {
+  // Navigate to wallet/remove page through the UI (via select-wallet page wallet menu)
   // Returns false if Remove button is disabled (only one wallet exists)
   async function navigateToRemoveWallet(page: any): Promise<boolean> {
     // Navigate to select-wallet page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/select-wallet`);
+    await page.goto(`${baseUrl}/wallet/select`);
     await page.waitForLoadState('networkidle');
 
     // Open wallet menu (the three dots button for wallet options)
@@ -42,8 +42,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     await removeOption.click();
     await page.waitForLoadState('networkidle');
 
-    // Verify we're on the remove-wallet page
-    await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
+    // Verify we're on the wallet/remove page
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
     return true;
   }
 
@@ -102,8 +102,8 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     // Wait for error to appear (wrong password should trigger validation error)
     await expect(errorText).toBeVisible({ timeout: 5000 });
 
-    // Should still be on remove-wallet page
-    expect(page.url()).toContain('remove-wallet');
+    // Should still be on wallet/remove page
+    expect(page.url()).toContain('wallet/remove');
   });
 
   walletTest('has back button', async ({ page }) => {
@@ -117,11 +117,11 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/remove-wallet/invalid-wallet-id-12345`);
+    await page.goto(`${baseUrl}/wallet/remove/invalid-wallet-id-12345`);
     await page.waitForLoadState('networkidle');
 
     // Should show error or redirect - check which behavior occurred
-    const wasRedirected = !page.url().includes('/remove-wallet');
+    const wasRedirected = !page.url().includes('/wallet/remove');
 
     if (wasRedirected) {
       // Redirected away from invalid wallet ID - test passes
@@ -157,11 +157,11 @@ walletTest.describe('Remove Wallet Page (/remove-wallet)', () => {
 walletTest.describe('Remove Wallet - Full Flow', () => {
   // Helper to create a second wallet via UI
   async function createSecondWallet(page: any): Promise<void> {
-    // Navigate to add-wallet page
+    // Navigate to wallet/add page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/add-wallet`);
+    await page.goto(`${baseUrl}/wallet/add`);
     await page.waitForLoadState('networkidle');
 
     // Click Create New Wallet option
@@ -169,7 +169,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(createWalletOption).toBeVisible({ timeout: 5000 });
     await createWalletOption.click();
 
-    await page.waitForURL(/create-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/create/, { timeout: 5000 });
 
     // Wait for and click the reveal phrase card
     const revealCard = createWallet.revealPhraseCard(page);
@@ -197,7 +197,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/select-wallet`);
+    await page.goto(`${baseUrl}/wallet/select`);
     await page.waitForLoadState('networkidle');
 
     // Count wallet items (each wallet has options button)
@@ -226,8 +226,8 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
-    // Should be on remove-wallet page
-    await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
+    // Should be on wallet/remove page
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Enter correct password
     const passwordInput = page.locator('input[name="password"]');
@@ -239,9 +239,9 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeButton).toBeVisible({ timeout: 3000 });
     await removeButton.click();
 
-    // Should redirect away from remove-wallet page after successful removal
-    // May go to /select-wallet or /unlock-wallet (if removing the active wallet triggers re-auth)
-    await expect(page).not.toHaveURL(/remove-wallet/, { timeout: 10000 });
+    // Should redirect away from wallet/remove page after successful removal
+    // May go to /wallet/select or /unlock-wallet (if removing the active wallet triggers re-auth)
+    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 10000 });
 
     // If redirected to unlock, unlock the wallet first
     if (page.url().includes('unlock-wallet')) {
@@ -273,14 +273,14 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
-    // Should be on remove-wallet page
-    await expect(page).toHaveURL(/remove-wallet/, { timeout: 5000 });
+    // Should be on wallet/remove page
+    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Click back button instead of confirming
     await common.headerBackButton(page).click();
 
-    // Wait for navigation away from remove-wallet
-    await expect(page).not.toHaveURL(/remove-wallet/, { timeout: 5000 });
+    // Wait for navigation away from wallet/remove
+    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Verify wallet count is unchanged
     const countAfter = await getWalletCount(page);

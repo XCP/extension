@@ -25,7 +25,7 @@ import { TEST_PASSWORDS } from '../test-data';
 async function createSecondWallet(page: any): Promise<void> {
   // Navigate to wallet management
   await header.walletSelector(page).click();
-  await page.waitForURL(/select-wallet/);
+  await page.waitForURL(/wallet\/select/);
 
   // Add second wallet
   await selectWallet.addWalletButton(page).click();
@@ -46,7 +46,7 @@ async function createSecondWallet(page: any): Promise<void> {
  */
 async function navigateToRemoveWallet(page: any): Promise<void> {
   await header.walletSelector(page).click();
-  await page.waitForURL(/select-wallet/);
+  await page.waitForURL(/wallet\/select/);
 
   const walletCard = page.locator('[role="radio"]').first();
   await expect(walletCard).toBeVisible();
@@ -61,7 +61,7 @@ async function navigateToRemoveWallet(page: any): Promise<void> {
   await expect(removeButton).toBeVisible({ timeout: 3000 });
   await removeButton.click();
 
-  await page.waitForURL(/remove-wallet/);
+  await page.waitForURL(/wallet\/remove/);
 }
 
 test.describe('Remove Wallet - Single Wallet', () => {
@@ -69,7 +69,7 @@ test.describe('Remove Wallet - Single Wallet', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/select-wallet/);
+    await extensionPage.waitForURL(/wallet\/select/);
 
     const walletCard = extensionPage.locator('[role="radio"]').first();
     await expect(walletCard).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('Remove Wallet - Single Wallet', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/select-wallet/);
+    await extensionPage.waitForURL(/wallet\/select/);
 
     const walletCard = extensionPage.locator('[role="radio"]').first();
     await expect(walletCard).toBeVisible();
@@ -120,7 +120,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await createSecondWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/select-wallet/);
+    await extensionPage.waitForURL(/wallet\/select/);
 
     // Verify we have 2 wallets
     const walletCards = extensionPage.locator('[role="radio"]');
@@ -173,7 +173,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await submitButton.click();
 
     // Should show error or stay on remove-wallet page
-    await expect(extensionPage).toHaveURL(/remove-wallet/, { timeout: 5000 });
+    await expect(extensionPage).toHaveURL(/wallet\/remove/, { timeout: 5000 });
     // Error message should appear
     const errorOrPasswordField = extensionPage.locator('text=/incorrect|invalid|wrong|error|failed|password/i')
       .or(extensionPage.locator('input[name="password"]')).first();
@@ -186,7 +186,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
 
     // Count wallets before removal (use web-first assertion that waits/retries)
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/select-wallet/);
+    await extensionPage.waitForURL(/wallet\/select/);
     const walletCards = extensionPage.locator('[role="radio"]');
     await expect(walletCards).toHaveCount(2, { timeout: 5000 });
 
@@ -198,14 +198,14 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     const removeButton = extensionPage.locator('button').filter({ hasText: /Remove/i });
     await expect(removeButton).toBeVisible({ timeout: 3000 });
     await removeButton.click();
-    await extensionPage.waitForURL(/remove-wallet/);
+    await extensionPage.waitForURL(/wallet\/remove/);
 
     // Enter correct password and submit
     await extensionPage.locator('input[name="password"], input[type="password"]').fill(TEST_PASSWORD);
     await extensionPage.getByRole('button', { name: /Remove|Confirm|Delete/i }).click();
 
     // Should return to wallet selection with one fewer wallet (2 - 1 = 1)
-    await extensionPage.waitForURL(/select-wallet/, { timeout: 10000 });
+    await extensionPage.waitForURL(/wallet\/select/, { timeout: 10000 });
     await expect(extensionPage.locator('[role="radio"]')).toHaveCount(1, { timeout: 5000 });
   });
 });
@@ -219,7 +219,7 @@ walletTest.describe('Reset Wallet', () => {
     await expect(resetOption).toBeVisible({ timeout: 5000 });
 
     await resetOption.click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     // Verify reset page loaded with expected content
     await expect(page.locator('text=/Reset|Delete.*all/i').first()).toBeVisible({ timeout: 5000 });
@@ -231,7 +231,7 @@ walletTest.describe('Reset Wallet', () => {
     const resetOption = page.locator('text=/Reset.*Wallet/i').first();
     await expect(resetOption).toBeVisible({ timeout: 5000 });
     await resetOption.click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     // Should show warning about permanent deletion
     const warningText = page.locator('text=/cannot be undone|delete all|permanent|warning|irreversible/i');
@@ -241,7 +241,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('reset wallet requires password verification', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     // Password input must be visible
     const passwordInput = page.locator('input[name="password"], input[type="password"]');
@@ -251,7 +251,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('wrong password shows error on reset', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     const passwordInput = page.locator('input[name="password"], input[type="password"]');
     await passwordInput.fill('wrongpassword');
@@ -261,13 +261,13 @@ walletTest.describe('Reset Wallet', () => {
     await submitButton.click();
 
     // Should stay on reset page (not redirect to onboarding)
-    await expect(page).toHaveURL(/reset-wallet/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/reset/, { timeout: 5000 });
   });
 
   walletTest('reset wallet can be cancelled', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     // Click back button
     await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
@@ -284,7 +284,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('correct password resets wallet to onboarding', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/reset-wallet/);
+    await page.waitForURL(/wallet\/reset/);
 
     await page.locator('input[name="password"], input[type="password"]').fill(TEST_PASSWORD);
     await page.getByRole('button', { name: /Reset|Confirm|Delete/i }).click();

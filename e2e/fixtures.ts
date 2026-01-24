@@ -141,7 +141,7 @@ async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void>
   const createButton = onboarding.createWalletButton(page);
   await createButton.waitFor({ state: 'visible', timeout: 15000 });
   await createButton.click();
-  await page.waitForURL(/create-wallet/);
+  await page.waitForURL(/wallet\/create/);
 
   // Wait for page to fully load before clicking reveal card
   await page.waitForLoadState('networkidle');

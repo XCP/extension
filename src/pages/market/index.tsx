@@ -334,7 +334,7 @@ export default function Market(): ReactElement {
                       <h2 className="text-sm font-semibold text-gray-700">Your Dispensers</h2>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => navigate("/dispensers/manage")}
+                          onClick={() => navigate("/market/dispensers/manage")}
                           className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 rounded"
                           title="Manage all dispensers"
                         >
@@ -356,7 +356,7 @@ export default function Market(): ReactElement {
                         ))}
                         {myDispensers.length > DISPLAY_LIMIT && (
                           <button
-                            onClick={() => navigate("/dispensers/manage")}
+                            onClick={() => navigate("/market/dispensers/manage")}
                             className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                           >
                             View all {myDispensers.length} dispensers

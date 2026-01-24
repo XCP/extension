@@ -1,8 +1,8 @@
 /**
- * View UTXO Page Tests (/utxo/:utxo)
+ * View UTXO Page Tests (/assets/utxo/:utxo)
  *
  * Tests for viewing details of a specific UTXO and its attached assets.
- * Component: src/pages/assets/view-utxo.tsx
+ * Component: src/pages/assets/utxo/[txHash].tsx
  *
  * The page shows:
  * - Loading state: "Loading UTXO details…"
@@ -10,15 +10,15 @@
  * - Success state: "Details" heading with UTXO info
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { walletTest, expect } from '../../../fixtures';
 
-walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
+walletTest.describe('View UTXO Page (/assets/utxo/:utxo)', () => {
   // Use a valid UTXO format (txid:vout) - API will likely return error for non-existent
   const testUtxo = '0000000000000000000000000000000000000000000000000000000000000000:0';
 
   // Helper to navigate to UTXO page and wait for content
   async function navigateToUtxo(page: any, utxo: string) {
-    await page.goto(page.url().replace(/\/index.*/, `/utxo/${encodeURIComponent(utxo)}`));
+    await page.goto(page.url().replace(/\/index.*/, `/assets/utxo/${encodeURIComponent(utxo)}`));
     await page.waitForLoadState('domcontentloaded');
     // Wait for loading to complete - either UTXO Details heading or error alert appears
     const detailsHeading = page.getByRole('heading', { name: 'UTXO Details' });
@@ -55,7 +55,7 @@ walletTest.describe('View UTXO Page (/utxo/:utxo)', () => {
 
   walletTest('handles invalid UTXO format gracefully', async ({ page }) => {
     // Navigate with invalid UTXO format (missing :vout)
-    await page.goto(page.url().replace(/\/index.*/, '/utxo/invalid-utxo-format'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/utxo/invalid-utxo-format'));
     await page.waitForLoadState('domcontentloaded');
 
     // Page should load and show the UTXO Details header (even for invalid UTXO)

@@ -121,7 +121,7 @@ describe('AssetCard', () => {
 
     fireEvent.click(screen.getByText('RAREPEPE'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/RAREPEPE');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/RAREPEPE');
   });
 
   it('calls custom onClick handler when provided', () => {
@@ -175,7 +175,7 @@ describe('AssetCard', () => {
     // The text is shortened to "ASSET/W..." by formatAsset with shorten: true
     fireEvent.click(screen.getByText('ASSET/W...'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/ASSET%2FWITH%2BSPECIAL%26CHARS');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/ASSET%2FWITH%2BSPECIAL%26CHARS');
   });
 
   it('handles asset without longname gracefully', () => {

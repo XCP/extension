@@ -43,7 +43,7 @@ export function AddressMenu({
   }, [address.address, navigate]);
 
   const handleShowPrivateKey = useCallback(() => {
-    navigate(`/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
+    navigate(`/wallet/secrets/show-private-key/${walletId}/${encodeURIComponent(address.path)}`);
   }, [address.path, walletId, navigate]);
 
   return (

@@ -60,9 +60,9 @@ export function SearchResultCard({
       onClick(symbol);
     } else {
       // Navigate based on the navigation type
-      const path = navigationType === "balance" 
-        ? `/balance/${symbol}` 
-        : `/asset/${symbol}`;
+      const path = navigationType === "balance"
+        ? `/assets/${symbol}/balance`
+        : `/assets/${symbol}`;
       navigate(path);
     }
   };

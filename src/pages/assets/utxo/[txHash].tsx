@@ -67,7 +67,7 @@ export default function ViewUtxo(): ReactElement {
       onBack: () => {
         // Navigate to view-balance of the first asset if available
         if (balances.length > 0) {
-          navigate(`/balance/${balances[0].asset}`);
+          navigate(`/assets/${balances[0].asset}/balance`);
         } else {
           navigate(-1);
         }
@@ -200,8 +200,8 @@ export default function ViewUtxo(): ReactElement {
                 <div
                   key={index}
                   className="flex justify-between p-2 -mx-2 rounded hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  onClick={() => navigate(`/balance/${balance.asset}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/balance/${balance.asset}`); } }}
+                  onClick={() => navigate(`/assets/${balance.asset}/balance`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/assets/${balance.asset}/balance`); } }}
                   role="button"
                   tabIndex={0}
                   aria-label={`View ${balance.asset} balance`}

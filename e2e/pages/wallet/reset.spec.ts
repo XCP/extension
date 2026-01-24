@@ -1,5 +1,5 @@
 /**
- * Reset Wallet Page Tests (/wallet/reset-wallet)
+ * Reset Wallet Page Tests (/wallet/wallet/reset)
  *
  * Tests for the reset wallet page that allows deleting all wallet data with password confirmation.
  */
@@ -8,20 +8,20 @@ import { walletTest, expect, navigateTo, TEST_PASSWORD } from '../../fixtures';
 import { common, settings, errors } from '../../selectors';
 import { TEST_PASSWORDS } from '../../test-data';
 
-// Local selectors for reset-wallet page (not common enough for selectors.ts)
+// Local selectors for wallet/reset page (not common enough for selectors.ts)
 const resetWalletPage = {
   passwordInput: (page: any) => page.locator('input[name="password"], input[type="password"]').first(),
   resetButton: (page: any) => page.locator('button:has-text("Reset"), button[type="submit"]').first(),
   warningText: (page: any) => page.locator('text=/Warning|delete|cannot|undone|wallet|data|reset/i').first(),
 };
 
-walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
+walletTest.describe('Reset Wallet Page (/wallet/reset)', () => {
   walletTest.beforeEach(async ({ page }) => {
-    // Navigate to settings first, then to reset-wallet
+    // Navigate to settings first, then to wallet/reset
     await navigateTo(page, 'settings');
 
     // Try to find reset wallet option in settings
-    const resetLink = page.locator('a[href*="reset-wallet"], button:has-text("Reset")').or(page.locator('text=/Reset.*Wallet/i')).first();
+    const resetLink = page.locator('a[href*="wallet/reset"], button:has-text("Reset")').or(page.locator('text=/Reset.*Wallet/i')).first();
     const resetLinkCount = await resetLink.count();
 
     if (resetLinkCount > 0 && await resetLink.isVisible({ timeout: 3000 })) {
@@ -32,7 +32,7 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
       const currentUrl = page.url();
       const hashIndex = currentUrl.indexOf('#');
       const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-      await page.goto(`${baseUrl}/reset-wallet`);
+      await page.goto(`${baseUrl}/wallet/reset`);
       await page.waitForLoadState('networkidle');
     }
   });
@@ -139,7 +139,7 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
     await resetWalletPage.resetButton(page).click();
 
     // Wait for error handling and verify still on reset page
-    await expect(page).toHaveURL(/reset-wallet/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/reset/, { timeout: 5000 });
   });
 
   walletTest('back button returns to settings', async ({ page }) => {
@@ -156,11 +156,11 @@ walletTest.describe('Reset Wallet Page (/reset-wallet)', () => {
 // This test actually resets the wallet and verifies it redirects to onboarding
 walletTest.describe('Reset Wallet - Full Flow', () => {
   walletTest('successfully resets wallet with correct password', async ({ page }) => {
-    // Navigate to reset-wallet page
+    // Navigate to wallet/reset page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/reset-wallet`);
+    await page.goto(`${baseUrl}/wallet/reset`);
     await page.waitForLoadState('networkidle');
 
     // Enter correct password

@@ -22,7 +22,7 @@ const CONSTANTS = {
     ADVANCED: "/settings/advanced",
     CONNECTED_SITES: "/settings/connected-sites",
     SECURITY: "/settings/security",
-    RESET_WALLET: "/reset-wallet",
+    RESET_WALLET: "/wallet/reset",
     PINNED_ASSETS: "/settings/pinned-assets",
     HELP_URL: "https://youtube.com", // Placeholder for now
   } as const,

@@ -212,7 +212,7 @@ function ConsolidationStatus() {
       <div className="flex space-x-3">
         {status.status.available_utxos > 0 && status.status.pending_utxos === 0 && (
           <Button
-            onClick={() => navigate('/consolidate')}
+            onClick={() => navigate('/actions/consolidate')}
             color="blue"
             fullWidth
           >

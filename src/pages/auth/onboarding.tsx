@@ -19,8 +19,8 @@ function Onboarding() {
 
   // Navigation paths for wallet actions
   const PATHS = {
-    CREATE_WALLET: '/create-wallet',
-    IMPORT_WALLET: '/import-wallet',
+    CREATE_WALLET: '/wallet/create',
+    IMPORT_WALLET: '/wallet/import',
     HELP_URL: 'https://www.youtube.com/watch?v=yPXb6oD3iTg&list=PLzUfUR_ZcfqDHYGJ6VTATINupuZxGJXm8',
   } as const;
 

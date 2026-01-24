@@ -1,5 +1,5 @@
 /**
- * Compose Order BTC Pay Page Tests (/compose/btcpay)
+ * Compose Order BTC Pay Page Tests (/compose/order/btcpay)
  *
  * Tests for paying BTC to fill an order.
  * Component: src/pages/compose/order/btcpay/index.tsx
@@ -13,11 +13,11 @@
 import { walletTest, expect } from '../../../fixtures';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
-walletTest.describe('Compose BTC Pay Page (/compose/btcpay)', () => {
-  // Route is /compose/btcpay (not /compose/order/btcpay)
+walletTest.describe('Compose BTC Pay Page (/compose/order/btcpay)', () => {
+  // Route is /compose/order/btcpay (not /compose/order/btcpay)
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);
-    await page.goto(page.url().replace(/\/index.*/, '/compose/btcpay'));
+    await page.goto(page.url().replace(/\/index.*/, '/compose/order/btcpay'));
     await page.waitForLoadState('networkidle');
   });
 

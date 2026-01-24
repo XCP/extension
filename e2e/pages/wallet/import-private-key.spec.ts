@@ -8,13 +8,13 @@ import { walletTest, test, expect, launchExtension, cleanup, TEST_PRIVATE_KEY, T
 import { importWallet, common, onboarding } from '../../selectors';
 
 // Tests for import when wallet already exists
-walletTest.describe('Import Private Key Page - With Existing Wallet (/import-private-key)', () => {
+walletTest.describe('Import Private Key Page - With Existing Wallet (/wallet/import-private-key)', () => {
   async function navigateToImportPrivateKey(page: any): Promise<void> {
     // Navigate via add-wallet page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/import-private-key`);
+    await page.goto(`${baseUrl}/wallet/import-private-key`);
     await page.waitForLoadState('networkidle');
   }
 
@@ -124,7 +124,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await importWallet.continueButton(page).click();
 
     // Should stay on page (not navigate away with invalid key)
-    await expect(page).toHaveURL(/import-private-key/, { timeout: 3000 });
+    await expect(page).toHaveURL(/wallet\/import-private-key/, { timeout: 3000 });
   });
 
   walletTest('shows error for wrong password (existing keychain)', async ({ page }) => {
@@ -145,7 +145,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await importWallet.continueButton(page).click();
 
     // Should stay on page (not navigate away with wrong password)
-    await expect(page).toHaveURL(/import-private-key/, { timeout: 3000 });
+    await expect(page).toHaveURL(/wallet\/import-private-key/, { timeout: 3000 });
   });
 
   walletTest('has back button', async ({ page }) => {
@@ -319,7 +319,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/import-pri
     await common.headerBackButton(page).click();
 
     // Should navigate to add-wallet (since keychain exists)
-    await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
+    await expect(page).toHaveURL(/wallet\/add/, { timeout: 5000 });
   });
 
   walletTest('close button navigates to index', async ({ page }) => {

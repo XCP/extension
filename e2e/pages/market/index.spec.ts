@@ -8,8 +8,8 @@ import {
   walletTest,
   expect,
   navigateTo
-} from '../fixtures';
-import { footer } from '../selectors';
+} from '../../fixtures';
+import { footer } from '../../selectors';
 
 walletTest.describe('Market Page', () => {
   walletTest('market page loads and displays content', async ({ page }) => {

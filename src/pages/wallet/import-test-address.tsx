@@ -19,13 +19,13 @@ function ImportTestAddress() {
   
   useEffect(() => {
     if (!isDevelopment) {
-      navigate('/add-wallet');
+      navigate('/wallet/add');
       return;
     }
-    
+
     setHeaderProps({
       title: 'Import Test Address',
-      onBack: () => navigate('/add-wallet'),
+      onBack: () => navigate('/wallet/add'),
     });
     
     return () => setHeaderProps(null);

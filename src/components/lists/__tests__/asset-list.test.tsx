@@ -233,7 +233,7 @@ describe('AssetList', () => {
       fireEvent.click(assetItem!);
     });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/PEPECASH');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/PEPECASH');
   });
 
   it('should render asset images with correct URLs', async () => {
@@ -339,7 +339,7 @@ describe('AssetList', () => {
       fireEvent.click(searchResult!);
     });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP');
   });
 
   it('should cleanup on unmount', async () => {

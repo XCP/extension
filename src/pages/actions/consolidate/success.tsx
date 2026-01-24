@@ -175,7 +175,7 @@ function ConsolidationSuccess() {
           Back to Wallet
         </Button>
         <Button
-          onClick={() => navigate('/consolidation-status')}
+          onClick={() => navigate('/actions/consolidate/status')}
           color="blue"
           fullWidth
         >

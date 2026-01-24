@@ -206,7 +206,7 @@ describe('UtxoMoveForm', () => {
     const outputDisplay = screen.getByRole('button', { name: /abc123/ });
     await user.click(outputDisplay);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/utxo/abc123def456:0');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/utxo/abc123def456:0');
   });
 
   it('should disable continue button when destination is empty', () => {

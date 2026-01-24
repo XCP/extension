@@ -76,7 +76,7 @@ walletTest.describe('Clipboard - Copy Address', () => {
     await expect(addressChevron).toBeVisible({ timeout: 5000 });
     await addressChevron.click();
 
-    await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address\/select/, { timeout: 5000 });
 
     // Find a copy button using the selector from selectors.ts
     const copyButton = selectAddress.copyButton(page);
@@ -153,7 +153,7 @@ test.describe('Clipboard - Copy Sensitive Data', () => {
     await expect(addressChevron).toBeVisible({ timeout: 5000 });
     await addressChevron.click();
 
-    await expect(extensionPage).toHaveURL(/select-address/, { timeout: 5000 });
+    await expect(extensionPage).toHaveURL(/address\/select/, { timeout: 5000 });
 
     // Find address card menu
     const addressCard = extensionPage.locator('.space-y-2 > div').first();
@@ -243,7 +243,7 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
     await expect(addressChevron).toBeVisible({ timeout: 5000 });
     await addressChevron.click();
 
-    await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
+    await expect(page).toHaveURL(/address\/select/, { timeout: 5000 });
 
     // Add a second address if possible
     const addButton = selectAddress.addAddressButton(page);

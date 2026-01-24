@@ -369,7 +369,7 @@ async function launchExtension(testId: string): Promise<{
 
 async function createWallet(page: Page): Promise<void> {
   await onboarding.createWalletButton(page).click();
-  await page.waitForURL(/create-wallet/);
+  await page.waitForURL(/wallet\/create/);
   await createWalletSelectors.revealPhraseCard(page).click();
 
   await createWalletSelectors.savedPhraseCheckbox(page).check();

@@ -52,7 +52,7 @@ describe('SearchResultCard', () => {
     const card = screen.getByRole('button');
     fireEvent.click(card);
     
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/RARE');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/RARE');
   });
 
   it('navigates to balance page when navigationType is balance', () => {
@@ -61,7 +61,7 @@ describe('SearchResultCard', () => {
     const card = screen.getByRole('button');
     fireEvent.click(card);
     
-    expect(mockNavigate).toHaveBeenCalledWith('/balance/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP/balance');
   });
 
   it('calls custom onClick handler when provided', () => {
@@ -81,7 +81,7 @@ describe('SearchResultCard', () => {
     const card = screen.getByRole('button');
     fireEvent.keyDown(card, { key: 'Enter' });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP');
   });
 
   it('handles keyboard navigation with Space key', () => {
@@ -90,7 +90,7 @@ describe('SearchResultCard', () => {
     const card = screen.getByRole('button');
     fireEvent.keyDown(card, { key: ' ' });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/asset/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP');
   });
 
   it('applies custom className', () => {

@@ -49,7 +49,7 @@ walletTest.describe('Navigation', () => {
 
   walletTest('Receive button navigates to receive page', async ({ page }) => {
     await index.receiveButton(page).click();
-    await expect(page).toHaveURL(/view-address/);
+    await expect(page).toHaveURL(/address\/view/);
     // Should show QR code (main element on receive page)
     await expect(viewAddress.qrCode(page)).toBeVisible({ timeout: 5000 });
   });

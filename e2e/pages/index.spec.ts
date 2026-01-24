@@ -26,7 +26,7 @@ walletTest.describe('Index Page', () => {
       await expect(receiveButton).toBeVisible();
       await receiveButton.click();
 
-      await expect(page).toHaveURL(/view-address/);
+      await expect(page).toHaveURL(/address\/view/);
 
       // Should show QR code or address display (both may be visible)
       const qrOrAddress = viewAddress.qrCode(page).or(viewAddress.addressDisplay(page)).first();
@@ -58,7 +58,7 @@ walletTest.describe('Index Page', () => {
       await expect(historyButton).toBeVisible();
       await historyButton.click();
 
-      await expect(page).toHaveURL(/address-history/);
+      await expect(page).toHaveURL(/address\/history/);
     });
 
     walletTest('footer navigation works correctly', async ({ page }) => {
@@ -91,8 +91,8 @@ walletTest.describe('Index Page', () => {
       const walletSelectPage = page.locator('h1:has-text("Wallets")')
         .or(page.locator('text=/Select.*Wallet/i')).first();
 
-      // Either on select-wallet URL or heading visible
-      const isOnWalletSelect = page.url().includes('select-wallet');
+      // Either on wallet/select URL or heading visible
+      const isOnWalletSelect = page.url().includes('wallet/select');
       if (!isOnWalletSelect) {
         await expect(walletSelectPage).toBeVisible({ timeout: 5000 });
       }

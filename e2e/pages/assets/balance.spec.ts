@@ -1,5 +1,5 @@
 /**
- * View Balance Page Tests (/balance/:asset)
+ * View Balance Page Tests (/assets/:asset/balance)
  *
  * Tests for viewing the user's balance of a specific asset.
  * Component: src/pages/assets/view-balance.tsx
@@ -12,10 +12,10 @@
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('View Balance Page (/balance/:asset)', () => {
+walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
   // Helper to navigate to balance page and wait for content to load
   async function navigateToBalance(page: any, asset: string) {
-    await page.goto(page.url().replace(/\/index.*/, `/balance/${asset}`));
+    await page.goto(page.url().replace(/\/index.*/, `/assets/${asset}/balance`));
     await page.waitForLoadState('domcontentloaded');
     // Wait for success state (Send action visible means content loaded)
     // Use .first() to avoid strict mode violation - there's both a title "Send" and description
@@ -80,7 +80,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   });
 
   walletTest('handles invalid asset with error state', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/balance/INVALID_ASSET_67890'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/INVALID_ASSET_67890/balance'));
     await page.waitForLoadState('networkidle');
 
     // Should show error message for invalid asset
@@ -161,14 +161,14 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
     await expect(page).toHaveURL(/compose\/utxo\/attach\/XCP/, { timeout: 5000 });
   });
 
-  walletTest('Destroy action navigates to compose/destroy for XCP', async ({ page }) => {
+  walletTest('Destroy action navigates to compose/issuance/destroy for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
     const destroyAction = page.locator('button:has-text("Destroy"), div[role="button"]:has-text("Destroy")').first();
     await expect(destroyAction).toBeVisible({ timeout: 10000 });
     await destroyAction.click();
 
-    await expect(page).toHaveURL(/compose\/destroy\/XCP/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/issuance\/destroy\/XCP/, { timeout: 5000 });
   });
 
   walletTest('Send action navigates to compose/send for BTC', async ({ page }) => {

@@ -2,15 +2,15 @@
  * Consolidation Pages Tests
  *
  * Tests for Bitcoin consolidation/recovery feature:
- * - /consolidate
- * - /consolidation-success
- * - /consolidation-status
+ * - /actions/consolidate
+ * - /actions/consolidate/success
+ * - /actions/consolidate/status
  */
 
 import { walletTest, expect, navigateTo } from '../../fixtures';
 import { actions, compose } from '../../selectors';
 
-walletTest.describe('Consolidation Page (/consolidate)', () => {
+walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
   walletTest('can navigate to consolidate from actions', async ({ page }) => {
     await navigateTo(page, 'actions');
     await expect(page).toHaveURL(/actions/);
@@ -27,11 +27,11 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
     await consolidateOption.click();
 
     // Should navigate to consolidate page
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
   });
 
   walletTest('consolidate page shows explanation or warning', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should show consolidation explanation or warning
@@ -40,10 +40,10 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
   });
 
   walletTest('consolidate page shows explanation text', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Should show explanation about recovery
     const explanationText = page.locator('text=/Recover|Bitcoin|bare multisig/i').first();
@@ -51,10 +51,10 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
   });
 
   walletTest('consolidate page displays page title', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Should show page title
     const pageTitle = page.locator('text=/Recover Bitcoin/i').first();
@@ -62,7 +62,7 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
   });
 
   walletTest('consolidate page has back navigation', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     const backButton = compose.common.headerBackButton(page);
@@ -76,13 +76,13 @@ walletTest.describe('Consolidation Page (/consolidate)', () => {
     await backButton.click();
 
     // Should navigate away from consolidate page
-    await expect(page).not.toHaveURL(/\/consolidate$/);
+    await expect(page).not.toHaveURL(/\/actions\/consolidate$/);
   });
 });
 
-walletTest.describe('Consolidation Success Page (/consolidation-success)', () => {
+walletTest.describe('Consolidation Success Page (/actions/consolidate/success)', () => {
   walletTest('consolidation success page redirects without state data', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/success'));
 
     // Page requires state to be passed via navigation - without it, should redirect to home
     // Wait for the redirect to happen (React Router navigation is async)
@@ -91,7 +91,7 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
 
   walletTest('consolidation success page has correct route defined', async ({ page }) => {
     // Verify the route exists by checking that navigation doesn't 404
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/success'));
     
 
     // Should not show "Not Found" error - either shows content or redirects
@@ -100,7 +100,7 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
   });
 
   walletTest('consolidation success has return button when on page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-success'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/success'));
     await page.waitForLoadState('networkidle');
 
     const isOnSuccessPage = page.url().includes('consolidation-success');
@@ -123,9 +123,9 @@ walletTest.describe('Consolidation Success Page (/consolidation-success)', () =>
   });
 });
 
-walletTest.describe('Consolidation Status Page (/consolidation-status)', () => {
+walletTest.describe('Consolidation Status Page (/actions/consolidate/status)', () => {
   walletTest('consolidation status page loads with content or redirects', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-status'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/status'));
     await page.waitForLoadState('networkidle');
 
     // Page may redirect if no status data, or show status content
@@ -140,7 +140,7 @@ walletTest.describe('Consolidation Status Page (/consolidation-status)', () => {
   });
 
   walletTest('consolidation status shows status text when on page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-status'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/status'));
     await page.waitForLoadState('networkidle');
 
     const isOnStatusPage = page.url().includes('consolidation-status');
@@ -154,7 +154,7 @@ walletTest.describe('Consolidation Status Page (/consolidation-status)', () => {
   });
 
   walletTest('consolidation status page has back navigation when on page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidation-status'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/status'));
     await page.waitForLoadState('networkidle');
 
     const isOnStatusPage = page.url().includes('consolidation-status');
@@ -174,10 +174,10 @@ walletTest.describe('Consolidation Status Page (/consolidation-status)', () => {
 
 walletTest.describe('Consolidation Form', () => {
   walletTest('consolidate page shows Recovery Tool header', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Header should show "Recovery Tool"
     const headerTitle = page.locator('header').getByText('Recovery Tool');
@@ -185,7 +185,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('consolidate page has help toggle button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have help toggle button with aria-label
@@ -194,7 +194,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('consolidate page has fee rate input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have fee rate input or label
@@ -204,7 +204,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('consolidate page has destination address input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have destination input
@@ -213,7 +213,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('consolidate page has Include Stamps checkbox', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have stamps checkbox
@@ -222,7 +222,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('consolidate page has submit button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have submit/continue/recover button
@@ -231,7 +231,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('fee rate input accepts numeric values', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Fee rate defaults to a dropdown - need to select "Custom" to get the text input
@@ -258,7 +258,7 @@ walletTest.describe('Consolidation Form', () => {
   });
 
   walletTest('help toggle changes help text visibility', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     const helpButton = page.locator('button[aria-label*="help" i]');
@@ -269,11 +269,11 @@ walletTest.describe('Consolidation Form', () => {
     await page.waitForLoadState('networkidle');
 
     // Page should still be on consolidate (didn't navigate away)
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
   });
 
   walletTest('back button navigates away from consolidate page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Click back button
@@ -281,7 +281,7 @@ walletTest.describe('Consolidation Form', () => {
     await backButton.click();
 
     // Should navigate away
-    await expect(page).not.toHaveURL(/\/consolidate$/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/\/actions\/consolidate$/, { timeout: 5000 });
   });
 });
 
@@ -291,12 +291,12 @@ walletTest.describe('Consolidation Form', () => {
 
 walletTest.describe('Consolidation History', () => {
   walletTest('consolidate page shows history section if available', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // History section may or may not be visible depending on whether there is history
     // Just verify the page loads without error and has content
-    await expect(page).toHaveURL(/consolidate/);
+    await expect(page).toHaveURL(/actions\/consolidate/);
 
     // Page should have the form
     await expect(page.locator('form')).toBeVisible({ timeout: 10000 });
@@ -309,7 +309,7 @@ walletTest.describe('Consolidation History', () => {
 
 walletTest.describe('Consolidation Accessibility', () => {
   walletTest('consolidate page has proper page structure', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have some form of main content
@@ -318,7 +318,7 @@ walletTest.describe('Consolidation Accessibility', () => {
   });
 
   walletTest('form inputs have associated labels', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/consolidate'));
+    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');
 
     // Should have labels for form inputs

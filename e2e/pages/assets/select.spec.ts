@@ -1,14 +1,14 @@
 /**
- * Select Assets Page Tests (/select-assets)
+ * Select Assets Page Tests (/assets/select)
  *
  * Tests for the asset selection page used when choosing assets for transactions.
  */
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('Select Assets Page (/select-assets)', () => {
+walletTest.describe('Select Assets Page (/assets/select)', () => {
   walletTest('page loads and shows asset selection UI', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
     await page.waitForLoadState('networkidle');
 
     // Should show search input for assets
@@ -17,7 +17,7 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
   });
 
   walletTest('shows search/filter input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
     await page.waitForLoadState('networkidle');
 
     // The page should show a search input
@@ -34,7 +34,7 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
   });
 
   walletTest('displays asset section', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
     await page.waitForLoadState('networkidle');
 
     // Page should have asset-related content
@@ -43,10 +43,10 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
   });
 
   walletTest('asset items are clickable when present', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
     await page.waitForLoadState('networkidle');
 
-    const assetItem = page.locator('a[href*="/balance/"]').first();
+    const assetItem = page.locator('a[href*="/assets/"]').first();
     const assetCount = await assetItem.count();
 
     if (assetCount > 0) {
@@ -57,7 +57,7 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
   });
 
   walletTest('search filters assets', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
     await page.waitForLoadState('networkidle');
 
     const searchInput = page.locator('input[placeholder*="Search"]').first();
