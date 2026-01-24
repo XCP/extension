@@ -211,7 +211,7 @@ export const verifyMessage = {
 
 export const send = {
   recipientInput: (page: Page) => page.locator('input[placeholder*="destination" i]').first(),
-  amountInput: (page: Page) => page.locator('input[name="amount"], input[placeholder*="amount" i]').first(),
+  amountInput: (page: Page) => page.locator('input[name="quantity"], input[name="amount"]').first(),
   assetSearch: (page: Page) => page.locator('input[placeholder*="Search"]'),
   sendButton: (page: Page) => page.getByRole('button', { name: /send/i }).last(),
   confirmButton: (page: Page) => page.getByRole('button', { name: 'Confirm' }),
