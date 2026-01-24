@@ -108,10 +108,10 @@ walletTest.describe('HashInput Component', () => {
       await input.fill(INVALID_SHORT_HASH);
       await input.blur();
 
-      // Should show error
+      // Should show error (component uses role="alert" for error messages)
       await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorMessage = page.locator('[role="alert"], .text-red-600');
+        const errorMessage = page.getByRole('alert');
         const hasError = classes.includes('border-red-500') ||
                          await errorMessage.isVisible();
         expect(hasError).toBe(true);
@@ -123,10 +123,10 @@ walletTest.describe('HashInput Component', () => {
       await input.fill(INVALID_CHARS_HASH);
       await input.blur();
 
-      // Should show error
+      // Should show error (component uses role="alert" for error messages)
       await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorMessage = page.locator('[role="alert"], .text-red-600');
+        const errorMessage = page.getByRole('alert');
         const hasError = classes.includes('border-red-500') ||
                          await errorMessage.isVisible();
         expect(hasError).toBe(true);

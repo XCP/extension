@@ -38,8 +38,8 @@ walletTest.describe('SearchInput Component', () => {
     });
 
     walletTest('has search icon', async ({ page }) => {
-      // Search icon is positioned absolute left
-      const searchIcon = page.locator('svg.text-gray-400').first();
+      // Search icon is inside the input container with aria-hidden (decorative)
+      const searchIcon = page.locator('div:has(input[name="search"]) svg[aria-hidden="true"]').first();
       await expect(searchIcon).toBeVisible();
     });
 

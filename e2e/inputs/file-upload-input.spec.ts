@@ -36,9 +36,9 @@ walletTest.describe('FileUploadInput Component', () => {
     await expect(taprootCard).toBeVisible({ timeout: 5000 });
     await taprootCard.click();
 
-    // Wait for address type to update (HeadlessUI uses data-headlessui-state or border classes)
+    // Wait for address type to update (HeadlessUI uses data-headlessui-state="checked" or aria-checked)
     await expect(async () => {
-      const selected = page.locator('.border-blue-500:has-text("Taproot")');
+      const selected = page.locator('[data-headlessui-state*="checked"]:has-text("Taproot"), [aria-checked="true"]:has-text("Taproot")');
       const isSelected = await selected.count() > 0;
       expect(isSelected).toBe(true);
     }).toPass({ timeout: 5000 });
@@ -70,8 +70,8 @@ walletTest.describe('FileUploadInput Component', () => {
     return true;
   };
 
-  // Helper to get file upload elements
-  const getFileUploadArea = (page: any) => page.locator('.border-dashed').first();
+  // Helper to get file upload elements (upload area contains the Choose File button or file info)
+  const getFileUploadArea = (page: any) => page.locator('div:has(input[type="file"])').first();
   const getChooseFileButton = (page: any) => page.locator('button:has-text("Choose File")');
   const getHiddenInput = (page: any) => page.locator('input[type="file"]');
 
@@ -177,7 +177,7 @@ walletTest.describe('FileUploadInput Component', () => {
       await expect(typeText).toBeVisible({ timeout: 3000 });
     });
 
-    walletTest('shows success checkmark after selection', async ({ page }) => {
+    walletTest('shows success state after selection', async ({ page }) => {
       const inscribeEnabled = await enableInscribeMode(page);
       walletTest.skip(!inscribeEnabled, 'Inscribe mode not available');
 
@@ -189,9 +189,11 @@ walletTest.describe('FileUploadInput Component', () => {
         buffer: Buffer.from('test content'),
       });
 
-      // Green checkmark icon should appear
-      const checkmark = page.locator('svg.text-green-600');
-      await expect(checkmark).toBeVisible({ timeout: 3000 });
+      // Success state indicated by file name display and Remove file button
+      const fileName = page.locator('text=success-test.txt');
+      await expect(fileName).toBeVisible({ timeout: 3000 });
+      const removeButton = page.locator('button:has-text("Remove file")');
+      await expect(removeButton).toBeVisible({ timeout: 3000 });
     });
   });
 
@@ -286,8 +288,8 @@ walletTest.describe('FileUploadInput Component', () => {
         buffer: buffer,
       });
 
-      // Error message should appear
-      const errorText = page.locator('.text-red-600');
+      // Error message should appear (component uses role="alert" for errors)
+      const errorText = page.getByRole('alert');
       await expect(errorText).toBeVisible({ timeout: 3000 });
     });
 

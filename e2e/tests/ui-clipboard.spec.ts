@@ -78,9 +78,8 @@ walletTest.describe('Clipboard - Copy Address', () => {
 
     await expect(page).toHaveURL(/select-address/, { timeout: 5000 });
 
-    // Find an address card with a copy button
-    const addressCards = page.locator('.font-mono').first().locator('..').locator('..');
-    const copyButton = addressCards.locator('button').filter({ has: page.locator('svg') }).first();
+    // Find a copy button using the selector from selectors.ts
+    const copyButton = selectAddress.copyButton(page);
     const copyButtonCount = await copyButton.count();
 
     if (copyButtonCount === 0) {
@@ -254,38 +253,34 @@ walletTest.describe('Clipboard - Multiple Copy Operations', () => {
       await page.waitForLoadState('networkidle');
     }
 
-    // Get all address cards
-    const addressCards = page.locator('.font-mono');
-    const count = await addressCards.count();
+    // Get all address options (each is a radio option)
+    const addressOptions = page.locator('[role="radio"]');
+    const count = await addressOptions.count();
 
     if (count < 2) {
       return; // Not enough addresses to test sequential copy
     }
 
-    // Copy first address
-    const firstAddressRow = addressCards.nth(0).locator('..').locator('..');
-    const firstCopyBtn = firstAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
-    const firstCopyCount = await firstCopyBtn.count();
+    // Copy first address via its menu
+    const firstMenu = page.locator('[aria-label="Address actions"]').first();
+    const firstMenuCount = await firstMenu.count();
 
-    if (firstCopyCount === 0) {
-      return; // Copy button not present
+    if (firstMenuCount === 0) {
+      return; // Address menu not present
     }
 
-    await firstCopyBtn.click();
+    await firstMenu.click();
+    const copyOption1 = page.locator('button:has-text("Copy Address")');
+    await expect(copyOption1).toBeVisible({ timeout: 2000 });
+    await copyOption1.click();
     const firstClipboard = await page.evaluate(() => navigator.clipboard.readText());
 
-    
-
-    // Copy second address
-    const secondAddressRow = addressCards.nth(1).locator('..').locator('..');
-    const secondCopyBtn = secondAddressRow.locator('button').filter({ has: page.locator('svg') }).first();
-    const secondCopyCount = await secondCopyBtn.count();
-
-    if (secondCopyCount === 0) {
-      return; // Second copy button not present
-    }
-
-    await secondCopyBtn.click();
+    // Copy second address via its menu
+    const secondMenu = page.locator('[aria-label="Address actions"]').nth(1);
+    await secondMenu.click();
+    const copyOption2 = page.locator('button:has-text("Copy Address")');
+    await expect(copyOption2).toBeVisible({ timeout: 2000 });
+    await copyOption2.click();
     const secondClipboard = await page.evaluate(() => navigator.clipboard.readText());
 
     // Addresses should be different

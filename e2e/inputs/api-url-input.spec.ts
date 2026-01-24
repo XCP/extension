@@ -93,7 +93,8 @@ walletTest.describe('ApiUrlInput Component', () => {
 
       // Wait for validation to complete - use expect().toPass() for async state
       await expect(async () => {
-        const validationMessage = page.locator('p.text-sm.text-red-500, p.text-sm.text-green-500, p.text-sm.text-gray-500');
+        // Validation messages contain specific text: "Validating", "❌" (error), "✓" (success), or "Using default"
+        const validationMessage = page.getByText(/Validating API endpoint|❌|✓|Using default/i);
         const count = await validationMessage.count();
         // Validation should trigger some feedback message
         expect(count).toBeGreaterThanOrEqual(0);
@@ -110,7 +111,8 @@ walletTest.describe('ApiUrlInput Component', () => {
 
       // Wait for validation to complete
       await expect(async () => {
-        const errorMessage = page.locator('p.text-sm.text-red-500');
+        // Error messages are prefixed with ❌
+        const errorMessage = page.getByText(/❌/);
         const hasError = await errorMessage.isVisible();
         // Network error should eventually show
         expect(hasError).toBe(true);

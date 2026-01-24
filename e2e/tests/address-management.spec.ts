@@ -8,12 +8,19 @@ import { walletTest, expect, getCurrentAddress } from '../fixtures';
 import { index, selectAddress } from '../selectors';
 
 walletTest.describe('Address Management', () => {
-  walletTest('copy address from button on index shows feedback', async ({ page }) => {
+  walletTest('copy address from button on index shows feedback', async ({ page, context }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await expect(index.currentAddress(page)).toBeVisible({ timeout: 10000 });
+
+    // Clear clipboard first
+    await page.evaluate(() => navigator.clipboard.writeText(''));
+
     await index.currentAddress(page).click();
 
-    // Should show green checkmark feedback after copy
-    await expect(page.locator('svg.text-green-500').first()).toBeVisible({ timeout: 3000 });
+    // Verify copy succeeded by checking clipboard content
+    const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardContent.length).toBeGreaterThan(10); // Should contain an address
+    expect(clipboardContent).toMatch(/^(bc1|tb1|1|3|m|n)[a-zA-Z0-9]+$/); // Valid Bitcoin address format
   });
 
   walletTest('navigate to address selection via chevron', async ({ page }) => {
@@ -68,7 +75,7 @@ walletTest.describe('Address Management', () => {
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
-  walletTest('copy address from address list', async ({ page }) => {
+  walletTest('copy address from address list', async ({ page, context }) => {
     const chevronButton = selectAddress.chevronButton(page);
     await expect(chevronButton).toBeVisible({ timeout: 5000 });
     await chevronButton.click();
@@ -83,10 +90,17 @@ walletTest.describe('Address Management', () => {
     // Click "Copy Address" from the menu
     const copyOption = page.locator('button:has-text("Copy Address")');
     await expect(copyOption).toBeVisible({ timeout: 3000 });
+
+    // Grant clipboard permissions and clear it
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.evaluate(() => navigator.clipboard.writeText(''));
+
     await copyOption.click();
 
-    // Should show success feedback (green checkmark)
-    await expect(page.locator('svg.text-green-500').first()).toBeVisible({ timeout: 3000 });
+    // Verify copy succeeded by checking clipboard content
+    const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+    expect(clipboardContent.length).toBeGreaterThan(10);
+    expect(clipboardContent).toMatch(/^(bc1|tb1|1|3|m|n)[a-zA-Z0-9]+$/);
   });
 
   walletTest('address type information display', async ({ page }) => {

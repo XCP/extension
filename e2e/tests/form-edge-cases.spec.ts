@@ -316,9 +316,9 @@ walletTest.describe('Form Edge Cases - Address Validation', () => {
     await send.recipientInput(page).fill(`  ${TEST_ADDRESSES.mainnet.p2wpkh}  `);
     await send.recipientInput(page).blur();
 
-    // Whitespace should be trimmed, address should be valid
-    const errorCount = await page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).count();
-    expect(errorCount).toBe(0);
+    // Whitespace should be trimmed, address should be valid (no red border on input)
+    const inputClasses = await send.recipientInput(page).getAttribute('class') || '';
+    expect(inputClasses).not.toContain('border-red');
   });
 
   walletTest('handles mixed case bech32 address', async ({ page }) => {

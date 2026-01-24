@@ -131,20 +131,17 @@ walletTest.describe('Navigation Recovery - Retry After Error', () => {
     await send.recipientInput(page).blur();
     
 
-    // Verify that an error indicator is shown for invalid address
-    const errorIndicator = page.locator('.text-red-600, .text-red-500, .border-red-500').first();
-    const errorCount = await errorIndicator.count();
-    expect(errorCount).toBeGreaterThan(0);
+    // Verify that an error indicator is shown for invalid address (red border on input)
+    const inputClassesInvalid = await send.recipientInput(page).getAttribute('class') || '';
+    expect(inputClassesInvalid).toContain('border-red');
 
     await send.recipientInput(page).clear();
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);
     await send.recipientInput(page).blur();
-    
 
-    // After entering valid address, address error should not be present
-    const addressError = page.locator('.text-red-600, .text-red-500').filter({ hasText: /address/i }).first();
-    const addressErrorCount = await addressError.count();
-    expect(addressErrorCount).toBe(0);
+    // After entering valid address, error indicator should be gone
+    const inputClassesValid = await send.recipientInput(page).getAttribute('class') || '';
+    expect(inputClassesValid).not.toContain('border-red');
   });
 });
 
