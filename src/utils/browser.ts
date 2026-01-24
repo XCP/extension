@@ -64,46 +64,6 @@ function sendMessageToTabSafe<T = unknown>(
 }
 
 /**
- * Safe wrapper for chrome.runtime.sendMessage with proper error handling.
- * Use this for popup/page -> background script communication.
- */
-export async function safeSendMessage(message: ChromeMessage, options?: {
-  timeout?: number;
-  logErrors?: boolean;
-}): Promise<unknown> {
-  const { timeout = 5000, logErrors = false } = options || {};
-
-  return new Promise((resolve) => {
-    const timeoutId = setTimeout(() => {
-      resolve(null);
-    }, timeout);
-
-    try {
-      chrome.runtime.sendMessage(message, (response) => {
-        clearTimeout(timeoutId);
-
-        // ALWAYS check lastError first
-        const error = chrome.runtime.lastError;
-        if (error) {
-          if (logErrors && !error.message?.includes('Could not establish connection')) {
-            console.debug('[safeSendMessage] Runtime error:', error.message);
-          }
-          resolve(null);
-        } else {
-          resolve(response);
-        }
-      });
-    } catch (error) {
-      clearTimeout(timeoutId);
-      if (logErrors) {
-        console.debug('[safeSendMessage] Send error:', error);
-      }
-      resolve(null);
-    }
-  });
-}
-
-/**
  * Broadcast message to tabs with content script.
  * Handles errors gracefully and returns results for each tab.
  */
