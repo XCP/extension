@@ -51,52 +51,118 @@ export function getBtcBucket(btcAmount: number): number {
   return 1000000;                           // mega: > 10 BTC
 }
 
-// Path sanitization mappings - strips dynamic params to protect privacy
-// All routes with :params must be listed here or handled by generic handlers below
-const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
-  // Wallet management (contain wallet IDs, address paths)
-  '/wallet/secrets/show-private-key/': '/wallet/secrets/show-private-key',
-  '/wallet/secrets/show-passphrase/': '/wallet/secrets/show-passphrase',
-  '/wallet/remove/': '/wallet/remove',
+/**
+ * Path Sanitization for Privacy-Focused Analytics
+ *
+ * Strips dynamic parameters that could identify users or their activity:
+ * - Wallet IDs (e.g., /wallet/remove/:walletId)
+ * - Asset names (e.g., /assets/:asset, /compose/send/:asset)
+ * - Transaction hashes (e.g., /transaction/:txHash)
+ * - Bitcoin addresses (e.g., /compose/sweep/:address)
+ * - UTXO identifiers (e.g., /assets/utxo/:txHash)
+ * - Derivation paths (e.g., /wallet/secrets/show-private-key/:walletId/:path)
+ *
+ * Order matters! More specific paths must come before general ones.
+ */
+const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WALLET SECRETS (highest sensitivity - wallet IDs, derivation paths)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/wallet/secrets/show-private-key/', sanitized: '/wallet/secrets/show-private-key' },
+  { prefix: '/wallet/secrets/show-passphrase/', sanitized: '/wallet/secrets/show-passphrase' },
 
-  // Viewing pages (contain asset names, tx hashes, UTXOs)
-  '/assets/utxo/': '/assets/utxo',
-  '/assets/': '/assets',
-  '/transaction/': '/transaction',
+  // ═══════════════════════════════════════════════════════════════════════════
+  // WALLET MANAGEMENT (wallet IDs)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/wallet/remove/', sanitized: '/wallet/remove' },
 
-  // Market pages (contain asset names)
-  '/market/dispensers/': '/market/dispensers',
-  '/market/orders/': '/market/orders',
-};
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRANSACTIONS & UTXOS (tx hashes, UTXO identifiers)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/transaction/', sanitized: '/transaction' },
+  { prefix: '/assets/utxo/', sanitized: '/assets/utxo' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ASSET VIEWING (asset names - must come after /assets/utxo/)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/assets/', sanitized: '/assets' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MARKET (asset names, trading pairs)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/market/dispensers/manage', sanitized: '/market/dispensers/manage' }, // static, no param
+  { prefix: '/market/dispensers/', sanitized: '/market/dispensers' },
+  { prefix: '/market/orders/', sanitized: '/market/orders' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - ISSUANCE OPERATIONS (asset names)
+  // Keep operation type for analytics granularity
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/issuance/issue-supply/', sanitized: '/compose/issuance/issue-supply' },
+  { prefix: '/compose/issuance/lock-supply/', sanitized: '/compose/issuance/lock-supply' },
+  { prefix: '/compose/issuance/reset-supply/', sanitized: '/compose/issuance/reset-supply' },
+  { prefix: '/compose/issuance/transfer-ownership/', sanitized: '/compose/issuance/transfer-ownership' },
+  { prefix: '/compose/issuance/update-description/', sanitized: '/compose/issuance/update-description' },
+  { prefix: '/compose/issuance/lock-description/', sanitized: '/compose/issuance/lock-description' },
+  { prefix: '/compose/issuance/destroy/', sanitized: '/compose/issuance/destroy' },
+  { prefix: '/compose/issuance/', sanitized: '/compose/issuance' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - DISPENSER OPERATIONS (asset names, tx hashes, addresses)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/dispenser/close-by-hash/', sanitized: '/compose/dispenser/close-by-hash' },
+  { prefix: '/compose/dispenser/close/', sanitized: '/compose/dispenser/close' },
+  { prefix: '/compose/dispenser/dispense/', sanitized: '/compose/dispenser/dispense' },
+  { prefix: '/compose/dispenser/', sanitized: '/compose/dispenser' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - ORDER OPERATIONS (asset names, tx hashes)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/order/btcpay', sanitized: '/compose/order/btcpay' }, // static
+  { prefix: '/compose/order/cancel/', sanitized: '/compose/order/cancel' },
+  { prefix: '/compose/order/', sanitized: '/compose/order' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - UTXO OPERATIONS (asset names, tx hashes)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/utxo/attach/', sanitized: '/compose/utxo/attach' },
+  { prefix: '/compose/utxo/detach/', sanitized: '/compose/utxo/detach' },
+  { prefix: '/compose/utxo/move/', sanitized: '/compose/utxo/move' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - FAIRMINTING (asset names)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/fairminter/', sanitized: '/compose/fairminter' },
+  { prefix: '/compose/fairmint/', sanitized: '/compose/fairmint' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COMPOSE - OTHER OPERATIONS (asset names, addresses)
+  // ═══════════════════════════════════════════════════════════════════════════
+  { prefix: '/compose/send/mpma', sanitized: '/compose/send/mpma' }, // static
+  { prefix: '/compose/send/', sanitized: '/compose/send' },
+  { prefix: '/compose/sweep/', sanitized: '/compose/sweep' },
+  { prefix: '/compose/dividend/', sanitized: '/compose/dividend' },
+];
 
 /**
  * Sanitize the path to remove sensitive information like wallet IDs, asset names, etc.
  * This ensures user privacy while still tracking page views.
+ *
+ * @example
+ * sanitizePath('/assets/RARE.PEPE') → '/assets'
+ * sanitizePath('/wallet/secrets/show-private-key/abc123/m/84/0/0') → '/wallet/secrets/show-private-key'
+ * sanitizePath('/compose/issuance/issue-supply/MYTOKEN') → '/compose/issuance/issue-supply'
+ * sanitizePath('/settings/advanced') → '/settings/advanced' (no sensitive data)
  */
 export const sanitizePath = (path: string): string => {
-  // Check for sensitive paths
-  for (const [prefix, replacement] of Object.entries(SENSITIVE_PATH_MAPPINGS)) {
+  // Check against ordered patterns (more specific first)
+  for (const { prefix, sanitized } of SENSITIVE_PATH_PATTERNS) {
     if (path.startsWith(prefix)) {
-      return replacement;
+      return sanitized;
     }
   }
 
-  // Handle action paths
-  if (path.startsWith('/actions/')) {
-    const pathParts = path.split('/').filter(Boolean);
-    if (pathParts.length > 2) {
-      return `/${pathParts[0]}/${pathParts[1]}`;
-    }
-  }
-
-  // Handle compose paths
-  if (path.startsWith('/compose/')) {
-    const pathParts = path.split('/').filter(Boolean);
-    if (pathParts.length > 2) {
-      return `/${pathParts[0]}/${pathParts[1]}`;
-    }
-  }
-
+  // Pass through paths without dynamic segments
   return path;
 };
 
