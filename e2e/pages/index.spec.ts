@@ -58,7 +58,7 @@ walletTest.describe('Index Page', () => {
       await expect(historyButton).toBeVisible();
       await historyButton.click();
 
-      await expect(page).toHaveURL(/address-history/);
+      await expect(page).toHaveURL(/address\/history/);
     });
 
     walletTest('footer navigation works correctly', async ({ page }) => {
