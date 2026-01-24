@@ -5,7 +5,7 @@
  * - /market/market/dispensers/manage - View and manage user's dispensers
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { walletTest, expect } from '../../../fixtures';
 
 walletTest.describe('Dispensers Pages', () => {
   walletTest.describe('Manage Dispensers (/market/market/dispensers/manage)', () => {

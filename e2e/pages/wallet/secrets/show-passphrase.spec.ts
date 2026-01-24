@@ -5,8 +5,8 @@
  * Requires password verification before revealing sensitive data.
  */
 
-import { walletTest, expect, TEST_PASSWORD } from '../../fixtures';
-import { secrets, common, unlock, errors } from '../../selectors';
+import { walletTest, expect, TEST_PASSWORD } from '../../../fixtures';
+import { secrets, common, unlock, errors } from '../../../selectors';
 
 walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
   async function getWalletId(page: any): Promise<string | null> {

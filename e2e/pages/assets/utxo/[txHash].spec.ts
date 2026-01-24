@@ -10,7 +10,7 @@
  * - Success state: "Details" heading with UTXO info
  */
 
-import { walletTest, expect } from '../../fixtures';
+import { walletTest, expect } from '../../../fixtures';
 
 walletTest.describe('View UTXO Page (/assets/utxo/:utxo)', () => {
   // Use a valid UTXO format (txid:vout) - API will likely return error for non-existent
