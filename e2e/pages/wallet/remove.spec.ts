@@ -157,11 +157,11 @@ walletTest.describe('Remove Wallet Page (/wallet/remove)', () => {
 walletTest.describe('Remove Wallet - Full Flow', () => {
   // Helper to create a second wallet via UI
   async function createSecondWallet(page: any): Promise<void> {
-    // Navigate to add-wallet page
+    // Navigate to wallet/add page
     const currentUrl = page.url();
     const hashIndex = currentUrl.indexOf('#');
     const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-    await page.goto(`${baseUrl}/add-wallet`);
+    await page.goto(`${baseUrl}/wallet/add`);
     await page.waitForLoadState('networkidle');
 
     // Click Create New Wallet option

@@ -7,7 +7,7 @@
 import { walletTest, expect } from '../../fixtures';
 import { header, selectWallet } from '../../selectors';
 
-walletTest.describe('Select Wallet Page (/select-wallet)', () => {
+walletTest.describe('Select Wallet Page (/wallet/select)', () => {
   async function navigateToSelectWallet(page: any): Promise<boolean> {
     // Navigate via header wallet selector
     await header.walletSelector(page).click();
