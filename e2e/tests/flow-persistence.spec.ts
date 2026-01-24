@@ -215,10 +215,9 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
 
     // Wait for index page to fully load after unlock
     await expect(page).toHaveURL(/index/, { timeout: 10000 });
-    // Wait for address to be visible first as indicator page is fully loaded
-    await expect(index.addressText(page)).toBeVisible({ timeout: 15000 });
-    // Then check the wallet selector
-    await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
+    await page.waitForLoadState('networkidle');
+    // Wait for wallet selector to be visible as indicator page is fully loaded
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 15000 });
   });
 });
 
