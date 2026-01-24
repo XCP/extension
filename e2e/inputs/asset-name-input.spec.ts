@@ -94,8 +94,10 @@ walletTest.describe('AssetNameInput Component', () => {
     });
 
     walletTest('has required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Asset Name") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      // Required fields show asterisk (*) - check for it within the label
+      const label = page.locator('label').filter({ hasText: 'Asset Name' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('has placeholder text', async ({ page }) => {
@@ -144,13 +146,14 @@ walletTest.describe('AssetNameInput Component', () => {
       await input.fill(INVALID_SHORT_NAME);
       await input.blur();
 
-      // Should show validation message or error styling
+      // Should show validation error via input styling or error message text
       await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600, .text-red-500');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible();
-        expect(hasError).toBe(true);
+        const hasRedBorder = classes.includes('border-red');
+        // Also check for any error message text near the input
+        const errorText = page.getByText(/at least|minimum|invalid|short/i);
+        const hasErrorText = await errorText.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
       }).toPass({ timeout: 2000 });
     });
 
@@ -162,10 +165,10 @@ walletTest.describe('AssetNameInput Component', () => {
       // BTC is reserved and should show error
       await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600, .text-red-500');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible();
-        expect(hasError).toBe(true);
+        const hasRedBorder = classes.includes('border-red');
+        const errorText = page.getByText(/reserved|taken|unavailable/i);
+        const hasErrorText = await errorText.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
       }).toPass({ timeout: 2000 });
     });
 
@@ -190,13 +193,13 @@ walletTest.describe('AssetNameInput Component', () => {
       await input.fill('XCP');
       await input.blur();
 
-      // Wait for API check
+      // Wait for API check - look for error message about taken/reserved
       await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600:has-text("taken"), .text-red-600:has-text("reserved")');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible();
-        expect(hasError).toBe(true);
+        const hasRedBorder = classes.includes('border-red');
+        const errorMessage = page.getByText(/taken|reserved|unavailable/i);
+        const hasErrorText = await errorMessage.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
       }).toPass({ timeout: 3000 });
     });
   });

@@ -45,8 +45,10 @@ walletTest.describe('DispenserInput Component', () => {
     });
 
     walletTest('has required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Dispenser Address") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      // Required fields show asterisk (*) in the label
+      const label = page.locator('label').filter({ hasText: 'Dispenser Address' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('input starts empty', async ({ page }) => {

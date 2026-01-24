@@ -50,12 +50,12 @@ walletTest.describe('MemoInput Component', () => {
 
     walletTest('is not required by default on send page', async ({ page }) => {
       // Memo is typically optional on send page
-      const label = page.locator('label:has-text("Memo")');
+      const label = page.locator('label').filter({ hasText: 'Memo' });
       await expect(label).toBeVisible();
 
-      // Check for required asterisk - memo should be optional
-      const requiredIndicator = label.locator('span.text-red-500');
-      await expect(requiredIndicator).not.toBeVisible();
+      // Check for required asterisk - memo should be optional (no *)
+      const labelText = await label.textContent();
+      expect(labelText).not.toContain('*');
     });
   });
 

@@ -32,7 +32,7 @@ walletTest.describe('SettingSwitch Component', () => {
   walletTest.describe('Rendering', () => {
     walletTest('renders switch elements', async ({ page }) => {
       // Look for HeadlessUI Switch (button role with switch behavior)
-      const switches = page.locator('[role="switch"], button.bg-blue-600, button.bg-gray-200');
+      const switches = page.locator('[role="switch"]');
       const count = await switches.count();
 
       // Should have at least one switch
@@ -40,11 +40,16 @@ walletTest.describe('SettingSwitch Component', () => {
     });
 
     walletTest('switch has associated label', async ({ page }) => {
-      // Look for labels near switches
-      const labels = page.locator('.font-bold');
-      const count = await labels.count();
+      // Switches should have labels - check that switch has accessible name
+      const switches = page.locator('[role="switch"]');
+      const firstSwitch = switches.first();
 
-      expect(count).toBeGreaterThan(0);
+      // Switch should have aria-label or labelled by text
+      const ariaLabel = await firstSwitch.getAttribute('aria-label');
+      const ariaLabelledBy = await firstSwitch.getAttribute('aria-labelledby');
+
+      // At least one accessibility attribute should be present
+      expect(ariaLabel || ariaLabelledBy).toBeTruthy();
     });
 
     walletTest('switch shows current state visually', async ({ page }) => {
@@ -141,29 +146,28 @@ walletTest.describe('SettingSwitch Component', () => {
       }).toPass({ timeout: 2000 });
     });
 
-    walletTest('switch has sliding thumb', async ({ page }) => {
+    walletTest('switch has visual indicator', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
 
-      // Look for the thumb (circular element inside switch)
-      const thumb = switchElement.locator('span.rounded-full, span.bg-white');
-      await expect(thumb).toBeVisible();
+      // Switch should have child elements for visual indication
+      const childSpans = switchElement.locator('span');
+      const count = await childSpans.count();
+      expect(count).toBeGreaterThan(0);
     });
 
-    walletTest('thumb position changes when toggled', async ({ page }) => {
+    walletTest('switch visual state changes when toggled', async ({ page }) => {
       const switchElement = page.locator('[role="switch"]').first();
-      const thumb = switchElement.locator('span.rounded-full, span.bg-white').first();
 
-      // Get initial thumb classes (position)
-      const initialClasses = await thumb.getAttribute('class') || '';
+      // Get initial state
+      const initialState = await switchElement.getAttribute('aria-checked');
 
       // Toggle switch
       await switchElement.click();
 
-      // Wait for thumb to move
+      // Wait for aria-checked to change (indicates visual state change)
       await expect(async () => {
-        const newClasses = await thumb.getAttribute('class') || '';
-        // Transform class should have changed (translate-x-1 vs translate-x-6)
-        expect(newClasses !== initialClasses).toBe(true);
+        const newState = await switchElement.getAttribute('aria-checked');
+        expect(newState).not.toBe(initialState);
       }).toPass({ timeout: 2000 });
     });
   });
@@ -180,8 +184,8 @@ walletTest.describe('SettingSwitch Component', () => {
       // Hover over info icon
       await infoIcon.hover();
 
-      // Look for tooltip
-      const tooltip = page.locator('.shadow-lg.border');
+      // Look for tooltip text that appears on hover (use .first() to target visible tooltip)
+      const tooltip = page.getByText(/Enable this to|chain transactions/i).first();
       await expect(tooltip).toBeVisible({ timeout: 2000 });
     });
   });

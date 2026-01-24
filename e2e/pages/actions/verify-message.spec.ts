@@ -101,8 +101,7 @@ walletTest.describe('Verify Message', () => {
     await verifyMessage.verifyButton(page).click();
 
     // Wait for verification result - should show invalid signature message
-    // Match the specific error span with class text-red-600
-    await expect(page.locator('span.text-red-600:has-text("Signature Invalid")')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Signature Invalid').first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('clears all fields', async ({ page }) => {

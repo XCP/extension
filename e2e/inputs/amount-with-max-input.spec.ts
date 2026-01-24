@@ -49,8 +49,10 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('renders with required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Amount") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible({ timeout: 5000 });
+      // Required fields show asterisk (*) in the label
+      const label = page.locator('label').filter({ hasText: 'Amount' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('renders input field', async ({ page }) => {

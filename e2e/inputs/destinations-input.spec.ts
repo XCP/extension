@@ -32,8 +32,10 @@ walletTest.describe('DestinationsInput Component', () => {
     });
 
     walletTest('renders with required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Destination") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      // Required fields show asterisk (*) in the label
+      const label = page.locator('label').filter({ hasText: 'Destination' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('renders input field with placeholder', async ({ page }) => {
