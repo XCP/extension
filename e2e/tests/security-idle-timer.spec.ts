@@ -17,12 +17,7 @@ walletTest.skip('idle timer triggers auto-lock', async ({ page }) => {
   await page.waitForURL(/.*\/settings\/advanced$/);
 
   const oneMinuteOption = settings.oneMinuteOption(page);
-  const hasOneMinuteOption = await oneMinuteOption.isVisible();
-
-  if (!hasOneMinuteOption) {
-    throw new Error('1 Minute option not found');
-  }
-
+  await expect(oneMinuteOption).toBeVisible({ timeout: 5000 });
   await oneMinuteOption.click();
 
   await page.goto(page.url().replace('#/settings/advanced', '#/index'));

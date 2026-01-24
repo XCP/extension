@@ -5,12 +5,15 @@
  */
 
 import { test, walletTest, expect, createWallet, lockWallet, unlockWallet, navigateTo, TEST_PASSWORD } from '../fixtures';
-import { header, settings, index } from '../selectors';
+import { header, settings, index, selectWallet, onboarding, createWallet as createWalletSelectors } from '../selectors';
 
 test.describe('State Persistence - Lock/Unlock Cycle', () => {
   test('selected wallet persists after lock/unlock', async ({ extensionPage }) => {
     await createWallet(extensionPage, TEST_PASSWORD);
 
+    // Wait for page to fully load and header to be ready
+    await extensionPage.waitForLoadState('networkidle');
+    await expect(header.walletSelector(extensionPage)).toBeVisible({ timeout: 10000 });
     const walletNameBefore = await header.walletSelector(extensionPage).textContent();
 
     await lockWallet(extensionPage);
@@ -19,9 +22,10 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await unlockWallet(extensionPage, TEST_PASSWORD);
     await expect(extensionPage).toHaveURL(/index/);
 
+    // Wait for page to fully load after unlock
     await extensionPage.waitForLoadState('networkidle');
+    await expect(header.walletSelector(extensionPage)).toBeVisible({ timeout: 10000 });
 
-    await expect(header.walletSelector(extensionPage)).toBeVisible();
     const walletNameAfter = await header.walletSelector(extensionPage).textContent();
     expect(walletNameAfter).toBe(walletNameBefore);
   });
@@ -83,52 +87,50 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await navigateTo(extensionPage, 'settings');
 
     const addressTypeOption = settings.addressTypeOption(extensionPage);
-    if (!await addressTypeOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Address type option not available
-      return;
+    const optionCount = await addressTypeOption.count();
+
+    if (optionCount === 0) {
+      return; // Address type option not available
     }
 
+    await expect(addressTypeOption).toBeVisible({ timeout: 5000 });
     await addressTypeOption.click();
-    await extensionPage.waitForURL(/address-type/, { timeout: 10000 }).catch(() => {});
+    await expect(extensionPage).toHaveURL(/address-type/, { timeout: 10000 });
 
     // Select Legacy (P2PKH) address type
-    const radioVisible = await extensionPage.locator('[role="radio"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    if (!radioVisible) {
-      return;
-    }
+    const radioOptions = extensionPage.locator('[role="radio"]');
+    await expect(radioOptions.first()).toBeVisible({ timeout: 5000 });
 
-    const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy' }).first();
-    if (await legacyOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+    const legacyOption = radioOptions.filter({ hasText: 'Legacy' }).first();
+    const legacyCount = await legacyOption.count();
+
+    if (legacyCount > 0) {
       await legacyOption.click();
+      // Wait for the radio to be checked (UI update)
+      await expect(legacyOption).toHaveAttribute('aria-checked', 'true', { timeout: 5000 });
     }
 
-    // Wait a bit for the address type change to take effect
-    await extensionPage.waitForTimeout(2000);
+    // Wait for the address type change to take effect (async context update)
+    await extensionPage.waitForLoadState('networkidle');
 
     await navigateTo(extensionPage, 'wallet');
 
-    // Wait for address to be visible
-    const addressVisible = await index.addressText(extensionPage).isVisible({ timeout: 10000 }).catch(() => false);
-    if (!addressVisible) {
-      // Address not visible - test passes as we got this far
-      return;
-    }
+    // Wait for address with Legacy prefix (starts with "1") to appear
+    // The async context update may take a moment to propagate
+    const legacyAddressLocator = index.currentAddress(extensionPage)
+      .locator('span.font-mono')
+      .filter({ hasText: /^1[a-zA-Z0-9]/ });
+    await expect(legacyAddressLocator).toBeVisible({ timeout: 15000 });
 
-    await extensionPage.waitForTimeout(1000);
-
-    const addressBefore = await index.addressText(extensionPage).textContent().catch(() => null);
+    const addressBefore = await index.addressText(extensionPage).textContent();
 
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
-    await extensionPage.waitForTimeout(2000);
+    await extensionPage.waitForLoadState('networkidle');
 
-    const addressVisibleAfter = await index.addressText(extensionPage).isVisible({ timeout: 10000 }).catch(() => false);
-    if (!addressVisibleAfter) {
-      // We successfully locked and unlocked - that's the main test
-      return;
-    }
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 10000 });
+    const addressAfter = await index.addressText(extensionPage).textContent();
 
-    const addressAfter = await index.addressText(extensionPage).textContent().catch(() => null);
     if (addressBefore && addressAfter) {
       const prefixBefore = addressBefore.split('...')[0];
       const prefixAfter = addressAfter.split('...')[0];
@@ -155,21 +157,28 @@ walletTest.describe('State Persistence - Navigation', () => {
   });
 
   walletTest('balance view selection persists', async ({ page }) => {
-    if (await index.assetsTab(page).isVisible({ timeout: 3000 }).catch(() => false)) {
-      await index.assetsTab(page).click();
+    const assetsTab = index.assetsTab(page);
+    const tabCount = await assetsTab.count();
 
-      await navigateTo(page, 'settings');
-      await navigateTo(page, 'wallet');
-
-      const hasAssetContent = await page.locator('text=/Assets|No Assets/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      expect(hasAssetContent || true).toBe(true);
+    if (tabCount === 0) {
+      return; // Assets tab not present
     }
+
+    await expect(assetsTab).toBeVisible();
+    await assetsTab.click();
+
+    await navigateTo(page, 'settings');
+    await navigateTo(page, 'wallet');
+
+    // After navigating back, should still be on wallet index
+    await expect(page).toHaveURL(/index/);
   });
 });
 
 walletTest.describe('State Persistence - Multi-Wallet', () => {
   walletTest('active wallet selection persists after adding second wallet', async ({ page }) => {
-    // walletTest already creates a wallet, get its name
+    // walletTest already creates a wallet, wait for header to be ready and get its name
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 10000 });
     const firstWalletName = await header.walletSelector(page).textContent();
 
     // Navigate to wallet selection page
@@ -177,19 +186,20 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
     await page.waitForURL(/select-wallet/);
 
     // Add a second wallet - target the green button at bottom (not header icon)
-    const addWalletButton = page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' });
-    await expect(addWalletButton).toBeVisible();
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(page).click();
 
-    const createOption = page.getByRole('button', { name: /Create.*Wallet/i });
-    await expect(createOption).toBeVisible();
-    await createOption.click();
+    await expect(onboarding.createWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await onboarding.createWalletButton(page).click();
 
-    await page.waitForSelector('text=View 12-word Secret Phrase');
-    await page.getByText('View 12-word Secret Phrase').click();
-    await page.getByLabel(/I have saved my secret recovery phrase/).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: /Continue/i }).click();
+    // Wait for reveal phrase button and click it
+    await expect(createWalletSelectors.revealPhraseCard(page)).toBeVisible({ timeout: 10000 });
+    await createWalletSelectors.revealPhraseCard(page).click();
+
+    // Check the confirmation checkbox and fill password
+    await createWalletSelectors.savedPhraseCheckbox(page).check();
+    await createWalletSelectors.passwordInput(page).fill(TEST_PASSWORD);
+    await createWalletSelectors.continueButton(page).click();
     await page.waitForURL(/index/, { timeout: 15000 });
 
     // Wait for header to render after page load
@@ -203,11 +213,11 @@ walletTest.describe('State Persistence - Multi-Wallet', () => {
     await lockWallet(page);
     await unlockWallet(page, TEST_PASSWORD);
 
-    // Wait for header to fully render after unlock
+    // Wait for index page to fully load after unlock
+    await expect(page).toHaveURL(/index/, { timeout: 10000 });
     await page.waitForLoadState('networkidle');
-    // Wait for header element to be present first
-    await page.waitForSelector('header', { state: 'visible', timeout: 10000 });
-    await expect(header.walletSelector(page)).toBeVisible({ timeout: 10000 });
+    // Wait for wallet selector to be visible as indicator page is fully loaded
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 15000 });
   });
 });
 
@@ -229,9 +239,8 @@ walletTest.describe('State Persistence - Session', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
 
-    const isOnIndex = page.url().includes('index');
-    const isOnUnlock = page.url().includes('unlock');
-    expect(isOnIndex || isOnUnlock).toBe(true);
+    // After refresh, should be on index (still authenticated) or unlock (session expired)
+    await expect(page).toHaveURL(/index|unlock/);
   });
 });
 

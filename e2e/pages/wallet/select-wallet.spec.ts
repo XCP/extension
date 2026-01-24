@@ -18,12 +18,9 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
   walletTest('page loads and displays wallet list', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Should show wallet list or keychain title
-    const hasWalletList = await page.locator('[data-testid*="wallet-list"], [role="list"], .wallet-list').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasKeychainTitle = await page.locator('text=/Keychain|Select.*Wallet|Choose.*Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasWalletItem = await page.locator('[data-testid*="wallet-item"], .wallet-item, button:has-text("Wallet")').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasWalletList || hasKeychainTitle || hasWalletItem).toBe(true);
+    // Should show Keychain title (the page header)
+    const keychainTitle = page.locator('text="Keychain"');
+    await expect(keychainTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('displays at least one wallet', async ({ page }) => {
@@ -40,9 +37,8 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await navigateToSelectWallet(page);
 
     // Wallet names should be visible - the default wallet name is "Wallet 1"
-    const hasWalletName = await page.locator('text=/Wallet 1|Wallet|My Wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasWalletName).toBe(true);
+    const walletName = page.locator('text=/Wallet 1|Wallet|My Wallet/i').first();
+    await expect(walletName).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has add wallet button', async ({ page }) => {
@@ -63,15 +59,12 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     await expect(page).toHaveURL(/add-wallet/, { timeout: 5000 });
   });
 
-  walletTest('indicates active wallet', async ({ page }) => {
+  walletTest('indicates active wallet with checked state', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // The active wallet should have some visual indicator (checkmark, different style, "active" text)
-    const hasActiveIndicator = await page.locator('[data-active="true"], [aria-selected="true"], .active, text=/active|selected/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCheckmark = await page.locator('svg[aria-label*="check" i], [data-testid*="check"], .checkmark').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Active indicator may vary in implementation
-    expect(hasActiveIndicator || hasCheckmark || true).toBe(true);
+    // The active wallet should have aria-checked="true" on the radio item
+    const activeWallet = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(activeWallet).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can select a different wallet', async ({ page }) => {
@@ -81,49 +74,38 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
     const walletItems = page.locator('[role="radio"]');
     const count = await walletItems.count();
 
-    if (count > 1) {
-      // Click the second wallet
-      await walletItems.nth(1).click();
-      await page.waitForTimeout(1000);
+    if (count <= 1) return; // Only one wallet, nothing to switch to
 
-      // Should navigate away or update selection
-      const navigatedAway = !page.url().includes('select-wallet');
-      const selectionChanged = await page.locator('[aria-selected="true"], .active').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // Click the second wallet
+    await walletItems.nth(1).click();
 
-      expect(navigatedAway || selectionChanged).toBe(true);
-    }
+    // Should navigate to index after selection
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('selecting wallet navigates to index', async ({ page }) => {
     await navigateToSelectWallet(page);
 
     const walletItems = page.locator('[role="radio"]');
+    await expect(walletItems.first()).toBeVisible({ timeout: 5000 });
 
-    if (await walletItems.first().isVisible({ timeout: 5000 }).catch(() => false)) {
-      await walletItems.first().click();
-      await page.waitForTimeout(1500);
-
-      expect(page.url()).toContain('index');
-    }
+    await walletItems.first().click();
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('has back button', async ({ page }) => {
     await navigateToSelectWallet(page);
 
     const backButton = page.locator('button[aria-label*="back" i], header button').first();
-    const isVisible = await backButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(isVisible).toBe(true);
+    await expect(backButton).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows wallet type indicator', async ({ page }) => {
+  walletTest('displays Keychain title', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Wallets may show if they're mnemonic or private key based
-    const hasTypeIndicator = await page.locator('text=/mnemonic|private key|seed|12-word/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    // Type indicator is optional
-    expect(hasTypeIndicator || true).toBe(true);
+    // The page should show "Keychain" title
+    const keychainTitle = page.locator('text="Keychain"');
+    await expect(keychainTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('handles wallet selection error gracefully', async ({ page }) => {
@@ -131,9 +113,107 @@ walletTest.describe('Select Wallet Page (/select-wallet)', () => {
 
     // This test verifies that even if an error occurs during selection,
     // it's handled gracefully (no crash, error message shown)
-    // We can only verify this indirectly by checking the page still works
-    const pageStillFunctional = await page.locator('button, a, [role="button"]').first().isVisible({ timeout: 3000 }).catch(() => false);
+    // We verify by checking the page is functional with interactive elements
+    const interactiveElement = page.locator('button, a, [role="button"]').first();
+    await expect(interactiveElement).toBeVisible({ timeout: 3000 });
+  });
 
-    expect(pageStillFunctional).toBe(true);
+  walletTest('wallet menu shows options when clicked', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // Find wallet options menu button (three dots)
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+
+    // Click to open menu
+    await walletMenu.first().click();
+
+    // Menu should appear with options
+    const menuOptions = page.getByRole('menu').or(page.locator('[role="menuitem"]')).first();
+    await expect(menuOptions).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('wallet menu has Show Passphrase option', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+    await walletMenu.first().click();
+
+    // Should have Show Passphrase option
+    const showPhraseOption = page.locator('button, [role="menuitem"]').filter({ hasText: /Show.*Passphrase|Recovery/i });
+    await expect(showPhraseOption.first()).toBeVisible({ timeout: 3000 });
+  });
+
+  walletTest('wallet menu has Remove option (disabled when only wallet)', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    const walletMenu = page.locator('[aria-label="Wallet options"]');
+    await expect(walletMenu.first()).toBeVisible({ timeout: 5000 });
+    await walletMenu.first().click();
+
+    // Should have Remove option
+    const removeOption = page.locator('button').filter({ hasText: /^Remove\s/ });
+    await expect(removeOption.first()).toBeVisible({ timeout: 3000 });
+
+    // If only one wallet, Remove should be disabled
+    const walletCount = await page.locator('[role="radio"]').count();
+    if (walletCount === 1) {
+      await expect(removeOption.first()).toBeDisabled();
+    }
+  });
+
+  walletTest('selected wallet shows checkmark', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // The active wallet has aria-checked="true"
+    const checkedWallet = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(checkedWallet).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('wallet items show wallet name', async ({ page }) => {
+    await navigateToSelectWallet(page);
+
+    // Each wallet should display its name
+    const walletItems = page.locator('[role="radio"]');
+    const firstWallet = walletItems.first();
+    await expect(firstWallet).toBeVisible({ timeout: 5000 });
+
+    // Should contain text like "Wallet 1" or custom name
+    const walletText = await firstWallet.textContent();
+    expect(walletText).toBeTruthy();
+    expect(walletText!.length).toBeGreaterThan(0);
+  });
+});
+
+// Separate describe for multi-wallet scenarios
+walletTest.describe('Select Wallet - Multi-Wallet', () => {
+  walletTest('switching wallets changes header wallet name on index', async ({ page }) => {
+    // Navigate to select-wallet
+    await header.walletSelector(page).click();
+    await page.waitForURL(/select-wallet/, { timeout: 5000 });
+
+    // Check if multiple wallets exist
+    const walletItems = page.locator('[role="radio"]');
+    const walletCount = await walletItems.count();
+
+    if (walletCount <= 1) {
+      walletTest.skip(true, 'Only one wallet exists - cannot test switching');
+      return;
+    }
+
+    // Get name of second wallet before switching
+    const secondWallet = walletItems.nth(1);
+    const secondWalletName = await secondWallet.locator('text=/Wallet/i').first().textContent();
+
+    // Select the second wallet
+    await secondWallet.click();
+
+    // Should navigate to index
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
+
+    // Wallet selector in header should show the new wallet name
+    const walletSelector = header.walletSelector(page);
+    await expect(walletSelector).toContainText(secondWalletName || 'Wallet', { timeout: 5000 });
   });
 });

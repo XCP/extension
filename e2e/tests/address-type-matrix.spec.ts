@@ -40,7 +40,11 @@ import {
   settings,
   index,
   viewAddress,
-  selectAddress
+  selectAddress,
+  header,
+  selectWallet,
+  onboarding,
+  importWallet
 } from '../selectors';
 
 async function selectAddressType(page: any, addressType: AddressType): Promise<void> {
@@ -58,7 +62,8 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
   const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
   const targetOption = page.locator(`[role="radio"]`).filter({ hasText: displayName });
 
-  if (await targetOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+  const targetCount = await targetOption.count();
+  if (targetCount > 0) {
     await targetOption.click();
   } else {
     const options = await radioOptions.all();
@@ -72,7 +77,7 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
   }
 
   // Wait for the selection to be applied
-  await page.waitForTimeout(500);
+  
 
   await navigateTo(page, 'wallet');
   await expect(page).toHaveURL(/index/);
@@ -87,12 +92,21 @@ async function selectAddressType(page: any, addressType: AddressType): Promise<v
     },
     expectedPrefix,
     { timeout: 5000 }
-  ).catch(() => {});
+  ).catch(() => {}); // Non-critical - address display may be truncated
 }
 
 async function getCurrentDisplayedAddress(page: any): Promise<string> {
+  // Use index.addressText since we're on the index page after wallet creation/type change
+  const addressElement = index.addressText(page);
+  await expect(addressElement).toBeVisible({ timeout: 10000 });
+  const address = await addressElement.textContent();
+  return address || '';
+}
+
+async function getReceivePageAddress(page: any): Promise<string> {
+  // On view-address page, address is in a div with aria-label="Copy address"
   const addressElement = viewAddress.addressDisplay(page);
-  await expect(addressElement).toBeVisible();
+  await expect(addressElement).toBeVisible({ timeout: 10000 });
   const address = await addressElement.textContent();
   return address || '';
 }
@@ -150,13 +164,13 @@ walletTest.describe('Address Type Matrix - Receive Address Display', () => {
       await selectAddressType(page, addressType);
 
       const receiveButton = index.receiveButton(page);
-      if (await receiveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await receiveButton.click();
-        await page.waitForURL(/view-address|receive/);
+      await expect(receiveButton).toBeVisible({ timeout: 5000 });
+      await receiveButton.click();
+      await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
-        const addressOnReceive = await getCurrentDisplayedAddress(page);
-        expect(validateAddressPrefix(addressOnReceive, addressType)).toBe(true);
-      }
+      // Use getReceivePageAddress for the view-address page
+      const addressOnReceive = await getReceivePageAddress(page);
+      expect(validateAddressPrefix(addressOnReceive, addressType)).toBe(true);
     });
   }
 });
@@ -196,9 +210,18 @@ walletTest.describe('Address Type Matrix - Address Preview in Settings', () => {
 
       const displayName = ADDRESS_TYPE_DISPLAY_NAMES[addressType];
       const card = page.locator('[role="radio"]').filter({ hasText: displayName });
+      const cardCount = await card.count();
 
-      if (await card.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const previewText = await card.locator('.text-xs').textContent().catch(() => '');
+      if (cardCount === 0) {
+        return; // Card not present for this address type
+      }
+
+      await expect(card).toBeVisible();
+      const previewElement = card.locator('.text-xs');
+      const previewCount = await previewElement.count();
+
+      if (previewCount > 0) {
+        const previewText = await previewElement.textContent();
         const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
 
         if (previewText && previewText.length > 0) {
@@ -215,15 +238,13 @@ walletTest.describe('Address Type Matrix - QR Code Display', () => {
       await selectAddressType(page, addressType);
 
       const receiveButton = index.receiveButton(page);
-      if (await receiveButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await receiveButton.click();
-        await page.waitForURL(/view-address|receive/);
+      await expect(receiveButton).toBeVisible({ timeout: 5000 });
+      await receiveButton.click();
+      await expect(page).toHaveURL(/view-address/, { timeout: 5000 });
 
-        const qrCode = viewAddress.qrCode(page);
-        const qrFound = await qrCode.isVisible({ timeout: 3000 }).catch(() => false);
-
-        expect(qrFound).toBe(true);
-      }
+      // QR code should be visible on the receive page
+      const qrCode = viewAddress.qrCode(page);
+      await expect(qrCode).toBeVisible({ timeout: 5000 });
     });
   }
 });
@@ -236,13 +257,18 @@ walletTest.describe('Address Type Matrix - Copy Address', () => {
       await selectAddressType(page, addressType);
 
       const copyButton = selectAddress.copyButton(page);
-      if (await copyButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await copyButton.click();
+      const buttonCount = await copyButton.count();
 
-        const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
-        const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
-        expect(clipboardContent.startsWith(expectedPrefix)).toBe(true);
+      if (buttonCount === 0) {
+        return; // Copy button not present
       }
+
+      await expect(copyButton).toBeVisible();
+      await copyButton.click();
+
+      const clipboardContent = await page.evaluate(() => navigator.clipboard.readText());
+      const expectedPrefix = ADDRESS_PREFIX_STRINGS.mainnet[addressType];
+      expect(clipboardContent.startsWith(expectedPrefix)).toBe(true);
     });
   }
 });
@@ -252,6 +278,10 @@ walletTest.describe('Address Type Matrix - Copy Address', () => {
 test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   test('importing Counterwallet mnemonic creates Counterwallet wallet', async ({ extensionPage }) => {
     await importMnemonic(extensionPage, TEST_COUNTERWALLET_MNEMONIC, TEST_PASSWORD);
+
+    // Wait for index page to fully load after import
+    await extensionPage.waitForLoadState('networkidle');
+    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 15000 });
 
     const address = await getCurrentDisplayedAddress(extensionPage);
     expect(validateAddressPrefix(address, 'counterwallet')).toBe(true);
@@ -273,17 +303,22 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
     const options = await radioOptions.all();
     expect(options.length).toBe(2);
 
-    const hasCounterwalletOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet (P2PKH)' }).isVisible().catch(() => false);
-    const hasCounterwalletSegwitOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet SegWit' }).isVisible().catch(() => false);
+    // CounterWallet options should be visible
+    const counterwalletOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet (P2PKH)' });
+    const counterwalletSegwitOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'CounterWallet SegWit' });
 
-    expect(hasCounterwalletOption).toBe(true);
-    expect(hasCounterwalletSegwitOption).toBe(true);
+    await expect(counterwalletOption).toBeVisible();
+    await expect(counterwalletSegwitOption).toBeVisible();
 
-    const hasLegacyOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy (P2PKH)' }).isVisible().catch(() => false);
-    const hasTaprootOption = await extensionPage.locator('[role="radio"]').filter({ hasText: 'Taproot' }).isVisible().catch(() => false);
+    // Standard address types should NOT be visible
+    const legacyOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Legacy (P2PKH)' });
+    const taprootOption = extensionPage.locator('[role="radio"]').filter({ hasText: 'Taproot' });
 
-    expect(hasLegacyOption).toBe(false);
-    expect(hasTaprootOption).toBe(false);
+    const legacyCount = await legacyOption.count();
+    const taprootCount = await taprootOption.count();
+
+    expect(legacyCount).toBe(0);
+    expect(taprootCount).toBe(0);
   });
 
   for (const addressType of COUNTERWALLET_ADDRESS_TYPES) {
@@ -301,26 +336,23 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
 walletTest.describe('Address Type Matrix - Private Key Import', () => {
   walletTest('can add wallet via private key import', async ({ page }) => {
     // Navigate to select wallet to add another wallet
-    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
-    await expect(walletSelector).toBeVisible({ timeout: 5000 });
-    await walletSelector.click();
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
+    await header.walletSelector(page).click();
     await expect(page).toHaveURL(/select-wallet/);
 
     // Click Add Wallet (the main green button, not the header one)
-    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(page).click();
 
     // Click Import Private Key
-    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
-    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
-    await importPrivateKeyOption.click();
+    await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 5000 });
+    await onboarding.importPrivateKeyButton(page).click();
 
-    await page.waitForSelector('input[name="private-key"]');
-    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+    await importWallet.continueButton(page).click();
 
     await page.waitForURL(/index/, { timeout: 15000 });
 
@@ -330,26 +362,23 @@ walletTest.describe('Address Type Matrix - Private Key Import', () => {
 
   walletTest('private key import shows valid address format', async ({ page }) => {
     // Navigate to select wallet to add another wallet
-    const walletSelector = page.locator('header button[aria-label="Select Wallet"]');
-    await expect(walletSelector).toBeVisible({ timeout: 5000 });
-    await walletSelector.click();
+    await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
+    await header.walletSelector(page).click();
     await expect(page).toHaveURL(/select-wallet/);
 
     // Click Add Wallet (the main green button, not the header one)
-    const addWalletButton = page.locator('button.bg-green-500').filter({ hasText: /Add Wallet/i });
-    await expect(addWalletButton).toBeVisible({ timeout: 5000 });
-    await addWalletButton.click();
+    await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
+    await selectWallet.addWalletButton(page).click();
 
     // Click Import Private Key
-    const importPrivateKeyOption = page.getByRole('button', { name: /Import Private Key/i });
-    await expect(importPrivateKeyOption).toBeVisible({ timeout: 5000 });
-    await importPrivateKeyOption.click();
+    await expect(onboarding.importPrivateKeyButton(page)).toBeVisible({ timeout: 5000 });
+    await onboarding.importPrivateKeyButton(page).click();
 
-    await page.waitForSelector('input[name="private-key"]');
-    await page.locator('input[name="private-key"]').fill(TEST_PRIVATE_KEY);
-    await page.getByLabel(/I have backed up this private key/i).check();
-    await page.locator('input[name="password"]').fill(TEST_PASSWORD);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(importWallet.privateKeyInput(page)).toBeVisible({ timeout: 5000 });
+    await importWallet.privateKeyInput(page).fill(TEST_PRIVATE_KEY);
+    await importWallet.backedUpCheckbox(page).check();
+    await importWallet.passwordInput(page).fill(TEST_PASSWORD);
+    await importWallet.continueButton(page).click();
 
     await page.waitForURL(/index/, { timeout: 15000 });
 

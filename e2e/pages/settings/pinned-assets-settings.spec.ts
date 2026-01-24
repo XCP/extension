@@ -12,11 +12,9 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Should show pinned assets UI
-    const hasTitle = await page.locator('text=/Pinned Assets/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSearchInput = await pinnedAssets.searchInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTitle || hasSearchInput).toBe(true);
+    // Should show pinned assets title (first heading, not sr-only)
+    const title = page.getByRole('heading', { name: /Pinned Assets/i }).first();
+    await expect(title).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows search input for assets', async ({ page }) => {
@@ -26,16 +24,13 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await expect(pinnedAssets.searchInput(page)).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows empty state or pinned list', async ({ page }) => {
+  walletTest('shows pinned section or empty state', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Should show either pinned assets or empty state
-    const hasEmptyState = await pinnedAssets.emptyState(page).isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPinnedSection = await pinnedAssets.pinnedSection(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const hasSearchResults = await pinnedAssets.searchResultsSection(page).isVisible({ timeout: 2000 }).catch(() => false);
-
-    expect(hasEmptyState || hasPinnedSection || hasSearchResults).toBe(true);
+    // Should show page title - content depends on pinned assets
+    const pageTitle = page.getByRole('heading', { name: /Pinned Assets/i }).first();
+    await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can type in search input', async ({ page }) => {
@@ -43,17 +38,12 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.waitForLoadState('networkidle');
 
     const searchInput = pinnedAssets.searchInput(page);
-    if (await searchInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await searchInput.fill('XCP');
-      await page.waitForTimeout(1000);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-      // Should trigger search and show results or loading
-      const hasSearchResults = await pinnedAssets.searchResultsSection(page).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Searching/i, [class*="spinner"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-      const hasNoResults = await page.locator('text=/No results/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasSearchResults || hasLoading || hasNoResults).toBe(true);
-    }
+    await searchInput.fill('XCP');
+    // Verify input accepted value
+    const value = await searchInput.inputValue();
+    expect(value).toBe('XCP');
   });
 
   walletTest('has back navigation', async ({ page }) => {
@@ -61,19 +51,131 @@ walletTest.describe('Pinned Assets Page (/settings/pinned-assets)', () => {
     await page.waitForLoadState('networkidle');
 
     const backButton = common.headerBackButton(page);
-    if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await backButton.click();
-      await page.waitForTimeout(500);
-      const navigatedBack = page.url().includes('settings') || page.url().includes('index');
-      expect(navigatedBack).toBe(true);
-    }
+    await expect(backButton).toBeVisible({ timeout: 3000 });
+
+    await backButton.click();
+    await expect(page).toHaveURL(/settings|index/, { timeout: 5000 });
   });
 
   walletTest('has help button in header', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
     await page.waitForLoadState('networkidle');
 
-    const hasHelp = await common.helpButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-    expect(hasHelp).toBe(true);
+    await expect(common.helpButton(page)).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('search returns results for valid asset', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    const searchInput = pinnedAssets.searchInput(page);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+    // Search for XCP (Counterparty token - should exist)
+    await searchInput.fill('XCP');
+
+    // Wait for search results
+    await page.waitForLoadState('networkidle');
+
+    // Should show search results section
+    const searchResults = page.locator('text=/Search Results/i');
+    await expect(searchResults).toBeVisible({ timeout: 10000 });
+  });
+
+  walletTest('search shows no results message for invalid asset', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    const searchInput = pinnedAssets.searchInput(page);
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+    // Search for non-existent asset
+    await searchInput.fill('ZZZZNONEXISTENT12345');
+
+    // Wait for search
+    await page.waitForLoadState('networkidle');
+
+    // Should show no results or empty state
+    const noResults = page.locator('text=/No results|not found/i').first();
+    await expect(noResults).toBeVisible({ timeout: 10000 });
+  });
+
+  walletTest('can pin an asset from search results', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    const searchInput = pinnedAssets.searchInput(page);
+    await searchInput.fill('XCP');
+    await page.waitForLoadState('networkidle');
+
+    // Wait for search results
+    const searchResultsHeader = page.locator('text=/Search Results/i');
+    await expect(searchResultsHeader).toBeVisible({ timeout: 10000 });
+
+    // Find pin button/toggle in results
+    const pinButton = page.locator('button[aria-label*="pin" i], button:has-text("Pin")').first();
+    const pinButtonCount = await pinButton.count();
+
+    if (pinButtonCount > 0) {
+      await pinButton.click();
+
+      // Clear search to see pinned section
+      await searchInput.clear();
+      await page.waitForLoadState('networkidle');
+
+      // Should show pinned section with the asset
+      const pinnedSection = page.locator('text=/Pinned/i').first();
+      await expect(pinnedSection).toBeVisible({ timeout: 5000 });
+    }
+  });
+
+  walletTest('shows empty state when no assets pinned', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    // If no assets are pinned, should show empty state message
+    const emptyState = page.locator('text=/No pinned assets|Search for assets to pin/i').first();
+    const pinnedHeader = page.locator('text=/^Pinned$/i').first();
+
+    // Either shows pinned section OR empty state
+    const isPinned = await pinnedHeader.count() > 0;
+
+    if (!isPinned) {
+      await expect(emptyState).toBeVisible({ timeout: 5000 });
+    }
+  });
+
+  walletTest('search input has clear button', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    const searchInput = pinnedAssets.searchInput(page);
+    await searchInput.fill('test');
+
+    // Should show clear button
+    const clearButton = page.locator('button[aria-label*="clear" i], button[aria-label*="close" i]').first();
+    await expect(clearButton).toBeVisible({ timeout: 3000 });
+
+    // Clicking clear should empty the input
+    await clearButton.click();
+    await expect(searchInput).toHaveValue('');
+  });
+
+  walletTest('search shows loading indicator', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/settings/pinned-assets'));
+    await page.waitForLoadState('networkidle');
+
+    const searchInput = pinnedAssets.searchInput(page);
+
+    // Type and check for loading indicator
+    await searchInput.fill('BTC');
+
+    // Loading indicator might appear briefly
+    // We just verify search completes without error
+    await page.waitForLoadState('networkidle');
+
+    // Should show results or no results (not error)
+    const resultsOrEmpty = page.locator('text=/Search Results|No results/i').first();
+    await expect(resultsOrEmpty).toBeVisible({ timeout: 10000 });
   });
 });

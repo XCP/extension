@@ -12,9 +12,11 @@ import { test as base, expect, Page, BrowserContext } from '@playwright/test';
 import * as http from 'http';
 import path from 'path';
 import { chromium } from '@playwright/test';
+import { onboarding, createWallet as createWalletSelectors } from '../selectors';
+import { TEST_PASSWORDS } from '../test-data';
 
 // Test constants
-const TEST_PASSWORD = 'TestPassword123!';
+const TEST_PASSWORD = TEST_PASSWORDS.valid;
 
 // Helper to create a test dApp server
 function createTestDappServer(): Promise<{ server: http.Server; url: string }> {
@@ -282,13 +284,13 @@ async function launchExtension(testId: string): Promise<{
 
 // Helper to create wallet
 async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
-  await page.getByRole('button', { name: 'Create Wallet' }).click();
+  await onboarding.createWalletButton(page).click();
   await page.waitForURL(/create-wallet/);
-  await page.locator('text=View 12-word Secret Phrase').click();
-  await page.waitForTimeout(500);
-  await page.getByLabel(/I have saved my secret recovery phrase/).check();
-  await page.locator('input[name="password"]').fill(password);
-  await page.getByRole('button', { name: 'Continue' }).click();
+  await createWalletSelectors.revealPhraseCard(page).click();
+
+  await createWalletSelectors.savedPhraseCheckbox(page).check();
+  await createWalletSelectors.passwordInput(page).fill(password);
+  await createWalletSelectors.continueButton(page).click();
   await page.waitForURL(/index/, { timeout: 15000 });
 }
 
@@ -300,7 +302,7 @@ async function waitForProvider(page: Page, timeout = 10000): Promise<boolean> {
       return typeof (window as any).xcpwallet !== 'undefined';
     });
     if (hasProvider) return true;
-    await page.waitForTimeout(500);
+    
   }
   return false;
 }
@@ -384,16 +386,12 @@ test.describe('Provider Integration - Full Flow', () => {
       );
 
       await extensionPage.waitForLoadState('networkidle');
-      await extensionPage.waitForTimeout(1000);
+      await extensionPage.waitForLoadState('networkidle');
 
       // Should show the approval UI
-      const hasConnectButton = await extensionPage.locator('button:has-text("Connect")').isVisible({ timeout: 5000 });
-      const hasCancelButton = await extensionPage.locator('button:has-text("Cancel")').isVisible({ timeout: 3000 });
-      const hasOriginText = await extensionPage.locator('text=/localhost/i').first().isVisible({ timeout: 3000 });
-
-      expect(hasConnectButton).toBe(true);
-      expect(hasCancelButton).toBe(true);
-      expect(hasOriginText).toBe(true);
+      await expect(extensionPage.locator('button:has-text("Connect")')).toBeVisible({ timeout: 5000 });
+      await expect(extensionPage.locator('button:has-text("Cancel")')).toBeVisible({ timeout: 3000 });
+      await expect(extensionPage.locator('text=/localhost/i').first()).toBeVisible({ timeout: 3000 });
     } finally {
       await context.close();
     }
@@ -407,11 +405,10 @@ test.describe('Provider Integration - Full Flow', () => {
 
       await extensionPage.goto(`chrome-extension://${extensionId}/popup.html#/settings/connected-sites`);
       await extensionPage.waitForLoadState('networkidle');
-      await extensionPage.waitForTimeout(1000);
+      await extensionPage.waitForLoadState('networkidle');
 
       // Should show empty state
-      const hasEmptyState = await extensionPage.locator('text=/Sites you connect to will appear here/i').isVisible({ timeout: 5000 });
-      expect(hasEmptyState).toBe(true);
+      await expect(extensionPage.locator('text=/Sites you connect to will appear here/i')).toBeVisible({ timeout: 5000 });
     } finally {
       await context.close();
     }
@@ -450,7 +447,7 @@ test.describe('Provider Integration - Full Flow', () => {
       });
 
       // Wait a moment for the request to be registered
-      await extensionPage.waitForTimeout(2000);
+      await extensionPage.waitForLoadState('networkidle');
 
       // The approval popup would have opened, but we'll navigate the extension page instead
       // First, get the pending request info from background
@@ -468,14 +465,19 @@ test.describe('Provider Integration - Full Flow', () => {
         // Try to reload the popup page to fix WXT context issue
         await popupPage.reload();
         await popupPage.waitForLoadState('networkidle');
-        await popupPage.waitForTimeout(2000);
+        await popupPage.waitForLoadState('networkidle');
 
         // Check if Connect button is now visible
-        const hasConnect = await popupPage.locator('button:has-text("Connect")').isVisible({ timeout: 5000 }).catch(() => false);
+        const connectButton = popupPage.locator('button:has-text("Connect")');
+        const connectCount = await connectButton.count();
 
-        if (hasConnect) {
-          await popupPage.locator('button:has-text("Connect")').click();
-          await popupPage.waitForEvent('close', { timeout: 5000 }).catch(() => {});
+        if (connectCount > 0) {
+          await connectButton.click();
+          try {
+            await popupPage.waitForEvent('close', { timeout: 5000 });
+          } catch {
+            // Popup may have already closed
+          }
         } else {
           console.log('Connect button not found after reload, closing popup');
           await popupPage.close();
@@ -498,25 +500,22 @@ test.describe('Provider Integration - Full Flow', () => {
         // Verify Connected Sites
         await extensionPage.goto(`chrome-extension://${extensionId}/popup.html#/settings/connected-sites`);
         await extensionPage.waitForLoadState('networkidle');
-        await extensionPage.waitForTimeout(2000);
+        await extensionPage.waitForLoadState('networkidle');
 
         // Try clicking refresh if available
         const refreshButton = extensionPage.locator('button[aria-label*="Refresh"], button:has([class*="RefreshCw"])').first();
-        if (await refreshButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        const refreshCount = await refreshButton.count();
+        if (refreshCount > 0) {
           await refreshButton.click();
-          await extensionPage.waitForTimeout(1000);
+          await extensionPage.waitForLoadState('networkidle');
         }
 
-        // Check for the connected site or empty state
-        const hasSite = await extensionPage.locator('text=/localhost/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-        const hasEmptyState = await extensionPage.locator('text=/Sites you connect to will appear here/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-        // If we connected successfully, we should see the site (or at least no empty state)
-        // Note: The site might not persist if there's an issue with the connection service
-        console.log('Connected Sites - hasSite:', hasSite, 'hasEmptyState:', hasEmptyState);
-
-        // For now, just verify the page loads correctly
-        expect(hasSite || hasEmptyState || await extensionPage.locator('text=/Connected Sites/i').isVisible()).toBe(true);
+        // Verify the connected sites page loads - should show site, empty state, or title
+        const pageContent = extensionPage.locator('text=/localhost/i').first()
+          .or(extensionPage.locator('text=/Sites you connect to will appear here/i').first())
+          .or(extensionPage.locator('text=/Connected Sites/i').first())
+          .first();
+        await expect(pageContent).toBeVisible({ timeout: 5000 });
       }
 
       await dappPage.close();
@@ -570,7 +569,7 @@ test.describe('Provider Integration - Wallet States', () => {
       await dappPage.click('#connect-btn');
 
       // Should show error about wallet setup, connection failure, or hang in "Connecting..." state
-      await dappPage.waitForTimeout(3000);
+      await dappPage.waitForLoadState('networkidle');
       const errorText = await dappPage.locator('#error').textContent() ?? '';
       const statusText = await dappPage.locator('#status').textContent() ?? '';
       // Accept various indicators that connection didn't succeed:

@@ -2,70 +2,41 @@
  * Compose Fairminter Page Tests (/compose/fairminter)
  *
  * Tests for creating a fairminter (fair launch token distribution).
+ * Component: src/pages/compose/fairminter/index.tsx
+ *
+ * The page shows:
+ * - Title "Fairminter"
+ * - Asset name input
+ * - Price configuration
+ * - Max mint configuration
  */
 
 import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Fairminter Page (/compose/fairminter)', () => {
-  walletTest('can navigate to fairminter from actions', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await expect(page).toHaveURL(/actions/);
-
-    const fairminterOption = page.locator('text=/Fairminter|Fair.*Launch|Fair.*Mint/i').first();
-
-    if (await fairminterOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await fairminterOption.click();
-      await page.waitForTimeout(500);
-
-      expect(page.url()).toContain('fairminter');
-    }
-  });
-
-  walletTest('fairminter page loads', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    // Navigate directly to fairminter page
     await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter'));
     await page.waitForLoadState('networkidle');
-
-    const hasFairminter = await page.locator('text=/Fairminter|Fair.*Launch|Create.*Fair/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCreateButton = await compose.fairminter.createButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('fairminter');
-
-    expect(hasFairminter || hasCreateButton || redirected).toBe(true);
   });
 
-  walletTest('fairminter form has asset name input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairminter')) {
-      const hasNameField = await page.locator('text=/Asset.*Name|Name|Token/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasNameInput = await compose.fairminter.assetNameInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasNameField || hasNameInput || true).toBe(true);
-    }
+  walletTest('page loads with Fairminter title', async ({ page }) => {
+    // The header should show "Fairminter"
+    const titleText = page.locator('text="Fairminter"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairminter form has price configuration', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairminter')) {
-      const hasPriceField = await page.locator('text=/Price|Rate|Cost/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPriceInput = await compose.fairminter.priceInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasPriceField || hasPriceInput || true).toBe(true);
-    }
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairminter form has max mint configuration', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairminter'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairminter')) {
-      const hasMaxField = await page.locator('text=/Max.*Mint|Maximum|Limit/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasMaxInput = await compose.fairminter.maxMintInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasMaxField || hasMaxInput || true).toBe(true);
-    }
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });

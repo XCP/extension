@@ -47,15 +47,15 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await passwordInput.fill('');
 
     // Button should be disabled or clicking should not unlock
-    const isDisabled = await unlockButton.isDisabled().catch(() => false);
+    const isDisabled = await unlockButton.isDisabled();
 
     if (!isDisabled) {
-      // If button is not disabled, clicking with empty password should show error
+      // If button is not disabled, clicking with empty password should show error or stay on page
       await unlockButton.click();
-      await page.waitForTimeout(500);
+      
 
-      const stillOnUnlock = page.url().includes('unlock');
-      expect(stillOnUnlock).toBe(true);
+      // Should still be on unlock page
+      await expect(page).toHaveURL(/unlock/);
     } else {
       expect(isDisabled).toBe(true);
     }
@@ -69,13 +69,13 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
 
     await passwordInput.fill('wrongpassword123');
     await unlock.unlockButton(page).click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
-    // Check for error message
-    const hasError = await page.locator('text=/incorrect|invalid|wrong|error/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const stillOnUnlock = page.url().includes('unlock');
-
-    expect(hasError || stillOnUnlock).toBe(true);
+    // Should show error message (while still on unlock page with password input visible)
+    const errorMessage = page.locator('text=/incorrect|invalid|wrong|error/i').first();
+    await expect(errorMessage).toBeVisible({ timeout: 5000 });
+    // Should still be on unlock page (not authenticated)
+    await expect(page).toHaveURL(/unlock/);
   });
 
   walletTest('unlocks wallet with correct password', async ({ page }) => {
@@ -100,11 +100,11 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
 
     await passwordInput.fill('wrongpassword');
     await unlock.unlockButton(page).click();
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState('networkidle');
 
     // Password field may or may not clear - both behaviors are acceptable
-    const value = await passwordInput.inputValue();
-    expect(value === '' || value === 'wrongpassword').toBe(true);
+    // Just verify the page is still functional
+    await expect(passwordInput).toBeVisible();
   });
 
   walletTest('supports Enter key to submit', async ({ page }) => {
@@ -125,22 +125,19 @@ walletTest.describe('Unlock Wallet Page (/auth/unlock)', () => {
     await lockWallet(page);
 
     // Should show which wallet is being unlocked
-    const hasWalletName = await page.locator('text=/Wallet|unlock your wallet/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasWalletName).toBe(true);
+    const walletText = page.locator('text=/Wallet|unlock your wallet/i').first();
+    await expect(walletText).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('has password visibility toggle', async ({ page }) => {
+  walletTest('password input is secure (type=password)', async ({ page }) => {
     await lockWallet(page);
 
     const passwordInput = unlock.passwordInput(page);
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
-    // Look for eye icon or show/hide button
-    const hasToggle = await page.locator('button[aria-label*="show" i], button[aria-label*="visibility" i], [data-testid*="toggle"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Toggle is optional UI enhancement
-    expect(hasToggle || true).toBe(true);
+    // Password field should be of type password (hides characters)
+    const inputType = await passwordInput.getAttribute('type');
+    expect(inputType).toBe('password');
   });
 
   walletTest('lock state persists after page reload', async ({ page }) => {

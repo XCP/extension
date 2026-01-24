@@ -20,14 +20,14 @@ import { walletTest, expect } from '../fixtures';
 
 walletTest.describe('PriceWithSuggestInput Component', () => {
   // Navigate to dispenser page which uses PriceWithSuggestInput
-  // Route is /compose/dispenser/:asset (not /compose/dispenser/create/:asset)
   walletTest.beforeEach(async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     // Use XCP asset for dispenser - it's a common asset
     await page.goto(`${baseUrl}/compose/dispenser/XCP`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for price input to be ready
+    await page.locator('input[name="mainchainrate_display"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get price input - dispenser uses name="mainchainrate_display"
@@ -36,310 +36,218 @@ walletTest.describe('PriceWithSuggestInput Component', () => {
   walletTest.describe('Rendering', () => {
     walletTest('renders price input field', async ({ page }) => {
       const input = getPriceInput(page);
-      // Use catch pattern for resilience - page may still be loading
-      const isVisible = await input.isVisible({ timeout: 5000 }).catch(() => false);
-      expect(isVisible).toBe(true);
+      await expect(input).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has Price label', async ({ page }) => {
       // Dispenser uses "Price in Bitcoin" label
       const label = page.locator('label:has-text("Price")');
-      const isVisible = await label.isVisible({ timeout: 5000 }).catch(() => false);
-      expect(isVisible).toBe(true);
-    });
-
-    walletTest('has required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Price") span.text-red-500');
-      // Required indicator may not be present - check pattern
-      const isVisible = await requiredIndicator.isVisible({ timeout: 5000 }).catch(() => false);
-      expect(typeof isVisible).toBe('boolean'); // Test passes whether visible or not
+      await expect(label).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has placeholder text', async ({ page }) => {
       const input = getPriceInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const placeholder = await input.getAttribute('placeholder');
-        expect(placeholder).toBe('0.00000000');
-      }
+      const placeholder = await input.getAttribute('placeholder');
+      expect(placeholder).toBe('0.00000000');
     });
   });
 
   walletTest.describe('Valid Price Entry', () => {
     walletTest('accepts positive decimal numbers', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('0.00001');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('0.00001');
-        await input.blur();
-        await page.waitForTimeout(200);
-
-        // Should not show error
+      // Should not show error
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
         expect(classes).not.toContain('border-red-500');
-      }
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('accepts zero as starting value', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('0');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('0');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toContain('0');
-      }
+      const value = await input.inputValue();
+      expect(value).toContain('0');
     });
 
     walletTest('handles 8 decimal places', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('0.12345678');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('0.12345678');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toContain('12345678');
-      }
+      const value = await input.inputValue();
+      expect(value).toContain('12345678');
     });
 
     walletTest('accepts large numbers', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('1000000');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('1000000');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        // May be formatted with commas
-        expect(value.replace(/,/g, '')).toContain('1000000');
-      }
+      const value = await input.inputValue();
+      // May be formatted with commas
+      expect(value.replace(/,/g, '')).toContain('1000000');
     });
   });
 
   walletTest.describe('Input Sanitization', () => {
     walletTest('strips non-numeric characters', async ({ page }) => {
       const input = getPriceInput(page);
+      // Type text with letters
+      await input.fill('abc123');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Type text with letters
-        await input.fill('abc123');
-        await page.waitForTimeout(200);
-
-        // Only numbers should remain
-        const value = await input.inputValue();
-        expect(value).not.toContain('a');
-        expect(value).not.toContain('b');
-        expect(value).not.toContain('c');
-      }
+      // Only numbers should remain
+      const value = await input.inputValue();
+      expect(value).not.toContain('a');
+      expect(value).not.toContain('b');
+      expect(value).not.toContain('c');
     });
 
     walletTest('allows only one decimal point', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('1.2.3');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('1.2.3');
-        await page.waitForTimeout(200);
-
-        // Should only have one decimal
-        const value = await input.inputValue();
-        const decimalCount = (value.match(/\./g) || []).length;
-        expect(decimalCount).toBeLessThanOrEqual(1);
-      }
+      // Should only have one decimal
+      const value = await input.inputValue();
+      const decimalCount = (value.match(/\./g) || []).length;
+      expect(decimalCount).toBeLessThanOrEqual(1);
     });
 
     walletTest('strips special characters', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('$100.50');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('$100.50');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).not.toContain('$');
-      }
+      const value = await input.inputValue();
+      expect(value).not.toContain('$');
     });
   });
 
   walletTest.describe('Min Button (Suggested Price)', () => {
-    walletTest('Min button visible when trading data available', async ({ page }) => {
-      // The Min button only appears if there's last trade data
+    walletTest('Min button has accessible label when visible', async ({ page }) => {
       const minButton = page.locator('button:has-text("Min")');
-      const isVisible = await minButton.isVisible({ timeout: 3000 }).catch(() => false);
+      const minButtonCount = await minButton.count();
 
-      // May or may not be visible depending on API data
-      expect(typeof isVisible).toBe('boolean');
-    });
+      walletTest.skip(minButtonCount === 0, 'Min button not available');
 
-    walletTest('Min button has accessible label', async ({ page }) => {
-      const minButton = page.locator('button:has-text("Min")');
-
-      if (await minButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        const ariaLabel = await minButton.getAttribute('aria-label');
-        expect(ariaLabel).toContain('suggested price');
-      }
+      await expect(minButton).toBeVisible({ timeout: 2000 });
+      const ariaLabel = await minButton.getAttribute('aria-label');
+      expect(ariaLabel).toContain('suggested price');
     });
 
     walletTest('clicking Min populates price field', async ({ page }) => {
       const input = getPriceInput(page);
       const minButton = page.locator('button:has-text("Min")');
+      const minButtonCount = await minButton.count();
 
-      if (await minButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Clear input first
-        await input.clear();
+      walletTest.skip(minButtonCount === 0, 'Min button not available');
 
-        // Click Min button
-        await minButton.click();
-        await page.waitForTimeout(300);
+      await expect(minButton).toBeVisible({ timeout: 2000 });
 
-        // Price field should now have a value
-        const value = await input.inputValue();
-        expect(value).toBeTruthy();
-        expect(value).not.toBe('');
-      }
+      // Clear input first
+      await input.clear();
+
+      // Click Min button
+      await minButton.click();
+
+      // Price field should now have a non-empty value
+      await expect(input).not.toHaveValue('', { timeout: 2000 });
     });
   });
 
   walletTest.describe('Input Behavior', () => {
     walletTest('allows clearing price', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('100');
+      await input.clear();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('100');
-        await input.clear();
-
-        const value = await input.inputValue();
-        expect(value).toBe('');
-      }
+      const value = await input.inputValue();
+      expect(value).toBe('');
     });
 
     walletTest('allows editing price', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('100');
+      await input.clear();
+      await input.fill('200');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('100');
-        await input.clear();
-        await input.fill('200');
-
-        const value = await input.inputValue();
-        expect(value.replace(/,/g, '')).toContain('200');
-      }
+      const value = await input.inputValue();
+      expect(value.replace(/,/g, '')).toContain('200');
     });
 
     walletTest('preserves value after blur', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('0.5');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('0.5');
-        await input.blur();
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toContain('5');
-      }
+      const value = await input.inputValue();
+      expect(value).toContain('5');
     });
   });
 
   walletTest.describe('Form Integration', () => {
     walletTest('input has name attribute', async ({ page }) => {
       const input = getPriceInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const name = await input.getAttribute('name');
-        // Dispenser form uses mainchainrate_display for price input
-        expect(name).toBe('mainchainrate_display');
-      }
+      const name = await input.getAttribute('name');
+      // Dispenser form uses mainchainrate_display for price input
+      expect(name).toBe('mainchainrate_display');
     });
 
     walletTest('input has id attribute', async ({ page }) => {
       const input = getPriceInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const id = await input.getAttribute('id');
-        // Dispenser form uses mainchainrate_display for price input
-        expect(id).toBe('mainchainrate_display');
-      }
+      const id = await input.getAttribute('id');
+      // Dispenser form uses mainchainrate_display for price input
+      expect(id).toBe('mainchainrate_display');
     });
 
     walletTest('input is required', async ({ page }) => {
       const input = getPriceInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const required = await input.getAttribute('required');
-        expect(required).not.toBeNull();
-      }
+      const required = await input.getAttribute('required');
+      expect(required).not.toBeNull();
     });
 
     walletTest('input is within form', async ({ page }) => {
       const input = getPriceInput(page);
+      const isInForm = await input.evaluate((el: HTMLElement) => {
+        return el.closest('form') !== null;
+      });
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isInForm = await input.evaluate((el: HTMLElement) => {
-          return el.closest('form') !== null;
-        });
-
-        expect(isInForm).toBe(true);
-      }
+      expect(isInForm).toBe(true);
     });
   });
 
   walletTest.describe('Number Formatting', () => {
     walletTest('formats large numbers with thousands separators', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('1000000');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('1000000');
-        await page.waitForTimeout(200);
-
-        // Value may be formatted as 1,000,000
-        const value = await input.inputValue();
-        const hasFormatting = value.includes(',') || value === '1000000';
-        expect(hasFormatting).toBe(true);
-      }
+      // Value may be formatted as 1,000,000
+      const value = await input.inputValue();
+      const hasFormatting = value.includes(',') || value === '1000000';
+      expect(hasFormatting).toBe(true);
     });
 
     walletTest('preserves decimal precision', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.fill('0.00000001');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('0.00000001');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        // Should preserve the small decimal value
-        expect(value).toContain('00000001');
-      }
+      const value = await input.inputValue();
+      // Should preserve the small decimal value
+      expect(value).toContain('00000001');
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('input is focusable', async ({ page }) => {
       const input = getPriceInput(page);
+      await input.focus();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.focus();
+      const isFocused = await page.evaluate(() => {
+        // Dispenser form uses mainchainrate_display for price input
+        return document.activeElement?.getAttribute('name') === 'mainchainrate_display';
+      });
 
-        const isFocused = await page.evaluate(() => {
-          // Dispenser form uses mainchainrate_display for price input
-          return document.activeElement?.getAttribute('name') === 'mainchainrate_display';
-        });
-
-        expect(isFocused).toBe(true);
-      }
-    });
-
-    walletTest('label is associated with input', async ({ page }) => {
-      const input = getPriceInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const inputId = await input.getAttribute('id');
-        // HeadlessUI's Label may use for attribute or aria-labelledby
-        const label = page.locator(`label[for="${inputId}"]`);
-        const hasLabel = await label.isVisible().catch(() => false);
-
-        expect(typeof hasLabel).toBe('boolean');
-      }
+      expect(isFocused).toBe(true);
     });
   });
 });

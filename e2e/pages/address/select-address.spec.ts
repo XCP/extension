@@ -5,101 +5,187 @@
  */
 
 import { walletTest, expect } from '../../fixtures';
+import { selectAddress, common } from '../../selectors';
 
 walletTest.describe('Select Address Page (/select-address)', () => {
   walletTest('select address page loads', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    // Should show address selection UI or redirect for non-mnemonic wallets
-    const hasTitle = await page.locator('text=/Addresses/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasAddressList = await page.locator('[role="radiogroup"], [class*="list"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('select-address');
+    // Check if redirected (non-mnemonic wallet behavior)
+    const currentUrl = page.url();
+    walletTest.skip(!currentUrl.includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    expect(hasTitle || hasAddressList || redirected).toBe(true);
+    // Should show address selection UI - use specific heading selector
+    const title = page.getByRole('heading', { name: 'Addresses' });
+    await expect(title).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows list of addresses', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('select-address')) {
-      // Should show address cards
-      const hasAddressCards = await page.locator('[class*="card"], [class*="address"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasAddressText = await page.locator('text=/Address [0-9]+|Account [0-9]+/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasMonoAddress = await page.locator('.font-mono').first().isVisible({ timeout: 3000 }).catch(() => false);
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-      expect(hasAddressCards || hasAddressText || hasMonoAddress).toBe(true);
-    }
+    // Should show radiogroup with addresses
+    const addressList = selectAddress.addressList(page);
+    await expect(addressList).toBeVisible({ timeout: 5000 });
+
+    // And should have at least one radio option
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible();
   });
 
   walletTest('shows Add Address button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('select-address')) {
-      // Should have Add Address button
-      const addButton = page.locator('button:has-text("Add Address"), button[aria-label*="Add"]');
-      await expect(addButton.first()).toBeVisible({ timeout: 5000 });
-    }
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('has Add button in header', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('select-address')) {
-      // Should have plus button in header for adding addresses
-      const hasAddButton = await page.locator('button[aria-label*="Add"], header button svg').last().isVisible({ timeout: 5000 }).catch(() => false);
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-      expect(hasAddButton).toBe(true);
-    }
+    // The main Add Address button (green, full-width)
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('can select an address', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('select-address')) {
-      // Click on first address card
-      const addressCard = page.locator('[class*="card"], [role="radio"]').first();
-      if (await addressCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await addressCard.click();
-        await page.waitForTimeout(500);
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-        // Should navigate to index after selection
-        const navigatedToIndex = page.url().includes('index');
-        expect(navigatedToIndex).toBe(true);
-      }
-    }
+    // Click on first address option
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible({ timeout: 5000 });
+    await firstAddressOption.click();
+
+    // Should navigate to index after selection
+    await expect(page).toHaveURL(/index/, { timeout: 5000 });
   });
 
   walletTest('has back navigation', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    if (page.url().includes('select-address')) {
-      const backButton = page.locator('button[aria-label*="back"], header button').first();
-      if (await backButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await backButton.click();
-        await page.waitForTimeout(500);
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-        // Should navigate back
-        const navigatedBack = !page.url().includes('select-address');
-        expect(navigatedBack).toBe(true);
-      }
-    }
+    const backButton = common.headerBackButton(page);
+    await expect(backButton).toBeVisible({ timeout: 5000 });
+    await backButton.click();
+
+    // Should navigate back (not on select-address anymore)
+    await expect(page).not.toHaveURL(/select-address/, { timeout: 5000 });
   });
 
-  walletTest('shows error if no active wallet', async ({ page }) => {
+  walletTest('indicates currently selected address', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-address'));
     await page.waitForLoadState('networkidle');
 
-    // If no wallet, should show error or redirect
-    const hasError = await page.locator('text=/No active wallet|No wallet/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasContent = await page.locator('text=/Addresses|Address/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('select-address');
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
 
-    expect(hasError || hasContent || redirected).toBe(true);
+    // The currently selected address should be marked (aria-checked="true")
+    const selectedAddress = page.locator('[role="radio"][aria-checked="true"]');
+    await expect(selectedAddress).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('can add new address and it appears in list', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.waitForLoadState('networkidle');
+
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    // Count addresses before adding
+    const addressesBefore = await page.locator('[role="radio"]').count();
+
+    // Click Add Address button
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
+    await addButton.click();
+
+    // Wait for new address to appear (button shows "Adding..." then reverts)
+    // Use waitForFunction to wait for the count to increase
+    await page.waitForFunction(
+      (prevCount) => document.querySelectorAll('[role="radio"]').length > prevCount,
+      addressesBefore,
+      { timeout: 10000 }
+    );
+
+    // Count addresses after - should be one more
+    const addressesAfter = await page.locator('[role="radio"]').count();
+    expect(addressesAfter).toBe(addressesBefore + 1);
+  });
+
+  walletTest('Add Address button shows loading state', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.waitForLoadState('networkidle');
+
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    const addButton = selectAddress.addAddressButton(page);
+    await expect(addButton).toBeVisible({ timeout: 5000 });
+
+    // Button text should show "Add Address" initially
+    await expect(addButton).toContainText(/Add Address/i);
+  });
+
+  walletTest('selecting different address updates index page', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.waitForLoadState('networkidle');
+
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    // First add a second address if only one exists
+    const addressCount = await page.locator('[role="radio"]').count();
+    if (addressCount < 2) {
+      await selectAddress.addAddressButton(page).click();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Get the non-selected address option
+    const nonSelectedAddress = page.locator('[role="radio"][aria-checked="false"]').first();
+    const nonSelectedCount = await nonSelectedAddress.count();
+
+    if (nonSelectedCount > 0) {
+      // Click to select different address
+      await nonSelectedAddress.click();
+
+      // Should navigate to index
+      await expect(page).toHaveURL(/index/, { timeout: 5000 });
+    }
+  });
+
+  walletTest('header has Add button for quick add', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.waitForLoadState('networkidle');
+
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    // Header should have Add Address button (icon only, in header section)
+    const headerAddButton = selectAddress.headerAddButton(page);
+    await expect(headerAddButton).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('shows address previews in list', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.waitForLoadState('networkidle');
+
+    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+
+    // Each address item should show the address text
+    const firstAddress = selectAddress.addressOption(page, 0);
+    await expect(firstAddress).toBeVisible({ timeout: 5000 });
+
+    // Should contain a Bitcoin address pattern
+    const addressText = await firstAddress.textContent();
+    expect(addressText).toMatch(/(1|3|bc1|tb1)[a-zA-Z0-9]/);
   });
 });

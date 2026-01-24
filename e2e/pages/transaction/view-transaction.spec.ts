@@ -2,49 +2,44 @@
  * Transaction Pages Tests
  *
  * Tests for transaction viewing pages:
- * - /transaction/view/:txid - View transaction details
+ * - /transaction/:txHash - View transaction details
+ *
+ * Note: These tests use a dummy txid. The API may return data or an error,
+ * but the page structure (header, back button) is consistent regardless.
  */
 
 import { walletTest, expect } from '../../fixtures';
 import { common } from '../../selectors';
 
 walletTest.describe('Transaction Pages', () => {
-  walletTest.describe('View Transaction (/transaction/view)', () => {
-    walletTest('view transaction page loads with txid', async ({ page }) => {
-      const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
-      await page.goto(page.url().replace(/\/index.*/, `/transaction/view/${testTxid}`));
-      await page.waitForLoadState('networkidle');
+  walletTest.describe('View Transaction (/transaction/:txHash)', () => {
+    const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
 
-      const hasTransaction = await page.locator('text=/Transaction|Details|Hash/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasError = await page.locator('text=/not found|error|invalid/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const redirected = !page.url().includes('/transaction/');
+    walletTest('view transaction page loads and shows header title', async ({ page }) => {
+      await page.goto(page.url().replace(/\/index.*/, `/transaction/${testTxid}`));
+      await page.waitForLoadState('domcontentloaded');
 
-      expect(hasTransaction || hasError || redirected).toBe(true);
+      // Header title "Transaction" is set immediately via setHeaderProps
+      const headerTitle = page.locator('header h1');
+      await expect(headerTitle).toHaveText('Transaction', { timeout: 10000 });
     });
 
-    walletTest('view transaction shows transaction details', async ({ page }) => {
-      const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
-      await page.goto(page.url().replace(/\/index.*/, `/transaction/view/${testTxid}`));
-      await page.waitForLoadState('networkidle');
+    walletTest('view transaction page has back button in header', async ({ page }) => {
+      await page.goto(page.url().replace(/\/index.*/, `/transaction/${testTxid}`));
+      await page.waitForLoadState('domcontentloaded');
 
-      if (page.url().includes('/transaction/')) {
-        const hasDetails = await page.locator('text=/Hash|Block|Confirmations|Fee|Status/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-        const hasError = await page.locator('text=/not found|error/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-        expect(hasDetails || hasError || true).toBe(true);
-      }
+      // Header back button is set immediately via setHeaderProps
+      const backButton = common.headerBackButton(page);
+      await expect(backButton).toBeVisible({ timeout: 10000 });
     });
 
-    walletTest('view transaction has explorer link', async ({ page }) => {
-      const testTxid = '0000000000000000000000000000000000000000000000000000000000000000';
-      await page.goto(page.url().replace(/\/index.*/, `/transaction/view/${testTxid}`));
-      await page.waitForLoadState('networkidle');
+    walletTest('view transaction page has view on xchain button', async ({ page }) => {
+      await page.goto(page.url().replace(/\/index.*/, `/transaction/${testTxid}`));
+      await page.waitForLoadState('domcontentloaded');
 
-      if (page.url().includes('/transaction/')) {
-        const hasExplorerLink = await page.locator('a[href*="explorer"], a[href*="blockstream"], text=/View.*Explorer/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-
-        expect(hasExplorerLink || true).toBe(true);
-      }
+      // Right button "View on XChain" is set immediately via setHeaderProps
+      const xchainButton = page.locator('header button[aria-label="View on XChain"]');
+      await expect(xchainButton).toBeVisible({ timeout: 10000 });
     });
   });
 });

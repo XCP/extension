@@ -23,7 +23,8 @@ walletTest.describe('MemoInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/send/XCP`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
+    // Wait for memo input to be visible (confirms page loaded)
+    await page.locator('input[name="memo"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get the memo input
@@ -49,14 +50,12 @@ walletTest.describe('MemoInput Component', () => {
 
     walletTest('is not required by default on send page', async ({ page }) => {
       // Memo is typically optional on send page
-      const label = page.locator('label:has-text("Memo")');
+      const label = page.locator('label').filter({ hasText: 'Memo' });
       await expect(label).toBeVisible();
 
-      // Check if there's no required asterisk
-      const requiredIndicator = label.locator('span.text-red-500');
-      const hasRequired = await requiredIndicator.isVisible().catch(() => false);
-      // Memo field may or may not be required depending on page
-      expect(hasRequired === true || hasRequired === false).toBe(true);
+      // Check for required asterisk - memo should be optional (no *)
+      const labelText = await label.textContent();
+      expect(labelText).not.toContain('*');
     });
   });
 
@@ -108,31 +107,18 @@ walletTest.describe('MemoInput Component', () => {
   });
 
   walletTest.describe('Invalid Input', () => {
-    walletTest('handles memo that may exceed byte limit', async ({ page }) => {
+    walletTest('accepts memo slightly over byte limit without immediate error', async ({ page }) => {
       const input = getMemoInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
 
-      // Enter a long memo
+      // Enter a memo slightly over 34 byte limit (40 chars)
+      // Validation may not trigger until form submission
       const longMemo = 'a'.repeat(40);
       await input.fill(longMemo);
       await input.blur();
 
-      // Wait for validation to run
-      await page.waitForTimeout(300);
-
-      // Value should be accepted (component may or may not validate)
-      const value = await input.inputValue();
-      expect(value).toBe(longMemo);
-
-      // Check if validation is applied (may vary based on implementation)
-      const classes = await input.getAttribute('class') || '';
-      const hasErrorStyle = classes.includes('border-red-500');
-      const ariaInvalid = await input.getAttribute('aria-invalid');
-
-      // Test that validation state is consistent
-      // Either validation is working (shows error) or not enabled (no error)
-      expect(typeof hasErrorStyle).toBe('boolean');
-      expect(ariaInvalid === 'true' || ariaInvalid === 'false' || ariaInvalid === null).toBe(true);
+      // Value should be preserved in input
+      await expect(input).toHaveValue(longMemo);
     });
 
     walletTest('shows error for very long memo', async ({ page }) => {
@@ -195,24 +181,21 @@ walletTest.describe('MemoInput Component', () => {
       const input = getMemoInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
 
-      // First enter invalid (too long)
-      const longMemo = 'a'.repeat(50);
+      // First enter invalid (very long - 100 chars triggers error)
+      const longMemo = 'a'.repeat(100);
       await input.fill(longMemo);
       await input.blur();
-      await page.waitForTimeout(300);
+
+      // Wait for error styling to appear
+      await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
 
       // Then enter valid
       await input.clear();
       await input.fill('short');
       await input.blur();
-      await page.waitForTimeout(300);
 
-      // Check if error styling is removed
-      const classes = await input.getAttribute('class') || '';
-      const hasErrorStyle = classes.includes('border-red-500');
-
-      // Valid input should not have error styling
-      expect(hasErrorStyle).toBe(false);
+      // Error styling should be removed
+      await expect(input).not.toHaveClass(/border-red-500/);
     });
   });
 
@@ -316,15 +299,9 @@ walletTest.describe('MemoInput Component', () => {
 
       await input.fill(overMemo);
       await input.blur();
-      await page.waitForTimeout(300);
 
-      // Should show error styling or be flagged as invalid
-      const classes = await input.getAttribute('class') || '';
-      const hasErrorStyle = classes.includes('border-red-500') || classes.includes('ring-red');
-      const ariaInvalid = await input.getAttribute('aria-invalid');
-
-      // Either has error styling or aria-invalid
-      expect(hasErrorStyle || ariaInvalid === 'true').toBe(true);
+      // Should show error styling for exceeding byte limit
+      await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
     });
   });
 
@@ -346,21 +323,12 @@ walletTest.describe('MemoInput Component', () => {
       const input = getMemoInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
 
-      // Get initial classes when empty/valid
-      const initialClasses = await input.getAttribute('class') || '';
-
       // Enter a valid memo
       await input.fill('valid memo');
       await input.blur();
-      await page.waitForTimeout(300);
 
-      // Get classes after valid input
-      const validClasses = await input.getAttribute('class') || '';
-
-      // Input should maintain consistent styling for valid input
-      // (should not have error styling)
-      const hasErrorStyleWhenValid = validClasses.includes('border-red-500');
-      expect(hasErrorStyleWhenValid).toBe(false);
+      // Valid input should not have error styling
+      await expect(input).not.toHaveClass(/border-red-500/);
     });
   });
 });

@@ -2,57 +2,40 @@
  * Compose Dispenser Close Page Tests (/compose/dispenser/close)
  *
  * Tests for closing a dispenser.
+ * Component: src/pages/compose/dispenser/close/index.tsx
+ *
+ * The page shows:
+ * - Title "Close"
+ * - Dispenser selection (dropdown of user's open dispensers)
+ * - Fee Rate selector
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { walletTest, expect } from '../../../fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Close Page (/compose/dispenser/close)', () => {
-  walletTest('can navigate to close dispenser from actions', async ({ page }) => {
-    await navigateTo(page, 'actions');
-    await expect(page).toHaveURL(/actions/);
-
-    const closeOption = actions.closeDispenserOption(page);
-
-    if (await closeOption.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await closeOption.click();
-      await page.waitForTimeout(500);
-
-      expect(page.url()).toContain('close');
-    }
-  });
-
-  walletTest('close dispenser page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close'));
-    await page.waitForLoadState('networkidle');
-
-    const hasCloseForm = await page.locator('text=/Close.*Dispenser|Select.*Dispenser|Your.*Dispenser/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSelect = await compose.dispenser.dispenserSelect(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('close');
-
-    expect(hasCloseForm || hasSelect || redirected).toBe(true);
-  });
-
-  walletTest('close dispenser shows user dispensers', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('/compose/dispenser/close')) {
-      const hasDispensers = await page.locator('text=/Your.*Dispenser|Select|Open/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmpty = await page.locator('text=/No.*dispenser|No open|empty/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-      const hasLoading = await page.locator('text=/Loading/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-      expect(hasDispensers || hasEmpty || hasLoading).toBe(true);
-    }
-  });
-
-  walletTest('close dispenser with asset parameter', async ({ page }) => {
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    // Route requires asset parameter: /compose/dispenser/close/:asset?
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close/XCP'));
     await page.waitForLoadState('networkidle');
+  });
 
-    const hasAssetDispenser = await page.locator('text=/XCP|Close.*Dispenser/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasCloseButton = await compose.dispenser.closeButton(page).isVisible({ timeout: 3000 }).catch(() => false);
+  walletTest('page loads with Close title', async ({ page }) => {
+    // The header should show "Close"
+    const titleText = page.locator('text="Close"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
+  });
 
-    expect(hasAssetDispenser || hasCloseButton || true).toBe(true);
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  });
+
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });

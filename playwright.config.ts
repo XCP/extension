@@ -5,7 +5,10 @@ const isCI = !!process.env.CI;
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
-  
+
+  // Single worker for extension tests to avoid state conflicts
+  workers: 1,
+
   // Retry flaky tests in CI only
   retries: isCI ? 2 : 0,
   

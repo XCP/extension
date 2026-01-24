@@ -140,14 +140,16 @@ export async function enableValidationBypass(page: Page): Promise<void> {
       const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
 
       // Return proper details for known assets (needed for order forms, etc.)
-      const knownAssets: Record<string, { divisible: boolean; supply: number }> = {
-        XCP: { divisible: true, supply: 2648755823622677 },
-        BTC: { divisible: true, supply: 0 },
-        PEPECASH: { divisible: true, supply: 1000000000000000 },
+      const knownAssets: Record<string, { divisible: boolean; supply: number; locked: boolean }> = {
+        XCP: { divisible: true, supply: 2648755823622677, locked: true },
+        BTC: { divisible: true, supply: 0, locked: true },
+        PEPECASH: { divisible: true, supply: 1000000000000000, locked: true },
+        // TESTUNLOCKED is an unlocked asset for testing issue-supply and lock-supply
+        TESTUNLOCKED: { divisible: true, supply: 100000000000, locked: false },
       };
 
       if (knownAssets[assetName]) {
-        console.log(`[E2E Mock] Asset details for ${assetName} - returning mock data`);
+        console.log(`[E2E Mock] Asset details for ${assetName} - returning mock data (locked: ${knownAssets[assetName].locked})`);
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -157,9 +159,9 @@ export async function enableValidationBypass(page: Page): Promise<void> {
               asset_longname: null,
               description: `Mock ${assetName} asset`,
               divisible: knownAssets[assetName].divisible,
-              locked: true,
+              locked: knownAssets[assetName].locked,
               supply: knownAssets[assetName].supply,
-              issuer: null,
+              issuer: '1TestIssuer123456789abcdefgh',
             },
           }),
         });
@@ -177,21 +179,30 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     }
 
     // Handle balance endpoints - return mock balance
+    // API returns PaginatedResponse<TokenBalance> with result as an array
     if (url.includes('/balances/')) {
       const assetMatch = url.match(/\/balances\/([^/?]+)/);
       const assetName = assetMatch ? decodeURIComponent(assetMatch[1]) : 'UNKNOWN';
       console.log(`[E2E Mock] Balance for ${assetName} - returning mock balance`);
 
-      // Return a mock balance (enough for testing)
+      // Return a mock balance as array (API returns paginated response)
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          result: {
+          result: [{
             asset: assetName,
             quantity: assetName === 'BTC' ? 1000000 : 100000000000, // 0.01 BTC or 1000 units
             quantity_normalized: assetName === 'BTC' ? '0.01000000' : '1000.00000000',
-          },
+            asset_info: {
+              asset_longname: null,
+              description: `Mock ${assetName} asset`,
+              issuer: '1TestIssuer123456789abcdefgh',
+              divisible: true,
+              locked: true,
+            },
+          }],
+          result_count: 1,
         }),
       });
       return;
@@ -226,7 +237,8 @@ export async function goToCompose(page: Page, path: string): Promise<void> {
 
   await page.goto(targetUrl);
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1000);
+  // Wait for form elements to be ready - page must have at least one interactive element
+  await page.locator('input, textarea, button').first().waitFor({ state: 'visible', timeout: 10000 });
 }
 
 /**
@@ -263,8 +275,9 @@ export async function fillSendForm(
 
   if (options.memo) {
     const memoInput = page.locator('input[name="memo"], textarea[name="memo"]');
-    if (await memoInput.isVisible({ timeout: 1000 }).catch(() => false)) {
-      await memoInput.fill(options.memo);
+    const memoCount = await memoInput.count();
+    if (memoCount > 0) {
+      await memoInput.first().fill(options.memo);
     }
   }
 }
@@ -282,29 +295,13 @@ export async function submitForm(page: Page): Promise<void> {
  * Wait for review page to appear
  */
 export async function waitForReview(page: Page): Promise<void> {
-  const reviewIndicators = [
-    page.locator('text=/Review Transaction|Confirm Transaction|Review/i').first(),
-    page.locator('text=Sign & Broadcast').first(),
-    page.locator('button:has-text("Sign"), button:has-text("Broadcast")').first(),
-  ];
+  // Combined locator that matches any review page indicator
+  const reviewIndicator = page.locator('text=/Review Transaction|Confirm Transaction|Review/i')
+    .or(page.locator('text=Sign & Broadcast'))
+    .or(page.locator('button:has-text("Sign"), button:has-text("Broadcast")'))
+    .first();
 
-  await Promise.race(
-    reviewIndicators.map((loc) =>
-      loc.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
-    )
-  );
-
-  let found = false;
-  for (const loc of reviewIndicators) {
-    if (await loc.isVisible().catch(() => false)) {
-      found = true;
-      break;
-    }
-  }
-
-  if (!found) {
-    throw new Error('Review page indicators not found after form submission');
-  }
+  await expect(reviewIndicator).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -337,8 +334,9 @@ export async function verifyFormPreserved(
 
   if (expected.memo) {
     const memoInput = page.locator('input[name="memo"], textarea[name="memo"]');
-    if (await memoInput.isVisible().catch(() => false)) {
-      await expect(memoInput).toHaveValue(expected.memo);
+    const memoCount = await memoInput.count();
+    if (memoCount > 0 && await memoInput.first().isVisible()) {
+      await expect(memoInput.first()).toHaveValue(expected.memo);
     }
   }
 }
@@ -355,8 +353,10 @@ export async function isSubmitDisabled(page: Page): Promise<boolean> {
  * Get error message text if visible
  */
 export async function getErrorMessage(page: Page): Promise<string | null> {
-  const errorLocator = page.locator('.text-red-500, [class*="error"]').first();
-  if (await errorLocator.isVisible({ timeout: 2000 }).catch(() => false)) {
+  // Prefer role="alert" for accessibility, fall back to error styling classes
+  const errorLocator = page.locator('[role="alert"], .text-red-500, [class*="error"]').first();
+  const count = await errorLocator.count();
+  if (count > 0 && await errorLocator.isVisible()) {
     return await errorLocator.textContent();
   }
   return null;
@@ -374,7 +374,8 @@ export async function testFormValidation(
   await submitForm(page);
 
   if (expectedError) {
-    const error = page.locator('.text-red-500, [class*="error"]').first();
+    // Prefer role="alert" for accessibility, fall back to error styling classes
+    const error = page.locator('[role="alert"], .text-red-500, [class*="error"]').first();
     await expect(error).toBeVisible({ timeout: 5000 });
     if (typeof expectedError === 'string') {
       await expect(error).toContainText(expectedError);

@@ -2,40 +2,41 @@
  * Compose Issuance Issue Supply Page Tests (/compose/issuance/issue-supply)
  *
  * Tests for issuing additional supply of an existing asset.
+ * Component: src/pages/compose/issuance/issue-supply/index.tsx
+ *
+ * The page shows:
+ * - Title "Issue Supply"
+ * - Quantity input for amount to issue
+ * - Fee Rate selector
  */
 
 import { walletTest, expect } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Issue Supply Page (/compose/issuance/issue-supply)', () => {
-  walletTest('issue supply page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/issue-supply/TESTASSET'));
+  // Use TESTUNLOCKED asset which has locked: false in the mock
+  // XCP and other built-in assets are locked and would show an error message
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/issue-supply/TESTUNLOCKED'));
     await page.waitForLoadState('networkidle');
-
-    const hasIssueSupply = await page.locator('text=/Issue.*Supply|Additional.*Supply|Mint/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasForm = await compose.issuance.quantityInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('issue-supply');
-
-    expect(hasIssueSupply || hasForm || redirected).toBe(true);
   });
 
-  walletTest('issue supply shows current supply', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/issue-supply/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('issue-supply')) {
-      const hasCurrentSupply = await page.locator('text=/Current.*Supply|Total.*Supply|Existing/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasCurrentSupply || true).toBe(true);
-    }
+  walletTest('page loads with Issue Supply title', async ({ page }) => {
+    // The header should show "Issue Supply"
+    const titleText = page.locator('text="Issue Supply"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('issue supply has quantity input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/issue-supply/TESTASSET'));
-    await page.waitForLoadState('networkidle');
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  });
 
-    if (page.url().includes('issue-supply')) {
-      const hasQuantityInput = await compose.issuance.quantityInput(page).isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasQuantityInput || true).toBe(true);
-    }
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });

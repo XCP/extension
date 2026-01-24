@@ -201,7 +201,6 @@ export const PriceChart = memo(({
         onMouseLeave={handleMouseLeave}
         role="img"
         aria-label="Price chart"
-        data-testid="price-chart"
       />
     </div>
   );

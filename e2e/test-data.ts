@@ -67,6 +67,21 @@ export const INVALID_ADDRESSES = [
 ];
 
 /**
+ * Test passwords for authentication testing
+ */
+export const TEST_PASSWORDS = {
+  // Standard valid password meeting requirements
+  valid: 'TestPassword123!',
+  // Weak passwords for negative testing
+  weak: '123456',
+  tooShort: 'abc',
+  // Edge cases
+  unicode: 'Pässwörd123!',
+  withSpaces: 'Test Password 123!',
+  veryLong: 'A'.repeat(100) + '1!',
+};
+
+/**
  * Test mnemonics - well-known seeds for reproducible testing
  */
 export const TEST_MNEMONICS = {

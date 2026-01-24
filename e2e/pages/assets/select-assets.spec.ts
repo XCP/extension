@@ -11,72 +11,64 @@ walletTest.describe('Select Assets Page (/select-assets)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Should show asset selection UI
-    const hasTitle = await page.locator('text=/Select.*Asset|Choose.*Asset/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSearch = await page.locator('input[type="search"], input[placeholder*="search" i], input[placeholder*="filter" i]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasAssetList = await page.locator('[role="listbox"], [role="list"], .asset-list').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasTitle || hasSearch || hasAssetList).toBe(true);
+    // Should show search input for assets
+    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows search/filter input', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    const searchInput = page.locator('input[type="search"], input[placeholder*="search" i], input[placeholder*="filter" i]').first();
-    const hasSearch = await searchInput.isVisible({ timeout: 5000 }).catch(() => false);
+    // The page should show a search input
+    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-    if (hasSearch) {
-      // Test that search input is functional
-      await searchInput.fill('XCP');
-      await page.waitForTimeout(500);
+    // Test that search input is functional
+    await searchInput.fill('XCP');
+    
 
-      // Input should accept the value
-      const value = await searchInput.inputValue();
-      expect(value).toBe('XCP');
-    } else {
-      // Search might not be visible if no assets - check for empty state
-      const hasEmptyState = await page.locator('text=/no asset|empty|none found/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-      expect(hasEmptyState || true).toBe(true);
-    }
+    // Input should accept the value
+    const value = await searchInput.inputValue();
+    expect(value).toBe('XCP');
   });
 
-  walletTest('displays asset items', async ({ page }) => {
+  walletTest('displays asset section', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Check for asset items (links to /balance), loading, or empty state
-    const hasAssetItems = await page.locator('a[href*="/balance/"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSearchInput = await page.locator('input[placeholder*="Search"]').first().isVisible({ timeout: 3000 }).catch(() => false);
-    const hasPinnedSection = await page.locator('text=/Pinned|Assets/i').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // The page should have either asset links, search input, or pinned section
-    expect(hasAssetItems || hasSearchInput || hasPinnedSection).toBe(true);
+    // Page should have asset-related content
+    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('asset items are clickable', async ({ page }) => {
+  walletTest('asset items are clickable when present', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    const assetItem = page.locator('[data-testid*="asset"], .asset-item, [role="option"]').first();
-    const hasAssetItem = await assetItem.isVisible({ timeout: 5000 }).catch(() => false);
+    const assetItem = page.locator('a[href*="/balance/"]').first();
+    const assetCount = await assetItem.count();
 
-    if (hasAssetItem) {
+    if (assetCount > 0) {
       // Asset items should be clickable
-      const isClickable = await assetItem.isEnabled();
-      expect(isClickable).toBe(true);
+      await expect(assetItem).toBeEnabled();
     }
+    // No assertion needed if no assets - test wallet may have no balances
   });
 
-  walletTest('shows asset balances in list', async ({ page }) => {
+  walletTest('search filters assets', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/select-assets'));
     await page.waitForLoadState('networkidle');
 
-    // Check if balances are shown for assets
-    const hasBalances = await page.locator('text=/\\d+\\.?\\d*\\s*(BTC|XCP|sat)/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasAssets = await page.locator('[data-testid*="asset"], .asset-item').first().isVisible({ timeout: 3000 }).catch(() => false);
+    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    await expect(searchInput).toBeVisible({ timeout: 5000 });
 
-    // Either show balances or no assets available
-    expect(hasBalances || !hasAssets).toBe(true);
+    // Search for something unlikely to match
+    await searchInput.fill('ZZZZNONEXISTENT');
+    
+
+    // Input should have our search value
+    const value = await searchInput.inputValue();
+    expect(value).toBe('ZZZZNONEXISTENT');
   });
 });

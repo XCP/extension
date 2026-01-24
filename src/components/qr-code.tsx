@@ -155,7 +155,6 @@ export const QRCanvas = memo(({
       style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
       role="img"
       aria-label={`QR code for ${text}`}
-      data-testid="qr-canvas"
       data-text={text}
       data-width={size.toString()}
       data-logo-src={logo?.src}

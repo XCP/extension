@@ -5,7 +5,7 @@
  */
 
 import { test, expect } from '../fixtures';
-import { onboarding, unlock } from '../selectors';
+import { onboarding, unlock, index } from '../selectors';
 
 test('extension loads', async ({ extensionPage }) => {
   await extensionPage.waitForLoadState('networkidle', { timeout: 30000 });
@@ -15,13 +15,16 @@ test('extension loads', async ({ extensionPage }) => {
   const title = await extensionPage.title();
   expect(title).toBeTruthy();
 
-  // Check for onboarding or unlock content using selectors
-  const hasCreateWallet = await onboarding.createWalletButton(extensionPage).isVisible({ timeout: 5000 }).catch(() => false);
-  const hasImportWallet = await onboarding.importWalletButton(extensionPage).isVisible({ timeout: 2000 }).catch(() => false);
-  const hasUnlock = await unlock.unlockButton(extensionPage).isVisible({ timeout: 2000 }).catch(() => false);
-  const hasAddress = await extensionPage.locator('.font-mono').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-  expect(hasCreateWallet || hasImportWallet || hasUnlock || hasAddress).toBe(true);
+  // Extension should show one of these states: onboarding, unlock, or wallet index
+  // Check that at least one valid app state element is visible
+  await expect(async () => {
+    const createCount = await onboarding.createWalletButton(extensionPage).count();
+    const importCount = await onboarding.importWalletButton(extensionPage).count();
+    const unlockCount = await unlock.unlockButton(extensionPage).count();
+    const addressCount = await index.addressText(extensionPage).count();
+    // At least one valid state should be visible
+    expect(createCount + importCount + unlockCount + addressCount).toBeGreaterThan(0);
+  }).toPass({ timeout: 10000 });
 
   const bodyText = await extensionPage.evaluate(() => document.body.innerText);
   expect(bodyText).toBeTruthy();
