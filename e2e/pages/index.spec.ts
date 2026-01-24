@@ -91,8 +91,8 @@ walletTest.describe('Index Page', () => {
       const walletSelectPage = page.locator('h1:has-text("Wallets")')
         .or(page.locator('text=/Select.*Wallet/i')).first();
 
-      // Either on select-wallet URL or heading visible
-      const isOnWalletSelect = page.url().includes('select-wallet');
+      // Either on wallet/select URL or heading visible
+      const isOnWalletSelect = page.url().includes('wallet/select');
       if (!isOnWalletSelect) {
         await expect(walletSelectPage).toBeVisible({ timeout: 5000 });
       }

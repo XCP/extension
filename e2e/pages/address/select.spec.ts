@@ -14,7 +14,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
 
     // Check if redirected (non-mnemonic wallet behavior)
     const currentUrl = page.url();
-    walletTest.skip(!currentUrl.includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!currentUrl.includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Should show address selection UI - use specific heading selector
     const title = page.getByRole('heading', { name: 'Addresses' });
@@ -25,7 +25,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Should show radiogroup with addresses
     const addressList = selectAddress.addressList(page);
@@ -40,7 +40,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     const addButton = selectAddress.addAddressButton(page);
     await expect(addButton).toBeVisible({ timeout: 5000 });
@@ -50,7 +50,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // The main Add Address button (green, full-width)
     const addButton = selectAddress.addAddressButton(page);
@@ -61,7 +61,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Click on first address option
     const firstAddressOption = selectAddress.addressOption(page, 0);
@@ -76,13 +76,13 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     const backButton = common.headerBackButton(page);
     await expect(backButton).toBeVisible({ timeout: 5000 });
     await backButton.click();
 
-    // Should navigate back (not on select-address anymore)
+    // Should navigate back (not on address/select anymore)
     await expect(page).not.toHaveURL(/address\/select/, { timeout: 5000 });
   });
 
@@ -90,7 +90,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // The currently selected address should be marked (aria-checked="true")
     const selectedAddress = page.locator('[role="radio"][aria-checked="true"]');
@@ -101,7 +101,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Count addresses before adding
     const addressesBefore = await page.locator('[role="radio"]').count();
@@ -128,7 +128,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     const addButton = selectAddress.addAddressButton(page);
     await expect(addButton).toBeVisible({ timeout: 5000 });
@@ -141,7 +141,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // First add a second address if only one exists
     const addressCount = await page.locator('[role="radio"]').count();
@@ -167,7 +167,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Header should have Add Address button (icon only, in header section)
     const headerAddButton = selectAddress.headerAddButton(page);
@@ -178,7 +178,7 @@ walletTest.describe('Select Address Page (/address/select)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
-    walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
+    walletTest.skip(!page.url().includes('address/select'), 'Redirected - non-mnemonic wallet');
 
     // Each address item should show the address text
     const firstAddress = selectAddress.addressOption(page, 0);
