@@ -1,5 +1,5 @@
 /**
- * View Balance Page Tests (/balance/:asset)
+ * View Balance Page Tests (/assets/:asset/balance)
  *
  * Tests for viewing the user's balance of a specific asset.
  * Component: src/pages/assets/view-balance.tsx
@@ -12,10 +12,10 @@
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('View Balance Page (/balance/:asset)', () => {
+walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
   // Helper to navigate to balance page and wait for content to load
   async function navigateToBalance(page: any, asset: string) {
-    await page.goto(page.url().replace(/\/index.*/, `/balance/${asset}`));
+    await page.goto(page.url().replace(/\/index.*/, `/assets/${asset}/balance`));
     await page.waitForLoadState('domcontentloaded');
     // Wait for success state (Send action visible means content loaded)
     // Use .first() to avoid strict mode violation - there's both a title "Send" and description
@@ -80,7 +80,7 @@ walletTest.describe('View Balance Page (/balance/:asset)', () => {
   });
 
   walletTest('handles invalid asset with error state', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/balance/INVALID_ASSET_67890'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/INVALID_ASSET_67890/balance'));
     await page.waitForLoadState('networkidle');
 
     // Should show error message for invalid asset

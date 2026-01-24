@@ -417,7 +417,7 @@ describe('BalanceList', () => {
       fireEvent.click(searchResult!);
     });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/balance/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP/balance');
   });
 
   it('should show load more message when hasMore is true', async () => {

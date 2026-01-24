@@ -53,7 +53,7 @@ export function AssetCard({
     if (onClick) {
       onClick(asset.asset);
     } else {
-      navigate(`/asset/${encodeURIComponent(asset.asset)}`);
+      navigate(`/assets/${encodeURIComponent(asset.asset)}`);
     }
   };
 

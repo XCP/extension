@@ -1,5 +1,5 @@
 /**
- * Show Private Key Page Tests (/show-private-key/:walletId)
+ * Show Private Key Page Tests (/wallet/show-private-key/:walletId)
  *
  * Tests for viewing the wallet's private key.
  * Requires password verification before revealing sensitive data.
@@ -24,7 +24,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show password input
@@ -35,7 +35,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should warn user about security
@@ -46,7 +46,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have password input
@@ -57,7 +57,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have a button to reveal the key
@@ -68,7 +68,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -85,7 +85,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -102,7 +102,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -119,7 +119,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -136,7 +136,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have back button
@@ -144,7 +144,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/show-private-key/invalid-wallet-id-12345'));
+    await page.goto(page.url().replace(/\/index.*/, '/wallet/show-private-key/invalid-wallet-id-12345'));
     await page.waitForLoadState('networkidle');
 
     // Page checks wallet existence on load and shows "Wallet not found." error
@@ -157,7 +157,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Page should show "Private Key" in the title/header
@@ -172,7 +172,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Warning box should have red border
@@ -184,7 +184,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show warning text about not sharing
@@ -196,7 +196,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show warning icon
@@ -212,7 +212,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Click reveal without entering password
@@ -227,7 +227,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Enter short password
@@ -243,7 +243,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Enter wrong password
@@ -263,7 +263,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -278,7 +278,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -293,7 +293,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -313,7 +313,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -333,7 +333,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -348,7 +348,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -368,18 +368,18 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     if (!walletId) return;
 
     // Start from select-wallet page to have navigation history
-    await page.goto(page.url().replace(/\/index.*/, '/select-wallet'));
+    await page.goto(page.url().replace(/\/index.*/, '/wallet/select'));
     await page.waitForLoadState('networkidle');
 
     // Navigate to show-private-key
-    await page.goto(page.url().replace(/\/select-wallet.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/wallet/select.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Click back button
     await common.headerBackButton(page).click();
 
     // Should navigate back (URL should change)
-    await expect(page).not.toHaveURL(/show-private-key/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/wallet/show-private-key/, { timeout: 5000 });
   });
 
   // ============================================================================
@@ -390,7 +390,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Reveal button should have red styling
@@ -407,7 +407,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/show-private-key/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     const passwordInput = unlock.passwordInput(page);

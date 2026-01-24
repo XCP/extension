@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 
 const CONSTANTS = {
   MIN_PASSWORD_LENGTH: 8,
-  PATHS: { BACK: "/select-wallet" } as const,
+  PATHS: { BACK: "/wallet/select" } as const,
 } as const;
 
 export default function ShowPassphrase(): ReactElement {

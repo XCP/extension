@@ -22,12 +22,12 @@ function AddWallet() {
 
   // Navigation paths for wallet actions
   const PATHS = {
-    BACK: '/select-wallet',
+    BACK: '/wallet/select',
     CLOSE: '/index',
     CREATE_WALLET: '/create-wallet',
     IMPORT_WALLET: '/import-wallet',
-    IMPORT_PRIVATE_KEY: '/import-private-key',
-    IMPORT_TEST_ADDRESS: '/import-test-address',
+    IMPORT_PRIVATE_KEY: '/wallet/import-private-key',
+    IMPORT_TEST_ADDRESS: '/wallet/import-test-address',
   } as const;
   
   // Check if we're in development mode

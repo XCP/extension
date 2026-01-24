@@ -36,8 +36,8 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
         {
           id: "consolidate",
           title: "Recover Bitcoin",
-          description: "Find and consolidate bare multisig UTXOs", 
-          onClick: () => navigate("/consolidate"),
+          description: "Find and consolidate bare multisig UTXOs",
+          onClick: () => navigate("/actions/consolidate"),
           showNotification: showRecoverBitcoinNotification,
           className: showRecoverBitcoinNotification ? "!border !border-orange-500" : "",
         },
@@ -96,7 +96,7 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
           id: "cancel-order",
           title: "Cancel Order",
           description: "Cancel an existing order",
-          onClick: () => navigate("/compose/cancel"),
+          onClick: () => navigate("/compose/order/cancel"),
         },
         {
           id: "close-dispenser",

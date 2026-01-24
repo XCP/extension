@@ -1,15 +1,15 @@
 /**
  * Select Address Page Tests
  *
- * Tests for /select-address route - select or add address for mnemonic wallets
+ * Tests for /address/select route - select or add address for mnemonic wallets
  */
 
 import { walletTest, expect } from '../../fixtures';
 import { selectAddress, common } from '../../selectors';
 
-walletTest.describe('Select Address Page (/select-address)', () => {
+walletTest.describe('Select Address Page (/address/select)', () => {
   walletTest('select address page loads', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     // Check if redirected (non-mnemonic wallet behavior)
@@ -22,7 +22,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('shows list of addresses', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -37,7 +37,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('shows Add Address button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -47,7 +47,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('has Add button in header', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -58,7 +58,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('can select an address', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -73,7 +73,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('has back navigation', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -83,11 +83,11 @@ walletTest.describe('Select Address Page (/select-address)', () => {
     await backButton.click();
 
     // Should navigate back (not on select-address anymore)
-    await expect(page).not.toHaveURL(/select-address/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/address/select/, { timeout: 5000 });
   });
 
   walletTest('indicates currently selected address', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -98,7 +98,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('can add new address and it appears in list', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -125,7 +125,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('Add Address button shows loading state', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -138,7 +138,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('selecting different address updates index page', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -164,7 +164,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('header has Add button for quick add', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');
@@ -175,7 +175,7 @@ walletTest.describe('Select Address Page (/select-address)', () => {
   });
 
   walletTest('shows address previews in list', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/select-address'));
+    await page.goto(page.url().replace(/\/index.*/, '/address/select'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('select-address'), 'Redirected - non-mnemonic wallet');

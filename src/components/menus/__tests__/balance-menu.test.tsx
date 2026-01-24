@@ -58,7 +58,7 @@ describe('BalanceMenu', () => {
       fireEvent.click(moreButton);
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/balance/TESTASSET');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/TESTASSET/balance');
   });
 
   it('should encode special characters in asset name', async () => {
@@ -76,7 +76,7 @@ describe('BalanceMenu', () => {
       fireEvent.click(moreButton);
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/balance/ASSET%2FNAME');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/ASSET%2FNAME/balance');
   });
 
   it('should stop event propagation when menu is clicked', () => {

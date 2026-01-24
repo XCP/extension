@@ -1,5 +1,5 @@
 /**
- * View Asset Page Tests (/asset/:asset)
+ * View Asset Page Tests (/assets/:asset)
  *
  * Tests for viewing detailed information about a specific Counterparty asset.
  * Component: src/pages/assets/view-asset.tsx
@@ -12,10 +12,10 @@
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('View Asset Page (/asset/:asset)', () => {
+walletTest.describe('View Asset Page (/assets/:asset)', () => {
   // Helper to navigate to asset page and wait for content to load
   async function navigateToAsset(page: any, asset: string) {
-    await page.goto(page.url().replace(/\/index.*/, `/asset/${asset}`));
+    await page.goto(page.url().replace(/\/index.*/, `/assets/${asset}`));
     await page.waitForLoadState('domcontentloaded');
     // Wait for success state (Asset Details visible means content loaded)
     // If loading or error, the test will fail with a meaningful message
@@ -76,7 +76,7 @@ walletTest.describe('View Asset Page (/asset/:asset)', () => {
   });
 
   walletTest('handles invalid asset with error state', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/asset/INVALID_ASSET_12345'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets/INVALID_ASSET_12345'));
     await page.waitForLoadState('networkidle');
 
     // Should show error message for invalid asset

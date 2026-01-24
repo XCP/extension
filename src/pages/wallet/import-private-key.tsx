@@ -36,7 +36,7 @@ const ImportPrivateKey = () => {
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
-    BACK: keychainExists ? "/add-wallet" : "/onboarding",
+    BACK: keychainExists ? "/wallet/add" : "/onboarding",
     CLOSE: "/index",
     SUCCESS: "/index",
   } as const;

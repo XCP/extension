@@ -26,7 +26,7 @@ function SelectWallet() {
   // Constants for paths
   const PATHS = {
     BACK: '/',
-    ADD_WALLET: '/add-wallet',
+    ADD_WALLET: '/wallet/add',
     INDEX: '/index',
   } as const;
 

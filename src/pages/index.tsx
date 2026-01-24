@@ -25,12 +25,12 @@ import type { ReactElement } from "react";
 const CONSTANTS = {
   COPY_FEEDBACK_DURATION: 2000,
   PATHS: {
-    SELECT_WALLET: "/select-wallet",
+    SELECT_WALLET: "/wallet/select",
     UNLOCK_WALLET: "/unlock-wallet",
-    VIEW_ADDRESS: "/view-address",
+    VIEW_ADDRESS: "/address/view",
     SEND_BTC: "/compose/send/BTC",
-    ADDRESS_HISTORY: "/address-history",
-    SELECT_ADDRESS: "/select-address",
+    ADDRESS_HISTORY: "/address/history",
+    SELECT_ADDRESS: "/address/select",
     PINNED_ASSETS: "/settings/pinned-assets",
   } as const,
   TABS: ["Assets", "Balances"] as const,

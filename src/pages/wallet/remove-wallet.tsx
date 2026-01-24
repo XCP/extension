@@ -23,7 +23,7 @@ function RemoveWallet() {
 
   const PATHS = {
     BACK: -1,
-    SUCCESS: "/select-wallet",
+    SUCCESS: "/wallet/select",
   } as const;
   const MIN_PASSWORD_LENGTH = 8;
 

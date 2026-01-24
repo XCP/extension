@@ -27,9 +27,9 @@ const INVALID_CHARS_HASH = 'g'.repeat(64); // g is not valid hex
 
 walletTest.describe('HashInput Component', () => {
   // Navigate to cancel order page which uses HashInput
-  // Route is /compose/cancel/:hash? (not /compose/order/cancel)
+  // Route is /compose/order/cancel/:hash? (not /compose/order/cancel)
   walletTest.beforeEach(async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/cancel'));
+    await page.goto(page.url().replace(/\/index.*/, '/compose/order/cancel'));
     await page.waitForLoadState('networkidle');
     // Wait for hash input to be ready
     await page.locator('textarea[name="offer_hash"]').waitFor({ state: 'visible', timeout: 10000 });

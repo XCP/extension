@@ -3,19 +3,19 @@ import { sanitizePath, getBtcBucket } from '../fathom';
 
 describe('fathom sanitizePath', () => {
   describe('asset viewing paths', () => {
-    it('strips asset name from /asset/:asset', () => {
-      expect(sanitizePath('/asset/XCP')).toBe('/asset');
-      expect(sanitizePath('/asset/PEPE')).toBe('/asset');
-      expect(sanitizePath('/asset/A1234567890123456789')).toBe('/asset');
+    it('strips asset name from /assets/:asset', () => {
+      expect(sanitizePath('/assets/XCP')).toBe('/assets');
+      expect(sanitizePath('/assets/PEPE')).toBe('/assets');
+      expect(sanitizePath('/assets/A1234567890123456789')).toBe('/assets');
     });
 
-    it('strips asset name from /balance/:asset', () => {
-      expect(sanitizePath('/balance/XCP')).toBe('/balance');
-      expect(sanitizePath('/balance/BTC')).toBe('/balance');
-      expect(sanitizePath('/balance/PEPECASH')).toBe('/balance');
+    it('strips asset name from /assets/:asset/balance', () => {
+      expect(sanitizePath('/assets/XCP/balance')).toBe('/assets');
+      expect(sanitizePath('/assets/BTC/balance')).toBe('/assets');
+      expect(sanitizePath('/assets/PEPECASH/balance')).toBe('/assets');
     });
 
-    it('strips txid from /utxo/:txid', () => {
+    it('strips txid from /utxo/:txHash', () => {
       expect(sanitizePath('/utxo/abc123def456')).toBe('/utxo');
       expect(sanitizePath('/utxo/0000000000000000000000000000000000000000000000000000000000000000')).toBe('/utxo');
     });
@@ -41,17 +41,17 @@ describe('fathom sanitizePath', () => {
   });
 
   describe('wallet management paths', () => {
-    it('strips wallet ID from /remove-wallet/:walletId', () => {
-      expect(sanitizePath('/remove-wallet/abc123')).toBe('/remove-wallet');
+    it('strips wallet ID from /wallet/remove/:walletId', () => {
+      expect(sanitizePath('/wallet/remove/abc123')).toBe('/wallet/remove');
     });
 
-    it('strips wallet ID from /show-passphrase/:walletId', () => {
-      expect(sanitizePath('/show-passphrase/wallet-123')).toBe('/show-passphrase');
+    it('strips wallet ID from /wallet/show-passphrase/:walletId', () => {
+      expect(sanitizePath('/wallet/show-passphrase/wallet-123')).toBe('/wallet/show-passphrase');
     });
 
-    it('strips wallet ID from /show-private-key/:walletId', () => {
-      expect(sanitizePath('/show-private-key/wallet-456')).toBe('/show-private-key');
-      expect(sanitizePath('/show-private-key/wallet-456/m/84/0/0')).toBe('/show-private-key');
+    it('strips wallet ID from /wallet/show-private-key/:walletId', () => {
+      expect(sanitizePath('/wallet/show-private-key/wallet-456')).toBe('/wallet/show-private-key');
+      expect(sanitizePath('/wallet/show-private-key/wallet-456/m/84/0/0')).toBe('/wallet/show-private-key');
     });
   });
 
@@ -87,7 +87,7 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/market')).toBe('/market');
       expect(sanitizePath('/settings')).toBe('/settings');
       expect(sanitizePath('/onboarding')).toBe('/onboarding');
-      expect(sanitizePath('/add-wallet')).toBe('/add-wallet');
+      expect(sanitizePath('/wallet/add')).toBe('/wallet/add');
     });
   });
 });

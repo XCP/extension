@@ -54,16 +54,13 @@ export function getBtcBucket(btcAmount: number): number {
 // Path sanitization mappings - strips dynamic params to protect privacy
 // All routes with :params must be listed here or handled by generic handlers below
 const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
-  // Secrets (contain wallet IDs, address paths)
-  '/show-private-key/': '/show-private-key',
-  '/show-passphrase/': '/show-passphrase',
-
-  // Wallet management (contain wallet IDs)
-  '/remove-wallet/': '/remove-wallet',
+  // Wallet management (contain wallet IDs, address paths)
+  '/wallet/show-private-key/': '/wallet/show-private-key',
+  '/wallet/show-passphrase/': '/wallet/show-passphrase',
+  '/wallet/remove/': '/wallet/remove',
 
   // Viewing pages (contain asset names, tx hashes, UTXOs)
-  '/asset/': '/asset',
-  '/balance/': '/balance',
+  '/assets/': '/assets',
   '/utxo/': '/utxo',
   '/transaction/': '/transaction',
 

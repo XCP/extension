@@ -112,7 +112,7 @@ describe('WalletMenu', () => {
       fireEvent.click(showButton);
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/show-passphrase/wallet-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/wallet/show-passphrase/wallet-1');
   });
 
   it('should navigate to show private key page for private key wallet', async () => {
@@ -130,7 +130,7 @@ describe('WalletMenu', () => {
       fireEvent.click(showButton);
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/show-private-key/wallet-2');
+    expect(mockNavigate).toHaveBeenCalledWith('/wallet/show-private-key/wallet-2');
   });
 
   it('should navigate to remove wallet page when clicked', async () => {
@@ -148,7 +148,7 @@ describe('WalletMenu', () => {
       fireEvent.click(removeButton);
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/remove-wallet/wallet-1');
+    expect(mockNavigate).toHaveBeenCalledWith('/wallet/remove/wallet-1');
   });
 
   it('should stop event propagation when menu is clicked', () => {

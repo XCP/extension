@@ -26,7 +26,7 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   const navigate = useNavigate();
 
   const handleMore = useCallback(() => {
-    navigate(`/balance/${encodeURIComponent(asset)}`);
+    navigate(`/assets/${encodeURIComponent(asset)}/balance`);
   }, [asset, navigate]);
 
   return (

@@ -45,7 +45,7 @@ export function ManageOrderCard({
       <div className="flex gap-2">
         <Button
           color="gray"
-          onClick={() => navigate(`/compose/cancel/${order.tx_hash}`)}
+          onClick={() => navigate(`/compose/order/cancel/${order.tx_hash}`)}
           fullWidth
         >
           Cancel
