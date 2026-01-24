@@ -15,9 +15,9 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/assets/PEPECASH/balance')).toBe('/assets');
     });
 
-    it('strips txid from /utxo/:txHash', () => {
-      expect(sanitizePath('/utxo/abc123def456')).toBe('/utxo');
-      expect(sanitizePath('/utxo/0000000000000000000000000000000000000000000000000000000000000000')).toBe('/utxo');
+    it('strips txid from /assets/utxo/:txHash', () => {
+      expect(sanitizePath('/assets/utxo/abc123def456')).toBe('/assets/utxo');
+      expect(sanitizePath('/assets/utxo/0000000000000000000000000000000000000000000000000000000000000000')).toBe('/assets/utxo');
     });
   });
 
@@ -45,13 +45,13 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/wallet/remove/abc123')).toBe('/wallet/remove');
     });
 
-    it('strips wallet ID from /wallet/show-passphrase/:walletId', () => {
-      expect(sanitizePath('/wallet/show-passphrase/wallet-123')).toBe('/wallet/show-passphrase');
+    it('strips wallet ID from /wallet/secrets/show-passphrase/:walletId', () => {
+      expect(sanitizePath('/wallet/secrets/show-passphrase/wallet-123')).toBe('/wallet/secrets/show-passphrase');
     });
 
-    it('strips wallet ID from /wallet/show-private-key/:walletId', () => {
-      expect(sanitizePath('/wallet/show-private-key/wallet-456')).toBe('/wallet/show-private-key');
-      expect(sanitizePath('/wallet/show-private-key/wallet-456/m/84/0/0')).toBe('/wallet/show-private-key');
+    it('strips wallet ID from /wallet/secrets/show-private-key/:walletId', () => {
+      expect(sanitizePath('/wallet/secrets/show-private-key/wallet-456')).toBe('/wallet/secrets/show-private-key');
+      expect(sanitizePath('/wallet/secrets/show-private-key/wallet-456/m/84/0/0')).toBe('/wallet/secrets/show-private-key');
     });
   });
 

@@ -24,8 +24,8 @@ function AddWallet() {
   const PATHS = {
     BACK: '/wallet/select',
     CLOSE: '/index',
-    CREATE_WALLET: '/create-wallet',
-    IMPORT_WALLET: '/import-wallet',
+    CREATE_WALLET: '/wallet/create',
+    IMPORT_WALLET: '/wallet/import',
     IMPORT_PRIVATE_KEY: '/wallet/import-private-key',
     IMPORT_TEST_ADDRESS: '/wallet/import-test-address',
   } as const;

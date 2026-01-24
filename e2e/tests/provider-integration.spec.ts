@@ -285,7 +285,7 @@ async function launchExtension(testId: string): Promise<{
 // Helper to create wallet
 async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
   await onboarding.createWalletButton(page).click();
-  await page.waitForURL(/create-wallet/);
+  await page.waitForURL(/wallet\/create/);
   await createWalletSelectors.revealPhraseCard(page).click();
 
   await createWalletSelectors.savedPhraseCheckbox(page).check();

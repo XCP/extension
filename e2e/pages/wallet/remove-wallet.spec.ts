@@ -169,7 +169,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(createWalletOption).toBeVisible({ timeout: 5000 });
     await createWalletOption.click();
 
-    await page.waitForURL(/create-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/create/, { timeout: 5000 });
 
     // Wait for and click the reveal phrase card
     const revealCard = createWallet.revealPhraseCard(page);

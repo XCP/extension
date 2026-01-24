@@ -50,7 +50,7 @@ walletTest.describe('Add Wallet Page (/add-wallet)', () => {
     await createButton.click();
 
     // Should navigate to create-wallet page
-    await page.waitForURL(/create-wallet/, { timeout: 5000 });
+    await page.waitForURL(/wallet\/create/, { timeout: 5000 });
   });
 
   walletTest('import mnemonic button navigates to import-wallet page', async ({ page }) => {

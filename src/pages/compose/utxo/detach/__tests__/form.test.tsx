@@ -245,7 +245,7 @@ describe('UtxoDetachForm', () => {
     const outputDisplay = screen.getByRole('button', { name: /def456/ });
     await user.click(outputDisplay);
 
-    expect(mockNavigate).toHaveBeenCalledWith('/utxo/def456abc123:1');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/utxo/def456abc123:1');
   });
 
   it('should display error message when composer context has error', () => {

@@ -1,5 +1,5 @@
 /**
- * Show Passphrase Page Tests (/wallet/show-passphrase/:walletId)
+ * Show Passphrase Page Tests (/wallet/secrets/show-passphrase/:walletId)
  *
  * Tests for viewing the wallet's recovery phrase.
  * Requires password verification before revealing sensitive data.
@@ -24,7 +24,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show password input
@@ -35,7 +35,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should warn user about security
@@ -46,7 +46,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have password input
@@ -57,7 +57,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have a button to reveal the phrase
@@ -68,7 +68,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -85,7 +85,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -102,7 +102,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
@@ -119,7 +119,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should have back button
@@ -127,7 +127,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
   });
 
   walletTest('handles invalid wallet ID', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/wallet/show-passphrase/invalid-wallet-id-12345'));
+    await page.goto(page.url().replace(/\/index.*/, '/wallet/secrets/show-passphrase/invalid-wallet-id-12345'));
     await page.waitForLoadState('networkidle');
 
     // Page shows password form - fill and submit to trigger error
@@ -146,7 +146,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -164,7 +164,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -183,7 +183,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -200,7 +200,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -225,7 +225,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Before reveal, should show warning about not sharing
@@ -237,7 +237,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
@@ -254,7 +254,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Try to reveal without password
@@ -269,7 +269,7 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     const walletId = await getWalletId(page);
     if (!walletId) return;
 
-    await page.goto(page.url().replace(/\/index.*/, `/wallet/show-passphrase/${walletId}`));
+    await page.goto(page.url().replace(/\/index.*/, `/wallet/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Enter short password

@@ -29,7 +29,7 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
   const navigate = useNavigate();
 
   const handleShowSecret = useCallback(() => {
-    navigate(`/wallet/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
+    navigate(`/wallet/secrets/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
   }, [navigate, wallet.type, wallet.id]);
 
   const handleRemoveWallet = useCallback(() => {

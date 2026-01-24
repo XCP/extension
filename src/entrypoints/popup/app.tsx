@@ -14,12 +14,12 @@ import UnlockWallet from '@/pages/auth/unlock-wallet';
 
 // Main navigation
 import Index from '@/pages/index';
-import Market from '@/pages/market';
+import Market from '@/pages/market/index';
 import Actions from '@/pages/actions';
 import Settings from '@/pages/settings';
 
 // Market
-import DispenserManagement from '@/pages/dispensers/manage';
+import DispenserManagement from '@/pages/market/dispensers/manage';
 import AssetDispensers from '@/pages/market/asset-dispensers';
 import AssetOrders from '@/pages/market/asset-orders';
 import BtcPrice from '@/pages/market/btc-price';
@@ -39,25 +39,25 @@ import ConnectedSites from '@/pages/settings/connected-sites';
 import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
 
 // Wallet management
-import AddWallet from '@/pages/wallet/add-wallet';
-import SelectWallet from '@/pages/wallet/select-wallet';
-import CreateWallet from '@/pages/wallet/create-wallet';
-import ImportWallet from '@/pages/wallet/import-wallet';
+import AddWallet from '@/pages/wallet/add';
+import SelectWallet from '@/pages/wallet/select';
+import CreateWallet from '@/pages/wallet/create';
+import ImportWallet from '@/pages/wallet/import';
 import ImportPrivateKey from '@/pages/wallet/import-private-key';
 import ImportTestAddress from '@/pages/wallet/import-test-address';
-import ResetWallet from '@/pages/wallet/reset-wallet';
-import RemoveWallet from '@/pages/wallet/remove-wallet';
-import ShowPassphrase from '@/pages/secrets/show-passphrase';
-import ShowPrivateKey from '@/pages/secrets/show-private-key';
+import ResetWallet from '@/pages/wallet/reset';
+import RemoveWallet from '@/pages/wallet/remove';
+import ShowPassphrase from '@/pages/wallet/secrets/show-passphrase';
+import ShowPrivateKey from '@/pages/wallet/secrets/show-private-key';
 
 // Viewing
-import AddressHistory from '@/pages/address/address-history';
-import SelectAddress from '@/pages/address/select-address';
-import ViewAddress from '@/pages/address/view-address';
-import SelectAssets from '@/pages/assets/select-assets';
-import ViewAsset from '@/pages/assets/view-asset';
-import ViewBalance from '@/pages/assets/view-balance';
-import ViewUtxo from '@/pages/assets/view-utxo';
+import AddressHistory from '@/pages/address/history';
+import SelectAddress from '@/pages/address/select';
+import ViewAddress from '@/pages/address/view';
+import SelectAssets from '@/pages/assets/select';
+import ViewAsset from '@/pages/assets/[asset]';
+import ViewBalance from '@/pages/assets/balance';
+import ViewUtxo from '@/pages/assets/utxo/[txHash]';
 import ViewTransaction from '@/pages/transaction/view-transaction';
 
 // Provider/dApp integration
@@ -157,8 +157,8 @@ export default function App() {
         {/* Public routes */}
         <Route element={<Layout />}>
           <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/create-wallet" element={<CreateWallet />} />
-          <Route path="/import-wallet" element={<ImportWallet />} />
+          <Route path="/wallet/create" element={<CreateWallet />} />
+          <Route path="/wallet/import" element={<ImportWallet />} />
           <Route path="/unlock-wallet" element={<UnlockWallet />} />
         </Route>
 
@@ -198,8 +198,8 @@ export default function App() {
             <Route path="/wallet/import-private-key" element={<ImportPrivateKey />} />
             <Route path="/wallet/import-test-address" element={<ImportTestAddress />} />
             <Route path="/wallet/remove/:walletId" element={<RemoveWallet />} />
-            <Route path="/wallet/show-passphrase/:walletId" element={<ShowPassphrase />} />
-            <Route path="/wallet/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
+            <Route path="/wallet/secrets/show-passphrase/:walletId" element={<ShowPassphrase />} />
+            <Route path="/wallet/secrets/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
             
             {/* Viewing */}
             <Route path="/address/history" element={<AddressHistory />} />
@@ -208,7 +208,7 @@ export default function App() {
             <Route path="/assets/select" element={<SelectAssets />} />
             <Route path="/assets/:asset" element={<ViewAsset />} />
             <Route path="/assets/:asset/balance" element={<ViewBalance />} />
-            <Route path="/utxo/:txHash" element={<ViewUtxo />} />
+            <Route path="/assets/utxo/:txHash" element={<ViewUtxo />} />
             <Route path="/transaction/:txHash" element={<ViewTransaction />} />
             
             {/* Compose - Send & Transfer */}

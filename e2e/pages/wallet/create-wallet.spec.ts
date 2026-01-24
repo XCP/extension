@@ -12,13 +12,13 @@ test.describe('Wallet Creation', () => {
 
   test('navigates to create wallet page', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await expect(extensionPage).toHaveURL(/create-wallet/);
+    await expect(extensionPage).toHaveURL(/wallet\/create/);
     await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible();
   });
 
   test('reveals recovery phrase and shows password field', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Click the reveal phrase card
     await createWallet.revealPhraseCard(extensionPage).click();
@@ -41,7 +41,7 @@ test.describe('Wallet Creation', () => {
 
   test('validates password minimum length', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Click the reveal phrase card
     await createWallet.revealPhraseCard(extensionPage).click();
@@ -57,7 +57,7 @@ test.describe('Wallet Creation', () => {
 
   test('displays 12 mnemonic words after reveal', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Click the reveal phrase card
     await createWallet.revealPhraseCard(extensionPage).click();
@@ -78,7 +78,7 @@ test.describe('Wallet Creation', () => {
 
   test('checkbox is disabled until phrase is revealed', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Checkbox should be disabled before revealing phrase
     await expect(createWallet.savedPhraseCheckbox(extensionPage)).toBeDisabled();
@@ -92,7 +92,7 @@ test.describe('Wallet Creation', () => {
 
   test('has generate new phrase button in header', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Header should have refresh/generate button
     const generateButton = extensionPage.locator('[aria-label="Generate new recovery phrase"]');
@@ -101,7 +101,7 @@ test.describe('Wallet Creation', () => {
 
   test('generate button creates new phrase', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Reveal the phrase first
     await createWallet.revealPhraseCard(extensionPage).click();
@@ -133,7 +133,7 @@ test.describe('Wallet Creation', () => {
 
   test('shows page title and instructions', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // Should show title about recovery phrase
     await expect(extensionPage.locator('text=/Recovery Phrase|Secret Phrase/i').first()).toBeVisible();
@@ -144,7 +144,7 @@ test.describe('Wallet Creation', () => {
 
   test('shows YouTube tutorial link before confirmation', async ({ extensionPage }) => {
     await onboarding.createWalletButton(extensionPage).click();
-    await extensionPage.waitForURL(/create-wallet/);
+    await extensionPage.waitForURL(/wallet\/create/);
 
     // YouTube tutorial button should be visible before confirming
     // Note: href uses youtu.be short URL format

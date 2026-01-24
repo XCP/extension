@@ -55,13 +55,13 @@ export function getBtcBucket(btcAmount: number): number {
 // All routes with :params must be listed here or handled by generic handlers below
 const SENSITIVE_PATH_MAPPINGS: Record<string, string> = {
   // Wallet management (contain wallet IDs, address paths)
-  '/wallet/show-private-key/': '/wallet/show-private-key',
-  '/wallet/show-passphrase/': '/wallet/show-passphrase',
+  '/wallet/secrets/show-private-key/': '/wallet/secrets/show-private-key',
+  '/wallet/secrets/show-passphrase/': '/wallet/secrets/show-passphrase',
   '/wallet/remove/': '/wallet/remove',
 
   // Viewing pages (contain asset names, tx hashes, UTXOs)
+  '/assets/utxo/': '/assets/utxo',
   '/assets/': '/assets',
-  '/utxo/': '/utxo',
   '/transaction/': '/transaction',
 
   // Market pages (contain asset names)
