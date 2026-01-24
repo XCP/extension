@@ -88,15 +88,6 @@ export const FiDownload = (props: IconProps): ReactElement => (
   </FeatherIcon>
 );
 
-export const FiEdit = (props: IconProps): ReactElement => (
-  <FeatherIcon {...props}>
-    <>
-      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </>
-  </FeatherIcon>
-);
-
 export const FiGlobe = (props: IconProps): ReactElement => (
   <FeatherIcon {...props}>
     <>
@@ -160,15 +151,6 @@ export const FiRotateCcw = (props: IconProps): ReactElement => (
     <>
       <polyline points="1 4 1 10 7 10" />
       <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-    </>
-  </FeatherIcon>
-);
-
-export const FiSend = (props: IconProps): ReactElement => (
-  <FeatherIcon {...props}>
-    <>
-      <line x1="22" y1="2" x2="11" y2="13" />
-      <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </>
   </FeatherIcon>
 );
@@ -502,21 +484,9 @@ export const FaQrcode = (props: IconProps): ReactElement => (
   </Icon>
 );
 
-export const FaRedo = (props: IconProps): ReactElement => (
-  <Icon viewBox="0 0 512 512" {...props}>
-    <path d="M500.33 0h-47.41a12 12 0 0 0-12 12.57l4 82.76A247.42 247.42 0 0 0 256 8C119.34 8 7.9 119.53 8 256.19 8.1 393.07 119.1 504 256 504a247.1 247.1 0 0 0 166.18-63.91 12 12 0 0 0 .48-17.43l-34-34a12 12 0 0 0-16.38-.55A176 176 0 1 1 402.1 157.8l-101.53-4.87a12 12 0 0 0-12.57 12v47.41a12 12 0 0 0 12 12H500.33a12 12 0 0 0 12-12V12a12 12 0 0 0-12-12z" />
-  </Icon>
-);
-
 export const FaSearch = (props: IconProps): ReactElement => (
   <Icon viewBox="0 0 512 512" {...props}>
     <path d="M505 442.7L405.3 343c-4.5-4.5-10.6-7-17-7H372c27.6-35.3 44-79.7 44-128C416 93.1 322.9 0 208 0S0 93.1 0 208s93.1 208 208 208c48.3 0 92.7-16.4 128-44v16.3c0 6.4 2.5 12.5 7 17l99.7 99.7c9.4 9.4 24.6 9.4 33.9 0l28.3-28.3c9.4-9.4 9.4-24.6.1-34zM208 336c-70.7 0-128-57.2-128-128 0-70.7 57.2-128 128-128 70.7 0 128 57.2 128 128 0 70.7-57.2 128-128 128z" />
-  </Icon>
-);
-
-export const FaSync = (props: IconProps): ReactElement => (
-  <Icon viewBox="0 0 512 512" {...props}>
-    <path d="M440.65 12.57l4 82.77A247.16 247.16 0 0 0 255.83 8C134.73 8 33.91 94.92 12.29 209.82A12 12 0 0 0 24.09 224h49.05a12 12 0 0 0 11.67-9.26 175.91 175.91 0 0 1 317-56.94l-101.46-4.86a12 12 0 0 0-12.57 12v47.41a12 12 0 0 0 12 12H500a12 12 0 0 0 12-12V12a12 12 0 0 0-12-12h-47.37a12 12 0 0 0-11.98 12.57zM255.83 432a175.61 175.61 0 0 1-146-77.8l101.8 4.87a12 12 0 0 0 12.57-12v-47.4a12 12 0 0 0-12-12H12a12 12 0 0 0-12 12V500a12 12 0 0 0 12 12h47.35a12 12 0 0 0 12-12.6l-4.15-82.57A247.17 247.17 0 0 0 255.83 504c121.11 0 221.93-86.92 243.55-201.82a12 12 0 0 0-11.8-14.18h-49.05a12 12 0 0 0-11.67 9.26A175.86 175.86 0 0 1 255.83 432z" />
   </Icon>
 );
 
