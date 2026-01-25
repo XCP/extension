@@ -197,7 +197,7 @@ export default function SignMessage(): ReactElement {
   return (
     <div className="p-4 space-y-4">
       {/* Message Input */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4">
         <TextAreaInput
           value={message}
           onChange={(value) => {
@@ -277,58 +277,60 @@ export default function SignMessage(): ReactElement {
             </div>
           )}
         </div>
+
+        {/* Sign Button - only show if not signed */}
+        {!signature && (
+          <div className="mt-4">
+            <Button
+              onClick={() => handleSign()}
+              color="blue"
+              disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
+              fullWidth
+            >
+              {isSigning ? (
+                <div className="flex items-center justify-center gap-2">
+                  <Spinner />
+                  Signing…
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <FaLock className="size-4" aria-hidden="true" />
+                  Sign Message
+                </div>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {/* Actions for Signature - inside container */}
+        {signature && (
+          <div className="flex items-center gap-2 mt-4">
+            <Button
+              onClick={() => {
+                setMessage("");
+                setSignature("");
+                setError(null);
+              }}
+              color="gray"
+            >
+              Reset
+            </Button>
+            <Button
+              onClick={() => handleCopy('', 'json')}
+              color="blue"
+              fullWidth
+            >
+              Download JSON
+            </Button>
+          </div>
+        )}
       </div>
-      
-      {/* Sign Button - only show if not signed */}
-      {!signature && (
-        <Button
-          onClick={() => handleSign()}
-          color="blue"
-          disabled={!signingCapabilities.canSign || !message.trim() || isSigning}
-          fullWidth
-        >
-          {isSigning ? (
-            <div className="flex items-center justify-center gap-2">
-              <Spinner />
-              Signing…
-            </div>
-          ) : (
-            <div className="flex items-center justify-center gap-2">
-              <FaLock className="size-4" aria-hidden="true" />
-              Sign Message
-            </div>
-          )}
-        </Button>
-      )}
-      
+
       {/* Error Display */}
       {error && (
         <ErrorAlert message={error} onClose={() => setError(null)} />
       )}
-      
-      {/* Actions for Signature */}
-      {signature && (
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => {
-              setMessage("");
-              setSignature("");
-              setError(null);
-            }}
-            color="gray"
-          >
-            Reset
-          </Button>
-          <Button
-            onClick={() => handleCopy('', 'json')}
-            color="blue"
-            fullWidth
-          >
-            Download JSON
-          </Button>
-        </div>
-      )}
-      
+
       {/* YouTube Tutorial */}
       <Button
         variant="youtube"
