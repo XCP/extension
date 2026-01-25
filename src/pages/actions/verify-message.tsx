@@ -8,6 +8,7 @@ import { DestinationInput } from "@/components/inputs/destination-input";
 import { ErrorAlert } from "@/components/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
+import { validateSignatureJson, type SignatureJson } from "@/utils/validation/signatureJson";
 import type { ReactElement } from "react";
 
 /**
@@ -93,15 +94,21 @@ export default function VerifyMessage(): ReactElement {
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      
+
       try {
         const text = await file.text();
-        const data = JSON.parse(text);
-        
-        if (data.address) setAddress(data.address);
-        if (data.message) setMessage(data.message);
-        if (data.signature) setSignature(data.signature);
-        
+        const result = validateSignatureJson(JSON.parse(text));
+
+        if (!result.valid || !result.data) {
+          setError(result.error || "Invalid signature JSON file");
+          return;
+        }
+
+        setAddress(result.data.address);
+        setMessage(result.data.message);
+        setSignature(result.data.signature);
+        setVerificationResult(null);
+        setVerificationMethod(null);
         setError(null);
       } catch (err) {
         setError("Failed to parse JSON file. Make sure it's valid JSON with address, message, and signature fields.");
@@ -124,7 +131,7 @@ export default function VerifyMessage(): ReactElement {
       </div>
       
       {/* Combined Input Box */}
-      <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="bg-white rounded-lg shadow-sm p-3 sm:p-4">
         {/* Message Input - First, since this is what they're verifying */}
         <TextAreaInput
           value={message}
@@ -179,18 +186,20 @@ export default function VerifyMessage(): ReactElement {
             </div>
           )}
         </div>
+
+        {/* Verify Button */}
+        <div className="mt-4">
+          <Button
+            onClick={handleVerify}
+            color="blue"
+            disabled={!address.trim() || !message.trim() || !signature.trim() || isVerifying}
+            fullWidth
+          >
+            {isVerifying ? "Verifying…" : "Verify Signature"}
+          </Button>
+        </div>
       </div>
-      
-      {/* Verify Button */}
-      <Button
-        onClick={handleVerify}
-        color="blue"
-        disabled={!address.trim() || !message.trim() || !signature.trim() || isVerifying}
-        fullWidth
-      >
-        {isVerifying ? "Verifying…" : "Verify Signature"}
-      </Button>
-      
+
       {/* Error Display */}
       {error && (
         <ErrorAlert message={error} onClose={() => setError(null)} />
