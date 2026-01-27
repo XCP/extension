@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { LockDescriptionForm } from "./form";
 import { ReviewLockDescription } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";

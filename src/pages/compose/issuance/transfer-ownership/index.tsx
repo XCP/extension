@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { TransferOwnershipForm } from "./form";
 import { ReviewIssuanceTransferOwnership } from "./review";

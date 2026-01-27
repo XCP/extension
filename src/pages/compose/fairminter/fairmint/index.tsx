@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { FairmintForm } from "./form";
 import { ReviewFairmint } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeFairmint } from "@/utils/blockchain/counterparty/compose";
 import type { FairmintOptions } from "@/utils/blockchain/counterparty/compose";
 

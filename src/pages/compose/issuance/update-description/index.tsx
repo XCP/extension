@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { UpdateDescriptionForm } from "./form";
 import { ReviewIssuanceUpdateDescription } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";

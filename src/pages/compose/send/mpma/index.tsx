@@ -1,6 +1,6 @@
 import { MPMAForm } from "./form";
 import { ReviewMPMA } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeMPMA } from "@/utils/blockchain/counterparty/compose";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";

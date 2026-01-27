@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { SweepForm } from "./form";
 import { ReviewSweep } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeSweep } from "@/utils/blockchain/counterparty/compose";
 import { useWallet } from "@/contexts/wallet-context";
 import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
