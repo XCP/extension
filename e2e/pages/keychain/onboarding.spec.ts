@@ -1,7 +1,7 @@
 /**
- * Onboarding Page Tests (/auth/keychain/onboarding)
+ * Onboarding Page Tests (/keychain/onboarding)
  *
- * Tests for the initial wallet setup/keychain/onboarding flow.
+ * Tests for the initial wallet setup/onboarding flow.
  * This page is shown when no wallet exists yet.
  */
 
@@ -9,7 +9,7 @@ import { test, expect, launchExtension, cleanup } from '../../fixtures';
 import { onboarding, importWallet } from '../../selectors';
 
 // Use base test (not walletTest) since we're testing the pre-wallet state
-test.describe('Onboarding Page (/auth/keychain/onboarding)', () => {
+test.describe('Onboarding Page (/keychain/onboarding)', () => {
   test('shows onboarding options when no wallet exists', async ({}, testInfo) => {
     const testId = `onboard-${testInfo.title.replace(/[^a-zA-Z0-9]/g, '-').substring(0, 30)}`;
     const { context, page } = await launchExtension(testId);
