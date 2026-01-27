@@ -1,5 +1,5 @@
 /**
- * Reset Wallet Page Tests (/wallet/keychain/wallets/reset)
+ * Reset Wallet Page Tests (/keychain/wallets/reset)
  *
  * Tests for the reset wallet page that allows deleting all wallet data with password confirmation.
  */

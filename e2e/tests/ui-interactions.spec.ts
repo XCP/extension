@@ -92,7 +92,7 @@ test.describe('Wallet UI Interactions', () => {
     await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
     await onboarding.importWalletButton(extensionPage).click();
 
-    await extensionPage.waitForURL(/wallet\/import/, { timeout: 5000 });
+    await extensionPage.waitForURL(/keychain\/setup\/import-mnemonic/, { timeout: 5000 });
 
     // Wait for the first word input to appear
     const firstInput = importWallet.wordInput(extensionPage, 0);
@@ -135,7 +135,7 @@ test.describe('Wallet UI Interactions', () => {
     await expect(onboarding.importWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
     await onboarding.importWalletButton(extensionPage).click();
 
-    await extensionPage.waitForURL(/wallet\/import/, { timeout: 5000 });
+    await extensionPage.waitForURL(/keychain\/setup\/import-mnemonic/, { timeout: 5000 });
 
     // Wait for and fill in mnemonic words
     const firstInput = importWallet.wordInput(extensionPage, 0);

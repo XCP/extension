@@ -1,5 +1,5 @@
 /**
- * Remove Wallet Page Tests (/wallet/keychain/wallets/remove/:walletId)
+ * Remove Wallet Page Tests (/keychain/wallets/remove/:walletId)
  *
  * Tests for the remove wallet page that allows deleting a wallet with password confirmation.
  */
