@@ -208,7 +208,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
   walletTest('shows private key option in add wallet menu', async ({ page }) => {
     // Go to wallet selector
     await page.locator('header button').first().click();
-    await page.waitForURL(/wallet\/select/);
+    await page.waitForURL(/keychain\/wallets/);
 
     // Click Add Wallet
     await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
@@ -220,7 +220,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
   walletTest('imports wallet with valid WIF key', async ({ page }) => {
     // Go to wallet selector
     await page.locator('header button').first().click();
-    await page.waitForURL(/wallet\/select/);
+    await page.waitForURL(/keychain\/wallets/);
 
     // Click Add Wallet -> Import Private Key
     await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();
@@ -238,7 +238,7 @@ walletTest.describe('Import Wallet - Private Key', () => {
   walletTest('rejects invalid private key format', async ({ page }) => {
     // Go to wallet selector
     await page.locator('header button').first().click();
-    await page.waitForURL(/wallet\/select/);
+    await page.waitForURL(/keychain\/wallets/);
 
     // Click Add Wallet -> Import Private Key
     await page.getByRole('button', { name: /Add.*Wallet/i }).filter({ hasText: 'Add Wallet' }).click();

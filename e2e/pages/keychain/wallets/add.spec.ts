@@ -13,7 +13,7 @@ walletTest.describe('Add Wallet Page (/keychain/wallets/add)', () => {
     const walletSelectorBtn = header.walletSelector(page);
     await walletSelectorBtn.waitFor({ state: 'visible', timeout: 10000 });
     await walletSelectorBtn.click();
-    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
+    await page.waitForURL(/keychain\/wallets/, { timeout: 5000 });
 
     // Wait for add wallet button to be visible, then click
     const addWalletBtn = selectWallet.addWalletButton(page);
@@ -50,7 +50,7 @@ walletTest.describe('Add Wallet Page (/keychain/wallets/add)', () => {
     await createButton.click();
 
     // Should navigate to create-wallet page
-    await page.waitForURL(/wallet\/create/, { timeout: 5000 });
+    await page.waitForURL(/keychain\/setup\/create-mnemonic/, { timeout: 5000 });
   });
 
   walletTest('import mnemonic button navigates to import-wallet page', async ({ page }) => {

@@ -25,7 +25,7 @@ import { TEST_PASSWORDS } from '../test-data';
 async function createSecondWallet(page: any): Promise<void> {
   // Navigate to wallet management
   await header.walletSelector(page).click();
-  await page.waitForURL(/wallet\/select/);
+  await page.waitForURL(/keychain\/wallets/);
 
   // Add second wallet
   await selectWallet.addWalletButton(page).click();
@@ -46,7 +46,7 @@ async function createSecondWallet(page: any): Promise<void> {
  */
 async function navigateToRemoveWallet(page: any): Promise<void> {
   await header.walletSelector(page).click();
-  await page.waitForURL(/wallet\/select/);
+  await page.waitForURL(/keychain\/wallets/);
 
   const walletCard = page.locator('[role="radio"]').first();
   await expect(walletCard).toBeVisible();
@@ -69,7 +69,7 @@ test.describe('Remove Wallet - Single Wallet', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     const walletCard = extensionPage.locator('[role="radio"]').first();
     await expect(walletCard).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('Remove Wallet - Single Wallet', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     const walletCard = extensionPage.locator('[role="radio"]').first();
     await expect(walletCard).toBeVisible();
@@ -120,7 +120,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await createSecondWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     // Verify we have 2 wallets
     const walletCards = extensionPage.locator('[role="radio"]');
@@ -186,7 +186,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
 
     // Count wallets before removal (use web-first assertion that waits/retries)
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
     const walletCards = extensionPage.locator('[role="radio"]');
     await expect(walletCards).toHaveCount(2, { timeout: 5000 });
 
@@ -205,7 +205,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await extensionPage.getByRole('button', { name: /Remove|Confirm|Delete/i }).click();
 
     // Should return to wallet selection with one fewer wallet (2 - 1 = 1)
-    await extensionPage.waitForURL(/wallet\/select/, { timeout: 10000 });
+    await extensionPage.waitForURL(/keychain\/wallets/, { timeout: 10000 });
     await expect(extensionPage.locator('[role="radio"]')).toHaveCount(1, { timeout: 5000 });
   });
 });

@@ -11,7 +11,7 @@ walletTest.describe('Select Wallet Page (/keychain/wallets)', () => {
   async function navigateToSelectWallet(page: any): Promise<boolean> {
     // Navigate via header wallet selector
     await header.walletSelector(page).click();
-    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
+    await page.waitForURL(/keychain\/wallets/, { timeout: 5000 });
     return true;
   }
 
@@ -191,7 +191,7 @@ walletTest.describe('Select Wallet - Multi-Wallet', () => {
   walletTest('switching wallets changes header wallet name on index', async ({ page }) => {
     // Navigate to select-wallet
     await header.walletSelector(page).click();
-    await page.waitForURL(/wallet\/select/, { timeout: 5000 });
+    await page.waitForURL(/keychain\/wallets/, { timeout: 5000 });
 
     // Check if multiple wallets exist
     const walletItems = page.locator('[role="radio"]');

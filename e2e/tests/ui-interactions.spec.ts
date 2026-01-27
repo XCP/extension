@@ -19,7 +19,7 @@ test.describe('Wallet UI Interactions', () => {
     await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
     await onboarding.createWalletButton(extensionPage).click();
 
-    await extensionPage.waitForURL(/wallet\/create/, { timeout: 5000 });
+    await extensionPage.waitForURL(/keychain\/setup\/create-mnemonic/, { timeout: 5000 });
 
     // Reveal the mnemonic phrase
     await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
@@ -52,7 +52,7 @@ test.describe('Wallet UI Interactions', () => {
     await expect(onboarding.createWalletButton(extensionPage)).toBeVisible({ timeout: 10000 });
     await onboarding.createWalletButton(extensionPage).click();
 
-    await extensionPage.waitForURL(/wallet\/create/, { timeout: 5000 });
+    await extensionPage.waitForURL(/keychain\/setup\/create-mnemonic/, { timeout: 5000 });
 
     await expect(createWallet.revealPhraseCard(extensionPage)).toBeVisible({ timeout: 5000 });
     await createWallet.revealPhraseCard(extensionPage).click();
