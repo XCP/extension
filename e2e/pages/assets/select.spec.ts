@@ -1,32 +1,32 @@
 /**
- * Select Assets Page Tests (/assets/select)
+ * Select Assets Page Tests (/assets)
  *
  * Tests for the asset selection page used when choosing assets for transactions.
  */
 
 import { walletTest, expect } from '../../fixtures';
 
-walletTest.describe('Select Assets Page (/assets/select)', () => {
+walletTest.describe('Select Assets Page (/assets)', () => {
   walletTest('page loads and shows asset selection UI', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets'));
     await page.waitForLoadState('networkidle');
 
     // Should show search input for assets
-    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    const searchInput = page.locator('input[aria-label="Search assets"]').first();
     await expect(searchInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('shows search/filter input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets'));
     await page.waitForLoadState('networkidle');
 
     // The page should show a search input
-    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    const searchInput = page.locator('input[aria-label="Search assets"]').first();
     await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // Test that search input is functional
     await searchInput.fill('XCP');
-    
+
 
     // Input should accept the value
     const value = await searchInput.inputValue();
@@ -34,16 +34,16 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('displays asset section', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets'));
     await page.waitForLoadState('networkidle');
 
     // Page should have asset-related content
-    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    const searchInput = page.locator('input[aria-label="Search assets"]').first();
     await expect(searchInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('asset items are clickable when present', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets'));
     await page.waitForLoadState('networkidle');
 
     const assetItem = page.locator('a[href*="/assets/"]').first();
@@ -57,15 +57,15 @@ walletTest.describe('Select Assets Page (/assets/select)', () => {
   });
 
   walletTest('search filters assets', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/assets/select'));
+    await page.goto(page.url().replace(/\/index.*/, '/assets'));
     await page.waitForLoadState('networkidle');
 
-    const searchInput = page.locator('input[placeholder*="Search"]').first();
+    const searchInput = page.locator('input[aria-label="Search assets"]').first();
     await expect(searchInput).toBeVisible({ timeout: 5000 });
 
     // Search for something unlikely to match
     await searchInput.fill('ZZZZNONEXISTENT');
-    
+
 
     // Input should have our search value
     const value = await searchInput.inputValue();
