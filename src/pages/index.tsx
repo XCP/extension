@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { RadioGroup } from "@headlessui/react";
+import { Radio, RadioGroup } from "@headlessui/react";
 import {
   FaChevronRight,
   FaClipboard,
@@ -20,7 +20,6 @@ import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
 const COPY_FEEDBACK_DURATION = 2000;
-const TABS = ["Assets", "Balances"] as const;
 const PATHS = {
   SELECT_WALLET: "/keychain/wallets",
   UNLOCK_WALLET: "/keychain/unlock",
@@ -82,7 +81,7 @@ export default function HomePage(): ReactElement {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
     return (
       <RadioGroup value={activeAddress} onChange={() => {}}>
-        <RadioGroup.Option value={activeAddress}>
+        <Radio value={activeAddress}>
           {({ checked }) => (
             <div
               className={`relative w-full rounded p-4 cursor-pointer ${
@@ -120,7 +119,7 @@ export default function HomePage(): ReactElement {
               </div>
             </div>
           )}
-        </RadioGroup.Option>
+        </Radio>
       </RadioGroup>
     );
   };
