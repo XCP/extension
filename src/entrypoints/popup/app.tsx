@@ -5,6 +5,9 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { FaSpinner } from '@/components/icons';
 import { Layout } from '@/components/layout';
 import { AuthRequired } from '@/components/router/auth-required';
+import { NoKeychainOnly } from '@/components/router/no-keychain-only';
+import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
+import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { useWallet } from '@/contexts/wallet-context';
 import { analytics, sanitizePath } from '@/utils/fathom';
 
@@ -128,12 +131,25 @@ export default function App() {
           }
         />
 
+        {/* Public-ish routes with Layout */}
         <Route element={<Layout />}>
-          <Route path="/keychain/onboarding" element={<OnboardingPage />} />
-          <Route path="/keychain/unlock" element={<UnlockPage />} />
-          <Route path="/keychain/setup/create-mnemonic" element={<CreateMnemonicPage />} />
-          <Route path="/keychain/setup/import-mnemonic" element={<ImportMnemonicPage />} />
+          {/* Onboarding: only when no keychain exists */}
+          <Route element={<NoKeychainOnly />}>
+            <Route path="/keychain/onboarding" element={<OnboardingPage />} />
+          </Route>
 
+          {/* Unlock: only when keychain exists but locked */}
+          <Route element={<KeychainLockedOnly />}>
+            <Route path="/keychain/unlock" element={<UnlockPage />} />
+          </Route>
+
+          {/* Setup: allow if no keychain OR unlocked */}
+          <Route element={<KeychainOpenOrNew />}>
+            <Route path="/keychain/setup/create-mnemonic" element={<CreateMnemonicPage />} />
+            <Route path="/keychain/setup/import-mnemonic" element={<ImportMnemonicPage />} />
+          </Route>
+
+          {/* Request approval: handle their own auth states */}
           <Route path="/requests/connect/approve" element={<ApproveConnectionPage />} />
           <Route path="/requests/transaction/approve" element={<ApproveTransactionPage />} />
           <Route path="/requests/psbt/approve" element={<ApprovePsbtPage />} />

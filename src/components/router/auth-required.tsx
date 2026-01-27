@@ -12,8 +12,8 @@ type AuthState = 'UNLOCKED' | 'LOCKED' | 'ONBOARDING_NEEDED';
  * Route paths for authentication flows
  */
 const AUTH_ROUTES = {
-  UNLOCK: '/unlock-wallet',
-  ONBOARDING: '/onboarding',
+  UNLOCK: '/keychain/unlock',
+  ONBOARDING: '/keychain/onboarding',
 } as const;
 
 /**

@@ -74,8 +74,8 @@ describe('AuthRequired', () => {
             <Route path="/settings" element={<div>Protected Settings</div>} />
             <Route path="/" element={<div>Protected Home</div>} />
           </Route>
-          <Route path="/unlock-wallet" element={<div>Unlock Screen</div>} />
-          <Route path="/onboarding" element={<div>Onboarding Screen</div>} />
+          <Route path="/keychain/unlock" element={<div>Unlock Screen</div>} />
+          <Route path="/keychain/onboarding" element={<div>Onboarding Screen</div>} />
         </Routes>
       </MemoryRouter>
     );
@@ -167,7 +167,7 @@ describe('AuthRequired', () => {
       
       // Check navigation was called (mocked navigate doesn't actually change routes)
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/unlock-wallet',
+        '/keychain/unlock',
         expect.objectContaining({
           replace: true,
           state: { from: '/dashboard' }
@@ -189,7 +189,7 @@ describe('AuthRequired', () => {
       renderWithRouter('/');
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/unlock-wallet',
+        '/keychain/unlock',
         expect.objectContaining({
           replace: true,
           state: undefined
@@ -223,7 +223,7 @@ describe('AuthRequired', () => {
       renderWithRouter();
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/onboarding',
+        '/keychain/onboarding',
         { replace: true }
       );
       expect(screen.queryByText('Protected Dashboard')).not.toBeInTheDocument();
@@ -240,7 +240,7 @@ describe('AuthRequired', () => {
       renderWithRouter();
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/onboarding',
+        '/keychain/onboarding',
         { replace: true }
       );
     });
@@ -256,7 +256,7 @@ describe('AuthRequired', () => {
       renderWithRouter();
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/onboarding',
+        '/keychain/onboarding',
         { replace: true }
       );
     });
@@ -333,7 +333,7 @@ describe('AuthRequired', () => {
       );
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/unlock-wallet',
+        '/keychain/unlock',
         expect.objectContaining({ replace: true })
       );
       expect(screen.queryByText('Protected Dashboard')).not.toBeInTheDocument();
@@ -372,7 +372,7 @@ describe('AuthRequired', () => {
       );
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/onboarding',
+        '/keychain/onboarding',
         { replace: true }
       );
       expect(screen.queryByText('Protected Dashboard')).not.toBeInTheDocument();
@@ -392,7 +392,7 @@ describe('AuthRequired', () => {
       
       // Should redirect to onboarding even if authState is UNLOCKED
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/onboarding',
+        '/keychain/onboarding',
         { replace: true }
       );
     });
@@ -411,7 +411,7 @@ describe('AuthRequired', () => {
       renderWithRouter('/dashboard');
       
       expect(mockNavigate).toHaveBeenCalledWith(
-        '/unlock-wallet',
+        '/keychain/unlock',
         expect.objectContaining({
           replace: true,
           state: { from: '/dashboard' }
