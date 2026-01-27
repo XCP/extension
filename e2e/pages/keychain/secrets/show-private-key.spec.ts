@@ -379,7 +379,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await common.headerBackButton(page).click();
 
     // Should navigate back (URL should change)
-    await expect(page).not.toHaveURL(/wallet\/secrets\/show-private-key/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/keychain\/secrets\/show-private-key/, { timeout: 5000 });
   });
 
   // ============================================================================
