@@ -6,7 +6,7 @@ import { ReviewIssuanceIssueSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceIssueSupply() {
+function ComposeIssueSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceIssueSupply() {
   );
 }
 
-export default ComposeIssuanceIssueSupply;
+export default ComposeIssueSupplyPage;

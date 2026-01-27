@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty/compose";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeDispenserClose() {
+function ComposeDispenserClosePage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeDispenserClose() {
   );
 }
 
-export default ComposeDispenserClose;
+export default ComposeDispenserClosePage;

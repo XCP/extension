@@ -5,7 +5,7 @@ import { Composer } from "@/components/composer";
 import { composeCancel } from "@/utils/blockchain/counterparty/compose";
 import type { CancelOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeCancel() {
+function ComposeOrderCancelPage() {
   const { hash } = useParams<{ hash?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeCancel() {
   );
 }
 
-export default ComposeCancel;
+export default ComposeOrderCancelPage;

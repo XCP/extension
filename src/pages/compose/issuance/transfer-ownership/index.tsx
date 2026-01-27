@@ -6,7 +6,7 @@ import { ReviewIssuanceTransferOwnership } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceTransferOwnership() {
+function ComposeTransferOwnershipPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceTransferOwnership() {
   );
 }
 
-export default ComposeIssuanceTransferOwnership;
+export default ComposeTransferOwnershipPage;

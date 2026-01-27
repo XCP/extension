@@ -12,7 +12,7 @@ interface LocationState {
   address: string;
 }
 
-function ConsolidationSuccess() {
+function ConsolidateSuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setHeaderProps } = useHeader();
@@ -186,4 +186,4 @@ function ConsolidationSuccess() {
   );
 }
 
-export default ConsolidationSuccess;
+export default ConsolidateSuccessPage;

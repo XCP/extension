@@ -3,36 +3,40 @@ import { sanitizePath, getBtcBucket } from '../fathom';
 
 describe('fathom sanitizePath', () => {
   // ═══════════════════════════════════════════════════════════════════════════
-  // WALLET SECRETS (highest sensitivity)
+  // KEYCHAIN SECRETS (highest sensitivity)
   // ═══════════════════════════════════════════════════════════════════════════
-  describe('wallet secrets paths', () => {
-    it('strips wallet ID from /wallet/secrets/show-passphrase/:walletId', () => {
-      expect(sanitizePath('/wallet/secrets/show-passphrase/wallet-123')).toBe('/wallet/secrets/show-passphrase');
-      expect(sanitizePath('/wallet/secrets/show-passphrase/abc-def-ghi')).toBe('/wallet/secrets/show-passphrase');
+  describe('keychain secrets paths', () => {
+    it('strips wallet ID from /keychain/secrets/show-passphrase/:walletId', () => {
+      expect(sanitizePath('/keychain/secrets/show-passphrase/wallet-123')).toBe('/keychain/secrets/show-passphrase');
+      expect(sanitizePath('/keychain/secrets/show-passphrase/abc-def-ghi')).toBe('/keychain/secrets/show-passphrase');
     });
 
-    it('strips wallet ID and derivation path from /wallet/secrets/show-private-key/:walletId/:path?', () => {
-      expect(sanitizePath('/wallet/secrets/show-private-key/wallet-456')).toBe('/wallet/secrets/show-private-key');
-      expect(sanitizePath('/wallet/secrets/show-private-key/wallet-456/m/84/0/0')).toBe('/wallet/secrets/show-private-key');
-      expect(sanitizePath("/wallet/secrets/show-private-key/abc123/m/84'/0'/0'/0/0")).toBe('/wallet/secrets/show-private-key');
+    it('strips wallet ID and derivation path from /keychain/secrets/show-private-key/:walletId/:path?', () => {
+      expect(sanitizePath('/keychain/secrets/show-private-key/wallet-456')).toBe('/keychain/secrets/show-private-key');
+      expect(sanitizePath('/keychain/secrets/show-private-key/wallet-456/m/84/0/0')).toBe('/keychain/secrets/show-private-key');
+      expect(sanitizePath("/keychain/secrets/show-private-key/abc123/m/84'/0'/0'/0/0")).toBe('/keychain/secrets/show-private-key');
     });
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // WALLET MANAGEMENT
+  // KEYCHAIN WALLET MANAGEMENT
   // ═══════════════════════════════════════════════════════════════════════════
-  describe('wallet management paths', () => {
-    it('strips wallet ID from /wallet/remove/:walletId', () => {
-      expect(sanitizePath('/wallet/remove/abc123')).toBe('/wallet/remove');
-      expect(sanitizePath('/wallet/remove/wallet-uuid-here')).toBe('/wallet/remove');
+  describe('keychain wallet management paths', () => {
+    it('strips wallet ID from /keychain/wallets/remove/:walletId', () => {
+      expect(sanitizePath('/keychain/wallets/remove/abc123')).toBe('/keychain/wallets/remove');
+      expect(sanitizePath('/keychain/wallets/remove/wallet-uuid-here')).toBe('/keychain/wallets/remove');
     });
 
-    it('preserves static wallet paths', () => {
-      expect(sanitizePath('/wallet/add')).toBe('/wallet/add');
-      expect(sanitizePath('/wallet/select')).toBe('/wallet/select');
-      expect(sanitizePath('/wallet/create')).toBe('/wallet/create');
-      expect(sanitizePath('/wallet/import')).toBe('/wallet/import');
-      expect(sanitizePath('/wallet/reset')).toBe('/wallet/reset');
+    it('preserves static keychain paths', () => {
+      expect(sanitizePath('/keychain/wallets')).toBe('/keychain/wallets');
+      expect(sanitizePath('/keychain/wallets/add')).toBe('/keychain/wallets/add');
+      expect(sanitizePath('/keychain/wallets/reset')).toBe('/keychain/wallets/reset');
+      expect(sanitizePath('/keychain/setup/create-mnemonic')).toBe('/keychain/setup/create-mnemonic');
+      expect(sanitizePath('/keychain/setup/import-mnemonic')).toBe('/keychain/setup/import-mnemonic');
+      expect(sanitizePath('/keychain/setup/import-private-key')).toBe('/keychain/setup/import-private-key');
+      expect(sanitizePath('/keychain/setup/import-test-address')).toBe('/keychain/setup/import-test-address');
+      expect(sanitizePath('/keychain/onboarding')).toBe('/keychain/onboarding');
+      expect(sanitizePath('/keychain/unlock')).toBe('/keychain/unlock');
     });
   });
 
@@ -40,14 +44,14 @@ describe('fathom sanitizePath', () => {
   // TRANSACTIONS & UTXOS
   // ═══════════════════════════════════════════════════════════════════════════
   describe('transaction paths', () => {
-    it('strips tx hash from /transaction/:txHash', () => {
-      expect(sanitizePath('/transaction/eac34ba25e055ac2524e67e5bd32a60f49311345f646fde561ed1de70696b543')).toBe('/transaction');
-      expect(sanitizePath('/transaction/0000000000000000000000000000000000000000000000000000000000000000')).toBe('/transaction');
+    it('strips tx hash from /transactions/:txHash', () => {
+      expect(sanitizePath('/transactions/eac34ba25e055ac2524e67e5bd32a60f49311345f646fde561ed1de70696b543')).toBe('/transactions');
+      expect(sanitizePath('/transactions/0000000000000000000000000000000000000000000000000000000000000000')).toBe('/transactions');
     });
 
-    it('strips UTXO identifier from /assets/utxo/:txHash', () => {
-      expect(sanitizePath('/assets/utxo/abc123def456:0')).toBe('/assets/utxo');
-      expect(sanitizePath('/assets/utxo/0000000000000000000000000000000000000000000000000000000000000000:1')).toBe('/assets/utxo');
+    it('strips UTXO identifier from /assets/utxos/:txHash', () => {
+      expect(sanitizePath('/assets/utxos/abc123def456:0')).toBe('/assets/utxos');
+      expect(sanitizePath('/assets/utxos/0000000000000000000000000000000000000000000000000000000000000000:1')).toBe('/assets/utxos');
     });
   });
 
@@ -159,11 +163,11 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/compose/utxo/attach/RARE.PEPE')).toBe('/compose/utxo/attach');
     });
 
-    it('strips txid from /compose/utxo/detach/:txid', () => {
+    it('strips txid from /compose/utxo/detach/:txId', () => {
       expect(sanitizePath('/compose/utxo/detach/abc123:0')).toBe('/compose/utxo/detach');
     });
 
-    it('strips txid from /compose/utxo/move/:txid', () => {
+    it('strips txid from /compose/utxo/move/:txId', () => {
       expect(sanitizePath('/compose/utxo/move/abc123:0')).toBe('/compose/utxo/move');
     });
   });
@@ -220,13 +224,13 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/settings')).toBe('/settings');
     });
 
-    it('preserves auth paths', () => {
-      expect(sanitizePath('/onboarding')).toBe('/onboarding');
-      expect(sanitizePath('/unlock-wallet')).toBe('/unlock-wallet');
+    it('preserves keychain auth paths', () => {
+      expect(sanitizePath('/keychain/onboarding')).toBe('/keychain/onboarding');
+      expect(sanitizePath('/keychain/unlock')).toBe('/keychain/unlock');
     });
 
     it('preserves settings subpaths', () => {
-      expect(sanitizePath('/settings/address-type')).toBe('/settings/address-type');
+      expect(sanitizePath('/settings/address-types')).toBe('/settings/address-types');
       expect(sanitizePath('/settings/advanced')).toBe('/settings/advanced');
       expect(sanitizePath('/settings/security')).toBe('/settings/security');
       expect(sanitizePath('/settings/connected-sites')).toBe('/settings/connected-sites');
@@ -242,15 +246,15 @@ describe('fathom sanitizePath', () => {
     });
 
     it('preserves address paths', () => {
-      expect(sanitizePath('/address/history')).toBe('/address/history');
-      expect(sanitizePath('/address/select')).toBe('/address/select');
-      expect(sanitizePath('/address/view')).toBe('/address/view');
+      expect(sanitizePath('/addresses')).toBe('/addresses');
+      expect(sanitizePath('/addresses/details')).toBe('/addresses/details');
+      expect(sanitizePath('/addresses/history')).toBe('/addresses/history');
     });
 
-    it('preserves provider paths', () => {
-      expect(sanitizePath('/provider/approve-connection')).toBe('/provider/approve-connection');
-      expect(sanitizePath('/provider/approve-transaction')).toBe('/provider/approve-transaction');
-      expect(sanitizePath('/provider/approve-psbt')).toBe('/provider/approve-psbt');
+    it('preserves request paths', () => {
+      expect(sanitizePath('/requests/connect/approve')).toBe('/requests/connect/approve');
+      expect(sanitizePath('/requests/transaction/approve')).toBe('/requests/transaction/approve');
+      expect(sanitizePath('/requests/psbt/approve')).toBe('/requests/psbt/approve');
     });
   });
 });

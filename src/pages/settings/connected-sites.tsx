@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
@@ -12,11 +11,9 @@ import type { ReactElement } from "react";
 /**
  * Constants for navigation paths.
  */
-const CONSTANTS = {
-  PATHS: {
-    BACK: "/settings",
-    HELP_URL: "https://youtube.com", // Placeholder for now
-  } as const,
+const PATHS = {
+  BACK: "/settings",
+  HELP_URL: "https://youtube.com", // Placeholder for now
 } as const;
 
 interface ConnectedSite {
@@ -34,7 +31,7 @@ interface ConnectedSite {
  *
  * @returns {ReactElement} The rendered connected sites settings UI.
  */
-export default function ConnectedSites(): ReactElement {
+export default function ConnectedSitesPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
@@ -106,14 +103,14 @@ export default function ConnectedSites(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Connected Sites",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      onBack: () => navigate(PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
       } : {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
-        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        onClick: () => window.open(PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
     });

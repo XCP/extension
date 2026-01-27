@@ -66,21 +66,21 @@ export function getBtcBucket(btcAmount: number): number {
  */
 const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   // ═══════════════════════════════════════════════════════════════════════════
-  // WALLET SECRETS (highest sensitivity - wallet IDs, derivation paths)
+  // KEYCHAIN SECRETS (highest sensitivity - wallet IDs, derivation paths)
   // ═══════════════════════════════════════════════════════════════════════════
-  { prefix: '/wallet/secrets/show-private-key/', sanitized: '/wallet/secrets/show-private-key' },
-  { prefix: '/wallet/secrets/show-passphrase/', sanitized: '/wallet/secrets/show-passphrase' },
+  { prefix: '/keychain/secrets/show-private-key/', sanitized: '/keychain/secrets/show-private-key' },
+  { prefix: '/keychain/secrets/show-passphrase/', sanitized: '/keychain/secrets/show-passphrase' },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // WALLET MANAGEMENT (wallet IDs)
+  // KEYCHAIN WALLET MANAGEMENT (wallet IDs)
   // ═══════════════════════════════════════════════════════════════════════════
-  { prefix: '/wallet/remove/', sanitized: '/wallet/remove' },
+  { prefix: '/keychain/wallets/remove/', sanitized: '/keychain/wallets/remove' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // TRANSACTIONS & UTXOS (tx hashes, UTXO identifiers)
   // ═══════════════════════════════════════════════════════════════════════════
-  { prefix: '/transaction/', sanitized: '/transaction' },
-  { prefix: '/assets/utxo/', sanitized: '/assets/utxo' },
+  { prefix: '/transactions/', sanitized: '/transactions' },
+  { prefix: '/assets/utxos/', sanitized: '/assets/utxos' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ASSET VIEWING (asset names - must come after /assets/utxo/)

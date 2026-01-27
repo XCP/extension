@@ -11,7 +11,7 @@
  * - Text area for pasting CSV data
  */
 
-import { walletTest, expect } from '../../../fixtures';
+import { walletTest, expect } from '@e2e/fixtures';
 
 walletTest.describe('Compose Send MPMA Page (/compose/send/mpma)', () => {
   walletTest.beforeEach(async ({ page }) => {

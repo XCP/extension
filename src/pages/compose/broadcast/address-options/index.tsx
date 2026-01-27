@@ -4,7 +4,7 @@ import { Composer } from "@/components/composer";
 import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeBroadcastAddressOptions() {
+function ComposeBroadcastAddressOptionsPage() {
   return (
     <div className="p-4">
       <Composer<BroadcastOptions>
@@ -18,4 +18,4 @@ function ComposeBroadcastAddressOptions() {
   );
 }
 
-export default ComposeBroadcastAddressOptions;
+export default ComposeBroadcastAddressOptionsPage;

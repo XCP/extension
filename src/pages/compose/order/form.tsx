@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { FaCog } from "@/components/icons";
 import { OrderSettings } from "@/pages/settings/order-settings";

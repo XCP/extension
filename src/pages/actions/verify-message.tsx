@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheckCircle, FaUpload, FiRefreshCw } from "@/components/icons";
@@ -14,7 +13,7 @@ import type { ReactElement } from "react";
 /**
  * VerifyMessage component for verifying Bitcoin message signatures
  */
-export default function VerifyMessage(): ReactElement {
+export default function VerifyMessagePage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   

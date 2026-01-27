@@ -1,10 +1,7 @@
-
 import { useEffect, useMemo, useCallback, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "@/components/icons";
-import { onMessage } from 'webext-bridge/popup';
 import { useNavigate } from "react-router-dom";
 import { SuccessScreen } from "@/components/screens/success-screen";
-import { UnlockScreen } from "@/components/screens/unlock-screen";
 import { Spinner } from "@/components/spinner";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
@@ -81,10 +78,8 @@ function ComposerInner<T>({
     signAndBroadcast,
     goBack,
     reset,
-    setShowAuthModal,
     showHelpText,
     toggleHelpText,
-    handleUnlockAndSign,
   } = useComposer<T>();
 
   // Header configuration based on current step
@@ -168,21 +163,6 @@ function ComposerInner<T>({
     return () => setHeaderProps(null);
   }, [headerConfig, setHeaderProps]);
 
-  // Listen for wallet lock events
-  useEffect(() => {
-    const unsubscribe = onMessage('keychainLocked', ({ data }: { data: { locked: boolean } }) => {
-      if (data?.locked) {
-        setShowAuthModal(true);
-      }
-    });
-    return () => {
-      // Clean up if onMessage returns an unsubscribe function
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, [setShowAuthModal]);
-
   // Handle form submission - wrapped to prevent unmount
   const handleFormAction = useCallback((formData: FormData) => {
     // Call synchronously to prevent unmount
@@ -226,28 +206,6 @@ function ComposerInner<T>({
           apiResponse={state.apiResponse}
           onReset={reset}
         />
-      )}
-
-      {state.showAuthModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn overscroll-behavior-contain"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="auth-modal-title"
-        >
-          <div
-            className="w-full max-w-lg animate-slideUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <UnlockScreen
-              title="Authorization Required"
-              subtitle="Your session has expired. Please enter your password to continue."
-              onUnlock={handleUnlockAndSign}
-              onCancel={() => setShowAuthModal(false)}
-              submitText="Authorize"
-            />
-          </div>
-        </div>
       )}
     </>
   );

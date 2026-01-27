@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ActionList } from "@/components/lists/action-list";
@@ -130,7 +129,7 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
  * <ActionsScreen />
  * ```
  */
-export default function ActionsScreen(): ReactElement {
+export default function ActionsPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet } = useWallet();

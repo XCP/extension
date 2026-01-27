@@ -4,8 +4,8 @@
  * Tests for creating a new dispenser.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose } from '@e2e/selectors';
 import {
   enableValidationBypass,
   enableDryRun,

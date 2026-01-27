@@ -11,8 +11,8 @@
  * - Fee Rate selector
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose, actions } from '@e2e/selectors';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Sweep Page (/compose/sweep)', () => {

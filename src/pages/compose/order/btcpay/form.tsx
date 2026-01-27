@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ComposerForm } from "@/components/composer-form";
 import { HashInput } from "@/components/inputs/hash-input";

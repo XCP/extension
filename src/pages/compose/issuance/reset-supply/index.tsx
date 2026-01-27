@@ -6,7 +6,7 @@ import { ReviewIssuanceResetSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceResetSupply() {
+function ComposeResetSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceResetSupply() {
   );
 }
 
-export default ComposeIssuanceResetSupply;
+export default ComposeResetSupplyPage;

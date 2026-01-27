@@ -6,7 +6,7 @@ import { Composer } from "@/components/composer";
 import { composeDispense } from "@/utils/blockchain/counterparty/compose";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeDispense() {
+function ComposeDispensePage() {
   const [searchParams] = useSearchParams();
 
   // Extract address query param for pre-filling the dispenser address
@@ -31,4 +31,4 @@ function ComposeDispense() {
   );
 }
 
-export default ComposeDispense;
+export default ComposeDispensePage;

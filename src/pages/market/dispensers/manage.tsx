@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaFilter, FaTimes, FaExternalLinkAlt } from "@/components/icons";
@@ -24,7 +23,7 @@ type StatusFilter = "all" | "open" | "closed";
 /**
  * DispenserManagement component for managing user's dispensers
  */
-export default function DispenserManagement(): ReactElement {
+export default function DispenserManagementPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();

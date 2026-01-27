@@ -80,8 +80,6 @@ interface ComposerState<T> {
   isComposing: boolean;
   /** True while signing/broadcasting */
   isSigning: boolean;
-  /** Whether auth modal is visible */
-  showAuthModal: boolean;
   /** Timestamp when transaction was composed (for staleness detection) */
   composedAt: number | null;
 }
@@ -106,8 +104,6 @@ interface ComposerContextType<T> {
   reset: () => void;
   /** Clear current error message */
   clearError: () => void;
-  /** Show/hide the authentication modal */
-  setShowAuthModal: (show: boolean) => void;
 
   // ─── UI State ──────────────────────────────────────────────────────────────
   /** Whether help text is visible */
@@ -122,10 +118,6 @@ interface ComposerContextType<T> {
   activeWallet: ReturnType<typeof useWallet>["activeWallet"];
   /** Current settings */
   settings: ReturnType<typeof useSettings>["settings"];
-
-  // ─── Auth Modal ────────────────────────────────────────────────────────────
-  /** Unlock wallet and complete signing (called from auth modal) */
-  handleUnlockAndSign: (password: string) => Promise<void>;
 }
 
 /**
@@ -171,7 +163,7 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, selectWallet, isKeychainLocked } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
 
@@ -191,7 +183,6 @@ export function ComposerProvider<T>({
     error: null,
     isComposing: false,
     isSigning: false,
-    showAuthModal: false,
     composedAt: null,
   });
 
@@ -219,7 +210,6 @@ export function ComposerProvider<T>({
         error: null,
         isComposing: false,
         isSigning: false,
-        showAuthModal: false,
         composedAt: null,
       });
     }
@@ -243,7 +233,6 @@ export function ComposerProvider<T>({
         error: null,
         isComposing: false,
         isSigning: false,
-        showAuthModal: false,
         composedAt: null,
       });
     }
@@ -455,12 +444,6 @@ export function ComposerProvider<T>({
       return;
     }
 
-    // Check if wallet is locked
-    if (await isKeychainLocked()) {
-      setState(prev => ({ ...prev, showAuthModal: true }));
-      return;
-    }
-
     // Cancel any pending compose operation and create new AbortController for signing
     abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
@@ -502,13 +485,6 @@ export function ComposerProvider<T>({
       if (error instanceof Error) {
         errorMessage = error.message;
 
-        // Special handling for wallet lock (not an error, just needs re-auth)
-        if (error.message.includes("Wallet is locked")) {
-          if (!signal.aborted) {
-            setState(prev => ({ ...prev, showAuthModal: true, isSigning: false }));
-          }
-          return;
-        }
       }
 
       analytics.track('broadcast_error');
@@ -522,41 +498,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast, clearBalances]);
-
-  // Handle unlock and sign (for auth modal)
-  const handleUnlockAndSign = useCallback(async (password: string) => {
-    if (!activeWallet || !state.apiResponse || !activeAddress) return;
-
-    setState(prev => ({ ...prev, isSigning: true }));
-    try {
-      // Load the wallet to decrypt its secret
-      await selectWallet(activeWallet.id);
-      setState(prev => ({ ...prev, showAuthModal: false }));
-
-      const apiResponseWithBroadcast = await performSignAndBroadcast();
-
-      // Track successful broadcast with fee bucket
-      const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
-      const btcFeeAmount = btcFee / 100000000;
-      analytics.track('broadcast', getBtcBucket(btcFeeAmount));
-
-      // Clear balance cache so it refreshes after broadcast
-      clearBalances();
-
-      setState(prev => ({
-        ...prev,
-        step: "success",
-        apiResponse: apiResponseWithBroadcast,
-        error: null,
-        isSigning: false,
-      }));
-    } catch (error) {
-      console.error("Authorization error:", error);
-      setState(prev => ({ ...prev, isSigning: false }));
-      throw error; // Let the modal handle the error display
-    }
-  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast, clearBalances]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, performSignAndBroadcast, clearBalances]);
 
   // Navigation actions
   const reset = useCallback(() => {
@@ -567,7 +509,6 @@ export function ComposerProvider<T>({
       error: null,
       isComposing: false,
       isSigning: false,
-      showAuthModal: false,
       composedAt: null,
     });
     currentComposeTypeRef.current = composeType;
@@ -591,13 +532,7 @@ export function ComposerProvider<T>({
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
   }, []);
-  
-  const setShowAuthModal = useCallback((show: boolean) => {
-    setState(prev => ({ ...prev, showAuthModal: show }));
-  }, []);
-  
-  
-  // Provide unlock handler for auth modal
+
   const contextValue = useMemo(() => ({
     state,
     composeTransaction,
@@ -605,14 +540,11 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
-    setShowAuthModal,
     showHelpText,
     toggleHelpText,
     activeAddress,
     activeWallet,
     settings,
-    // Special handler for auth modal
-    handleUnlockAndSign,
   }), [
     state,
     composeTransaction,
@@ -620,13 +552,11 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
-    setShowAuthModal,
     showHelpText,
     toggleHelpText,
     activeAddress,
     activeWallet,
     settings,
-    handleUnlockAndSign,
   ]);
   
   return <ComposerContext value={contextValue}>{children}</ComposerContext>;

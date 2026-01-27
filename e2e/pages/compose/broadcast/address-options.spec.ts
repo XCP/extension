@@ -10,7 +10,7 @@
  * - Fee Rate selector
  */
 
-import { walletTest, expect } from '../../../fixtures';
+import { walletTest, expect } from '@e2e/fixtures';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Broadcast Address Options Page (/compose/broadcast/address-options)', () => {

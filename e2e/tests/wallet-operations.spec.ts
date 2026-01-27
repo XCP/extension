@@ -290,7 +290,7 @@ walletTest.describe('Reset Wallet', () => {
     await page.getByRole('button', { name: /Reset|Confirm|Delete/i }).click();
 
     // Should redirect to onboarding
-    await page.waitForURL(/onboarding/, { timeout: 10000 });
+    await page.waitForURL(/\/keychain\/onboarding/, { timeout: 10000 });
 
     // Verify onboarding options are visible
     await expect(onboarding.createWalletButton(page)).toBeVisible({ timeout: 5000 });

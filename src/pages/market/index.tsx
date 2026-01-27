@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -42,7 +41,7 @@ const COPY_FEEDBACK_MS = 2000;
 /**
  * Market component displays the XCP DEX marketplace with Browse and Manage tabs.
  */
-export default function Market(): ReactElement {
+export default function MarketPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();

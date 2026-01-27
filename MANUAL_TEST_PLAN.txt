@@ -1,0 +1,373 @@
+WALLET MANUAL TEST PLAN
+========================
+
+Prerequisites:
+- 3 addresses in wallet (Address A, B, C)
+- Small amount of BTC on Address A (0.001 BTC / 100,000 sats should be plenty)
+- Some XCP on Address A if testing named asset creation (0.5 XCP per named asset)
+
+Legend:
+[ ] = Not tested
+[x] = Passed
+[!] = Issue found (add notes)
+
+
+PHASE 1: OFF-CHAIN (NO FEES)
+============================
+
+1. [x] Sign Message
+   Route: /actions/sign-message
+   Steps: Enter "test message" > Sign > Copy signature
+   Notes:
+
+2. [x] Verify Message
+   Route: /actions/verify-message
+   Steps: Paste address, message, signature from step 1 > Verify
+   Expected: Shows valid signature
+   Notes:
+
+[!] Note: Both of these worked nicely, however, the submit button is outside of the white container that holds the inputs. I believe it's more common for us to put the submit button inside the white container.
+
+
+PHASE 2: BASIC SEND
+===================
+
+3. [ ] Send BTC (A to B)
+   Route: /compose/send/BTC
+   Steps: From A, send 10,000 sats to Address B
+   Notes:
+
+4. [ ] View Transaction
+   Route: /transaction/:txHash
+   Steps: After broadcast, tap transaction in history
+   Notes:
+
+5. [ ] Address History
+   Route: /address/history
+   Steps: Review transaction appears in history
+   Notes:
+
+
+PHASE 3: ASSET CREATION
+=======================
+
+6. [ ] Create Numeric Asset
+   Route: /compose/issuance
+   Steps: Create asset named A + 26 random digits (e.g., A11111111111111111111111111)
+         Supply: 1000, Divisible: No
+   Cost: Miner fee only
+   Notes:
+
+7. [ ] View Asset
+   Route: /assets/:asset
+   Steps: Find new asset in balances, tap to view details
+   Notes:
+
+8. [ ] Issue More Supply
+   Route: /compose/issuance/issue-supply/:asset
+   Steps: Issue 500 more of the numeric asset
+   Notes:
+
+9. [ ] Update Description
+   Route: /compose/issuance/update-description/:asset
+   Steps: Set description to "Test asset for QA"
+   Notes:
+
+10. [ ] Lock Description
+    Route: /compose/issuance/lock-description/:asset
+    Steps: Lock the description (PERMANENT)
+    Notes:
+
+11. [ ] Create Named Asset (requires 0.5 XCP)
+    Route: /compose/issuance
+    Steps: Create asset with custom name (e.g., YOURNAME.test)
+          Supply: 100, Divisible: Yes
+    Cost: 0.5 XCP + miner fee
+    Notes:
+
+
+PHASE 4: SENDING ASSETS
+=======================
+
+12. [ ] Send Asset (A to B)
+    Route: /compose/send/:asset
+    Steps: Send 100 of numeric asset from A to B
+    Notes:
+
+13. [ ] Send Asset (B to C)
+    Route: /compose/send/:asset
+    Steps: Switch to Address B, send 50 of asset to C
+    Notes:
+
+14. [ ] MPMA Send (A to B+C)
+    Route: /compose/send/mpma
+    Steps: From A, send asset to both B and C in single tx
+    Notes:
+
+
+PHASE 5: ORDERS (TRADING)
+=========================
+
+15. [ ] Create Sell Order
+    Route: /compose/order/:asset
+    Steps: From A, create sell order for numeric asset
+          Price: Set very high so it won't match
+          Quantity: 100 units
+    Notes:
+
+16. [ ] View Order in Market
+    Route: /market
+    Steps: Check order appears in Orders tab
+    Notes:
+
+17. [ ] Cancel Sell Order
+    Route: /compose/order/cancel/:hash
+    Steps: Cancel the order from step 15
+    Expected: Asset returned to balance
+    Notes:
+
+18. [ ] Create Buy Order
+    Route: /compose/order/:asset
+    Steps: Create buy order for any asset
+          Price: Set very low so it won't match
+    Notes:
+
+19. [ ] Cancel Buy Order
+    Route: /compose/order/cancel/:hash
+    Steps: Cancel the buy order
+    Expected: BTC returned to balance
+    Notes:
+
+
+PHASE 6: DISPENSERS
+===================
+
+20. [ ] Create Dispenser
+    Route: /compose/dispenser/:asset
+    Steps: From A, create dispenser for numeric asset
+          Give quantity: 10 per dispense
+          BTC price: 1000 sats
+          Escrow: 100 units
+    Notes:
+
+21. [ ] View Dispenser
+    Route: /market/dispensers/:asset
+    Steps: Find dispenser in market dispensers list
+    Notes:
+
+22. [ ] Dispense (Buy from own dispenser)
+    Route: /compose/dispenser/dispense/:address
+    Steps: From B, send 1000 sats to dispenser address
+    Expected: Receive 10 units of asset
+    Notes:
+
+23. [ ] Close Dispenser
+    Route: /compose/dispenser/close/:asset
+    Steps: Close the dispenser from A
+    Expected: Remaining escrow returned
+    Notes:
+
+
+PHASE 7: UTXO OPERATIONS
+========================
+
+24. [ ] Attach Asset to UTXO
+    Route: /compose/utxo/attach/:asset
+    Steps: Attach some of numeric asset to a specific UTXO
+    Notes:
+
+25. [ ] View UTXO
+    Route: /assets/utxo/:txHash
+    Steps: View the UTXO with attached asset
+    Notes:
+
+26. [ ] Move UTXO
+    Route: /compose/utxo/move/:txid
+    Steps: Move the attached asset to a new UTXO
+    Notes:
+
+27. [ ] Detach from UTXO
+    Route: /compose/utxo/detach/:txid
+    Steps: Detach asset back to regular balance
+    Notes:
+
+
+PHASE 8: BROADCAST
+==================
+
+28. [ ] Broadcast Message
+    Route: /compose/broadcast
+    Steps: Broadcast short text message (keep it brief, permanent)
+    Notes:
+
+
+PHASE 9: DESTRUCTIVE OPERATIONS (TEST LAST)
+===========================================
+
+29. [ ] Destroy Supply
+    Route: /compose/issuance/destroy/:asset
+    Steps: Destroy 50 units of numeric asset (PERMANENT)
+    Notes:
+
+30. [ ] Lock Supply
+    Route: /compose/issuance/lock-supply/:asset
+    Steps: Lock supply on numeric asset (PERMANENT)
+    Notes:
+
+31. [ ] Transfer Ownership
+    Route: /compose/issuance/transfer-ownership/:asset
+    Steps: Transfer asset ownership from A to B
+    Notes:
+
+32. [ ] Transfer Ownership Back
+    Route: /compose/issuance/transfer-ownership/:asset
+    Steps: From B, transfer ownership back to A
+    Notes:
+
+
+PHASE 10: CONSOLIDATION & SWEEP
+===============================
+
+33. [ ] Consolidate UTXOs
+    Route: /actions/consolidate
+    Steps: If address has 3+ UTXOs, consolidate them
+    Notes:
+
+34. [ ] Sweep Address
+    Route: /compose/sweep/:address
+    Steps: Sweep Address C to Address A (moves everything)
+    WARNING: Moves ALL assets and BTC from the address
+    Notes:
+
+
+PHASE 11: FAIRMINTING (OPTIONAL - REQUIRES XCP)
+===============================================
+
+35. [ ] Create Fairminter
+    Route: /compose/fairminter/:asset
+    Steps: Create fairminter for a new asset
+    Notes:
+
+36. [ ] Fairmint
+    Route: /compose/fairmint/:asset
+    Steps: Participate in the fairmint
+    Notes:
+
+
+PHASE 12: WALLET MANAGEMENT
+===========================
+
+37. [ ] Select Different Address
+    Route: /address/select
+    Steps: Switch between A, B, C
+    Notes:
+
+38. [ ] Select Different Wallet
+    Route: /wallet/select
+    Steps: If multiple wallets, switch between them
+    Notes:
+
+39. [ ] Show Passphrase
+    Route: /wallet/secrets/show-passphrase/:walletId
+    Steps: View recovery phrase (enter password)
+    Notes:
+
+40. [ ] Show Private Key
+    Route: /wallet/secrets/show-private-key/:walletId/:addressPath
+    Steps: View private key for an address
+    Notes:
+
+41. [ ] Lock Wallet
+    Route: (header lock icon)
+    Steps: Lock wallet, verify goes to unlock screen
+    Notes:
+
+42. [ ] Unlock Wallet
+    Route: /unlock-wallet
+    Steps: Enter password, verify unlocks correctly
+    Notes:
+
+
+PHASE 13: SETTINGS
+==================
+
+43. [ ] Address Type Settings
+    Route: /settings/address-type
+    Steps: Review address type options
+    Notes:
+
+44. [ ] Security Settings
+    Route: /settings/security
+    Steps: Review auto-lock timer, other security options
+    Notes:
+
+45. [ ] Advanced Settings
+    Route: /settings/advanced
+    Steps: Review API URL, other advanced options
+    Notes:
+
+46. [ ] Connected Sites
+    Route: /settings/connected-sites
+    Steps: Review any connected dApps
+    Notes:
+
+47. [ ] Pinned Assets
+    Route: /settings/pinned-assets
+    Steps: Pin/unpin some assets, verify order on home screen
+    Notes:
+
+
+PHASE 14: VIEWING PAGES
+=======================
+
+48. [ ] Receive/View Address
+    Route: /address/view
+    Steps: View QR code for receiving
+    Notes:
+
+49. [ ] Asset Select
+    Route: /assets/select
+    Steps: Search and select assets (used in forms)
+    Notes:
+
+50. [ ] Market - BTC Price
+    Route: /market/btc
+    Steps: View BTC price chart/info
+    Notes:
+
+51. [ ] Market - Dispensers
+    Route: /market/dispensers/manage
+    Steps: View dispenser management page
+    Notes:
+
+
+ISSUES FOUND
+============
+
+Issue 1:
+Route:
+Description:
+Steps to reproduce:
+
+Issue 2:
+Route:
+Description:
+Steps to reproduce:
+
+Issue 3:
+Route:
+Description:
+Steps to reproduce:
+
+
+NOTES
+=====
+
+Test Date:
+Tester:
+Version:
+Network: mainnet / testnet
+
+Additional observations:
+
+

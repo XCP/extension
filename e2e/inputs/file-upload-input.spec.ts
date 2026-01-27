@@ -28,7 +28,7 @@ walletTest.describe('FileUploadInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
 
     // First, change address type to Taproot (p2tr) to enable inscribing
-    await page.goto(`${baseUrl}/settings/address-type`);
+    await page.goto(`${baseUrl}/settings/address-types`);
     await page.waitForLoadState('networkidle');
 
     // Click on the Taproot card (HeadlessUI RadioGroup.Option)

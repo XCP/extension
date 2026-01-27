@@ -7,7 +7,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
-function ConsolidationStatus() {
+function ConsolidateStatusPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
@@ -231,4 +231,4 @@ function ConsolidationStatus() {
   );
 }
 
-export default ConsolidationStatus;
+export default ConsolidateStatusPage;

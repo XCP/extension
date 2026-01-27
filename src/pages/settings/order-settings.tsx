@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/contexts/settings-context';
 import type { ReactElement } from 'react';

@@ -5,8 +5,8 @@ import { Composer } from "@/components/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty/compose";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeDispenserCloseByHash() {
-  const { tx_hash } = useParams<{ tx_hash?: string }>();
+function ComposeDispenserCloseByHashPage() {
+  const { txHash } = useParams<{ txHash?: string }>();
 
   return (
     <div className="p-4">
@@ -14,11 +14,11 @@ function ComposeDispenserCloseByHash() {
         composeType="dispenser"
         composeApiMethod={composeDispenser}
         initialTitle="Close"
-        FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={tx_hash} />}
+        FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={txHash} />}
         ReviewComponent={ReviewDispenserCloseByHash}
       />
     </div>
   );
 }
 
-export default ComposeDispenserCloseByHash;
+export default ComposeDispenserCloseByHashPage;

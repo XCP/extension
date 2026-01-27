@@ -37,17 +37,13 @@ const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet' };
 const mockActiveAddress = { address: 'bc1qtest123', name: 'Test Address' };
 const mockSignTransaction = vi.fn();
 const mockBroadcastTransaction = vi.fn();
-const mockUnlockWallet = vi.fn();
-const mockIsKeychainLocked = vi.fn();
 
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeWallet: mockActiveWallet,
     activeAddress: mockActiveAddress,
     signTransaction: mockSignTransaction,
-    broadcastTransaction: mockBroadcastTransaction,
-    unlockWallet: mockUnlockWallet,
-    isKeychainLocked: mockIsKeychainLocked
+    broadcastTransaction: mockBroadcastTransaction
   })
 }));
 
@@ -71,19 +67,6 @@ vi.mock('@/contexts/settings-context', () => ({
     isLoading: false
   })
 }))
-
-vi.mock('webext-bridge/popup', () => ({
-  onMessage: vi.fn()
-}));
-
-vi.mock('@/components/screens/unlock-screen', () => ({
-  UnlockScreen: ({ onUnlock, onCancel }: any) => (
-    <div data-testid="unlock-screen">
-      <button onClick={() => onUnlock('password123')}>Unlock</button>
-      <button onClick={onCancel}>Cancel</button>
-    </div>
-  )
-}));
 
 vi.mock('@/components/screens/success-screen', () => ({
   SuccessScreen: ({ apiResponse, onReset }: any) => (
@@ -175,7 +158,6 @@ describe('Composer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockIsKeychainLocked.mockResolvedValue(false);
     mockSignTransaction.mockResolvedValue('signed123');
     mockBroadcastTransaction.mockResolvedValue({ tx_hash: 'broadcast123' });
     mockComposeApi.mockResolvedValue(mockApiResponse);
@@ -263,27 +245,6 @@ describe('Composer', () => {
     
     await waitFor(() => {
       expect(mockSignTransaction).toHaveBeenCalled();
-    });
-  });
-
-  it('should show auth modal when wallet is locked', async () => {
-    mockIsKeychainLocked.mockResolvedValue(true);
-    
-    renderWithProvider();
-    
-    // Go to review first
-    const form = screen.getByTestId('form-component');
-    fireEvent.submit(form);
-    
-    await waitFor(() => {
-      expect(screen.queryByTestId('review-component')).toBeInTheDocument();
-    });
-    
-    const signButton = screen.getByText('Sign');
-    fireEvent.click(signButton);
-    
-    await waitFor(() => {
-      expect(screen.getByTestId('unlock-screen')).toBeInTheDocument();
     });
   });
 

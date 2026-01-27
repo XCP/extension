@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer-form";
@@ -283,7 +282,13 @@ export function DispenseForm({
           {errorMessage && (
             <ErrorAlert
               message={errorMessage}
-              onClose={() => setValidationError(null)}
+              onClose={() => {
+                setValidationError(null);
+                // If the error is from dispenser lookup, clear the address to reset
+                if (dispenserError) {
+                  setDispenserAddress("");
+                }
+              }}
             />
           )}
 

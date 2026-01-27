@@ -4,7 +4,7 @@
  * Tests for resetting asset supply.
  */
 
-import { walletTest, expect } from '../../../fixtures';
+import { walletTest, expect } from '@e2e/fixtures';
 
 walletTest.describe('Compose Reset Supply Page (/compose/issuance/reset-supply)', () => {
   walletTest('reset supply page loads with asset parameter', async ({ page }) => {

@@ -6,7 +6,7 @@ import { ErrorAlert } from "@/components/error-alert";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceUpdateDescription() {
+function ComposeUpdateDescriptionPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceUpdateDescription() {
   );
 }
 
-export default ComposeIssuanceUpdateDescription;
+export default ComposeUpdateDescriptionPage;

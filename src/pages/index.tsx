@@ -1,6 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { RadioGroup } from "@headlessui/react";
 import {
   FaChevronRight,
   FaClipboard,
@@ -9,9 +9,8 @@ import {
   FaQrcode,
   FaHistory,
   FaLock,
+  TbPinned
 } from "@/components/icons";
-import { TbPinned } from "@/components/icons";
-import { RadioGroup } from "@headlessui/react";
 import { Button } from "@/components/button";
 import { AssetList } from "@/components/lists/asset-list";
 import { BalanceList } from "@/components/lists/balance-list";
@@ -20,21 +19,19 @@ import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
-const CONSTANTS = {
-  COPY_FEEDBACK_DURATION: 2000,
-  PATHS: {
-    SELECT_WALLET: "/wallet/select",
-    UNLOCK_WALLET: "/unlock-wallet",
-    VIEW_ADDRESS: "/address/view",
-    SEND_BTC: "/compose/send/BTC",
-    ADDRESS_HISTORY: "/address/history",
-    SELECT_ADDRESS: "/address/select",
-    PINNED_ASSETS: "/settings/pinned-assets",
-  } as const,
-  TABS: ["Assets", "Balances"] as const,
+const COPY_FEEDBACK_DURATION = 2000;
+const TABS = ["Assets", "Balances"] as const;
+const PATHS = {
+  SELECT_WALLET: "/keychain/wallets",
+  UNLOCK_WALLET: "/keychain/unlock",
+  VIEW_ADDRESS: "/addresses/details",
+  SEND_BTC: "/compose/send/BTC",
+  ADDRESS_HISTORY: "/addresses/history",
+  SELECT_ADDRESS: "/addresses",
+  PINNED_ASSETS: "/settings/pinned-assets",
 } as const;
 
-export default function Index(): ReactElement {
+export default function HomePage(): ReactElement {
   const { activeWallet, activeAddress, lockKeychain, isLoading } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
@@ -47,14 +44,14 @@ export default function Index(): ReactElement {
       useLogoTitle: true,
       leftButton: {
         label: activeWallet?.name || "Wallet",
-        onClick: () => navigate(CONSTANTS.PATHS.SELECT_WALLET),
+        onClick: () => navigate(PATHS.SELECT_WALLET),
         ariaLabel: "Select Wallet",
       },
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
         onClick: async () => {
           await lockKeychain();
-          navigate(CONSTANTS.PATHS.UNLOCK_WALLET);
+          navigate(PATHS.UNLOCK_WALLET);
         },
         ariaLabel: "Lock Keychain",
       },
@@ -64,7 +61,7 @@ export default function Index(): ReactElement {
 
   useEffect(() => {
     if (copiedToClipboard) {
-      const timer = setTimeout(() => setCopiedToClipboard(false), CONSTANTS.COPY_FEEDBACK_DURATION);
+      const timer = setTimeout(() => setCopiedToClipboard(false), COPY_FEEDBACK_DURATION);
       return () => clearTimeout(timer);
     }
   }, [copiedToClipboard]);
@@ -78,7 +75,7 @@ export default function Index(): ReactElement {
 
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(CONSTANTS.PATHS.SELECT_ADDRESS);
+    navigate(PATHS.SELECT_ADDRESS);
   };
 
   const renderCurrentAddress = (): ReactElement => {
@@ -130,15 +127,15 @@ export default function Index(): ReactElement {
 
   const renderActionButtons = (): ReactElement => (
     <div className="grid grid-cols-3 gap-4 my-4">
-      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label="Receive tokens">
+      <Button color="gray" onClick={() => navigate(PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label="Receive tokens">
         <FaQrcode className="text-xl mb-2" aria-hidden="true" />
         <span>Receive</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.SEND_BTC)} className="flex-col !py-4" aria-label="Send tokens">
+      <Button color="gray" onClick={() => navigate(PATHS.SEND_BTC)} className="flex-col !py-4" aria-label="Send tokens">
         <FaPaperPlane className="text-xl mb-2" aria-hidden="true" />
         <span>Send</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(CONSTANTS.PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label="Transaction history">
+      <Button color="gray" onClick={() => navigate(PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label="Transaction history">
         <FaHistory className="text-xl mb-2" aria-hidden="true" />
         <span>History</span>
       </Button>
@@ -167,7 +164,7 @@ export default function Index(): ReactElement {
           </button>
         </div>
         <button
-          onClick={() => navigate(CONSTANTS.PATHS.PINNED_ASSETS)}
+          onClick={() => navigate(PATHS.PINNED_ASSETS)}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label="Manage Pinned Assets"
         >

@@ -382,7 +382,7 @@ test.describe('Provider Integration - Full Flow', () => {
       const testOrigin = encodeURIComponent('http://localhost:3000');
       const testRequestId = 'test-request-123';
       await extensionPage.goto(
-        `chrome-extension://${extensionId}/popup.html#/provider/approve-connection?origin=${testOrigin}&requestId=${testRequestId}`
+        `chrome-extension://${extensionId}/popup.html#/requests/connect/approve?origin=${testOrigin}&requestId=${testRequestId}`
       );
 
       await extensionPage.waitForLoadState('networkidle');

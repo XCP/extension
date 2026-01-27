@@ -11,7 +11,7 @@
  * - Max mint configuration
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
 import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Fairminter Page (/compose/fairminter)', () => {
