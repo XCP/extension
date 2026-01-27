@@ -166,7 +166,7 @@ walletTest.describe('Address Type Matrix - Receive Address Display', () => {
       const receiveButton = index.receiveButton(page);
       await expect(receiveButton).toBeVisible({ timeout: 5000 });
       await receiveButton.click();
-      await expect(page).toHaveURL(/address\/view/, { timeout: 5000 });
+      await expect(page).toHaveURL(/addresses\/details/, { timeout: 5000 });
 
       // Use getReceivePageAddress for the view-address page
       const addressOnReceive = await getReceivePageAddress(page);
@@ -240,7 +240,7 @@ walletTest.describe('Address Type Matrix - QR Code Display', () => {
       const receiveButton = index.receiveButton(page);
       await expect(receiveButton).toBeVisible({ timeout: 5000 });
       await receiveButton.click();
-      await expect(page).toHaveURL(/address\/view/, { timeout: 5000 });
+      await expect(page).toHaveURL(/addresses\/details/, { timeout: 5000 });
 
       // QR code should be visible on the receive page
       const qrCode = viewAddress.qrCode(page);
@@ -338,7 +338,7 @@ walletTest.describe('Address Type Matrix - Private Key Import', () => {
     // Navigate to select wallet to add another wallet
     await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
     await header.walletSelector(page).click();
-    await expect(page).toHaveURL(/wallet\/select/);
+    await expect(page).toHaveURL(/keychain\/wallets/);
 
     // Click Add Wallet (the main green button, not the header one)
     await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });
@@ -364,7 +364,7 @@ walletTest.describe('Address Type Matrix - Private Key Import', () => {
     // Navigate to select wallet to add another wallet
     await expect(header.walletSelector(page)).toBeVisible({ timeout: 5000 });
     await header.walletSelector(page).click();
-    await expect(page).toHaveURL(/wallet\/select/);
+    await expect(page).toHaveURL(/keychain\/wallets/);
 
     // Click Add Wallet (the main green button, not the header one)
     await expect(selectWallet.addWalletButton(page)).toBeVisible({ timeout: 5000 });

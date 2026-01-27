@@ -1,12 +1,11 @@
-
 import { useState, useRef } from "react";
-import { ComposerForm } from "@/components/composer-form";
+import { ComposerForm } from "@/components/composer/composer-form";
 import { useComposer } from "@/contexts/composer-context";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty/memo";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
-import { ErrorAlert } from "@/components/error-alert";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import type { ReactElement } from "react";
 
 interface ParsedRow {

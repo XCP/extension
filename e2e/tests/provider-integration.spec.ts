@@ -285,7 +285,7 @@ async function launchExtension(testId: string): Promise<{
 // Helper to create wallet
 async function createWallet(page: Page, password = TEST_PASSWORD): Promise<void> {
   await onboarding.createWalletButton(page).click();
-  await page.waitForURL(/wallet\/create/);
+  await page.waitForURL(/keychain\/setup\/create-mnemonic/);
   await createWalletSelectors.revealPhraseCard(page).click();
 
   await createWalletSelectors.savedPhraseCheckbox(page).check();
@@ -382,7 +382,7 @@ test.describe('Provider Integration - Full Flow', () => {
       const testOrigin = encodeURIComponent('http://localhost:3000');
       const testRequestId = 'test-request-123';
       await extensionPage.goto(
-        `chrome-extension://${extensionId}/popup.html#/provider/approve-connection?origin=${testOrigin}&requestId=${testRequestId}`
+        `chrome-extension://${extensionId}/popup.html#/requests/connect/approve?origin=${testOrigin}&requestId=${testRequestId}`
       );
 
       await extensionPage.waitForLoadState('networkidle');

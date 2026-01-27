@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";

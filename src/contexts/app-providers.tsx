@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
-import { ErrorBoundary } from '@/components/error-boundary';
+import { ErrorBoundary } from '@/components/layout/error-boundary';
 import { HeaderProvider } from './header-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';

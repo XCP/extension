@@ -1,11 +1,10 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { MemoInput } from "@/components/inputs/memo-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context";
 import { validateQuantity } from "@/utils/validation/amount";

@@ -1,10 +1,9 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { DestinationInput } from "@/components/inputs/destination-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";

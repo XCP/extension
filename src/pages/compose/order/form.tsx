@@ -1,18 +1,17 @@
-
 import { useEffect, useState } from "react";
 import { FaCog } from "@/components/icons";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { ComposerForm } from "@/components/composer-form";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
-import { BalanceHeader } from "@/components/headers/balance-header";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 

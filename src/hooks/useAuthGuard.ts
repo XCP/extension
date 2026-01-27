@@ -54,7 +54,7 @@ export function useAuthGuard() {
     // Detect transition from UNLOCKED to LOCKED
     if (previousAuthState.current === 'UNLOCKED' && authState === 'LOCKED' && keychainExists) {
       console.log('[Auth Guard] Wallet locked, navigating to unlock screen');
-      navigate('/unlock-wallet', {
+      navigate('/keychain/unlock', {
         replace: true,
         state: { from: location.pathname }
       });

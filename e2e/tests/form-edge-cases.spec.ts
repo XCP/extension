@@ -47,7 +47,7 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     }
 
     // Check the confirmation checkbox (required before Continue button appears)
-    const checkbox = extensionPage.locator('#confirmed-checkbox');
+    const checkbox = extensionPage.locator('#checkbox-confirmed');
     await expect(checkbox).toBeEnabled({ timeout: 5000 });
     await checkbox.check();
 
@@ -66,7 +66,7 @@ test.describe('Form Edge Cases - Mnemonic Input', () => {
     }
 
     // Check the confirmation checkbox (required before Continue button appears)
-    const checkbox = extensionPage.locator('#confirmed-checkbox');
+    const checkbox = extensionPage.locator('#checkbox-confirmed');
     await expect(checkbox).toBeEnabled({ timeout: 5000 });
     await checkbox.check();
 

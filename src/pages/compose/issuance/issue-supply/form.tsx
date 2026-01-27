@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { toBigNumber } from "@/utils/numeric";

@@ -1,14 +1,12 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
 import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FiRefreshCw } from "@/components/icons";
 import { FiDownload } from "@/components/icons";
-import { Button } from "@/components/button";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { Spinner } from "@/components/spinner";
-import { ErrorAlert } from "@/components/error-alert";
-import { UnlockScreen } from "@/components/screens/unlock-screen";
+import { Button } from "@/components/ui/button";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
@@ -18,10 +16,10 @@ import type { ReactElement } from "react";
 /**
  * SignMessage component for signing messages with Bitcoin addresses
  */
-export default function SignMessage(): ReactElement {
+export default function SignMessagePage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet, activeAddress, selectWallet, isKeychainLocked, getPrivateKey } = useWallet();
+  const { activeWallet, activeAddress, getPrivateKey } = useWallet();
 
   // Provider request hook for handling dApp integration
   const {
@@ -39,7 +37,6 @@ export default function SignMessage(): ReactElement {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   
   // Load provider message if coming from dApp request
   useEffect(() => {
@@ -82,40 +79,27 @@ export default function SignMessage(): ReactElement {
     getSigningCapabilities(addressFormat) : 
     { canSign: false, method: "Not available", notes: "No address selected" };
   
-  const handleSign = async (password?: string) => {
+  const handleSign = async () => {
     if (!activeWallet || !activeAddress) {
       setError("No active wallet or address");
       return;
     }
-    
+
     if (!message.trim()) {
       setError("Please enter a message to sign");
       return;
     }
-    
+
     if (!signingCapabilities.canSign) {
       setError(`Message signing not supported for ${ addressFormat } addresses`);
       return;
     }
-    
+
     setIsSigning(true);
     setError(null);
     setSignature("");
-    
+
     try {
-      // Check if keychain is locked
-      if (!password && await isKeychainLocked()) {
-        setShowAuthModal(true);
-        setIsSigning(false);
-        return;
-      }
-      
-      // Load wallet if password provided (re-enter password scenario)
-      if (password) {
-        await selectWallet(activeWallet.id);
-        setShowAuthModal(false);
-      }
-      
       // Get private key using wallet context
       // This handles both mnemonic and private key wallets correctly
       const privateKeyResult = await getPrivateKey(
@@ -178,11 +162,7 @@ export default function SignMessage(): ReactElement {
       setError("Failed to perform action");
     }
   };
-  
-  const handleUnlockAndSign = async (password: string) => {
-    await handleSign(password);
-  };
-  
+
   if (!activeAddress) {
     return (
       <div className="p-4 text-center">
@@ -338,28 +318,6 @@ export default function SignMessage(): ReactElement {
       >
         Learn how to sign and verify messages
       </Button>
-      
-      {/* Authorization Modal */}
-      {showAuthModal && (
-        <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fadeIn"
-          role="dialog"
-          aria-modal="true"
-        >
-          <div 
-            className="w-full max-w-lg animate-slideUp"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <UnlockScreen
-              title="Authorization Required"
-              subtitle="Please enter your password to sign this message."
-              onUnlock={handleUnlockAndSign}
-              onCancel={() => setShowAuthModal(false)}
-              submitText="Authorize"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

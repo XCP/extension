@@ -552,7 +552,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve transaction page
-          await openExtensionPopup(`#/provider/approve-transaction?requestId=${signTxRequestId}`);
+          await openExtensionPopup(`#/requests/transaction/approve?requestId=${signTxRequestId}`);
 
           // Track as critical operation to prevent extension updates during transaction signing
           const updateService = getUpdateService();
@@ -655,7 +655,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve PSBT page
-          await openExtensionPopup(`#/provider/approve-psbt?requestId=${signPsbtRequestId}`);
+          await openExtensionPopup(`#/requests/psbt/approve?requestId=${signPsbtRequestId}`);
 
           // Track as critical operation to prevent extension updates during PSBT signing
           const updateService = getUpdateService();

@@ -1,6 +1,6 @@
 import { MPMAForm } from "./form";
 import { ReviewMPMA } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeMPMA } from "@/utils/blockchain/counterparty/compose";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { toSatoshis } from "@/utils/numeric";
@@ -16,7 +16,7 @@ interface MPMAData {
   sat_per_vbyte: number;
 }
 
-function ComposeMPMA() {
+function ComposeMpmaPage() {
   const composeTransaction = async (data: MPMAData): Promise<ApiResponse> => {
     // Parse the comma-separated values
     const assets = data.assets.split(',');
@@ -80,4 +80,4 @@ function ComposeMPMA() {
   );
 }
 
-export default ComposeMPMA;
+export default ComposeMpmaPage;

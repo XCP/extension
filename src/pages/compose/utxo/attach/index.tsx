@@ -1,12 +1,12 @@
 import { useParams } from "react-router-dom";
 import { UtxoAttachForm } from "./form";
 import { ReviewUtxoAttach } from "./review";
-import { Composer } from "@/components/composer";
-import { ErrorAlert } from "@/components/error-alert";
+import { Composer } from "@/components/composer/composer";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { composeAttach } from "@/utils/blockchain/counterparty/compose";
 import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeUtxoAttach() {
+function ComposeUtxoAttachPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -35,4 +35,4 @@ function ComposeUtxoAttach() {
   );
 }
 
-export default ComposeUtxoAttach;
+export default ComposeUtxoAttachPage;

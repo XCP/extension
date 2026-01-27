@@ -209,15 +209,15 @@ export class ApprovalService extends BaseService {
   private getRouteForType(type: ApprovalRequest['type']): string {
     switch (type) {
       case 'connection':
-        return '/provider/approve-connection';
+        return '/requests/connect/approve';
       case 'transaction':
-        return '/provider/approve-transaction';
+        return '/requests/transaction/approve';
       case 'signature':
-        return '/provider/approve-signature';
+        return '/requests/signature/approve';
       case 'compose':
-        return '/provider/approve-compose';
+        return '/requests/compose/approve';
       default:
-        return '/provider/approve-connection';
+        return '/requests/connect/approve';
     }
   }
 

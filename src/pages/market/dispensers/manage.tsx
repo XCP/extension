@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaFilter, FaTimes, FaExternalLinkAlt } from "@/components/icons";
-import { Spinner } from "@/components/spinner";
-import { Button } from "@/components/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchAddressDispensers, type Dispenser } from "@/utils/blockchain/counterparty/api";
@@ -24,7 +23,7 @@ type StatusFilter = "all" | "open" | "closed";
 /**
  * DispenserManagement component for managing user's dispensers
  */
-export default function DispenserManagement(): ReactElement {
+export default function DispenserManagementPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();

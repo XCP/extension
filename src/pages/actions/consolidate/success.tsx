@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaCheckCircle, FiExternalLink, FaCopy, FiX } from "@/components/icons";
-import { Button } from "@/components/button";
+import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { formatAddress } from "@/utils/format";
 import { type ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
@@ -12,7 +12,7 @@ interface LocationState {
   address: string;
 }
 
-function ConsolidationSuccess() {
+function ConsolidateSuccessPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setHeaderProps } = useHeader();
@@ -186,4 +186,4 @@ function ConsolidationSuccess() {
   );
 }
 
-export default ConsolidationSuccess;
+export default ConsolidateSuccessPage;

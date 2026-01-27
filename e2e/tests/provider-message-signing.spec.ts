@@ -205,7 +205,7 @@ walletTest.describe('Message Signing', () => {
       if (popupPage) {
         // Either approval page or main popup is valid
         const url = popupPage.url();
-        const isValidPopup = url.includes('/provider/approve-connection') ||
+        const isValidPopup = url.includes('/requests/connect/approve') ||
                             url.includes('popup.html');
         expect(isValidPopup).toBe(true);
         await popupPage.close();

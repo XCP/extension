@@ -2,11 +2,11 @@ import { useSearchParams } from "react-router-dom";
 import { useMemo } from "react";
 import { DispenseForm } from "./form";
 import { ReviewDispense } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeDispense } from "@/utils/blockchain/counterparty/compose";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeDispense() {
+function ComposeDispensePage() {
   const [searchParams] = useSearchParams();
 
   // Extract address query param for pre-filling the dispenser address
@@ -31,4 +31,4 @@ function ComposeDispense() {
   );
 }
 
-export default ComposeDispense;
+export default ComposeDispensePage;

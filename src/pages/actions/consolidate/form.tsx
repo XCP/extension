@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/button";
-import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { DestinationInput } from "@/components/inputs/destination-input";
+import { Button } from "@/components/ui/button";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";

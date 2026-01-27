@@ -25,7 +25,7 @@ test.describe('Wallet Selection', () => {
     const headerButton = header.walletSelector(extensionPage);
     await headerButton.click();
 
-    await expect(extensionPage).toHaveURL(/wallet\/select/);
+    await expect(extensionPage).toHaveURL(/keychain\/wallets/);
     await expect(extensionPage.getByText(/Wallet 1/i)).toBeVisible();
     await expect(selectWallet.addWalletButton(extensionPage)).toBeVisible();
   });
@@ -34,7 +34,7 @@ test.describe('Wallet Selection', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     const walletCard = extensionPage.locator('[role="radio"]').first();
     const addressDisplay = walletCard.locator('.font-mono');
@@ -51,7 +51,7 @@ test.describe('Multi-Wallet Support', () => {
 
     // Navigate to wallet management
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     // Add second wallet
     await selectWallet.addWalletButton(extensionPage).click();
@@ -67,7 +67,7 @@ test.describe('Multi-Wallet Support', () => {
 
     // Verify 2 wallets exist
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
     await expect(extensionPage.locator('[role="radio"]')).toHaveCount(2);
   });
 
@@ -75,7 +75,7 @@ test.describe('Multi-Wallet Support', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     await selectWallet.addWalletButton(extensionPage).click();
     await onboarding.importWalletButton(extensionPage).click();
@@ -97,7 +97,7 @@ test.describe('Multi-Wallet Support', () => {
     await createWallet(extensionPage);
 
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     await selectWallet.addWalletButton(extensionPage).click();
     await onboarding.importPrivateKeyButton(extensionPage).click();
@@ -119,7 +119,7 @@ test.describe('Multi-Wallet Support', () => {
 
     // Add second wallet
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
 
     await selectWallet.addWalletButton(extensionPage).click();
     await onboarding.createWalletButton(extensionPage).click();
@@ -132,7 +132,7 @@ test.describe('Multi-Wallet Support', () => {
 
     // Switch to Wallet 1
     await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/wallet\/select/);
+    await extensionPage.waitForURL(/keychain\/wallets/);
     await extensionPage.getByText('Wallet 1').click();
 
     await expect(extensionPage).toHaveURL(/index/);
@@ -142,7 +142,7 @@ test.describe('Multi-Wallet Support', () => {
 walletTest.describe('Wallet Menu Options', () => {
   walletTest('shows wallet options menu', async ({ page }) => {
     await header.walletSelector(page).click();
-    await page.waitForURL(/wallet\/select/);
+    await page.waitForURL(/keychain\/wallets/);
 
     const optionsButton = page.locator('button[aria-label="Wallet options"]').first();
     await optionsButton.click();
@@ -152,7 +152,7 @@ walletTest.describe('Wallet Menu Options', () => {
 
   walletTest('wallet options menu shows remove option', async ({ page }) => {
     await header.walletSelector(page).click();
-    await page.waitForURL(/wallet\/select/);
+    await page.waitForURL(/keychain\/wallets/);
 
     const optionsButton = page.locator('button[aria-label="Wallet options"]').first();
     await optionsButton.click();

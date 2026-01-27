@@ -5,9 +5,9 @@
  * address type compatibility, and user interactions.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, index } from '../../../selectors';
-import { TEST_ADDRESSES, TEST_AMOUNTS } from '../../../test-data';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose, index } from '@e2e/selectors';
+import { TEST_ADDRESSES, TEST_AMOUNTS } from '@e2e/test-data';
 import {
   enableValidationBypass,
   enableDryRun,

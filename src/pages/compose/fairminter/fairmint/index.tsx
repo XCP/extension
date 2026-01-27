@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import { FairmintForm } from "./form";
 import { ReviewFairmint } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeFairmint } from "@/utils/blockchain/counterparty/compose";
 import type { FairmintOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeFairmint() {
+function ComposeFairmintPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeFairmint() {
   );
 }
 
-export default ComposeFairmint;
+export default ComposeFairmintPage;

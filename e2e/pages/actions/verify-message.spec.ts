@@ -43,7 +43,7 @@ walletTest.describe('Verify Message', () => {
 
     // Navigate to view-address page to get the full address
     await index.receiveButton(page).click();
-    await expect(page).toHaveURL(/address\/view/, { timeout: 5000 });
+    await expect(page).toHaveURL(/addresses\/details/, { timeout: 5000 });
 
     await expect(viewAddress.addressDisplay(page)).toBeVisible({ timeout: 5000 });
     await viewAddress.addressDisplay(page).click();

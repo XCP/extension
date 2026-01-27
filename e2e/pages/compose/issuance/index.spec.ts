@@ -4,8 +4,8 @@
  * Tests for the main asset issuance form.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose, actions } from '@e2e/selectors';
 import {
   enableValidationBypass,
   enableDryRun,

@@ -1,12 +1,12 @@
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
-import { ErrorAlert } from "@/components/error-alert";
+import { Composer } from "@/components/composer/composer";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { IssueSupplyForm } from "./form";
 import { ReviewIssuanceIssueSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceIssueSupply() {
+function ComposeIssueSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceIssueSupply() {
   );
 }
 
-export default ComposeIssuanceIssueSupply;
+export default ComposeIssueSupplyPage;

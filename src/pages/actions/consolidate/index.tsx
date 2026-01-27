@@ -10,7 +10,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
 import { useConsolidationHistory } from "@/hooks/useConsolidationHistory";
 
-function Consolidate() {
+function ConsolidatePage() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
   const { hasHistory } = useConsolidationHistory(activeAddress?.address || '');
@@ -137,4 +137,4 @@ function Consolidate() {
   );
 }
 
-export default Consolidate;
+export default ConsolidatePage;

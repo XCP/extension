@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { SendForm } from "./form";
 import { ReviewSend } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeSend, composeMPMA } from "@/utils/blockchain/counterparty/compose";
 import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
 import type { SendOptions, MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
@@ -10,7 +10,7 @@ interface ExtendedSendOptions extends SendOptions {
   destinations?: string; // Comma-separated list for MPMA
 }
 
-function ComposeSend() {
+function ComposeSendPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   // Wrapper function that determines which compose function to use
@@ -75,4 +75,4 @@ function ComposeSend() {
   );
 }
 
-export default ComposeSend;
+export default ComposeSendPage;

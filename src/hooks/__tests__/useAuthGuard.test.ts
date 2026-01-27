@@ -87,7 +87,7 @@ describe('useAuthGuard', () => {
 
     rerender();
 
-    expect(mockNavigate).toHaveBeenCalledWith('/unlock-wallet', {
+    expect(mockNavigate).toHaveBeenCalledWith('/keychain/unlock', {
       replace: true,
       state: { from: '/dashboard' }
     });
@@ -222,7 +222,7 @@ describe('useAuthGuard', () => {
 
     rerender();
 
-    expect(mockNavigate).toHaveBeenCalledWith('/unlock-wallet', {
+    expect(mockNavigate).toHaveBeenCalledWith('/keychain/unlock', {
       replace: true,
       state: { from: '/send-transaction/btc' }
     });

@@ -1,11 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { IssuanceForm } from "./form";
 import { ReviewIssuance } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuance() {
+function ComposeIssuancePage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeIssuance() {
   );
 }
 
-export default ComposeIssuance;
+export default ComposeIssuancePage;

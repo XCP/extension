@@ -1,15 +1,14 @@
-
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { ComposerForm } from "@/components/composer-form";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { AddressHeader } from "@/components/headers/address-header";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
