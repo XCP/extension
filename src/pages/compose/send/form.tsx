@@ -1,17 +1,17 @@
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { DestinationsInput } from "@/components/inputs/destinations-input";
-import { MemoInput } from "@/components/inputs/memo-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
+import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation/amount";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
 import type { Destination } from "@/utils/validation/destinations";
 import type { ReactElement } from "react";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 interface SendFormProps {
   formAction: (formData: FormData) => void;

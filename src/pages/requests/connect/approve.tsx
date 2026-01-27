@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiGlobe, FiShield, FiX, FaCheck } from "@/components/icons";
-import { Button } from "@/components/button";
+import { Button } from "@/components/ui/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
 import { getApprovalService } from "@/services/approvalService";

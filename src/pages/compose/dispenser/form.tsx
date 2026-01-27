@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";

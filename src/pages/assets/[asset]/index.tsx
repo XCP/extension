@@ -1,16 +1,16 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
-import { Spinner } from "@/components/spinner";
-import { ActionList } from "@/components/lists/action-list";
+import { Spinner } from "@/components/ui/spinner";
+import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount, formatTimeAgo, formatAddress } from "@/utils/format";
-import { AssetHeader } from "@/components/headers/asset-header";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { fetchDividendsByAsset, type Dividend, type PaginatedResponse } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/lists/action-list";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 
 
 /**

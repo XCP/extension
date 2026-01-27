@@ -1,14 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Spinner } from "@/components/spinner";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { ActionList } from "@/components/lists/action-list";
+import { Spinner } from "@/components/ui/spinner";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatTxid } from "@/utils/format";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/lists/action-list";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 
 
 /**

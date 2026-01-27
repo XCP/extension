@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ActionList } from "@/components/lists/action-list";
+import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/lists/action-list";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 
 /**
  * Constants for navigation paths.

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { TbRepeat, FiRefreshCw, FaCheck } from "@/components/icons";
-import { AssetInfoPopover } from "@/components/asset-info-popover";
-import { Spinner } from "@/components/spinner";
-import { AssetIcon } from "@/components/asset-icon";
-import { EmptyState } from "@/components/empty-state";
-import { AssetDispenserCard } from "@/components/cards/asset-dispenser-card";
-import { AssetDispenseCard } from "@/components/cards/asset-dispense-card";
+import { AssetInfoPopover } from "@/components/domain/asset/asset-info-popover";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
+import { AssetDispenseCard } from "@/components/ui/cards/asset-dispense-card";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useMarketPrices } from "@/hooks/useMarketPrices";

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiRefreshCw, FaBitcoin, FiChevronDown } from "@/components/icons";
-import { Spinner } from "@/components/spinner";
-import { PriceChart } from "@/components/charts/price-chart";
+import { Spinner } from "@/components/ui/spinner";
+import { PriceChart } from "@/components/ui/charts/price-chart";
 import { useHeader } from "@/contexts/header-context";
 import { formatAmount } from "@/utils/format";
 import {

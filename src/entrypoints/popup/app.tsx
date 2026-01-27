@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
-import { ErrorBoundary } from '@/components/error-boundary';
+import { ErrorBoundary } from '@/components/layout/error-boundary';
 import { FaSpinner } from '@/components/icons';
-import { Layout } from '@/components/layout';
+import { Layout } from '@/components/layout/layout';
 import { AuthRequired } from '@/components/router/auth-required';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';

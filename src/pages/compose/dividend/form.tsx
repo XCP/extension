@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { ErrorAlert } from "@/components/error-alert";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";

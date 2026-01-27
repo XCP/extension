@@ -2,7 +2,7 @@ import { useParams } from "react-router-dom";
 import { UtxoAttachForm } from "./form";
 import { ReviewUtxoAttach } from "./review";
 import { Composer } from "@/components/composer";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { composeAttach } from "@/utils/blockchain/counterparty/compose";
 import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";
 

@@ -1,6 +1,6 @@
 import { type ReactElement } from "react";
 import { FaCheckCircle, FaClipboard, FaCheck } from "@/components/icons";
-import { Button } from "@/components/button";
+import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 /**

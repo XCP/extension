@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { FiGlobe, FiAlertTriangle, FiX, FiChevronDown, FiChevronUp } from '@/components/icons';
-import { Button } from '@/components/button';
-import { ErrorAlert } from '@/components/error-alert';
-import { VerificationStatus } from '@/components/verification-status';
+import { Button } from '@/components/ui/button';
+import { ErrorAlert } from '@/components/ui/error-alert';
+import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/button";
+import { Button } from "@/components/ui/button";
 import { FiHelpCircle, FiPlus, FiUpload } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { getDisplayVersion } from "@/utils/version";

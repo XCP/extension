@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FaExternalLinkAlt, FaChevronLeft } from "@/components/icons";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
-import { Spinner } from "@/components/spinner";
+import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { fetchTransaction, type Transaction } from "@/utils/blockchain/counterparty/api";
 import { formatDate, formatAmount, formatTimeAgo } from "@/utils/format";

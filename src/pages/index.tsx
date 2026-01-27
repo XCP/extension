@@ -11,9 +11,9 @@ import {
   FaLock,
   TbPinned
 } from "@/components/icons";
-import { Button } from "@/components/button";
-import { AssetList } from "@/components/lists/asset-list";
-import { BalanceList } from "@/components/lists/balance-list";
+import { Button } from "@/components/ui/button";
+import { AssetList } from "@/components/ui/lists/asset-list";
+import { BalanceList } from "@/components/ui/lists/balance-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress } from "@/utils/format";

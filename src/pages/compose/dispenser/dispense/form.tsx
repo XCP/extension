@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { ErrorAlert } from "@/components/error-alert";
-import { AddressHeader } from "@/components/headers/address-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { DispenserInput, type DispenserOption } from "@/components/inputs/dispenser-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context";
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";

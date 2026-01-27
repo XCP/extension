@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiRefreshCw, FaChevronLeft, FaChevronRight } from "@/components/icons";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
-import { Spinner } from "@/components/spinner";
-import { TransactionCard } from "@/components/cards/transaction-card";
+import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { Spinner } from "@/components/ui/spinner";
+import { TransactionCard } from "@/components/ui/cards/transaction-card";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/utils/blockchain/counterparty/api";

@@ -9,10 +9,10 @@ import {
   ListboxOption,
   ListboxOptions
 } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { AddressHeader } from "@/components/headers/address-header";
-import { DestinationInput } from "@/components/inputs/destination-input";
-import { MemoInput } from "@/components/inputs/memo-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
+import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
 import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";

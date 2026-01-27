@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { Composer } from "@/components/composer";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { IssueSupplyForm } from "./form";
 import { ReviewIssuanceIssueSupply } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";

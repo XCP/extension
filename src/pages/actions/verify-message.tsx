@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheckCircle, FaUpload, FiRefreshCw } from "@/components/icons";
-import { Button } from "@/components/button";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { DestinationInput } from "@/components/inputs/destination-input";
-import { ErrorAlert } from "@/components/error-alert";
+import { Button } from "@/components/ui/button";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
 import { validateSignatureJson, type SignatureJson } from "@/utils/validation/signatureJson";

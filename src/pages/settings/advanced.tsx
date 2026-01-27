@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "@/components/icons";
 import { Field, Label, Description, RadioGroup } from "@headlessui/react";
-import { SelectionCard, SelectionCardGroup } from "@/components/cards/selection-card";
+import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { ApiUrlInput } from "@/components/inputs/api-url-input";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
+import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import type { AutoLockTimer } from "@/utils/settings";
 import type { ReactElement } from "react";
 

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "@/components/icons";
-import { Button } from "@/components/button";
-import { PasswordInput } from "@/components/inputs/password-input";
-import { ErrorAlert } from "@/components/error-alert";
+import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/ui/inputs/password-input";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";

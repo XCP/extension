@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaCheck, FaClipboard, FaList } from "@/components/icons";
-import { Button } from "@/components/button";
-import { QRCode } from "@/components/qr-code";
+import { Button } from "@/components/ui/button";
+import { QRCode } from "@/components/ui/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "@/components/icons";
-import { SearchInput } from "@/components/inputs/search-input";
-import { PinnableAssetCard } from "@/components/cards/pinnable-asset-card";
-import { ErrorAlert } from "@/components/error-alert";
-import { Spinner } from "@/components/spinner";
+import { SearchInput } from "@/components/ui/inputs/search-input";
+import { PinnableAssetCard } from "@/components/ui/cards/pinnable-asset-card";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useSearchQuery } from "@/hooks/useSearchQuery";

@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
-import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
-import { Spinner } from "@/components/spinner";
+import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { walletManager } from "@/utils/wallet/walletManager";
 import { getProviderService } from "@/services/providerService";

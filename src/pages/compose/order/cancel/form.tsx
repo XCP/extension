@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ComposerForm } from "@/components/composer-form";
-import { HashInput } from "@/components/inputs/hash-input";
-import { AddressHeader } from "@/components/headers/address-header";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { HashInput } from "@/components/ui/inputs/hash-input";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import type { CancelOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";

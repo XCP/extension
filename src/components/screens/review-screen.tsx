@@ -1,6 +1,6 @@
 import { type ReactElement, type ReactNode } from "react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";

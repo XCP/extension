@@ -8,11 +8,11 @@ import {
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
-import { Button } from "@/components/button";
-import { ErrorAlert } from "@/components/error-alert";
+import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { FiX } from "@/components/icons";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { PasswordInput } from "@/components/inputs/password-input";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from "@/utils/blockchain/bitcoin/address";

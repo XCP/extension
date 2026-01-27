@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaPlus } from '@/components/icons';
-import { Button } from '@/components/button';
-import { WalletList } from '@/components/lists/wallet-list';
+import { Button } from '@/components/ui/button';
+import { WalletList } from '@/components/ui/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { ErrorAlert } from '@/components/error-alert';
+import { ErrorAlert } from '@/components/ui/error-alert';
 import { MAX_WALLETS } from '@/utils/wallet/constants';
 import type { Wallet } from '@/types/wallet';
 

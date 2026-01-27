@@ -15,14 +15,14 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { BlockHeightInput } from "@/components/inputs/block-height-input";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { AddressHeader } from "@/components/headers/address-header";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';

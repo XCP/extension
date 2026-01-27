@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaClipboard, FaCheck } from "@/components/icons";
-import { ErrorAlert } from "@/components/error-alert";
-import { AddressHeader } from "@/components/headers/address-header";
-import { ActionList } from "@/components/lists/action-list";
-import type { ActionSection } from "@/components/lists/action-list";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { ActionList } from "@/components/ui/lists/action-list";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
