@@ -310,7 +310,7 @@ walletTest.describe('Import Private Key Page - With Existing Wallet (/keychain/s
     await expect(passwordInput).toBeVisible({ timeout: 5000 });
 
     const placeholder = await passwordInput.getAttribute('placeholder');
-    expect(placeholder).toMatch(/Confirm password/i);
+    expect(placeholder).toMatch(/Confirm your password/i);
   });
 
   walletTest('back button navigates to add-wallet page', async ({ page }) => {

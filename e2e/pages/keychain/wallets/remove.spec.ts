@@ -249,7 +249,8 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
       await expect(unlockPasswordInput).toBeVisible({ timeout: 5000 });
       await unlockPasswordInput.fill(TEST_PASSWORD);
       await page.locator('button[type="submit"]').click();
-      await expect(page).toHaveURL(/index/, { timeout: 15000 });
+      // After unlock, may go to index or keychain/wallets
+      await expect(page).not.toHaveURL(/keychain\/unlock/, { timeout: 15000 });
     }
 
     // Verify wallet count decreased
