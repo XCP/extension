@@ -43,7 +43,7 @@ walletTest.describe('Remove Wallet Page (/keychain/wallets/remove)', () => {
     await page.waitForLoadState('networkidle');
 
     // Verify we're on the keychain/wallets/remove page
-    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/remove/, { timeout: 5000 });
     return true;
   }
 
@@ -227,7 +227,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await removeOption.click();
 
     // Should be on keychain/wallets/remove page
-    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/remove/, { timeout: 5000 });
 
     // Enter correct password
     const passwordInput = page.locator('input[name="password"]');
@@ -241,7 +241,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
 
     // Should redirect away from keychain/wallets/remove page after successful removal
     // May go to /keychain/wallets or /keychain/unlock (if removing the active wallet triggers re-auth)
-    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 10000 });
+    await expect(page).not.toHaveURL(/keychain\/wallets\/remove/, { timeout: 10000 });
 
     // If redirected to unlock, unlock the wallet first
     if (page.url().includes('keychain/unlock')) {
@@ -274,13 +274,13 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await removeOption.click();
 
     // Should be on keychain/wallets/remove page
-    await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/remove/, { timeout: 5000 });
 
     // Click back button instead of confirming
     await common.headerBackButton(page).click();
 
     // Wait for navigation away from keychain/wallets/remove
-    await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 5000 });
+    await expect(page).not.toHaveURL(/keychain\/wallets\/remove/, { timeout: 5000 });
 
     // Verify wallet count is unchanged
     const countAfter = await getWalletCount(page);

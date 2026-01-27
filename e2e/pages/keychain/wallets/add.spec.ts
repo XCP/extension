@@ -19,7 +19,7 @@ walletTest.describe('Add Wallet Page (/keychain/wallets/add)', () => {
     const addWalletBtn = selectWallet.addWalletButton(page);
     await addWalletBtn.waitFor({ state: 'visible', timeout: 5000 });
     await addWalletBtn.click();
-    await page.waitForURL(/wallet\/add/, { timeout: 5000 });
+    await page.waitForURL(/keychain\/wallets\/add/, { timeout: 5000 });
   });
 
   walletTest('page loads with wallet options', async ({ page }) => {

@@ -139,7 +139,7 @@ walletTest.describe('Reset Wallet Page (/keychain/wallets/reset)', () => {
     await resetWalletPage.resetButton(page).click();
 
     // Wait for error handling and verify still on reset page
-    await expect(page).toHaveURL(/wallet\/reset/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/reset/, { timeout: 5000 });
   });
 
   walletTest('back button returns to settings', async ({ page }) => {

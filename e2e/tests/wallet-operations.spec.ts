@@ -61,7 +61,7 @@ async function navigateToRemoveWallet(page: any): Promise<void> {
   await expect(removeButton).toBeVisible({ timeout: 3000 });
   await removeButton.click();
 
-  await page.waitForURL(/wallet\/remove/);
+  await page.waitForURL(/keychain\/wallets\/remove/);
 }
 
 test.describe('Remove Wallet - Single Wallet', () => {
@@ -173,7 +173,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     await submitButton.click();
 
     // Should show error or stay on remove-wallet page
-    await expect(extensionPage).toHaveURL(/wallet\/remove/, { timeout: 5000 });
+    await expect(extensionPage).toHaveURL(/keychain\/wallets\/remove/, { timeout: 5000 });
     // Error message should appear
     const errorOrPasswordField = extensionPage.locator('text=/incorrect|invalid|wrong|error|failed|password/i')
       .or(extensionPage.locator('input[name="password"]')).first();
@@ -198,7 +198,7 @@ test.describe('Remove Wallet - Multiple Wallets', () => {
     const removeButton = extensionPage.locator('button').filter({ hasText: /Remove/i });
     await expect(removeButton).toBeVisible({ timeout: 3000 });
     await removeButton.click();
-    await extensionPage.waitForURL(/wallet\/remove/);
+    await extensionPage.waitForURL(/keychain\/wallets\/remove/);
 
     // Enter correct password and submit
     await extensionPage.locator('input[name="password"], input[type="password"]').fill(TEST_PASSWORD);
@@ -219,7 +219,7 @@ walletTest.describe('Reset Wallet', () => {
     await expect(resetOption).toBeVisible({ timeout: 5000 });
 
     await resetOption.click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     // Verify reset page loaded with expected content
     await expect(page.locator('text=/Reset|Delete.*all/i').first()).toBeVisible({ timeout: 5000 });
@@ -231,7 +231,7 @@ walletTest.describe('Reset Wallet', () => {
     const resetOption = page.locator('text=/Reset.*Wallet/i').first();
     await expect(resetOption).toBeVisible({ timeout: 5000 });
     await resetOption.click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     // Should show warning about permanent deletion
     const warningText = page.locator('text=/cannot be undone|delete all|permanent|warning|irreversible/i');
@@ -241,7 +241,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('reset wallet requires password verification', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     // Password input must be visible
     const passwordInput = page.locator('input[name="password"], input[type="password"]');
@@ -251,7 +251,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('wrong password shows error on reset', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     const passwordInput = page.locator('input[name="password"], input[type="password"]');
     await passwordInput.fill('wrongpassword');
@@ -261,13 +261,13 @@ walletTest.describe('Reset Wallet', () => {
     await submitButton.click();
 
     // Should stay on reset page (not redirect to onboarding)
-    await expect(page).toHaveURL(/wallet\/reset/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/reset/, { timeout: 5000 });
   });
 
   walletTest('reset wallet can be cancelled', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     // Click back button
     await expect(common.headerBackButton(page)).toBeVisible({ timeout: 5000 });
@@ -284,7 +284,7 @@ walletTest.describe('Reset Wallet', () => {
   walletTest('correct password resets wallet to onboarding', async ({ page }) => {
     await navigateTo(page, 'settings');
     await page.locator('text=/Reset.*Wallet/i').first().click();
-    await page.waitForURL(/wallet\/reset/);
+    await page.waitForURL(/keychain\/wallets\/reset/);
 
     await page.locator('input[name="password"], input[type="password"]').fill(TEST_PASSWORD);
     await page.getByRole('button', { name: /Reset|Confirm|Delete/i }).click();

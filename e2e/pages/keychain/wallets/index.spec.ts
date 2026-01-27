@@ -56,7 +56,7 @@ walletTest.describe('Select Wallet Page (/keychain/wallets)', () => {
     await addButton.click();
 
     // Should navigate to add-wallet page
-    await expect(page).toHaveURL(/wallet\/add/, { timeout: 5000 });
+    await expect(page).toHaveURL(/keychain\/wallets\/add/, { timeout: 5000 });
   });
 
   walletTest('indicates active wallet with checked state', async ({ page }) => {
