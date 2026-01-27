@@ -3,13 +3,19 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { Layout } from './layout';
 
+// Mock webext-bridge before any imports that might use it
+vi.mock('webext-bridge/popup', () => ({
+  onMessage: vi.fn(),
+  sendMessage: vi.fn(),
+}));
+
 // Mock React Router
 vi.mock('react-router-dom', () => ({
   Outlet: () => <div data-testid="outlet">Page Content</div>
 }));
 
 // Mock Header component
-vi.mock('@/components/header', () => ({
+vi.mock('@/components/layout/header', () => ({
   Header: (props: any) => {
     // Convert boolean props to string attributes for testing
     const attributes = Object.entries(props).reduce((acc, [key, value]) => {
@@ -26,7 +32,7 @@ vi.mock('@/components/header', () => ({
 }));
 
 // Mock Footer component
-vi.mock('@/components/footer', () => ({
+vi.mock('@/components/layout/footer', () => ({
   Footer: () => <footer data-testid="footer">Footer</footer>
 }));
 

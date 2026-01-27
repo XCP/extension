@@ -8,7 +8,7 @@ import { walletTest, expect, navigateTo, TEST_PASSWORD } from '@e2e/fixtures';
 import { common, createWallet } from '@e2e/selectors';
 
 walletTest.describe('Remove Wallet Page (/keychain/wallets/remove)', () => {
-  // Navigate to wallet/remove page through the UI (via select-wallet page wallet menu)
+  // Navigate to keychain/wallets/remove page through the UI (via select-wallet page wallet menu)
   // Returns false if Remove button is disabled (only one wallet exists)
   async function navigateToRemoveWallet(page: any): Promise<boolean> {
     // Navigate to select-wallet page
@@ -42,7 +42,7 @@ walletTest.describe('Remove Wallet Page (/keychain/wallets/remove)', () => {
     await removeOption.click();
     await page.waitForLoadState('networkidle');
 
-    // Verify we're on the wallet/remove page
+    // Verify we're on the keychain/wallets/remove page
     await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
     return true;
   }
@@ -102,8 +102,8 @@ walletTest.describe('Remove Wallet Page (/keychain/wallets/remove)', () => {
     // Wait for error to appear (wrong password should trigger validation error)
     await expect(errorText).toBeVisible({ timeout: 5000 });
 
-    // Should still be on wallet/remove page
-    expect(page.url()).toContain('wallet/remove');
+    // Should still be on keychain/wallets/remove page
+    expect(page.url()).toContain('keychain/wallets/remove');
   });
 
   walletTest('has back button', async ({ page }) => {
@@ -226,7 +226,7 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
-    // Should be on wallet/remove page
+    // Should be on keychain/wallets/remove page
     await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Enter correct password
@@ -239,12 +239,12 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeButton).toBeVisible({ timeout: 3000 });
     await removeButton.click();
 
-    // Should redirect away from wallet/remove page after successful removal
+    // Should redirect away from keychain/wallets/remove page after successful removal
     // May go to /keychain/wallets or /keychain/unlock (if removing the active wallet triggers re-auth)
     await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 10000 });
 
     // If redirected to unlock, unlock the wallet first
-    if (page.url().includes('unlock-wallet')) {
+    if (page.url().includes('keychain/unlock')) {
       const unlockPasswordInput = page.locator('input[name="password"]');
       await expect(unlockPasswordInput).toBeVisible({ timeout: 5000 });
       await unlockPasswordInput.fill(TEST_PASSWORD);
@@ -273,13 +273,13 @@ walletTest.describe('Remove Wallet - Full Flow', () => {
     await expect(removeOption).toBeVisible({ timeout: 5000 });
     await removeOption.click();
 
-    // Should be on wallet/remove page
+    // Should be on keychain/wallets/remove page
     await expect(page).toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Click back button instead of confirming
     await common.headerBackButton(page).click();
 
-    // Wait for navigation away from wallet/remove
+    // Wait for navigation away from keychain/wallets/remove
     await expect(page).not.toHaveURL(/wallet\/remove/, { timeout: 5000 });
 
     // Verify wallet count is unchanged
