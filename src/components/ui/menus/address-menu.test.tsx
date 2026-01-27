@@ -127,7 +127,7 @@ describe('AddressMenu', () => {
     });
 
     expect(mockNavigate).toHaveBeenCalledWith(
-      "/wallet/secrets/show-private-key/wallet-1/m%2F84'%2F0'%2F0'%2F0%2F0"
+      "/keychain/secrets/show-private-key/wallet-1/m%2F84'%2F0'%2F0'%2F0%2F0"
     );
   });
 

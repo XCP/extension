@@ -56,7 +56,7 @@ export default function TransactionPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Transaction",
-      onBack: () => navigate(`/address/history?page=${savedPage}`),
+      onBack: () => navigate(`/addresses/history?page=${savedPage}`),
       rightButton: {
         icon: <FaExternalLinkAlt className="size-4" aria-hidden="true" />,
         onClick: () => window.open(`https://www.xcp.io/tx/${txHash}`, "_blank"),
@@ -208,7 +208,7 @@ export default function TransactionPage(): ReactElement {
       {/* Footer with Back to History button */}
       <div className="p-4">
         <Button 
-          onClick={() => navigate(`/address/history?page=${savedPage}`)} 
+          onClick={() => navigate(`/addresses/history?page=${savedPage}`)} 
           color="blue"
           fullWidth
         >

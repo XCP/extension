@@ -29,12 +29,12 @@ export function WalletMenu({ wallet, isOnlyWallet }: WalletMenuProps): ReactElem
   const navigate = useNavigate();
 
   const handleShowSecret = useCallback(() => {
-    navigate(`/wallet/secrets/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
+    navigate(`/keychain/secrets/show-${wallet.type === 'privateKey' ? 'private-key' : 'passphrase'}/${wallet.id}`);
   }, [navigate, wallet.type, wallet.id]);
 
   const handleRemoveWallet = useCallback(() => {
     if (!isOnlyWallet) {
-      navigate(`/wallet/remove/${wallet.id}`);
+      navigate(`/keychain/wallets/remove/${wallet.id}`);
     }
   }, [navigate, wallet.id, isOnlyWallet]);
 
