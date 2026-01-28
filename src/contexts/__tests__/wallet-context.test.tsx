@@ -67,6 +67,12 @@ vi.mock('@/utils/auth/sessionManager', () => ({
   clearUnlockedSecret: vi.fn()
 }));
 
+// Mock keychainExists from walletStorage - defaults to true (wallets exist)
+const mockKeychainExists = vi.fn().mockResolvedValue(true);
+vi.mock('@/utils/storage/walletStorage', () => ({
+  keychainExists: () => mockKeychainExists(),
+}));
+
 // Mock the wallet service that uses webext-bridge
 const mockWalletService = {
   refreshWallets: vi.fn().mockResolvedValue(undefined),
@@ -75,7 +81,7 @@ const mockWalletService = {
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
   setActiveWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
-  isAnyWalletUnlocked: vi.fn().mockResolvedValue(false),
+  isKeychainUnlocked: vi.fn().mockResolvedValue(false),
   unlockKeychain: vi.fn().mockResolvedValue(undefined),
   lockKeychain: vi.fn().mockResolvedValue(undefined),
   setLastActiveTime: vi.fn().mockResolvedValue(undefined),
@@ -144,20 +150,22 @@ describe('WalletContext', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     // Setup wallet service mocks to prevent infinite loops
     mockWalletService.refreshWallets.mockResolvedValue(undefined);
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
-    mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
     mockWalletService.setActiveWallet.mockResolvedValue(undefined);
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
-    
+
     // Setup default mocks for other dependencies
     vi.mocked(walletManager.refreshWallets).mockResolvedValue(mockWallets as any);
     // Default wallet is locked
     vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
+    // Default: keychain exists (wallets have been created)
+    mockKeychainExists.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -167,6 +175,7 @@ describe('WalletContext', () => {
   describe('Initial State', () => {
     it('should initialize with onboarding state when no wallets exist', async () => {
       // Override mocks for this specific test
+      mockKeychainExists.mockResolvedValue(false);
       mockWalletService.getWallets.mockResolvedValue([]);
       mockWalletService.getActiveWallet.mockResolvedValue(null);
 
@@ -192,11 +201,12 @@ describe('WalletContext', () => {
       });
 
       expect(result.current.wallets).toEqual(mockWallets);
-      expect(result.current.activeWallet).toEqual(mockWallets[0]);
+      // When locked, activeWallet is null (only set when unlocked)
+      expect(result.current.activeWallet).toBeNull();
     });
 
     it('should initialize with unlocked state when wallet is unlocked', async () => {
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -331,7 +341,7 @@ describe('WalletContext', () => {
   describe('Keychain Lock/Unlock', () => {
     it('should unlock keychain', async () => {
       mockWalletService.unlockKeychain.mockResolvedValue(undefined);
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -347,7 +357,7 @@ describe('WalletContext', () => {
 
     it('should lock keychain', async () => {
       mockWalletService.lockKeychain.mockResolvedValue(undefined);
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -549,7 +559,7 @@ describe('WalletContext', () => {
       mockWalletService.getWallets.mockResolvedValue(mockWallets);
       mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
       // Start unlocked, stay unlocked until lockKeychain is called
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
       mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qaddress1');
       
       const { result, rerender } = renderHook(() => useWallet(), {
@@ -666,7 +676,7 @@ describe('WalletContext', () => {
       // Reset mock to clear any previous calls
       mockWalletService.getWallets.mockReset();
       mockWalletService.getActiveWallet.mockReset();
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
       
       // Initial state
       mockWalletService.getWallets.mockResolvedValue([wallet1]);

@@ -192,7 +192,7 @@ describe('ProviderService', () => {
       getLastActiveAddress: vi.fn().mockResolvedValue('bc1qtest123'),
       setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
       setLastActiveTime: vi.fn(),
-      isAnyWalletUnlocked: vi.fn().mockResolvedValue(true),
+      isKeychainUnlocked: vi.fn().mockResolvedValue(true),
       // Additional methods used by provider service
       getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getActiveAddress: vi.fn().mockResolvedValue({
@@ -371,7 +371,7 @@ describe('ProviderService', () => {
         // Override specific methods for this test
         const mockWalletService = vi.mocked(walletService.getWalletService)();
         mockWalletService.getActiveAddress = vi.fn().mockResolvedValue(null);
-        mockWalletService.isAnyWalletUnlocked = vi.fn().mockResolvedValue(false);
+        mockWalletService.isKeychainUnlocked = vi.fn().mockResolvedValue(false);
 
         const result = await providerService.handleRequest(
           'https://connected.com',
