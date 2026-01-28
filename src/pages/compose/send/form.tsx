@@ -25,7 +25,7 @@ export function SendForm({
   initialFormData
 }: SendFormProps): ReactElement {
   // Get everything from composer context
-  const { activeAddress, settings, showHelpText } = useComposer<SendOptions>();
+  const { activeAddress, settings, showHelpText, feeRate } = useComposer<SendOptions>();
   const enableMPMA = settings?.enableMPMA ?? false;
   
   // Data fetching hooks
@@ -43,7 +43,6 @@ export function SendForm({
   const [amount, setAmount] = useState<string>(
     initialFormData?.quantity?.toString() || ""
   );
-  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Destinations state for MPMA
   const [destinations, setDestinations] = useState<Destination[]>(() => [
@@ -170,7 +169,7 @@ export function SendForm({
             availableBalance={assetDetails?.availableBalance || "0"}
             value={amount}
             onChange={handleAmountChange}
-            sat_per_vbyte={satPerVbyte}
+            feeRate={feeRate}
             setError={setValidationError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}

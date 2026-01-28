@@ -17,7 +17,8 @@ import { validateFeeRate } from "@/utils/validation/fee";
 interface FeeRateInputProps {
   showHelpText?: boolean;
   disabled?: boolean;
-  onFeeRateChange?: (satPerVbyte: number) => void; // Kept for components that need to share the value
+  onFeeRateChange?: (satPerVbyte: number) => void;
+  initialValue?: number | null;
 }
 
 type LocalFeeRateOption = FeeRateOption | "custom";
@@ -32,6 +33,7 @@ export function FeeRateInput({
   showHelpText = false,
   disabled = false,
   onFeeRateChange,
+  initialValue,
 }: FeeRateInputProps): ReactElement {
   const { feeRates, isLoading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
   const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>("fast");
@@ -53,13 +55,30 @@ export function FeeRateInput({
 
   useEffect(() => {
     if (feeRates && isInitial.current) {
-      const initialValue = Math.max(feeRates.fastestFee, 0.1);
-      setCustomInput(initialValue.toString());
-      setSelectedOption("fast");
       isInitial.current = false;
-      onFeeRateChangeRef.current?.(initialValue); // Notify parent of initial value
+
+      // Check if user explicitly set a fee rate (null = use network default)
+      if (initialValue !== undefined && initialValue !== null) {
+        // Check if it matches a preset
+        const matchingPreset = uniquePresetOptions.find(opt => opt.value === initialValue);
+        if (matchingPreset) {
+          setSelectedOption(matchingPreset.id);
+          setCustomInput(initialValue.toString());
+        } else {
+          // Use custom mode for non-preset values
+          setSelectedOption("custom");
+          setCustomInput(initialValue.toString());
+        }
+        onFeeRateChangeRef.current?.(initialValue);
+      } else {
+        // Default to fast preset (fresh load or default value)
+        const defaultValue = Math.max(feeRates.fastestFee, 0.1);
+        setCustomInput(defaultValue.toString());
+        setSelectedOption("fast");
+        onFeeRateChangeRef.current?.(defaultValue);
+      }
     }
-  }, [feeRates]);
+  }, [feeRates, initialValue, uniquePresetOptions]);
 
   useEffect(() => {
     if (feeRates && selectedOption !== "custom") {

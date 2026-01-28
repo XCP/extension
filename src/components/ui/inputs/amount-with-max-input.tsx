@@ -26,7 +26,7 @@ interface AmountWithMaxInputProps {
   availableBalance: string;
   value: string;
   onChange: (value: string) => void;
-  sat_per_vbyte: number;
+  feeRate?: number | null; // Only required for BTC (used in max calculation)
   setError: (message: string | null) => void;
   showHelpText?: boolean;
   sourceAddress: { address: string } | null;
@@ -56,7 +56,7 @@ export function AmountWithMaxInput({
   availableBalance,
   value,
   onChange,
-  sat_per_vbyte,
+  feeRate = 0.1,
   setError,
   showHelpText = false,
   sourceAddress,
@@ -119,7 +119,7 @@ export function AmountWithMaxInput({
           asset: "BTC",
           quantity: Number(availableSats), // Convert to number for API
           memo,
-          sat_per_vbyte,
+          sat_per_vbyte: feeRate ?? 0.1,
           memo_is_hex: false,
         });
         candidate = subtractSatoshis(availableSats, composeResult.result.btc_fee);

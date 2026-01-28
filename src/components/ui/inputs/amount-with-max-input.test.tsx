@@ -27,7 +27,7 @@ describe('AmountWithMaxInput', () => {
     availableBalance: '100.00000000',
     value: '',
     onChange: vi.fn(),
-    sat_per_vbyte: 1,
+    feeRate: 1,
     setError: vi.fn(),
     showHelpText: true,
     sourceAddress: { address: 'bc1qtest123' },

@@ -35,7 +35,6 @@ interface DispenseFormProps {
 
 const AVERAGE_TX_SIZE_VBYTES = 250;
 const FEE_SAFETY_MARGIN = 1.75;
-const DEFAULT_FEE_RATE = 1; // sats per vbyte
 const SATOSHIS_PER_BTC = 1e8;
 
 // ============================================================================
@@ -48,9 +47,9 @@ const SATOSHIS_PER_BTC = 1e8;
 function calculateMaximumDispenses(
   satoshirate: number,
   btcBalance: string,
-  feeRate: number
+  feeRate: number | null
 ): number {
-  if (!satoshirate) return 0;
+  if (!satoshirate || !feeRate) return 0;
   
   const balanceInSatoshis = multiply(btcBalance, SATOSHIS_PER_BTC);
   const estimatedFee = multiply(AVERAGE_TX_SIZE_VBYTES, feeRate);
@@ -111,9 +110,8 @@ export function DispenseForm({
   initialFormData
 }: DispenseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText, state, feeRate } = useComposer();
   const { pending } = useFormStatus();
-  const feeRate = initialFormData?.sat_per_vbyte || DEFAULT_FEE_RATE;
   
   // State management
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -314,7 +312,7 @@ export function DispenseForm({
                 availableBalance={btcBalance}
                 value={numberOfDispenses}
                 onChange={setNumberOfDispenses}
-                sat_per_vbyte={feeRate}
+                feeRate={feeRate}
                 setError={setValidationError}
                 showHelpText={showHelpText}
                 sourceAddress={activeAddress}

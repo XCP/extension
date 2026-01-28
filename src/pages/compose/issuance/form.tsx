@@ -204,7 +204,6 @@ export function IssuanceForm({
             availableBalance="0"
             value={amount}
             onChange={setAmount}
-            sat_per_vbyte={0}
             setError={(msg) => {}}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
