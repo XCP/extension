@@ -40,6 +40,7 @@ export function FeeRateInput({
   const [customInput, setCustomInput] = useState<string>("0.1");
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
+  const hasRunPresetEffect = useRef(false);
 
   // Store callback in a ref to prevent infinite loops
   const onFeeRateChangeRef = useRef(onFeeRateChange);
@@ -81,6 +82,13 @@ export function FeeRateInput({
   }, [feeRates, initialValue, uniquePresetOptions]);
 
   useEffect(() => {
+    // Skip the first run - initialization is handled by the initialization effect above.
+    // This prevents the preset effect from conflicting with initialValue restoration.
+    if (!hasRunPresetEffect.current) {
+      hasRunPresetEffect.current = true;
+      return;
+    }
+
     if (feeRates && selectedOption !== "custom") {
       const preset = uniquePresetOptions.find((opt) => opt.id === selectedOption);
       if (preset) {

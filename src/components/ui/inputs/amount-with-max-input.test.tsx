@@ -193,20 +193,79 @@ describe('AmountWithMaxInput', () => {
     (composeSend as any).mockResolvedValue({
       result: { btc_fee: '1000' }
     });
-    
+
     const onChange = vi.fn();
-    render(<AmountWithMaxInput 
-      {...defaultProps} 
-      asset="BTC" 
+    render(<AmountWithMaxInput
+      {...defaultProps}
+      asset="BTC"
       availableBalance="0.10000000"
       onChange={onChange}
     />);
-    
+
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
-    
+
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
+    });
+  });
+
+  it('should use provided feeRate in compose API call for BTC max calculation', async () => {
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
+    (composeSend as any).mockResolvedValue({
+      result: { btc_fee: '500' }
+    });
+
+    const onChange = vi.fn();
+    const customFeeRate = 5; // 5 sat/vB
+
+    render(<AmountWithMaxInput
+      {...defaultProps}
+      asset="BTC"
+      availableBalance="0.10000000"
+      onChange={onChange}
+      feeRate={customFeeRate}
+    />);
+
+    const maxButton = screen.getByLabelText('Use maximum available amount');
+    fireEvent.click(maxButton);
+
+    await waitFor(() => {
+      // Verify composeSend was called with the custom fee rate
+      expect(composeSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sat_per_vbyte: customFeeRate, // Should use 5, not 0.1
+        })
+      );
+    });
+  });
+
+  it('should fallback to 0.1 feeRate when feeRate is null', async () => {
+    const { composeSend } = await import('@/utils/blockchain/counterparty/compose');
+    (composeSend as any).mockResolvedValue({
+      result: { btc_fee: '500' }
+    });
+
+    const onChange = vi.fn();
+
+    render(<AmountWithMaxInput
+      {...defaultProps}
+      asset="BTC"
+      availableBalance="0.10000000"
+      onChange={onChange}
+      feeRate={null}
+    />);
+
+    const maxButton = screen.getByLabelText('Use maximum available amount');
+    fireEvent.click(maxButton);
+
+    await waitFor(() => {
+      // Verify composeSend was called with the fallback fee rate
+      expect(composeSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sat_per_vbyte: 0.1, // Fallback value
+        })
+      );
     });
   });
 
