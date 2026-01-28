@@ -49,3 +49,4 @@ docs/
 scripts/ralph/
 e2e-notes.local.md
 MANUAL_TEST_PLAN.txt
+*.tsbuildinfo
