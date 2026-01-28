@@ -123,7 +123,7 @@ export function createProviderService(): ProviderService {
     const connectionService = getConnectionService();
 
     // Check wallet state
-    const isUnlocked = await walletService.isAnyWalletUnlocked();
+    const isUnlocked = await walletService.isKeychainUnlocked();
     if (!isUnlocked) {
       console.debug('[ProviderService] Wallet not unlocked, returning empty array');
       return [];
@@ -266,7 +266,7 @@ export function createProviderService(): ProviderService {
           }
 
           // Check if wallet is locked
-          const isUnlocked = await walletService.isAnyWalletUnlocked();
+          const isUnlocked = await walletService.isKeychainUnlocked();
           if (!isUnlocked) {
             // Open popup for unlock and store the pending request
             const approvalService = getApprovalService();
@@ -300,7 +300,7 @@ export function createProviderService(): ProviderService {
                 cleanup();
 
                 // Re-check wallet state after unlock
-                const nowUnlocked = await walletService.isAnyWalletUnlocked();
+                const nowUnlocked = await walletService.isKeychainUnlocked();
                 if (!nowUnlocked) {
                   reject(new Error('Wallet still locked after unlock attempt'));
                   return;

@@ -36,7 +36,7 @@ vi.mock('@/utils/wallet/walletManager', () => ({
 // Mock wallet service
 vi.mock('@/services/walletService', () => ({
   getWalletService: vi.fn(() => ({
-    isAnyWalletUnlocked: vi.fn().mockResolvedValue(true),
+    isKeychainUnlocked: vi.fn().mockResolvedValue(true),
     getActiveAddress: vi.fn().mockResolvedValue({ address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' }),
   })),
 }));

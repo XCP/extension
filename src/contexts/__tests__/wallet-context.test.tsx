@@ -75,7 +75,7 @@ const mockWalletService = {
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
   setActiveWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
-  isAnyWalletUnlocked: vi.fn().mockResolvedValue(false),
+  isKeychainUnlocked: vi.fn().mockResolvedValue(false),
   unlockKeychain: vi.fn().mockResolvedValue(undefined),
   lockKeychain: vi.fn().mockResolvedValue(undefined),
   setLastActiveTime: vi.fn().mockResolvedValue(undefined),
@@ -150,7 +150,7 @@ describe('WalletContext', () => {
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
-    mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
     mockWalletService.setActiveWallet.mockResolvedValue(undefined);
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
     
@@ -196,7 +196,7 @@ describe('WalletContext', () => {
     });
 
     it('should initialize with unlocked state when wallet is unlocked', async () => {
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -331,7 +331,7 @@ describe('WalletContext', () => {
   describe('Keychain Lock/Unlock', () => {
     it('should unlock keychain', async () => {
       mockWalletService.unlockKeychain.mockResolvedValue(undefined);
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -347,7 +347,7 @@ describe('WalletContext', () => {
 
     it('should lock keychain', async () => {
       mockWalletService.lockKeychain.mockResolvedValue(undefined);
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
 
       const { result } = renderHook(() => useWallet(), {
         wrapper: WalletProvider
@@ -549,7 +549,7 @@ describe('WalletContext', () => {
       mockWalletService.getWallets.mockResolvedValue(mockWallets);
       mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
       // Start unlocked, stay unlocked until lockKeychain is called
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(true);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
       mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qaddress1');
       
       const { result, rerender } = renderHook(() => useWallet(), {
@@ -666,7 +666,7 @@ describe('WalletContext', () => {
       // Reset mock to clear any previous calls
       mockWalletService.getWallets.mockReset();
       mockWalletService.getActiveWallet.mockReset();
-      mockWalletService.isAnyWalletUnlocked.mockResolvedValue(false);
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
       
       // Initial state
       mockWalletService.getWallets.mockResolvedValue([wallet1]);

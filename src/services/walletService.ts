@@ -58,7 +58,6 @@ interface WalletService {
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
-  isAnyWalletUnlocked: () => Promise<boolean>;
 }
 
 function createWalletService(): WalletService {
@@ -190,7 +189,6 @@ function createWalletService(): WalletService {
       // which emits to all connected sites
     },
     setLastActiveTime: async () => await walletManager.setLastActiveTime(),
-    isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
     emitProviderEvent: async (origin, event, data) => {
       // Emit provider event through the event emitter service
       eventEmitterService.emit('emit-provider-event', {

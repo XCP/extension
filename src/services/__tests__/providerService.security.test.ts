@@ -112,7 +112,7 @@ describe('ProviderService Security Tests', () => {
         index: 0
       }),
       getLastActiveAddress: vi.fn().mockResolvedValue('bc1qtest123'),
-      isAnyWalletUnlocked: vi.fn().mockResolvedValue(true)
+      isKeychainUnlocked: vi.fn().mockResolvedValue(true)
     } as any);
     
     
@@ -505,7 +505,7 @@ describe('ProviderService Security Tests', () => {
         getAuthState: vi.fn().mockResolvedValue('locked'),
         getActiveAddress: vi.fn().mockResolvedValue(null),
         getLastActiveAddress: vi.fn().mockResolvedValue(undefined),
-        isAnyWalletUnlocked: vi.fn().mockResolvedValue(false)
+        isKeychainUnlocked: vi.fn().mockResolvedValue(false)
       } as any);
       
       const accounts = await providerService.handleRequest(
