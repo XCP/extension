@@ -273,9 +273,9 @@ describe('UtxoAttachForm', () => {
   });
 
   it('should show help text when enabled', () => {
-    // Temporarily mock settings to enable help text
+    // Override settings mock to enable help text for all calls in this render
     const mockUseSettings = vi.mocked(useSettings);
-    mockUseSettings.mockReturnValueOnce({
+    mockUseSettings.mockReturnValue({
       settings: { ...DEFAULT_SETTINGS, showHelpText: true },
       updateSettings: vi.fn(),
       refreshSettings: vi.fn(),
