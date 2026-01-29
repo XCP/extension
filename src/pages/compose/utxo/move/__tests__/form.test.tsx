@@ -108,22 +108,25 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
-// Mock useFeeRates hook
+// Mock useFeeRates hook with stable references to prevent infinite re-renders
+// IMPORTANT: Define values outside the factory to maintain reference equality
+const mockFeeRates = {
+  fastestFee: 3,
+  halfHourFee: 2,
+  hourFee: 1,
+};
+const mockPresetOptions = [
+  { id: 'fast', name: 'Fastest', value: 3 },
+  { id: 'medium', name: '30 Min', value: 2 },
+  { id: 'slow', name: '1 Hour', value: 1 },
+];
 vi.mock('@/hooks/useFeeRates', () => ({
-  useFeeRates: vi.fn(() => ({
-    feeRates: {
-      fastestFee: 3,
-      halfHourFee: 2,
-      hourFee: 1,
-    },
+  useFeeRates: () => ({
+    feeRates: mockFeeRates,
     isLoading: false,
     error: null,
-    uniquePresetOptions: [
-      { id: 'fast', name: 'Fastest', value: 3 },
-      { id: 'medium', name: '30 Min', value: 2 },
-      { id: 'slow', name: '1 Hour', value: 1 },
-    ],
-  }))
+    uniquePresetOptions: mockPresetOptions,
+  })
 }));
 
 // Mock navigation
