@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { formatAmount } from "@/utils/format";
 
 interface ReviewIssuanceIssueSupplyProps {
   apiResponse: any;
@@ -22,9 +23,10 @@ export function ReviewIssuanceIssueSupply({
   const issuedQuantity = result.params.quantity_normalized ?? result.params.quantity;
 
   // Calculate new total supply from normalized values
-  const newTotalSupply = (
-    Number(currentSupply) + Number(issuedQuantity)
-  ).toString();
+  const newTotalSupply = formatAmount({
+    value: Number(currentSupply) + Number(issuedQuantity),
+    minimumFractionDigits: 0,
+  });
 
   const customFields = [
     { label: "Asset", value: result.params.asset },

@@ -45,10 +45,20 @@ export function IssuanceForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state
+  // Form state - normalize quantity from satoshis if returning from review
+  const getInitialAmount = (): string => {
+    if (!initialFormData?.quantity) return "";
+    const qty = initialFormData.quantity.toString();
+    // If divisible was set and quantity looks like satoshis, convert back
+    if (initialFormData?.divisible && Number(qty) >= 100000000) {
+      return toBigNumber(qty).dividedBy(100000000).toString();
+    }
+    return qty;
+  };
+
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
-  const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
+  const [amount, setAmount] = useState(getInitialAmount());
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
   const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
@@ -196,6 +206,7 @@ export function IssuanceForm({
             parentAsset={initialParentAsset}
             disabled={pending}
             showHelpText={showHelpText}
+            showRandomNumeric={!initialParentAsset}
             required
             autoFocus
           />
@@ -268,7 +279,7 @@ export function IssuanceForm({
               value={description}
               onChange={setDescription}
               label="Description"
-              rows={4}
+              rows={1}
               disabled={pending}
               showHelpText={showHelpText}
               helpText="A textual description for the asset."

@@ -61,6 +61,8 @@ export interface ComposeAssetInfo {
   divisible: boolean;
   locked: boolean;
   owner: string;
+  supply?: string;
+  supply_normalized?: string;
 }
 
 export interface ComposeParams {

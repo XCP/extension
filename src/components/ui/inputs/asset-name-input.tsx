@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
+import { FiRefreshCw } from "@/components/icons";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { useWallet } from "@/contexts/wallet-context";
 import { validateAssetName } from "@/utils/validation/asset";
@@ -19,6 +20,35 @@ interface AssetNameInputProps {
   isSubasset?: boolean;
   parentAsset?: string;
   autoFocus?: boolean;
+  /** Show button to generate random numeric asset name (only for non-subassets) */
+  showRandomNumeric?: boolean;
+}
+
+/**
+ * Generate a random numeric asset name in the valid range.
+ * Numeric assets are in format A{number} where number is between 26^12+1 and 256^8.
+ * Based on Counterparty validation: lower_bound = 26**12 + 1, upper_bound = 256**8
+ */
+function generateRandomNumericAsset(): string {
+  // Valid range: 26^12 + 1 to 256^8 (inclusive)
+  const min = BigInt(26) ** BigInt(12) + BigInt(1); // 95,428,956,661,682,177
+  const max = BigInt(256) ** BigInt(8); // 18,446,744,073,709,551,616
+
+  // Generate random BigInt in range
+  const range = max - min + BigInt(1); // +1 because upper bound is inclusive
+
+  // Generate random bytes and convert to BigInt
+  const randomBytes = new Uint8Array(8);
+  crypto.getRandomValues(randomBytes);
+  let randomValue = BigInt(0);
+  for (let i = 0; i < 8; i++) {
+    randomValue = (randomValue << BigInt(8)) | BigInt(randomBytes[i]);
+  }
+
+  // Scale to our range and add min
+  const value = min + (randomValue % range);
+
+  return `A${value.toString()}`;
 }
 
 // The component uses the validation from utils internally
@@ -41,6 +71,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
       isSubasset = false,
       parentAsset = "",
       autoFocus = false,
+      showRandomNumeric = false,
     },
     ref
   ) => {
@@ -247,11 +278,29 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
       displayText = helpText;
     }
 
+    const handleRandomNumeric = () => {
+      const randomAsset = generateRandomNumericAsset();
+      onChange(randomAsset);
+    };
+
     return (
       <Field>
-        <Label className="text-sm font-medium text-gray-700">
-          {label} {required && <span className="text-red-500">*</span>}
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor={name} className="text-sm font-medium text-gray-700">
+            {label} {required && <span className="text-red-500">*</span>}
+          </Label>
+          {showRandomNumeric && !isSubasset && (
+            <button
+              type="button"
+              onClick={handleRandomNumeric}
+              disabled={disabled}
+              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1"
+            >
+              <FiRefreshCw className="size-2" />
+              A123
+            </button>
+          )}
+        </div>
         <div className="relative">
           <Input
             ref={(el: HTMLInputElement | null) => {
