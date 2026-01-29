@@ -7,7 +7,8 @@ import { UtxoMoveForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider } from '@/contexts/composer-context';
 
-// Mock walletManager to prevent loading heavy crypto dependencies
+// CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
+// This must be at the very top before any other mocks that might indirectly import it
 vi.mock('@/utils/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
@@ -105,22 +106,6 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
     halfHourFee: 2,
     hourFee: 1,
   })
-}));
-
-// Mock UTXO selection to prevent loading heavy dependencies
-vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
-  selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [],
-    totalValue: 0,
-    excludedWithAssets: 0,
-    inputsSet: ''
-  })
-}));
-
-// Mock Counterparty API to prevent loading walletManager
-vi.mock('@/utils/blockchain/counterparty/api', () => ({
-  fetchUtxoBalances: vi.fn().mockResolvedValue([]),
-  fetchTokenBalances: vi.fn().mockResolvedValue([]),
 }));
 
 // Mock useFeeRates hook
