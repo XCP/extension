@@ -5,11 +5,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { DispenseForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
-import * as fetchAssetDataModule from '@/hooks/utils/fetchAssetData';
+import * as utxoSelection from '@/utils/blockchain/counterparty/utxo-selection';
 
-// Mock the API module
+// Mock the API modules
 vi.mock('@/utils/blockchain/counterparty/api');
-vi.mock('@/hooks/utils/fetchAssetData');
+vi.mock('@/utils/blockchain/counterparty/utxo-selection');
 
 // Mock fee rates to prevent network calls
 vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
@@ -67,12 +67,12 @@ vi.mock('@/contexts/loading-context', () => ({
 describe('DispenseForm', () => {
   const mockFormAction = vi.fn();
   const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
-  const mockFetchAssetDetailsAndBalance = vi.mocked(fetchAssetDataModule.fetchAssetDetailsAndBalance);
+  const mockSelectUtxosForTransaction = vi.mocked(utxoSelection.selectUtxosForTransaction);
 
   // Helper function to render with provider
   const renderWithProvider = (initialFormData: any = null) => {
     const mockComposeApi = vi.fn().mockResolvedValue({ result: { tx_hash: 'test' } });
-    
+
     return render(
       <MemoryRouter>
         <ComposerProvider composeApi={mockComposeApi} initialTitle="Dispense" composeType="dispense">
@@ -84,20 +84,15 @@ describe('DispenseForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
-    // Default mock for BTC balance
-    mockFetchAssetDetailsAndBalance.mockResolvedValue({
-      isDivisible: true,
-      availableBalance: '0.1',
-      assetInfo: {
-        asset: 'BTC',
-        asset_longname: null,
-        description: 'Bitcoin',
-        issuer: undefined,
-        divisible: true,
-        locked: false,
-        supply_normalized: '21000000',
-      },
+
+    // Default mock for spendable BTC (10,000,000 satoshis = 0.1 BTC)
+    mockSelectUtxosForTransaction.mockResolvedValue({
+      utxos: [
+        { txid: 'abc123', vout: 0, value: 10000000, status: { confirmed: true, block_height: 800000, block_hash: 'hash', block_time: 1234567890 } }
+      ],
+      inputsSet: 'abc123:0',
+      totalValue: 10000000,
+      excludedWithAssets: 0,
     });
   });
 
@@ -344,19 +339,14 @@ describe('DispenseForm', () => {
       result_count: 1,
     });
 
-    // Mock lower BTC balance
-    mockFetchAssetDetailsAndBalance.mockResolvedValue({
-      isDivisible: true,
-      availableBalance: '0.001',
-      assetInfo: {
-        asset: 'BTC',
-        asset_longname: null,
-        description: 'Bitcoin',
-        issuer: undefined,
-        divisible: true,
-        locked: false,
-        supply_normalized: '21000000',
-      },
+    // Mock lower BTC balance (100,000 satoshis = 0.001 BTC)
+    mockSelectUtxosForTransaction.mockResolvedValue({
+      utxos: [
+        { txid: 'abc123', vout: 0, value: 100000, status: { confirmed: true, block_height: 800000, block_hash: 'hash', block_time: 1234567890 } }
+      ],
+      inputsSet: 'abc123:0',
+      totalValue: 100000,
+      excludedWithAssets: 0,
     });
 
     renderWithProvider();
@@ -406,26 +396,14 @@ describe('DispenseForm', () => {
       result_count: 1,
     });
 
-    mockFetchAssetDetailsAndBalance.mockResolvedValue({
-      isDivisible: true,
-      availableBalance: '0.1',
-      assetInfo: {
-        asset: 'BTC',
-        asset_longname: null,
-        description: 'Bitcoin',
-        issuer: undefined,
-        divisible: true,
-        locked: false,
-        supply_normalized: '21000000',
-      },
-    });
+    // Default spendable balance mock is already set in beforeEach
 
     renderWithProvider();
-    
+
     const addressInput = screen.getByLabelText(/Dispenser Address/i);
     // Use Counterparty burn address for testing
     await userEvent.type(addressInput, '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
-    
+
     await waitFor(() => {
       expect(screen.getByText('EMPTY')).toBeInTheDocument();
       expect(screen.getByText(/0 Remaining/i)).toBeInTheDocument();

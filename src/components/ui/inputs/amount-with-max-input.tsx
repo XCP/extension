@@ -1,17 +1,10 @@
 import { useState, type ChangeEvent, type ReactElement } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
-import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
-import { composeSend } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
-import {
-  toSatoshis,
-  fromSatoshis,
-  subtractSatoshis,
-  divideSatoshis,
-  isLessThanOrEqualToSatoshis
-} from "@/utils/numeric";
+import { fromSatoshis } from "@/utils/numeric";
 import { isDustAmount } from "@/utils/validation/amount";
+import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
 
 // Known safe error messages that can be shown to users
 // These are intentionally user-friendly and don't leak internal details
@@ -20,6 +13,9 @@ const KNOWN_SAFE_ERRORS = [
   "Insufficient balance to cover transaction fee.",
   "Amount per destination after fee is below dust limit.",
 ];
+
+// Pattern for dynamic error messages about excluded UTXOs
+const EXCLUDED_UTXOS_PATTERN = /^No spendable balance\. \d+ UTXOs have attached assets\.$/;
 
 interface AmountWithMaxInputProps {
   asset: string;
@@ -80,9 +76,42 @@ export function AmountWithMaxInput({
     setError(null);
   };
   
+  /**
+   * Gets the input size in vbytes based on address type.
+   * - P2PKH (legacy, starts with 1): ~148 vbytes
+   * - P2SH (wrapped segwit, starts with 3): ~91 vbytes
+   * - P2WPKH (native segwit, starts with bc1q): ~68 vbytes
+   * - P2TR (taproot, starts with bc1p): ~58 vbytes
+   */
+  const getInputSizeForAddress = (address: string): number => {
+    if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
+      return 58; // P2TR (taproot)
+    }
+    if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
+      return 68; // P2WPKH (native segwit)
+    }
+    if (address.startsWith('3') || address.startsWith('2')) {
+      return 91; // P2SH (often wrapped segwit)
+    }
+    // Legacy P2PKH (starts with 1 or m/n for testnet)
+    return 148;
+  };
+
+  /**
+   * Estimates transaction vsize based on UTXO count and address type.
+   * - Fixed overhead: ~10.5 vbytes
+   * - Per input: varies by address type
+   * - Per output: ~31 vbytes (P2WPKH) or ~34 vbytes (P2PKH)
+   */
+  const estimateVsize = (utxoCount: number, outputCount: number, address: string): number => {
+    const overhead = 10.5;
+    const inputSize = getInputSizeForAddress(address);
+    const outputSize = 31; // Assume segwit outputs
+    return Math.ceil(overhead + (utxoCount * inputSize) + (outputCount * outputSize));
+  };
+
   const handleMaxButtonClick = async () => {
-    if (!sourceAddress || disabled) return;
-    const sourceAddr = sourceAddress.address;
+    if (!sourceAddress?.address || disabled) return;
 
     if (asset !== "BTC") {
       const maxNum = Number(maxAmount);
@@ -97,61 +126,52 @@ export function AmountWithMaxInput({
       return;
     }
 
+    setIsLoading(true);
     try {
       setError(null);
-      setIsLoading(true);
 
-      const estimationDestination =
-        destination && isValidBitcoinAddress(destination)
-          ? destination
-          : sourceAddr;
-      const availableSats = toSatoshis(availableBalance); // Integer string
-      if (isLessThanOrEqualToSatoshis(availableSats, "0")) {
+      // Select UTXOs that are safe to spend (excludes those with Counterparty assets)
+      const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
+        sourceAddress.address,
+        { allowUnconfirmed: true }
+      );
+
+      if (utxos.length === 0) {
+        const message = excludedWithAssets > 0
+          ? `No spendable balance. ${excludedWithAssets} UTXOs have attached assets.`
+          : "No available balance.";
+        throw new Error(message);
+      }
+
+      if (totalValue <= 0) {
         throw new Error("No available balance.");
       }
 
-      let candidate: string | undefined;
+      // Estimate vsize based on spendable UTXO count and address type
+      const estimatedVbytes = estimateVsize(utxos.length, destinationCount, sourceAddress.address);
+      const effectiveFeeRate = feeRate ?? 0.1;
+      const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
 
-      try {
-        const composeResult = await composeSend({
-          sourceAddress: sourceAddr,
-          destination: estimationDestination,
-          asset: "BTC",
-          quantity: Number(availableSats), // Convert to number for API
-          memo,
-          sat_per_vbyte: feeRate ?? 0.1,
-          memo_is_hex: false,
-        });
-        candidate = subtractSatoshis(availableSats, composeResult.result.btc_fee);
-      } catch (e: any) {
-        const errorMsg = e.response?.data?.error || e.message || "";
-        const regex = /Insufficient funds for the target amount:\s*(\d+)\s*<\s*(\d+)/;
-        const match = regex.exec(errorMsg);
-        if (match) {
-          const balanceParsed = match[1];
-          const targetNeeded = match[2];
-          candidate = subtractSatoshis(balanceParsed, subtractSatoshis(targetNeeded, balanceParsed));
-        } else {
-          throw e;
-        }
-      }
+      const candidate = totalValue - estimatedFee;
 
-      if (!candidate || isLessThanOrEqualToSatoshis(candidate, "0")) {
+      if (candidate <= 0) {
         throw new Error("Insufficient balance to cover transaction fee.");
       }
 
-      const amountPerDestination = divideSatoshis(candidate, destinationCount);
-      const amountPerDestSatoshis = parseInt(amountPerDestination);
-      if (isDustAmount(amountPerDestSatoshis)) {
+      const amountPerDestination = Math.floor(candidate / destinationCount);
+      if (isDustAmount(amountPerDestination)) {
         throw new Error("Amount per destination after fee is below dust limit.");
       }
-      const finalAmount = fromSatoshis(amountPerDestination); // Returns BTC string
+      const finalAmount = fromSatoshis(amountPerDestination.toString());
       onChange(finalAmount);
     } catch (err: unknown) {
-      console.error("Failed to calculate max amount:", err);
-      // Only show known safe error messages to users to prevent leaking internal details
-      if (err instanceof Error && KNOWN_SAFE_ERRORS.includes(err.message)) {
-        setError(err.message);
+      if (err instanceof Error) {
+        // Check if it's a known safe error message
+        if (KNOWN_SAFE_ERRORS.includes(err.message) || EXCLUDED_UTXOS_PATTERN.test(err.message)) {
+          setError(err.message);
+        } else {
+          setError("Failed to calculate maximum amount. Please try again.");
+        }
       } else {
         setError("Failed to calculate maximum amount. Please try again.");
       }
@@ -171,30 +191,7 @@ export function AmountWithMaxInput({
       return;
     }
 
-    // For BTC, use the more complex calculation that accounts for fees
-    if (asset === "BTC") {
-      await handleMaxButtonClick();
-      return;
-    }
-
-    try {
-      let maxNum = parseFloat(maxAmount || availableBalance);
-      
-      // If we have multiple destinations, divide the max amount
-      if (destinationCount && destinationCount > 1) {
-        const perDestination = formatAmount({
-          value: maxNum / destinationCount,
-          maximumFractionDigits: 8,
-          minimumFractionDigits: 8
-        });
-        onChange(perDestination);
-      } else {
-        onChange(maxAmount || availableBalance);
-      }
-    } catch (error) {
-      console.error("Error calculating max amount:", error);
-      setError("Error calculating max amount");
-    }
+    await handleMaxButtonClick();
   };
 
   return (

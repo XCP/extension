@@ -69,6 +69,7 @@ function isValidUtxoArray(data: unknown): data is UTXO[] {
 
 /**
  * Fetches the UTXOs for a given Bitcoin address.
+ * Uses the Bitcoin Core endpoint proxied through the API.
  *
  * @param address - The Bitcoin address to fetch UTXOs for.
  * @param signal - Optional AbortSignal for cancelling the request
@@ -76,24 +77,25 @@ function isValidUtxoArray(data: unknown): data is UTXO[] {
  */
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
   try {
-    // Use quickApiClient with 10 second timeout for UTXO lookups
-    const response = await apiClient.get<unknown>(
-      `https://mempool.space/api/address/${address}/utxo`,
-      { signal }
+    const settings = walletManager.getSettings();
+    const response = await apiClient.get<{ result: UTXO[] }>(
+      `${settings.counterpartyApiBase}/v2/bitcoin/addresses/${address}/utxos`,
+      {
+        signal,
+        params: { unconfirmed: true }
+      }
     );
 
-    // Validate response structure
-    if (!isValidUtxoArray(response.data)) {
-      console.error(`Invalid UTXO response format for address ${address}`);
+    const utxos = response.data?.result;
+    if (!Array.isArray(utxos)) {
       throw new Error('Invalid UTXO response: expected array of UTXOs');
     }
 
-    return response.data;
+    return utxos;
   } catch (error) {
     if (isCancel(error)) {
       throw error; // Re-throw cancellation errors
     }
-    console.error(`Error fetching UTXOs for address ${address}:`, error);
     throw new Error('Failed to fetch UTXOs.');
   }
 }
