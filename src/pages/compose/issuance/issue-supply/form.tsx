@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { Spinner } from "@/components/ui/spinner";
@@ -39,10 +39,32 @@ export function IssueSupplyForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state
-  const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
+  // Form state - normalize quantity from satoshis if returning from review
+  const getInitialQuantity = (): string => {
+    if (!initialFormData?.quantity) return "";
+    const qty = initialFormData.quantity.toString();
+    // If we have asset info and it's divisible, the stored quantity is in satoshis
+    // We need to convert back to user-friendly format
+    // Check if the value looks like it was converted (large number for divisible)
+    if (assetInfo?.divisible && Number(qty) >= 100000000) {
+      return toBigNumber(qty).dividedBy(100000000).toString();
+    }
+    return qty;
+  };
+
+  const [quantity, setQuantity] = useState(getInitialQuantity());
   const [lock, setLock] = useState(initialFormData?.lock || false);
   const [, setError] = useState<string | null>(null);
+
+  // Update quantity if assetInfo loads after initial render (for proper normalization)
+  useEffect(() => {
+    if (assetInfo && initialFormData?.quantity) {
+      const qty = initialFormData.quantity.toString();
+      if (assetInfo.divisible && Number(qty) >= 100000000) {
+        setQuantity(toBigNumber(qty).dividedBy(100000000).toString());
+      }
+    }
+  }, [assetInfo, initialFormData?.quantity]);
 
   // Calculate maximum issuable amount
   const calculateMaxAmount = (): string => {
