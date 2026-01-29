@@ -112,7 +112,7 @@ describe('AmountWithMaxInput', () => {
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    expect(onChange).toHaveBeenCalledWith('100.00000000');
+    expect(onChange).toHaveBeenCalledWith('100');
   });
 
   it('should divide max amount by destination count for non-BTC', () => {
@@ -122,7 +122,7 @@ describe('AmountWithMaxInput', () => {
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    expect(onChange).toHaveBeenCalledWith('25.00000000');
+    expect(onChange).toHaveBeenCalledWith('25');
   });
 
   it('should call custom onMaxClick when provided', () => {
