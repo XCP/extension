@@ -295,7 +295,6 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               onClick={handleRandomNumeric}
               disabled={disabled}
               className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1"
-              title="Generate random numeric asset (free to create)"
             >
               <FiRefreshCw className="size-3" />
               A123
