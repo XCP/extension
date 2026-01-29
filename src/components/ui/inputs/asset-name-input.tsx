@@ -293,11 +293,10 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               type="button"
               onClick={handleRandomNumeric}
               disabled={disabled}
-              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 flex items-center gap-1"
-              title="Generate random numeric asset name (free to create)"
+              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono"
+              title="Generate random numeric asset (free to create)"
             >
-              <span className="font-mono">#</span>
-              <span>Random</span>
+              A123
             </button>
           )}
         </div>
