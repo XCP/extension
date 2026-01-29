@@ -13,6 +13,7 @@ const KNOWN_SAFE_ERRORS = [
   "No available balance.",
   "Insufficient balance to cover transaction fee.",
   "Amount per destination after fee is below dust limit.",
+  "Failed to fetch UTXOs.",
 ];
 
 // Pattern for dynamic error messages about excluded UTXOs
