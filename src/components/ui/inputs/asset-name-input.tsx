@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useState, useRef } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
+import { FiRefreshCw } from "@/components/icons";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { useWallet } from "@/contexts/wallet-context";
 import { validateAssetName } from "@/utils/validation/asset";
@@ -293,9 +294,10 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               type="button"
               onClick={handleRandomNumeric}
               disabled={disabled}
-              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono"
+              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1"
               title="Generate random numeric asset (free to create)"
             >
+              <FiRefreshCw className="size-3" />
               A123
             </button>
           )}
