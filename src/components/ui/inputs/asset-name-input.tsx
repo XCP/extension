@@ -286,7 +286,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     return (
       <Field>
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium text-gray-700">
+          <Label htmlFor={name} className="text-sm font-medium text-gray-700">
             {label} {required && <span className="text-red-500">*</span>}
           </Label>
           {showRandomNumeric && !isSubasset && (
@@ -296,7 +296,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               disabled={disabled}
               className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1"
             >
-              <FiRefreshCw className="size-3" />
+              <FiRefreshCw className="size-2" />
               A123
             </button>
           )}
