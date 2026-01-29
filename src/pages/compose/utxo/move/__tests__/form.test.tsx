@@ -107,6 +107,12 @@ vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
   })
 }));
 
+// Mock Counterparty API to prevent loading walletManager
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
+  fetchUtxoBalances: vi.fn().mockResolvedValue([]),
+  fetchTokenBalances: vi.fn().mockResolvedValue([]),
+}));
+
 // Mock useFeeRates hook
 vi.mock('@/hooks/useFeeRates', () => ({
   useFeeRates: vi.fn(() => ({
