@@ -161,3 +161,23 @@ export function isNumericAsset(assetName: string): boolean {
 export function isNamedAsset(assetName: string): boolean {
   return /^[B-Z][A-Z]{3,11}$/.test(assetName);
 }
+
+/**
+ * Generate a random numeric asset name in the valid range.
+ * Numeric assets are in format A{number} where number is between 26^12+1 and 256^8.
+ */
+export function generateRandomNumericAsset(): string {
+  const min = BigInt(26) ** BigInt(12) + BigInt(1);
+  const max = BigInt(256) ** BigInt(8);
+  const range = max - min + BigInt(1);
+
+  const randomBytes = new Uint8Array(8);
+  crypto.getRandomValues(randomBytes);
+  let randomValue = BigInt(0);
+  for (let i = 0; i < 8; i++) {
+    randomValue = (randomValue << BigInt(8)) | BigInt(randomBytes[i]);
+  }
+
+  const value = min + (randomValue % range);
+  return `A${value.toString()}`;
+}

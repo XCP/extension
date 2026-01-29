@@ -45,20 +45,9 @@ export function IssuanceForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state - normalize quantity from satoshis if returning from review
-  const getInitialAmount = (): string => {
-    if (!initialFormData?.quantity) return "";
-    const qty = initialFormData.quantity.toString();
-    // If divisible was set and quantity looks like satoshis, convert back
-    if (initialFormData?.divisible && Number(qty) >= 100000000) {
-      return toBigNumber(qty).dividedBy(100000000).toString();
-    }
-    return qty;
-  };
-
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
-  const [amount, setAmount] = useState(getInitialAmount());
+  const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
   const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
@@ -131,14 +120,8 @@ export function IssuanceForm({
     });
   };
 
-  // Process form to convert quantity to satoshis and set divisible as string
   const processedFormAction = async (formData: FormData) => {
-    // Convert quantity to satoshis if divisible
-    const quantityInt = isDivisible
-      ? toBigNumber(amount).multipliedBy(100000000).toFixed(0)
-      : toBigNumber(amount).toFixed(0);
-
-    formData.set('quantity', quantityInt);
+    formData.set('quantity', amount);
     formData.set('divisible', String(isDivisible));
     formData.set('lock', String(isLocked));
 

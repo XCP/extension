@@ -212,11 +212,23 @@ export async function normalizeFormData(
       continue;
     }
 
-    // For issuance operations, quantity is already converted by the form
-    // (both new asset creation and issue-supply forms handle conversion)
-    if (composeType === 'issuance') {
-      normalizedData[quantityField] = value.toString();
-      continue;
+    // For issuance of NEW assets, use the divisible field from the form
+    if (composeType === 'issuance' && !assetInfoCache.has(assetName)) {
+      try {
+        const details = await fetchAssetDetails(assetName);
+        if (details) {
+          assetInfoCache.set(assetName, details);
+        }
+      } catch {
+        // Asset doesn't exist yet (new issuance) - use form's divisible field
+        const isDivisible = toBoolean(rawData['divisible']);
+        if (isDivisible) {
+          normalizedData[quantityField] = toSatoshis(value.toString());
+        } else {
+          normalizedData[quantityField] = value.toString();
+        }
+        continue;
+      }
     }
 
     // For fairminter, the form provides divisibility - use it directly

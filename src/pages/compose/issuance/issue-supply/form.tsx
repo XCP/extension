@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { Spinner } from "@/components/ui/spinner";
@@ -39,32 +39,9 @@ export function IssueSupplyForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state - normalize quantity from satoshis if returning from review
-  const getInitialQuantity = (): string => {
-    if (!initialFormData?.quantity) return "";
-    const qty = initialFormData.quantity.toString();
-    // If we have asset info and it's divisible, the stored quantity is in satoshis
-    // We need to convert back to user-friendly format
-    // Check if the value looks like it was converted (large number for divisible)
-    if (assetInfo?.divisible && Number(qty) >= 100000000) {
-      return toBigNumber(qty).dividedBy(100000000).toString();
-    }
-    return qty;
-  };
-
-  const [quantity, setQuantity] = useState(getInitialQuantity());
+  const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
   const [lock, setLock] = useState(initialFormData?.lock || false);
   const [, setError] = useState<string | null>(null);
-
-  // Update quantity if assetInfo loads after initial render (for proper normalization)
-  useEffect(() => {
-    if (assetInfo && initialFormData?.quantity) {
-      const qty = initialFormData.quantity.toString();
-      if (assetInfo.divisible && Number(qty) >= 100000000) {
-        setQuantity(toBigNumber(qty).dividedBy(100000000).toString());
-      }
-    }
-  }, [assetInfo, initialFormData?.quantity]);
 
   // Calculate maximum issuable amount
   const calculateMaxAmount = (): string => {
@@ -93,21 +70,14 @@ export function IssueSupplyForm({
     });
   };
 
-  // Process form action to convert quantity to integer
   const processedFormAction = async (formData: FormData) => {
     if (assetInfo) {
-      const isDivisible = assetInfo.divisible ?? false;
-      const quantityInt = isDivisible 
-        ? toBigNumber(quantity).multipliedBy(100000000).toFixed(0)
-        : toBigNumber(quantity).toFixed(0);
-      
-      formData.set('quantity', quantityInt);
+      formData.set('quantity', quantity);
       formData.set('asset', asset);
-      formData.set('divisible', String(isDivisible));
+      formData.set('divisible', String(assetInfo.divisible ?? false));
       formData.set('lock', String(lock));
-      formData.set('description', ''); // Empty description for issue supply
+      formData.set('description', '');
     }
-    
     formAction(formData);
   };
 

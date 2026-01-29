@@ -3,7 +3,7 @@ import { Field, Label, Description, Input } from "@headlessui/react";
 import { FiRefreshCw } from "@/components/icons";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { useWallet } from "@/contexts/wallet-context";
-import { validateAssetName } from "@/utils/validation/asset";
+import { validateAssetName, generateRandomNumericAsset } from "@/utils/validation/asset";
 
 interface AssetNameInputProps {
   value: string;
@@ -24,35 +24,6 @@ interface AssetNameInputProps {
   showRandomNumeric?: boolean;
 }
 
-/**
- * Generate a random numeric asset name in the valid range.
- * Numeric assets are in format A{number} where number is between 26^12+1 and 256^8.
- * Based on Counterparty validation: lower_bound = 26**12 + 1, upper_bound = 256**8
- */
-function generateRandomNumericAsset(): string {
-  // Valid range: 26^12 + 1 to 256^8 (inclusive)
-  const min = BigInt(26) ** BigInt(12) + BigInt(1); // 95,428,956,661,682,177
-  const max = BigInt(256) ** BigInt(8); // 18,446,744,073,709,551,616
-
-  // Generate random BigInt in range
-  const range = max - min + BigInt(1); // +1 because upper bound is inclusive
-
-  // Generate random bytes and convert to BigInt
-  const randomBytes = new Uint8Array(8);
-  crypto.getRandomValues(randomBytes);
-  let randomValue = BigInt(0);
-  for (let i = 0; i < 8; i++) {
-    randomValue = (randomValue << BigInt(8)) | BigInt(randomBytes[i]);
-  }
-
-  // Scale to our range and add min
-  const value = min + (randomValue % range);
-
-  return `A${value.toString()}`;
-}
-
-// The component uses the validation from utils internally
-// No need to re-export since consumers should use @/utils/validation directly
 
 export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
   (
@@ -281,6 +252,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
     const handleRandomNumeric = () => {
       const randomAsset = generateRandomNumericAsset();
       onChange(randomAsset);
+      inputRef.current?.focus();
     };
 
     return (
@@ -294,9 +266,10 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               type="button"
               onClick={handleRandomNumeric}
               disabled={disabled}
-              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1"
+              aria-label="Generate random numeric asset name"
+              className="text-xs text-blue-600 hover:text-blue-800 disabled:text-gray-400 cursor-pointer font-mono flex items-center gap-1 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-              <FiRefreshCw className="size-2" />
+              <FiRefreshCw className="size-2" aria-hidden="true" />
               A123
             </button>
           )}
