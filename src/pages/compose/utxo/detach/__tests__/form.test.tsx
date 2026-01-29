@@ -7,6 +7,16 @@ import { UtxoDetachForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider } from '@/contexts/composer-context';
 
+// Mock walletManager to prevent loading heavy crypto dependencies
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
+    isUnlocked: vi.fn().mockReturnValue(true),
+    getActiveAddress: vi.fn().mockReturnValue({ address: 'bc1qtest123' }),
+    getActiveWallet: vi.fn().mockReturnValue({ name: 'Test Wallet' }),
+  }
+}));
+
 // Mock Browser.runtime.connect to fix webext-bridge error
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn(),
