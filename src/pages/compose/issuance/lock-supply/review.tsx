@@ -1,15 +1,14 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
 
 /**
  * Props for the ReviewIssuanceLockSupply component.
  */
 interface ReviewIssuanceLockSupplyProps {
-  apiResponse: any; // Consider typing this more strictly based on your API response shape
+  apiResponse: any;
   onSign: () => void;
   onBack: () => void;
   error: string | null;
-  isSigning: boolean; // Passed from useActionState in Composer
+  isSigning: boolean;
 }
 
 /**
@@ -25,12 +24,9 @@ export function ReviewIssuanceLockSupply({
   isSigning
 }: ReviewIssuanceLockSupplyProps) {
   const { result } = apiResponse;
-  const isDivisible = result.params.asset_info.divisible;
 
-
-  const currentSupply = result.params.asset_info.supply
-    ? formatAssetQuantity(result.params.asset_info.supply, isDivisible)
-    : "0";
+  // Use normalized supply from verbose API response (handles divisibility correctly)
+  const currentSupply = result.params.asset_info?.supply_normalized ?? "0";
 
   const customFields = [
     { label: "Asset", value: result.params.asset },

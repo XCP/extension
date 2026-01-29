@@ -149,8 +149,9 @@ export function IssueSupplyForm({
           maxAmount={calculateMaxAmount()}
           label="Amount"
           name="quantity_display"
-          description={`Amount of ${asset} to issue (max: ${calculateMaxAmount()})`}
-          disableMaxButton={false}
+          description={`Enter the amount of ${asset} to issue`}
+          disableMaxButton={true}
+          isDivisible={assetInfo?.divisible ?? false}
         />
         
         <CheckboxInput
