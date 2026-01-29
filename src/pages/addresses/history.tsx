@@ -114,7 +114,7 @@ export default function AddressHistoryPage(): ReactElement {
       title: "History",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FiRefreshCw className={`size-4 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
+        icon: <FiRefreshCw className={`size-3 ${isLoading ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: () => loadTransactions(),
         ariaLabel: "Refresh transactions",
         disabled: isLoading,

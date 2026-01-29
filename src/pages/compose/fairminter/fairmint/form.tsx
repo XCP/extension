@@ -14,7 +14,6 @@ import { FairmintOptions } from "@/utils/blockchain/counterparty/compose";
 interface FairmintFormDataInternal {
   asset: string;
   quantity: string;
-  sat_per_vbyte: number;
 }
 
 interface FairmintFormProps {
@@ -29,7 +28,7 @@ export function FairmintForm({
   asset = ""
 }: FairmintFormProps) {
   // Context hooks
-  const { activeAddress, showHelpText } = useComposer();
+  const { activeAddress, showHelpText, feeRate } = useComposer();
   
   // Form status from React hook
   const {} = useFormStatus();
@@ -47,7 +46,6 @@ export function FairmintForm({
     return {
       asset: isSpecialAsset ? "" : initialAssetValue,
       quantity: initialFormData?.quantity ? initialFormData.quantity.toString() : "",
-      sat_per_vbyte: initialFormData?.sat_per_vbyte || 0.1,
     };
   });
   const [selectedFairminter, setSelectedFairminter] = useState<Fairminter | undefined>(undefined);
@@ -179,12 +177,11 @@ export function FairmintForm({
       }
     }
     
-    if (formData.sat_per_vbyte <= 0) {
+    if (!feeRate || feeRate <= 0) {
       setValidationError("Fee rate must be greater than zero.");
       return;
     }
 
-    
     // For free mints, quantity is 0; for paid mints, use the entered quantity
     const quantityToSubmit = isFreeMint ? "0" : formData.quantity;
 
@@ -193,7 +190,7 @@ export function FairmintForm({
     formDataToSubmit.append("sourceAddress", activeAddress?.address || "");
     formDataToSubmit.append("asset", formData.asset);
     formDataToSubmit.append("quantity", quantityToSubmit);
-    formDataToSubmit.append("sat_per_vbyte", formData.sat_per_vbyte.toString());
+    formDataToSubmit.append("sat_per_vbyte", feeRate.toString());
     
     // Let the composer context handle the API call and errors
     startTransition(() => {
@@ -278,7 +275,7 @@ export function FairmintForm({
                 setFormData({ ...formData, quantity: value });
                 setValidationError(null); // Clear errors when quantity changes
               }}
-              sat_per_vbyte={formData.sat_per_vbyte}
+              feeRate={feeRate}
               setError={(msg) => setValidationError(msg)}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
@@ -293,6 +290,7 @@ export function FairmintForm({
                 setValidationError(null);
               }}
               hasError={!!validationError}
+              isDivisible={selectedFairminter?.divisible ?? true}
             />
           )}
 

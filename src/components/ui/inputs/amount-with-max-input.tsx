@@ -1,17 +1,11 @@
 import { useState, type ChangeEvent, type ReactElement } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
-import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
-import { composeSend } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
-import {
-  toSatoshis,
-  fromSatoshis,
-  subtractSatoshis,
-  divideSatoshis,
-  isLessThanOrEqualToSatoshis
-} from "@/utils/numeric";
+import { fromSatoshis } from "@/utils/numeric";
 import { isDustAmount } from "@/utils/validation/amount";
+import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
+import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 
 // Known safe error messages that can be shown to users
 // These are intentionally user-friendly and don't leak internal details
@@ -19,14 +13,18 @@ const KNOWN_SAFE_ERRORS = [
   "No available balance.",
   "Insufficient balance to cover transaction fee.",
   "Amount per destination after fee is below dust limit.",
+  "Failed to fetch UTXOs.",
 ];
+
+// Pattern for dynamic error messages about excluded UTXOs
+const EXCLUDED_UTXOS_PATTERN = /^No spendable balance\. \d+ UTXOs have attached assets\.$/;
 
 interface AmountWithMaxInputProps {
   asset: string;
   availableBalance: string;
   value: string;
   onChange: (value: string) => void;
-  sat_per_vbyte: number;
+  feeRate?: number | null; // Only required for BTC (used in max calculation)
   setError: (message: string | null) => void;
   showHelpText?: boolean;
   sourceAddress: { address: string } | null;
@@ -42,6 +40,7 @@ interface AmountWithMaxInputProps {
   onMaxClick?: () => void;
   hasError?: boolean;
   autoFocus?: boolean;
+  isDivisible?: boolean; // Whether the asset is divisible (default: true for BTC-like decimals)
 }
 
 /**
@@ -56,7 +55,7 @@ export function AmountWithMaxInput({
   availableBalance,
   value,
   onChange,
-  sat_per_vbyte,
+  feeRate = 0.1,
   setError,
   showHelpText = false,
   sourceAddress,
@@ -72,86 +71,80 @@ export function AmountWithMaxInput({
   onMaxClick,
   hasError = false,
   autoFocus = false,
+  isDivisible = true,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setError(null);
   };
-  
+
   const handleMaxButtonClick = async () => {
-    if (!sourceAddress || disabled) return;
-    const sourceAddr = sourceAddress.address;
+    if (!sourceAddress?.address || disabled) return;
 
     if (asset !== "BTC") {
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
+        // Use appropriate decimal places based on divisibility
+        // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
+        const decimals = isDivisible ? 8 : 0;
         const perDestination = formatAmount({
           value: maxNum / destinationCount,
-          maximumFractionDigits: 8,
-          minimumFractionDigits: 8
+          maximumFractionDigits: decimals,
+          minimumFractionDigits: 0
         });
         onChange(perDestination);
       }
       return;
     }
 
+    setIsLoading(true);
     try {
       setError(null);
-      setIsLoading(true);
 
-      const estimationDestination =
-        destination && isValidBitcoinAddress(destination)
-          ? destination
-          : sourceAddr;
-      const availableSats = toSatoshis(availableBalance); // Integer string
-      if (isLessThanOrEqualToSatoshis(availableSats, "0")) {
+      // Select UTXOs that are safe to spend (excludes those with Counterparty assets)
+      const { utxos, totalValue, excludedWithAssets, excludedValue } = await selectUtxosForTransaction(
+        sourceAddress.address,
+        { allowUnconfirmed: true }
+      );
+
+      if (utxos.length === 0) {
+        const message = excludedWithAssets > 0
+          ? `No spendable balance. ${excludedWithAssets} UTXOs have attached assets.`
+          : "No available balance.";
+        throw new Error(message);
+      }
+
+      if (totalValue <= 0) {
         throw new Error("No available balance.");
       }
 
-      let candidate: string | undefined;
+      // Estimate vsize based on spendable UTXO count and address type
+      const estimatedVbytes = estimateVsize(utxos.length, destinationCount, sourceAddress.address);
+      const effectiveFeeRate = feeRate ?? 0.1;
+      const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
 
-      try {
-        const composeResult = await composeSend({
-          sourceAddress: sourceAddr,
-          destination: estimationDestination,
-          asset: "BTC",
-          quantity: Number(availableSats), // Convert to number for API
-          memo,
-          sat_per_vbyte,
-          memo_is_hex: false,
-        });
-        candidate = subtractSatoshis(availableSats, composeResult.result.btc_fee);
-      } catch (e: any) {
-        const errorMsg = e.response?.data?.error || e.message || "";
-        const regex = /Insufficient funds for the target amount:\s*(\d+)\s*<\s*(\d+)/;
-        const match = regex.exec(errorMsg);
-        if (match) {
-          const balanceParsed = match[1];
-          const targetNeeded = match[2];
-          candidate = subtractSatoshis(balanceParsed, subtractSatoshis(targetNeeded, balanceParsed));
-        } else {
-          throw e;
-        }
-      }
+      const candidate = totalValue - estimatedFee;
 
-      if (!candidate || isLessThanOrEqualToSatoshis(candidate, "0")) {
+      if (candidate <= 0) {
         throw new Error("Insufficient balance to cover transaction fee.");
       }
 
-      const amountPerDestination = divideSatoshis(candidate, destinationCount);
-      const amountPerDestSatoshis = parseInt(amountPerDestination);
-      if (isDustAmount(amountPerDestSatoshis)) {
+      const amountPerDestination = Math.floor(candidate / destinationCount);
+      if (isDustAmount(amountPerDestination)) {
         throw new Error("Amount per destination after fee is below dust limit.");
       }
-      const finalAmount = fromSatoshis(amountPerDestination); // Returns BTC string
+      const finalAmount = fromSatoshis(amountPerDestination.toString());
       onChange(finalAmount);
     } catch (err: unknown) {
-      console.error("Failed to calculate max amount:", err);
-      // Only show known safe error messages to users to prevent leaking internal details
-      if (err instanceof Error && KNOWN_SAFE_ERRORS.includes(err.message)) {
-        setError(err.message);
+      if (err instanceof Error) {
+        // Check if it's a known safe error message
+        if (KNOWN_SAFE_ERRORS.includes(err.message) || EXCLUDED_UTXOS_PATTERN.test(err.message)) {
+          setError(err.message);
+        } else {
+          setError("Failed to calculate maximum amount. Please try again.");
+        }
       } else {
         setError("Failed to calculate maximum amount. Please try again.");
       }
@@ -171,30 +164,7 @@ export function AmountWithMaxInput({
       return;
     }
 
-    // For BTC, use the more complex calculation that accounts for fees
-    if (asset === "BTC") {
-      await handleMaxButtonClick();
-      return;
-    }
-
-    try {
-      let maxNum = parseFloat(maxAmount || availableBalance);
-      
-      // If we have multiple destinations, divide the max amount
-      if (destinationCount && destinationCount > 1) {
-        const perDestination = formatAmount({
-          value: maxNum / destinationCount,
-          maximumFractionDigits: 8,
-          minimumFractionDigits: 8
-        });
-        onChange(perDestination);
-      } else {
-        onChange(maxAmount || availableBalance);
-      }
-    } catch (error) {
-      console.error("Error calculating max amount:", error);
-      setError("Error calculating max amount");
-    }
+    await handleMaxButtonClick();
   };
 
   return (

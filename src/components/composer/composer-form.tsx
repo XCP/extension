@@ -11,7 +11,7 @@ export interface ComposerFormProps {
   // Required props
   children: ReactNode;
   formAction: (formData: FormData) => void;
-  
+
   // Optional props
   header?: ReactNode;
   submitText?: string;
@@ -53,7 +53,7 @@ export function ComposerForm({
   // Get state from composer context
   // Using unknown instead of any for better type safety - ComposerForm only uses
   // state.error and state.isComposing which are not dependent on the formData type
-  const { state, showHelpText, clearError } = useComposer<unknown>();
+  const { state, showHelpText, clearError, feeRate, setFeeRate } = useComposer<unknown>();
   const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
 
@@ -98,6 +98,8 @@ export function ComposerForm({
             <FeeRateInput
               showHelpText={showHelpText}
               disabled={isSubmitting}
+              initialValue={feeRate}
+              onFeeRateChange={setFeeRate}
             />
           )}
           

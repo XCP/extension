@@ -7,6 +7,17 @@ import { UtxoMoveForm } from '../form';
 import { MemoryRouter } from 'react-router-dom';
 import { ComposerProvider } from '@/contexts/composer-context';
 
+// CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
+// This must be at the very top before any other mocks that might indirectly import it
+vi.mock('@/utils/wallet/walletManager', () => ({
+  walletManager: {
+    getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
+    isUnlocked: vi.fn().mockReturnValue(true),
+    getActiveAddress: vi.fn().mockReturnValue({ address: 'bc1qtest123' }),
+    getActiveWallet: vi.fn().mockReturnValue({ name: 'Test Wallet' }),
+  }
+}));
+
 // Mock Browser.runtime.connect to fix webext-bridge error
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn(),
@@ -97,22 +108,25 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
-// Mock useFeeRates hook
+// Mock useFeeRates hook with stable references to prevent infinite re-renders
+// IMPORTANT: Define values outside the factory to maintain reference equality
+const mockFeeRates = {
+  fastestFee: 3,
+  halfHourFee: 2,
+  hourFee: 1,
+};
+const mockPresetOptions = [
+  { id: 'fast', name: 'Fastest', value: 3 },
+  { id: 'medium', name: '30 Min', value: 2 },
+  { id: 'slow', name: '1 Hour', value: 1 },
+];
 vi.mock('@/hooks/useFeeRates', () => ({
-  useFeeRates: vi.fn(() => ({
-    feeRates: {
-      fastestFee: 3,
-      halfHourFee: 2,
-      hourFee: 1,
-    },
+  useFeeRates: () => ({
+    feeRates: mockFeeRates,
     isLoading: false,
     error: null,
-    uniquePresetOptions: [
-      { id: 'fast', name: 'Fastest', value: 3 },
-      { id: 'medium', name: '30 Min', value: 2 },
-      { id: 'slow', name: '1 Hour', value: 1 },
-    ],
-  }))
+    uniquePresetOptions: mockPresetOptions,
+  })
 }));
 
 // Mock navigation
@@ -331,9 +345,9 @@ describe('UtxoMoveForm', () => {
   });
 
   it('should show help text when enabled', () => {
-    // Temporarily mock settings to enable help text
+    // Override settings mock to enable help text for all calls in this render
     const mockUseSettings = vi.mocked(useSettings);
-    mockUseSettings.mockReturnValueOnce({
+    mockUseSettings.mockReturnValue({
       settings: { ...DEFAULT_SETTINGS, showHelpText: true },
       updateSettings: vi.fn(),
       refreshSettings: vi.fn(),

@@ -82,6 +82,8 @@ interface ComposerState<T> {
   isSigning: boolean;
   /** Timestamp when transaction was composed (for staleness detection) */
   composedAt: number | null;
+  /** Current fee rate in sat/vB (null = use network default, set once user interacts or FeeRateInput initializes) */
+  feeRate: number | null;
 }
 
 /**
@@ -110,6 +112,12 @@ interface ComposerContextType<T> {
   showHelpText: boolean;
   /** Toggle help text visibility */
   toggleHelpText: () => void;
+
+  // ─── Fee Rate ─────────────────────────────────────────────────────────────
+  /** Current fee rate in sat/vB (null = use network default) */
+  feeRate: number | null;
+  /** Update the fee rate (called by FeeRateInput) */
+  setFeeRate: (rate: number) => void;
 
   // ─── Wallet/Settings Access ────────────────────────────────────────────────
   /** Currently active address */
@@ -184,17 +192,22 @@ export function ComposerProvider<T>({
     isComposing: false,
     isSigning: false,
     composedAt: null,
+    feeRate: null,
   });
 
 
   // Help text state (can be toggled locally)
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null);
   const showHelpText = localShowHelpText ?? settings?.showHelpText ?? false;
-  
+
   // Toggle help text
   const toggleHelpText = useCallback(() => {
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
+
+  const setFeeRate = useCallback((rate: number) => {
+    setState(prev => ({ ...prev, feeRate: rate }));
+  }, []);
   
   // Reset composer state when address changes
   useEffect(() => {
@@ -211,6 +224,7 @@ export function ComposerProvider<T>({
         isComposing: false,
         isSigning: false,
         composedAt: null,
+        feeRate: null,
       });
     }
     previousAddressRef.current = activeAddress?.address;
@@ -234,6 +248,7 @@ export function ComposerProvider<T>({
         isComposing: false,
         isSigning: false,
         composedAt: null,
+        feeRate: null,
       });
     }
 
@@ -510,6 +525,7 @@ export function ComposerProvider<T>({
       isComposing: false,
       isSigning: false,
       composedAt: null,
+      feeRate: null,
     });
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
@@ -542,6 +558,8 @@ export function ComposerProvider<T>({
     clearError,
     showHelpText,
     toggleHelpText,
+    feeRate: state.feeRate,
+    setFeeRate,
     activeAddress,
     activeWallet,
     settings,
@@ -554,6 +572,7 @@ export function ComposerProvider<T>({
     clearError,
     showHelpText,
     toggleHelpText,
+    setFeeRate,
     activeAddress,
     activeWallet,
     settings,

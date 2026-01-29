@@ -41,7 +41,7 @@ export function OrderForm({
   giveAsset,
 }: OrderFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, settings, showHelpText } = useComposer();
+  const { activeAddress, settings, showHelpText, feeRate } = useComposer();
   
   // Data fetching hooks
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
@@ -234,7 +234,7 @@ export function OrderForm({
               availableBalance={isBuy ? "" : availableBalance}
               value={amount}
               onChange={setAmount}
-              sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
+              feeRate={feeRate}
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
@@ -248,6 +248,7 @@ export function OrderForm({
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
               disabled={false}
+              isDivisible={isBuy ? isGetAssetDivisible : isGiveAssetDivisible}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
