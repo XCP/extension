@@ -7,14 +7,13 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context";
 import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
+import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import {
-  multiply,
   subtract,
   divide,
-  roundUp,
   roundDown,
   isLessThanOrEqualToZero,
   toNumber
@@ -39,40 +38,6 @@ const SATOSHIS_PER_BTC = 1e8;
 // ============================================================================
 // Utility Functions
 // ============================================================================
-
-/**
- * Gets the input size in vbytes based on address type.
- * - P2PKH (legacy, starts with 1): ~148 vbytes
- * - P2SH (wrapped segwit, starts with 3): ~91 vbytes
- * - P2WPKH (native segwit, starts with bc1q): ~68 vbytes
- * - P2TR (taproot, starts with bc1p): ~58 vbytes
- */
-function getInputSizeForAddress(address: string): number {
-  if (address.startsWith('bc1p') || address.startsWith('tb1p')) {
-    return 58; // P2TR (taproot)
-  }
-  if (address.startsWith('bc1q') || address.startsWith('tb1q')) {
-    return 68; // P2WPKH (native segwit)
-  }
-  if (address.startsWith('3') || address.startsWith('2')) {
-    return 91; // P2SH (often wrapped segwit)
-  }
-  // Legacy P2PKH (starts with 1 or m/n for testnet)
-  return 148;
-}
-
-/**
- * Estimates transaction vsize based on UTXO count and address type.
- * - Fixed overhead: ~10.5 vbytes
- * - Per input: varies by address type
- * - Per output: ~31 vbytes (P2WPKH) or ~34 vbytes (P2PKH)
- */
-function estimateVsize(utxoCount: number, outputCount: number, address: string): number {
-  const overhead = 10.5;
-  const inputSize = getInputSizeForAddress(address);
-  const outputSize = 31; // Assume segwit outputs
-  return Math.ceil(overhead + (utxoCount * inputSize) + (outputCount * outputSize));
-}
 
 /**
  * Calculate the maximum number of dispenses based on spendable balance and fees
