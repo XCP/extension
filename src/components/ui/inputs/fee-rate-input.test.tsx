@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { FeeRateInput } from './fee-rate-input';
 
@@ -204,8 +204,190 @@ describe('FeeRateInput', () => {
 
     it('should have required indicator', () => {
       render(<FeeRateInput />);
-      
+
       expect(screen.getByText('*')).toBeInTheDocument();
+    });
+  });
+
+  describe('onFeeRateChange callback', () => {
+    const mockFeeRates = {
+      fastestFee: 10,
+      halfHourFee: 8,
+      hourFee: 5,
+      economyFee: 2,
+      minimumFee: 1
+    };
+
+    const mockPresetOptions = [
+      { id: 'fast', name: 'Fast', value: 10 },
+      { id: 'medium', name: 'Medium', value: 5 },
+      { id: 'slow', name: 'Slow', value: 2 }
+    ];
+
+    beforeEach(() => {
+      mockUseFeeRates.mockReturnValue({
+        feeRates: mockFeeRates,
+        isLoading: false,
+        error: null,
+        uniquePresetOptions: mockPresetOptions
+      });
+    });
+
+    it('should call onFeeRateChange with fast preset value on initial load', () => {
+      const onFeeRateChange = vi.fn();
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} />);
+
+      // Should be called with fastestFee (10) on mount
+      expect(onFeeRateChange).toHaveBeenCalledWith(10);
+    });
+
+    it('should call onFeeRateChange with initialValue when provided', () => {
+      const onFeeRateChange = vi.fn();
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      // Should be called with the initial value (15)
+      expect(onFeeRateChange).toHaveBeenCalledWith(15);
+    });
+
+    it('should restore preset when initialValue matches a preset', () => {
+      const onFeeRateChange = vi.fn();
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={10} />);
+
+      // Should be called with 10 (matches Fast preset)
+      expect(onFeeRateChange).toHaveBeenCalledWith(10);
+      // Dropdown should show Fast
+      expect(screen.getByRole('button')).toHaveTextContent('Fast');
+    });
+  });
+
+  describe('initialValue restoration', () => {
+    const mockFeeRates = {
+      fastestFee: 10,
+      halfHourFee: 8,
+      hourFee: 5,
+      economyFee: 2,
+      minimumFee: 1
+    };
+
+    const mockPresetOptions = [
+      { id: 'fast', name: 'Fast', value: 10 },
+      { id: 'medium', name: 'Medium', value: 5 },
+      { id: 'slow', name: 'Slow', value: 2 }
+    ];
+
+    beforeEach(() => {
+      mockUseFeeRates.mockReturnValue({
+        feeRates: mockFeeRates,
+        isLoading: false,
+        error: null,
+        uniquePresetOptions: mockPresetOptions
+      });
+    });
+
+    it('should switch to custom mode for non-preset initialValue', () => {
+      const onFeeRateChange = vi.fn();
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      // Should show custom input (not dropdown) for non-preset value
+      const customInput = screen.getByRole('textbox');
+      expect(customInput).toBeInTheDocument();
+      expect(customInput).toHaveValue('15');
+    });
+
+    it('should select matching preset for initialValue that matches', () => {
+      render(<FeeRateInput initialValue={5} />);
+
+      // Should show dropdown with Medium selected (value=5)
+      const button = screen.getByRole('button');
+      expect(button).toHaveTextContent('Medium');
+      expect(button).toHaveTextContent('5 sat/vB');
+    });
+
+    it('should default to fast preset when initialValue is null', () => {
+      render(<FeeRateInput initialValue={null} />);
+
+      // Should show dropdown with Fast selected
+      const button = screen.getByRole('button');
+      expect(button).toHaveTextContent('Fast');
+    });
+  });
+
+  describe('Custom input typing', () => {
+    const mockFeeRates = {
+      fastestFee: 10,
+      halfHourFee: 8,
+      hourFee: 5,
+      economyFee: 2,
+      minimumFee: 1
+    };
+
+    const mockPresetOptions = [
+      { id: 'fast', name: 'Fast', value: 10 },
+      { id: 'medium', name: 'Medium', value: 5 },
+      { id: 'slow', name: 'Slow', value: 2 }
+    ];
+
+    beforeEach(() => {
+      mockUseFeeRates.mockReturnValue({
+        feeRates: mockFeeRates,
+        isLoading: false,
+        error: null,
+        uniquePresetOptions: mockPresetOptions
+      });
+    });
+
+    it('should call onFeeRateChange when user types in custom input', async () => {
+      const onFeeRateChange = vi.fn();
+
+      // Start in custom mode with initialValue that doesn't match presets
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      // Custom input should be visible
+      const input = screen.getByRole('textbox');
+      expect(input).toBeInTheDocument();
+      expect(input).toHaveValue('15');
+
+      // Clear the callback calls from initialization
+      onFeeRateChange.mockClear();
+
+      // User types a new value
+      fireEvent.change(input, { target: { value: '25' } });
+
+      // Should call onFeeRateChange with the new value
+      expect(onFeeRateChange).toHaveBeenCalledWith(25);
+    });
+
+    it('should call onFeeRateChange when user changes custom value', async () => {
+      const onFeeRateChange = vi.fn();
+
+      // Start in custom mode
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      const input = screen.getByRole('textbox');
+
+      // Clear initialization calls
+      onFeeRateChange.mockClear();
+
+      // Simulate user clearing and typing new value
+      fireEvent.change(input, { target: { value: '5' } });
+
+      // Callback should be called with the new value
+      expect(onFeeRateChange).toHaveBeenCalledWith(5);
+    });
+
+    it('should not call onFeeRateChange for invalid input', async () => {
+      const onFeeRateChange = vi.fn();
+
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      const input = screen.getByRole('textbox');
+      onFeeRateChange.mockClear();
+
+      // User types empty string
+      fireEvent.change(input, { target: { value: '' } });
+
+      // Callback should NOT be called for empty input
+      expect(onFeeRateChange).not.toHaveBeenCalled();
     });
   });
 });

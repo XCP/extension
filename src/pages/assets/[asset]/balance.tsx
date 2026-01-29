@@ -16,7 +16,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
  */
 const PATHS = {
   COMPOSE: "/compose",
-  UTXO: "/utxo",
+  UTXO: "/assets/utxos",
 } as const;
 
 /**

@@ -30,7 +30,7 @@ export const DispenserForm = memo(function DispenserForm({
   asset
 }: DispenserFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, showHelpText, state } = useComposer();
+  const { activeAddress, showHelpText, state, feeRate } = useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetDetails } = useAssetDetails(asset);
@@ -187,7 +187,7 @@ export const DispenserForm = memo(function DispenserForm({
             availableBalance={availableBalance}
             value={escrowQuantity}
             onChange={setEscrowQuantity}
-            sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
+            feeRate={feeRate}
             setError={() => {}} // No-op since Composer handles errors
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
@@ -199,6 +199,7 @@ export const DispenserForm = memo(function DispenserForm({
             } Available: ${availableBalance}`}
             disabled={pending}
             autoFocus
+            isDivisible={isDivisible}
           />
           <PriceWithSuggestInput
             value={mainchainRate}

@@ -25,6 +25,22 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
+// Mock UTXO selection to prevent loading heavy dependencies
+vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
+  selectUtxosForTransaction: vi.fn().mockResolvedValue({
+    utxos: [],
+    totalValue: 0,
+    excludedWithAssets: 0,
+    inputsSet: ''
+  })
+}));
+
+// Mock Counterparty API to prevent loading walletManager
+vi.mock('@/utils/blockchain/counterparty/api', () => ({
+  fetchUtxoBalances: vi.fn().mockResolvedValue([]),
+  fetchTokenBalances: vi.fn().mockResolvedValue([]),
+}));
+
 // Mock useFeeRates hook
 vi.mock('@/hooks/useFeeRates', () => ({
   useFeeRates: vi.fn(() => ({

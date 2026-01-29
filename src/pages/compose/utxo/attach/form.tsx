@@ -26,7 +26,7 @@ export function UtxoAttachForm({
   initialAsset,
 }: UtxoAttachFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, showHelpText } = useComposer();
+  const { activeAddress, showHelpText, feeRate } = useComposer();
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
@@ -92,7 +92,7 @@ export function UtxoAttachForm({
             availableBalance={assetDetails?.availableBalance || "0"}
             value={quantity}
             onChange={setQuantity}
-            sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
+            feeRate={feeRate}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
@@ -105,6 +105,7 @@ export function UtxoAttachForm({
                 : "Enter a whole number amount."
             }
             disabled={false}
+            isDivisible={isDivisible}
           />
     </ComposerForm>
   );

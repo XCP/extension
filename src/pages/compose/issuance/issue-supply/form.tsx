@@ -143,7 +143,6 @@ export function IssueSupplyForm({
           availableBalance={calculateMaxAmount()}
           value={quantity}
           onChange={setQuantity}
-          sat_per_vbyte={1} // Not used for token issuance
           setError={setError}
           showHelpText={showHelpText}
           sourceAddress={activeAddress}

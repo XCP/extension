@@ -164,7 +164,6 @@ export function DividendForm({
             availableBalance={dividendAssetBalance}
             value={quantityPerUnit}
             onChange={setQuantityPerUnit}
-            sat_per_vbyte={1} // Not used for non-BTC assets
             setError={setError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}

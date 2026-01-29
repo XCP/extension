@@ -51,10 +51,22 @@ describe('UTXO Utilities', () => {
   });
 
   describe('fetchUTXOs', () => {
+    // API response format from mempool.space - direct array
+    const mockApiUtxo = {
+      txid: mockTxid,
+      vout: 0,
+      value: 100000,
+      status: {
+        confirmed: true,
+        block_height: 850000,
+        block_hash: 'block-hash-123',
+        block_time: 1640995200
+      }
+    };
+
     it('should fetch UTXOs successfully', async () => {
-      const mockUtxos = [mockUtxo];
       mockApiClient.get.mockResolvedValue({
-        data: mockUtxos,
+        data: [mockApiUtxo],
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -62,8 +74,14 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
-      expect(result).toEqual(mockUtxos);
+
+      // Result should match the API response format
+      expect(result).toHaveLength(1);
+      expect(result[0].txid).toBe(mockTxid);
+      expect(result[0].vout).toBe(0);
+      expect(result[0].value).toBe(100000);
+      expect(result[0].status.confirmed).toBe(true);
+      expect(result[0].status.block_height).toBe(850000);
       expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: undefined }
@@ -71,10 +89,9 @@ describe('UTXO Utilities', () => {
     });
 
     it('should fetch UTXOs with AbortSignal', async () => {
-      const mockUtxos = [mockUtxo];
       const abortController = new AbortController();
       mockApiClient.get.mockResolvedValue({
-        data: mockUtxos,
+        data: [mockApiUtxo],
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -82,8 +99,8 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress, abortController.signal);
-      
-      expect(result).toEqual(mockUtxos);
+
+      expect(result).toHaveLength(1);
       expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { signal: abortController.signal }
@@ -100,7 +117,7 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result).toEqual([]);
     });
 
@@ -149,13 +166,14 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle multiple UTXOs', async () => {
-      const mockUtxos = [
-        { ...mockUtxo, vout: 0 },
-        { ...mockUtxo, vout: 1 },
-        { ...mockUtxo, vout: 2, value: 200000 }
+      const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
+      const apiUtxos = [
+        { txid: mockTxid, vout: 0, value: 100000, status: confirmedStatus },
+        { txid: mockTxid, vout: 1, value: 100000, status: confirmedStatus },
+        { txid: mockTxid, vout: 2, value: 200000, status: confirmedStatus }
       ];
       mockApiClient.get.mockResolvedValue({
-        data: mockUtxos,
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -163,24 +181,23 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
-      expect(result).toEqual(mockUtxos);
+
       expect(result).toHaveLength(3);
+      expect(result[0].vout).toBe(0);
+      expect(result[1].vout).toBe(1);
+      expect(result[2].vout).toBe(2);
+      expect(result[2].value).toBe(200000);
     });
 
-    it('should handle UTXOs with different statuses', async () => {
-      const unconfirmedUtxo = {
-        ...mockUtxo,
-        status: {
-          confirmed: false,
-          block_height: -1,
-          block_hash: '',
-          block_time: 0
-        }
-      };
-      const mockUtxos = [mockUtxo, unconfirmedUtxo];
+    it('should handle UTXOs with different confirmation statuses', async () => {
+      const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
+      const unconfirmedStatus = { confirmed: false, block_height: 0, block_hash: '', block_time: 0 };
+      const apiUtxos = [
+        { txid: mockTxid, vout: 0, value: 100000, status: confirmedStatus },
+        { txid: mockTxid, vout: 1, value: 100000, status: unconfirmedStatus }
+      ];
       mockApiClient.get.mockResolvedValue({
-        data: mockUtxos,
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -188,16 +205,16 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
-      expect(result).toEqual(mockUtxos);
+
       expect(result[0].status.confirmed).toBe(true);
       expect(result[1].status.confirmed).toBe(false);
     });
 
     it('should handle very large UTXO values', async () => {
-      const largeUtxo = { ...mockUtxo, value: 2100000000000000 }; // 21M BTC in sats
+      const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
+      const apiUtxos = [{ txid: mockTxid, vout: 0, value: 2100000000000000, status: confirmedStatus }];
       mockApiClient.get.mockResolvedValue({
-        data: [largeUtxo],
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -205,14 +222,15 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result[0].value).toBe(2100000000000000);
     });
 
     it('should handle zero-value UTXOs', async () => {
-      const zeroUtxo = { ...mockUtxo, value: 0 };
+      const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
+      const apiUtxos = [{ txid: mockTxid, vout: 0, value: 0, status: confirmedStatus }];
       mockApiClient.get.mockResolvedValue({
-        data: [zeroUtxo],
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -220,7 +238,7 @@ describe('UTXO Utilities', () => {
       } as any);
 
       const result = await fetchUTXOs(mockAddress);
-      
+
       expect(result[0].value).toBe(0);
     });
   });
