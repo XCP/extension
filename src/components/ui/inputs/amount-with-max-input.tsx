@@ -87,11 +87,12 @@ export function AmountWithMaxInput({
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
         // Use appropriate decimal places based on divisibility
+        // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
         const decimals = isDivisible ? 8 : 0;
         const perDestination = formatAmount({
           value: maxNum / destinationCount,
           maximumFractionDigits: decimals,
-          minimumFractionDigits: decimals
+          minimumFractionDigits: 0
         });
         onChange(perDestination);
       }
