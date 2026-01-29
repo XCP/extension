@@ -39,6 +39,8 @@ export interface SelectedUtxos {
   totalValue: number;
   /** Number of UTXOs that were excluded due to attached assets */
   excludedWithAssets: number;
+  /** Total value of UTXOs excluded due to attached assets in satoshis */
+  excludedValue: number;
 }
 
 /**
@@ -85,6 +87,7 @@ export async function selectUtxosForTransaction(
 
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
+  let excludedValue = 0;
   const eligibleUtxos: UTXO[] = [];
 
   for (const utxo of allUtxos) {
@@ -97,6 +100,7 @@ export async function selectUtxosForTransaction(
     const utxoKey = `${utxo.txid}:${utxo.vout}`;
     if (utxosWithAssets.has(utxoKey)) {
       excludedWithAssets++;
+      excludedValue += utxo.value;
       continue;
     }
 
@@ -124,5 +128,6 @@ export async function selectUtxosForTransaction(
     inputsSet: formatInputsSet(selectedUtxos),
     totalValue,
     excludedWithAssets,
+    excludedValue,
   };
 }

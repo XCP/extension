@@ -51,12 +51,11 @@ describe('UTXO Utilities', () => {
   });
 
   describe('fetchUTXOs', () => {
-    // API response format from Counterparty API - includes full status object
+    // API response format from mempool.space - direct array
     const mockApiUtxo = {
       txid: mockTxid,
       vout: 0,
       value: 100000,
-      amount: 0.001,
       status: {
         confirmed: true,
         block_height: 850000,
@@ -67,7 +66,7 @@ describe('UTXO Utilities', () => {
 
     it('should fetch UTXOs successfully', async () => {
       mockApiClient.get.mockResolvedValue({
-        data: { result: [mockApiUtxo] },
+        data: [mockApiUtxo],
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -84,15 +83,15 @@ describe('UTXO Utilities', () => {
       expect(result[0].status.confirmed).toBe(true);
       expect(result[0].status.block_height).toBe(850000);
       expect(mockApiClient.get).toHaveBeenCalledWith(
-        `https://api.counterparty.io/v2/bitcoin/addresses/${mockAddress}/utxos`,
-        { signal: undefined, params: { unconfirmed: true } }
+        `https://mempool.space/api/address/${mockAddress}/utxo`,
+        { signal: undefined }
       );
     });
 
     it('should fetch UTXOs with AbortSignal', async () => {
       const abortController = new AbortController();
       mockApiClient.get.mockResolvedValue({
-        data: { result: [mockApiUtxo] },
+        data: [mockApiUtxo],
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -103,14 +102,14 @@ describe('UTXO Utilities', () => {
 
       expect(result).toHaveLength(1);
       expect(mockApiClient.get).toHaveBeenCalledWith(
-        `https://api.counterparty.io/v2/bitcoin/addresses/${mockAddress}/utxos`,
-        { signal: abortController.signal, params: { unconfirmed: true } }
+        `https://mempool.space/api/address/${mockAddress}/utxo`,
+        { signal: abortController.signal }
       );
     });
 
     it('should return empty array when no UTXOs found', async () => {
       mockApiClient.get.mockResolvedValue({
-        data: { result: [] },
+        data: [],
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -174,7 +173,7 @@ describe('UTXO Utilities', () => {
         { txid: mockTxid, vout: 2, value: 200000, status: confirmedStatus }
       ];
       mockApiClient.get.mockResolvedValue({
-        data: { result: apiUtxos },
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -198,7 +197,7 @@ describe('UTXO Utilities', () => {
         { txid: mockTxid, vout: 1, value: 100000, status: unconfirmedStatus }
       ];
       mockApiClient.get.mockResolvedValue({
-        data: { result: apiUtxos },
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -215,7 +214,7 @@ describe('UTXO Utilities', () => {
       const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
       const apiUtxos = [{ txid: mockTxid, vout: 0, value: 2100000000000000, status: confirmedStatus }];
       mockApiClient.get.mockResolvedValue({
-        data: { result: apiUtxos },
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -231,7 +230,7 @@ describe('UTXO Utilities', () => {
       const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
       const apiUtxos = [{ txid: mockTxid, vout: 0, value: 0, status: confirmedStatus }];
       mockApiClient.get.mockResolvedValue({
-        data: { result: apiUtxos },
+        data: apiUtxos,
         status: 200,
         statusText: 'OK',
         headers: {},

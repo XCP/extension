@@ -93,6 +93,7 @@ describe('DispenseForm', () => {
       inputsSet: 'abc123:0',
       totalValue: 10000000,
       excludedWithAssets: 0,
+      excludedValue: 0,
     });
   });
 
@@ -347,6 +348,7 @@ describe('DispenseForm', () => {
       inputsSet: 'abc123:0',
       totalValue: 100000,
       excludedWithAssets: 0,
+      excludedValue: 0,
     });
 
     renderWithProvider();

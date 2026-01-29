@@ -76,6 +76,7 @@ describe('selectUtxosForTransaction', () => {
     expect(result.utxos.map(u => u.txid)).toEqual(['tx1', 'tx3']);
     expect(result.totalValue).toBe(70000);
     expect(result.excludedWithAssets).toBe(1);
+    expect(result.excludedValue).toBe(30000); // tx2:0 was excluded
   });
 
   it('should sort UTXOs by value (highest first)', async () => {

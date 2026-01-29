@@ -69,35 +69,40 @@ function isValidUtxoArray(data: unknown): data is UTXO[] {
 
 /**
  * Fetches the UTXOs for a given Bitcoin address.
- * Uses the Bitcoin Core endpoint proxied through the API.
+ * Uses mempool.space API with fallback to blockstream.info for reliability.
+ * Note: We use external explorers instead of the Counterparty Bitcoin proxy
+ * because the proxy may not index all UTXOs (only those with Counterparty activity).
  *
  * @param address - The Bitcoin address to fetch UTXOs for.
  * @param signal - Optional AbortSignal for cancelling the request
  * @returns A promise that resolves to an array of UTXO objects.
  */
 export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
-  try {
-    const settings = walletManager.getSettings();
-    const response = await apiClient.get<{ result: UTXO[] }>(
-      `${settings.counterpartyApiBase}/v2/bitcoin/addresses/${address}/utxos`,
-      {
-        signal,
-        params: { unconfirmed: true }
+  const endpoints = [
+    `https://mempool.space/api/address/${address}/utxo`,
+    `https://blockstream.info/api/address/${address}/utxo`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = await apiClient.get<UTXO[]>(endpoint, { signal });
+      const utxos = response.data;
+
+      if (!isValidUtxoArray(utxos)) {
+        continue;
       }
-    );
 
-    const utxos = response.data?.result;
-    if (!Array.isArray(utxos)) {
-      throw new Error('Invalid UTXO response: expected array of UTXOs');
+      return utxos;
+    } catch (error) {
+      if (isCancel(error)) {
+        throw error; // Re-throw cancellation errors
+      }
+      // Try next endpoint
+      continue;
     }
-
-    return utxos;
-  } catch (error) {
-    if (isCancel(error)) {
-      throw error; // Re-throw cancellation errors
-    }
-    throw new Error('Failed to fetch UTXOs.');
   }
+
+  throw new Error('Failed to fetch UTXOs.');
 }
 
 /**
