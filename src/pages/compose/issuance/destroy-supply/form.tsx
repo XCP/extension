@@ -156,6 +156,7 @@ export function DestroySupplyForm({
                 : "Enter a whole number amount to destroy."
             }
             disabled={pending}
+            isDivisible={isDivisible}
           />
 
           <MemoInput

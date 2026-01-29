@@ -185,6 +185,7 @@ export function SendForm({
             destinationCount={destinations.length}
             destination={destinations.length === 1 ? destinations[0].address : undefined}
             memo={memo}
+            isDivisible={isDivisible}
           />
 
           {(initialAsset || initialFormData?.asset) !== "BTC" && (

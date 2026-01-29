@@ -248,6 +248,7 @@ export function OrderForm({
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
               disabled={false}
+              isDivisible={isBuy ? isGetAssetDivisible : isGiveAssetDivisible}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}

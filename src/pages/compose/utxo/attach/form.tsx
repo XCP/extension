@@ -105,6 +105,7 @@ export function UtxoAttachForm({
                 : "Enter a whole number amount."
             }
             disabled={false}
+            isDivisible={isDivisible}
           />
     </ComposerForm>
   );

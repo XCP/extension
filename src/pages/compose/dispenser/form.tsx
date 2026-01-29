@@ -199,6 +199,7 @@ export const DispenserForm = memo(function DispenserForm({
             } Available: ${availableBalance}`}
             disabled={pending}
             autoFocus
+            isDivisible={isDivisible}
           />
           <PriceWithSuggestInput
             value={mainchainRate}

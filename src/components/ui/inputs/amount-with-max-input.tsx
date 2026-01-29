@@ -40,6 +40,7 @@ interface AmountWithMaxInputProps {
   onMaxClick?: () => void;
   hasError?: boolean;
   autoFocus?: boolean;
+  isDivisible?: boolean; // Whether the asset is divisible (default: true for BTC-like decimals)
 }
 
 /**
@@ -70,9 +71,10 @@ export function AmountWithMaxInput({
   onMaxClick,
   hasError = false,
   autoFocus = false,
+  isDivisible = true,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     onChange(e.target.value);
     setError(null);
@@ -84,10 +86,12 @@ export function AmountWithMaxInput({
     if (asset !== "BTC") {
       const maxNum = Number(maxAmount);
       if (!isNaN(maxNum)) {
+        // Use appropriate decimal places based on divisibility
+        const decimals = isDivisible ? 8 : 0;
         const perDestination = formatAmount({
           value: maxNum / destinationCount,
-          maximumFractionDigits: 8,
-          minimumFractionDigits: 8
+          maximumFractionDigits: decimals,
+          minimumFractionDigits: decimals
         });
         onChange(perDestination);
       }

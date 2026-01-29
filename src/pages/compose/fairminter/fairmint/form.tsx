@@ -290,6 +290,7 @@ export function FairmintForm({
                 setValidationError(null);
               }}
               hasError={!!validationError}
+              isDivisible={selectedFairminter?.divisible ?? true}
             />
           )}
 
