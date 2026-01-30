@@ -852,6 +852,50 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
+/**
+ * Extended send options that support multiple destinations (MPMA convenience).
+ * When `destinations` contains multiple comma-separated addresses, automatically
+ * converts to an MPMA transaction with the same asset/quantity/memo for each.
+ */
+export interface SendOrMPMAOptions extends SendOptions {
+  destinations?: string; // Comma-separated list for MPMA
+}
+
+/**
+ * Compose a send transaction, automatically using MPMA when multiple destinations provided.
+ * This provides a convenient UX where users can add multiple destinations in the send form.
+ */
+export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<ApiResponse> {
+  const { destinations, ...sendOptions } = options;
+
+  // Check if we have multiple destinations (MPMA)
+  if (destinations && destinations.includes(',')) {
+    const destArray = destinations.split(',').map((d: string) => d.trim());
+
+    // Create MPMA options - same asset/quantity/memo for each destination
+    const mpmaOptions: MPMAOptions = {
+      sourceAddress: options.sourceAddress,
+      assets: destArray.map(() => options.asset),
+      destinations: destArray,
+      quantities: destArray.map(() => options.quantity.toString()),
+      sat_per_vbyte: options.sat_per_vbyte,
+      ...(options.memo && {
+        memos: destArray.map(() => options.memo as string),
+        memos_are_hex: destArray.map(() => options.memo_is_hex ?? false)
+      })
+    };
+
+    const response = await composeMPMA(mpmaOptions);
+    response.result.name = 'mpma';
+    return response;
+  }
+
+  // Single destination - regular send
+  const response = await composeSend(sendOptions);
+  response.result.name = 'send';
+  return response;
+}
+
 export async function composeSweep(options: SweepOptions): Promise<ApiResponse> {
   const {
     sourceAddress,

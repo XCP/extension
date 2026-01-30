@@ -787,5 +787,118 @@ describe('normalize.ts', () => {
         expect(result.normalizedData.lot_size).toBe('1025000000');
       });
     });
+
+    describe('Memo normalization', () => {
+      describe('send memo (memo_is_hex boolean)', () => {
+        it('should set memo_is_hex=true and strip prefix for hex memo with 0x prefix', async () => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', '0xdeadbeef');
+
+          mockToSatoshis.mockReturnValue('10000000000');
+
+          const result = await normalizeFormData(formData, 'send');
+
+          expect(result.normalizedData.memo).toBe('deadbeef');
+          expect(result.normalizedData.memo_is_hex).toBe(true);
+        });
+
+        it('should set memo_is_hex=true for pure hex memo (no prefix)', async () => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', 'cafebabe');
+
+          mockToSatoshis.mockReturnValue('10000000000');
+
+          const result = await normalizeFormData(formData, 'send');
+
+          expect(result.normalizedData.memo).toBe('cafebabe');
+          expect(result.normalizedData.memo_is_hex).toBe(true);
+        });
+
+        it('should NOT set memo_is_hex for text memo', async () => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', 'hello world');
+
+          mockToSatoshis.mockReturnValue('10000000000');
+
+          const result = await normalizeFormData(formData, 'send');
+
+          expect(result.normalizedData.memo).toBe('hello world');
+          expect(result.normalizedData.memo_is_hex).toBeUndefined();
+        });
+
+        it('should NOT set memo_is_hex for empty memo', async () => {
+          const formData = new FormData();
+          formData.set('quantity', '100');
+          formData.set('asset', 'BTC');
+          formData.set('memo', '');
+
+          mockToSatoshis.mockReturnValue('10000000000');
+
+          const result = await normalizeFormData(formData, 'send');
+
+          expect(result.normalizedData.memo).toBe('');
+          expect(result.normalizedData.memo_is_hex).toBeUndefined();
+        });
+      });
+
+      describe('sweep memo (FLAG_BINARY_MEMO in flags)', () => {
+        const FLAG_BALANCES = 1;
+        const FLAG_OWNERSHIP = 2;
+        const FLAG_BINARY_MEMO = 4;
+
+        it('should OR FLAG_BINARY_MEMO into flags for hex memo', async () => {
+          const formData = new FormData();
+          formData.set('flags', String(FLAG_BALANCES | FLAG_OWNERSHIP)); // 3
+          formData.set('destination', 'address123');
+          formData.set('memo', '0xdeadbeef');
+
+          const result = await normalizeFormData(formData, 'sweep');
+
+          expect(result.normalizedData.memo).toBe('deadbeef');
+          expect(result.normalizedData.flags).toBe(FLAG_BALANCES | FLAG_OWNERSHIP | FLAG_BINARY_MEMO); // 7
+        });
+
+        it('should NOT modify flags for text memo', async () => {
+          const formData = new FormData();
+          formData.set('flags', String(FLAG_BALANCES | FLAG_OWNERSHIP)); // 3
+          formData.set('destination', 'address123');
+          formData.set('memo', 'sweep memo');
+
+          const result = await normalizeFormData(formData, 'sweep');
+
+          expect(result.normalizedData.memo).toBe('sweep memo');
+          expect(result.normalizedData.flags).toBe('3'); // unchanged string
+        });
+
+        it('should handle sweep with only FLAG_BALANCES and hex memo', async () => {
+          const formData = new FormData();
+          formData.set('flags', String(FLAG_BALANCES)); // 1
+          formData.set('destination', 'address123');
+          formData.set('memo', 'aabbccdd');
+
+          const result = await normalizeFormData(formData, 'sweep');
+
+          expect(result.normalizedData.memo).toBe('aabbccdd');
+          expect(result.normalizedData.flags).toBe(FLAG_BALANCES | FLAG_BINARY_MEMO); // 5
+        });
+
+        it('should handle sweep without memo field', async () => {
+          const formData = new FormData();
+          formData.set('flags', String(FLAG_BALANCES));
+          formData.set('destination', 'address123');
+
+          const result = await normalizeFormData(formData, 'sweep');
+
+          expect(result.normalizedData.flags).toBe('1'); // unchanged
+          expect(result.normalizedData.memo).toBeUndefined();
+        });
+      });
+    });
   });
 });
