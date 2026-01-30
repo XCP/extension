@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { FaEye, FiDownload, FiPlus, FiX, VscKey } from "@/components/icons";
+import { FaEye, FaPlus, FiDownload, FiX, VscKey } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/utils/wallet/constants";
@@ -84,7 +84,7 @@ function AddWalletPage() {
               onClick={handleCreateWallet}
               aria-label="Create New Wallet"
             >
-              <FiPlus className="size-4 mr-2" aria-hidden="true" />
+              <FaPlus className="size-4 mr-2" aria-hidden="true" />
               Create New Wallet
             </Button>
             <Button

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type ReactElement } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { FaPlus, FiMinus } from "@/components/icons";
+import { FiPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
 import { validateDestinations, parseMultiLineDestinations, isMPMASupported, type Destination } from "@/utils/validation/destinations";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
@@ -192,17 +192,17 @@ export function DestinationsInput({
                   type="button"
                   onClick={addDestination}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label="Add another destination"
                 >
-                  <FaPlus className="size-4" aria-hidden="true" />
+                  <FiPlus className="size-5" aria-hidden="true" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => removeDestination(destination.id)}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label={`Remove destination ${index + 1}`}
                 >
                   <FiMinus className="size-5" aria-hidden="true" />
