@@ -122,3 +122,95 @@ export function isBuyOrder(giveAsset: string, getAsset: string): boolean {
 export function isQuoteAsset(symbol: string): boolean {
   return isKnownQuoteAsset(symbol) || hasQuoteKeyword(symbol);
 }
+
+// ============================================================
+// Order calculation helpers
+// ============================================================
+
+/**
+ * Minimal order interface for calculation functions.
+ * Avoids circular dependency with api.ts by using a subset of fields.
+ */
+interface OrderLike {
+  give_asset: string;
+  get_asset: string;
+  give_quantity_normalized: string;
+  get_quantity_normalized: string;
+  give_remaining_normalized: string;
+  get_remaining_normalized: string;
+}
+
+/**
+ * Minimal order match interface for calculation functions.
+ */
+interface OrderMatchLike {
+  forward_asset: string;
+  backward_asset: string;
+  forward_quantity_normalized: string;
+  backward_quantity_normalized: string;
+}
+
+/**
+ * Calculate price per unit (quote per base) from an order.
+ * Takes into account whether this is a sell order (give=base) or buy order (give=quote).
+ *
+ * @param order - The order to calculate price for
+ * @param baseAsset - The base asset of the trading pair context
+ * @returns Price in quote asset per unit of base asset
+ */
+export function getOrderPricePerUnit(order: OrderLike, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: giving base, getting quote
+    // Price = quote/base = get_quantity / give_quantity
+    const giveQty = Number(order.give_quantity_normalized);
+    if (giveQty <= 0) return 0;
+    return Number(order.get_quantity_normalized) / giveQty;
+  } else {
+    // Buy order: giving quote, getting base
+    // Price = quote/base = give_quantity / get_quantity
+    const getQty = Number(order.get_quantity_normalized);
+    if (getQty <= 0) return 0;
+    return Number(order.give_quantity_normalized) / getQty;
+  }
+}
+
+/**
+ * Get the base asset amount from an order (what's being bought/sold).
+ */
+export function getOrderBaseAmount(order: OrderLike, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: they're giving base
+    return Number(order.give_remaining_normalized);
+  } else {
+    // Buy order: they want to receive base
+    return Number(order.get_remaining_normalized);
+  }
+}
+
+/**
+ * Get the quote asset amount from an order.
+ */
+export function getOrderQuoteAmount(order: OrderLike, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: they want to receive quote
+    return Number(order.get_remaining_normalized);
+  } else {
+    // Buy order: they're giving quote
+    return Number(order.give_remaining_normalized);
+  }
+}
+
+/**
+ * Calculate price per unit from order match.
+ */
+export function getMatchPricePerUnit(match: OrderMatchLike, baseAsset: string): number {
+  if (match.forward_asset === baseAsset) {
+    const baseQty = Number(match.forward_quantity_normalized);
+    if (baseQty <= 0) return 0;
+    return Number(match.backward_quantity_normalized) / baseQty;
+  } else {
+    const baseQty = Number(match.backward_quantity_normalized);
+    if (baseQty <= 0) return 0;
+    return Number(match.forward_quantity_normalized) / baseQty;
+  }
+}

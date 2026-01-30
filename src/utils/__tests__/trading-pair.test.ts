@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { getTradingPair, isBuyOrder, isQuoteAsset } from '../trading-pair';
+import {
+  getTradingPair,
+  isBuyOrder,
+  isQuoteAsset,
+  getOrderPricePerUnit,
+  getOrderBaseAmount,
+  getOrderQuoteAmount,
+  getMatchPricePerUnit,
+} from '../trading-pair';
 
 describe('trading-pair utilities', () => {
   describe('getTradingPair', () => {
@@ -94,6 +102,132 @@ describe('trading-pair utilities', () => {
       expect(isQuoteAsset('somecash')).toBe(true);
       expect(isQuoteAsset('SomeCash')).toBe(true);
       expect(isQuoteAsset('SOMECASH')).toBe(true);
+    });
+  });
+
+  describe('getOrderPricePerUnit', () => {
+    it('should calculate price for sell order (giving base)', () => {
+      const order = {
+        give_asset: 'RAREPEPE',
+        get_asset: 'XCP',
+        give_quantity_normalized: '100',
+        get_quantity_normalized: '50',
+        give_remaining_normalized: '100',
+        get_remaining_normalized: '50',
+      };
+      // Selling 100 RAREPEPE for 50 XCP = 0.5 XCP per RAREPEPE
+      expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0.5);
+    });
+
+    it('should calculate price for buy order (giving quote)', () => {
+      const order = {
+        give_asset: 'XCP',
+        get_asset: 'RAREPEPE',
+        give_quantity_normalized: '50',
+        get_quantity_normalized: '100',
+        give_remaining_normalized: '50',
+        get_remaining_normalized: '100',
+      };
+      // Buying 100 RAREPEPE with 50 XCP = 0.5 XCP per RAREPEPE
+      expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0.5);
+    });
+
+    it('should return 0 when quantity is zero', () => {
+      const order = {
+        give_asset: 'RAREPEPE',
+        get_asset: 'XCP',
+        give_quantity_normalized: '0',
+        get_quantity_normalized: '50',
+        give_remaining_normalized: '0',
+        get_remaining_normalized: '50',
+      };
+      expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0);
+    });
+  });
+
+  describe('getOrderBaseAmount', () => {
+    it('should return give_remaining for sell orders', () => {
+      const order = {
+        give_asset: 'RAREPEPE',
+        get_asset: 'XCP',
+        give_quantity_normalized: '100',
+        get_quantity_normalized: '50',
+        give_remaining_normalized: '75',
+        get_remaining_normalized: '37.5',
+      };
+      expect(getOrderBaseAmount(order, 'RAREPEPE')).toBe(75);
+    });
+
+    it('should return get_remaining for buy orders', () => {
+      const order = {
+        give_asset: 'XCP',
+        get_asset: 'RAREPEPE',
+        give_quantity_normalized: '50',
+        get_quantity_normalized: '100',
+        give_remaining_normalized: '37.5',
+        get_remaining_normalized: '75',
+      };
+      expect(getOrderBaseAmount(order, 'RAREPEPE')).toBe(75);
+    });
+  });
+
+  describe('getOrderQuoteAmount', () => {
+    it('should return get_remaining for sell orders', () => {
+      const order = {
+        give_asset: 'RAREPEPE',
+        get_asset: 'XCP',
+        give_quantity_normalized: '100',
+        get_quantity_normalized: '50',
+        give_remaining_normalized: '75',
+        get_remaining_normalized: '37.5',
+      };
+      expect(getOrderQuoteAmount(order, 'RAREPEPE')).toBe(37.5);
+    });
+
+    it('should return give_remaining for buy orders', () => {
+      const order = {
+        give_asset: 'XCP',
+        get_asset: 'RAREPEPE',
+        give_quantity_normalized: '50',
+        get_quantity_normalized: '100',
+        give_remaining_normalized: '37.5',
+        get_remaining_normalized: '75',
+      };
+      expect(getOrderQuoteAmount(order, 'RAREPEPE')).toBe(37.5);
+    });
+  });
+
+  describe('getMatchPricePerUnit', () => {
+    it('should calculate price when forward_asset is base', () => {
+      const match = {
+        forward_asset: 'RAREPEPE',
+        backward_asset: 'XCP',
+        forward_quantity_normalized: '100',
+        backward_quantity_normalized: '50',
+      };
+      // 100 RAREPEPE matched for 50 XCP = 0.5 XCP per RAREPEPE
+      expect(getMatchPricePerUnit(match, 'RAREPEPE')).toBe(0.5);
+    });
+
+    it('should calculate price when backward_asset is base', () => {
+      const match = {
+        forward_asset: 'XCP',
+        backward_asset: 'RAREPEPE',
+        forward_quantity_normalized: '50',
+        backward_quantity_normalized: '100',
+      };
+      // 100 RAREPEPE matched for 50 XCP = 0.5 XCP per RAREPEPE
+      expect(getMatchPricePerUnit(match, 'RAREPEPE')).toBe(0.5);
+    });
+
+    it('should return 0 when base quantity is zero', () => {
+      const match = {
+        forward_asset: 'RAREPEPE',
+        backward_asset: 'XCP',
+        forward_quantity_normalized: '0',
+        backward_quantity_normalized: '50',
+      };
+      expect(getMatchPricePerUnit(match, 'RAREPEPE')).toBe(0);
     });
   });
 });

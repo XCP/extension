@@ -16,6 +16,12 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { formatAmount } from "@/utils/format";
 import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 import {
+  getOrderPricePerUnit,
+  getOrderBaseAmount,
+  getOrderQuoteAmount,
+  getMatchPricePerUnit,
+} from "@/utils/trading-pair";
+import {
   fetchOrdersByPair,
   fetchOrderMatchesByPair,
   fetchAssetDetails,
@@ -89,72 +95,6 @@ function getRawOrderPrice(
  */
 function hasFiatOption(quoteAsset: string): boolean {
   return quoteAsset === "BTC" || quoteAsset === "XCP";
-}
-
-/**
- * Calculate price per unit (quote per base) from an order.
- * Takes into account whether this is a sell order (give=base) or buy order (give=quote).
- *
- * @param order - The order to calculate price for
- * @param baseAsset - The base asset of the trading pair context
- * @returns Price in quote asset per unit of base asset
- */
-function getOrderPricePerUnit(order: Order, baseAsset: string): number {
-  if (order.give_asset === baseAsset) {
-    // Sell order: giving base, getting quote
-    // Price = quote/base = get_quantity / give_quantity
-    const giveQty = Number(order.give_quantity_normalized);
-    if (giveQty <= 0) return 0;
-    return Number(order.get_quantity_normalized) / giveQty;
-  } else {
-    // Buy order: giving quote, getting base
-    // Price = quote/base = give_quantity / get_quantity
-    const getQty = Number(order.get_quantity_normalized);
-    if (getQty <= 0) return 0;
-    return Number(order.give_quantity_normalized) / getQty;
-  }
-}
-
-/**
- * Get the base asset amount from an order (what's being bought/sold).
- */
-function getOrderBaseAmount(order: Order, baseAsset: string): number {
-  if (order.give_asset === baseAsset) {
-    // Sell order: they're giving base
-    return Number(order.give_remaining_normalized);
-  } else {
-    // Buy order: they want to receive base
-    return Number(order.get_remaining_normalized);
-  }
-}
-
-/**
- * Get the quote asset amount from an order.
- */
-function getOrderQuoteAmount(order: Order, baseAsset: string): number {
-  if (order.give_asset === baseAsset) {
-    // Sell order: they want to receive quote
-    return Number(order.get_remaining_normalized);
-  } else {
-    // Buy order: they're giving quote
-    return Number(order.give_remaining_normalized);
-  }
-}
-
-/**
- * Calculate price per unit from order match
- */
-function getMatchPricePerUnit(match: OrderMatch, baseAsset: string): number {
-  // Determine which is base and which is quote
-  if (match.forward_asset === baseAsset) {
-    const baseQty = Number(match.forward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.backward_quantity_normalized) / baseQty;
-  } else {
-    const baseQty = Number(match.backward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.forward_quantity_normalized) / baseQty;
-  }
 }
 
 /**
