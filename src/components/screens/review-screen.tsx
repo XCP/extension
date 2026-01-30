@@ -99,12 +99,9 @@ export function ReviewScreen({
       <h2 className="text-lg font-bold text-gray-900">Review Transaction</h2>
       
       {error && (
-        <ErrorAlert 
+        <ErrorAlert
           message={error}
-          onClose={() => {
-            // Error dismissal is handled by parent component
-            // This is just for UI feedback
-          }}
+          onClose={hideBackButton ? undefined : onBack}
         />
       )}
       

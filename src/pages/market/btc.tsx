@@ -4,7 +4,8 @@ import { FiRefreshCw, FaBitcoin, FiChevronDown } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { useHeader } from "@/contexts/header-context";
-import { formatAmount } from "@/utils/format";
+import { useSettings } from "@/contexts/settings-context";
+import { useFeeRates } from "@/hooks/useFeeRates";
 import {
   getBtcPriceHistory,
   getBtc24hStats,
@@ -14,8 +15,9 @@ import {
   type BtcStats,
   type FiatCurrency,
 } from "@/utils/blockchain/bitcoin/price";
-import { useSettings } from "@/contexts/settings-context";
+import { getXCPPrice } from "@/utils/blockchain/counterparty/price";
 import { analytics } from "@/utils/fathom";
+import { formatAmount } from "@/utils/format";
 import type { ReactElement } from "react";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
@@ -48,6 +50,10 @@ export default function BtcPricePage(): ReactElement {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
+  const [xcpPrice, setXcpPrice] = useState<number | null>(null);
+
+  // Fee rates from mempool.space
+  const { feeRates } = useFeeRates();
 
   // UI state - initialize currency from settings
   const [range, setRange] = useState<TimeRange>("24h");
@@ -66,6 +72,9 @@ export default function BtcPricePage(): ReactElement {
       const statsData = await getBtc24hStats(curr);
       if (statsData) {
         setStats(statsData);
+        // Load XCP price to calculate BTC/XCP rate
+        const xcp = await getXCPPrice(statsData.price);
+        setXcpPrice(xcp);
       } else {
         setStatsError("Unable to load price");
       }
@@ -171,8 +180,8 @@ export default function BtcPricePage(): ReactElement {
           <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <FaBitcoin className="text-orange-500 text-xl" aria-hidden="true" />
-                <span className="font-semibold text-gray-900">BTC</span>
+                <FaBitcoin className="text-orange-500 text-3xl" aria-hidden="true" />
+                <span className="text-xl font-semibold text-gray-900">BTC</span>
               </div>
               {/* Currency Selector - only show if multiple currencies available */}
               {CURRENCIES.length > 1 ? (
@@ -201,7 +210,7 @@ export default function BtcPricePage(): ReactElement {
                   )}
                 </div>
               ) : (
-                <span className="text-xs text-gray-500 mt-1">{currency.toUpperCase()}</span>
+                <span className="text-xs text-gray-500 mt-1">Bitcoin ({currency.toUpperCase()})</span>
               )}
             </div>
             <div className="text-right">
@@ -283,6 +292,42 @@ export default function BtcPricePage(): ReactElement {
               className="w-full"
               currencySymbol={currencySymbol}
             />
+          )}
+        </div>
+
+        {/* Exchange Rate & Fee Rates */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
+          {/* BTC/XCP Exchange Rate */}
+          {stats && xcpPrice && xcpPrice > 0 && (
+            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">TX Fee Market</span>
+              <span className="text-sm font-medium text-gray-900">
+                1 BTC = {formatAmount({ value: stats.price / xcpPrice, maximumFractionDigits: 0 })} XCP
+              </span>
+            </div>
+          )}
+
+          {/* Mempool Fee Rates */}
+          {feeRates && (
+            <div className="pt-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gray-50 rounded-md p-2 text-center">
+                  <span className="block text-xs text-gray-500">Fast</span>
+                  <span className="text-sm font-medium text-gray-900">{feeRates.fastestFee}</span>
+                  <span className="text-xs text-gray-400"> sat/vB</span>
+                </div>
+                <div className="bg-gray-50 rounded-md p-2 text-center">
+                  <span className="block text-xs text-gray-500">Medium</span>
+                  <span className="text-sm font-medium text-gray-900">{feeRates.halfHourFee}</span>
+                  <span className="text-xs text-gray-400"> sat/vB</span>
+                </div>
+                <div className="bg-gray-50 rounded-md p-2 text-center">
+                  <span className="block text-xs text-gray-500">Slow</span>
+                  <span className="text-sm font-medium text-gray-900">{feeRates.hourFee}</span>
+                  <span className="text-xs text-gray-400"> sat/vB</span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
