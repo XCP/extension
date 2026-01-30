@@ -1,4 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
+import { formatAmount } from "@/utils/format";
 import type { ReactElement, ReactNode } from "react";
 
 /**
@@ -25,6 +28,8 @@ export function ReviewSend({
 }: ReviewSendProps): ReactElement {
   const { result } = apiResponse;
   const isMPMA = result.name === 'mpma';
+  const { settings } = useSettings();
+  const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
   // Build custom fields based on transaction type
   let customFields: Array<{ label: string; value: string | number | ReactNode; rightElement?: ReactNode }> = [];
@@ -86,10 +91,18 @@ export function ReviewSend({
   } else {
     // Single send transaction - use normalized quantity from verbose API
     const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
+    const isBtc = result.params.asset === 'BTC';
+    const amountInFiat = isBtc && btcPrice ? Number(quantityDisplay) * btcPrice : null;
+
     customFields = [
       {
         label: "Amount",
         value: `${quantityDisplay} ${result.params.asset}`,
+        rightElement: amountInFiat !== null ? (
+          <span className="text-gray-500">
+            ${formatAmount({ value: amountInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        ) : undefined,
       },
       ...(result.params.memo ? [{ label: "Memo", value: String(result.params.memo) }] : []),
     ];

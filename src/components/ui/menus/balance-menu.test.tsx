@@ -39,7 +39,7 @@ describe('BalanceMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      expect(screen.getByText('More')).toBeInTheDocument();
+      expect(screen.getByText('More…')).toBeInTheDocument();
     });
   });
 
@@ -54,7 +54,7 @@ describe('BalanceMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      const moreButton = screen.getByText('More');
+      const moreButton = screen.getByText('More…');
       fireEvent.click(moreButton);
     });
 
@@ -72,7 +72,7 @@ describe('BalanceMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      const moreButton = screen.getByText('More');
+      const moreButton = screen.getByText('More…');
       fireEvent.click(moreButton);
     });
 
@@ -118,7 +118,7 @@ describe('BalanceMenu', () => {
     mockOnClick.mockClear();
 
     await waitFor(() => {
-      const moreButton = screen.getByText('More');
+      const moreButton = screen.getByText('More…');
       fireEvent.click(moreButton);
     });
 
@@ -137,7 +137,7 @@ describe('BalanceMenu', () => {
     fireEvent.click(menuButton);
 
     await waitFor(() => {
-      const moreButton = screen.getByText('More').closest('button');
+      const moreButton = screen.getByText('More…').closest('button');
       expect(moreButton).toHaveClass('hover:bg-gray-50');
     });
   });

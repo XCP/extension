@@ -218,10 +218,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (2 * 68) + (1 * 31) = 177.5 -> 178
-      // fee = 178 * 1 = 178 sats
-      // max = 10,000,000 - 178 = 9,999,822 sats = 0.09999822 BTC
-      expect(onChange).toHaveBeenCalledWith('0.09999822');
+      // vsize = 10.5 + (2 * 68) + (2 * 31) = 208.5 -> 209 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 239 vbytes
+      // fee = 239 * 1 = 239 sats
+      // max = 10,000,000 - 239 = 9,999,761 sats = 0.09999761 BTC
+      expect(onChange).toHaveBeenCalledWith('0.09999761');
     });
   });
 
@@ -248,10 +249,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (1 * 31) = 109.5 -> 110
-      // fee = 110 * 10 = 1100 sats
-      // max = 1,000,000 - 1100 = 998,900 sats = 0.00998900 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00998900');
+      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 171 vbytes
+      // fee = 171 * 10 = 1710 sats
+      // max = 1,000,000 - 1710 = 998,290 sats = 0.00998290 BTC
+      expect(onChange).toHaveBeenCalledWith('0.00998290');
     });
   });
 
@@ -285,10 +287,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (5 * 68) + (1 * 31) = 381.5 -> 382
-      // fee = 382 * 1 = 382 sats
-      // max = 5,000,000 - 382 = 4,999,618 sats = 0.04999618 BTC
-      expect(onChange).toHaveBeenCalledWith('0.04999618');
+      // vsize = 10.5 + (5 * 68) + (2 * 31) = 412.5 -> 413 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 443 vbytes
+      // fee = 443 * 1 = 443 sats
+      // max = 5,000,000 - 443 = 4,999,557 sats = 0.04999557 BTC
+      expect(onChange).toHaveBeenCalledWith('0.04999557');
     });
   });
 
@@ -315,10 +318,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (1 * 31) = 109.5 -> 110
-      // fee = 110 * 0.1 = 11 sats
-      // max = 1,000,000 - 11 = 999,989 sats = 0.00999989 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999989');
+      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 171 vbytes
+      // fee = 171 * 0.1 = 17.1 -> 18 sats (ceil)
+      // max = 1,000,000 - 18 = 999,982 sats = 0.00999982 BTC
+      expect(onChange).toHaveBeenCalledWith('0.00999982');
     });
   });
 
@@ -465,11 +469,12 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141
-      // fee = 141 * 1 = 141 sats
-      // max = 1,000,000 - 141 = 999,859 sats
-      // per destination = 999,859 / 2 = 499,929 sats = 0.00499929 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00499929');
+      // vsize = 10.5 + (1 * 68) + (3 * 31) = 171.5 -> 172 (2 destinations + 1 change = 3 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 202 vbytes
+      // fee = 202 * 1 = 202 sats
+      // max = 1,000,000 - 202 = 999,798 sats
+      // per destination = 999,798 / 2 = 499,899 sats = 0.00499899 BTC
+      expect(onChange).toHaveBeenCalledWith('0.00499899');
     });
   });
 
@@ -547,10 +552,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // Legacy P2PKH: vsize = 10.5 + (1 * 148) + (1 * 31) = 189.5 -> 190
-      // fee = 190 * 1 = 190 sats
-      // max = 1,000,000 - 190 = 999,810 sats = 0.00999810 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999810');
+      // Legacy P2PKH: vsize = 10.5 + (1 * 148) + (2 * 31) = 220.5 -> 221 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 251 vbytes
+      // fee = 251 * 1 = 251 sats
+      // max = 1,000,000 - 251 = 999,749 sats = 0.00999749 BTC
+      expect(onChange).toHaveBeenCalledWith('0.00999749');
     });
   });
 
@@ -579,10 +585,11 @@ describe('AmountWithMaxInput', () => {
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalled();
-      // Taproot P2TR: vsize = 10.5 + (1 * 58) + (1 * 31) = 99.5 -> 100
-      // fee = 100 * 1 = 100 sats
-      // max = 1,000,000 - 100 = 999,900 sats = 0.00999900 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999900');
+      // Taproot P2TR: vsize = 10.5 + (1 * 58) + (2 * 31) = 130.5 -> 131 (1 destination + 1 change = 2 outputs)
+      // + OP_RETURN overhead (30 vbytes) = 161 vbytes
+      // fee = 161 * 1 = 161 sats
+      // max = 1,000,000 - 161 = 999,839 sats = 0.00999839 BTC
+      expect(onChange).toHaveBeenCalledWith('0.00999839');
     });
   });
 });

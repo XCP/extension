@@ -28,6 +28,7 @@ const PATHS = {
   ADDRESS_HISTORY: "/addresses/history",
   SELECT_ADDRESS: "/addresses",
   PINNED_ASSETS: "/settings/pinned-assets",
+  BUY_XCP: "/market/dispensers/XCP",
 } as const;
 
 export default function HomePage(): ReactElement {
@@ -162,13 +163,22 @@ export default function HomePage(): ReactElement {
             Balances
           </button>
         </div>
-        <button
-          onClick={() => navigate(PATHS.PINNED_ASSETS)}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="Manage Pinned Assets"
-        >
-          <TbPinned className="size-5 text-gray-600" aria-hidden="true" />
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => navigate(PATHS.BUY_XCP)}
+            className="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label="Buy XCP"
+          >
+            Buy XCP
+          </button>
+          <button
+            onClick={() => navigate(PATHS.PINNED_ASSETS)}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            aria-label="Manage Pinned Assets"
+          >
+            <TbPinned className="size-5 text-gray-600" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     );
   };

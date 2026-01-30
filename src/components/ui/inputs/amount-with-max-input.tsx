@@ -121,9 +121,16 @@ export function AmountWithMaxInput({
       }
 
       // Estimate vsize based on spendable UTXO count and address type
-      const estimatedVbytes = estimateVsize(utxos.length, destinationCount, sourceAddress.address);
+      // Add 1 to destinationCount for change output (most transactions have destination + change)
+      const estimatedVbytes = estimateVsize(utxos.length, destinationCount + 1, sourceAddress.address);
+
+      // Add overhead for Counterparty OP_RETURN output (~30 vbytes for protocol message)
+      // This accounts for the encoded send data that the Counterparty API adds
+      const OP_RETURN_OVERHEAD = 30;
+      const totalVbytes = estimatedVbytes + OP_RETURN_OVERHEAD;
+
       const effectiveFeeRate = feeRate ?? 0.1;
-      const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+      const estimatedFee = Math.ceil(totalVbytes * effectiveFeeRate);
 
       const candidate = totalValue - estimatedFee;
 
