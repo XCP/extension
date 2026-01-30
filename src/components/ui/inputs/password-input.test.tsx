@@ -153,10 +153,10 @@ describe('PasswordInput', () => {
 
   it('should apply focus styles to input', () => {
     render(<PasswordInput placeholder="Enter password" />);
-    
+
     const input = screen.getByPlaceholderText('Enter password');
-    expect(input).toHaveClass('data-[focus]:ring-blue-500');
-    expect(input).toHaveClass('data-[focus]:border-blue-500');
+    expect(input).toHaveClass('focus-visible:ring-blue-500');
+    expect(input).toHaveClass('focus:border-blue-500');
   });
 
   it('should position toggle button correctly', () => {

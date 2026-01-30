@@ -180,10 +180,10 @@ export function AmountWithMaxInput({
           value={value}
           onChange={handleInputChange}
           autoComplete="off"
-          className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 focus:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            hasError 
-              ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
-              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+          className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 outline-none focus-visible:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+            hasError
+              ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+              : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
           placeholder="0.00000000"
           disabled={disabled}

@@ -122,7 +122,7 @@ export function DispenserCloseForm({
                     disabled={pending}
                   >
                     <div className="relative mt-1">
-                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>

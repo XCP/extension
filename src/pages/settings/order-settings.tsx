@@ -121,7 +121,7 @@ export function OrderSettings({
               placeholder="Custom blocks (press Enter)"
               inputMode="numeric"
               aria-label="Custom expiration in blocks"
-              className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
           </div>
         </div>
@@ -150,7 +150,7 @@ export function OrderSettings({
                 placeholder="Enter fee in satoshis (default: 0)"
                 inputMode="numeric"
                 aria-label="Fee required in satoshis"
-                className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
               />
             </div>
           </div>

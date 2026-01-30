@@ -69,11 +69,11 @@ export function SelectionCard<T = any>({
       value={value}
       disabled={disabled}
       className={({ checked }) => `
-        relative w-full rounded transition duration-300 p-4
-        ${disabled 
-          ? "cursor-not-allowed bg-gray-100 opacity-60" 
-          : checked 
-            ? "cursor-pointer bg-white shadow-md border-2 border-blue-500" 
+        relative w-full rounded transition duration-300 p-4 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        ${disabled
+          ? "cursor-not-allowed bg-gray-100 opacity-60"
+          : checked
+            ? "cursor-pointer bg-white shadow-md border-2 border-blue-500"
             : "cursor-pointer bg-white hover:bg-gray-50 border-2 border-transparent"
         }
         ${className}

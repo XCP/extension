@@ -169,12 +169,12 @@ export function DestinationsInput({
                 ? "Enter destination address"
                 : `Enter destination address ${index + 1}`
             }
-            className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
-              validationErrors[destination.id] 
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
-                : getLookupState(destination.id).isLookingUp 
-                  ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" 
-                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            className={`block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 ${
+              validationErrors[destination.id]
+                ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+                : getLookupState(destination.id).isLookingUp
+                  ? "border-blue-500 focus:border-blue-500 focus-visible:ring-blue-500"
+                  : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
             } ${
               (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp 
                 ? "pr-12" 
@@ -195,7 +195,7 @@ export function DestinationsInput({
                   className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label="Add another destination"
                 >
-                  <FaPlus className="size-5" aria-hidden="true" />
+                  <FaPlus className="size-4" aria-hidden="true" />
                 </button>
               ) : (
                 <button

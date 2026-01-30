@@ -65,7 +65,7 @@ export function SettingSwitch({
           onChange={onChange}
           className={`${
             checked ? 'bg-blue-600' : 'bg-gray-200'
-          } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer`}
+          } p-0 relative inline-flex h-6 w-11 items-center rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2`}
           disabled={disabled}
         >
           <span

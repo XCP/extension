@@ -203,7 +203,7 @@ export const BalanceList = (): ReactElement => {
         onChange={setSearchQuery}
         placeholder="Search balances…"
         name="balance-search"
-        className="mb-3"
+        className="mt-0.5 mb-3"
         showClearButton={true}
         isLoading={isSearching}
       />

@@ -251,7 +251,7 @@ describe('DestinationInput', () => {
     expect(input).toHaveClass('rounded-md');
     expect(input).toHaveClass('border');
     expect(input).toHaveClass('bg-gray-50');
-    expect(input).toHaveClass('focus:ring-blue-500');
+    expect(input).toHaveClass('focus-visible:ring-blue-500');
     expect(input).toHaveClass('focus:border-blue-500');
   });
 

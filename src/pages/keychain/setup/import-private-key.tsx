@@ -156,7 +156,7 @@ function ImportPrivateKeyPage() {
               <div className="mt-1 relative">
                 <input type="hidden" name="address-type" value={addressFormat} />
                 <Listbox value={addressFormat} onChange={setAddressFormat} disabled={isPending}>
-                  <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500 cursor-pointer disabled:cursor-not-allowed">
+                  <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-white outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer disabled:cursor-not-allowed">
                     {({ value }) => {
                       const selected = ADDRESS_TYPES.find((type) => type.value === value);
                       return (
@@ -172,12 +172,14 @@ function ImportPrivateKeyPage() {
                       <ListboxOption
                         key={type.value}
                         value={type.value}
-                        className="p-2.5 cursor-pointer hover:bg-gray-100 data-[selected]:bg-gray-100"
+                        className={({ focus, selected }) =>
+                          `p-2.5 cursor-pointer select-none ${focus ? "bg-blue-500 text-white" : "text-gray-900"} ${selected ? "font-medium" : ""}`
+                        }
                       >
-                        {({ selected }) => (
+                        {({ selected, focus }) => (
                           <div className="flex justify-between items-center">
                             <span className={selected ? "font-medium" : ""}>{type.label}</span>
-                            <span className="text-gray-500 font-mono text-sm">{type.hint}</span>
+                            <span className={`font-mono text-sm ${focus ? "text-blue-100" : "text-gray-500"}`}>{type.hint}</span>
                           </div>
                         )}
                       </ListboxOption>

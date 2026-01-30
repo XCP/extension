@@ -236,7 +236,7 @@ export function FeeRateInput({
             aria-label="Custom Fee Rate"
             aria-invalid={!!internalError}
             aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-            className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
           />
         </div>
         {showHelpText && (
@@ -274,7 +274,7 @@ export function FeeRateInput({
               aria-label="Custom Fee Rate"
               aria-invalid={!!internalError}
               aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
-              className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 pr-16 focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 pr-16 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
             {feeRates && (
               <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" {...disabledProps}>
@@ -291,7 +291,7 @@ export function FeeRateInput({
               <div className="relative">
                 <Listbox value={feeOptions.find((opt) => opt.id === selectedOption) || feeOptions[0]} onChange={handleOptionSelect}>
                   <ListboxButton
-                    className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                    className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer"
                     {...disabledProps}
                   >
                     {({ value }) => (
@@ -308,13 +308,15 @@ export function FeeRateInput({
                       <ListboxOption
                         key={option.id}
                         value={option}
-                        className="p-2.5 cursor-pointer hover:bg-gray-100"
+                        className={({ focus }) =>
+                          `p-2.5 cursor-pointer select-none ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`
+                        }
                       >
-                        {({ selected }) => (
+                        {({ selected, focus }) => (
                           <div className="flex justify-between">
                             <span className={selected ? "font-medium" : ""}>{option.name}</span>
                             {option.id !== "custom" && (
-                              <span className="text-gray-500">{option.value} sat/vB</span>
+                              <span className={focus ? "text-blue-100" : "text-gray-500"}>{option.value} sat/vB</span>
                             )}
                           </div>
                         )}
