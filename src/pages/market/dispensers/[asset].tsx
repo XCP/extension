@@ -211,7 +211,7 @@ export default function AssetDispensersPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Dispensers",
-      onBack: () => navigate("/market"),
+      onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Refresh dispensers",
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,

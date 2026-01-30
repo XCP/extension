@@ -30,7 +30,7 @@ const BASE_STYLES: Record<ButtonVariant, string> = {
   solid: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   transparent: 'font-bold py-3 px-4 rounded transition duration-300 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
   menu: 'p-1 flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 rounded',
-  'menu-item': 'flex px-4 py-2 text-sm focus-visible:outline-none focus-visible:bg-gray-100',
+  'menu-item': 'flex items-center px-4 py-2 text-sm focus-visible:outline-none focus-visible:bg-gray-100',
   input: 'flex items-center justify-center w-11 px-2 py-1 absolute right-1 top-1/2 -translate-y-1/2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded',
   icon: 'py-2 px-3 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded',
   header: 'h-[32px] py-1 px-3 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
