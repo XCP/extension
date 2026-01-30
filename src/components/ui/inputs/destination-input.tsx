@@ -100,10 +100,10 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
             required={required}
             placeholder={placeholder}
             disabled={disabled}
-            className={`mt-1 block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 focus:ring-2 ${
-              isInvalid ? "!border-red-500 focus:!border-red-500 focus:!ring-red-500" :
-              lookupResult && isValidAddress ? "!border-green-500 focus:!border-green-500 focus:!ring-green-500" :
-              "focus:ring-blue-500 focus:border-blue-500"
+            className={`mt-1 block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 outline-none focus-visible:ring-2 ${
+              isInvalid ? "!border-red-500 focus:!border-red-500 focus-visible:!ring-red-500" :
+              lookupResult && isValidAddress ? "!border-green-500 focus:!border-green-500 focus-visible:!ring-green-500" :
+              "focus:border-blue-500 focus-visible:ring-blue-500"
             } ${className}`}
           />
           {isLookingUp && (

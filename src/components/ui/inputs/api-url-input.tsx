@@ -69,10 +69,10 @@ export const ApiUrlInput = ({
   // Determine border color based on state
   const getBorderClass = () => {
     if (!showHelpText) {
-      if (error) return 'border-red-500 focus:border-red-500 focus:ring-red-500';
-      if (showSuccess && !isValidating) return 'border-green-500 focus:border-green-500 focus:ring-green-500';
+      if (error) return 'border-red-500 focus:border-red-500 focus-visible:ring-red-500';
+      if (showSuccess && !isValidating) return 'border-green-500 focus:border-green-500 focus-visible:ring-green-500';
     }
-    return 'border-gray-300 focus:border-blue-500 focus:ring-blue-500';
+    return 'border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500';
   };
 
   return (
@@ -90,7 +90,7 @@ export const ApiUrlInput = ({
           disabled={disabled || isValidating}
           placeholder="https://api.counterparty.io:4000"
           aria-label="API URL"
-          className={`flex-1 p-2.5 rounded-md border bg-gray-50 focus:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
+          className={`flex-1 p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 disabled:opacity-50 transition-colors ${getBorderClass()}`}
         />
         <button
           onClick={handleReset}

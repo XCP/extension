@@ -62,7 +62,7 @@ export const AssetList = (): React.ReactElement => {
         onChange={setSearchQuery}
         placeholder="Search assets…"
         name="asset-search"
-        className="mb-3"
+        className="mt-0.5 mb-3"
         showClearButton={true}
         isLoading={isSearching}
       />

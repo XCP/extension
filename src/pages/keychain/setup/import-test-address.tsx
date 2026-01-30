@@ -85,7 +85,7 @@ function ImportTestAddressPage() {
                 <input
                   id="test-address"
                   type="text"
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                   placeholder="Enter any Bitcoin address…"
                   value={addressToAdd}
                   onChange={(e) => setAddressToAdd(e.target.value)}

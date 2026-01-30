@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type ReactElement } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
-import { FaPlus, FiMinus } from "@/components/icons";
+import { FiPlus, FiMinus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
 import { validateDestinations, parseMultiLineDestinations, isMPMASupported, type Destination } from "@/utils/validation/destinations";
 import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
@@ -169,12 +169,12 @@ export function DestinationsInput({
                 ? "Enter destination address"
                 : `Enter destination address ${index + 1}`
             }
-            className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 ${
-              validationErrors[destination.id] 
-                ? "border-red-500 focus:border-red-500 focus:ring-red-500" 
-                : getLookupState(destination.id).isLookingUp 
-                  ? "border-blue-500 focus:border-blue-500 focus:ring-blue-500" 
-                  : "border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+            className={`block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 ${
+              validationErrors[destination.id]
+                ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+                : getLookupState(destination.id).isLookingUp
+                  ? "border-blue-500 focus:border-blue-500 focus-visible:ring-blue-500"
+                  : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
             } ${
               (showAddButton && index === 0) || canRemove || getLookupState(destination.id).isLookingUp 
                 ? "pr-12" 
@@ -192,17 +192,17 @@ export function DestinationsInput({
                   type="button"
                   onClick={addDestination}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label="Add another destination"
                 >
-                  <FaPlus className="size-5" aria-hidden="true" />
+                  <FiPlus className="size-5" aria-hidden="true" />
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={() => removeDestination(destination.id)}
                   disabled={disabled}
-                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label={`Remove destination ${index + 1}`}
                 >
                   <FiMinus className="size-5" aria-hidden="true" />

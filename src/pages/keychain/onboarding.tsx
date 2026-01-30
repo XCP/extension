@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FiHelpCircle, FiPlus, FiUpload } from "@/components/icons";
+import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { getDisplayVersion } from "@/utils/version";
 
@@ -52,7 +52,7 @@ function OnboardingPage() {
               onClick={handleCreateWallet}
               aria-label="Create wallet"
             >
-              <FiPlus className="size-4 mr-2" aria-hidden="true" />
+              <FaPlus className="size-4 mr-2" aria-hidden="true" />
               Create Wallet
             </Button>
             <Button

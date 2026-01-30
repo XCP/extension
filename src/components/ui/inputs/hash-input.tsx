@@ -166,10 +166,10 @@ export function HashInput({
           disabled={disabled}
           required={required}
           rows={rows}
-          className={`block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 resize-none font-mono text-xs ${
-            !isValid 
-              ? "border-red-500 focus:ring-red-500 focus:border-red-500" 
-              : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+          className={`block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 resize-none font-mono text-xs ${
+            !isValid
+              ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+              : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           } ${label ? "mt-1" : ""} ${
             showCopyButton ? "pr-12" : ""
           } ${disabled ? "bg-gray-100 cursor-not-allowed" : ""}`}

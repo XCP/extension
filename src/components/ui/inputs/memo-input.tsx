@@ -82,10 +82,10 @@ export function MemoInput({
         value={memo}
         onChange={handleMemoChange}
         placeholder="Optional memo"
-        className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 focus:ring-2 transition-colors ${
+        className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 transition-colors ${
           !isValid
-            ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-            : "border-gray-300 focus:ring-blue-500 focus:border-blue-500"
+            ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
+            : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
         }`}
         disabled={disabled}
         aria-invalid={!isValid}
