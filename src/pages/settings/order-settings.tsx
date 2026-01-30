@@ -87,12 +87,17 @@ export function OrderSettings({
       <div className="space-y-4">
         <div>
           <div className="flex justify-between items-center mb-3">
-            <h2 className="font-semibold">Order Expiration</h2>
+            <label
+              htmlFor="custom-expiration"
+              className="text-sm font-semibold cursor-pointer"
+            >
+              Order Expiration
+            </label>
             <span className="text-sm text-gray-500 tabular-nums">
               {expiration} blocks (~{calculateDays(expiration)})
             </span>
           </div>
-          
+
           {/* Preset buttons */}
           <div className="grid grid-cols-3 gap-2 mb-3">
             {EXPIRATION_PRESETS.map((preset) => (
@@ -110,11 +115,12 @@ export function OrderSettings({
               </button>
             ))}
           </div>
-          
+
           {/* Custom input */}
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
             <input
               type="text"
+              id="custom-expiration"
               value={customValue}
               onChange={(e) => handleCustomChange(e.target.value)}
               onKeyDown={handleCustomKeyDown}
@@ -123,6 +129,9 @@ export function OrderSettings({
               aria-label="Custom expiration in blocks"
               className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
+            <p className="text-xs text-gray-500">
+              8064 blocks (~8 weeks) is recommended. Orders auto-cancel after expiration.
+            </p>
           </div>
         </div>
 
@@ -130,21 +139,21 @@ export function OrderSettings({
         {isBuyingBTC && (
           <div>
             <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold">Fee Required</h2>
+              <label
+                htmlFor="fee-required"
+                className="text-sm font-semibold cursor-pointer"
+              >
+                Fee Required
+              </label>
               <span className="text-sm text-gray-500 tabular-nums">
                 {feeRequired === 0 ? "No minimum fee" : `${feeRequired} sats (~${(feeRequired / 250).toFixed(1)} sat/vB)`}
               </span>
             </div>
-            
-            <div className="mb-3">
-              <p className="text-sm text-gray-600">
-                The minimum tx fee required for a BTCPay to match this order (in satoshis).
-              </p>
-            </div>
-            
-            <div className="flex gap-2">
+
+            <div className="flex flex-col gap-2">
               <input
                 type="text"
+                id="fee-required"
                 value={feeRequired}
                 onChange={(e) => handleFeeRequiredChange(e.target.value)}
                 placeholder="Enter fee in satoshis (default: 0)"
@@ -152,6 +161,9 @@ export function OrderSettings({
                 aria-label="Fee required in satoshis"
                 className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
               />
+              <p className="text-xs text-gray-500">
+                The minimum tx fee required for a BTCPay to match this order (in satoshis).
+              </p>
             </div>
           </div>
         )}

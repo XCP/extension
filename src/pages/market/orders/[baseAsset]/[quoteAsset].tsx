@@ -23,6 +23,7 @@ import {
   type OrderMatch,
   type AssetInfo,
 } from "@/utils/blockchain/counterparty/api";
+import { isBuyOrder } from "@/utils/trading-pair";
 import type { ReactElement } from "react";
 
 // Constants
@@ -145,7 +146,7 @@ export default function AssetOrdersPage(): ReactElement {
   const [isFetchingMoreMatches, setIsFetchingMoreMatches] = useState(false);
 
   // UI state
-  const [tab, setTab] = useState<"open" | "matched">("open");
+  const [tab, setTab] = useState<"buy" | "sell" | "matched">("sell");
   const [priceUnit, setPriceUnit] = useState<OrderPriceUnit>("raw");
 
   // Clipboard
@@ -253,9 +254,9 @@ export default function AssetOrdersPage(): ReactElement {
     loadData();
   }, [loadData]);
 
-  // Load more orders on scroll (when on "open" tab)
+  // Load more orders on scroll (when on "buy" or "sell" tab)
   useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab !== "open") {
+    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab === "matched") {
       return;
     }
 
@@ -330,25 +331,46 @@ export default function AssetOrdersPage(): ReactElement {
     loadMore();
   }, [baseAsset, quoteAsset, inView, isFetchingMoreMatches, hasMoreMatches, matchOffset, tab]);
 
-  // Calculate stats for open orders
+  // Split orders into buy and sell categories
+  const { buyOrders, sellOrders } = useMemo(() => {
+    const buy: Order[] = [];
+    const sell: Order[] = [];
+
+    orders.forEach(order => {
+      // An order is a "buy" if the maker is giving quote to get base
+      // (i.e., they want to buy the base asset)
+      if (isBuyOrder(order.give_asset, order.get_asset)) {
+        buy.push(order);
+      } else {
+        sell.push(order);
+      }
+    });
+
+    return { buyOrders: buy, sellOrders: sell };
+  }, [orders]);
+
+  // Get current orders based on tab
+  const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : [];
+
+  // Calculate stats for current orders
   const orderStats = useMemo(() => {
-    if (orders.length === 0) return null;
+    if (currentOrders.length === 0) return null;
 
     // Total base asset available
-    const totalBaseAsset = orders.reduce(
+    const totalBaseAsset = currentOrders.reduce(
       (sum, o) => sum + Number(o.give_remaining_normalized), 0
     );
 
     // Total quote asset required
-    const totalQuoteAsset = orders.reduce(
+    const totalQuoteAsset = currentOrders.reduce(
       (sum, o) => sum + Number(o.get_remaining_normalized), 0
     );
 
     // Floor price (lowest ask)
-    const floorPrice = Math.min(...orders.map(o => getPricePerUnit(o)));
+    const floorPrice = Math.min(...currentOrders.map(o => getPricePerUnit(o)));
 
     // Weighted average price
-    const weightedSum = orders.reduce(
+    const weightedSum = currentOrders.reduce(
       (sum, o) => sum + getPricePerUnit(o) * Number(o.give_remaining_normalized), 0
     );
     const weightedAvg = totalBaseAsset > 0 ? weightedSum / totalBaseAsset : 0;
@@ -359,7 +381,7 @@ export default function AssetOrdersPage(): ReactElement {
       floorPrice,
       weightedAvg,
     };
-  }, [orders]);
+  }, [currentOrders]);
 
   // Calculate stats for matches
   const matchStats = useMemo(() => {
@@ -402,8 +424,8 @@ export default function AssetOrdersPage(): ReactElement {
     return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
   }
 
-  const hasMore = tab === "open" ? hasMoreOrders : hasMoreMatches;
-  const isFetching = tab === "open" ? isFetchingMore : isFetchingMoreMatches;
+  const hasMore = tab === "matched" ? hasMoreMatches : hasMoreOrders;
+  const isFetching = tab === "matched" ? isFetchingMoreMatches : isFetchingMore;
 
   return (
     <div className="flex flex-col h-full" role="main">
@@ -426,7 +448,7 @@ export default function AssetOrdersPage(): ReactElement {
         <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
           <div className="flex items-center gap-2">
             <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-              {tab === "open" && orderStats && (
+              {(tab === "buy" || tab === "sell") && orderStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Floor</span>
@@ -450,7 +472,7 @@ export default function AssetOrdersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "open" && !orderStats && (
+              {(tab === "buy" || tab === "sell") && !orderStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Floor</span>
@@ -516,14 +538,24 @@ export default function AssetOrdersPage(): ReactElement {
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
             <button
-              onClick={() => setTab("open")}
+              onClick={() => setTab("buy")}
               className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "open"
+                tab === "buy"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Open
+              Buy
+            </button>
+            <button
+              onClick={() => setTab("sell")}
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                tab === "sell"
+                  ? "bg-gray-200 text-gray-900 font-medium"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Sell
             </button>
             <button
               onClick={() => setTab("matched")}
@@ -545,21 +577,7 @@ export default function AssetOrdersPage(): ReactElement {
         </div>
 
         {/* Content */}
-        {tab === "open" ? (
-          orders.length > 0 ? (
-            <div className="space-y-2">
-              {orders.map((o) => (
-                <MarketOrderCard
-                  key={o.tx_hash}
-                  order={o}
-                  onClick={() => handleOrderClick(o)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={`No open ${baseAsset}/${quoteAsset} orders`} />
-          )
-        ) : (
+        {tab === "matched" ? (
           matches.length > 0 ? (
             <div className="space-y-2">
               {matches.map((m) => (
@@ -573,6 +591,20 @@ export default function AssetOrdersPage(): ReactElement {
             </div>
           ) : (
             <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
+          )
+        ) : (
+          currentOrders.length > 0 ? (
+            <div className="space-y-2">
+              {currentOrders.map((o) => (
+                <MarketOrderCard
+                  key={o.tx_hash}
+                  order={o}
+                  onClick={() => handleOrderClick(o)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`} />
           )
         )}
 
@@ -590,7 +622,7 @@ export default function AssetOrdersPage(): ReactElement {
         </div>
 
         {/* Footer summary - contextual totals */}
-        {tab === "open" && orderStats && orders.length > 1 && (
+        {(tab === "buy" || tab === "sell") && orderStats && currentOrders.length > 1 && (
           <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
             <span>
               {formatAmount({ value: orderStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}

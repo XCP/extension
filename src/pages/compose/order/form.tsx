@@ -21,6 +21,7 @@ interface OrderFormData extends OrderOptions {
   amount?: string;
   price?: string;
   quote_asset?: string;
+  is_pair_flipped?: string;
 }
 
 /**
@@ -43,12 +44,13 @@ export function OrderForm({
   // Context hooks
   const { activeAddress, settings, showHelpText, feeRate } = useComposer();
   
-  // Data fetching hooks
+  // Form state - defined before hooks that depend on it
+  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+
+  // Data fetching hooks - use current quoteAsset state for reactivity
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
-  const { data: getAssetDetails } = useAssetDetails(
-    (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
-  );
+  const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
+  const { data: getAssetDetails } = useAssetDetails(giveAsset);
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -67,17 +69,18 @@ export function OrderForm({
   const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
-  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
   
-  // Trading state
-  const [isPairFlipped, setIsPairFlipped] = useState(false);
+  // Trading state - restore from initialFormData if present
+  const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
 
   // Computed values
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
+  const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : giveAsset;
@@ -107,6 +110,16 @@ export function OrderForm({
 
   const handlePriceChange = (newPrice: string) => {
     setPrice(newPrice);
+  };
+
+  const handleQuoteAssetChange = (newQuoteAsset: string) => {
+    if (newQuoteAsset !== quoteAsset) {
+      // Clear price and amount when quote asset changes to avoid mistakes
+      setPrice("");
+      setAmount("");
+      setIsPairFlipped(false);
+      setQuoteAsset(newQuoteAsset);
+    }
   };
 
   return (
@@ -153,7 +166,7 @@ export function OrderForm({
         </div>
         <button
           type="button"
-          className={`p-2 hover:bg-gray-100 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+          className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
@@ -181,6 +194,7 @@ export function OrderForm({
             formData.set('price', price);
             formData.set('type', activeTab);
             formData.set('quote_asset', quoteAsset);
+            formData.set('is_pair_flipped', isPairFlipped.toString());
             
             // Calculate give_quantity and get_quantity based on buy/sell
             const amountBN = toBigNumber(amount);
@@ -239,8 +253,8 @@ export function OrderForm({
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={isBuy ? (price ? formatAmount({
-                value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
-                maximumFractionDigits: isGetAssetDivisible ? 8 : 0,
+                value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
+                maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
                 minimumFractionDigits: 0
               }) : "") : availableBalance}
               disableMaxButton={isBuy && !price}
@@ -252,7 +266,7 @@ export function OrderForm({
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
-              onChange={setQuoteAsset}
+              onChange={handleQuoteAssetChange}
               label="Quote"
               showHelpText={showHelpText}
             />
