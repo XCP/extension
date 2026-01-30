@@ -279,10 +279,16 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   test('importing Counterwallet mnemonic creates Counterwallet wallet', async ({ extensionPage }) => {
     await importMnemonic(extensionPage, TEST_COUNTERWALLET_MNEMONIC, TEST_PASSWORD);
 
-    // Wait for index page to fully load after import
+    // Wait for wallet state to propagate after import
+    // React state updates from createMnemonicWallet may still be pending after navigation
     await extensionPage.waitForLoadState('networkidle');
-    await expect(index.addressText(extensionPage)).toBeVisible({ timeout: 15000 });
 
+    // Wait for the address container to appear - this only renders when wallet data is ready
+    // (not during "Loading wallet data..." or "No wallet unlocked" states)
+    const addressContainer = extensionPage.locator('[aria-label="Current address"]');
+    await expect(addressContainer).toBeVisible({ timeout: 20000 });
+
+    // Now verify the address text matches expected format
     const address = await getCurrentDisplayedAddress(extensionPage);
     expect(validateAddressPrefix(address, 'counterwallet')).toBe(true);
   });
