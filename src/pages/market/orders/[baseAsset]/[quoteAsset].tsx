@@ -23,7 +23,6 @@ import {
   type OrderMatch,
   type AssetInfo,
 } from "@/utils/blockchain/counterparty/api";
-import { isBuyOrder } from "@/utils/trading-pair";
 import type { ReactElement } from "react";
 
 // Constants
@@ -93,12 +92,53 @@ function hasFiatOption(quoteAsset: string): boolean {
 }
 
 /**
- * Calculate price per unit from order (get_quantity / give_quantity)
+ * Calculate price per unit (quote per base) from an order.
+ * Takes into account whether this is a sell order (give=base) or buy order (give=quote).
+ *
+ * @param order - The order to calculate price for
+ * @param baseAsset - The base asset of the trading pair context
+ * @returns Price in quote asset per unit of base asset
  */
-function getPricePerUnit(order: Order): number {
-  const giveQty = Number(order.give_quantity_normalized);
-  if (giveQty <= 0) return 0;
-  return Number(order.get_quantity_normalized) / giveQty;
+function getOrderPricePerUnit(order: Order, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: giving base, getting quote
+    // Price = quote/base = get_quantity / give_quantity
+    const giveQty = Number(order.give_quantity_normalized);
+    if (giveQty <= 0) return 0;
+    return Number(order.get_quantity_normalized) / giveQty;
+  } else {
+    // Buy order: giving quote, getting base
+    // Price = quote/base = give_quantity / get_quantity
+    const getQty = Number(order.get_quantity_normalized);
+    if (getQty <= 0) return 0;
+    return Number(order.give_quantity_normalized) / getQty;
+  }
+}
+
+/**
+ * Get the base asset amount from an order (what's being bought/sold).
+ */
+function getOrderBaseAmount(order: Order, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: they're giving base
+    return Number(order.give_remaining_normalized);
+  } else {
+    // Buy order: they want to receive base
+    return Number(order.get_remaining_normalized);
+  }
+}
+
+/**
+ * Get the quote asset amount from an order.
+ */
+function getOrderQuoteAmount(order: Order, baseAsset: string): number {
+  if (order.give_asset === baseAsset) {
+    // Sell order: they want to receive quote
+    return Number(order.get_remaining_normalized);
+  } else {
+    // Buy order: they're giving quote
+    return Number(order.give_remaining_normalized);
+  }
 }
 
 /**
@@ -331,47 +371,48 @@ export default function AssetOrdersPage(): ReactElement {
     loadMore();
   }, [baseAsset, quoteAsset, inView, isFetchingMoreMatches, hasMoreMatches, matchOffset, tab]);
 
-  // Split orders into buy and sell categories
+  // Split orders into buy and sell categories based on the URL's trading pair context
+  // Sell order: give_asset = baseAsset (selling base for quote)
+  // Buy order: give_asset = quoteAsset (buying base with quote)
   const { buyOrders, sellOrders } = useMemo(() => {
     const buy: Order[] = [];
     const sell: Order[] = [];
 
     orders.forEach(order => {
-      // An order is a "buy" if the maker is giving quote to get base
-      // (i.e., they want to buy the base asset)
-      if (isBuyOrder(order.give_asset, order.get_asset)) {
-        buy.push(order);
-      } else {
+      if (order.give_asset === baseAsset) {
         sell.push(order);
+      } else if (order.give_asset === quoteAsset) {
+        buy.push(order);
       }
+      // Orders that don't match either direction are ignored (shouldn't happen)
     });
 
     return { buyOrders: buy, sellOrders: sell };
-  }, [orders]);
+  }, [orders, baseAsset, quoteAsset]);
 
   // Get current orders based on tab
   const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : [];
 
   // Calculate stats for current orders
   const orderStats = useMemo(() => {
-    if (currentOrders.length === 0) return null;
+    if (currentOrders.length === 0 || !baseAsset) return null;
 
-    // Total base asset available
+    // Use helper functions that account for buy vs sell order direction
     const totalBaseAsset = currentOrders.reduce(
-      (sum, o) => sum + Number(o.give_remaining_normalized), 0
+      (sum, o) => sum + getOrderBaseAmount(o, baseAsset), 0
     );
 
-    // Total quote asset required
     const totalQuoteAsset = currentOrders.reduce(
-      (sum, o) => sum + Number(o.get_remaining_normalized), 0
+      (sum, o) => sum + getOrderQuoteAmount(o, baseAsset), 0
     );
 
-    // Floor price (lowest ask)
-    const floorPrice = Math.min(...currentOrders.map(o => getPricePerUnit(o)));
+    // Floor price (lowest price in quote per base)
+    const prices = currentOrders.map(o => getOrderPricePerUnit(o, baseAsset)).filter(p => p > 0);
+    const floorPrice = prices.length > 0 ? Math.min(...prices) : 0;
 
-    // Weighted average price
+    // Weighted average price (weighted by base asset amount)
     const weightedSum = currentOrders.reduce(
-      (sum, o) => sum + getPricePerUnit(o) * Number(o.give_remaining_normalized), 0
+      (sum, o) => sum + getOrderPricePerUnit(o, baseAsset) * getOrderBaseAmount(o, baseAsset), 0
     );
     const weightedAvg = totalBaseAsset > 0 ? weightedSum / totalBaseAsset : 0;
 
@@ -381,7 +422,7 @@ export default function AssetOrdersPage(): ReactElement {
       floorPrice,
       weightedAvg,
     };
-  }, [currentOrders]);
+  }, [currentOrders, baseAsset]);
 
   // Calculate stats for matches
   const matchStats = useMemo(() => {
@@ -416,8 +457,27 @@ export default function AssetOrdersPage(): ReactElement {
   }, [matches, baseAsset]);
 
   const handleOrderClick = (order: Order) => {
-    // Navigate to order matching page
-    navigate(`/compose/order/${baseAsset}?type=buy&quote=${quoteAsset}`);
+    if (!baseAsset || !quoteAsset) return;
+
+    // Clicking a sell order means we want to buy; clicking a buy order means we want to sell
+    const orderType = tab === "sell" ? "buy" : "sell";
+
+    // Get price and amount using helper functions that handle both order directions
+    const pricePerUnit = getOrderPricePerUnit(order, baseAsset);
+    const amount = getOrderBaseAmount(order, baseAsset);
+
+    // Guard against invalid data
+    if (pricePerUnit <= 0 || amount <= 0) return;
+
+    // Build URL with pre-filled values
+    const params = new URLSearchParams({
+      type: orderType,
+      quote: quoteAsset,
+      price: pricePerUnit.toFixed(8),
+      amount: amount.toString(),
+    });
+
+    navigate(`/compose/order/${baseAsset}?${params.toString()}`);
   };
 
   if (loading) {

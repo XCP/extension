@@ -80,11 +80,11 @@ export function getTradingPair(asset1: string, asset2: string): [string, string]
   const asset1HasKeyword = hasQuoteKeyword(asset1);
   const asset2HasKeyword = hasQuoteKeyword(asset2);
 
-  // Both have keywords - use alphabetical as tiebreaker
+  // Both have keywords - use alphabetical order as tiebreaker
   if (asset1HasKeyword && asset2HasKeyword) {
-    return getQuoteRank(asset1) < getQuoteRank(asset2)
-      ? [asset2, asset1]
-      : [asset1, asset2];
+    return asset1.localeCompare(asset2) < 0
+      ? [asset1, asset2]
+      : [asset2, asset1];
   }
 
   // Only asset1 has keyword

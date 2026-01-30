@@ -25,12 +25,23 @@ interface OrderFormData extends OrderOptions {
 }
 
 /**
+ * URL parameters for pre-filling the form (e.g., from market order click)
+ */
+interface OrderUrlParams {
+  type?: "buy" | "sell" | null;
+  quote?: string | null;
+  price?: string | null;
+  amount?: string | null;
+}
+
+/**
  * Props for the OrderForm component, aligned with Composer's formAction.
  */
 interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;
   giveAsset: string;
+  urlParams?: OrderUrlParams;
 }
 
 /**
@@ -40,12 +51,16 @@ export function OrderForm({
   formAction,
   initialFormData,
   giveAsset,
+  urlParams,
 }: OrderFormProps): ReactElement {
   // Context hooks
   const { activeAddress, settings, showHelpText, feeRate } = useComposer();
-  
+
   // Form state - defined before hooks that depend on it
-  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  // Priority: initialFormData (from form persistence) > urlParams (from URL) > defaults
+  const [quoteAsset, setQuoteAsset] = useState<string>(
+    initialFormData?.quote_asset || urlParams?.quote || (giveAsset === "XCP" ? "BTC" : "XCP")
+  );
 
   // Data fetching hooks - use current quoteAsset state for reactivity
   const { data: giveAssetDetails } = useAssetDetails(giveAsset);
@@ -55,18 +70,19 @@ export function OrderForm({
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Tab state - default to "sell" since users typically navigate here from their balances
+  // Tab state - priority: initialFormData > urlParams > default (sell)
+  const initialType = initialFormData?.type || urlParams?.type || "sell";
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
-    initialFormData?.type === "buy" ? "buy" : initialFormData?.type === "sell" ? "sell" : "sell"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
-    initialFormData?.type === "buy" ? "buy" : "sell"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [tabLoading, setTabLoading] = useState(false);
-  
-  // Form state
-  const [price, setPrice] = useState<string>(initialFormData?.price || "");
-  const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
+
+  // Form state - priority: initialFormData > urlParams > empty
+  const [price, setPrice] = useState<string>(initialFormData?.price || urlParams?.price || "");
+  const [amount, setAmount] = useState<string>(initialFormData?.amount || urlParams?.amount || "");
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
   // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
