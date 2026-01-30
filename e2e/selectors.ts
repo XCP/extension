@@ -432,8 +432,12 @@ export const market = {
   floorPrice: (page: Page) => page.getByText(/Floor/i).first(),
   avgPrice: (page: Page) => page.getByText(/Avg/i).first(),
   lastPrice: (page: Page) => page.getByText(/Last/i).first(),
-  openTab: (page: Page) => page.getByRole('tab', { name: 'Open' }),
-  matchedTab: (page: Page) => page.getByRole('tab', { name: 'Matched' }),
+  // Order tabs - changed from Open/Matched to Buy/Sell/Matched
+  buyTab: (page: Page) => page.locator('button').filter({ hasText: /^Buy$/ }).first(),
+  sellTab: (page: Page) => page.locator('button').filter({ hasText: /^Sell$/ }).first(),
+  matchedTab: (page: Page) => page.locator('button').filter({ hasText: /^Matched$/ }).first(),
+  // Legacy aliases for backward compatibility
+  openTab: (page: Page) => page.locator('button').filter({ hasText: /^Sell$/ }).first(),
   dispensedTab: (page: Page) => page.getByRole('tab', { name: 'Dispensed' }),
   emptyState: (page: Page) => page.getByText(/No open|No dispensers|No orders/i).first(),
   myOrdersLink: (page: Page) => page.getByText(/My Orders/i).first(),
