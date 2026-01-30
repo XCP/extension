@@ -31,7 +31,7 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await expect(assetHeader.first()).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('shows Open and Matched tabs or loading', async ({ page }) => {
+  walletTest('shows Buy, Sell, and Matched tabs or loading', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
     await page.waitForLoadState('networkidle');
 
@@ -39,7 +39,8 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await page.waitForLoadState('networkidle');
 
     // Should show tab navigation or loading/content
-    const content = market.openTab(page)
+    const content = market.buyTab(page)
+      .or(market.sellTab(page))
       .or(market.matchedTab(page))
       .or(market.loadingState(page))
       .or(market.assetName(page))
@@ -63,21 +64,40 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await expect(content).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('can switch between Open and Matched tabs', async ({ page }) => {
+  walletTest('can switch between Buy, Sell, and Matched tabs', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
     await page.waitForLoadState('networkidle');
 
+    // Check Buy tab exists and can be clicked
+    const buyTab = market.buyTab(page);
+    const buyTabCount = await buyTab.count();
+
+    if (buyTabCount > 0) {
+      await expect(buyTab).toBeVisible();
+      await buyTab.click();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Check Sell tab exists and can be clicked
+    const sellTab = market.sellTab(page);
+    const sellTabCount = await sellTab.count();
+
+    if (sellTabCount > 0) {
+      await expect(sellTab).toBeVisible();
+      await sellTab.click();
+      await page.waitForLoadState('networkidle');
+    }
+
     // Click on Matched tab
     const matchedTab = market.matchedTab(page);
-    const tabCount = await matchedTab.count();
+    const matchedTabCount = await matchedTab.count();
 
-    if (tabCount === 0) {
+    if (matchedTabCount === 0) {
       return; // Tab not present
     }
 
     await expect(matchedTab).toBeVisible();
     await matchedTab.click();
-    
 
     // Stats should change to Last/Avg
     await expect(market.lastPrice(page)).toBeVisible({ timeout: 3000 });
@@ -150,5 +170,70 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
 
     const content = market.priceUnitToggle(page).or(market.pageTitle(page)).first();
     await expect(content).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('clicking sell order navigates to buy form with price and amount', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
+    await page.waitForLoadState('networkidle');
+
+    // Click on Sell tab to see sell orders
+    const sellTab = market.sellTab(page);
+    const sellTabCount = await sellTab.count();
+    if (sellTabCount > 0) {
+      await sellTab.click();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Find and click first order card
+    const orderCard = market.orderCards(page);
+    const cardCount = await orderCard.count();
+
+    if (cardCount === 0) {
+      // No orders available, skip test
+      return;
+    }
+
+    await orderCard.click();
+
+    // Should navigate to compose/order with type=buy and price/amount in URL
+    await expect(page).toHaveURL(/compose\/order/);
+    await expect(page).toHaveURL(/type=buy/);
+    await expect(page).toHaveURL(/price=/);
+    await expect(page).toHaveURL(/amount=/);
+
+    // Verify form actually reads the params - Buy tab should be selected
+    const buyTab = page.locator('button:has-text("Buy")').first();
+    await expect(buyTab).toBeVisible({ timeout: 5000 });
+    await expect(buyTab).toHaveClass(/underline/);
+  });
+
+  walletTest('clicking buy order navigates to sell form with price and amount', async ({ page }) => {
+    await page.goto(page.url().replace(/\/index.*/, '/market/orders/XCP/BTC'));
+    await page.waitForLoadState('networkidle');
+
+    // Click on Buy tab to see buy orders
+    const buyTab = market.buyTab(page);
+    const buyTabCount = await buyTab.count();
+    if (buyTabCount > 0) {
+      await buyTab.click();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Find and click first order card
+    const orderCard = market.orderCards(page);
+    const cardCount = await orderCard.count();
+
+    if (cardCount === 0) {
+      // No orders available, skip test
+      return;
+    }
+
+    await orderCard.click();
+
+    // Should navigate to compose/order with type=sell and price/amount in URL
+    await expect(page).toHaveURL(/compose\/order/);
+    await expect(page).toHaveURL(/type=sell/);
+    await expect(page).toHaveURL(/price=/);
+    await expect(page).toHaveURL(/amount=/);
   });
 });

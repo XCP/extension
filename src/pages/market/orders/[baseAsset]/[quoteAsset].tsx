@@ -16,6 +16,12 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { formatAmount } from "@/utils/format";
 import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 import {
+  getOrderPricePerUnit,
+  getOrderBaseAmount,
+  getOrderQuoteAmount,
+  getMatchPricePerUnit,
+} from "@/utils/trading-pair";
+import {
   fetchOrdersByPair,
   fetchOrderMatchesByPair,
   fetchAssetDetails,
@@ -92,31 +98,6 @@ function hasFiatOption(quoteAsset: string): boolean {
 }
 
 /**
- * Calculate price per unit from order (get_quantity / give_quantity)
- */
-function getPricePerUnit(order: Order): number {
-  const giveQty = Number(order.give_quantity_normalized);
-  if (giveQty <= 0) return 0;
-  return Number(order.get_quantity_normalized) / giveQty;
-}
-
-/**
- * Calculate price per unit from order match
- */
-function getMatchPricePerUnit(match: OrderMatch, baseAsset: string): number {
-  // Determine which is base and which is quote
-  if (match.forward_asset === baseAsset) {
-    const baseQty = Number(match.forward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.backward_quantity_normalized) / baseQty;
-  } else {
-    const baseQty = Number(match.backward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.forward_quantity_normalized) / baseQty;
-  }
-}
-
-/**
  * AssetOrders displays orders and order matches for a specific trading pair.
  */
 export default function AssetOrdersPage(): ReactElement {
@@ -145,7 +126,7 @@ export default function AssetOrdersPage(): ReactElement {
   const [isFetchingMoreMatches, setIsFetchingMoreMatches] = useState(false);
 
   // UI state
-  const [tab, setTab] = useState<"open" | "matched">("open");
+  const [tab, setTab] = useState<"buy" | "sell" | "matched">("sell");
   const [priceUnit, setPriceUnit] = useState<OrderPriceUnit>("raw");
 
   // Clipboard
@@ -253,9 +234,9 @@ export default function AssetOrdersPage(): ReactElement {
     loadData();
   }, [loadData]);
 
-  // Load more orders on scroll (when on "open" tab)
+  // Load more orders on scroll (when on "buy" or "sell" tab)
   useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab !== "open") {
+    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab === "matched") {
       return;
     }
 
@@ -330,26 +311,48 @@ export default function AssetOrdersPage(): ReactElement {
     loadMore();
   }, [baseAsset, quoteAsset, inView, isFetchingMoreMatches, hasMoreMatches, matchOffset, tab]);
 
-  // Calculate stats for open orders
+  // Split orders into buy and sell categories based on the URL's trading pair context
+  // Sell order: give_asset = baseAsset (selling base for quote)
+  // Buy order: give_asset = quoteAsset (buying base with quote)
+  const { buyOrders, sellOrders } = useMemo(() => {
+    const buy: Order[] = [];
+    const sell: Order[] = [];
+
+    orders.forEach(order => {
+      if (order.give_asset === baseAsset) {
+        sell.push(order);
+      } else if (order.give_asset === quoteAsset) {
+        buy.push(order);
+      }
+      // Orders that don't match either direction are ignored (shouldn't happen)
+    });
+
+    return { buyOrders: buy, sellOrders: sell };
+  }, [orders, baseAsset, quoteAsset]);
+
+  // Get current orders based on tab
+  const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : [];
+
+  // Calculate stats for current orders
   const orderStats = useMemo(() => {
-    if (orders.length === 0) return null;
+    if (currentOrders.length === 0 || !baseAsset) return null;
 
-    // Total base asset available
-    const totalBaseAsset = orders.reduce(
-      (sum, o) => sum + Number(o.give_remaining_normalized), 0
+    // Use helper functions that account for buy vs sell order direction
+    const totalBaseAsset = currentOrders.reduce(
+      (sum, o) => sum + getOrderBaseAmount(o, baseAsset), 0
     );
 
-    // Total quote asset required
-    const totalQuoteAsset = orders.reduce(
-      (sum, o) => sum + Number(o.get_remaining_normalized), 0
+    const totalQuoteAsset = currentOrders.reduce(
+      (sum, o) => sum + getOrderQuoteAmount(o, baseAsset), 0
     );
 
-    // Floor price (lowest ask)
-    const floorPrice = Math.min(...orders.map(o => getPricePerUnit(o)));
+    // Floor price (lowest price in quote per base)
+    const prices = currentOrders.map(o => getOrderPricePerUnit(o, baseAsset)).filter(p => p > 0);
+    const floorPrice = prices.length > 0 ? Math.min(...prices) : 0;
 
-    // Weighted average price
-    const weightedSum = orders.reduce(
-      (sum, o) => sum + getPricePerUnit(o) * Number(o.give_remaining_normalized), 0
+    // Weighted average price (weighted by base asset amount)
+    const weightedSum = currentOrders.reduce(
+      (sum, o) => sum + getOrderPricePerUnit(o, baseAsset) * getOrderBaseAmount(o, baseAsset), 0
     );
     const weightedAvg = totalBaseAsset > 0 ? weightedSum / totalBaseAsset : 0;
 
@@ -359,7 +362,7 @@ export default function AssetOrdersPage(): ReactElement {
       floorPrice,
       weightedAvg,
     };
-  }, [orders]);
+  }, [currentOrders, baseAsset]);
 
   // Calculate stats for matches
   const matchStats = useMemo(() => {
@@ -394,16 +397,35 @@ export default function AssetOrdersPage(): ReactElement {
   }, [matches, baseAsset]);
 
   const handleOrderClick = (order: Order) => {
-    // Navigate to order matching page
-    navigate(`/compose/order/${baseAsset}?type=buy&quote=${quoteAsset}`);
+    if (!baseAsset || !quoteAsset) return;
+
+    // Clicking a sell order means we want to buy; clicking a buy order means we want to sell
+    const orderType = tab === "sell" ? "buy" : "sell";
+
+    // Get price and amount using helper functions that handle both order directions
+    const pricePerUnit = getOrderPricePerUnit(order, baseAsset);
+    const amount = getOrderBaseAmount(order, baseAsset);
+
+    // Guard against invalid data
+    if (pricePerUnit <= 0 || amount <= 0) return;
+
+    // Build URL with pre-filled values
+    const params = new URLSearchParams({
+      type: orderType,
+      quote: quoteAsset,
+      price: pricePerUnit.toFixed(8),
+      amount: amount.toString(),
+    });
+
+    navigate(`/compose/order/${baseAsset}?${params.toString()}`);
   };
 
   if (loading) {
     return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
   }
 
-  const hasMore = tab === "open" ? hasMoreOrders : hasMoreMatches;
-  const isFetching = tab === "open" ? isFetchingMore : isFetchingMoreMatches;
+  const hasMore = tab === "matched" ? hasMoreMatches : hasMoreOrders;
+  const isFetching = tab === "matched" ? isFetchingMoreMatches : isFetchingMore;
 
   return (
     <div className="flex flex-col h-full" role="main">
@@ -426,7 +448,7 @@ export default function AssetOrdersPage(): ReactElement {
         <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
           <div className="flex items-center gap-2">
             <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-              {tab === "open" && orderStats && (
+              {(tab === "buy" || tab === "sell") && orderStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Floor</span>
@@ -450,7 +472,7 @@ export default function AssetOrdersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "open" && !orderStats && (
+              {(tab === "buy" || tab === "sell") && !orderStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Floor</span>
@@ -516,14 +538,24 @@ export default function AssetOrdersPage(): ReactElement {
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
             <button
-              onClick={() => setTab("open")}
+              onClick={() => setTab("buy")}
               className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "open"
+                tab === "buy"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Open
+              Buy
+            </button>
+            <button
+              onClick={() => setTab("sell")}
+              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                tab === "sell"
+                  ? "bg-gray-200 text-gray-900 font-medium"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              Sell
             </button>
             <button
               onClick={() => setTab("matched")}
@@ -545,21 +577,7 @@ export default function AssetOrdersPage(): ReactElement {
         </div>
 
         {/* Content */}
-        {tab === "open" ? (
-          orders.length > 0 ? (
-            <div className="space-y-2">
-              {orders.map((o) => (
-                <MarketOrderCard
-                  key={o.tx_hash}
-                  order={o}
-                  onClick={() => handleOrderClick(o)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={`No open ${baseAsset}/${quoteAsset} orders`} />
-          )
-        ) : (
+        {tab === "matched" ? (
           matches.length > 0 ? (
             <div className="space-y-2">
               {matches.map((m) => (
@@ -573,6 +591,20 @@ export default function AssetOrdersPage(): ReactElement {
             </div>
           ) : (
             <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
+          )
+        ) : (
+          currentOrders.length > 0 ? (
+            <div className="space-y-2">
+              {currentOrders.map((o) => (
+                <MarketOrderCard
+                  key={o.tx_hash}
+                  order={o}
+                  onClick={() => handleOrderClick(o)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`} />
           )
         )}
 
@@ -590,7 +622,7 @@ export default function AssetOrdersPage(): ReactElement {
         </div>
 
         {/* Footer summary - contextual totals */}
-        {tab === "open" && orderStats && orders.length > 1 && (
+        {(tab === "buy" || tab === "sell") && orderStats && currentOrders.length > 1 && (
           <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
             <span>
               {formatAmount({ value: orderStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}

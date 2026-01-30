@@ -21,6 +21,17 @@ interface OrderFormData extends OrderOptions {
   amount?: string;
   price?: string;
   quote_asset?: string;
+  is_pair_flipped?: string;
+}
+
+/**
+ * URL parameters for pre-filling the form (e.g., from market order click)
+ */
+interface OrderUrlParams {
+  type?: "buy" | "sell" | null;
+  quote?: string | null;
+  price?: string | null;
+  amount?: string | null;
 }
 
 /**
@@ -30,6 +41,7 @@ interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;
   giveAsset: string;
+  urlParams?: OrderUrlParams;
 }
 
 /**
@@ -39,45 +51,73 @@ export function OrderForm({
   formAction,
   initialFormData,
   giveAsset,
+  urlParams,
 }: OrderFormProps): ReactElement {
   // Context hooks
   const { activeAddress, settings, showHelpText, feeRate } = useComposer();
-  
-  // Data fetching hooks
-  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
-  const { data: getAssetDetails } = useAssetDetails(
-    (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
+
+  // Form state - defined before hooks that depend on it
+  // Priority: initialFormData (from form persistence) > urlParams (from URL) > defaults
+  const [quoteAsset, setQuoteAsset] = useState<string>(
+    initialFormData?.quote_asset || urlParams?.quote || (giveAsset === "XCP" ? "BTC" : "XCP")
   );
+
+  // Data fetching hooks - use current quoteAsset state for reactivity
+  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
+  const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
+  const { data: getAssetDetails } = useAssetDetails(giveAsset);
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Tab state - default to "sell" since users typically navigate here from their balances
+  // Tab state - priority: initialFormData > urlParams > default (sell)
+  const initialType = initialFormData?.type || urlParams?.type || "sell";
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
-    initialFormData?.type === "buy" ? "buy" : initialFormData?.type === "sell" ? "sell" : "sell"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
-    initialFormData?.type === "buy" ? "buy" : "sell"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [tabLoading, setTabLoading] = useState(false);
-  
-  // Form state
-  const [price, setPrice] = useState<string>(initialFormData?.price || "");
-  const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
+
+  // Form state - priority: initialFormData > urlParams > empty
+  const [price, setPrice] = useState<string>(initialFormData?.price || urlParams?.price || "");
+  const [amount, setAmount] = useState<string>(initialFormData?.amount || urlParams?.amount || "");
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
-  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
   
-  // Trading state
-  const [isPairFlipped, setIsPairFlipped] = useState(false);
+  // Trading state - restore from initialFormData if present
+  const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
+
+  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL entry)
+  // Only applies if no initialFormData (user wasn't editing a form)
+  useEffect(() => {
+    if (initialFormData) return; // Don't override persisted form state
+
+    if (urlParams?.type && urlParams.type !== (activeTab === "buy" ? "buy" : "sell")) {
+      const newTab = urlParams.type === "buy" ? "buy" : "sell";
+      setActiveTab(newTab);
+      setPreviousTab(newTab);
+    }
+    if (urlParams?.price && !price) {
+      setPrice(urlParams.price);
+    }
+    if (urlParams?.amount && !amount) {
+      setAmount(urlParams.amount);
+    }
+    if (urlParams?.quote && urlParams.quote !== quoteAsset) {
+      setQuoteAsset(urlParams.quote);
+    }
+  }, [urlParams?.type, urlParams?.price, urlParams?.amount, urlParams?.quote]);
 
   // Computed values
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
+  const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : giveAsset;
@@ -107,6 +147,16 @@ export function OrderForm({
 
   const handlePriceChange = (newPrice: string) => {
     setPrice(newPrice);
+  };
+
+  const handleQuoteAssetChange = (newQuoteAsset: string) => {
+    if (newQuoteAsset !== quoteAsset) {
+      // Clear price and amount when quote asset changes to avoid mistakes
+      setPrice("");
+      setAmount("");
+      setIsPairFlipped(false);
+      setQuoteAsset(newQuoteAsset);
+    }
   };
 
   return (
@@ -153,7 +203,7 @@ export function OrderForm({
         </div>
         <button
           type="button"
-          className={`p-2 hover:bg-gray-100 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+          className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
@@ -181,6 +231,7 @@ export function OrderForm({
             formData.set('price', price);
             formData.set('type', activeTab);
             formData.set('quote_asset', quoteAsset);
+            formData.set('is_pair_flipped', isPairFlipped.toString());
             
             // Calculate give_quantity and get_quantity based on buy/sell
             const amountBN = toBigNumber(amount);
@@ -238,12 +289,12 @@ export function OrderForm({
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (price ? formatAmount({
-                value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
-                maximumFractionDigits: isGetAssetDivisible ? 8 : 0,
+              maxAmount={isBuy ? (toBigNumber(price).isGreaterThan(0) ? formatAmount({
+                value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
+                maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
                 minimumFractionDigits: 0
               }) : "") : availableBalance}
-              disableMaxButton={isBuy && !price}
+              disableMaxButton={isBuy && !toBigNumber(price).isGreaterThan(0)}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
@@ -252,7 +303,7 @@ export function OrderForm({
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
-              onChange={setQuoteAsset}
+              onChange={handleQuoteAssetChange}
               label="Quote"
               showHelpText={showHelpText}
             />
