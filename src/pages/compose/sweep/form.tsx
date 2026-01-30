@@ -18,6 +18,7 @@ import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
 // Define sweep type options
+// Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content
 const FLAG_BALANCES = 1;
 const FLAG_OWNERSHIP = 2;
 

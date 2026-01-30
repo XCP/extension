@@ -3,9 +3,10 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
+import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
 import { toSatoshis } from "@/utils/numeric";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Converts form string values to proper booleans.
@@ -17,6 +18,16 @@ function toBoolean(val: unknown): boolean {
   return false;
 }
 
+// FLAG_BINARY_MEMO indicates memo is hex/binary (per counterparty-core sweep.py)
+const FLAG_BINARY_MEMO = 4;
+
+/**
+ * Memo configuration types for different compose operations
+ */
+type MemoConfig =
+  | { type: 'boolean'; field: string }  // Set a boolean field (e.g., memo_is_hex for send)
+  | { type: 'flag'; flagsField: string; flagValue: number };  // OR a flag value (e.g., sweep)
+
 /**
  * Configuration for normalizing form fields based on compose type.
  *
@@ -24,15 +35,18 @@ function toBoolean(val: unknown): boolean {
  * - `assetFields`: Maps quantity field → form field name to look up the asset
  *                  For hardcoded assets (e.g., BTC), use a hidden form field
  * - `booleanFields`: Fields that should be converted from strings to booleans
+ * - `memoConfig`: How to handle hex memo detection (set boolean or OR flag)
  */
 const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
   booleanFields?: string[];
+  memoConfig?: MemoConfig;
 }> = {
   send: {
     quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    assetFields: { quantity: 'asset' },
+    memoConfig: { type: 'boolean', field: 'memo_is_hex' }
   },
   order: {
     quantityFields: ['give_quantity', 'get_quantity'],
@@ -85,7 +99,8 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   sweep: {
     quantityFields: [],
-    assetFields: {}
+    assetFields: {},
+    memoConfig: { type: 'flag', flagsField: 'flags', flagValue: FLAG_BINARY_MEMO }
   },
   utxo: {
     quantityFields: [],
@@ -276,6 +291,26 @@ export async function normalizeFormData(
     for (const booleanField of config.booleanFields) {
       if (booleanField in rawData) {
         normalizedData[booleanField] = toBoolean(rawData[booleanField]);
+      }
+    }
+  }
+
+  // Process memo field (detect hex, strip prefix, set appropriate indicator)
+  if (config.memoConfig && 'memo' in rawData) {
+    const memo = rawData['memo']?.toString() || '';
+
+    if (memo && isHexMemo(memo)) {
+      // Strip hex prefix and update memo
+      normalizedData['memo'] = stripHexPrefix(memo);
+
+      // Set the hex indicator based on config type
+      if (config.memoConfig.type === 'boolean') {
+        // For send: set memo_is_hex = true
+        normalizedData[config.memoConfig.field] = true;
+      } else if (config.memoConfig.type === 'flag') {
+        // For sweep: OR the flag value into the flags field
+        const currentFlags = parseInt(rawData[config.memoConfig.flagsField]?.toString() || '0', 10);
+        normalizedData[config.memoConfig.flagsField] = currentFlags | config.memoConfig.flagValue;
       }
     }
   }
