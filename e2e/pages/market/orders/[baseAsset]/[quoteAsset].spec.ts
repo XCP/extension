@@ -200,6 +200,11 @@ walletTest.describe('Asset Orders Page (/market/orders/:baseAsset/:quoteAsset)',
     await expect(page).toHaveURL(/type=buy/);
     await expect(page).toHaveURL(/price=/);
     await expect(page).toHaveURL(/amount=/);
+
+    // Verify form actually reads the params - Buy tab should be selected
+    const buyTab = page.locator('button:has-text("Buy")').first();
+    await expect(buyTab).toBeVisible({ timeout: 5000 });
+    await expect(buyTab).toHaveClass(/underline/);
   });
 
   walletTest('clicking buy order navigates to sell form with price and amount', async ({ page }) => {

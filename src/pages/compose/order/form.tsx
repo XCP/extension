@@ -90,6 +90,27 @@ export function OrderForm({
   // Trading state - restore from initialFormData if present
   const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
 
+  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL entry)
+  // Only applies if no initialFormData (user wasn't editing a form)
+  useEffect(() => {
+    if (initialFormData) return; // Don't override persisted form state
+
+    if (urlParams?.type && urlParams.type !== (activeTab === "buy" ? "buy" : "sell")) {
+      const newTab = urlParams.type === "buy" ? "buy" : "sell";
+      setActiveTab(newTab);
+      setPreviousTab(newTab);
+    }
+    if (urlParams?.price && !price) {
+      setPrice(urlParams.price);
+    }
+    if (urlParams?.amount && !amount) {
+      setAmount(urlParams.amount);
+    }
+    if (urlParams?.quote && urlParams.quote !== quoteAsset) {
+      setQuoteAsset(urlParams.quote);
+    }
+  }, [urlParams?.type, urlParams?.price, urlParams?.amount, urlParams?.quote]);
+
   // Computed values
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
@@ -268,12 +289,12 @@ export function OrderForm({
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (price ? formatAmount({
+              maxAmount={isBuy ? (toBigNumber(price).isGreaterThan(0) ? formatAmount({
                 value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
                 maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
                 minimumFractionDigits: 0
               }) : "") : availableBalance}
-              disableMaxButton={isBuy && !price}
+              disableMaxButton={isBuy && !toBigNumber(price).isGreaterThan(0)}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}

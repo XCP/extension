@@ -90,10 +90,7 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     await expect(priceInput).toHaveValue('');
   });
 
-  // Note: URL params tests are skipped because useSearchParams in hash router
-  // may not read query params correctly in all environments.
-  // The functionality is tested via the market order click flow tests instead.
-  walletTest.skip('order form reads type param from URL', async ({ page }) => {
+  walletTest('order form reads type param from URL', async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
 
@@ -107,7 +104,7 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     await expect(buyTab).toHaveClass(/underline/);
   });
 
-  walletTest.skip('order form reads price and amount params from URL', async ({ page }) => {
+  walletTest('order form reads price and amount params from URL', async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
 
@@ -126,7 +123,7 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     await expect(priceInput).toHaveValue('0.00123456');
   });
 
-  walletTest.skip('order form reads quote param from URL', async ({ page }) => {
+  walletTest('order form reads quote param from URL', async ({ page }) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
 
