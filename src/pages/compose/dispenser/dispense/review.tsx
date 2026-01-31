@@ -194,6 +194,14 @@ export function ReviewDispense({
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
 
+      // Add dispenser TX hash first (after To:)
+      if (dispenser.tx_hash) {
+        customFields.push({
+          label: "Dispenser",
+          value: dispenser.tx_hash
+        });
+      }
+
       customFields.push(
         {
           label: "# of Dispenses",
@@ -209,14 +217,6 @@ export function ReviewDispense({
           rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
         }
       );
-    }
-    
-    // Add dispenser TX hash only for single dispenser
-    if (allTriggeredDispensers.length === 1 && allTriggeredDispensers[0].tx_hash) {
-      customFields.push({
-        label: "Dispenser TX Hash",
-        value: allTriggeredDispensers[0].tx_hash
-      });
     }
     
     // Add mempool warning if there are competing transactions

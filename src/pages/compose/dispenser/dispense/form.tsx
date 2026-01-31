@@ -307,12 +307,17 @@ export function DispenseForm({
           : "No available balance.";
         setValidationError(message);
       } else {
-        const requiredBTC = selectedDispenser.satoshirate / SATOSHIS_PER_BTC;
+        // Calculate fee for error message
+        const effectiveFeeRate = feeRate ?? 0.1;
+        const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
+        const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+        const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
+        const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
         setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
             value: requiredBTC,
             minimumFractionDigits: 8,
             maximumFractionDigits: 8
-          })} BTC to trigger this dispenser once.`);
+          })} BTC (including ~${estimatedFee} sats fee) to trigger this dispenser once.`);
       }
       return;
     }
