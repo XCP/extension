@@ -46,6 +46,7 @@ const NORMALIZATION_CONFIG: Record<string, {
   send: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' },
+    booleanFields: ['no_dispense'],
     memoConfig: { type: 'boolean', field: 'memo_is_hex' }
   },
   order: {
