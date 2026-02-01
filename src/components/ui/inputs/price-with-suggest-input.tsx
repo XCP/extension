@@ -16,6 +16,7 @@ interface PriceWithSuggestInputProps {
   showPairFlip?: boolean;
   isPairFlipped?: boolean;
   setIsPairFlipped?: React.Dispatch<React.SetStateAction<boolean>>;
+  disabled?: boolean;
 }
 
 /**
@@ -35,7 +36,8 @@ export function PriceWithSuggestInput({
   className,
   showPairFlip = false,
   isPairFlipped = false,
-  setIsPairFlipped
+  setIsPairFlipped,
+  disabled = false
 }: PriceWithSuggestInputProps): ReactElement {
   const flipPairName = (pairName: string) => {
     const [baseAsset, quoteAsset] = pairName.split('/');
@@ -116,11 +118,14 @@ export function PriceWithSuggestInput({
           name={name}
           value={value}
           onChange={handleInputChange}
-          className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 pr-16"
+          className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 pr-16 ${
+            disabled ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
+          }`}
           required
           placeholder="0.00000000"
+          disabled={disabled}
         />
-        {tradingPairData?.last_trade_price && (
+        {tradingPairData?.last_trade_price && !disabled && (
           <Button
             variant="input"
             onClick={handleSuggestClick}

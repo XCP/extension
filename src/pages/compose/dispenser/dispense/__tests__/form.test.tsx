@@ -64,6 +64,37 @@ vi.mock('@/contexts/loading-context', () => ({
   })
 }));
 
+// Helper to create mock dispenser with all required DispenserDetails fields
+function createMockDispenser(overrides: Partial<counterpartyApi.DispenserDetails> = {}): counterpartyApi.DispenserDetails {
+  return {
+    asset: 'PEPECASH',
+    source: 'bc1qsource',
+    tx_hash: 'abc123',
+    status: 0,
+    give_remaining: 1000000,
+    give_remaining_normalized: '10',
+    give_quantity: 100000,
+    give_quantity_normalized: '1',
+    satoshirate: 5000,
+    satoshirate_normalized: '0.00005000',
+    escrow_quantity: 10000000,
+    escrow_quantity_normalized: '100',
+    block_index: 800000,
+    block_time: 1700000000,
+    confirmed: true,
+    price: 5000,
+    satoshi_price: 5000,
+    asset_info: {
+      asset_longname: null,
+      description: 'Rare Pepe Cash',
+      issuer: 'test-issuer',
+      divisible: true,
+      locked: true,
+    },
+    ...overrides,
+  };
+}
+
 describe('DispenseForm', () => {
   const mockFormAction = vi.fn();
   const mockFetchAddressDispensers = vi.mocked(counterpartyApi.fetchAddressDispensers);
@@ -106,26 +137,7 @@ describe('DispenseForm', () => {
   });
 
   it('should fetch dispensers when address is entered', async () => {
-    const mockDispensers = [
-      {
-        asset: 'PEPECASH',
-        source: 'bc1qsource',
-        tx_hash: 'abc123',
-        status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10',
-        give_quantity: 100000,
-        give_quantity_normalized: '1',
-        satoshirate: 5000,
-        asset_info: {
-          asset_longname: null,
-          description: 'Rare Pepe Cash',
-          issuer: 'test-issuer',
-          divisible: true,
-          locked: true,
-        },
-      },
-    ];
+    const mockDispensers = [createMockDispenser()];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,
@@ -188,34 +200,16 @@ describe('DispenseForm', () => {
 
   it('should allow selecting different dispensers', async () => {
     const mockDispensers = [
-      {
-        asset: 'PEPECASH',
-        source: 'bc1qsource',
-        tx_hash: 'abc123',
-        status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10',
-        give_quantity: 100000,
-        give_quantity_normalized: '1',
-        satoshirate: 5000,
-        asset_info: {
-          asset_longname: null,
-          description: 'Rare Pepe Cash',
-          issuer: 'test-issuer',
-          divisible: true,
-          locked: true,
-        },
-      },
-      {
+      createMockDispenser(),
+      createMockDispenser({
         asset: 'RAREPEPE',
-        source: 'bc1qsource',
         tx_hash: 'def456',
-        status: 0,
         give_remaining: 500000,
         give_remaining_normalized: '5',
         give_quantity: 50000,
         give_quantity_normalized: '0.5',
         satoshirate: 10000,
+        satoshirate_normalized: '0.00010000',
         asset_info: {
           asset_longname: null,
           description: 'Rare Pepe',
@@ -223,7 +217,7 @@ describe('DispenseForm', () => {
           divisible: true,
           locked: true,
         },
-      },
+      }),
     ];
 
     mockFetchAddressDispensers.mockResolvedValue({
@@ -257,26 +251,7 @@ describe('DispenseForm', () => {
   }, 15000);
 
   it('should handle max dispenses calculation', async () => {
-    const mockDispensers = [
-      {
-        asset: 'PEPECASH',
-        source: 'bc1qsource',
-        tx_hash: 'abc123',
-        status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10',
-        give_quantity: 100000,
-        give_quantity_normalized: '1',
-        satoshirate: 1000,
-        asset_info: {
-          asset_longname: null,
-          description: 'Rare Pepe Cash',
-          issuer: 'test-issuer',
-          divisible: true,
-          locked: true,
-        },
-      },
-    ];
+    const mockDispensers = [createMockDispenser({ satoshirate: 1000, satoshirate_normalized: '0.00001000' })];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,
@@ -314,26 +289,18 @@ describe('DispenseForm', () => {
   }, 15000);
 
   it('should show insufficient balance error', async () => {
-    const mockDispensers = [
-      {
-        asset: 'EXPENSIVE',
-        source: 'bc1qsource',
-        tx_hash: 'abc123',
-        status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10',
-        give_quantity: 100000,
-        give_quantity_normalized: '1',
-        satoshirate: 100000000, // 1 BTC per dispense (more than our 0.1 BTC balance)
-        asset_info: {
-          asset_longname: null,
-          description: 'Expensive Asset',
-          issuer: 'test-issuer',
-          divisible: true,
-          locked: true,
-        },
+    const mockDispensers = [createMockDispenser({
+      asset: 'EXPENSIVE',
+      satoshirate: 100000000, // 1 BTC per dispense (more than our 0.1 BTC balance)
+      satoshirate_normalized: '1.00000000',
+      asset_info: {
+        asset_longname: null,
+        description: 'Expensive Asset',
+        issuer: 'test-issuer',
+        divisible: true,
+        locked: true,
       },
-    ];
+    })];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,
@@ -372,26 +339,20 @@ describe('DispenseForm', () => {
   });
 
   it('should handle empty dispenser', async () => {
-    const mockDispensers = [
-      {
-        asset: 'EMPTY',
-        source: 'bc1qsource',
-        tx_hash: 'abc123',
-        status: 0,
-        give_remaining: 0,
-        give_remaining_normalized: '0',
-        give_quantity: 100000,
-        give_quantity_normalized: '1',
-        satoshirate: 1000,
-        asset_info: {
-          asset_longname: null,
-          description: 'Empty Asset',
-          issuer: 'test-issuer',
-          divisible: true,
-          locked: true,
-        },
+    const mockDispensers = [createMockDispenser({
+      asset: 'EMPTY',
+      give_remaining: 0,
+      give_remaining_normalized: '0',
+      satoshirate: 1000,
+      satoshirate_normalized: '0.00001000',
+      asset_info: {
+        asset_longname: null,
+        description: 'Empty Asset',
+        issuer: 'test-issuer',
+        divisible: true,
+        locked: true,
       },
-    ];
+    })];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,

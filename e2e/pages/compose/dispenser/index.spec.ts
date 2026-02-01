@@ -14,21 +14,6 @@ import {
 } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
-  walletTest('can navigate to create dispenser from manage page', async ({ page }) => {
-    // Navigate directly to the dispenser management page
-    await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
-    await page.waitForLoadState('networkidle');
-
-    const newDispenserButton = page.locator('button:has-text("New Dispenser"), a:has-text("New Dispenser"), button:has-text("Create Dispenser")').first();
-    const buttonCount = await newDispenserButton.count();
-
-    if (buttonCount > 0) {
-      await expect(newDispenserButton).toBeVisible({ timeout: 5000 });
-      await newDispenserButton.click();
-      await expect(page).toHaveURL(/dispenser/, { timeout: 5000 });
-    }
-  });
-
   walletTest('create dispenser form has required fields', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/XCP'));
     await page.waitForLoadState('networkidle');

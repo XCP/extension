@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiHelpCircle } from "@/components/icons";
+import { FaLock } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
@@ -22,7 +22,6 @@ const PATHS = {
   SECURITY: "/settings/security",
   RESET_WALLET: "/keychain/wallets/reset",
   PINNED_ASSETS: "/settings/pinned-assets",
-  HELP_URL: "https://youtube.com", // Placeholder for now
 } as const;
 const EXTERNAL_LINKS = {
   TERMS: "https://www.xcp.io/terms",
@@ -47,20 +46,23 @@ const VERSION = packageJson.version;
 export default function SettingsPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet } = useWallet();
+  const { activeWallet, lockKeychain } = useWallet();
 
-  // Configure header with help button
+  // Configure header with lock button
   useEffect(() => {
     setHeaderProps({
       title: "Settings",
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
-        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
-        onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        icon: <FaLock aria-hidden="true" />,
+        onClick: async () => {
+          await lockKeychain();
+          navigate("/keychain/unlock");
+        },
+        ariaLabel: "Lock Keychain",
       },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, lockKeychain]);
 
   /**
    * Gets a human-readable description for the wallet's address type.

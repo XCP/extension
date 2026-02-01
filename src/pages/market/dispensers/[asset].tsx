@@ -1,9 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { TbRepeat, FiRefreshCw, FaCheck } from "@/components/icons";
-import { AssetInfoPopover } from "@/components/domain/asset/asset-info-popover";
 import { Spinner } from "@/components/ui/spinner";
-import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
 import { AssetDispenseCard } from "@/components/ui/cards/asset-dispense-card";
@@ -13,6 +12,7 @@ import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { formatPrice, getRawPrice, getNextPriceUnit } from "@/utils/price-format";
+import { formatAmount } from "@/utils/format";
 import type { PriceUnit } from "@/utils/settings";
 import {
   fetchAssetDispensers,
@@ -160,6 +160,7 @@ export default function AssetDispensersPage(): ReactElement {
         fetchAssetDispensers(asset, { limit: FETCH_LIMIT, status: "open" }),
         fetchAssetDispenses(asset, { limit: FETCH_LIMIT }),
       ]);
+
       if (infoRes) setAssetInfo(infoRes);
 
       // Sort by price (lowest first) for better UX
@@ -358,215 +359,221 @@ export default function AssetDispensersPage(): ReactElement {
   }, [dispenses]);
 
   const handleDispenserClick = (dispenser: DispenserDetails) => {
-    navigate(`/compose/dispenser/dispense?address=${dispenser.source}`);
+    navigate(`/compose/dispenser/dispense?address=${dispenser.source}&asset=${dispenser.asset}`);
   };
 
   if (loading) {
     return <Spinner message={`Loading ${asset} dispensers…`} />;
   }
 
-  const hasMore = tab === "open" ? hasMoreDispensers : hasMoreDispenses;
-  const isFetching = tab === "open" ? isFetchingMore : isFetchingMoreDispenses;
+  const hasMore = tab === "open" ? hasMoreDispensers : tab === "history" ? hasMoreDispenses : false;
+  const isFetching = tab === "open" ? isFetchingMore : tab === "history" ? isFetchingMoreDispenses : false;
 
   return (
     <div className="flex flex-col h-full" role="main">
-      <div className="flex-1 overflow-auto no-scrollbar p-4">
-        {/* Asset Header - matches BalanceHeader style */}
-        <div className="flex items-center mb-4">
-          <AssetIcon asset={asset || ""} size="lg" className="mr-4" />
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold break-all">
-              {assetInfo?.asset_longname || asset}
-            </h2>
-            <p className="text-sm text-gray-600">
-              Supply: {formatAmount({ value: Number(assetInfo?.supply_normalized || 0), maximumFractionDigits: 0 })}
-            </p>
-          </div>
-          <AssetInfoPopover assetInfo={assetInfo} className="flex-shrink-0 ml-2" />
-        </div>
+      <div className="flex flex-col flex-grow min-h-0">
+        {/* Fixed Header */}
+        <div className="p-4 pb-0 flex-shrink-0">
+          {/* Asset Header */}
+          {assetInfo && (
+            <AssetHeader assetInfo={assetInfo} showInfoPopover className="mb-4" />
+          )}
 
-        {/* Stats Card - contextual based on tab */}
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-              {tab === "open" && dispenserStats && (
-                <>
-                  <CopyableStat
-                    label="Floor"
-                    value={formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
-                    rawValue={getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
-                    onCopy={copy}
-                    isCopied={isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
-                  />
-                  <CopyableStat
-                    label="Avg"
-                    value={formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
-                    rawValue={getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
-                    onCopy={copy}
-                    isCopied={isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
-                  />
-                </>
-              )}
-              {tab === "open" && !dispenserStats && (
-                <>
-                  <div>
-                    <span className="text-gray-500">Floor</span>
-                    <div className="font-medium text-gray-900">—</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div className="font-medium text-gray-900">—</div>
-                  </div>
-                </>
-              )}
-              {tab === "history" && dispenseStats && (
-                <>
-                  <CopyableStat
-                    label="Last"
-                    value={formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
-                    rawValue={getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
-                    onCopy={copy}
-                    isCopied={isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
-                  />
-                  <CopyableStat
-                    label="Avg"
-                    value={formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
-                    rawValue={getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
-                    onCopy={copy}
-                    isCopied={isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
-                  />
-                </>
-              )}
-              {tab === "history" && !dispenseStats && (
-                <>
-                  <div>
-                    <span className="text-gray-500">Last</span>
-                    <div className="font-medium text-gray-900">—</div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div className="font-medium text-gray-900">—</div>
-                  </div>
-                </>
-              )}
+          {/* Stats Card - contextual based on tab */}
+          <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
+                {tab === "open" && dispenserStats && (
+                  <>
+                    <CopyableStat
+                      label="Floor"
+                      value={formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
+                      rawValue={getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
+                    />
+                    <CopyableStat
+                      label="Avg"
+                      value={formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
+                      rawValue={getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
+                    />
+                  </>
+                )}
+                {tab === "open" && !dispenserStats && (
+                  <>
+                    <div>
+                      <span className="text-gray-500">Floor</span>
+                      <div className="font-medium text-gray-900">—</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Avg</span>
+                      <div className="font-medium text-gray-900">—</div>
+                    </div>
+                  </>
+                )}
+                {tab === "history" && dispenseStats && (
+                  <>
+                    <CopyableStat
+                      label="Last"
+                      value={formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
+                      rawValue={getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
+                    />
+                    <CopyableStat
+                      label="Avg"
+                      value={formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
+                      rawValue={getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
+                    />
+                  </>
+                )}
+                {tab === "history" && !dispenseStats && (
+                  <>
+                    <div>
+                      <span className="text-gray-500">Last</span>
+                      <div className="font-medium text-gray-900">—</div>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Avg</span>
+                      <div className="font-medium text-gray-900">—</div>
+                    </div>
+                  </>
+                )}
+              </div>
+              <button
+                onClick={togglePriceUnit}
+                className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+              >
+                <TbRepeat className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          {/* Section Header with Tabs */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setTab("open")}
+                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  tab === "open"
+                    ? "bg-gray-200 text-gray-900 font-medium"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Open
+              </button>
+              <button
+                onClick={() => setTab("history")}
+                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  tab === "history"
+                    ? "bg-gray-200 text-gray-900 font-medium"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                History
+              </button>
             </div>
             <button
-              onClick={togglePriceUnit}
-              className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-              aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+              onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
+              className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
-              <TbRepeat className="size-4" aria-hidden="true" />
+              My Dispensers
             </button>
           </div>
         </div>
 
-        {/* Section Header with Tabs left, Create button right */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex gap-1">
-            <button
-              onClick={() => setTab("open")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "open"
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Open
-            </button>
-            <button
-              onClick={() => setTab("history")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "history"
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              History
-            </button>
-          </div>
-          <button
-            onClick={() => navigate("/market/dispensers/manage")}
-            className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
-          >
-            My Dispensers
-          </button>
-        </div>
-
-        {/* Content */}
-        {tab === "open" ? (
-          dispensers.length > 0 ? (
-            <div className="space-y-2">
-              {dispensers.map((d) => (
-                <AssetDispenserCard
-                  key={d.tx_hash}
-                  dispenser={d}
-                  formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.fiat)}
-                  onClick={() => handleDispenserClick(d)}
-                  onCopyAddress={copy}
-                  isCopied={isCopied(d.source)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={`No open ${asset} dispensers found`} />
-          )
-        ) : (
-          dispenses.length > 0 ? (
-            <div className="space-y-2">
-              {dispenses.map((d) => {
-                const quantity = Number(d.dispense_quantity_normalized);
-                const pricePerUnit = quantity > 0 ? Math.round(d.btc_amount / quantity) : 0;
-                return (
-                  <AssetDispenseCard
+        {/* Scrollable Content */}
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4">
+          {tab === "open" && (
+            dispensers.length > 0 ? (
+              <div className="space-y-2">
+                {dispensers.map((d) => (
+                  <AssetDispenserCard
                     key={d.tx_hash}
-                    dispense={d}
-                    asset={asset || ""}
-                    formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.fiat)}
-                    onCopyTx={copy}
-                    isCopied={isCopied(d.tx_hash)}
+                    dispenser={d}
+                    formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.fiat)}
+                    onClick={() => handleDispenserClick(d)}
+                    onCopyAddress={copy}
+                    isCopied={isCopied(d.source)}
                   />
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyState message={`No recent ${asset} dispenses`} />
-          )
-        )}
-
-        {/* Load more sentinel */}
-        <div ref={loadMoreRef} className="py-2">
-          {hasMore ? (
-            isFetching ? (
-              <div className="flex justify-center">
-                <Spinner className="py-4" />
+                ))}
               </div>
             ) : (
-              <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+              <>
+                <EmptyState message={`No open ${asset} dispensers found`} />
+                <button
+                  onClick={() => navigate(`/compose/dispenser/${asset}`)}
+                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                >
+                  Create New Dispenser →
+                </button>
+              </>
             )
-          ) : null}
-        </div>
+          )}
 
-        {/* Footer summary - contextual totals */}
-        {tab === "open" && dispenserStats && dispensers.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
-            <span>
-              {formatAmount({ value: dispenserStats.totalBtc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC
-            </span>
-            <span>
-              for {formatAmount({ value: dispenserStats.totalAsset, maximumFractionDigits: 0 })} {asset}
-            </span>
+          {tab === "history" && (
+            dispenses.length > 0 ? (
+              <div className="space-y-2">
+                {dispenses.map((d) => {
+                  const quantity = Number(d.dispense_quantity_normalized);
+                  const pricePerUnit = quantity > 0 ? Math.round(d.btc_amount / quantity) : 0;
+                  return (
+                    <AssetDispenseCard
+                      key={d.tx_hash}
+                      dispense={d}
+                      asset={asset || ""}
+                      formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.fiat)}
+                      onCopyTx={copy}
+                      isCopied={isCopied(d.tx_hash)}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyState message={`No recent ${asset} dispenses`} />
+            )
+          )}
+
+          {/* Load more sentinel */}
+          <div ref={loadMoreRef} className="py-2">
+            {hasMore ? (
+              isFetching ? (
+                <div className="flex justify-center">
+                  <Spinner className="py-4" />
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+              )
+            ) : null}
           </div>
-        )}
-        {tab === "history" && dispenseStats && dispenses.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
-            <span>
-              {formatAmount({ value: dispenseStats.totalBtc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC
-            </span>
-            <span>
-              for {formatAmount({ value: dispenseStats.totalAsset, maximumFractionDigits: 0 })} {asset}
-            </span>
-          </div>
-        )}
+
+          {/* Footer summary - contextual totals */}
+          {tab === "open" && dispenserStats && dispensers.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
+              <span>
+                {formatAmount({ value: dispenserStats.totalBtc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC
+              </span>
+              <span>
+                for {formatAmount({ value: dispenserStats.totalAsset, maximumFractionDigits: 0 })} {asset}
+              </span>
+            </div>
+          )}
+          {tab === "history" && dispenseStats && dispenses.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
+              <span>
+                {formatAmount({ value: dispenseStats.totalBtc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC
+              </span>
+              <span>
+                for {formatAmount({ value: dispenseStats.totalAsset, maximumFractionDigits: 0 })} {asset}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

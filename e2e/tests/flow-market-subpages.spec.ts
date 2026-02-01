@@ -2,7 +2,6 @@
  * Market Sub-Pages Tests
  *
  * Tests for market sub-routes:
- * - /dispensers/manage
  * - /market/btc
  * - /market/dispensers/:asset
  * - /market/orders/:baseAsset/:quoteAsset
@@ -10,39 +9,6 @@
 
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { market, compose } from '../selectors';
-
-walletTest.describe('Dispenser Management Page (/market/dispensers/manage)', () => {
-  walletTest.beforeEach(async ({ page }) => {
-    const currentUrl = page.url();
-    const baseUrl = currentUrl.substring(0, currentUrl.indexOf('#') + 1);
-    await page.goto(`${baseUrl}/market/dispensers/manage`);
-    await page.waitForLoadState('networkidle');
-  });
-
-  walletTest('page loads with My Dispensers title', async ({ page }) => {
-    // Verify manage page loaded - header title shows "My Dispensers"
-    const pageTitle = page.locator('text=My Dispensers').first();
-    await expect(pageTitle).toBeVisible({ timeout: 10000 });
-  });
-
-  walletTest('dispenser management shows filter or empty state', async ({ page }) => {
-    // The page shows either dispensers with filter, or an empty state with Create button
-    const filterButton = page.locator('text=Filter by Status');
-    const emptyMessage = page.locator('text=/don\'t have any dispensers|No.*dispensers/i').first();
-
-    await expect(filterButton.or(emptyMessage).first()).toBeVisible({ timeout: 10000 });
-  });
-
-  walletTest('has create dispenser option or content', async ({ page }) => {
-    // Should show create option or dispenser content
-    const createOption = page.locator(
-      'button:has-text("Create Dispenser"), button:has-text("Create New Dispenser")'
-    ).first();
-    const dispenserContent = page.locator('text=/Remaining:|Open|Closed/i').first();
-
-    await expect(createOption.or(dispenserContent).first()).toBeVisible({ timeout: 5000 });
-  });
-});
 
 walletTest.describe('BTC Price Page (/market/btc)', () => {
   walletTest('can navigate to BTC price page', async ({ page }) => {

@@ -662,8 +662,8 @@ export async function fetchAssetOrders(
 export async function fetchAddressDispensers(
   address: string,
   options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
-): Promise<PaginatedResponse<Dispenser>> {
-  return cpApiGet<PaginatedResponse<Dispenser>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
+): Promise<PaginatedResponse<DispenserDetails>> {
+  return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
