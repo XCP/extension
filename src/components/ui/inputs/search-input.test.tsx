@@ -31,10 +31,11 @@ describe("SearchInput", () => {
     const input = screen.getByRole("textbox");
     await user.type(input, "test");
     
-    expect(handleChange).toHaveBeenCalledWith("t");
-    expect(handleChange).toHaveBeenCalledWith("te");
-    expect(handleChange).toHaveBeenCalledWith("tes");
-    expect(handleChange).toHaveBeenCalledWith("test");
+    // SearchInput auto-uppercases input
+    expect(handleChange).toHaveBeenCalledWith("T");
+    expect(handleChange).toHaveBeenCalledWith("TE");
+    expect(handleChange).toHaveBeenCalledWith("TES");
+    expect(handleChange).toHaveBeenCalledWith("TEST");
   });
 
   it("should debounce onSearch callback", async () => {

@@ -35,7 +35,7 @@ export function ManageOrderCard({
   };
 
   const handleClick = () => {
-    window.open(`https://www.xcp.io/tx/${order.tx_hash}`, "_blank");
+    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
