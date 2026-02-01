@@ -91,6 +91,8 @@ export default function MarketPage(): ReactElement {
     orderResults,
     dispenserSearchLoading,
     orderSearchLoading,
+    dispenserSearchError,
+    orderSearchError,
     handleDispenserSearch,
     handleOrderSearch,
     PAGE_SIZE,
@@ -270,6 +272,8 @@ export default function MarketPage(): ReactElement {
                       </p>
                       {dispenserSearchLoading ? (
                         <Spinner message="Searching..." />
+                      ) : dispenserSearchError ? (
+                        <EmptyState message={dispenserSearchError} />
                       ) : dispenserResults.length > 0 ? (
                         <div className="space-y-2">
                           {dispenserResults.map((d) => (
@@ -331,27 +335,31 @@ export default function MarketPage(): ReactElement {
                     <Spinner message="Loading your dispensers…" />
                   ) : userDispensers.error ? (
                     <EmptyState message="Failed to load your dispensers" />
-                  ) : filteredUserDispensers.length > 0 ? (
-                    <>
-                      <div className="space-y-2">
-                        {filteredUserDispensers.map((d) => (
-                          <ManageDispenserCard key={d.tx_hash} dispenser={d} />
-                        ))}
-                      </div>
-                      <div ref={loadMoreRef} className="flex justify-center py-2">
-                        {userDispensers.isFetchingMore && <Spinner />}
-                      </div>
-                    </>
-                  ) : searchQuery.trim() ? (
-                    <EmptyState
-                      message={`No dispensers matching "${searchQuery}"`}
-                      linkAction={{
-                        label: "Create New Dispenser →",
-                        onClick: () => navigate(`/compose/dispenser/${searchQuery.toUpperCase()}`),
-                      }}
-                    />
                   ) : (
-                    <EmptyState message="You don't have any open dispensers" />
+                    <>
+                      {filteredUserDispensers.length > 0 ? (
+                        <>
+                          <div className="space-y-2">
+                            {filteredUserDispensers.map((d) => (
+                              <ManageDispenserCard key={d.tx_hash} dispenser={d} />
+                            ))}
+                          </div>
+                          <div ref={loadMoreRef} className="flex justify-center py-2">
+                            {userDispensers.isFetchingMore && <Spinner />}
+                          </div>
+                        </>
+                      ) : searchQuery.trim() ? (
+                        <EmptyState message={`No dispensers matching "${searchQuery}"`} />
+                      ) : (
+                        <EmptyState message="You don't have any open dispensers" />
+                      )}
+                      <button
+                        onClick={() => navigate(searchQuery.trim() ? `/compose/dispenser/${searchQuery.toUpperCase()}` : "/compose/dispenser")}
+                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                      >
+                        Create New Dispenser →
+                      </button>
+                    </>
                   )}
                 </>
               )}
@@ -380,6 +388,8 @@ export default function MarketPage(): ReactElement {
                       </p>
                       {orderSearchLoading ? (
                         <Spinner message="Searching..." />
+                      ) : orderSearchError ? (
+                        <EmptyState message={orderSearchError} />
                       ) : orderResults.length > 0 ? (
                         <div className="space-y-2">
                           {orderResults.map((o) => (
@@ -439,16 +449,24 @@ export default function MarketPage(): ReactElement {
                     <Spinner message="Loading your orders…" />
                   ) : userOrders.error ? (
                     <EmptyState message="Failed to load your orders" />
-                  ) : filteredUserOrders.length > 0 ? (
+                  ) : (
                     <>
-                      <div className="space-y-2">
-                        {filteredUserOrders.map((o) => (
-                          <ManageOrderCard key={o.tx_hash} order={o} />
-                        ))}
-                      </div>
-                      <div ref={loadMoreRef} className="flex justify-center py-2">
-                        {userOrders.isFetchingMore && <Spinner />}
-                      </div>
+                      {filteredUserOrders.length > 0 ? (
+                        <>
+                          <div className="space-y-2">
+                            {filteredUserOrders.map((o) => (
+                              <ManageOrderCard key={o.tx_hash} order={o} />
+                            ))}
+                          </div>
+                          <div ref={loadMoreRef} className="flex justify-center py-2">
+                            {userOrders.isFetchingMore && <Spinner />}
+                          </div>
+                        </>
+                      ) : searchQuery.trim() ? (
+                        <EmptyState message={`No orders matching "${searchQuery}"`} />
+                      ) : (
+                        <EmptyState message="You don't have any open orders" />
+                      )}
                       <button
                         onClick={() => navigate(searchQuery.trim() ? `/compose/order/${searchQuery.toUpperCase()}` : "/compose/order")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
@@ -456,16 +474,6 @@ export default function MarketPage(): ReactElement {
                         Create New Order →
                       </button>
                     </>
-                  ) : searchQuery.trim() ? (
-                    <EmptyState
-                      message={`No orders matching "${searchQuery}"`}
-                      linkAction={{
-                        label: "Create New Order →",
-                        onClick: () => navigate(`/compose/order/${searchQuery.toUpperCase()}`),
-                      }}
-                    />
-                  ) : (
-                    <EmptyState message="You don't have any open orders" />
                   )}
                 </>
               )}

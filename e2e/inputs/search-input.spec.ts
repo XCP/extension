@@ -66,7 +66,8 @@ walletTest.describe('SearchInput Component', () => {
     walletTest('allows typing search queries', async ({ page }) => {
       const input = getSearchInput(page);
       await input.fill('test asset');
-      await expect(input).toHaveValue('test asset');
+      // Search input converts to uppercase for asset names
+      await expect(input).toHaveValue('TEST ASSET');
     });
 
     walletTest('preserves value after blur', async ({ page }) => {

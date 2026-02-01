@@ -19,6 +19,8 @@ export function TabButton({
 }: TabButtonProps): ReactElement {
   return (
     <button
+      role="tab"
+      aria-selected={isActive}
       onClick={onClick}
       className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
         isActive

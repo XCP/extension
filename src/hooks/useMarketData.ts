@@ -46,6 +46,8 @@ interface UseMarketDataReturn {
   orderResults: OrderDetails[];
   dispenserSearchLoading: boolean;
   orderSearchLoading: boolean;
+  dispenserSearchError: string | null;
+  orderSearchError: string | null;
 
   // Search handlers
   handleDispenserSearch: (query: string) => Promise<void>;
@@ -70,8 +72,10 @@ export function useMarketData({
   // Search results state
   const [dispenserResults, setDispenserResults] = useState<DispenserDetails[]>([]);
   const [dispenserSearchLoading, setDispenserSearchLoading] = useState(false);
+  const [dispenserSearchError, setDispenserSearchError] = useState<string | null>(null);
   const [orderResults, setOrderResults] = useState<OrderDetails[]>([]);
   const [orderSearchLoading, setOrderSearchLoading] = useState(false);
+  const [orderSearchError, setOrderSearchError] = useState<string | null>(null);
 
   // Paginated data fetchers - memoized to prevent effect re-runs
   const dispensersFetch = useCallback(
@@ -148,15 +152,18 @@ export function useMarketData({
     if (!query.trim()) {
       setDispenserResults([]);
       setDispenserSearchLoading(false);
+      setDispenserSearchError(null);
       return;
     }
     setDispenserSearchLoading(true);
+    setDispenserSearchError(null);
     try {
       const res = await fetchAssetDispensers(query.toUpperCase(), { status: "open", limit: PAGE_SIZE });
       setDispenserResults(res.result);
     } catch (err) {
       console.error("Failed to search dispensers:", err);
       setDispenserResults([]);
+      setDispenserSearchError("Failed to search dispensers");
     } finally {
       setDispenserSearchLoading(false);
     }
@@ -166,15 +173,18 @@ export function useMarketData({
     if (!query.trim()) {
       setOrderResults([]);
       setOrderSearchLoading(false);
+      setOrderSearchError(null);
       return;
     }
     setOrderSearchLoading(true);
+    setOrderSearchError(null);
     try {
       const res = await fetchAssetOrders(query.toUpperCase(), { status: "open", limit: PAGE_SIZE });
       setOrderResults(res.result);
     } catch (err) {
       console.error("Failed to search orders:", err);
       setOrderResults([]);
+      setOrderSearchError("Failed to search orders");
     } finally {
       setOrderSearchLoading(false);
     }
@@ -227,6 +237,8 @@ export function useMarketData({
     orderResults,
     dispenserSearchLoading,
     orderSearchLoading,
+    dispenserSearchError,
+    orderSearchError,
     handleDispenserSearch,
     handleOrderSearch,
     PAGE_SIZE,

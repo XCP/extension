@@ -20,13 +20,23 @@ export function CopyableStat({
   onCopy,
   isCopied,
 }: CopyableStatProps): ReactElement {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onCopy(rawValue);
+    }
+  };
+
   return (
     <div>
       <span className="text-gray-500">{label}</span>
       <div className="flex items-center gap-2">
         <div
           onClick={() => onCopy(rawValue)}
-          className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 ${isCopied ? "bg-gray-200" : ""}`}
+          onKeyDown={handleKeyDown}
+          role="button"
+          tabIndex={0}
+          className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isCopied ? "bg-gray-200" : ""}`}
         >
           <span>{value}</span>
         </div>

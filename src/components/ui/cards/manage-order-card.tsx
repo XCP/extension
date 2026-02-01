@@ -56,15 +56,9 @@ export function ManageOrderCard({
       <div className="flex items-center gap-3">
         <AssetIcon asset={baseAsset} size="md" />
         <div className="flex-1 min-w-0">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
-            }}
-            className="font-medium text-gray-900 text-sm truncate hover:text-blue-600 transition-colors cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-          >
+          <div className="font-medium text-gray-900 text-sm truncate">
             {baseDisplay}/{quoteAsset}
-          </button>
+          </div>
           <div className="text-xs text-gray-500">
             <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
               {isBuy ? "Buy" : "Sell"}
