@@ -122,7 +122,7 @@ export function DispenserCloseForm({
                     disabled={pending}
                   >
                     <div className="relative mt-1">
-                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 text-base disabled:bg-gray-100 disabled:cursor-not-allowed">
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>
@@ -167,12 +167,12 @@ export function DispenserCloseForm({
                   {selectedDispenser && (
                     <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
                       <div className="flex justify-between">
-                        <span className="text-gray-500">Price</span>
-                        <span className="font-medium text-gray-900">{selectedDispenser.satoshirate_normalized} BTC</span>
-                      </div>
-                      <div className="flex justify-between">
                         <span className="text-gray-500">Remaining</span>
                         <span className="font-medium text-gray-900">{selectedDispenser.give_remaining_normalized} {selectedDispenser.asset}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Price</span>
+                        <span className="font-medium text-gray-900">{selectedDispenser.satoshirate_normalized} BTC</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-gray-500">TX Hash</span>
@@ -189,11 +189,9 @@ export function DispenserCloseForm({
                           )}
                         </button>
                       </div>
+                      <input type="hidden" name="give_remaining_normalized" value={selectedDispenser.give_remaining_normalized} />
                     </div>
                   )}
-                  <p className="mt-3 text-xs text-gray-500">
-                    Dispensers enter a closing state for 5 blocks before fully closing.
-                  </p>
                   {showHelpText && (
                     <Description className="mt-2 text-sm text-gray-500">
                       Select the dispenser you want to close.

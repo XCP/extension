@@ -31,6 +31,38 @@ const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
 
 /**
+ * Copyable stat display with highlight feedback
+ */
+function CopyableStat({
+  label,
+  value,
+  rawValue,
+  onCopy,
+  isCopied,
+}: {
+  label: string;
+  value: string;
+  rawValue: string;
+  onCopy: (value: string) => void;
+  isCopied: boolean;
+}): ReactElement {
+  return (
+    <div>
+      <span className="text-gray-500">{label}</span>
+      <div className="flex items-center gap-2">
+        <div
+          onClick={() => onCopy(rawValue)}
+          className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 ${isCopied ? "bg-gray-200" : ""}`}
+        >
+          <span>{value}</span>
+        </div>
+        {isCopied && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
+      </div>
+    </div>
+  );
+}
+
+/**
  * Calculate effective sats per unit from dispenser data
  * satoshirate = total sats per dispense
  * give_quantity_normalized = units given per dispense
@@ -359,26 +391,20 @@ export default function AssetDispensersPage(): ReactElement {
             <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
               {tab === "open" && dispenserStats && (
                 <>
-                  <div>
-                    <span className="text-gray-500">Floor</span>
-                    <div
-                      onClick={() => copy(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div
-                      onClick={() => copy(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
+                  <CopyableStat
+                    label="Floor"
+                    value={formatPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
+                    rawValue={getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawPrice(dispenserStats.floorPrice, priceUnit, btcPrice, settings.fiat))}
+                  />
+                  <CopyableStat
+                    label="Avg"
+                    value={formatPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
+                    rawValue={getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawPrice(dispenserStats.weightedAvg, priceUnit, btcPrice, settings.fiat))}
+                  />
                 </>
               )}
               {tab === "open" && !dispenserStats && (
@@ -395,26 +421,20 @@ export default function AssetDispensersPage(): ReactElement {
               )}
               {tab === "history" && dispenseStats && (
                 <>
-                  <div>
-                    <span className="text-gray-500">Last</span>
-                    <div
-                      onClick={() => copy(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div
-                      onClick={() => copy(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}</span>
-                      {isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
+                  <CopyableStat
+                    label="Last"
+                    value={formatPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
+                    rawValue={getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawPrice(dispenseStats.lastPrice, priceUnit, btcPrice, settings.fiat))}
+                  />
+                  <CopyableStat
+                    label="Avg"
+                    value={formatPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
+                    rawValue={getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawPrice(dispenseStats.avgPrice, priceUnit, btcPrice, settings.fiat))}
+                  />
                 </>
               )}
               {tab === "history" && !dispenseStats && (
@@ -465,12 +485,12 @@ export default function AssetDispensersPage(): ReactElement {
               History
             </button>
           </div>
-          <a
-            href="#"
-            className="text-xs text-blue-600 hover:text-blue-800"
+          <button
+            onClick={() => navigate("/market/dispensers/manage")}
+            className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer"
           >
             My Dispensers
-          </a>
+          </button>
         </div>
 
         {/* Content */}
