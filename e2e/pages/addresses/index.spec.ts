@@ -68,8 +68,52 @@ walletTest.describe('Select Address Page (/addresses)', () => {
     await expect(firstAddressOption).toBeVisible({ timeout: 5000 });
     await firstAddressOption.click();
 
-    // Should navigate to index after selection
+    // Should navigate back (when no history, may stay or go to index)
+    await expect(page).not.toHaveURL(/addresses/, { timeout: 5000 });
+  });
+
+  walletTest('selecting address from index page returns to index', async ({ page }) => {
+    // Start on index page
+    await page.goto(page.url().replace(/\/index.*/, '/index'));
+    await page.waitForLoadState('networkidle');
+
+    // Click the address selector chevron
+    const addressSelector = page.getByRole('button', { name: 'Select another address' });
+    await expect(addressSelector).toBeVisible({ timeout: 5000 });
+    await addressSelector.click();
+
+    // Should be on addresses page
+    await expect(page).toHaveURL(/addresses/, { timeout: 5000 });
+
+    // Select the first address
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible({ timeout: 5000 });
+    await firstAddressOption.click();
+
+    // Should navigate back to index
     await expect(page).toHaveURL(/index/, { timeout: 5000 });
+  });
+
+  walletTest('selecting address from market page returns to market', async ({ page }) => {
+    // Start on market page
+    await page.goto(page.url().replace(/\/index.*/, '/market'));
+    await page.waitForLoadState('networkidle');
+
+    // Click the address selector chevron
+    const addressSelector = page.getByRole('button', { name: 'Select another address' });
+    await expect(addressSelector).toBeVisible({ timeout: 5000 });
+    await addressSelector.click();
+
+    // Should be on addresses page
+    await expect(page).toHaveURL(/addresses/, { timeout: 5000 });
+
+    // Select the first address
+    const firstAddressOption = selectAddress.addressOption(page, 0);
+    await expect(firstAddressOption).toBeVisible({ timeout: 5000 });
+    await firstAddressOption.click();
+
+    // Should navigate back to market
+    await expect(page).toHaveURL(/market/, { timeout: 5000 });
   });
 
   walletTest('has back navigation', async ({ page }) => {

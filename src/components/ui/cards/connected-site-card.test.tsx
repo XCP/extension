@@ -126,7 +126,7 @@ describe('ConnectedSiteCard', () => {
     expect(card).toBeInTheDocument();
 
     const disconnectButton = screen.getByRole('button', { name: /disconnect app.xcp.io/i });
-    expect(disconnectButton).toHaveAttribute('title', 'Disconnect site');
+    expect(disconnectButton).toHaveAttribute('aria-label', 'Disconnect app.xcp.io');
   });
 
   it('truncates long hostnames and origins', () => {

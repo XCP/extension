@@ -216,12 +216,13 @@ export function OrderForm({
       {tabLoading ? (
         <div className="flex justify-center items-center h-[21rem]">Loading…</div>
       ) : activeTab === "settings" ? (
-        <OrderSettings 
+        <OrderSettings
           customExpiration={customExpiration}
           onExpirationChange={setCustomExpiration}
           customFeeRequired={customFeeRequired}
           onFeeRequiredChange={setCustomFeeRequired}
           isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
+          showHelpText={showHelpText}
         />
       ) : (
         <ComposerForm

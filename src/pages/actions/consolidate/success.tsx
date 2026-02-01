@@ -131,7 +131,6 @@ function ConsolidateSuccessPage() {
                   <button
                     onClick={() => copyToClipboard(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    title="Copy transaction ID"
                     aria-label="Copy transaction ID"
                   >
                     <FaCopy className="size-4 text-gray-600" aria-hidden="true" />
@@ -139,7 +138,6 @@ function ConsolidateSuccessPage() {
                   <button
                     onClick={() => openInExplorer(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    title="View in explorer"
                     aria-label="View in explorer"
                   >
                     <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />

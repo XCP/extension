@@ -1,6 +1,7 @@
 import { useEffect, type ReactElement } from 'react';
 import { useHeader } from '@/contexts/header-context';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
+import { AssetInfoPopover } from '@/components/domain/asset/asset-info-popover';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
@@ -11,6 +12,8 @@ import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 interface AssetHeaderProps {
   /** The asset information to display */
   assetInfo: AssetInfo;
+  /** Whether to show the info popover button (default: false) */
+  showInfoPopover?: boolean;
   /** Optional CSS classes */
   className?: string;
 }
@@ -32,20 +35,20 @@ interface AssetHeaderProps {
  * />
  * ```
  */
-export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps): ReactElement => {
+export const AssetHeader = ({ assetInfo, showInfoPopover = false, className = '' }: AssetHeaderProps): ReactElement => {
   const { subheadings, setAssetHeader } = useHeader();
   const cached = subheadings.assets[assetInfo.asset];
 
   // Update cache if props differ from cached data
   useEffect(() => {
     // Compare relevant fields instead of JSON.stringify for better performance
-    const hasChanged = !cached || 
+    const hasChanged = !cached ||
       cached.asset !== assetInfo.asset ||
       cached.asset_longname !== assetInfo.asset_longname ||
       cached.supply !== assetInfo.supply ||
       cached.divisible !== assetInfo.divisible ||
       cached.locked !== assetInfo.locked;
-      
+
     if (hasChanged) {
       setAssetHeader(assetInfo.asset, assetInfo);
     }
@@ -56,14 +59,14 @@ export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps): Re
 
   // Convert supply from satoshi-like units to actual units for divisible assets
   // Using fromSatoshis for safe conversion
-  const displaySupply = displayInfo.divisible 
+  const displaySupply = displayInfo.divisible
     ? fromSatoshis(displayInfo.supply || 0, { asNumber: true })
     : Number(displayInfo.supply || 0);
 
   return (
     <div className={`flex items-center ${className}`}>
       <AssetIcon asset={displayInfo.asset} size="lg" className="mr-4" />
-      <div>
+      <div className="flex-1 min-w-0">
         <h2 className="text-xl font-bold break-all">
           {displayInfo.asset_longname || displayInfo.asset}
         </h2>
@@ -77,6 +80,9 @@ export const AssetHeader = ({ assetInfo, className = '' }: AssetHeaderProps): Re
           })}
         </p>
       </div>
+      {showInfoPopover && (
+        <AssetInfoPopover assetInfo={displayInfo} className="flex-shrink-0 ml-2" />
+      )}
     </div>
   );
 };

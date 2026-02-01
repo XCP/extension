@@ -87,7 +87,7 @@ export function AssetDispenserCard({
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
-                title="Copy address"
+                aria-label="Copy address"
               >
                 {isCopied ? (
                   <FaCheck className="size-3" aria-hidden="true" />

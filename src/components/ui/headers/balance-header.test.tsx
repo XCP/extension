@@ -51,7 +51,7 @@ describe('BalanceHeader', () => {
     render(<BalanceHeader balance={mockBalance} />);
     
     expect(screen.getByText('PEPECASH')).toBeInTheDocument();
-    expect(screen.getByText(/Available:/)).toBeInTheDocument();
+    expect(screen.getByText(/Balance:/)).toBeInTheDocument();
   });
 
   it('should display asset name when no longname', () => {
@@ -129,7 +129,7 @@ describe('BalanceHeader', () => {
     
     render(<BalanceHeader balance={noQuantityBalance} />);
     
-    expect(screen.getByText(/Available: 0/)).toBeInTheDocument();
+    expect(screen.getByText(/Balance: 0/)).toBeInTheDocument();
   });
 
   it('should update cache when balance changes', () => {
@@ -167,7 +167,7 @@ describe('BalanceHeader', () => {
     expect(heading).toHaveClass('font-bold');
     expect(heading).toHaveClass('break-all');
     
-    const available = screen.getByText(/Available:/);
+    const available = screen.getByText(/Balance:/);
     expect(available).toHaveClass('text-sm');
     expect(available).toHaveClass('text-gray-600');
   });
@@ -248,7 +248,7 @@ describe('BalanceHeader', () => {
     // Use getByRole to get the heading specifically
     expect(screen.getByRole('heading', { name: 'BTC' })).toBeInTheDocument();
     // Without asset_info, divisibility defaults to undefined, so formatAmount uses default
-    expect(screen.getByText(/Available:/)).toBeInTheDocument();
+    expect(screen.getByText(/Balance:/)).toBeInTheDocument();
   });
 
   it('should handle balance with partial asset_info', () => {
@@ -313,7 +313,7 @@ describe('BalanceHeader', () => {
     render(<BalanceHeader balance={emptyStringBalance} />);
     
     // Empty string results in "0" being displayed (no decimal places)
-    expect(screen.getByText(/Available: 0/)).toBeInTheDocument();
+    expect(screen.getByText(/Balance: 0/)).toBeInTheDocument();
   });
 
   it('should use props data as source of truth', () => {

@@ -1,12 +1,12 @@
-import { type ReactElement, type KeyboardEvent, type MouseEvent } from "react";
+import { type ReactElement, type KeyboardEvent } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { formatAmount } from "@/utils/format";
 import type { DispenserDetails } from "@/utils/blockchain/counterparty/api";
 
 interface MarketDispenserCardProps {
   dispenser: DispenserDetails;
+  formattedPrice?: string;
   onClick?: () => void;
-  onAssetClick?: () => void;
   className?: string;
 }
 
@@ -16,8 +16,8 @@ interface MarketDispenserCardProps {
  */
 export function MarketDispenserCard({
   dispenser,
+  formattedPrice,
   onClick,
-  onAssetClick,
   className = "",
 }: MarketDispenserCardProps): ReactElement {
   const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
@@ -26,13 +26,6 @@ export function MarketDispenserCard({
     if (onClick && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       onClick();
-    }
-  };
-
-  const handleAssetClick = (e: MouseEvent) => {
-    if (onAssetClick) {
-      e.stopPropagation();
-      onAssetClick();
     }
   };
 
@@ -47,26 +40,17 @@ export function MarketDispenserCard({
       <div className="flex items-center gap-3">
         <AssetIcon asset={dispenser.asset} size="md" />
         <div className="flex-1 min-w-0">
-          {onAssetClick ? (
-            <button
-              onClick={handleAssetClick}
-              className="font-medium text-blue-600 hover:text-blue-800 text-sm truncate text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-            >
-              {assetName}
-            </button>
-          ) : (
-            <div className="font-medium text-gray-900 text-sm truncate">{assetName}</div>
-          )}
-          <div className="text-xs text-gray-500">
-            {formatAmount({ value: Number(dispenser.give_quantity_normalized), maximumFractionDigits: 2 })} per dispense
+          <div className="flex justify-between">
+            <span className="font-medium text-blue-600 text-sm truncate">{assetName}</span>
+            {Number(dispenser.give_quantity_normalized) !== 1 && (
+              <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+                {formatAmount({ value: Number(dispenser.give_quantity_normalized), maximumFractionDigits: 2 })} per dispense
+              </span>
+            )}
           </div>
-        </div>
-        <div className="text-right">
-          <div className="text-sm font-semibold text-green-600">
-            {formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats
-          </div>
-          <div className="text-xs text-gray-400">
-            {formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 0 })} remaining
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{formattedPrice ?? `${formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats`}</span>
+            <span>{formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 0 })} remaining</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { Radio, RadioGroup } from "@headlessui/react";
 import {
   FaChevronRight,
@@ -35,6 +35,7 @@ export default function HomePage(): ReactElement {
   const { activeWallet, activeAddress, lockKeychain, isLoading } = useWallet();
   const { setHeaderProps } = useHeader();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
@@ -75,7 +76,7 @@ export default function HomePage(): ReactElement {
 
   const handleAddressSelection = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(PATHS.SELECT_ADDRESS);
+    navigate(PATHS.SELECT_ADDRESS, { state: { returnTo: location.pathname + location.search } });
   };
 
   const renderCurrentAddress = (): ReactElement => {
@@ -166,7 +167,7 @@ export default function HomePage(): ReactElement {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => navigate(PATHS.BUY_XCP)}
-            className="px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label="Buy XCP"
           >
             Buy XCP

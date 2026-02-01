@@ -1,9 +1,8 @@
-import { type ReactElement } from "react";
+import { type ReactElement, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaExternalLinkAlt } from "@/components/icons";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { Button } from "@/components/ui/button";
 import { formatAmount } from "@/utils/format";
+import { getTradingPair, getOrderBaseAmount, isBuyOrder } from "@/utils/trading-pair";
 import type { Order } from "@/utils/blockchain/counterparty/api";
 
 interface ManageOrderCardProps {
@@ -13,50 +12,72 @@ interface ManageOrderCardProps {
 
 /**
  * ManageOrderCard displays a user's own DEX order with cancel action.
+ * Compact layout: Icon | Name + Buy/Sell remaining | Cancel button
  */
 export function ManageOrderCard({
   order,
   className = "",
 }: ManageOrderCardProps): ReactElement {
   const navigate = useNavigate();
+  const isOpen = order.status === "open";
+
+  // Determine canonical trading pair and direction
+  const [baseAsset, quoteAsset] = getTradingPair(order.give_asset, order.get_asset);
+  const isBuy = isBuyOrder(order.give_asset, order.get_asset);
+  const baseDisplay = baseAsset;
+
+  // Get remaining amount in base asset terms
+  const remainingAmount = getOrderBaseAmount(order, baseAsset);
+
+  const handleCancel = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/compose/order/cancel/${order.tx_hash}`);
+  };
+
+  const handleClick = () => {
+    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleClick();
+    }
+  };
 
   return (
-    <div className={`bg-white rounded-lg shadow-sm p-3 ${className}`}>
-      <div className="flex justify-between items-start mb-2">
-        <div className="flex items-center gap-2">
-          <AssetIcon asset={order.give_asset} size="sm" />
-          <div>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-medium text-gray-900">{order.give_asset}</span>
-              <span className="text-gray-400">→</span>
-              <span className="font-medium text-gray-900">{order.get_asset}</span>
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {formatAmount({ value: Number(order.give_remaining_normalized), maximumFractionDigits: 4 })} / {formatAmount({ value: Number(order.give_quantity_normalized), maximumFractionDigits: 4 })} remaining
-            </div>
+    <div
+      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+    >
+      <div className="flex items-center gap-3">
+        <AssetIcon asset={baseAsset} size="md" />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-gray-900 text-sm truncate">
+            {baseDisplay}/{quoteAsset}
+          </div>
+          <div className="text-xs text-gray-500">
+            <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+              {isBuy ? "Buy" : "Sell"}
+            </span>
+            {" "}{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining
           </div>
         </div>
-        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-          order.status === "open" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-        }`}>
-          {order.status}
-        </span>
-      </div>
-      <div className="flex gap-2">
-        <Button
-          color="gray"
-          onClick={() => navigate(`/compose/order/cancel/${order.tx_hash}`)}
-          fullWidth
-        >
-          Cancel
-        </Button>
-        <button
-          onClick={() => window.open(`https://www.xcp.io/tx/${order.tx_hash}`, "_blank")}
-          className="px-3 py-2 text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="View on XCP.io"
-        >
-          <FaExternalLinkAlt className="size-3" aria-hidden="true" />
-        </button>
+        {isOpen ? (
+          <button
+            onClick={handleCancel}
+            className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+          >
+            Cancel
+          </button>
+        ) : (
+          <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
+            {order.status}
+          </span>
+        )}
       </div>
     </div>
   );

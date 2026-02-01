@@ -39,7 +39,7 @@ export const Footer = (): ReactElement => {
           variant="transparent"
           fullWidth
           onClick={() => handleNavigation('/market', 'Footer - Market')}
-          className={`hover:bg-gray-100 ${location.pathname === '/market' ? 'text-blue-600' : 'text-gray-600'}`}
+          className={`hover:bg-gray-100 ${location.pathname.startsWith('/market') ? 'text-blue-600' : 'text-gray-600'}`}
           aria-label="Market"
         >
           <div className="flex flex-col items-center">

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { FaLock } from "@/components/icons";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
@@ -132,7 +133,7 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
 export default function ActionsPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet } = useWallet();
+  const { activeWallet, lockKeychain } = useWallet();
   const { settings } = useSettings();
   
   // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
@@ -152,8 +153,16 @@ export default function ActionsPage(): ReactElement {
     setHeaderProps({
       title: "Actions",
       onBack: () => navigate(PATHS.BACK),
+      rightButton: {
+        icon: <FaLock aria-hidden="true" />,
+        onClick: async () => {
+          await lockKeychain();
+          navigate("/keychain/unlock");
+        },
+        ariaLabel: "Lock Keychain",
+      },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, lockKeychain]);
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="actions-title">

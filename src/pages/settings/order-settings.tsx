@@ -8,6 +8,7 @@ interface OrderSettingsProps {
   customFeeRequired?: number;
   onFeeRequiredChange?: (satoshis: number) => void;
   isBuyingBTC?: boolean;
+  showHelpText?: boolean;
 }
 
 // Common expiration presets (in blocks)
@@ -20,15 +21,27 @@ const EXPIRATION_PRESETS = [
   { label: 'Max', blocks: 8064 },
 ];
 
-export function OrderSettings({ 
+// Default expiration value (Max preset)
+const DEFAULT_EXPIRATION = 8064;
+
+export function OrderSettings({
   customExpiration,
   onExpirationChange,
   customFeeRequired = 0,
   onFeeRequiredChange,
-  isBuyingBTC = false
+  isBuyingBTC = false,
+  showHelpText = false
 }: OrderSettingsProps): ReactElement {
   const { settings, updateSettings } = useSettings();
-  const [expiration, setExpiration] = useState<number>(customExpiration || settings?.defaultOrderExpiration || 8064);
+
+  // Calculate initial expiration - always default to Max (8064) if no value set
+  const getInitialExpiration = () => {
+    if (customExpiration !== undefined && customExpiration > 0) return customExpiration;
+    if (settings?.defaultOrderExpiration !== undefined && settings.defaultOrderExpiration > 0) return settings.defaultOrderExpiration;
+    return DEFAULT_EXPIRATION;
+  };
+
+  const [expiration, setExpiration] = useState<number>(getInitialExpiration);
   const [customValue, setCustomValue] = useState<string>('');
   const [feeRequired, setFeeRequired] = useState<number>(customFeeRequired);
 
@@ -100,20 +113,24 @@ export function OrderSettings({
 
           {/* Preset buttons */}
           <div className="grid grid-cols-3 gap-2 mb-3">
-            {EXPIRATION_PRESETS.map((preset) => (
-              <button
-                key={preset.blocks}
-                type="button"
-                onClick={() => handlePresetClick(preset.blocks)}
-                className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  expiration === preset.blocks && !customValue
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
+            {EXPIRATION_PRESETS.map((preset) => {
+              // Button is selected if expiration matches and no custom value is being entered
+              const isSelected = expiration === preset.blocks && customValue === '';
+              return (
+                <button
+                  key={preset.blocks}
+                  type="button"
+                  onClick={() => handlePresetClick(preset.blocks)}
+                  className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                    isSelected
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Custom input */}
@@ -129,9 +146,11 @@ export function OrderSettings({
               aria-label="Custom expiration in blocks"
               className="flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
-            <p className="text-xs text-gray-500">
-              8064 blocks (~8 weeks) is recommended. Orders auto-cancel after expiration.
-            </p>
+            {showHelpText && (
+              <p className="text-xs text-gray-500">
+                Orders cancel after n blocks. Max is recommended.
+              </p>
+            )}
           </div>
         </div>
 

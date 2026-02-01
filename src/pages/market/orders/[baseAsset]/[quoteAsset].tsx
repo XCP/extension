@@ -1,20 +1,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { TbRepeat, FiRefreshCw, FaCheck } from "@/components/icons";
-import { AssetInfoPopover } from "@/components/domain/asset/asset-info-popover";
+import { FiRefreshCw } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
-import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
+import { CopyableStat } from "@/components/ui/copyable-stat";
+import { TabButton } from "@/components/ui/tab-button";
+import { OrderBookLevelCard } from "@/components/ui/cards/order-book-level-card";
 import { MarketMatchCard } from "@/components/ui/cards/market-match-card";
 import { useHeader } from "@/contexts/header-context";
-import { useSettings } from "@/contexts/settings-context";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useTradingPair } from "@/hooks/useTradingPair";
 import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { formatAmount } from "@/utils/format";
-import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 import {
   getOrderPricePerUnit,
   getOrderBaseAmount,
@@ -33,68 +30,20 @@ import type { ReactElement } from "react";
 
 // Constants
 const FETCH_LIMIT = 20;
-const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
 
-// Price unit types for orders
-type OrderPriceUnit = "raw" | "fiat";
-
 /**
- * Format price based on quote asset and selected unit
+ * Format price in raw quote asset units
  */
-function formatOrderPrice(
-  price: number,
-  quoteAsset: string,
-  unit: OrderPriceUnit,
-  btcPrice: number | null,
-  xcpPrice: number | null,
-  currency: FiatCurrency
-): string {
-  if (unit === "fiat") {
-    const { symbol, decimals } = CURRENCY_INFO[currency];
-    if (quoteAsset === "BTC" && btcPrice) {
-      const fiatValue = price * btcPrice;
-      return `${symbol}${formatAmount({ value: fiatValue, maximumFractionDigits: decimals })}`;
-    }
-    if (quoteAsset === "XCP" && xcpPrice) {
-      const fiatValue = price * xcpPrice;
-      return `${symbol}${formatAmount({ value: fiatValue, maximumFractionDigits: decimals })}`;
-    }
-    return "—";
-  }
-  // Raw quote asset value
+function formatOrderPrice(price: number, quoteAsset: string): string {
   return `${formatAmount({ value: price, maximumFractionDigits: 8 })} ${quoteAsset}`;
 }
 
 /**
  * Get raw numeric price value (without symbol) for clipboard
  */
-function getRawOrderPrice(
-  price: number,
-  quoteAsset: string,
-  unit: OrderPriceUnit,
-  btcPrice: number | null,
-  xcpPrice: number | null,
-  currency: FiatCurrency
-): string {
-  if (unit === "fiat") {
-    const decimals = CURRENCY_INFO[currency].decimals;
-    if (quoteAsset === "BTC" && btcPrice) {
-      return formatAmount({ value: price * btcPrice, maximumFractionDigits: decimals });
-    }
-    if (quoteAsset === "XCP" && xcpPrice) {
-      return formatAmount({ value: price * xcpPrice, maximumFractionDigits: decimals });
-    }
-    return "";
-  }
+function getRawOrderPrice(price: number): string {
   return formatAmount({ value: price, maximumFractionDigits: 8 });
-}
-
-/**
- * Check if fiat price toggle is available for this quote asset
- */
-function hasFiatOption(quoteAsset: string): boolean {
-  return quoteAsset === "BTC" || quoteAsset === "XCP";
 }
 
 /**
@@ -104,9 +53,6 @@ export default function AssetOrdersPage(): ReactElement {
   const { baseAsset, quoteAsset } = useParams<{ baseAsset: string; quoteAsset: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { settings } = useSettings();
-  const { btc: btcPrice, xcp: xcpPrice } = useMarketPrices(settings.fiat);
-  const { data: tradingPairData } = useTradingPair(baseAsset, quoteAsset);
 
   // Data state
   const [baseAssetInfo, setBaseAssetInfo] = useState<AssetInfo | null>(null);
@@ -115,19 +61,13 @@ export default function AssetOrdersPage(): ReactElement {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Pagination state for orders
-  const [orderOffset, setOrderOffset] = useState(0);
-  const [hasMoreOrders, setHasMoreOrders] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-
-  // Pagination state for matches
+  // Pagination state for matches (orders are loaded fully upfront for order book)
   const [matchOffset, setMatchOffset] = useState(0);
   const [hasMoreMatches, setHasMoreMatches] = useState(true);
   const [isFetchingMoreMatches, setIsFetchingMoreMatches] = useState(false);
 
   // UI state
-  const [tab, setTab] = useState<"buy" | "sell" | "matched">("sell");
-  const [priceUnit, setPriceUnit] = useState<OrderPriceUnit>("raw");
+  const [tab, setTab] = useState<"buy" | "sell" | "history">("sell");
 
   // Clipboard
   const { copy, isCopied } = useCopyToClipboard();
@@ -135,28 +75,27 @@ export default function AssetOrdersPage(): ReactElement {
   // Infinite scroll refs
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
 
-  // Debounce timer ref for saving preference
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track last refresh time to prevent spam
   const lastRefreshRef = useRef<number>(0);
 
-  // Check if fiat toggle is available
-  const canToggleFiat = hasFiatOption(quoteAsset || "");
+  // Fetch all orders by paginating through (order book needs complete data)
+  const fetchAllOrders = useCallback(async (base: string, quote: string): Promise<Order[]> => {
+    const allOrders: Order[] = [];
+    let offset = 0;
+    let hasMore = true;
 
-  // Price unit toggle handler
-  const togglePriceUnit = useCallback(() => {
-    if (!canToggleFiat) return;
-    const nextUnit: OrderPriceUnit = priceUnit === "raw" ? "fiat" : "raw";
-    setPriceUnit(nextUnit);
-  }, [priceUnit, canToggleFiat]);
+    while (hasMore) {
+      const res = await fetchOrdersByPair(base, quote, {
+        limit: FETCH_LIMIT,
+        offset,
+        status: "open",
+      });
+      allOrders.push(...res.result);
+      offset += FETCH_LIMIT;
+      hasMore = res.result.length === FETCH_LIMIT;
+    }
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
-    };
+    return allOrders;
   }, []);
 
   // Load data function (used for initial load and refresh)
@@ -170,25 +109,19 @@ export default function AssetOrdersPage(): ReactElement {
     }
     setOrders([]);
     setMatches([]);
-    setOrderOffset(0);
     setMatchOffset(0);
-    setHasMoreOrders(true);
     setHasMoreMatches(true);
 
     try {
-      // Fetch orders where someone is selling baseAsset for quoteAsset (buy orders from our perspective)
-      const [infoRes, ordersRes, matchesRes] = await Promise.all([
+      // Fetch asset info and all orders in parallel, plus first page of matches
+      const [infoRes, allOrders, matchesRes] = await Promise.all([
         fetchAssetDetails(baseAsset),
-        fetchOrdersByPair(baseAsset, quoteAsset, { limit: FETCH_LIMIT, status: "open" }),
+        fetchAllOrders(baseAsset, quoteAsset),
         fetchOrderMatchesByPair(baseAsset, quoteAsset, { limit: FETCH_LIMIT }),
       ]);
-      if (infoRes) setBaseAssetInfo(infoRes);
 
-      setOrders(ordersRes.result);
-      setOrderOffset(FETCH_LIMIT);
-      if (ordersRes.result.length < FETCH_LIMIT) {
-        setHasMoreOrders(false);
-      }
+      if (infoRes) setBaseAssetInfo(infoRes);
+      setOrders(allOrders);
 
       setMatches(matchesRes.result);
       setMatchOffset(FETCH_LIMIT);
@@ -201,7 +134,7 @@ export default function AssetOrdersPage(): ReactElement {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [baseAsset, quoteAsset]);
+  }, [baseAsset, quoteAsset, fetchAllOrders]);
 
   // Refresh handler with cooldown to prevent spam
   const handleRefresh = useCallback(() => {
@@ -215,7 +148,6 @@ export default function AssetOrdersPage(): ReactElement {
 
   // Configure header with refresh button
   useEffect(() => {
-    const pairName = tradingPairData?.name || `${baseAsset}/${quoteAsset}`;
     setHeaderProps({
       title: "Orders",
       onBack: () => navigate("/market"),
@@ -227,55 +159,16 @@ export default function AssetOrdersPage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isRefreshing, handleRefresh, tradingPairData, baseAsset, quoteAsset]);
+  }, [setHeaderProps, navigate, isRefreshing, handleRefresh]);
 
   // Load initial data
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Load more orders on scroll (when on "buy" or "sell" tab)
+  // Load more matches on scroll (when on "history" tab)
   useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab === "matched") {
-      return;
-    }
-
-    const loadMore = async () => {
-      setIsFetchingMore(true);
-      try {
-        const res = await fetchOrdersByPair(baseAsset, quoteAsset, {
-          limit: FETCH_LIMIT,
-          offset: orderOffset,
-          status: "open",
-        });
-
-        if (res.result.length < FETCH_LIMIT) {
-          setHasMoreOrders(false);
-        }
-
-        if (res.result.length > 0) {
-          setOrders((prev) => {
-            const merged = [...prev, ...res.result];
-            return merged.filter(
-              (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
-            );
-          });
-          setOrderOffset((prev) => prev + FETCH_LIMIT);
-        }
-      } catch (err) {
-        console.error("Failed to load more orders:", err);
-        setHasMoreOrders(false);
-      } finally {
-        setIsFetchingMore(false);
-      }
-    };
-
-    loadMore();
-  }, [baseAsset, quoteAsset, inView, isFetchingMore, hasMoreOrders, orderOffset, tab]);
-
-  // Load more matches on scroll (when on "matched" tab)
-  useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMoreMatches || !hasMoreMatches || tab !== "matched") {
+    if (!baseAsset || !quoteAsset || !inView || isFetchingMoreMatches || !hasMoreMatches || tab !== "history") {
       return;
     }
 
@@ -330,8 +223,78 @@ export default function AssetOrdersPage(): ReactElement {
     return { buyOrders: buy, sellOrders: sell };
   }, [orders, baseAsset, quoteAsset]);
 
+  // Track if we've auto-selected the initial tab
+  const hasAutoSelectedTab = useRef(false);
+
+  // Auto-select tab based on available orders (only on initial load)
+  useEffect(() => {
+    // Only run once after orders load
+    if (hasAutoSelectedTab.current || loading || orders.length === 0) return;
+    hasAutoSelectedTab.current = true;
+
+    const hasSellOrders = sellOrders.length > 0;
+    const hasBuyOrders = buyOrders.length > 0;
+
+    // If only buy orders exist, show buy tab
+    // Otherwise show sell tab (default)
+    if (hasBuyOrders && !hasSellOrders) {
+      setTab("buy");
+    }
+    // If only sell or both, keep default "sell"
+  }, [loading, orders.length, buyOrders.length, sellOrders.length]);
+
   // Get current orders based on tab
   const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : [];
+
+  // Aggregate orders into price levels (like an exchange order book)
+  const priceLevels = useMemo(() => {
+    if (currentOrders.length === 0 || !baseAsset) return [];
+
+    const isBuyTab = tab === "buy";
+
+    // Group orders by price (using 8 decimal precision as key)
+    const priceMap = new Map<string, { price: number; orders: Order[]; totalAmount: number }>();
+
+    currentOrders.forEach(order => {
+      const price = getOrderPricePerUnit(order, baseAsset);
+      const amount = getOrderBaseAmount(order, baseAsset);
+      const priceKey = price.toFixed(8);
+
+      const existing = priceMap.get(priceKey);
+      if (existing) {
+        existing.orders.push(order);
+        existing.totalAmount += amount;
+      } else {
+        priceMap.set(priceKey, { price, orders: [order], totalAmount: amount });
+      }
+    });
+
+    // Convert to array and sort by price
+    // Sells: ascending (best ask / lowest price first)
+    // Buys: descending (best bid / highest price first)
+    const levels = Array.from(priceMap.entries()).map(([priceKey, data]) => ({
+      priceKey,
+      ...data,
+    }));
+
+    levels.sort((a, b) => isBuyTab ? b.price - a.price : a.price - b.price);
+
+    // Calculate cumulative depth percentages and cumulative sums
+    const totalVolume = levels.reduce((sum, l) => sum + l.totalAmount, 0);
+    let cumulativeBase = 0;
+    let cumulativeQuote = 0;
+
+    return levels.map(level => {
+      cumulativeBase += level.totalAmount;
+      cumulativeQuote += level.price * level.totalAmount;
+      return {
+        ...level,
+        depthPercent: totalVolume > 0 ? (cumulativeBase / totalVolume) * 100 : 0,
+        cumulativeBase,
+        cumulativeQuote,
+      };
+    });
+  }, [currentOrders, baseAsset, tab]);
 
   // Calculate stats for current orders
   const orderStats = useMemo(() => {
@@ -363,6 +326,24 @@ export default function AssetOrdersPage(): ReactElement {
       weightedAvg,
     };
   }, [currentOrders, baseAsset]);
+
+  // Calculate market stats (bid, ask, spread) from both buy and sell orders
+  const marketStats = useMemo(() => {
+    if (!baseAsset) return null;
+
+    // Best bid = highest buy price
+    const buyPrices = buyOrders.map(o => getOrderPricePerUnit(o, baseAsset)).filter(p => p > 0);
+    const bestBid = buyPrices.length > 0 ? Math.max(...buyPrices) : null;
+
+    // Best ask = lowest sell price
+    const sellPrices = sellOrders.map(o => getOrderPricePerUnit(o, baseAsset)).filter(p => p > 0);
+    const bestAsk = sellPrices.length > 0 ? Math.min(...sellPrices) : null;
+
+    // Spread = best ask - best bid (only if both exist)
+    const spread = bestBid !== null && bestAsk !== null ? bestAsk - bestBid : null;
+
+    return { bestBid, bestAsk, spread };
+  }, [buyOrders, sellOrders, baseAsset]);
 
   // Calculate stats for matches
   const matchStats = useMemo(() => {
@@ -396,25 +377,21 @@ export default function AssetOrdersPage(): ReactElement {
     };
   }, [matches, baseAsset]);
 
-  const handleOrderClick = (order: Order) => {
+  const handlePriceLevelClick = (price: number, totalAmount: number) => {
     if (!baseAsset || !quoteAsset) return;
 
-    // Clicking a sell order means we want to buy; clicking a buy order means we want to sell
+    // Clicking a sell level means we want to buy; clicking a buy level means we want to sell
     const orderType = tab === "sell" ? "buy" : "sell";
 
-    // Get price and amount using helper functions that handle both order directions
-    const pricePerUnit = getOrderPricePerUnit(order, baseAsset);
-    const amount = getOrderBaseAmount(order, baseAsset);
-
     // Guard against invalid data
-    if (pricePerUnit <= 0 || amount <= 0) return;
+    if (price <= 0 || totalAmount <= 0) return;
 
     // Build URL with pre-filled values
     const params = new URLSearchParams({
       type: orderType,
       quote: quoteAsset,
-      price: pricePerUnit.toFixed(8),
-      amount: amount.toString(),
+      price: price.toFixed(8),
+      amount: totalAmount.toString(),
     });
 
     navigate(`/compose/order/${baseAsset}?${params.toString()}`);
@@ -424,94 +401,119 @@ export default function AssetOrdersPage(): ReactElement {
     return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
   }
 
-  const hasMore = tab === "matched" ? hasMoreMatches : hasMoreOrders;
-  const isFetching = tab === "matched" ? isFetchingMoreMatches : isFetchingMore;
+  // Only history tab has pagination - orders are loaded fully upfront for the order book
+  const hasMore = tab === "history" && hasMoreMatches;
+  const isFetching = tab === "history" && isFetchingMoreMatches;
 
   return (
     <div className="flex flex-col h-full" role="main">
-      <div className="flex-1 overflow-auto no-scrollbar p-4">
-        {/* Asset Header */}
-        <div className="flex items-center mb-4">
-          <AssetIcon asset={baseAsset || ""} size="lg" className="mr-4" />
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold break-all">
-              {baseAssetInfo?.asset_longname || baseAsset}
-            </h2>
-            <p className="text-sm text-gray-600">
-              {tradingPairData?.name || `${baseAsset}/${quoteAsset}`}
-            </p>
-          </div>
-          <AssetInfoPopover assetInfo={baseAssetInfo} className="flex-shrink-0 ml-2" />
-        </div>
+      <div className="flex flex-col flex-grow min-h-0">
+        {/* Fixed Header */}
+        <div className="p-4 pb-0 flex-shrink-0">
+          {/* Asset Header */}
+          {baseAssetInfo && (
+            <AssetHeader assetInfo={baseAssetInfo} showInfoPopover className="mb-4" />
+          )}
 
-        {/* Stats Card - contextual based on tab */}
-        <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
-          <div className="flex items-center gap-2">
+          {/* Stats Card - contextual based on tab */}
+          <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
             <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-              {(tab === "buy" || tab === "sell") && orderStats && (
+              {tab === "buy" && marketStats && marketStats.bestBid !== null && (
                 <>
-                  <div>
-                    <span className="text-gray-500">Floor</span>
-                    <div
-                      onClick={() => copy(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.floorPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
+                  <CopyableStat
+                    label="Bid"
+                    value={formatOrderPrice(marketStats.bestBid, quoteAsset || "")}
+                    rawValue={getRawOrderPrice(marketStats.bestBid)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawOrderPrice(marketStats.bestBid))}
+                  />
+                  {marketStats.spread !== null ? (
+                    <CopyableStat
+                      label="Spread"
+                      value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
+                      rawValue={getRawOrderPrice(marketStats.spread)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawOrderPrice(marketStats.spread))}
+                    />
+                  ) : (
+                    <div>
+                      <span className="text-gray-500">Spread</span>
+                      <div className="font-medium text-gray-900">—</div>
                     </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div
-                      onClick={() => copy(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(orderStats.weightedAvg, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
+                  )}
                 </>
               )}
-              {(tab === "buy" || tab === "sell") && !orderStats && (
+              {tab === "buy" && (!marketStats || marketStats.bestBid === null) && (
                 <>
                   <div>
-                    <span className="text-gray-500">Floor</span>
+                    <span className="text-gray-500">Bid</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Avg</span>
+                    <span className="text-gray-500">Spread</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
               )}
-              {tab === "matched" && matchStats && (
+              {tab === "sell" && marketStats && marketStats.bestAsk !== null && (
+                <>
+                  <CopyableStat
+                    label="Ask"
+                    value={formatOrderPrice(marketStats.bestAsk, quoteAsset || "")}
+                    rawValue={getRawOrderPrice(marketStats.bestAsk)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawOrderPrice(marketStats.bestAsk))}
+                  />
+                  {marketStats.spread !== null ? (
+                    <CopyableStat
+                      label="Spread"
+                      value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
+                      rawValue={getRawOrderPrice(marketStats.spread)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawOrderPrice(marketStats.spread))}
+                    />
+                  ) : (
+                    <div>
+                      <span className="text-gray-500">Spread</span>
+                      <div className="font-medium text-gray-900">—</div>
+                    </div>
+                  )}
+                </>
+              )}
+              {tab === "sell" && (!marketStats || marketStats.bestAsk === null) && (
+                <>
+                  <div>
+                    <span className="text-gray-500">Ask</span>
+                    <div className="font-medium text-gray-900">—</div>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Spread</span>
+                    <div className="font-medium text-gray-900">—</div>
+                  </div>
+                </>
+              )}
+              {tab === "history" && matchStats && (
+                <>
+                  <CopyableStat
+                    label="Last"
+                    value={formatOrderPrice(matchStats.lastPrice, quoteAsset || "")}
+                    rawValue={getRawOrderPrice(matchStats.lastPrice)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawOrderPrice(matchStats.lastPrice))}
+                  />
+                  <CopyableStat
+                    label="Avg"
+                    value={formatOrderPrice(matchStats.avgPrice, quoteAsset || "")}
+                    rawValue={getRawOrderPrice(matchStats.avgPrice)}
+                    onCopy={copy}
+                    isCopied={isCopied(getRawOrderPrice(matchStats.avgPrice))}
+                  />
+                </>
+              )}
+              {tab === "history" && !matchStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Last</span>
-                    <div
-                      onClick={() => copy(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.lastPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Avg</span>
-                    <div
-                      onClick={() => copy(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat))}
-                      className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 flex items-center justify-between gap-1 ${isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) ? "bg-gray-200" : ""}`}
-                    >
-                      <span>{formatOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)}</span>
-                      {isCopied(getRawOrderPrice(matchStats.avgPrice, quoteAsset || "", priceUnit, btcPrice, xcpPrice, settings.fiat)) && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-                    </div>
-                  </div>
-                </>
-              )}
-              {tab === "matched" && !matchStats && (
-                <>
-                  <div>
-                    <span className="text-gray-500">Last</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
@@ -521,127 +523,149 @@ export default function AssetOrdersPage(): ReactElement {
                 </>
               )}
             </div>
-            {canToggleFiat && (
-              <button
-                onClick={togglePriceUnit}
-                className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                title={`Switch to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
-                aria-label={`Switch price display to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
-              >
-                <TbRepeat className="size-4" aria-hidden="true" />
-              </button>
-            )}
+          </div>
+
+          {/* Section Header with Tabs */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex gap-1">
+              <TabButton isActive={tab === "buy"} onClick={() => setTab("buy")}>
+                Buy
+              </TabButton>
+              <TabButton isActive={tab === "sell"} onClick={() => setTab("sell")}>
+                Sell
+              </TabButton>
+              <TabButton isActive={tab === "history"} onClick={() => setTab("history")}>
+                History
+              </TabButton>
+            </div>
+            <button
+              onClick={() => navigate(`/market?tab=orders&mode=manage&search=${baseAsset}`)}
+              className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
+            >
+              My Orders
+            </button>
           </div>
         </div>
 
-        {/* Section Header with Tabs left, My Orders right */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex gap-1">
-            <button
-              onClick={() => setTab("buy")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "buy"
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Buy
-            </button>
-            <button
-              onClick={() => setTab("sell")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "sell"
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Sell
-            </button>
-            <button
-              onClick={() => setTab("matched")}
-              className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "matched"
-                  ? "bg-gray-200 text-gray-900 font-medium"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Matched
-            </button>
-          </div>
-          <a
-            href="#"
-            className="text-xs text-blue-600 hover:text-blue-800"
-          >
-            My Orders
-          </a>
-        </div>
+        {/* Scrollable Content */}
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4">
+          {(tab === "buy" || tab === "sell") && (
+            priceLevels.length > 0 ? (
+              <div className="space-y-1">
+                {/* Column headers */}
+                <div className="flex items-center text-xs text-gray-400 px-2 py-1">
+                  <div className="flex-1">Price</div>
+                  <div className="flex-1">Amount</div>
+                  <div className="flex-1 text-right">Total</div>
+                </div>
+                {priceLevels.map((level) => {
+                  const total = level.price * level.totalAmount;
+                  const avgPrice = level.cumulativeBase > 0 ? level.cumulativeQuote / level.cumulativeBase : 0;
 
-        {/* Content */}
-        {tab === "matched" ? (
-          matches.length > 0 ? (
-            <div className="space-y-2">
-              {matches.map((m) => (
-                <MarketMatchCard
-                  key={m.id}
-                  match={m}
-                  onCopyTx={copy}
-                  isCopied={isCopied(m.tx0_hash)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
-          )
-        ) : (
-          currentOrders.length > 0 ? (
-            <div className="space-y-2">
-              {currentOrders.map((o) => (
-                <MarketOrderCard
-                  key={o.tx_hash}
-                  order={o}
-                  onClick={() => handleOrderClick(o)}
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyState message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`} />
-          )
-        )}
+                  // Format values
+                  const formattedPrice = formatAmount({ value: level.price, maximumFractionDigits: 8 });
+                  const formattedAmount = level.totalAmount % 1 === 0
+                    ? formatAmount({ value: level.totalAmount, maximumFractionDigits: 0 })
+                    : formatAmount({ value: level.totalAmount, maximumFractionDigits: 2 });
+                  const formattedTotal = formatAmount({ value: total, minimumFractionDigits: 8, maximumFractionDigits: 8 });
 
-        {/* Load more sentinel */}
-        <div ref={loadMoreRef} className="py-2">
-          {hasMore ? (
-            isFetching ? (
-              <div className="flex justify-center">
-                <Spinner className="py-4" />
+                  // Build hover title with cumulative info
+                  const hoverTitle = `Avg: ${formatAmount({ value: avgPrice, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}\nSum: ${formatAmount({ value: level.cumulativeBase, maximumFractionDigits: 8 })} ${baseAsset}\nSum: ${formatAmount({ value: level.cumulativeQuote, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}`;
+
+                  return (
+                    <OrderBookLevelCard
+                      key={level.priceKey}
+                      formattedPrice={formattedPrice}
+                      formattedAmount={formattedAmount}
+                      formattedTotal={formattedTotal}
+                      hoverTitle={hoverTitle}
+                      isBuy={tab === "buy"}
+                      depthPercent={level.depthPercent}
+                      onClick={() => handlePriceLevelClick(level.price, level.totalAmount)}
+                    />
+                  );
+                })}
               </div>
             ) : (
-              <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+              <EmptyState
+                message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`}
+                linkAction={{
+                  label: "Create New Order →",
+                  onClick: () => {
+                    const params = new URLSearchParams({
+                      type: tab,
+                      quote: quoteAsset || "XCP",
+                    });
+                    navigate(`/compose/order/${baseAsset}?${params.toString()}`);
+                  },
+                }}
+              />
             )
-          ) : null}
-        </div>
+          )}
 
-        {/* Footer summary - contextual totals */}
-        {(tab === "buy" || tab === "sell") && orderStats && currentOrders.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
-            <span>
-              {formatAmount({ value: orderStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}
-            </span>
-            <span>
-              for {formatAmount({ value: orderStats.totalBaseAsset, maximumFractionDigits: 0 })} {baseAsset}
-            </span>
+          {tab === "history" && (
+            matches.length > 0 ? (
+              <div className="space-y-2">
+                {matches.map((m) => (
+                  <MarketMatchCard
+                    key={m.id}
+                    match={m}
+                    baseAsset={baseAsset}
+                    onCopyTx={copy}
+                    isCopied={isCopied(m.tx0_hash)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
+            )
+          )}
+
+          {/* Load more sentinel */}
+          <div ref={loadMoreRef} className="py-2">
+            {hasMore ? (
+              isFetching ? (
+                <div className="flex justify-center">
+                  <Spinner className="py-4" />
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+              )
+            ) : null}
           </div>
-        )}
-        {tab === "matched" && matchStats && matches.length > 1 && (
-          <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
-            <span>
-              {formatAmount({ value: matchStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}
-            </span>
-            <span>
-              for {formatAmount({ value: matchStats.totalBaseAsset, maximumFractionDigits: 0 })} {baseAsset}
-            </span>
-          </div>
-        )}
+
+          {/* Footer summary - contextual totals */}
+          {tab === "sell" && orderStats && priceLevels.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
+              <span>
+                {formatAmount({ value: orderStats.totalBaseAsset, maximumFractionDigits: 0 })} {baseAsset}
+              </span>
+              <span>
+                for {formatAmount({ value: orderStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}
+              </span>
+            </div>
+          )}
+          {tab === "buy" && orderStats && priceLevels.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
+              <span>
+                {formatAmount({ value: orderStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}
+              </span>
+              <span>
+                for {formatAmount({ value: orderStats.totalBaseAsset, maximumFractionDigits: 0 })} {baseAsset}
+              </span>
+            </div>
+          )}
+          {tab === "history" && matchStats && matches.length > 1 && (
+            <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
+              <span>
+                {formatAmount({ value: matchStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}
+              </span>
+              <span>
+                for {formatAmount({ value: matchStats.totalBaseAsset, maximumFractionDigits: 0 })} {baseAsset}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

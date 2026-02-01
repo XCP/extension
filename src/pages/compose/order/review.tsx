@@ -38,9 +38,11 @@ export function ReviewOrder({
   const getQuantityDisplay = result.params.get_quantity_normalized ?? result.params.get_quantity;
 
   const getPriceDisplay = () => {
+    // Use normalized quantities for correct price calculation
+    // Raw quantities are in satoshi-like units for divisible assets
     return formatPriceRatio(
-      result.params.give_quantity,
-      result.params.get_quantity,
+      giveQuantityDisplay,
+      getQuantityDisplay,
       giveAssetDisplay,
       getAssetDisplay,
       isPriceFlipped

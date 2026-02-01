@@ -14,7 +14,7 @@ interface DispenserInputProps {
   onChange: (address: string) => void;
   selectedIndex: number | null;
   onSelectionChange: (index: number | null, option: DispenserOption | null) => void;
-  initialFormData?: DispenseOptions | null;
+  initialFormData?: (DispenseOptions & { initialAsset?: string }) | null;
   disabled?: boolean;
   showHelpText?: boolean;
   required?: boolean;
@@ -133,10 +133,22 @@ export function DispenserInput({
     fetchDispensers();
   }, [value, isValidAddress, onError, onLoadingChange]);
 
-  // Auto-select first dispenser when options change
+  // Auto-select dispenser when options change (prefer initialAsset if provided)
   useEffect(() => {
     if (dispenserOptions.length > 0) {
       if (selectedIndex === null) {
+        // Check if we have an initialAsset to pre-select
+        const initialAsset = initialFormData?.initialAsset;
+        if (initialAsset) {
+          const matchIndex = dispenserOptions.findIndex(
+            opt => opt.dispenser.asset === initialAsset
+          );
+          if (matchIndex >= 0) {
+            onSelectionChange(matchIndex, dispenserOptions[matchIndex]);
+            return;
+          }
+        }
+        // Fall back to first option
         onSelectionChange(0, dispenserOptions[0]);
       } else if (selectedIndex >= dispenserOptions.length) {
         onSelectionChange(0, dispenserOptions[0]);
@@ -144,7 +156,7 @@ export function DispenserInput({
     } else if (dispenserOptions.length === 0) {
       onSelectionChange(null, null);
     }
-  }, [dispenserOptions, selectedIndex, onSelectionChange]);
+  }, [dispenserOptions, selectedIndex, onSelectionChange, initialFormData?.initialAsset]);
 
   return (
     <>

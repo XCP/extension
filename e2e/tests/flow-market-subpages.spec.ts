@@ -2,7 +2,6 @@
  * Market Sub-Pages Tests
  *
  * Tests for market sub-routes:
- * - /dispensers/manage
  * - /market/btc
  * - /market/dispensers/:asset
  * - /market/orders/:baseAsset/:quoteAsset
@@ -10,48 +9,6 @@
 
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { market, compose } from '../selectors';
-
-walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
-  walletTest.beforeEach(async ({ page }) => {
-    await navigateTo(page, 'market');
-    await expect(page).toHaveURL(/market/);
-  });
-
-  walletTest('can navigate to manage tab', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await expect(manageTab).toBeVisible({ timeout: 5000 });
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
-
-    // Verify manage tab content loaded - should show dispensers section
-    const dispensersHeading = page.locator('text=/Your Dispensers|Dispensers/i').first();
-    await expect(dispensersHeading).toBeVisible({ timeout: 10000 });
-  });
-
-  walletTest('dispenser management shows list or empty state', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
-
-    // Wait for loading to complete, then verify Your Dispensers section is visible
-    const dispensersHeading = page.getByRole('heading', { name: 'Your Dispensers' });
-    await expect(dispensersHeading).toBeVisible({ timeout: 10000 });
-  });
-
-  walletTest('manage tab has create dispenser option or content', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
-
-    // Should show create option or dispenser content
-    const createOption = page.locator(
-      'button:has-text("New Dispenser"), button:has-text("Create"), a:has-text("Dispenser")'
-    ).first();
-    const dispenserContent = page.locator('text=/Dispenser|satoshi|BTC/i').first();
-
-    await expect(createOption.or(dispenserContent).first()).toBeVisible({ timeout: 5000 });
-  });
-});
 
 walletTest.describe('BTC Price Page (/market/btc)', () => {
   walletTest('can navigate to BTC price page', async ({ page }) => {

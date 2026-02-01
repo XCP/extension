@@ -1,270 +1,425 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { FaPlus, FaCog } from "@/components/icons";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Radio, RadioGroup } from "@headlessui/react";
+import { FaChevronRight, FaClipboard, FaCheck, FaLock } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
+import { SearchInput } from "@/components/ui/inputs/search-input";
 import { MarketDispenserCard } from "@/components/ui/cards/market-dispenser-card";
 import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
-import { MarketDispenseCard } from "@/components/ui/cards/market-dispense-card";
-import { MarketMatchCard } from "@/components/ui/cards/market-match-card";
-import { ManageOrderCard } from "@/components/ui/cards/manage-order-card";
 import { ManageDispenserCard } from "@/components/ui/cards/manage-dispenser-card";
+import { ManageOrderCard } from "@/components/ui/cards/manage-order-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { SectionHeader } from "@/components/ui/headers/section-header";
+import { TabButton } from "@/components/ui/tab-button";
 import { PriceTicker } from "@/components/domain/price/price-ticker";
 import { useHeader } from "@/contexts/header-context";
-import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import {
-  fetchAllDispensers,
-  fetchAllDispenses,
-  fetchAllOrders,
-  fetchAllOrderMatches,
-  fetchOrders,
-  fetchAddressDispensers,
-  type DispenserDetails,
-  type OrderDetails,
-  type OrderMatch,
-  type Order,
-  type Dispenser,
-  type Dispense,
-} from "@/utils/blockchain/counterparty/api";
+import { useInView } from "@/hooks/useInView";
+import { useMarketData } from "@/hooks/useMarketData";
+import { formatAddress } from "@/utils/format";
+import { formatPrice } from "@/utils/price-format";
+import { getTradingPair } from "@/utils/trading-pair";
+import type { DispenserDetails, OrderDetails } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 // Constants
-const FETCH_LIMIT = 10;
-const MANAGE_FETCH_LIMIT = 50;
-const DISPLAY_LIMIT = 5;
 const COPY_FEEDBACK_MS = 2000;
 
 /**
- * Market component displays the XCP DEX marketplace with Browse and Manage tabs.
+ * Market page displays the XCP DEX marketplace with Dispensers and Orders tabs.
  */
 export default function MarketPage(): ReactElement {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setHeaderProps } = useHeader();
-  const { activeAddress } = useWallet();
   const { settings } = useSettings();
-  const { btc, xcp, loading: pricesLoading } = useMarketPrices(settings.fiat);
+  const { activeAddress, lockKeychain } = useWallet();
+  const { btc, xcp } = useMarketPrices(settings.fiat);
 
-  // Orders section state
-  const [recentOrders, setRecentOrders] = useState<OrderDetails[]>([]);
-  const [orderMatches, setOrderMatches] = useState<OrderMatch[]>([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
-  const [ordersTab, setOrdersTab] = useState<"open" | "history">("open");
+  // Address copy state
+  const [addressCopied, setAddressCopied] = useState(false);
 
-  // Dispensers section state
-  const [recentDispensers, setRecentDispensers] = useState<DispenserDetails[]>([]);
-  const [recentDispenses, setRecentDispenses] = useState<Dispense[]>([]);
-  const [dispensersLoading, setDispensersLoading] = useState(true);
-  const [dispensersTab, setDispensersTab] = useState<"open" | "dispensed">("open");
+  // Tab and view mode state from URL params
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "dispensers" ? 0 : 1;
+  const viewMode = searchParams.get("mode") === "manage" ? "manage" : "explore";
 
-  // Manage tab state
-  const [myOrders, setMyOrders] = useState<Order[]>([]);
-  const [myDispensers, setMyDispensers] = useState<Dispenser[]>([]);
-  const [manageLoading, setManageLoading] = useState(false);
+  const setActiveTab = (tab: number) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("tab", tab === 0 ? "dispensers" : "orders");
+      return next;
+    }, { replace: true });
+  };
 
-  // Copy feedback state
-  const [copiedTx, setCopiedTx] = useState<string | null>(null);
+  const setViewMode = (mode: "explore" | "manage") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("mode", mode);
+      return next;
+    }, { replace: true });
+  };
+
+  // Unified search state synced with URL
+  const searchQuery = searchParams.get("search") || "";
+
+  const setSearchQuery = useCallback((query: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (query.trim()) {
+        next.set("search", query);
+      } else {
+        next.delete("search");
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Infinite scroll ref
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "200px", threshold: 0 });
+
+  // Market data hook - encapsulates all data fetching and filtering
+  const {
+    dispensers,
+    orders,
+    userDispensers,
+    userOrders,
+    filteredUserDispensers,
+    filteredUserOrders,
+    dispenserResults,
+    orderResults,
+    dispenserSearchLoading,
+    orderSearchLoading,
+    dispenserSearchError,
+    orderSearchError,
+    handleDispenserSearch,
+    handleOrderSearch,
+    PAGE_SIZE,
+  } = useMarketData({
+    activeAddress: activeAddress?.address,
+    activeTab,
+    viewMode,
+    searchQuery,
+    inView,
+  });
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Marketplace",
+      title: "Exchange",
       onBack: () => navigate("/index"),
+      rightButton: {
+        icon: <FaLock aria-hidden="true" />,
+        onClick: async () => {
+          await lockKeychain();
+          navigate("/keychain/unlock");
+        },
+        ariaLabel: "Lock Keychain",
+      },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, lockKeychain]);
 
-  // Load orders data
+  // Address copy feedback timer
   useEffect(() => {
-    const loadOrdersData = async () => {
-      setOrdersLoading(true);
-      try {
-        const [ordersRes, matchesRes] = await Promise.all([
-          fetchAllOrders({ limit: FETCH_LIMIT, status: "open" }),
-          fetchAllOrderMatches({ limit: FETCH_LIMIT }),
-        ]);
-        setRecentOrders(ordersRes.result);
-        setOrderMatches(matchesRes.result);
-      } catch (err) {
-        console.error("Failed to load orders data:", err);
-      } finally {
-        setOrdersLoading(false);
-      }
-    };
-    loadOrdersData();
-  }, []);
-
-  // Load dispensers data
-  useEffect(() => {
-    const loadDispensersData = async () => {
-      setDispensersLoading(true);
-      try {
-        const [dispensersRes, dispensesRes] = await Promise.all([
-          fetchAllDispensers({ limit: FETCH_LIMIT, status: "open" }),
-          fetchAllDispenses({ limit: FETCH_LIMIT }),
-        ]);
-        setRecentDispensers(dispensersRes.result);
-        setRecentDispenses(dispensesRes.result);
-      } catch (err) {
-        console.error("Failed to load dispensers data:", err);
-      } finally {
-        setDispensersLoading(false);
-      }
-    };
-    loadDispensersData();
-  }, []);
-
-  // Load manage data when tab becomes active
-  const loadManageData = useCallback(async () => {
-    if (!activeAddress?.address) {
-      setMyOrders([]);
-      setMyDispensers([]);
-      return;
+    if (addressCopied) {
+      const timer = setTimeout(() => setAddressCopied(false), COPY_FEEDBACK_MS);
+      return () => clearTimeout(timer);
     }
+  }, [addressCopied]);
 
-    setManageLoading(true);
-    try {
-      const [ordersRes, dispensersRes] = await Promise.all([
-        fetchOrders(activeAddress.address, { status: "open", limit: MANAGE_FETCH_LIMIT }),
-        fetchAddressDispensers(activeAddress.address, { status: "open", limit: MANAGE_FETCH_LIMIT }),
-      ]);
-      setMyOrders(ordersRes.result);
-      setMyDispensers(dispensersRes.result);
-    } catch (err) {
-      console.error("Failed to load your DEX data:", err);
-    } finally {
-      setManageLoading(false);
-    }
-  }, [activeAddress?.address]);
-
-  // Copy to clipboard handler
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedTx(text);
-      setTimeout(() => setCopiedTx(null), COPY_FEEDBACK_MS);
-    } catch (err) {
-      console.error("Failed to copy:", err);
-    }
+  // Handlers
+  const handleCopyAddress = () => {
+    if (!activeAddress) return;
+    navigator.clipboard.writeText(activeAddress.address).then(() => {
+      setAddressCopied(true);
+    });
   };
 
-  // Navigate to asset orders page to compare prices
-  const handleOrderClick = (order: OrderDetails) => {
-    const baseAsset = order.give_asset;
-    const quoteAsset = order.get_asset;
-    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
+  const handleAddressSelection = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate("/addresses", { state: { returnTo: location.pathname + location.search } });
   };
 
-  // Navigate to asset dispensers page to compare prices
   const handleDispenserClick = (dispenser: DispenserDetails) => {
     navigate(`/market/dispensers/${dispenser.asset}`);
   };
 
+  const handleOrderClick = (order: OrderDetails) => {
+    const [baseAsset, quoteAsset] = getTradingPair(order.give_asset, order.get_asset);
+    navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
+  };
+
+  const isSearching = searchQuery.trim().length > 0;
+
   return (
     <div className="flex flex-col h-full" role="main">
-      <div className="flex-1 overflow-auto no-scrollbar p-4">
-        <PriceTicker
-          btc={btc}
-          xcp={xcp}
-          currency={settings.fiat}
-          onBtcClick={() => navigate("/market/btc")}
-          onXcpClick={() => navigate("/market/dispensers/XCP")}
-          className="mb-4"
-        />
+      <div className="flex flex-col flex-grow min-h-0">
+        {/* Fixed Header */}
+        <div className="p-4 pb-0 flex-shrink-0">
+          {/* Address Selector */}
+          {activeAddress && (
+            <RadioGroup value={activeAddress} onChange={() => {}} className="mb-4">
+              <Radio value={activeAddress}>
+                {({ checked }) => (
+                  <div
+                    className={`relative w-full rounded p-4 cursor-pointer ${
+                      checked ? "bg-blue-600 text-white shadow-md" : "bg-blue-200 hover:bg-blue-300 text-gray-800"
+                    }`}
+                    onClick={handleCopyAddress}
+                    aria-label="Current address"
+                  >
+                    <div className="absolute top-1/2 right-4 -translate-y-1/2">
+                      <div
+                        className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                        onClick={handleAddressSelection}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAddressSelection(e as unknown as React.MouseEvent);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Select another address"
+                      >
+                        <FaChevronRight className="size-4" aria-hidden="true" />
+                      </div>
+                    </div>
+                    <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
+                    <div className="flex justify-center items-center">
+                      <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
+                      {addressCopied ? (
+                        <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
+                      ) : (
+                        <FaClipboard className="ml-2" aria-hidden="true" />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </Radio>
+            </RadioGroup>
+          )}
 
-        <TabGroup onChange={(index) => index === 1 && loadManageData()}>
-          <TabList className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-4">
-            <Tab className={({ selected }) =>
-              `flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                selected
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`
-            }>
-              Browse
-            </Tab>
-            <Tab className={({ selected }) =>
-              `flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                selected
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-600 hover:text-gray-900"
-              }`
-            }>
-              Manage
-            </Tab>
-          </TabList>
+          <PriceTicker
+            btc={btc}
+            xcp={xcp}
+            currency={settings.fiat}
+            onBtcClick={() => navigate("/market/btc")}
+            onXcpClick={() => navigate("/market/dispensers/XCP")}
+            className="mb-4"
+          />
 
-          <TabPanels>
-            {/* Browse Tab */}
-            <TabPanel>
-              <div className="space-y-6">
-                {/* Dispensers Section */}
-                <div>
-                  <SectionHeader
-                    title="Dispensers"
-                    tabs={[
-                      { id: "open", label: "Open" },
-                      { id: "dispensed", label: "Dispensed" },
-                    ]}
-                    activeTab={dispensersTab}
-                    onTabChange={(tab) => setDispensersTab(tab as "open" | "dispensed")}
+          {/* Tab Header */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex space-x-4" role="tablist" aria-label="Market sections">
+              <button
+                role="tab"
+                aria-selected={activeTab === 0}
+                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
+                  activeTab === 0 ? "underline" : ""
+                }`}
+                onClick={() => setActiveTab(0)}
+              >
+                Dispensers
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeTab === 1}
+                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
+                  activeTab === 1 ? "underline" : ""
+                }`}
+                onClick={() => setActiveTab(1)}
+              >
+                Orders
+              </button>
+            </div>
+            {/* View Mode Toggle */}
+            <div className="flex gap-1" role="tablist" aria-label="View mode">
+              <TabButton isActive={viewMode === "explore"} onClick={() => setViewMode("explore")}>
+                Explore
+              </TabButton>
+              <TabButton isActive={viewMode === "manage"} onClick={() => setViewMode("manage")}>
+                Manage
+              </TabButton>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable Content */}
+        <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4">
+          {activeTab === 0 && (
+            <div className="space-y-3">
+              {viewMode === "explore" ? (
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    onSearch={handleDispenserSearch}
+                    placeholder="Search asset dispensers..."
+                    name="dispenser-search"
+                    isLoading={dispenserSearchLoading}
+                    showClearButton
+                    className="mt-0.5"
                   />
-                  {dispensersLoading ? (
+
+                  {isSearching ? (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Results for "{searchQuery.toUpperCase()}"
+                      </p>
+                      {dispenserSearchLoading ? (
+                        <Spinner message="Searching..." />
+                      ) : dispenserSearchError ? (
+                        <EmptyState message={dispenserSearchError} />
+                      ) : dispenserResults.length > 0 ? (
+                        <div className="space-y-2">
+                          {dispenserResults.map((d) => (
+                            <MarketDispenserCard
+                              key={d.tx_hash}
+                              dispenser={d}
+                              formattedPrice={formatPrice(d.satoshirate, settings.priceUnit, btc, settings.fiat)}
+                              onClick={() => handleDispenserClick(d)}
+                            />
+                          ))}
+                          {dispenserResults.length >= PAGE_SIZE && (
+                            <button
+                              onClick={() => navigate(`/market/dispensers/${searchQuery.toUpperCase()}`)}
+                              className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                            >
+                              View all dispensers for {searchQuery.toUpperCase()} →
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <EmptyState message={`No open dispensers for ${searchQuery.toUpperCase()}`} />
+                      )}
+                    </div>
+                  ) : dispensers.isLoading ? (
                     <Spinner message="Loading dispensers…" />
-                  ) : dispensersTab === "open" ? (
-                    recentDispensers.length > 0 ? (
+                  ) : dispensers.error ? (
+                    <EmptyState message="Failed to load dispensers" />
+                  ) : dispensers.data.length > 0 ? (
+                    <>
                       <div className="space-y-2">
-                        {recentDispensers.slice(0, DISPLAY_LIMIT).map((d) => (
+                        {dispensers.data.map((d) => (
                           <MarketDispenserCard
                             key={d.tx_hash}
                             dispenser={d}
+                            formattedPrice={formatPrice(d.satoshirate, settings.priceUnit, btc, settings.fiat)}
                             onClick={() => handleDispenserClick(d)}
-                            onAssetClick={() => navigate(`/market/dispensers/${d.asset}`)}
                           />
                         ))}
                       </div>
-                    ) : (
-                      <EmptyState message="No open dispensers found" />
-                    )
+                      <div ref={loadMoreRef} className="flex justify-center py-2">
+                        {dispensers.isFetchingMore && <Spinner />}
+                      </div>
+                    </>
                   ) : (
-                    recentDispenses.length > 0 ? (
-                      <div className="space-y-2">
-                        {recentDispenses.slice(0, DISPLAY_LIMIT).map((d) => (
-                          <MarketDispenseCard
-                            key={d.tx_hash}
-                            dispense={d}
-                            onCopyTx={copyToClipboard}
-                            isCopied={copiedTx === d.tx_hash}
-                            onAssetClick={() => navigate(`/market/dispensers/${d.asset}`)}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState message="No recent dispenses" />
-                    )
+                    <EmptyState message="No open dispensers found" />
                   )}
-                </div>
-
-                {/* Orders Section */}
-                <div>
-                  <SectionHeader
-                    title="Orders"
-                    tabs={[
-                      { id: "open", label: "Open" },
-                      { id: "history", label: "History" },
-                    ]}
-                    activeTab={ordersTab}
-                    onTabChange={(tab) => setOrdersTab(tab as "open" | "history")}
+                </>
+              ) : (
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Filter your dispensers..."
+                    name="dispenser-filter"
+                    showClearButton
+                    className="mt-0.5"
                   />
-                  {ordersLoading ? (
+                  {userDispensers.isLoading ? (
+                    <Spinner message="Loading your dispensers…" />
+                  ) : userDispensers.error ? (
+                    <EmptyState message="Failed to load your dispensers" />
+                  ) : (
+                    <>
+                      {filteredUserDispensers.length > 0 ? (
+                        <>
+                          <div className="space-y-2">
+                            {filteredUserDispensers.map((d) => (
+                              <ManageDispenserCard key={d.tx_hash} dispenser={d} />
+                            ))}
+                          </div>
+                          <div ref={loadMoreRef} className="flex justify-center py-2">
+                            {userDispensers.isFetchingMore && <Spinner />}
+                          </div>
+                        </>
+                      ) : searchQuery.trim() ? (
+                        <EmptyState message={`No dispensers matching "${searchQuery}"`} />
+                      ) : (
+                        <EmptyState message="You don't have any open dispensers" />
+                      )}
+                      <button
+                        onClick={() => navigate(searchQuery.trim() ? `/compose/dispenser/${searchQuery.toUpperCase()}` : "/compose/dispenser")}
+                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                      >
+                        Create New Dispenser →
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 1 && (
+            <div className="space-y-3">
+              {viewMode === "explore" ? (
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    onSearch={handleOrderSearch}
+                    placeholder="Search asset orders..."
+                    name="order-search"
+                    isLoading={orderSearchLoading}
+                    showClearButton
+                    className="mt-0.5"
+                  />
+
+                  {isSearching ? (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-2">
+                        Results for "{searchQuery.toUpperCase()}"
+                      </p>
+                      {orderSearchLoading ? (
+                        <Spinner message="Searching..." />
+                      ) : orderSearchError ? (
+                        <EmptyState message={orderSearchError} />
+                      ) : orderResults.length > 0 ? (
+                        <div className="space-y-2">
+                          {orderResults.map((o) => (
+                            <MarketOrderCard
+                              key={o.tx_hash}
+                              order={o}
+                              onClick={() => handleOrderClick(o)}
+                            />
+                          ))}
+                          {orderResults.length >= PAGE_SIZE && (
+                            <button
+                              onClick={() => navigate(`/market/orders/${searchQuery.toUpperCase()}/XCP`)}
+                              className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                            >
+                              View all orders for {searchQuery.toUpperCase()} →
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <EmptyState message={`No open orders for ${searchQuery.toUpperCase()}`} />
+                      )}
+                    </div>
+                  ) : orders.isLoading ? (
                     <Spinner message="Loading orders…" />
-                  ) : ordersTab === "open" ? (
-                    recentOrders.length > 0 ? (
+                  ) : orders.error ? (
+                    <EmptyState message="Failed to load orders" />
+                  ) : orders.data.length > 0 ? (
+                    <>
                       <div className="space-y-2">
-                        {recentOrders.slice(0, DISPLAY_LIMIT).map((o) => (
+                        {orders.data.map((o) => (
                           <MarketOrderCard
                             key={o.tx_hash}
                             order={o}
@@ -272,108 +427,59 @@ export default function MarketPage(): ReactElement {
                           />
                         ))}
                       </div>
-                    ) : (
-                      <EmptyState message="No open orders found" />
-                    )
+                      <div ref={loadMoreRef} className="flex justify-center py-2">
+                        {orders.isFetchingMore && <Spinner />}
+                      </div>
+                    </>
                   ) : (
-                    orderMatches.length > 0 ? (
-                      <div className="space-y-2">
-                        {orderMatches.slice(0, DISPLAY_LIMIT).map((m) => (
-                          <MarketMatchCard
-                            key={m.id}
-                            match={m}
-                            onCopyTx={copyToClipboard}
-                            isCopied={copiedTx === m.tx0_hash}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState message="No recent order matches" />
-                    )
+                    <EmptyState message="No open orders found" />
                   )}
-                </div>
-              </div>
-            </TabPanel>
-
-            {/* Manage Tab */}
-            <TabPanel>
-              {manageLoading ? (
-                <Spinner message="Loading your DEX activity…" />
+                </>
               ) : (
-                <div className="space-y-4">
-                  {/* My Orders */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h2 className="text-sm font-semibold text-gray-700">Your Orders</h2>
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Filter your orders..."
+                    name="order-filter"
+                    showClearButton
+                    className="mt-0.5"
+                  />
+                  {userOrders.isLoading ? (
+                    <Spinner message="Loading your orders…" />
+                  ) : userOrders.error ? (
+                    <EmptyState message="Failed to load your orders" />
+                  ) : (
+                    <>
+                      {filteredUserOrders.length > 0 ? (
+                        <>
+                          <div className="space-y-2">
+                            {filteredUserOrders.map((o) => (
+                              <ManageOrderCard key={o.tx_hash} order={o} />
+                            ))}
+                          </div>
+                          <div ref={loadMoreRef} className="flex justify-center py-2">
+                            {userOrders.isFetchingMore && <Spinner />}
+                          </div>
+                        </>
+                      ) : searchQuery.trim() ? (
+                        <EmptyState message={`No orders matching "${searchQuery}"`} />
+                      ) : (
+                        <EmptyState message="You don't have any open orders" />
+                      )}
                       <button
-                        onClick={() => navigate("/compose/order")}
-                        className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                        onClick={() => navigate(searchQuery.trim() ? `/compose/order/${searchQuery.toUpperCase()}` : "/compose/order")}
+                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        <FaPlus className="size-3" aria-hidden="true" />
-                        New Order
+                        Create New Order →
                       </button>
-                    </div>
-                    {myOrders.length > 0 ? (
-                      <div className="space-y-2">
-                        {myOrders.map((o) => (
-                          <ManageOrderCard key={o.tx_hash} order={o} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyState
-                        message="You don't have any open orders"
-                        action={{ label: "Create Order", onClick: () => navigate("/compose/order") }}
-                      />
-                    )}
-                  </div>
-
-                  {/* My Dispensers */}
-                  <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <h2 className="text-sm font-semibold text-gray-700">Your Dispensers</h2>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => navigate("/market/dispensers/manage")}
-                          className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-500 rounded"
-                          title="Manage all dispensers"
-                        >
-                          <FaCog className="size-3" aria-hidden="true" />
-                        </button>
-                        <button
-                          onClick={() => navigate("/compose/dispenser")}
-                          className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                        >
-                          <FaPlus className="size-3" aria-hidden="true" />
-                          New
-                        </button>
-                      </div>
-                    </div>
-                    {myDispensers.length > 0 ? (
-                      <div className="space-y-2">
-                        {myDispensers.slice(0, DISPLAY_LIMIT).map((d) => (
-                          <ManageDispenserCard key={d.tx_hash} dispenser={d} />
-                        ))}
-                        {myDispensers.length > DISPLAY_LIMIT && (
-                          <button
-                            onClick={() => navigate("/market/dispensers/manage")}
-                            className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                          >
-                            View all {myDispensers.length} dispensers
-                          </button>
-                        )}
-                      </div>
-                    ) : (
-                      <EmptyState
-                        message="You don't have any open dispensers"
-                        action={{ label: "Create Dispenser", onClick: () => navigate("/compose/dispenser") }}
-                      />
-                    )}
-                  </div>
-                </div>
+                    </>
+                  )}
+                </>
               )}
-            </TabPanel>
-          </TabPanels>
-        </TabGroup>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

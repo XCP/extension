@@ -80,10 +80,6 @@ describe('fathom sanitizePath', () => {
   // MARKET
   // ═══════════════════════════════════════════════════════════════════════════
   describe('market paths', () => {
-    it('preserves /market/dispensers/manage (static path)', () => {
-      expect(sanitizePath('/market/dispensers/manage')).toBe('/market/dispensers/manage');
-    });
-
     it('strips asset from /market/dispensers/:asset', () => {
       expect(sanitizePath('/market/dispensers/XCP')).toBe('/market/dispensers');
       expect(sanitizePath('/market/dispensers/RARE.PEPE')).toBe('/market/dispensers');

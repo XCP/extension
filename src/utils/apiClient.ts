@@ -4,6 +4,8 @@
  * Drop-in replacement for axios with compatible API
  */
 
+import { emitApiStatus, getStatusTypeFromCode } from '@/utils/api-status';
+
 /**
  * Response wrapper to match axios response shape
  */
@@ -182,6 +184,19 @@ async function fetchWithTimeout<T>(
 
     // Check for HTTP errors
     if (!response.ok) {
+      // Emit API status for rate limiting or server errors
+      const statusType = getStatusTypeFromCode(response.status);
+      if (statusType) {
+        const retryAfter = response.headers.get('Retry-After');
+        emitApiStatus({
+          type: statusType,
+          statusCode: response.status,
+          message: response.status === 429
+            ? 'API rate limited. Requests may be slow.'
+            : `API error (${response.status}). Some features may be unavailable.`,
+          retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+        });
+      }
       throw createApiError(
         `Request failed with status ${response.status}`,
         'HTTP_ERROR',

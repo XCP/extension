@@ -36,6 +36,11 @@ vi.mock('@/components/layout/footer', () => ({
   Footer: () => <footer data-testid="footer">Footer</footer>
 }));
 
+// Mock ApiStatusBanner component
+vi.mock('@/components/layout/api-status-banner', () => ({
+  ApiStatusBanner: () => <div data-testid="api-status-banner" />
+}));
+
 // Mock contexts
 const mockHeaderProps = {
   title: 'Test Title',
@@ -104,27 +109,29 @@ describe('Layout', () => {
 
   it('should maintain layout structure with footer', () => {
     const { container } = render(<Layout showFooter={true} />);
-    
+
     const layoutDiv = container.firstChild as HTMLElement;
     const children = Array.from(layoutDiv.children);
-    
-    // Should have header, main, footer in that order
-    expect(children).toHaveLength(3);
+
+    // Should have header, api-status-banner, main, footer in that order
+    expect(children).toHaveLength(4);
     expect(children[0]).toHaveAttribute('data-testid', 'header');
-    expect(children[1].tagName.toLowerCase()).toBe('main');
-    expect(children[2]).toHaveAttribute('data-testid', 'footer');
+    expect(children[1]).toHaveAttribute('data-testid', 'api-status-banner');
+    expect(children[2].tagName.toLowerCase()).toBe('main');
+    expect(children[3]).toHaveAttribute('data-testid', 'footer');
   });
 
   it('should maintain layout structure without footer', () => {
     const { container } = render(<Layout showFooter={false} />);
-    
+
     const layoutDiv = container.firstChild as HTMLElement;
     const children = Array.from(layoutDiv.children);
-    
-    // Should have header and main only
-    expect(children).toHaveLength(2);
+
+    // Should have header, api-status-banner, and main only
+    expect(children).toHaveLength(3);
     expect(children[0]).toHaveAttribute('data-testid', 'header');
-    expect(children[1].tagName.toLowerCase()).toBe('main');
+    expect(children[1]).toHaveAttribute('data-testid', 'api-status-banner');
+    expect(children[2].tagName.toLowerCase()).toBe('main');
   });
 
 

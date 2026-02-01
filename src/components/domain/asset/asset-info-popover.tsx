@@ -44,7 +44,7 @@ export function AssetInfoPopover({
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="p-2 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-        title="View asset details"
+        aria-label="View asset details"
         aria-expanded={isOpen}
         aria-haspopup="true"
       >

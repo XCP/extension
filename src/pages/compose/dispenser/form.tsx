@@ -18,16 +18,19 @@ interface DispenserFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: DispenserOptions | null;
   asset: string;
+  /** When true, price and amount per dispense are pre-filled and read-only */
+  isRefill?: boolean;
 }
 
 /**
  * Form for creating a dispenser using React 19 Actions.
  * Wrapped with memo to prevent unnecessary re-renders.
  */
-export const DispenserForm = memo(function DispenserForm({ 
-  formAction, 
-  initialFormData, 
-  asset
+export const DispenserForm = memo(function DispenserForm({
+  formAction,
+  initialFormData,
+  asset,
+  isRefill = false,
 }: DispenserFormProps): ReactElement {
   // Context hooks
   const { activeAddress, showHelpText, state, feeRate } = useComposer();
@@ -208,8 +211,9 @@ export const DispenserForm = memo(function DispenserForm({
             showHelpText={showHelpText}
             label="Price in Bitcoin"
             name="mainchainrate_display"
-            priceDescription="BTC required to trigger one dispense."
+            priceDescription={isRefill ? "Price is fixed for refills." : "BTC required to trigger one dispense."}
             showPairFlip={false}
+            disabled={pending || isRefill}
           />
           {/* Hidden field to indicate mainchainrate is always in BTC for normalization */}
           <input type="hidden" name="mainchainrate_asset" value="BTC" />
@@ -223,16 +227,20 @@ export const DispenserForm = memo(function DispenserForm({
               name="give_quantity_display"
               value={giveQuantity}
               onChange={(e) => setGiveQuantity(e.target.value)}
-              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                isRefill ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
+              }`}
               required
               placeholder={isDivisible ? "0.00000000" : "0"}
-              disabled={pending}
+              disabled={pending || isRefill}
               inputMode="decimal"
             />
             {showHelpText && (
               <Description className="mt-2 text-sm text-gray-500">
-                The quantity of the asset to dispense per transaction.
-                {isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}
+                {isRefill
+                  ? "Amount per dispense is fixed for refills."
+                  : `The quantity of the asset to dispense per transaction.${isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`
+                }
               </Description>
             )}
           </Field>

@@ -94,7 +94,6 @@ export function ConnectedSiteCard({
           onClick={handleDisconnect}
           onKeyDown={handleDisconnectKeyDown}
           className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"
-          title="Disconnect site"
           aria-label={`Disconnect ${hostname}`}
         >
           <FiX className="size-4 text-gray-400 group-hover:text-red-500 transition-colors" aria-hidden="true" />

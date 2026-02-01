@@ -103,7 +103,6 @@ function ConsolidateStatusPage() {
           <button
             onClick={handleRefresh}
             className={`p-2 hover:bg-gray-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isRefreshing ? 'animate-spin' : ''}`}
-            title="Refresh status"
             aria-label="Refresh status"
           >
             <FiRefreshCw className="size-4 text-gray-600" aria-hidden="true" />
@@ -176,7 +175,6 @@ function ConsolidateStatusPage() {
                   <button
                     onClick={() => openInExplorer(tx.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    title="View in explorer"
                     aria-label="View in explorer"
                   >
                     <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />

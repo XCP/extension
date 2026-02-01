@@ -65,7 +65,7 @@ export function AssetDispenseCard({
                     ? "text-green-600"
                     : "text-gray-400 hover:text-gray-600"
                 }`}
-                title="Copy transaction hash"
+                aria-label="Copy transaction hash"
               >
                 TX
                 {isCopied ? (

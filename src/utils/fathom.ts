@@ -90,7 +90,6 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   // ═══════════════════════════════════════════════════════════════════════════
   // MARKET (asset names, trading pairs)
   // ═══════════════════════════════════════════════════════════════════════════
-  { prefix: '/market/dispensers/manage', sanitized: '/market/dispensers/manage' }, // static, no param
   { prefix: '/market/dispensers/', sanitized: '/market/dispensers' },
   { prefix: '/market/orders/', sanitized: '/market/orders' },
 

@@ -77,7 +77,7 @@ export function Header({
         {useLogoTitle ? (
           <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt="Logo" className="h-8" />
         ) : typeof title === 'string' ? (
-          <h1 className="text-lg font-bold truncate" title={title}>{title}</h1>
+          <h1 className="text-lg font-bold truncate">{title}</h1>
         ) : (
           title
         )}
