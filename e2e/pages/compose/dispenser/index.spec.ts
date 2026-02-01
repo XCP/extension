@@ -14,12 +14,9 @@ import {
 } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Dispenser Page (/compose/dispenser)', () => {
-  walletTest('can navigate to create dispenser from market', async ({ page }) => {
-    await navigateTo(page, 'market');
-    await expect(page).toHaveURL(/market/);
-
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await manageTab.click();
+  walletTest('can navigate to create dispenser from manage page', async ({ page }) => {
+    // Navigate directly to the dispenser management page
+    await page.goto(page.url().replace(/\/index.*/, '/market/dispensers/manage'));
     await page.waitForLoadState('networkidle');
 
     const newDispenserButton = page.locator('button:has-text("New Dispenser"), a:has-text("New Dispenser"), button:has-text("Create Dispenser")').first();

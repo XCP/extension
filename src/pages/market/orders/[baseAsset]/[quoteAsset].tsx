@@ -525,7 +525,6 @@ export default function AssetOrdersPage(): ReactElement {
               <button
                 onClick={togglePriceUnit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                title={`Switch to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
                 aria-label={`Switch price display to ${priceUnit === "raw" ? settings.fiat.toUpperCase() : quoteAsset}`}
               >
                 <TbRepeat className="size-4" aria-hidden="true" />

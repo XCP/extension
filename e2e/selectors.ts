@@ -417,7 +417,6 @@ export const market = {
   // Main tabs
   dispensersTab: (page: Page) => page.getByRole('tab', { name: 'Dispensers' }),
   ordersTab: (page: Page) => page.getByRole('tab', { name: 'Orders' }),
-  manageTab: (page: Page) => page.getByRole('tab', { name: 'Manage' }),
 
   // BTC Price page
   btcPriceTitle: (page: Page) => page.getByText(/Bitcoin Price/i).first(),

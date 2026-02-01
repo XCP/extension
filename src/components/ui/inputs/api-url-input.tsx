@@ -96,7 +96,6 @@ export const ApiUrlInput = ({
           onClick={handleReset}
           disabled={disabled || isValidating || isDefault}
           className="p-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          title="Reset to default"
           aria-label="Reset API URL to default"
         >
           <FiRotateCcw className="size-5 text-gray-600" aria-hidden="true" />

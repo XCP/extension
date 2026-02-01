@@ -113,7 +113,6 @@ export function PinnableAssetCard({
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
               aria-label={`Move ${symbol} up`}
-              title="Move up"
             >
               <FiChevronUp className="size-3" aria-hidden="true" />
             </button>
@@ -130,7 +129,6 @@ export function PinnableAssetCard({
                   : "text-gray-600 hover:text-blue-600 hover:bg-blue-50 cursor-pointer"
               }`}
               aria-label={`Move ${symbol} down`}
-              title="Move down"
             >
               <FiChevronDown className="size-3" aria-hidden="true" />
             </button>
@@ -146,7 +144,6 @@ export function PinnableAssetCard({
               : "bg-gray-100 text-gray-600 hover:bg-gray-200"
           }`}
           aria-label={isPinned ? `Unpin ${symbol}` : `Pin ${symbol}`}
-          title={isPinned ? "Unpin asset" : "Pin asset"}
         >
           {isPinned ? (
             <TbPinnedFilled className="size-4" aria-hidden="true" />

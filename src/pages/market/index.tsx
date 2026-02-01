@@ -58,7 +58,7 @@ export default function MarketPage(): ReactElement {
   const [addressCopied, setAddressCopied] = useState(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(1);
   const [dispenserSubTab, setDispenserSubTab] = useState<"open" | "history">("open");
   const [orderSubTab, setOrderSubTab] = useState<"open" | "history">("open");
 
@@ -307,16 +307,6 @@ export default function MarketPage(): ReactElement {
             <div className="flex space-x-4" role="tablist" aria-label="Market sections">
               <button
                 role="tab"
-                aria-selected={activeTab === 1}
-                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
-                  activeTab === 1 ? "underline" : ""
-                }`}
-                onClick={() => setActiveTab(1)}
-              >
-                Orders
-              </button>
-              <button
-                role="tab"
                 aria-selected={activeTab === 0}
                 className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
                   activeTab === 0 ? "underline" : ""
@@ -324,6 +314,16 @@ export default function MarketPage(): ReactElement {
                 onClick={() => setActiveTab(0)}
               >
                 Dispensers
+              </button>
+              <button
+                role="tab"
+                aria-selected={activeTab === 1}
+                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
+                  activeTab === 1 ? "underline" : ""
+                }`}
+                onClick={() => setActiveTab(1)}
+              >
+                Orders
               </button>
             </div>
             {/* Sub-tabs */}
@@ -390,7 +390,7 @@ export default function MarketPage(): ReactElement {
         {/* Scrollable Content */}
         <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4">
         {activeTab === 0 && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Search Bar */}
             <SearchInput
               value={dispenserQuery}
@@ -490,7 +490,7 @@ export default function MarketPage(): ReactElement {
         )}
 
         {activeTab === 1 && (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Search Bar */}
             <SearchInput
               value={orderQuery}

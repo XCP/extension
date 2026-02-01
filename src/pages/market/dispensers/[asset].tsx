@@ -453,7 +453,6 @@ export default function AssetDispensersPage(): ReactElement {
             <button
               onClick={togglePriceUnit}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-              title={`Switch to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
               aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
             >
               <TbRepeat className="size-4" aria-hidden="true" />

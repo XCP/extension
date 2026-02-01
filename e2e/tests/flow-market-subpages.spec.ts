@@ -11,43 +11,34 @@
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { market, compose } from '../selectors';
 
-walletTest.describe('Dispenser Management Page (/dispensers/manage)', () => {
+walletTest.describe('Dispenser Management Page (/market/dispensers/manage)', () => {
   walletTest.beforeEach(async ({ page }) => {
-    await navigateTo(page, 'market');
-    await expect(page).toHaveURL(/market/);
+    const currentUrl = page.url();
+    const baseUrl = currentUrl.substring(0, currentUrl.indexOf('#') + 1);
+    await page.goto(`${baseUrl}/market/dispensers/manage`);
+    await page.waitForLoadState('networkidle');
   });
 
-  walletTest('can navigate to manage tab', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await expect(manageTab).toBeVisible({ timeout: 5000 });
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
-
-    // Verify manage tab content loaded - should show dispensers section
-    const dispensersHeading = page.locator('text=/Your Dispensers|Dispensers/i').first();
-    await expect(dispensersHeading).toBeVisible({ timeout: 10000 });
+  walletTest('page loads with My Dispensers title', async ({ page }) => {
+    // Verify manage page loaded - header title shows "My Dispensers"
+    const pageTitle = page.locator('text=My Dispensers').first();
+    await expect(pageTitle).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('dispenser management shows list or empty state', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
+  walletTest('dispenser management shows filter or empty state', async ({ page }) => {
+    // The page shows either dispensers with filter, or an empty state with Create button
+    const filterButton = page.locator('text=Filter by Status');
+    const emptyMessage = page.locator('text=/don\'t have any dispensers|No.*dispensers/i').first();
 
-    // Wait for loading to complete, then verify Your Dispensers section is visible
-    const dispensersHeading = page.getByRole('heading', { name: 'Your Dispensers' });
-    await expect(dispensersHeading).toBeVisible({ timeout: 10000 });
+    await expect(filterButton.or(emptyMessage).first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('manage tab has create dispenser option or content', async ({ page }) => {
-    const manageTab = market.manageTab(page);
-    await manageTab.click();
-    await page.waitForLoadState('networkidle');
-
+  walletTest('has create dispenser option or content', async ({ page }) => {
     // Should show create option or dispenser content
     const createOption = page.locator(
-      'button:has-text("New Dispenser"), button:has-text("Create"), a:has-text("Dispenser")'
+      'button:has-text("Create Dispenser"), button:has-text("Create New Dispenser")'
     ).first();
-    const dispenserContent = page.locator('text=/Dispenser|satoshi|BTC/i').first();
+    const dispenserContent = page.locator('text=/Remaining:|Open|Closed/i').first();
 
     await expect(createOption.or(dispenserContent).first()).toBeVisible({ timeout: 5000 });
   });

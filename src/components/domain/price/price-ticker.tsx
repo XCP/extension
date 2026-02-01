@@ -1,5 +1,5 @@
 import { type ReactElement, type KeyboardEvent } from "react";
-import { FaBitcoin, FaCoins } from "@/components/icons";
+import { FaBitcoin } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
 import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 
@@ -68,7 +68,7 @@ export function PriceTicker({
         </div>
       </div>
       <div
-        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onXcpClick ? "cursor-pointer hover:border-blue-300 hover:shadow-md transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" : ""}`}
+        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-3 ${onXcpClick ? "cursor-pointer hover:border-rose-300 hover:shadow-md transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500" : ""}`}
         onClick={onXcpClick}
         onKeyDown={handleXcpKeyDown}
         role={onXcpClick ? "button" : undefined}
@@ -76,7 +76,7 @@ export function PriceTicker({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FaCoins className="text-blue-500" aria-hidden="true" />
+            <img src="https://app.xcp.io/img/icon/XCP" alt="" className="size-4 rounded-full" aria-hidden="true" />
             <span className="font-medium text-gray-900 text-sm">XCP</span>
           </div>
           <div className="flex items-center">

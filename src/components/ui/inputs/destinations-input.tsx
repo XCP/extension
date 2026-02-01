@@ -185,7 +185,7 @@ export function DestinationsInput({
           {/* Loading spinner, Add/Remove buttons */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
             {getLookupState(destination.id).isLookingUp ? (
-              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" title="Looking up asset owner…"></div>
+              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" role="status" aria-label="Looking up asset owner"></div>
             ) : ((index === 0 && showAddButton) || (index > 0 && canRemove)) ? (
               index === 0 && showAddButton ? (
                 <button
