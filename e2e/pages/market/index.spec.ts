@@ -41,7 +41,7 @@ walletTest.describe('Market Page', () => {
     await expect(content.first()).toBeVisible({ timeout: 15000 });
   });
 
-  walletTest('dispensers tab shows sub-tabs', async ({ page }) => {
+  walletTest('dispensers tab shows view mode tabs', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -50,15 +50,15 @@ walletTest.describe('Market Page', () => {
     // Click dispensers tab
     await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    // Sub-tabs should be visible
-    const openTab = page.getByRole('tab', { name: 'Open' });
-    const historyTab = page.getByRole('tab', { name: 'History' });
+    // View mode tabs should be visible (Explore and Manage)
+    const exploreTab = page.getByRole('tab', { name: 'Explore' });
+    const manageTab = page.getByRole('tab', { name: 'Manage' });
 
-    await expect(openTab).toBeVisible();
-    await expect(historyTab).toBeVisible();
+    await expect(exploreTab).toBeVisible();
+    await expect(manageTab).toBeVisible();
   });
 
-  walletTest('orders tab shows sub-tabs', async ({ page }) => {
+  walletTest('orders tab shows view mode tabs', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -67,12 +67,12 @@ walletTest.describe('Market Page', () => {
     // Click orders tab
     await page.getByRole('tab', { name: 'Orders' }).click();
 
-    // Sub-tabs should be visible
-    const openTab = page.getByRole('tab', { name: 'Open' });
-    const historyTab = page.getByRole('tab', { name: 'History' });
+    // View mode tabs should be visible (Explore and Manage)
+    const exploreTab = page.getByRole('tab', { name: 'Explore' });
+    const manageTab = page.getByRole('tab', { name: 'Manage' });
 
-    await expect(openTab).toBeVisible();
-    await expect(historyTab).toBeVisible();
+    await expect(exploreTab).toBeVisible();
+    await expect(manageTab).toBeVisible();
   });
 
   walletTest('can switch between Orders and Dispensers tabs', async ({ page }) => {
@@ -100,29 +100,29 @@ walletTest.describe('Market Page', () => {
     await expect(page.getByPlaceholder(/dispenser/i).first()).toBeVisible();
   });
 
-  walletTest('sub-tabs switch between Open and History', async ({ page }) => {
+  walletTest('view mode tabs switch between Explore and Manage', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
     await page.waitForLoadState('networkidle');
 
-    // Sub-tabs: Open and History
-    const openTab = page.getByRole('tab', { name: 'Open' });
-    const historyTab = page.getByRole('tab', { name: 'History' });
+    // View mode tabs: Explore and Manage
+    const exploreTab = page.getByRole('tab', { name: 'Explore' });
+    const manageTab = page.getByRole('tab', { name: 'Manage' });
 
-    await expect(openTab).toBeVisible();
-    await expect(historyTab).toBeVisible();
+    await expect(exploreTab).toBeVisible();
+    await expect(manageTab).toBeVisible();
 
-    // Click History tab
-    await historyTab.click();
+    // Click Manage tab
+    await manageTab.click();
 
-    // Should show history content or empty state
-    const historyContent = page.getByText(/[A-Z]{3,}/).first() // Asset names in history cards
-      .or(page.getByText(/No recent/i).first());
-    await expect(historyContent.first()).toBeVisible({ timeout: 10000 });
+    // Should show manage content or empty state
+    const manageContent = page.getByText(/[A-Z]{3,}/).first() // Asset names in manage cards
+      .or(page.getByText(/don't have any|No.*matching/i).first());
+    await expect(manageContent.first()).toBeVisible({ timeout: 10000 });
 
-    // Click back to Open
-    await openTab.click();
+    // Click back to Explore
+    await exploreTab.click();
     await expect(page).toHaveURL(/market/);
   });
 
@@ -164,7 +164,7 @@ walletTest.describe('Market Page', () => {
     await expect(pageStillWorks).toBeVisible({ timeout: 3000 });
   });
 
-  walletTest('dispenser sub-tab switching works', async ({ page }) => {
+  walletTest('dispenser view mode switching works', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -173,16 +173,16 @@ walletTest.describe('Market Page', () => {
     // Go to dispensers tab
     await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    const historyTab = page.getByRole('tab', { name: 'History' });
+    const manageTab = page.getByRole('tab', { name: 'Manage' });
 
-    await expect(historyTab).toBeVisible();
-    await historyTab.click();
+    await expect(manageTab).toBeVisible();
+    await manageTab.click();
 
     // After clicking tab, page should still be on market
     await expect(page).toHaveURL(/market/);
   });
 
-  walletTest('order sub-tab switching works', async ({ page }) => {
+  walletTest('order view mode switching works', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -191,10 +191,10 @@ walletTest.describe('Market Page', () => {
     // Go to orders tab
     await page.getByRole('tab', { name: 'Orders' }).click();
 
-    const historyTab = page.getByRole('tab', { name: 'History' });
+    const manageTab = page.getByRole('tab', { name: 'Manage' });
 
-    await expect(historyTab).toBeVisible();
-    await historyTab.click();
+    await expect(manageTab).toBeVisible();
+    await manageTab.click();
 
     // After clicking tab, page should still be on market
     await expect(page).toHaveURL(/market/);
