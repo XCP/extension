@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { TbRepeat, FiRefreshCw, FaCheck } from "@/components/icons";
+import { TbRepeat, FiRefreshCw } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CopyableStat } from "@/components/ui/copyable-stat";
+import { TabButton } from "@/components/ui/tab-button";
 import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
 import { AssetDispenseCard } from "@/components/ui/cards/asset-dispense-card";
 import { useHeader } from "@/contexts/header-context";
@@ -29,38 +31,6 @@ const FETCH_LIMIT = 20;
 const SATS_PER_BTC = 100_000_000;
 const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
-
-/**
- * Copyable stat display with highlight feedback
- */
-function CopyableStat({
-  label,
-  value,
-  rawValue,
-  onCopy,
-  isCopied,
-}: {
-  label: string;
-  value: string;
-  rawValue: string;
-  onCopy: (value: string) => void;
-  isCopied: boolean;
-}): ReactElement {
-  return (
-    <div>
-      <span className="text-gray-500">{label}</span>
-      <div className="flex items-center gap-2">
-        <div
-          onClick={() => onCopy(rawValue)}
-          className={`font-medium text-gray-900 truncate cursor-pointer rounded px-1 -mx-1 ${isCopied ? "bg-gray-200" : ""}`}
-        >
-          <span>{value}</span>
-        </div>
-        {isCopied && <FaCheck className="size-3 text-green-500 flex-shrink-0" aria-hidden="true" />}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Calculate effective sats per unit from dispenser data
@@ -457,26 +427,12 @@ export default function AssetDispensersPage(): ReactElement {
           {/* Section Header with Tabs */}
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1">
-              <button
-                onClick={() => setTab("open")}
-                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  tab === "open"
-                    ? "bg-gray-200 text-gray-900 font-medium"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
+              <TabButton isActive={tab === "open"} onClick={() => setTab("open")}>
                 Open
-              </button>
-              <button
-                onClick={() => setTab("history")}
-                className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                  tab === "history"
-                    ? "bg-gray-200 text-gray-900 font-medium"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
+              </TabButton>
+              <TabButton isActive={tab === "history"} onClick={() => setTab("history")}>
                 History
-              </button>
+              </TabButton>
             </div>
             <button
               onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
@@ -504,15 +460,13 @@ export default function AssetDispensersPage(): ReactElement {
                 ))}
               </div>
             ) : (
-              <>
-                <EmptyState message={`No open ${asset} dispensers found`} />
-                <button
-                  onClick={() => navigate(`/compose/dispenser/${asset}`)}
-                  className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                >
-                  Create New Dispenser →
-                </button>
-              </>
+              <EmptyState
+                message={`No open ${asset} dispensers found`}
+                linkAction={{
+                  label: "Create New Dispenser →",
+                  onClick: () => navigate(`/compose/dispenser/${asset}`),
+                }}
+              />
             )
           )}
 

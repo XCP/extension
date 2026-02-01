@@ -50,13 +50,15 @@ export function usePaginatedFetch<T>({
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  // Trigger for manual refresh - incrementing this causes the effect to re-run
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Refs for race condition prevention
   const isFetchingRef = useRef(false);
   const offsetRef = useRef(0);
   const hasLoadedRef = useRef(false);
 
-  // Initial load - only runs when enabled and hasn't loaded yet
+  // Initial load - runs when enabled and hasn't loaded yet, or when refresh is triggered
   useEffect(() => {
     if (!enabled || hasLoadedRef.current) return;
 
@@ -92,7 +94,7 @@ export function usePaginatedFetch<T>({
       cancelled = true;
       isFetchingRef.current = false;
     };
-  }, [enabled, fetchFn, pageSize, maxItems]);
+  }, [enabled, fetchFn, pageSize, maxItems, refreshTrigger]);
 
   // Reset when fetchFn changes (e.g., different filters)
   useEffect(() => {
@@ -139,7 +141,8 @@ export function usePaginatedFetch<T>({
 
   const refresh = useCallback(() => {
     reset();
-    // Clearing hasLoadedRef triggers a fresh data load
+    // Increment trigger to cause useEffect to re-run after reset clears hasLoadedRef
+    setRefreshTrigger((prev) => prev + 1);
   }, [reset]);
 
   // Deduplicate data as defensive measure
