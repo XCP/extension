@@ -200,6 +200,7 @@ export interface SendOptions extends BaseComposeOptions {
   quantity: number;
   memo?: string;
   memo_is_hex?: boolean;
+  no_dispense?: boolean;
 }
 
 export interface SweepOptions extends BaseComposeOptions {
@@ -837,6 +838,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     quantity,
     memo,
     memo_is_hex,
+    no_dispense,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -847,6 +849,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     quantity: quantity.toString(),
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
+    ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);

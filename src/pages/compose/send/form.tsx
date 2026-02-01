@@ -6,6 +6,7 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation/amount";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
@@ -26,6 +27,7 @@ export function SendForm({
 }: SendFormProps): ReactElement {
   // Get everything from composer context
   const { activeAddress, settings, showHelpText, feeRate } = useComposer<SendOptions>();
+  const { activeWallet } = useWallet();
   const enableMPMA = settings?.enableMPMA ?? false;
   
   // Data fetching hooks
@@ -87,7 +89,9 @@ export function SendForm({
     if (amount) {
       formData.set("quantity", amount);
     }
-    
+
+    const asset = initialAsset || initialFormData?.asset || "BTC";
+
     // Add all destinations to form data
     if (destinations.length > 1) {
       // For MPMA, pass destinations as comma-separated list
@@ -95,14 +99,21 @@ export function SendForm({
       formData.delete("destination"); // Remove single destination field
     } else {
       // For single send, use the first destination
-      formData.set("destination", destinations[0].address);
+      const destination = destinations[0].address;
+      formData.set("destination", destination);
+
+      // Prevent triggering own dispensers when sending BTC to self
+      const isOwnAddress = activeWallet?.addresses.some(a => a.address === destination);
+      if (asset === "BTC" && isOwnAddress) {
+        formData.set("no_dispense", "true");
+      }
     }
-    
+
     // Add memo to form data
     if (memo) {
       formData.set("memo", memo);
     }
-    
+
     formAction(formData);
   };
 
