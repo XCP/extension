@@ -5,6 +5,7 @@ import type { DispenserDetails } from "@/utils/blockchain/counterparty/api";
 
 interface MarketDispenserCardProps {
   dispenser: DispenserDetails;
+  formattedPrice?: string;
   onClick?: () => void;
   onAssetClick?: () => void;
   className?: string;
@@ -16,6 +17,7 @@ interface MarketDispenserCardProps {
  */
 export function MarketDispenserCard({
   dispenser,
+  formattedPrice,
   onClick,
   onAssetClick,
   className = "",
@@ -63,7 +65,7 @@ export function MarketDispenserCard({
         </div>
         <div className="text-right">
           <div className="text-sm font-semibold text-green-600">
-            {formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats
+            {formattedPrice ?? `${formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats`}
           </div>
           <div className="text-xs text-gray-400">
             {formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 0 })} remaining

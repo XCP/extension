@@ -58,7 +58,7 @@ export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps): 
       <AssetIcon asset={balance.asset} size="lg" className="mr-4" />
       <div>
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
-        <p className="text-sm text-gray-600">Available: {formattedBalance}</p>
+        <p className="text-sm text-gray-600">Balance: {formattedBalance}</p>
       </div>
     </div>
   );

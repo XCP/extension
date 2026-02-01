@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -32,7 +32,12 @@ const PATHS = {
  */
 export default function AddressesPage(): ReactElement {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setHeaderProps } = useHeader();
+
+  // Get return path from state, fallback to index
+  const state = location.state as { returnTo?: string } | null;
+  const returnTo = state?.returnTo || PATHS.INDEX;
   const { activeWallet, activeAddress, setActiveAddress, addAddress, keychainLocked } = useWallet();
   const [error, setError] = useState<string | null>(null);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
@@ -67,24 +72,24 @@ export default function AddressesPage(): ReactElement {
   }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress]);
 
   /**
-   * Handles selecting an address and navigating to the index.
+   * Handles selecting an address and navigating back to the source page.
    */
   const handleSelectAddress = useCallback(async (address: Address) => {
     try {
       await setActiveAddress(address);
       analytics.track('address_switched');
-      navigate(PATHS.INDEX);
+      navigate(returnTo, { replace: true });
     } catch (err) {
       console.error("Failed to select address:", err);
       setError("Failed to select address. Please try again.");
     }
-  }, [setActiveAddress, navigate]);
+  }, [setActiveAddress, navigate, returnTo]);
 
   // Configure header
   useEffect(() => {
     setHeaderProps({
       title: "Addresses",
-      onBack: () => navigate(-1),
+      onBack: () => navigate(returnTo, { replace: true }),
       rightButton:
         activeWallet?.type === "mnemonic" && !isAddingAddress
           ? {
@@ -94,7 +99,7 @@ export default function AddressesPage(): ReactElement {
             }
           : undefined,
     });
-  }, [setHeaderProps, navigate, activeWallet?.type, handleAddAddress, isAddingAddress]);
+  }, [setHeaderProps, navigate, returnTo, activeWallet?.type, handleAddAddress, isAddingAddress]);
 
   if (!activeWallet) return <div className="p-4">No active wallet found</div>;
 

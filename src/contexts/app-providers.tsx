@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
 import { ErrorBoundary } from '@/components/layout/error-boundary';
+import { ApiStatusProvider } from './api-status-context';
 import { HeaderProvider } from './header-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
@@ -126,9 +127,11 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
             >
               <WalletProvider>
                 <IdleTimerWrapper>
-                  <HeaderProvider>
-                    {children}
-                  </HeaderProvider>
+                  <ApiStatusProvider>
+                    <HeaderProvider>
+                      {children}
+                    </HeaderProvider>
+                  </ApiStatusProvider>
                 </IdleTimerWrapper>
               </WalletProvider>
             </ErrorBoundary>

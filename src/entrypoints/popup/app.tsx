@@ -159,6 +159,8 @@ export default function App() {
           <Route element={<Layout showFooter={true} />}>
             <Route path="/index" element={<HomePage />} />
             <Route path="/market" element={<MarketPage />} />
+            <Route path="/market/dispensers/:asset" element={<AssetDispensersPage />} />
+            <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrdersPage />} />
             <Route path="/actions" element={<ActionsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
@@ -167,8 +169,6 @@ export default function App() {
             <Route path="/market/btc" element={<BtcPricePage />} />
             <Route path="/market/dispensers/manage" element={<DispenserManagementPage />} />
             <Route path="/market/orders/manage" element={<OrderManagementPage />} />
-            <Route path="/market/dispensers/:asset" element={<AssetDispensersPage />} />
-            <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrdersPage />} />
 
             <Route path="/actions/consolidate" element={<ConsolidatePage />} />
             <Route path="/actions/consolidate/status" element={<ConsolidateStatusPage />} />

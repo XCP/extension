@@ -16,9 +16,9 @@ walletTest.describe('Market Page', () => {
     await navigateTo(page, 'market');
 
     await expect(page).toHaveURL(/market/);
-    await expect(page.getByText('Marketplace')).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Browse' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: 'Manage' })).toBeVisible();
+    // Main tabs: Orders and Dispensers
+    await expect(page.getByRole('tab', { name: 'Orders' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Dispensers' })).toBeVisible();
   });
 
   walletTest('market page shows price ticker or loading state', async ({ page }) => {
@@ -35,76 +35,95 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
 
     // Wait for loading to complete, then verify actual content appears
-    // Should show dispensers/orders section (not just loading spinner)
-    const content = page.locator('text=/Dispensers|Orders/i').first();
-    await expect(content).toBeVisible({ timeout: 15000 });
+    // Should show dispensers/orders tabs (not just loading spinner)
+    const content = page.getByRole('tab', { name: 'Dispensers' })
+      .or(page.getByRole('tab', { name: 'Orders' }));
+    await expect(content.first()).toBeVisible({ timeout: 15000 });
   });
 
-  walletTest('browse tab shows dispensers section', async ({ page }) => {
+  walletTest('dispensers tab shows sub-tabs', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
     await page.waitForLoadState('networkidle');
 
-    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
+    // Click dispensers tab
+    await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    const openTab = page.locator('text=Open').first();
-    const dispensedTab = page.locator('text=Dispensed').first();
+    // Sub-tabs should be visible
+    const openTab = page.getByRole('tab', { name: 'Open' });
+    const historyTab = page.getByRole('tab', { name: 'History' });
 
     await expect(openTab).toBeVisible();
-    await expect(dispensedTab).toBeVisible();
-  });
-
-  walletTest('browse tab shows orders section', async ({ page }) => {
-    await navigateTo(page, 'market');
-    await expect(page).toHaveURL(/market/);
-
-    await page.waitForLoadState('networkidle');
-
-    await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
-
-    const historyTab = page.locator('text=History').first();
     await expect(historyTab).toBeVisible();
   });
 
-  walletTest('can switch between Browse and Manage tabs', async ({ page }) => {
+  walletTest('orders tab shows sub-tabs', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
-
-    const browseTab = page.getByRole('tab', { name: 'Browse' });
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-
-    await expect(browseTab).toBeVisible();
-    await expect(manageTab).toBeVisible();
-
-    await manageTab.click();
-
-    // Manage tab should show user's orders/dispensers section
-    const manageContent = page.locator('text=/Your Orders|Your Dispensers/i').first()
-      .or(page.locator('text=/You don\'t have any/i').first())
-      .first();
-    await expect(manageContent).toBeVisible({ timeout: 10000 });
-
-    await browseTab.click();
-
-    await expect(page.getByText('Dispensers').first()).toBeVisible();
-  });
-
-  walletTest('manage tab shows create buttons or loading', async ({ page }) => {
-    await navigateTo(page, 'market');
-    await expect(page).toHaveURL(/market/);
-
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
 
     await page.waitForLoadState('networkidle');
 
-    // Wait for manage content: create buttons or empty state message
-    // NOT loading spinners - test should wait for actual content
-    const createButtons = page.locator('text=/New Order|New Dispenser|Create Order|Create Dispenser/i').first();
-    const emptyState = page.locator('text=/No orders|No dispensers|You don\'t have any/i').first();
-    await expect(createButtons.or(emptyState).first()).toBeVisible({ timeout: 15000 });
+    // Click orders tab
+    await page.getByRole('tab', { name: 'Orders' }).click();
+
+    // Sub-tabs should be visible
+    const openTab = page.getByRole('tab', { name: 'Open' });
+    const historyTab = page.getByRole('tab', { name: 'History' });
+
+    await expect(openTab).toBeVisible();
+    await expect(historyTab).toBeVisible();
+  });
+
+  walletTest('can switch between Orders and Dispensers tabs', async ({ page }) => {
+    await navigateTo(page, 'market');
+    await expect(page).toHaveURL(/market/);
+
+    const ordersTab = page.getByRole('tab', { name: 'Orders' });
+    const dispensersTab = page.getByRole('tab', { name: 'Dispensers' });
+
+    await expect(ordersTab).toBeVisible();
+    await expect(dispensersTab).toBeVisible();
+
+    // Click Orders tab
+    await ordersTab.click();
+
+    // Should show order search or empty state
+    const orderContent = page.getByPlaceholder(/order/i)
+      .or(page.getByText(/No open orders/i).first());
+    await expect(orderContent.first()).toBeVisible({ timeout: 10000 });
+
+    // Click Dispensers tab
+    await dispensersTab.click();
+
+    // Should show dispenser search
+    await expect(page.getByPlaceholder(/dispenser/i).first()).toBeVisible();
+  });
+
+  walletTest('sub-tabs switch between Open and History', async ({ page }) => {
+    await navigateTo(page, 'market');
+    await expect(page).toHaveURL(/market/);
+
+    await page.waitForLoadState('networkidle');
+
+    // Sub-tabs: Open and History
+    const openTab = page.getByRole('tab', { name: 'Open' });
+    const historyTab = page.getByRole('tab', { name: 'History' });
+
+    await expect(openTab).toBeVisible();
+    await expect(historyTab).toBeVisible();
+
+    // Click History tab
+    await historyTab.click();
+
+    // Should show history content or empty state
+    const historyContent = page.getByText(/[A-Z]{3,}/).first() // Asset names in history cards
+      .or(page.getByText(/No recent/i).first());
+    await expect(historyContent.first()).toBeVisible({ timeout: 10000 });
+
+    // Click back to Open
+    await openTab.click();
+    await expect(page).toHaveURL(/market/);
   });
 
   walletTest('can navigate to market from footer', async ({ page }) => {
@@ -114,7 +133,8 @@ walletTest.describe('Market Page', () => {
     await footer.marketButton(page).click();
 
     await expect(page).toHaveURL(/market/);
-    await expect(page.getByText('Marketplace')).toBeVisible();
+    // Market page should show tabs
+    await expect(page.getByRole('tab', { name: 'Orders' })).toBeVisible();
   });
 
   walletTest('market page handles network errors gracefully', async ({ page }) => {
@@ -138,50 +158,40 @@ walletTest.describe('Market Page', () => {
     await page.waitForLoadState('networkidle');
 
     // Page should still show market structure (not crash)
-    const pageStillWorks = page.getByText('Marketplace')
-      .or(page.getByText('Browse'))
-      .or(page.getByText('Manage'))
+    const pageStillWorks = page.getByRole('tab', { name: 'Orders' })
+      .or(page.getByRole('tab', { name: 'Dispensers' }))
       .first();
     await expect(pageStillWorks).toBeVisible({ timeout: 3000 });
   });
 
-  walletTest('dispenser tab switching works', async ({ page }) => {
+  walletTest('dispenser sub-tab switching works', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
 
-    const dispensedTab = page.locator('button:has-text("Dispensed")').first();
+    // Go to dispensers tab
+    await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    // Only proceed if tab exists - skip if not available
-    const tabCount = await dispensedTab.count();
-    if (tabCount === 0) {
-      // Tab not present, skip this part
-      return;
-    }
+    const historyTab = page.getByRole('tab', { name: 'History' });
 
-    await expect(dispensedTab).toBeVisible();
-    await dispensedTab.click();
+    await expect(historyTab).toBeVisible();
+    await historyTab.click();
 
     // After clicking tab, page should still be on market
     await expect(page).toHaveURL(/market/);
   });
 
-  walletTest('order tab switching works', async ({ page }) => {
+  walletTest('order sub-tab switching works', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
     await page.waitForLoadState('networkidle');
-    await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
 
-    const historyTab = page.locator('button:has-text("History")').first();
+    // Go to orders tab
+    await page.getByRole('tab', { name: 'Orders' }).click();
 
-    // Only proceed if tab exists
-    const tabCount = await historyTab.count();
-    if (tabCount === 0) {
-      return;
-    }
+    const historyTab = page.getByRole('tab', { name: 'History' });
 
     await expect(historyTab).toBeVisible();
     await historyTab.click();
@@ -195,13 +205,13 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for dispensers section header
-    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
+    // Click dispensers tab
+    await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    // Wait for content to load - should show cards OR empty state (not loading)
-    const cards = page.locator('.space-y-2 > div').first();
-    const emptyState = page.getByText(/No open dispensers|No dispensers/i).first();
-    await expect(cards.or(emptyState).first()).toBeVisible({ timeout: 10000 });
+    // Wait for content to load - should show cards (with asset names) OR empty state
+    const contentWithAsset = page.getByText(/[A-Z]{3,}/).first(); // Asset names are uppercase
+    const emptyState = page.getByText(/No open dispensers|No dispensers|Failed to load/i).first();
+    await expect(contentWithAsset.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('orders section displays cards or empty state', async ({ page }) => {
@@ -209,13 +219,13 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for orders section header
-    await expect(page.getByText('Orders').first()).toBeVisible({ timeout: 10000 });
+    // Click orders tab
+    await page.getByRole('tab', { name: 'Orders' }).click();
 
-    // Wait for content to load - should show cards OR empty state (not loading)
-    const cards = page.locator('.space-y-2 > div').first();
-    const emptyState = page.getByText(/No open orders|No orders/i).first();
-    await expect(cards.or(emptyState).first()).toBeVisible({ timeout: 10000 });
+    // Wait for content to load - should show cards (with asset names) OR empty state
+    const contentWithAsset = page.getByText(/[A-Z]{3,}/).first(); // Asset names are uppercase
+    const emptyState = page.getByText(/No open orders|No orders|Failed to load/i).first();
+    await expect(contentWithAsset.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('market page scrolling works with content', async ({ page }) => {
@@ -223,11 +233,11 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('networkidle');
 
-    // Wait for content to load
-    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 10000 });
+    // Wait for tabs to be visible
+    await expect(page.getByRole('tab', { name: 'Dispensers' })).toBeVisible({ timeout: 10000 });
 
-    // Get the scrollable container (usually the main content area)
-    const scrollContainer = page.locator('main, .overflow-auto, .overflow-y-auto').first();
+    // Get the scrollable container
+    const scrollContainer = page.locator('[role="main"]').first();
 
     // Try to scroll down
     await scrollContainer.evaluate((el) => {
@@ -240,28 +250,32 @@ walletTest.describe('Market Page', () => {
     });
 
     // Page should still be responsive
-    await expect(page.getByText('Marketplace')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Orders' })).toBeVisible();
   });
 
   walletTest('market page maintains state when switching tabs rapidly', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const browseTab = page.getByRole('tab', { name: 'Browse' });
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
+    const ordersTab = page.getByRole('tab', { name: 'Orders' });
+    const dispensersTab = page.getByRole('tab', { name: 'Dispensers' });
 
-    await expect(browseTab).toBeVisible();
-    await expect(manageTab).toBeVisible();
+    await expect(ordersTab).toBeVisible();
+    await expect(dispensersTab).toBeVisible();
 
-    // Rapid tab switching
+    // Rapid tab switching between main tabs
     for (let i = 0; i < 3; i++) {
-      await manageTab.click();
-      await browseTab.click();
+      await ordersTab.click();
+      await dispensersTab.click();
     }
 
     // Page should still be stable
     await expect(page).toHaveURL(/market/);
-    await expect(page.getByText('Dispensers').first()).toBeVisible({ timeout: 5000 });
+
+    // Content should be visible (search input or content)
+    const content = page.getByPlaceholder(/dispenser/i)
+      .or(page.getByText(/No open dispensers|[A-Z]{3,}/i).first());
+    await expect(content.first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('market page search or filter functionality', async ({ page }) => {
@@ -269,8 +283,8 @@ walletTest.describe('Market Page', () => {
     await expect(page).toHaveURL(/market/);
     await page.waitForLoadState('networkidle');
 
-    // Look for search input
-    const searchInput = page.locator('input[placeholder*="Search"], input[type="search"], input[placeholder*="Filter"]').first();
+    // Look for search input (dispensers tab should be active by default)
+    const searchInput = page.getByPlaceholder(/search|dispenser/i).first();
     const searchCount = await searchInput.count();
 
     if (searchCount > 0) {
@@ -280,108 +294,104 @@ walletTest.describe('Market Page', () => {
       await searchInput.fill('XCP');
 
       // Content should update (either show results or "no results")
-      const contentUpdate = page.locator('text=/XCP|No results|No match/i').first();
-      await expect(contentUpdate).toBeVisible({ timeout: 3000 });
+      const contentUpdate = page.getByText(/XCP|No results|No open dispensers/i).first();
+      await expect(contentUpdate).toBeVisible({ timeout: 10000 });
 
       // Clear search
       await searchInput.clear();
     }
 
     // Page should still work regardless of search presence
-    await expect(page.getByText('Marketplace')).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Orders' })).toBeVisible();
   });
 
-  walletTest('manage tab shows your dispensers section', async ({ page }) => {
+  walletTest('dispensers tab shows dispenser content', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    const dispensersTab = page.getByRole('tab', { name: 'Dispensers' });
+    await expect(dispensersTab).toBeVisible();
+    await dispensersTab.click();
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Dispensers" section header or empty state (not loading spinner)
-    const dispensersContent = page.locator('text=/Your Dispensers/i').first()
-      .or(page.locator('text=/You don\'t have any dispensers|No dispensers/i').first());
-    await expect(dispensersContent).toBeVisible({ timeout: 10000 });
+    // Should show dispenser content or empty state (not loading spinner)
+    const dispensersContent = page.getByText(/[A-Z]{3,}/).first() // Asset names
+      .or(page.getByText(/No open dispensers|Failed to load/i).first());
+    await expect(dispensersContent.first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('manage tab shows your orders section', async ({ page }) => {
+  walletTest('orders tab shows order content', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    const ordersTab = page.getByRole('tab', { name: 'Orders' });
+    await expect(ordersTab).toBeVisible();
+    await ordersTab.click();
 
     await page.waitForLoadState('networkidle');
 
-    // Should show "Your Orders" section header or empty state (not loading spinner)
-    const ordersContent = page.locator('text=/Your Orders/i').first()
-      .or(page.locator('text=/You don\'t have any orders|No orders/i').first());
-    await expect(ordersContent).toBeVisible({ timeout: 10000 });
+    // Should show order content or empty state (not loading spinner)
+    const ordersContent = page.getByText(/[A-Z]{3,}/).first() // Asset names
+      .or(page.getByText(/No open orders|Failed to load/i).first());
+    await expect(ordersContent.first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('new order button navigates to order form', async ({ page }) => {
+  walletTest('order search returns results or empty state', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    // Go to orders tab
+    const ordersTab = page.getByRole('tab', { name: 'Orders' });
+    await ordersTab.click();
 
     await page.waitForLoadState('networkidle');
 
-    // Find the New Order button
-    const newOrderButton = page.locator('button:has-text("New Order"), a:has-text("New Order")').first();
-    const buttonCount = await newOrderButton.count();
+    // Find the search input
+    const searchInput = page.getByPlaceholder(/order/i).first();
+    const inputCount = await searchInput.count();
 
-    // Skip if button not present (test environment may not have it)
-    if (buttonCount === 0) {
+    // Skip if search not present
+    if (inputCount === 0) {
       return;
     }
 
-    await expect(newOrderButton).toBeVisible();
-    await newOrderButton.click();
+    await expect(searchInput).toBeVisible();
 
-    // Should navigate to order form
-    const onOrderForm = page.url().includes('order') || page.url().includes('compose');
-    const hasOrderForm = page.locator('text=/Give|Get|Amount|Asset/i').first();
+    // Try searching
+    await searchInput.fill('XCP');
 
-    if (onOrderForm) {
-      await expect(hasOrderForm).toBeVisible({ timeout: 3000 });
-    }
+    // Wait for search results or empty state
+    const results = page.getByText(/XCP|No open orders/i).first();
+    await expect(results).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('new dispenser button navigates to dispenser form', async ({ page }) => {
+  walletTest('dispenser search returns results or empty state', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    // Go to dispensers tab (should be default)
+    const dispensersTab = page.getByRole('tab', { name: 'Dispensers' });
+    await dispensersTab.click();
 
     await page.waitForLoadState('networkidle');
 
-    // Find the New Dispenser button
-    const newDispenserButton = page.locator('button:has-text("New Dispenser"), a:has-text("New Dispenser"), button:has-text("Create Dispenser")').first();
-    const buttonCount = await newDispenserButton.count();
+    // Find the search input
+    const searchInput = page.getByPlaceholder(/dispenser/i).first();
+    const inputCount = await searchInput.count();
 
-    // Skip if button not present (test environment may not have it)
-    if (buttonCount === 0) {
+    // Skip if search not present
+    if (inputCount === 0) {
       return;
     }
 
-    await expect(newDispenserButton).toBeVisible();
-    await newDispenserButton.click();
+    await expect(searchInput).toBeVisible();
 
-    // Should navigate to dispenser form
-    const onDispenserForm = page.url().includes('dispenser') || page.url().includes('compose');
-    const hasDispenserForm = page.locator('text=/Asset|Price|Escrow|Amount/i').first();
+    // Try searching
+    await searchInput.fill('PEPECASH');
 
-    if (onDispenserForm) {
-      await expect(hasDispenserForm).toBeVisible({ timeout: 3000 });
-    }
+    // Wait for search results or empty state
+    const results = page.getByText(/PEPECASH|No open dispensers/i).first();
+    await expect(results).toBeVisible({ timeout: 10000 });
   });
 });

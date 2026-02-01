@@ -126,7 +126,7 @@ export default function AssetOrdersPage(): ReactElement {
   const [isFetchingMoreMatches, setIsFetchingMoreMatches] = useState(false);
 
   // UI state
-  const [tab, setTab] = useState<"buy" | "sell" | "matched">("sell");
+  const [tab, setTab] = useState<"buy" | "sell" | "history">("sell");
   const [priceUnit, setPriceUnit] = useState<OrderPriceUnit>("raw");
 
   // Clipboard
@@ -236,7 +236,7 @@ export default function AssetOrdersPage(): ReactElement {
 
   // Load more orders on scroll (when on "buy" or "sell" tab)
   useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab === "matched") {
+    if (!baseAsset || !quoteAsset || !inView || isFetchingMore || !hasMoreOrders || tab === "history") {
       return;
     }
 
@@ -273,9 +273,9 @@ export default function AssetOrdersPage(): ReactElement {
     loadMore();
   }, [baseAsset, quoteAsset, inView, isFetchingMore, hasMoreOrders, orderOffset, tab]);
 
-  // Load more matches on scroll (when on "matched" tab)
+  // Load more matches on scroll (when on "history" tab)
   useEffect(() => {
-    if (!baseAsset || !quoteAsset || !inView || isFetchingMoreMatches || !hasMoreMatches || tab !== "matched") {
+    if (!baseAsset || !quoteAsset || !inView || isFetchingMoreMatches || !hasMoreMatches || tab !== "history") {
       return;
     }
 
@@ -424,8 +424,8 @@ export default function AssetOrdersPage(): ReactElement {
     return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
   }
 
-  const hasMore = tab === "matched" ? hasMoreMatches : hasMoreOrders;
-  const isFetching = tab === "matched" ? isFetchingMoreMatches : isFetchingMore;
+  const hasMore = tab === "history" ? hasMoreMatches : hasMoreOrders;
+  const isFetching = tab === "history" ? isFetchingMoreMatches : isFetchingMore;
 
   return (
     <div className="flex flex-col h-full" role="main">
@@ -484,7 +484,7 @@ export default function AssetOrdersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "matched" && matchStats && (
+              {tab === "history" && matchStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Last</span>
@@ -508,7 +508,7 @@ export default function AssetOrdersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "matched" && !matchStats && (
+              {tab === "history" && !matchStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Last</span>
@@ -558,14 +558,14 @@ export default function AssetOrdersPage(): ReactElement {
               Sell
             </button>
             <button
-              onClick={() => setTab("matched")}
+              onClick={() => setTab("history")}
               className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "matched"
+                tab === "history"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Matched
+              History
             </button>
           </div>
           <a
@@ -577,7 +577,7 @@ export default function AssetOrdersPage(): ReactElement {
         </div>
 
         {/* Content */}
-        {tab === "matched" ? (
+        {tab === "history" ? (
           matches.length > 0 ? (
             <div className="space-y-2">
               {matches.map((m) => (
@@ -632,7 +632,7 @@ export default function AssetOrdersPage(): ReactElement {
             </span>
           </div>
         )}
-        {tab === "matched" && matchStats && matches.length > 1 && (
+        {tab === "history" && matchStats && matches.length > 1 && (
           <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
             <span>
               {formatAmount({ value: matchStats.totalQuoteAsset, maximumFractionDigits: 8 })} {quoteAsset}

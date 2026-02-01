@@ -12,9 +12,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { formatAmount } from "@/utils/format";
+import { formatPrice, getRawPrice, getNextPriceUnit } from "@/utils/price-format";
 import type { PriceUnit } from "@/utils/settings";
-import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
 import {
   fetchAssetDispensers,
   fetchAssetDispenses,
@@ -30,49 +29,6 @@ const FETCH_LIMIT = 20;
 const SATS_PER_BTC = 100_000_000;
 const DEBOUNCE_MS = 1000;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
-
-/**
- * Format price based on selected unit
- */
-function formatPrice(sats: number, unit: PriceUnit, btcPrice: number | null, currency: FiatCurrency): string {
-  switch (unit) {
-    case "sats":
-      return `${formatAmount({ value: sats, maximumFractionDigits: 0 })} sats`;
-    case "btc":
-      const btc = sats / SATS_PER_BTC;
-      return `${formatAmount({ value: btc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`;
-    case "fiat":
-      if (!btcPrice) return "—";
-      const fiatValue = (sats / SATS_PER_BTC) * btcPrice;
-      const { symbol, decimals } = CURRENCY_INFO[currency];
-      return `${symbol}${formatAmount({ value: fiatValue, maximumFractionDigits: decimals })}`;
-  }
-}
-
-/**
- * Get raw numeric price value (without symbol) for clipboard
- */
-function getRawPrice(sats: number, unit: PriceUnit, btcPrice: number | null, currency: FiatCurrency): string {
-  switch (unit) {
-    case "sats":
-      return formatAmount({ value: sats, maximumFractionDigits: 0 });
-    case "btc":
-      return formatAmount({ value: sats / SATS_PER_BTC, minimumFractionDigits: 8, maximumFractionDigits: 8 });
-    case "fiat":
-      if (!btcPrice) return "";
-      const decimals = CURRENCY_INFO[currency].decimals;
-      return formatAmount({ value: (sats / SATS_PER_BTC) * btcPrice, maximumFractionDigits: decimals });
-  }
-}
-
-/**
- * Get next price unit in cycle: BTC → SATS → FIAT → BTC
- */
-function getNextUnit(current: PriceUnit, hasFiat: boolean): PriceUnit {
-  if (current === "btc") return "sats";
-  if (current === "sats") return hasFiat ? "fiat" : "btc";
-  return "btc";
-}
 
 /**
  * Calculate effective sats per unit from dispenser data
@@ -113,7 +69,7 @@ export default function AssetDispensersPage(): ReactElement {
   const [isFetchingMoreDispenses, setIsFetchingMoreDispenses] = useState(false);
 
   // UI state - initialize from settings
-  const [tab, setTab] = useState<"open" | "dispensed">("open");
+  const [tab, setTab] = useState<"open" | "history">("open");
   const [priceUnit, setPriceUnit] = useState<PriceUnit>(settings.priceUnit);
 
   // Clipboard
@@ -129,7 +85,7 @@ export default function AssetDispensersPage(): ReactElement {
 
   // Price unit toggle handler with debounced save
   const togglePriceUnit = useCallback(() => {
-    const nextUnit = getNextUnit(priceUnit, btcPrice !== null);
+    const nextUnit = getNextPriceUnit(priceUnit, btcPrice !== null);
     setPriceUnit(nextUnit);
 
     // Debounce saving to settings
@@ -268,9 +224,9 @@ export default function AssetDispensersPage(): ReactElement {
     loadMore();
   }, [asset, inView, isFetchingMore, hasMoreDispensers, dispenserOffset, tab]);
 
-  // Load more dispenses on scroll (when on "dispensed" tab)
+  // Load more dispenses on scroll (when on "history" tab)
   useEffect(() => {
-    if (!asset || !inView || isFetchingMoreDispenses || !hasMoreDispenses || tab !== "dispensed") {
+    if (!asset || !inView || isFetchingMoreDispenses || !hasMoreDispenses || tab !== "history") {
       return;
     }
 
@@ -437,7 +393,7 @@ export default function AssetDispensersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "dispensed" && dispenseStats && (
+              {tab === "history" && dispenseStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Last</span>
@@ -461,7 +417,7 @@ export default function AssetDispensersPage(): ReactElement {
                   </div>
                 </>
               )}
-              {tab === "dispensed" && !dispenseStats && (
+              {tab === "history" && !dispenseStats && (
                 <>
                   <div>
                     <span className="text-gray-500">Last</span>
@@ -477,8 +433,8 @@ export default function AssetDispensersPage(): ReactElement {
             <button
               onClick={togglePriceUnit}
               className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-              title={`Switch to ${getNextUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
-              aria-label={`Switch price display to ${getNextUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+              title={`Switch to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
+              aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
             >
               <TbRepeat className="size-4" aria-hidden="true" />
             </button>
@@ -499,14 +455,14 @@ export default function AssetDispensersPage(): ReactElement {
               Open
             </button>
             <button
-              onClick={() => setTab("dispensed")}
+              onClick={() => setTab("history")}
               className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                tab === "dispensed"
+                tab === "history"
                   ? "bg-gray-200 text-gray-900 font-medium"
                   : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              Dispensed
+              History
             </button>
           </div>
           <a
@@ -582,7 +538,7 @@ export default function AssetDispensersPage(): ReactElement {
             </span>
           </div>
         )}
-        {tab === "dispensed" && dispenseStats && dispenses.length > 1 && (
+        {tab === "history" && dispenseStats && dispenses.length > 1 && (
           <div className="flex items-center justify-between text-xs text-gray-500 px-1 pb-2">
             <span>
               {formatAmount({ value: dispenseStats.totalBtc, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC

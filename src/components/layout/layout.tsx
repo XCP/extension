@@ -2,6 +2,7 @@ import { type ReactElement } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
+import { ApiStatusBanner } from '@/components/layout/api-status-banner';
 import { useHeader } from '@/contexts/header-context';
 
 interface LayoutProps {
@@ -20,6 +21,7 @@ export function Layout({ showFooter = false }: LayoutProps): ReactElement {
   return (
     <div className="flex flex-col h-dvh bg-gray-100">
       <Header {...headerProps} />
+      <ApiStatusBanner />
       <main className="flex-1 overflow-y-auto no-scrollbar relative">
         <Outlet />
       </main>
