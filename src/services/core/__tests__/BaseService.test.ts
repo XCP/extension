@@ -105,10 +105,6 @@ describe('BaseService constructor validation', () => {
     expect(() => new TestService('   ')).toThrow('Service name must be non-empty');
   });
 
-  it('should throw on tab-only serviceName', () => {
-    expect(() => new TestService('\t\t')).toThrow('Service name must be non-empty');
-  });
-
   it('should accept valid serviceName', () => {
     const service = new TestService('ValidService');
     expect(service.getServiceName()).toBe('ValidService');

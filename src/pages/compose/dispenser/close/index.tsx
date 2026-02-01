@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import { DispenserCloseForm } from "./form";
 import { ReviewDispenserClose } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty/compose";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeDispenserClose() {
+function ComposeDispenserClosePage() {
   const { asset } = useParams<{ asset?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeDispenserClose() {
   );
 }
 
-export default ComposeDispenserClose;
+export default ComposeDispenserClosePage;

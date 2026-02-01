@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { LockDescriptionForm } from "./form";
 import { ReviewLockDescription } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
@@ -10,7 +10,7 @@ import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
  * This creates an issuance transaction with description="LOCK" to permanently
  * prevent future description changes.
  */
-function ComposeLockDescription() {
+function ComposeLockDescriptionPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -36,4 +36,4 @@ function ComposeLockDescription() {
   );
 }
 
-export default ComposeLockDescription;
+export default ComposeLockDescriptionPage;

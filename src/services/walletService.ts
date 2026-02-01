@@ -65,7 +65,6 @@ interface WalletService {
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
-  isAnyWalletUnlocked: () => Promise<boolean>;
 }
 
 function createWalletService(): WalletService {
@@ -131,10 +130,16 @@ function createWalletService(): WalletService {
       });
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
-      return walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
+      const wallet = await walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);
+      // Emit wallet-created event for any pending connection requests waiting for onboarding
+      eventEmitterService.emit('wallet-created', { walletId: wallet.id });
+      return wallet;
     },
     createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
-      return walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
+      const wallet = await walletManager.createPrivateKeyWallet(privateKey, password, name, addressFormat);
+      // Emit wallet-created event for any pending connection requests waiting for onboarding
+      eventEmitterService.emit('wallet-created', { walletId: wallet.id });
+      return wallet;
     },
     importTestAddress: async (address: string, name?: string) => {
       // Development-only feature for testing UI with watch-only addresses
@@ -194,7 +199,6 @@ function createWalletService(): WalletService {
       // which emits to all connected sites
     },
     setLastActiveTime: async () => await walletManager.setLastActiveTime(),
-    isAnyWalletUnlocked: async () => walletManager.isAnyWalletUnlocked(),
     emitProviderEvent: async (origin, event, data) => {
       // Emit provider event through the event emitter service
       eventEmitterService.emit('emit-provider-event', {

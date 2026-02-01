@@ -19,15 +19,10 @@ export function ReviewLockDescription({
 
   const customFields = [
     { label: "Asset", value: result.params.asset },
-    { 
-      label: "Action", 
+    {
+      label: "Action",
       value: "Lock Description",
       className: "text-red-600 font-medium"
-    },
-    { 
-      label: "Warning", 
-      value: "This permanently prevents future description changes",
-      className: "text-red-600 text-sm"
     },
   ];
 

@@ -3,6 +3,8 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { fetchAddressDispensers, fetchDispenserDispenses } from "@/utils/blockchain/counterparty/api";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
 import type { ReactElement } from "react";
 
 /**
@@ -48,14 +50,16 @@ interface VerboseDispenser {
  * @param {ReviewDispenseProps} props - Component props
  * @returns {ReactElement} Review UI for dispense transaction
  */
-export function ReviewDispense({ 
-  apiResponse, 
-  onSign, 
+export function ReviewDispense({
+  apiResponse,
+  onSign,
   onBack,
   error,
   isSigning,
 }: ReviewDispenseProps): ReactElement {
   const { result } = apiResponse || {};
+  const { settings } = useSettings();
+  const { btc: btcPrice } = useMarketPrices(settings.fiat);
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
@@ -131,11 +135,13 @@ export function ReviewDispense({
   }, [dispenserAddress, btcQuantity]);
   
   // Calculate BTC amount from the API response
+  const btcInBtc = fromSatoshis(btcQuantity, true);
   const btcAmount = formatAmount({
-    value: fromSatoshis(btcQuantity, true),
+    value: btcInBtc,
     maximumFractionDigits: 8,
     minimumFractionDigits: 8
   });
+  const btcInFiat = btcPrice ? btcInBtc * btcPrice : null;
 
   const customFields = [];
   
@@ -146,31 +152,40 @@ export function ReviewDispense({
       const isDivisible = dispenser.asset_info?.divisible ?? false;
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
-      const giveQuantity = (fromSatoshis(dispenser.give_quantity || 0, true) / (isDivisible ? 1 : 1e8));
+      // For divisible assets, give_quantity is in satoshis; for indivisible, it's the raw count
+      const giveQuantity = isDivisible
+        ? fromSatoshis(dispenser.give_quantity || 0, true)
+        : (dispenser.give_quantity || 0);
       const totalReceived = giveQuantity * numberOfDispenses;
       const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
-      
+
       return `${formatAmount({
         value: totalReceived,
         minimumFractionDigits: 0,
-        maximumFractionDigits: 8
+        maximumFractionDigits: isDivisible ? 8 : 0
       })} ${assetName}`;
     });
     
+    // Format USD value for BTC payment
+    const usdDisplay = btcInFiat !== null
+      ? `$${formatAmount({ value: btcInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : null;
+
     // If multiple dispensers trigger, show all assets
     if (allTriggeredDispensers.length > 1) {
       customFields.push(
-        { 
-          label: "Dispensers", 
-          value: allTriggeredDispensers.length.toString() 
+        {
+          label: "Dispensers",
+          value: allTriggeredDispensers.length.toString()
         },
-        { 
-          label: "You Receive", 
+        {
+          label: "You Receive",
           value: receivedAssets.join('\n')
         },
-        { 
-          label: "BTC Payment", 
-          value: `${btcAmount} BTC` 
+        {
+          label: "BTC Payment",
+          value: `${btcAmount} BTC`,
+          rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
         }
       );
     } else {
@@ -178,35 +193,36 @@ export function ReviewDispense({
       const dispenser = allTriggeredDispensers[0];
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
-      
+
+      // Add dispenser TX hash first (after To:)
+      if (dispenser.tx_hash) {
+        customFields.push({
+          label: "Dispenser",
+          value: dispenser.tx_hash
+        });
+      }
+
       customFields.push(
-        { 
-          label: "# of Dispenses", 
-          value: numberOfDispenses.toString() 
+        {
+          label: "# of Dispenses",
+          value: numberOfDispenses.toString()
         },
-        { 
-          label: "You Receive", 
+        {
+          label: "You Receive",
           value: receivedAssets[0]
         },
-        { 
-          label: "BTC Payment", 
-          value: `${btcAmount} BTC` 
+        {
+          label: "BTC Payment",
+          value: `${btcAmount} BTC`,
+          rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
         }
       );
-    }
-    
-    // Add dispenser TX hash only for single dispenser
-    if (allTriggeredDispensers.length === 1 && allTriggeredDispensers[0].tx_hash) {
-      customFields.push({
-        label: "Dispenser TX Hash",
-        value: allTriggeredDispensers[0].tx_hash
-      });
     }
     
     // Add mempool warning if there are competing transactions
     if (mempoolDispenses.length > 0) {
       const competingTxs = mempoolDispenses.map(tx => 
-        `• ${tx.source.substring(0, 6)}...${tx.source.substring(tx.source.length - 4)} - ${formatAmount({
+        `• ${tx.source.substring(0, 6)}…${tx.source.substring(tx.source.length - 4)} - ${formatAmount({
           value: fromSatoshis(tx.btc_amount, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8
@@ -220,10 +236,14 @@ export function ReviewDispense({
     }
   } else if (!isLoadingInfo && allTriggeredDispensers.length === 0) {
     // Only show basic payment info if we couldn't fetch dispenser details or none trigger
+    const usdDisplay = btcInFiat !== null
+      ? `$${formatAmount({ value: btcInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : null;
     customFields.push(
-      { 
-        label: "BTC Payment", 
-        value: `${btcAmount} BTC` 
+      {
+        label: "BTC Payment",
+        value: `${btcAmount} BTC`,
+        rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
       }
     );
   }

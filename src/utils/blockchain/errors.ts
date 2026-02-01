@@ -62,19 +62,6 @@ export class BlockchainError extends Error {
 }
 
 /**
- * Network-related errors (API calls, timeouts, etc.)
- */
-export class NetworkError extends BlockchainError {
-  constructor(message: string, options?: { userMessage?: string; cause?: Error }) {
-    super('NETWORK_ERROR', message, {
-      userMessage: options?.userMessage ?? 'Network error. Please check your connection and try again.',
-      cause: options?.cause,
-    });
-    this.name = 'NetworkError';
-  }
-}
-
-/**
  * Validation errors (invalid addresses, keys, etc.)
  */
 export class ValidationError extends BlockchainError {
@@ -85,24 +72,6 @@ export class ValidationError extends BlockchainError {
   ) {
     super(code, message, options);
     this.name = 'ValidationError';
-  }
-}
-
-/**
- * Insufficient funds or missing UTXOs
- */
-export class InsufficientFundsError extends BlockchainError {
-  readonly required: bigint;
-  readonly available: bigint;
-
-  constructor(required: bigint, available: bigint, options?: { userMessage?: string }) {
-    const message = `Insufficient funds: required ${required} sats, available ${available} sats`;
-    super('INSUFFICIENT_FUNDS', message, {
-      userMessage: options?.userMessage ?? `Insufficient funds. You need ${required} sats but only have ${available} sats.`,
-    });
-    this.name = 'InsufficientFundsError';
-    this.required = required;
-    this.available = available;
   }
 }
 
@@ -141,43 +110,10 @@ export class SigningError extends BlockchainError {
 }
 
 /**
- * Transaction broadcast errors
- */
-export class BroadcastError extends BlockchainError {
-  readonly txid?: string;
-
-  constructor(message: string, options?: { txid?: string; userMessage?: string; cause?: Error }) {
-    super('BROADCAST_FAILED', message, {
-      userMessage: options?.userMessage ?? 'Failed to broadcast transaction. Please try again.',
-      cause: options?.cause,
-    });
-    this.name = 'BroadcastError';
-    this.txid = options?.txid;
-  }
-}
-
-/**
  * Type guard to check if an error is a BlockchainError
  */
 export function isBlockchainError(error: unknown): error is BlockchainError {
   return error instanceof BlockchainError;
-}
-
-/**
- * Helper to wrap unknown errors as BlockchainError
- */
-export function wrapError(error: unknown, fallbackCode: BlockchainErrorCode = 'UNKNOWN'): BlockchainError {
-  if (isBlockchainError(error)) {
-    return error;
-  }
-
-  if (error instanceof Error) {
-    return new BlockchainError(fallbackCode, error.message, {
-      cause: error,
-    });
-  }
-
-  return new BlockchainError(fallbackCode, String(error));
 }
 
 /**

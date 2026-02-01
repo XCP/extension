@@ -11,26 +11,58 @@ on:
     branches: [ main ]
 
 jobs:
-  lint-and-type-check:
-    name: Lint and Type Check
+  check-pinned-dependencies:
+    name: Check Pinned Dependencies
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
+      - name: Check for unpinned dependencies
+        run: |
+          # Check both dependencies and devDependencies for unpinned versions
+          # Unpinned = contains ^, ~, >, <, =, *, x, or "latest"
+          # Note: caret must be at end of character class in jq regex
+
+          unpinned=$(jq -r '
+            (.dependencies // {}) + (.devDependencies // {})
+            | to_entries[]
+            | select(.value | test("[~><=*x^]|latest"))
+            | "\(.key): \(.value)"
+          ' package.json)
+
+          if [ -n "$unpinned" ]; then
+            echo "❌ Found unpinned dependencies in package.json:"
+            echo "$unpinned"
+            echo ""
+            echo "All dependencies must use exact versions (e.g., \"1.2.3\" not \"^1.2.3\")"
+            exit 1
+          fi
+
+          echo "✅ All dependencies are pinned to exact versions"
+
+  lint-and-type-check:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    needs: check-pinned-dependencies
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run TypeScript type checking
         run: npm run compile
-      
+
       - name: Build extension
         run: npm run build
 
@@ -79,58 +111,58 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Using 10 parallel batches for ~18 test files (1-2 tests per batch)
-        # This maximizes parallelization within GitHub Actions concurrent job limits
-        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    
+        # Using 20 parallel batches for ~112 test files (~5-6 files per batch)
+        # This reduces tests per batch to fit within 15-minute timeout
+        batch: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build extension
         run: npm run build
-      
+
       - name: Install Playwright browsers
         run: npx playwright install chromium
-      
+
       - name: Install system dependencies
         run: npx playwright install-deps chromium
-      
+
       - name: Configure Xvfb (MetaMask style)
         run: |
           # Start Xvfb in the background with MetaMask's exact configuration
           Xvfb -ac :99 -screen 0 1280x1024x16 &
           # Give it a moment to start
           sleep 2
-      
+
       - name: Run E2E tests (Batch ${{ matrix.batch }})
         timeout-minutes: 15  # Set a reasonable timeout per batch
         run: |
           # Dynamically discover all test files and distribute them across batches
-          TOTAL_BATCHES=10
+          TOTAL_BATCHES=20
           CURRENT_BATCH=${{ matrix.batch }}
-          
+
           # Get all test files, sorted for consistency
           ALL_FILES=$(find e2e -name "*.spec.ts" -type f | sort)
-          
+
           # Count total files
           TOTAL_FILES=$(echo "$ALL_FILES" | wc -l)
           FILES_PER_BATCH=$(( (TOTAL_FILES + TOTAL_BATCHES - 1) / TOTAL_BATCHES ))
           START_LINE=$(( (CURRENT_BATCH - 1) * FILES_PER_BATCH + 1 ))
           END_LINE=$(( START_LINE + FILES_PER_BATCH - 1 ))
-          
+
           # Get files for this batch using sed
           BATCH_FILES=$(echo "$ALL_FILES" | sed -n "${START_LINE},${END_LINE}p" | tr '\n' ' ')
-          
+
           # Run tests for this batch
           if [ -n "$BATCH_FILES" ]; then
             echo "Running tests for batch $CURRENT_BATCH (lines $START_LINE-$END_LINE of $TOTAL_FILES):"
@@ -142,7 +174,7 @@ jobs:
         env:
           CI: true
           DISPLAY: ':99'
-      
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -151,7 +183,7 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
-      
+
       - name: Upload playwright report
         if: failure()
         uses: actions/upload-artifact@v4
@@ -195,20 +227,20 @@ jobs:
   security-check:
     name: Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Run security audit
         run: |
           # Only audit production dependencies (not devDependencies)

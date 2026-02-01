@@ -77,18 +77,18 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
     <div className="mt-4 bg-white rounded-lg shadow-sm">
       <button
         onClick={() => setShowHistory(!showHistory)}
-        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer"
+        className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset rounded-lg"
         aria-expanded={showHistory}
         aria-controls="recovery-history"
       >
         <div className="flex items-center gap-2">
-          <FaHistory className="text-gray-500 w-4 h-4" aria-hidden="true" />
-          <h3 className="text-sm font-medium text-gray-900">Recovery History</h3>
+          <FaHistory className="text-gray-500 size-4" aria-hidden="true" />
+          <h2 className="text-sm font-medium text-gray-900">Recovery History</h2>
         </div>
         {showHistory ? (
-          <FiChevronDown className="text-gray-400 w-4 h-4" aria-hidden="true" />
+          <FiChevronDown className="text-gray-400 size-4" aria-hidden="true" />
         ) : (
-          <FaChevronRight className="text-gray-400 w-4 h-4" aria-hidden="true" />
+          <FaChevronRight className="text-gray-400 size-4" aria-hidden="true" />
         )}
       </button>
 
@@ -136,7 +136,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
                         className="text-xs font-mono text-blue-600 hover:underline truncate"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        TX: {tx.txid.slice(0, 8)}...{tx.txid.slice(-8)}
+                        TX: {tx.txid.slice(0, 8)}…{tx.txid.slice(-8)}
                       </a>
                       {tx.status === 'pending' ? (
                         <span className="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded">

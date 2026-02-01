@@ -3,31 +3,63 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
+import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
 import { toSatoshis } from "@/utils/numeric";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 /**
- * Configuration for normalizing form fields based on compose type
+ * Converts form string values to proper booleans.
+ * Handles: true, 'true', 'yes' (Headless UI checkbox value)
+ * Returns false for: false, 'false', undefined, null, empty string, 'no'
+ */
+function toBoolean(val: unknown): boolean {
+  if (val === true || val === 'true' || val === 'yes') return true;
+  return false;
+}
+
+// FLAG_BINARY_MEMO indicates memo is hex/binary (per counterparty-core sweep.py)
+const FLAG_BINARY_MEMO = 4;
+
+/**
+ * Memo configuration types for different compose operations
+ */
+type MemoConfig =
+  | { type: 'boolean'; field: string }  // Set a boolean field (e.g., memo_is_hex for send)
+  | { type: 'flag'; flagsField: string; flagValue: number };  // OR a flag value (e.g., sweep)
+
+/**
+ * Configuration for normalizing form fields based on compose type.
+ *
+ * - `quantityFields`: Fields containing quantities that may need conversion
+ * - `assetFields`: Maps quantity field → form field name to look up the asset
+ *                  For hardcoded assets (e.g., BTC), use a hidden form field
+ * - `booleanFields`: Fields that should be converted from strings to booleans
+ * - `memoConfig`: How to handle hex memo detection (set boolean or OR flag)
  */
 const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
+  booleanFields?: string[];
+  memoConfig?: MemoConfig;
 }> = {
   send: {
     quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    assetFields: { quantity: 'asset' },
+    booleanFields: ['no_dispense'],
+    memoConfig: { type: 'boolean', field: 'memo_is_hex' }
   },
   order: {
     quantityFields: ['give_quantity', 'get_quantity'],
-    assetFields: { 
+    assetFields: {
       give_quantity: 'give_asset',
       get_quantity: 'get_asset'
     }
   },
   issuance: {
     quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    assetFields: { quantity: 'asset' },
+    booleanFields: ['divisible', 'lock', 'reset']
   },
   destroy: {
     quantityFields: ['quantity'],
@@ -39,10 +71,10 @@ const NORMALIZATION_CONFIG: Record<string, {
   },
   dispenser: {
     quantityFields: ['give_quantity', 'escrow_quantity', 'mainchainrate'],
-    assetFields: { 
+    assetFields: {
       give_quantity: 'asset',
       escrow_quantity: 'asset',
-      mainchainrate: 'BTC'
+      mainchainrate: 'mainchainrate_asset'  // hidden form field with value 'BTC'
     }
   },
   dispense: {
@@ -54,20 +86,22 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: {}
   },
   burn: {
-    quantityFields: ['quantity'],
-    assetFields: { quantity: 'asset' }
+    quantityFields: [],
+    assetFields: {}  // No UI form exists for burn
   },
   fairmint: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity'],
-    assetFields: { premint_quantity: 'asset' }
+    quantityFields: ['premint_quantity', 'lot_size'],
+    assetFields: { premint_quantity: 'asset', lot_size: 'asset' },
+    booleanFields: ['burn_payment', 'lock_description', 'lock_quantity', 'divisible']
   },
   sweep: {
     quantityFields: [],
-    assetFields: {}
+    assetFields: {},
+    memoConfig: { type: 'flag', flagsField: 'flags', flagValue: FLAG_BINARY_MEMO }
   },
   utxo: {
     quantityFields: [],
@@ -80,6 +114,18 @@ const NORMALIZATION_CONFIG: Record<string, {
   attach: {
     quantityFields: ['quantity'],
     assetFields: { quantity: 'asset' }
+  },
+  detach: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  btcpay: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  cancel: {
+    quantityFields: [],
+    assetFields: {}
   }
 };
 
@@ -169,12 +215,8 @@ export async function normalizeFormData(
       continue;
     }
     
-    // Find corresponding asset field
+    // Get asset name from form data (use hidden fields for hardcoded assets like BTC)
     const assetField = config.assetFields[quantityField];
-    if (!assetField) {
-      continue;
-    }
-    
     const assetName = rawData[assetField]?.toString();
     if (!assetName) {
       continue;
@@ -186,10 +228,34 @@ export async function normalizeFormData(
       continue;
     }
 
-    // For issuance operations, quantity is already converted by the form
-    // (both new asset creation and issue-supply forms handle conversion)
-    if (composeType === 'issuance') {
-      normalizedData[quantityField] = value.toString();
+    // For issuance of NEW assets, use the divisible field from the form
+    if (composeType === 'issuance' && !assetInfoCache.has(assetName)) {
+      try {
+        const details = await fetchAssetDetails(assetName);
+        if (details) {
+          assetInfoCache.set(assetName, details);
+        }
+      } catch {
+        // Asset doesn't exist yet (new issuance) - use form's divisible field
+        const isDivisible = toBoolean(rawData['divisible']);
+        if (isDivisible) {
+          normalizedData[quantityField] = toSatoshis(value.toString());
+        } else {
+          normalizedData[quantityField] = value.toString();
+        }
+        continue;
+      }
+    }
+
+    // For fairminter, the form provides divisibility - use it directly
+    // This handles both new assets (which don't exist yet) and existing assets
+    if (composeType === 'fairminter') {
+      const isDivisible = toBoolean(rawData['divisible']);
+      if (isDivisible) {
+        normalizedData[quantityField] = toSatoshis(value.toString());
+      } else {
+        normalizedData[quantityField] = value.toString();
+      }
       continue;
     }
 
@@ -220,6 +286,35 @@ export async function normalizeFormData(
       normalizedData[quantityField] = value.toString();
     }
   }
-  
+
+  // Process boolean fields (convert string 'true'/'false' to actual booleans)
+  if (config.booleanFields) {
+    for (const booleanField of config.booleanFields) {
+      if (booleanField in rawData) {
+        normalizedData[booleanField] = toBoolean(rawData[booleanField]);
+      }
+    }
+  }
+
+  // Process memo field (detect hex, strip prefix, set appropriate indicator)
+  if (config.memoConfig && 'memo' in rawData) {
+    const memo = rawData['memo']?.toString() || '';
+
+    if (memo && isHexMemo(memo)) {
+      // Strip hex prefix and update memo
+      normalizedData['memo'] = stripHexPrefix(memo);
+
+      // Set the hex indicator based on config type
+      if (config.memoConfig.type === 'boolean') {
+        // For send: set memo_is_hex = true
+        normalizedData[config.memoConfig.field] = true;
+      } else if (config.memoConfig.type === 'flag') {
+        // For sweep: OR the flag value into the flags field
+        const currentFlags = parseInt(rawData[config.memoConfig.flagsField]?.toString() || '0', 10);
+        normalizedData[config.memoConfig.flagsField] = currentFlags | config.memoConfig.flagValue;
+      }
+    }
+  }
+
   return { normalizedData, assetInfoCache };
 }

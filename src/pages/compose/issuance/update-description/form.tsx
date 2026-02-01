@@ -1,16 +1,15 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Textarea } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { AssetHeader } from "@/components/headers/asset-header";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
 import type { ReactElement } from "react";
 
 /**
@@ -66,7 +65,7 @@ export function UpdateDescriptionForm({
   }, []);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo) {
@@ -101,6 +100,7 @@ export function UpdateDescriptionForm({
     >
           <input type="hidden" name="asset" value={asset} />
           <input type="hidden" name="quantity" value="0" />
+          <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
           
           {/* Only show inscribe switch for SegWit addresses */}
           {isSegwitAddress && (
@@ -138,7 +138,7 @@ export function UpdateDescriptionForm({
                 name="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                 rows={3}
                 required
                 disabled={pending}

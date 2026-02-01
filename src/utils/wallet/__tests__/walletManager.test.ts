@@ -203,31 +203,6 @@ describe('WalletManager', () => {
     });
   });
 
-  describe('Wallet Status Checks', () => {
-    it('should check if any wallet is unlocked', async () => {
-      const wallets = createMultipleWallets(2);
-      walletManager['wallets'] = wallets;
-
-      // Mock one wallet as unlocked
-      vi.mocked(sessionManager.getUnlockedSecret).mockImplementation((id) =>
-        Promise.resolve(id === wallets[0].id ? 'secret' : null)
-      );
-
-      const result = await walletManager.isAnyWalletUnlocked();
-      expect(result).toBe(true);
-    });
-
-    it('should return false if no wallets are unlocked', async () => {
-      const wallets = createMultipleWallets(2);
-      walletManager['wallets'] = wallets;
-
-      vi.mocked(sessionManager.getUnlockedSecret).mockResolvedValue(null);
-
-      const result = await walletManager.isAnyWalletUnlocked();
-      expect(result).toBe(false);
-    });
-  });
-
   describe('Address Preview', () => {
     it('should get preview address for type', async () => {
       const wallet = createTestWallet();

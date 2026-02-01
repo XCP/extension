@@ -1,8 +1,8 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
-import { ConnectedSiteCard } from "@/components/cards/connected-site-card";
+import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { walletManager } from "@/utils/wallet/walletManager";
 import { getProviderService } from "@/services/providerService";
@@ -11,11 +11,9 @@ import type { ReactElement } from "react";
 /**
  * Constants for navigation paths.
  */
-const CONSTANTS = {
-  PATHS: {
-    BACK: "/settings",
-    HELP_URL: "https://youtube.com", // Placeholder for now
-  } as const,
+const PATHS = {
+  BACK: "/settings",
+  HELP_URL: "https://youtube.com", // Placeholder for now
 } as const;
 
 interface ConnectedSite {
@@ -33,7 +31,7 @@ interface ConnectedSite {
  *
  * @returns {ReactElement} The rendered connected sites settings UI.
  */
-export default function ConnectedSites(): ReactElement {
+export default function ConnectedSitesPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const [connectedSites, setConnectedSites] = useState<ConnectedSite[]>([]);
@@ -105,14 +103,14 @@ export default function ConnectedSites(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "Connected Sites",
-      onBack: () => navigate(CONSTANTS.PATHS.BACK),
+      onBack: () => navigate(PATHS.BACK),
       rightButton: connectedSites.length > 0 ? {
-        icon: <FiRefreshCw aria-hidden="true" />,
+        icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleDisconnectAll,
         ariaLabel: "Disconnect all sites",
       } : {
-        icon: <FiHelpCircle className="w-4 h-4" aria-hidden="true" />,
-        onClick: () => window.open(CONSTANTS.PATHS.HELP_URL, "_blank"),
+        icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
+        onClick: () => window.open(PATHS.HELP_URL, "_blank"),
         ariaLabel: "Help",
       },
     });
@@ -124,15 +122,7 @@ export default function ConnectedSites(): ReactElement {
   }, [loadConnections]);
 
   if (isLoading) {
-    return (
-      <div className="p-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
-          <div className="h-20 bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
+    return <Spinner message="Loading connected sites…" />;
   }
 
   return (
@@ -143,7 +133,7 @@ export default function ConnectedSites(): ReactElement {
 
       {connectedSites.length === 0 ? (
         <div className="bg-gray-50 rounded-lg p-8 text-center">
-          <FiGlobe className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+          <FiGlobe className="size-12 text-gray-400 mx-auto mb-3" aria-hidden="true" />
           <p className="text-gray-600">No connected sites</p>
           <p className="text-sm text-gray-500 mt-1">
             Sites you connect to will appear here

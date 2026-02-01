@@ -1,23 +1,22 @@
-
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { ErrorAlert } from "@/components/error-alert";
-import { AddressHeader } from "@/components/headers/address-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { DispenserInput, type DispenserOption } from "@/components/inputs/dispenser-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context";
-import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
+import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
+import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
-import { 
-  multiply, 
-  subtract, 
-  divide, 
-  roundUp, 
-  roundDown, 
-  isLessThanOrEqualToZero, 
-  toNumber 
+import { fromSatoshis } from "@/utils/numeric";
+import {
+  subtract,
+  divide,
+  roundDown,
+  isLessThanOrEqualToZero,
+  toNumber
 } from "@/utils/numeric";
 import type { ReactElement } from "react";
 
@@ -34,9 +33,6 @@ interface DispenseFormProps {
 // Constants
 // ============================================================================
 
-const AVERAGE_TX_SIZE_VBYTES = 250;
-const FEE_SAFETY_MARGIN = 1.75;
-const DEFAULT_FEE_RATE = 1; // sats per vbyte
 const SATOSHIS_PER_BTC = 1e8;
 
 // ============================================================================
@@ -44,22 +40,19 @@ const SATOSHIS_PER_BTC = 1e8;
 // ============================================================================
 
 /**
- * Calculate the maximum number of dispenses based on BTC balance and fees
+ * Calculate the maximum number of dispenses based on spendable balance and fees
  */
 function calculateMaximumDispenses(
   satoshirate: number,
-  btcBalance: string,
-  feeRate: number
+  spendableBalance: number,
+  estimatedFee: number
 ): number {
-  if (!satoshirate) return 0;
-  
-  const balanceInSatoshis = multiply(btcBalance, SATOSHIS_PER_BTC);
-  const estimatedFee = multiply(AVERAGE_TX_SIZE_VBYTES, feeRate);
-  const totalFeeReserve = roundUp(multiply(estimatedFee, FEE_SAFETY_MARGIN));
-  const availableForDispenses = subtract(balanceInSatoshis, totalFeeReserve);
-  
+  if (!satoshirate || satoshirate <= 0) return 0;
+
+  const availableForDispenses = subtract(spendableBalance.toString(), estimatedFee.toString());
+
   if (isLessThanOrEqualToZero(availableForDispenses)) return 0;
-  
+
   return toNumber(roundDown(divide(availableForDispenses, satoshirate)));
 }
 
@@ -78,29 +71,78 @@ function calculateRemainingDispenses(dispenser: any): number {
 // Custom Hooks
 // ============================================================================
 
+interface SpendableBtcData {
+  /** Spendable balance in BTC as formatted string */
+  balance: string;
+  /** Spendable balance in satoshis */
+  balanceSatoshis: number;
+  /** Number of spendable UTXOs */
+  utxoCount: number;
+  /** Number of UTXOs excluded due to attached assets */
+  excludedWithAssets: number;
+  /** Whether data is being loaded */
+  isLoading: boolean;
+  /** Error message if fetch failed */
+  error: string | null;
+}
+
 /**
- * Custom hook to manage BTC balance
+ * Custom hook to manage spendable BTC balance (excludes UTXOs with attached assets)
  */
-function useBtcBalance(address: string | undefined) {
-  const [balance, setBalance] = useState("0");
+function useSpendableBtc(address: string | undefined): SpendableBtcData {
+  const [data, setData] = useState<SpendableBtcData>({
+    balance: "0",
+    balanceSatoshis: 0,
+    utxoCount: 0,
+    excludedWithAssets: 0,
+    isLoading: false,
+    error: null,
+  });
 
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchSpendableBalance = async () => {
       if (!address) return;
-      
+
+      setData(prev => ({ ...prev, isLoading: true, error: null }));
+
       try {
-        const { availableBalance } = await fetchAssetDetailsAndBalance("BTC", address);
-        setBalance(availableBalance);
+        const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
+          address,
+          { allowUnconfirmed: true }
+        );
+
+        const balanceBtc = fromSatoshis(totalValue.toString(), true);
+        const formattedBalance = formatAmount({
+          value: balanceBtc,
+          maximumFractionDigits: 8,
+          minimumFractionDigits: 8,
+        });
+
+        setData({
+          balance: formattedBalance,
+          balanceSatoshis: totalValue,
+          utxoCount: utxos.length,
+          excludedWithAssets,
+          isLoading: false,
+          error: null,
+        });
       } catch (err) {
-        console.error("Failed to fetch BTC balance:", err);
-        setBalance("0");
+        console.error("Failed to fetch spendable BTC:", err);
+        setData({
+          balance: "0",
+          balanceSatoshis: 0,
+          utxoCount: 0,
+          excludedWithAssets: 0,
+          isLoading: false,
+          error: err instanceof Error ? err.message : "Failed to fetch balance",
+        });
       }
     };
 
-    fetchBalance();
+    fetchSpendableBalance();
   }, [address]);
 
-  return balance;
+  return data;
 }
 
 // ============================================================================
@@ -112,9 +154,8 @@ export function DispenseForm({
   initialFormData
 }: DispenseFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, activeWallet, showHelpText, state } = useComposer();
+  const { activeAddress, activeWallet, showHelpText, state, feeRate } = useComposer();
   const { pending } = useFormStatus();
-  const feeRate = initialFormData?.sat_per_vbyte || DEFAULT_FEE_RATE;
   
   // State management
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -143,8 +184,8 @@ export function DispenseForm({
     return "1";
   });
 
-  // Custom hooks
-  const btcBalance = useBtcBalance(activeAddress?.address);
+  // Custom hooks - fetch spendable BTC (excludes UTXOs with attached assets)
+  const spendableBtc = useSpendableBtc(activeAddress?.address);
 
   // Refs
   const previousIndexRef = useRef<number | null>(null);
@@ -152,18 +193,25 @@ export function DispenseForm({
 
   // Calculate max dispenses for current selection
   const maxDispenses = (() => {
-    if (!selectedDispenser) return 0;
-    
+    if (!selectedDispenser || !activeAddress?.address || spendableBtc.isLoading) return 0;
+    if (spendableBtc.utxoCount === 0) return 0;
+
+    // Calculate fee based on actual UTXO count and address type
+    const effectiveFeeRate = feeRate ?? 0.1;
+    // Dispense transaction has 1 output to dispenser
+    const estimatedVbytes = estimateVsize(spendableBtc.utxoCount, 1, activeAddress.address);
+    const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
-      btcBalance,
-      feeRate
+      spendableBtc.balanceSatoshis,
+      estimatedFee
     );
-    
+
     const remainingDispenses = calculateRemainingDispenses(
       selectedDispenser.dispenser
     );
-    
+
     return Math.min(affordableDispenses, remainingDispenses);
   })();
 
@@ -235,27 +283,48 @@ export function DispenseForm({
       return;
     }
 
+    if (spendableBtc.isLoading) {
+      setValidationError("Loading balance...");
+      return;
+    }
+
+    if (spendableBtc.error) {
+      setValidationError(spendableBtc.error);
+      return;
+    }
+
     if (maxDispenses === 0) {
       const remainingDispenses = calculateRemainingDispenses(
         selectedDispenser.dispenser
       );
-      
+
       if (remainingDispenses === 0) {
         setValidationError("This dispenser is empty and cannot be triggered.");
+      } else if (spendableBtc.utxoCount === 0) {
+        // No spendable UTXOs
+        const message = spendableBtc.excludedWithAssets > 0
+          ? `No spendable balance. ${spendableBtc.excludedWithAssets} UTXOs have attached assets.`
+          : "No available balance.";
+        setValidationError(message);
       } else {
-        const requiredBTC = selectedDispenser.satoshirate / SATOSHIS_PER_BTC;
+        // Calculate fee for error message
+        const effectiveFeeRate = feeRate ?? 0.1;
+        const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
+        const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+        const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
+        const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
         setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
             value: requiredBTC,
             minimumFractionDigits: 8,
             maximumFractionDigits: 8
-          })} BTC to trigger this dispenser once.`);
+          })} BTC (including ~${estimatedFee} sats fee) to trigger this dispenser once.`);
       }
       return;
     }
 
     setNumberOfDispenses(maxDispenses.toString());
     setValidationError(null);
-  }, [selectedDispenser, maxDispenses]);
+  }, [selectedDispenser, maxDispenses, spendableBtc]);
 
   // Handle dispenser selection change
   const handleDispenserSelectionChange = useCallback((index: number | null, option: DispenserOption | null) => {
@@ -283,7 +352,13 @@ export function DispenseForm({
           {errorMessage && (
             <ErrorAlert
               message={errorMessage}
-              onClose={() => setValidationError(null)}
+              onClose={() => {
+                setValidationError(null);
+                // If the error is from dispenser lookup, clear the address to reset
+                if (dispenserError) {
+                  setDispenserAddress("");
+                }
+              }}
             />
           )}
 
@@ -306,10 +381,10 @@ export function DispenseForm({
             <>
               <AmountWithMaxInput
                 asset="Dispenses"
-                availableBalance={btcBalance}
+                availableBalance={spendableBtc.balance}
                 value={numberOfDispenses}
                 onChange={setNumberOfDispenses}
-                sat_per_vbyte={feeRate}
+                feeRate={feeRate}
                 setError={setValidationError}
                 showHelpText={showHelpText}
                 sourceAddress={activeAddress}
@@ -317,9 +392,9 @@ export function DispenseForm({
                 label="Times to Dispense"
                 name="numberOfDispenses"
                 description="Number of times to trigger the dispenser"
-                disabled={pending}
+                disabled={pending || spendableBtc.isLoading}
                 onMaxClick={handleMaxClick}
-                disableMaxButton={false}
+                disableMaxButton={spendableBtc.isLoading}
                 hasError={!!errorMessage}
               />
 

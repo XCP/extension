@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { HashInput } from "@/components/inputs/hash-input";
-import { AddressHeader } from "@/components/headers/address-header";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { HashInput } from "@/components/ui/inputs/hash-input";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { fetchDispenserByHash } from "@/utils/blockchain/counterparty/api";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
@@ -82,17 +82,16 @@ export function DispenserCloseByHashForm({
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispenser details...</div>
+        <div className="py-4 text-center">Loading dispenser details…</div>
       ) : (
         <>
           <HashInput
             value={txHash}
             onChange={setTxHash}
             label="Transaction Hash"
-            name="open_address"
             hashType="transaction"
             placeholder="Enter dispenser transaction hash"
-            required={true}
+            required={false}
             disabled={pending}
             showHelpText={showHelpText}
             description="Transaction hash of the dispenser to close. Found in your dispenser history."
@@ -108,6 +107,9 @@ export function DispenserCloseByHashForm({
             </div>
           )}
           <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
+          <input type="hidden" name="status" value="10" />
+          {/* open_address is the dispenser's source address (for closing dispensers at different addresses) */}
+          <input type="hidden" name="open_address" value={selectedDispenser?.source || ""} />
         </>
       )}
     </ComposerForm>

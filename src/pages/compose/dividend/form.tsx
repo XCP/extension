@@ -1,15 +1,14 @@
-
 import { useEffect, useState } from "react";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { ErrorAlert } from "@/components/error-alert";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
-import { calculateMaxDividendPerUnit } from "@/utils/numeric";
+import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
@@ -92,18 +91,16 @@ export function DividendForm({
     if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
       return "0";
     }
-    
+
     const maxPerUnitBN = calculateMaxDividendPerUnit(
       dividendAssetBalance,
       assetInfo.assetInfo.supply,
       assetInfo.assetInfo.divisible ?? false
     );
-    
-    return formatAmount({
-      value: maxPerUnitBN.toNumber(),
-      maximumFractionDigits: 8,
-      minimumFractionDigits: 8
-    });
+
+    // Round down to 8 decimal places to avoid exceeding available balance
+    const rounded = maxPerUnitBN.decimalPlaces(8, 1); // ROUND_DOWN = 1
+    return formatDecimal(rounded);
   };
 
   const handleDividendAssetChange = (asset: string) => {
@@ -120,7 +117,7 @@ export function DividendForm({
   
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo?.assetInfo) {
@@ -167,7 +164,6 @@ export function DividendForm({
             availableBalance={dividendAssetBalance}
             value={quantityPerUnit}
             onChange={setQuantityPerUnit}
-            sat_per_vbyte={1} // Not used for non-BTC assets
             setError={setError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}

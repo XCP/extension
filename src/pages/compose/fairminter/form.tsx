@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { FiChevronDown } from "@/components/icons";
@@ -16,14 +15,14 @@ import {
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { BlockHeightInput } from "@/components/inputs/block-height-input";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { AddressHeader } from "@/components/headers/address-header";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { ErrorAlert } from "@/components/error-alert";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
@@ -107,14 +106,6 @@ export function FairminterForm({
   // Helper function to get input step based on divisibility
   const getInputStep = () => isDivisible ? "0.00000001" : "1";
   const getInputPlaceholder = () => isDivisible ? "0.00000000" : "0";
-
-  // Focus asset input on mount
-  useEffect(() => {
-    if (!isExistingAsset) {
-      const input = document.querySelector("input[name='asset']") as HTMLInputElement;
-      input?.focus();
-    }
-  }, [isExistingAsset]);
 
   // Handlers
   const enhancedFormAction = (formData: FormData) => {
@@ -207,17 +198,19 @@ export function FairminterForm({
             <div className="mt-1 relative">
               <Listbox value={FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)} onChange={(option) => setSelectedMintMethod(option.value)} disabled={pending}>
                 <ListboxButton
-                  className="w-full p-2 text-left rounded-md border border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer disabled:bg-gray-100 disabled:cursor-not-allowed"
                   disabled={pending}
                 >
                   <span>{FAIRMINTER_MODEL_OPTIONS.find(option => option.value === selectedMintMethod)?.label}</span>
                 </ListboxButton>
                 <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
                   {FAIRMINTER_MODEL_OPTIONS.map((option) => (
-                    <ListboxOption 
-                      key={option.value} 
-                      value={option} 
-                      className="p-2 cursor-pointer hover:bg-gray-100"
+                    <ListboxOption
+                      key={option.value}
+                      value={option}
+                      className={({ focus }) =>
+                        `p-2.5 cursor-pointer select-none ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`
+                      }
                     >
                       {({ selected }) => (
                         <div className="flex justify-between">
@@ -245,6 +238,7 @@ export function FairminterForm({
               disabled={pending}
               showHelpText={showHelpText}
               required
+              autoFocus
             />
           )}
           
@@ -257,10 +251,11 @@ export function FairminterForm({
                 id="max_mint_per_tx"
                 name="max_mint_per_tx"
                 type="text"
+                inputMode="decimal"
                 defaultValue={initialFormData?.max_mint_per_tx?.toString() || ""}
                 step={getInputStep()}
                 placeholder={getInputPlaceholder()}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                 required
                 disabled={pending}
               />
@@ -281,10 +276,11 @@ export function FairminterForm({
                   id="lot_size"
                   name="lot_size"
                   type="text"
+                  inputMode="decimal"
                   defaultValue={initialFormData?.lot_size?.toString() || ""}
                   step={getInputStep()}
                   placeholder={getInputPlaceholder()}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                   disabled={pending}
                 />
                 {showHelpText && (
@@ -302,8 +298,9 @@ export function FairminterForm({
                   id="lot_price"
                   name="lot_price"
                   type="text"
+                  inputMode="decimal"
                   defaultValue={initialFormData?.lot_price?.toString() || ""}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                   required
                   disabled={pending}
                 />
@@ -334,7 +331,7 @@ export function FairminterForm({
               name="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
               rows={2}
               disabled={pending}
             />
@@ -370,10 +367,11 @@ export function FairminterForm({
               id="hard_cap"
               name="hard_cap"
               type="text"
+              inputMode="decimal"
               defaultValue={initialFormData?.hard_cap?.toString() || ""}
               step={getInputStep()}
               placeholder={getInputPlaceholder()}
-              className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
               disabled={pending}
             />
             {showHelpText && (
@@ -392,9 +390,10 @@ export function FairminterForm({
           <Disclosure>
             {({ open }) => (
               <>
-                <DisclosureButton className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900">
+                <DisclosureButton className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900 cursor-pointer">
                   <FiChevronDown
-                    className={`${open ? "transform rotate-180" : ""} w-4 h-4 mr-2 transition-transform`}
+                    className={`${open ? "transform rotate-180" : ""} size-4 mr-2 transition-transform`}
+                    aria-hidden="true"
                   />
                   Advanced Options
                 </DisclosureButton>
@@ -427,10 +426,11 @@ export function FairminterForm({
                       id="premint_quantity"
                       name="premint_quantity"
                       type="text"
+                      inputMode="decimal"
                       defaultValue={initialFormData?.premint_quantity?.toString() || "0"}
                       step={getInputStep()}
                       placeholder={getInputPlaceholder()}
-                      className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                       disabled={pending}
                     />
                     {showHelpText && (
@@ -450,8 +450,9 @@ export function FairminterForm({
                       id="minted_asset_commission"
                       name="minted_asset_commission"
                       type="text"
+                      inputMode="decimal"
                       defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
-                      className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                       disabled={pending}
                     />
                     {showHelpText && (
@@ -470,8 +471,9 @@ export function FairminterForm({
                           id="soft_cap"
                           name="soft_cap"
                           type="text"
+                          inputMode="decimal"
                           defaultValue={initialFormData?.soft_cap?.toString() || ""}
-                          className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
                           placeholder="0"
                           disabled={pending}
                         />

@@ -1,12 +1,11 @@
-
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSpinner } from "@/components/icons";
-import { ComposerForm } from "@/components/composer-form";
-import { AddressHeader } from "@/components/headers/address-header";
-import { DestinationInput } from "@/components/inputs/destination-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
 import { formatTxid } from "@/utils/format";
 import type { DetachOptions } from "@/utils/blockchain/counterparty/compose";
@@ -95,9 +94,15 @@ export function UtxoDetachForm({
           {(initialUtxo || initialFormData?.sourceUtxo) && (
             <div>
               <label className="text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></label>
-              <div 
-                onClick={() => navigate(`/utxo/${initialUtxo || initialFormData?.sourceUtxo}`)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center"
+              <div
+                onClick={() => navigate(`/assets/utxo/${initialUtxo || initialFormData?.sourceUtxo}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/assets/utxo/${initialUtxo || initialFormData?.sourceUtxo}`);
+                  }
+                }}
+                className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 role="button"
                 tabIndex={0}
               >
@@ -107,8 +112,8 @@ export function UtxoDetachForm({
                 <span className="text-sm text-gray-500">
                   {isLoadingBalances ? (
                     <span className="flex items-center gap-1">
-                      <FaSpinner className="animate-spin h-3 w-3" />
-                      Loading...
+                      <FaSpinner className="animate-spin size-4" aria-hidden="true" />
+                      Loading…
                     </span>
                   ) : (
                     `${utxoBalances.length} ${utxoBalances.length === 1 ? 'Balance' : 'Balances'}`

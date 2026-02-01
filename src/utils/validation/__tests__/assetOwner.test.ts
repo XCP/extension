@@ -78,10 +78,12 @@ describe('Asset Owner Validation', () => {
     });
 
     it('should not trigger for too short strings', () => {
-      expect(shouldTriggerAssetLookup('A.x')).toBe(false);
-      expect(shouldTriggerAssetLookup('AB')).toBe(false);
-      expect(shouldTriggerAssetLookup('TST.xcp')).toBe(false); // 7 chars, too short
-      expect(shouldTriggerAssetLookup('TEST.xcp')).toBe(true); // 8 chars, valid minimum
+      // Strings shorter than 8 characters should not trigger lookup
+      // This prevents unnecessary API calls for incomplete input
+      expect(shouldTriggerAssetLookup('A.x')).toBe(false);   // 3 chars - way too short
+      expect(shouldTriggerAssetLookup('AB')).toBe(false);    // 2 chars - no .xcp suffix
+      expect(shouldTriggerAssetLookup('TST.xcp')).toBe(false); // 7 chars - valid format but below 8 char minimum
+      expect(shouldTriggerAssetLookup('TEST.xcp')).toBe(true); // 8 chars - valid minimum length, triggers lookup
     });
 
     it('should not trigger for non-.xcp endings', () => {

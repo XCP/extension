@@ -20,10 +20,21 @@ import {
 describe('validateFeeRate', () => {
   describe('valid fee rates', () => {
     it('should accept valid fee rates', () => {
-      expect(validateFeeRate(1).isValid).toBe(true);
-      expect(validateFeeRate(10).isValid).toBe(true);
-      expect(validateFeeRate('50').isValid).toBe(true);
-      expect(validateFeeRate(100).isValid).toBe(true);
+      const result1 = validateFeeRate(1);
+      expect(result1.isValid).toBe(true);
+      expect(result1.error).toBeUndefined();
+
+      const result2 = validateFeeRate(10);
+      expect(result2.isValid).toBe(true);
+      expect(result2.error).toBeUndefined();
+
+      const result3 = validateFeeRate('50');
+      expect(result3.isValid).toBe(true);
+      expect(result3.error).toBeUndefined();
+
+      const result4 = validateFeeRate(100);
+      expect(result4.isValid).toBe(true);
+      expect(result4.error).toBeUndefined();
     });
 
     it('should return satsPerVByte', () => {
@@ -47,9 +58,17 @@ describe('validateFeeRate', () => {
 
   describe('invalid fee rates', () => {
     it('should reject empty/null/undefined', () => {
-      expect(validateFeeRate('').isValid).toBe(false);
-      expect(validateFeeRate(null as any).isValid).toBe(false);
-      expect(validateFeeRate(undefined as any).isValid).toBe(false);
+      const emptyResult = validateFeeRate('');
+      expect(emptyResult.isValid).toBe(false);
+      expect(emptyResult.error).toBe('Fee rate is required');
+
+      const nullResult = validateFeeRate(null as any);
+      expect(nullResult.isValid).toBe(false);
+      expect(nullResult.error).toBe('Fee rate is required');
+
+      const undefinedResult = validateFeeRate(undefined as any);
+      expect(undefinedResult.isValid).toBe(false);
+      expect(undefinedResult.error).toBe('Fee rate is required');
     });
 
     it('should reject zero', () => {
@@ -65,8 +84,15 @@ describe('validateFeeRate', () => {
     });
 
     it('should reject NaN and Infinity', () => {
-      expect(validateFeeRate(NaN).isValid).toBe(false);
-      expect(validateFeeRate(Infinity).isValid).toBe(false);
+      // NaN is converted to string "NaN" which toBigNumber converts to 0
+      const nanResult = validateFeeRate(NaN);
+      expect(nanResult.isValid).toBe(false);
+      expect(nanResult.error).toBe('Fee rate cannot be zero');
+
+      // Infinity keeps its numeric value which BigNumber detects as non-finite
+      const infResult = validateFeeRate(Infinity);
+      expect(infResult.isValid).toBe(false);
+      expect(infResult.error).toBe('Fee rate must be a valid number');
     });
 
     it('should reject rates below minimum', () => {

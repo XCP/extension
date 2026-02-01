@@ -1,15 +1,14 @@
-
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { TextAreaInput } from "@/components/inputs/textarea-input";
-import { ComposerForm } from "@/components/composer-form";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { AddressHeader } from "@/components/headers/address-header";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
@@ -46,11 +45,11 @@ export function IssuanceForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state
   const [assetName, setAssetName] = useState(initialFormData?.asset || (initialParentAsset ? `${initialParentAsset}.` : ""));
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [amount, setAmount] = useState(initialFormData?.quantity?.toString() || "");
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? false);
+  const [isLocked, setIsLocked] = useState(initialFormData?.lock ?? false);
   const [description, setDescription] = useState(initialFormData?.description || "");
   const [isInitializing, setIsInitializing] = useState<boolean>(!!initialParentAsset); // Loading state for parent asset
   
@@ -121,15 +120,10 @@ export function IssuanceForm({
     });
   };
 
-  // Process form to convert quantity to satoshis and set divisible as string
   const processedFormAction = async (formData: FormData) => {
-    // Convert quantity to satoshis if divisible
-    const quantityInt = isDivisible
-      ? toBigNumber(amount).multipliedBy(100000000).toFixed(0)
-      : toBigNumber(amount).toFixed(0);
-
-    formData.set('quantity', quantityInt);
+    formData.set('quantity', amount);
     formData.set('divisible', String(isDivisible));
+    formData.set('lock', String(isLocked));
 
     // If inscribing, convert file to base64 and set as description
     if (inscribeEnabled) {
@@ -195,6 +189,7 @@ export function IssuanceForm({
             parentAsset={initialParentAsset}
             disabled={pending}
             showHelpText={showHelpText}
+            showRandomNumeric={!initialParentAsset}
             required
             autoFocus
           />
@@ -203,7 +198,6 @@ export function IssuanceForm({
             availableBalance="0"
             value={amount}
             onChange={setAmount}
-            sat_per_vbyte={0}
             setError={(msg) => {}}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
@@ -214,6 +208,7 @@ export function IssuanceForm({
             disabled={pending}
             disableMaxButton={false}
             onMaxClick={() => setAmount(getMaxAmount())}
+            isDivisible={isDivisible}
           />
           <div className="grid grid-cols-3 gap-4">
             <CheckboxInput
@@ -246,7 +241,8 @@ export function IssuanceForm({
             <CheckboxInput
               name="lock"
               label="Locked"
-              defaultChecked={initialFormData?.lock ?? false}
+              defaultChecked={isLocked}
+              onChange={(checked) => setIsLocked(checked)}
               disabled={pending}
             />
           </div>
@@ -266,7 +262,7 @@ export function IssuanceForm({
               value={description}
               onChange={setDescription}
               label="Description"
-              rows={4}
+              rows={1}
               disabled={pending}
               showHelpText={showHelpText}
               helpText="A textual description for the asset."

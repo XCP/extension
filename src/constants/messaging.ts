@@ -20,7 +20,3 @@ export const MESSAGE_TYPES = {
   /** Event broadcast from wallet to dApp */
   EVENT: 'XCP_WALLET_EVENT',
 } as const;
-
-/** Type helpers */
-export type MessageTarget = (typeof MESSAGE_TARGETS)[keyof typeof MESSAGE_TARGETS];
-export type MessageType = (typeof MESSAGE_TYPES)[keyof typeof MESSAGE_TYPES];

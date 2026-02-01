@@ -4,14 +4,14 @@
  * Tests for the main asset issuance form.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose, actions } from '@e2e/selectors';
 import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
   walletTest('can navigate to issuance from actions', async ({ page }) => {
@@ -42,21 +42,14 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await expect(quantityInput).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('issuance form has divisible toggle', async ({ page }) => {
+  walletTest('issuance form has divisible toggle or form content', async ({ page }) => {
     await navigateTo(page, 'actions');
     await actions.issueAssetOption(page).click();
-    await page.waitForURL('**/compose/issuance', { timeout: 10000 }).catch(() => {});
-    await page.waitForTimeout(1000);
+    await page.waitForURL('**/compose/issuance', { timeout: 10000 });
 
+    // Form should have divisible toggle - use the selector
     const divisibleToggle = compose.issuance.divisibleToggle(page);
-    const hasDivisible = await page.locator('text=/Divisible/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasToggle = await divisibleToggle.isVisible({ timeout: 3000 }).catch(() => false);
-    const hasSwitch = await page.locator('[role="switch"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasCheckbox = await page.locator('input[type="checkbox"]').first().isVisible({ timeout: 2000 }).catch(() => false);
-    const hasForm = await page.locator('form, input[name]').first().isVisible({ timeout: 2000 }).catch(() => false);
-
-    // The form should have some toggle/checkbox or at least the form content
-    expect(hasDivisible || hasToggle || hasSwitch || hasCheckbox || hasForm).toBe(true);
+    await expect(divisibleToggle).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('issuance form validates asset name format', async ({ page }) => {
@@ -65,16 +58,16 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await page.waitForURL('**/compose/issuance', { timeout: 10000 });
 
     const nameInput = compose.issuance.assetNameInput(page);
-    // Note: Component auto-uppercases input, so "invalidname" becomes "INVALIDNAME" which is valid
-    // Use "AB" which is too short (min 4 chars) to test validation
+    // "AB" is too short (min 4 chars) to test validation
     await nameInput.fill('AB');
     await nameInput.blur();
-    await page.waitForTimeout(500);
 
-    const hasError = await compose.common.errorMessage(page).isVisible({ timeout: 2000 }).catch(() => false);
-    const submitDisabled = await compose.issuance.issueButton(page).isDisabled().catch(() => true);
+    // Either error message visible or submit disabled
+    const errorMessage = compose.common.errorMessage(page);
+    const submitButton = compose.issuance.issueButton(page);
 
-    expect(hasError || submitDisabled).toBe(true);
+    // Submit button should be disabled with invalid name (min 4 chars)
+    await expect(submitButton).toBeDisabled({ timeout: 5000 });
   });
 
   walletTest('issuance form accepts valid asset name', async ({ page }) => {
@@ -101,9 +94,7 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
     await backButton.click();
 
     // Should go back to actions or index
-    const isOnActions = page.url().includes('actions');
-    const isOnIndex = page.url().includes('index');
-    expect(isOnActions || isOnIndex).toBe(true);
+    await expect(page).toHaveURL(/actions|index/);
   });
 });
 
@@ -131,7 +122,6 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
     const assetName = generateAssetName();
     await compose.issuance.assetNameInput(page).fill(assetName);
     await compose.issuance.quantityInput(page).fill('1000000');
-    await page.waitForTimeout(500);
 
     const submitBtn = compose.issuance.issueButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });
@@ -153,13 +143,11 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
 
     await compose.issuance.assetNameInput(page).fill(assetName);
     await compose.issuance.quantityInput(page).fill(quantity);
-    await page.waitForTimeout(500);
 
     await compose.issuance.issueButton(page).click();
     await waitForReview(page);
 
     await clickBack(page);
-    await page.waitForTimeout(500);
 
     await expect(compose.issuance.assetNameInput(page)).toHaveValue(assetName);
     await expect(compose.issuance.quantityInput(page)).toHaveValue(quantity);
@@ -173,7 +161,7 @@ walletTest.describe('Issuance Flow - Full Compose Flow', () => {
     const assetName = generateAssetName();
     await compose.issuance.assetNameInput(page).fill(assetName);
     await compose.issuance.quantityInput(page).fill('1000000');
-    await page.waitForTimeout(500); // Wait for debounced validation to complete
+
     await compose.issuance.issueButton(page).click();
     await waitForReview(page);
 

@@ -193,6 +193,38 @@ describe('ComposerContext', () => {
       });
     });
 
+    it('should preserve formData in state when compose fails', async () => {
+      const formData = new FormData();
+      formData.append('amount', '500');
+      formData.append('recipient', 'bc1qtest123');
+      const errorMessage = 'API unavailable';
+
+      const mockComposeApi = vi.fn().mockRejectedValue(new Error(errorMessage));
+
+      const { result } = renderHook(() => useComposer(), {
+        wrapper: ({ children }) => (
+          <MemoryRouter>
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+              {children}
+            </ComposerProvider>
+          </MemoryRouter>
+        ),
+      });
+
+      await act(async () => {
+        result.current.composeTransaction(formData);
+      });
+
+      await waitFor(() => {
+        expect(result.current.state.error).toBe(errorMessage);
+        // formData should be preserved for error recovery
+        expect(result.current.state.formData).toEqual({
+          amount: '500',
+          recipient: 'bc1qtest123',
+        });
+      });
+    });
+
     it('should sign transaction', async () => {
       // This test is complex because signing now integrates with wallet context
       // We'll simplify it to test the state management aspects we can verify
@@ -351,6 +383,112 @@ describe('ComposerContext', () => {
       });
 
       expect(result.current.state.error).toBeNull();
+    });
+
+    it('should update feeRate via setFeeRate', () => {
+      const { result } = renderHook(() => useComposer(), {
+        wrapper: ({ children }) => (
+          <MemoryRouter>
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+              {children}
+            </ComposerProvider>
+          </MemoryRouter>
+        ),
+      });
+
+      // Initial feeRate should be null
+      expect(result.current.feeRate).toBeNull();
+
+      // Update feeRate
+      act(() => {
+        result.current.setFeeRate(5);
+      });
+
+      // feeRate should now be 5
+      expect(result.current.feeRate).toBe(5);
+    });
+
+    it('should preserve feeRate when goBack is called', async () => {
+      const formData = new FormData();
+      const apiResponse: ApiResponse = {
+        result: {
+          rawtransaction: '0x123',
+          btc_in: 50000,
+          btc_out: 49000,
+          btc_change: 0,
+          btc_fee: 1000,
+          data: '',
+          lock_scripts: [],
+          inputs_values: [50000],
+          signed_tx_estimated_size: {
+            vsize: 150,
+            adjusted_vsize: 150,
+            sigops_count: 1,
+          },
+          psbt: 'psbt_data',
+          params: {
+            source: 'bc1qsource',
+            destination: 'bc1qdest',
+            asset: 'BTC',
+            quantity: 0,
+            memo: null,
+            memo_is_hex: false,
+            use_enhanced_send: false,
+            no_dispense: false,
+            skip_validation: false,
+            asset_info: {
+              asset_longname: null,
+              description: '',
+              issuer: '',
+              divisible: true,
+              locked: false,
+              owner: '',
+            },
+            quantity_normalized: '0',
+          },
+          name: 'send',
+        },
+      };
+
+      const mockComposeApi = vi.fn().mockResolvedValue(apiResponse);
+
+      const { result } = renderHook(() => useComposer(), {
+        wrapper: ({ children }) => (
+          <MemoryRouter>
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+              {children}
+            </ComposerProvider>
+          </MemoryRouter>
+        ),
+      });
+
+      // Set a feeRate
+      act(() => {
+        result.current.setFeeRate(10);
+      });
+
+      expect(result.current.feeRate).toBe(10);
+
+      // Move to review step
+      await act(async () => {
+        result.current.composeTransaction(formData);
+      });
+
+      await waitFor(() => {
+        expect(result.current.state.step).toBe('review');
+      });
+
+      // feeRate should still be 10
+      expect(result.current.feeRate).toBe(10);
+
+      // Go back to form
+      act(() => {
+        result.current.goBack();
+      });
+
+      expect(result.current.state.step).toBe('form');
+      // feeRate should be preserved after goBack
+      expect(result.current.feeRate).toBe(10);
     });
   });
 

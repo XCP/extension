@@ -1,7 +1,6 @@
-
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
@@ -43,7 +42,7 @@ export function ResetSupplyForm({
       formAction={formAction}
     >
       <div className="mb-4 p-3 bg-gray-50 rounded-md">
-        <h3 className="text-sm font-medium text-gray-700">Asset Details</h3>
+        <h2 className="text-sm font-medium text-gray-700">Asset Details</h2>
         <div className="mt-2 text-sm text-gray-600">
           <p>Current Supply: {assetInfo?.supply || "0"}</p>
           <p>Divisible: {assetInfo?.divisible ? "Yes" : "No"}</p>
@@ -58,6 +57,8 @@ export function ResetSupplyForm({
       </div>
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
+        <input type="hidden" name="reset" value="true" />
+        <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
         <CheckboxInput
           name="confirm"
           label={`I understand that resetting the supply of ${asset} will destroy all existing tokens.`}

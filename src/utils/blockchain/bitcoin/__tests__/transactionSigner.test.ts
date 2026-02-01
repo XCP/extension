@@ -118,16 +118,18 @@ describe('Transaction Signer Utilities', () => {
 
     it('should throw error when no UTXOs are found', async () => {
       mockFetchUTXOs.mockResolvedValue([]);
+      mockGetUtxoByTxid.mockReturnValue(undefined);
 
       await expect(signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow('No UTXOs found for the source address');
+        .rejects.toThrow(/UTXO not found for input/);
     });
 
     it('should throw error when UTXOs is empty after retry', async () => {
       mockFetchUTXOs.mockResolvedValue([]);
+      mockGetUtxoByTxid.mockReturnValue(undefined);
 
       await expect(signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey))
-        .rejects.toThrow('No UTXOs found for the source address');
+        .rejects.toThrow(/UTXO not found for input/);
     });
 
     it('should throw error for invalid input without txid', async () => {
@@ -216,9 +218,10 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, p2wpkhWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should successfully sign P2SH_P2WPKH transaction', async () => {
@@ -229,16 +232,26 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, p2shWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
-    it('should successfully sign P2TR transaction', async () => {
-      // Skip P2TR test as it requires specific schnorr key generation
-      // This is a known limitation in the test environment
-      // P2TR requires x-only pubkey which is not easily testable with mock data
-      expect(true).toBe(true);
+    it.skip('should successfully sign P2TR transaction', async () => {
+      // P2TR requires specific schnorr key generation and x-only pubkey
+      // which is not easily testable with mock data
+      const p2trWallet = { ...mockWallet, addressFormat: AddressFormat.P2TR };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+
+      const result = await signTransaction(mockRawTransaction, p2trWallet, mockTargetAddress, mockPrivateKey);
+
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i);
     });
 
     it('should successfully sign Counterwallet transaction', async () => {
@@ -249,9 +262,10 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, counterwalletWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle unsupported address type with standard signing', async () => {
@@ -265,6 +279,7 @@ describe('Transaction Signer Utilities', () => {
       const result = await signTransaction(mockRawTransaction, invalidWallet, mockTargetAddress, mockPrivateKey);
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle multiple inputs correctly', async () => {
@@ -280,9 +295,10 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle multiple outputs correctly', async () => {
@@ -294,9 +310,10 @@ describe('Transaction Signer Utilities', () => {
       const multiOutputTx = mockRawTransaction; // For simplicity, using same tx
       
       const result = await signTransaction(multiOutputTx, mockWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle invalid private key gracefully', async () => {
@@ -349,6 +366,7 @@ describe('Transaction Signer Utilities', () => {
 
       const p2pkhResult = await signTransaction(mockRawTransaction, p2pkhWallet, mockTargetAddress, mockPrivateKey);
       expect(typeof p2pkhResult).toBe('string');
+      expect(p2pkhResult).toMatch(/^[0-9a-f]+$/i); // Valid hex string
 
       // Test P2WPKH (witness)
       const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
@@ -359,6 +377,7 @@ describe('Transaction Signer Utilities', () => {
 
       const p2wpkhResult = await signTransaction(mockRawTransaction, p2wpkhWallet, mockTargetAddress, mockPrivateKey);
       expect(typeof p2wpkhResult).toBe('string');
+      expect(p2wpkhResult).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle edge case with zero-value output', async () => {
@@ -369,9 +388,10 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should handle large value UTXOs', async () => {
@@ -382,9 +402,10 @@ describe('Transaction Signer Utilities', () => {
       mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
       const result = await signTransaction(mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey);
-      
+
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
+      expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
     it('should call fetchUTXOs with correct address', async () => {
@@ -446,7 +467,8 @@ describe('Transaction Signer Utilities', () => {
 
         const result = await signTransaction(mockRawTransaction, wallet, mockTargetAddress, mockPrivateKey);
         expect(typeof result).toBe('string');
-        
+        expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
+
         vi.clearAllMocks();
       }
     });

@@ -23,13 +23,10 @@ import { walletTest, expect } from '../fixtures';
 const VALID_ASSET_NAME = 'TESTASSET';
 const VALID_NUMERIC_ASSET = 'A12345678901234567890'; // Numeric format
 const INVALID_SHORT_NAME = 'AB'; // Too short
-const INVALID_LOWERCASE = 'testasset'; // Should be uppercase
 const RESERVED_NAME = 'BTC'; // Reserved
 
 walletTest.describe('AssetNameInput Component', () => {
   // Navigate to issue asset page which uses AssetNameInput
-  // Note: Route is /compose/issuance/:asset? where :asset is optional
-  // Using /compose/issuance without a trailing path avoids the parent asset prefix
   walletTest.beforeEach(async ({ page }) => {
     const context = page.context();
 
@@ -78,7 +75,8 @@ walletTest.describe('AssetNameInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/issuance`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000);
+    // Wait for asset name input to be ready
+    await page.locator('input[name="asset"]').waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to get asset name input
@@ -96,260 +94,168 @@ walletTest.describe('AssetNameInput Component', () => {
     });
 
     walletTest('has required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Asset Name") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      // Required fields show asterisk (*) - check for it within the label
+      const label = page.locator('label').filter({ hasText: 'Asset Name' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('has placeholder text', async ({ page }) => {
       const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const placeholder = await input.getAttribute('placeholder');
-        expect(placeholder).toBeTruthy();
-      }
+      const placeholder = await input.getAttribute('placeholder');
+      expect(placeholder).toBeTruthy();
     });
   });
 
   walletTest.describe('Valid Asset Names', () => {
     walletTest('accepts valid uppercase asset name', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill(VALID_ASSET_NAME);
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill(VALID_ASSET_NAME);
-        await input.blur();
-
-        // Wait for validation
-        await page.waitForTimeout(1000);
-
-        // Should not show error border
+      // Wait for validation
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
+        // Should not show error border
         expect(classes).not.toContain('border-red-500');
-      }
+      }).toPass({ timeout: 3000 });
     });
 
     walletTest('converts lowercase to uppercase automatically', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill('myasset');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('myasset');
-        await page.waitForTimeout(200);
-
-        const value = await input.inputValue();
-        expect(value).toBe('MYASSET');
-      }
+      const value = await input.inputValue();
+      expect(value).toBe('MYASSET');
     });
 
     walletTest('accepts numeric format asset names', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill(VALID_NUMERIC_ASSET);
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill(VALID_NUMERIC_ASSET);
-        await input.blur();
-
-        // Wait for validation
-        await page.waitForTimeout(1000);
-
-        // Check value is preserved
-        const value = await input.inputValue();
-        expect(value).toBe(VALID_NUMERIC_ASSET);
-      }
+      // Check value is preserved
+      const value = await input.inputValue();
+      expect(value).toBe(VALID_NUMERIC_ASSET);
     });
   });
 
   walletTest.describe('Invalid Asset Names', () => {
     walletTest('shows error for too short name', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill(INVALID_SHORT_NAME);
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill(INVALID_SHORT_NAME);
-        await input.blur();
-        await page.waitForTimeout(500);
-
-        // Should show validation message or error styling
+      // Should show validation error via input styling or error message text
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600, .text-red-500');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible().catch(() => false);
-        expect(hasError).toBe(true);
-      }
+        const hasRedBorder = classes.includes('border-red');
+        // Also check for any error message text near the input
+        const errorText = page.getByText(/at least|minimum|invalid|short/i);
+        const hasErrorText = await errorText.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('shows error for reserved name BTC', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill(RESERVED_NAME);
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill(RESERVED_NAME);
-        await input.blur();
-        await page.waitForTimeout(500);
-
-        // BTC is reserved and should show error
+      // BTC is reserved and should show error
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600, .text-red-500');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible().catch(() => false);
-        expect(hasError).toBe(true);
-      }
+        const hasRedBorder = classes.includes('border-red');
+        const errorText = page.getByText(/reserved|taken|unavailable/i);
+        const hasErrorText = await errorText.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
+      }).toPass({ timeout: 2000 });
     });
 
     walletTest('shows error for name with special characters', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill('TEST@ASSET');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('TEST@ASSET');
-        await input.blur();
-        await page.waitForTimeout(500);
-
-        // Special chars not allowed
+      // Special chars not allowed
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const hasError = classes.includes('border-red-500');
-        expect(hasError).toBe(true);
-      }
+        expect(classes).toContain('border-red-500');
+      }).toPass({ timeout: 2000 });
     });
   });
 
   walletTest.describe('Availability Check', () => {
-    walletTest('shows loading spinner during availability check', async ({ page }) => {
-      const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Type a name to trigger availability check
-        await input.fill('UNIQUETESTNAME123');
-
-        // Look for spinner
-        const spinner = page.locator('.animate-spin');
-        const sawSpinner = await spinner.isVisible({ timeout: 2000 }).catch(() => false);
-
-        // May or may not catch the spinner (depends on API speed)
-        expect(typeof sawSpinner).toBe('boolean');
-      }
-    });
-
     walletTest('shows error for taken asset name (XCP)', async ({ page }) => {
       const input = getAssetNameInput(page);
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // XCP is definitely taken
-        await input.fill('XCP');
-        await input.blur();
+      // XCP is definitely taken
+      await input.fill('XCP');
+      await input.blur();
 
-        // Wait for API check
-        await page.waitForTimeout(1500);
-
-        // Should show error
+      // Wait for API check - look for error message about taken/reserved
+      await expect(async () => {
         const classes = await input.getAttribute('class') || '';
-        const errorText = page.locator('.text-red-600:has-text("taken"), .text-red-600:has-text("reserved")');
-        const hasError = classes.includes('border-red-500') ||
-                         await errorText.first().isVisible().catch(() => false);
-        expect(hasError).toBe(true);
-      }
-    });
-
-    walletTest('shows green border for available name', async ({ page }) => {
-      const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        // Use a very unlikely name
-        const unlikelyName = 'ZZZUNIQUENAME' + Date.now().toString().slice(-6);
-        await input.fill(unlikelyName);
-
-        // Wait for API check
-        await page.waitForTimeout(2000);
-
-        // Should show green border or success message
-        const classes = await input.getAttribute('class') || '';
-        const successText = page.locator('.text-green-600:has-text("available")');
-        const isAvailable = classes.includes('border-green-500') ||
-                            await successText.isVisible().catch(() => false);
-
-        // May be available or may show error (depends on name format validity)
-        expect(typeof isAvailable).toBe('boolean');
-      }
+        const hasRedBorder = classes.includes('border-red');
+        const errorMessage = page.getByText(/taken|reserved|unavailable/i);
+        const hasErrorText = await errorMessage.first().isVisible().catch(() => false);
+        expect(hasRedBorder || hasErrorText).toBe(true);
+      }).toPass({ timeout: 3000 });
     });
   });
 
   walletTest.describe('Input Behavior', () => {
     walletTest('allows clearing input', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill('TESTNAME');
+      await input.clear();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('TESTNAME');
-        await input.clear();
-
-        const value = await input.inputValue();
-        expect(value).toBe('');
-      }
+      const value = await input.inputValue();
+      expect(value).toBe('');
     });
 
     walletTest('allows editing input', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill('FIRST');
+      await input.clear();
+      await input.fill('SECOND');
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('FIRST');
-        await input.clear();
-        await input.fill('SECOND');
-
-        const value = await input.inputValue();
-        expect(value).toBe('SECOND');
-      }
+      const value = await input.inputValue();
+      expect(value).toBe('SECOND');
     });
 
     walletTest('preserves value after blur', async ({ page }) => {
       const input = getAssetNameInput(page);
+      await input.fill('PRESERVED');
+      await input.blur();
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await input.fill('PRESERVED');
-        await input.blur();
-
-        const value = await input.inputValue();
-        expect(value).toBe('PRESERVED');
-      }
+      const value = await input.inputValue();
+      expect(value).toBe('PRESERVED');
     });
   });
 
   walletTest.describe('Form Integration', () => {
     walletTest('input has name attribute', async ({ page }) => {
       const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const name = await input.getAttribute('name');
-        expect(name).toBe('asset');
-      }
+      const name = await input.getAttribute('name');
+      expect(name).toBe('asset');
     });
 
     walletTest('input is in form context', async ({ page }) => {
       const input = getAssetNameInput(page);
+      const isInForm = await input.evaluate((el: HTMLElement) => {
+        return el.closest('form') !== null;
+      });
 
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isInForm = await input.evaluate((el: HTMLElement) => {
-          return el.closest('form') !== null;
-        });
-
-        expect(isInForm).toBe(true);
-      }
+      expect(isInForm).toBe(true);
     });
   });
 
   walletTest.describe('Accessibility', () => {
     walletTest('input has accessible id', async ({ page }) => {
       const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const id = await input.getAttribute('id');
-        expect(id).toBeTruthy();
-      }
-    });
-
-    walletTest('label is associated with input', async ({ page }) => {
-      const input = getAssetNameInput(page);
-
-      if (await input.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const inputId = await input.getAttribute('id');
-        const label = page.locator(`label[for="${inputId}"]`);
-        const labelExists = await label.isVisible().catch(() => false);
-
-        // Label should exist or be a parent element
-        expect(typeof labelExists).toBe('boolean');
-      }
+      const id = await input.getAttribute('id');
+      expect(id).toBeTruthy();
     });
   });
 });

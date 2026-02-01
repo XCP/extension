@@ -12,7 +12,7 @@ import { getWalletService } from '@/services/walletService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getConnectionService } from '@/services/connectionService';
 import { getApprovalService } from '@/services/approvalService';
-import type { ApprovalRequest } from '@/utils/provider/approvalQueue';
+import type { ApprovalRequest } from '@/types/provider';
 import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
 import { analytics } from '@/utils/fathom';
 import { analyzeCSP } from '@/utils/security/cspValidation';
@@ -85,32 +85,27 @@ export interface ProviderService {
    * Handle provider requests from dApps
    */
   handleRequest: (origin: string, method: string, params?: ProviderRequestParams, metadata?: ProviderMetadata) => Promise<ProviderResponse>;
-  
+
   /**
    * Check if origin is connected
    */
   isConnected: (origin: string) => Promise<boolean>;
-  
+
   /**
    * Disconnect an origin
    */
   disconnect: (origin: string) => Promise<void>;
-  
+
   /**
-   * Get all pending approval requests
+   * Get the current pending approval if any
    */
-  getApprovalQueue: () => Promise<ApprovalRequest[]>;
-  
-  /**
-   * Remove an approval request
-   */
-  removeApprovalRequest: (id: string) => Promise<boolean>;
-  
+  getCurrentApproval: () => Promise<ApprovalRequest | null>;
+
   /**
    * Get statistics about pending requests
    */
   getRequestStats: () => Promise<any>;
-  
+
   /**
    * Cleanup resources and destroy the service
    */
@@ -128,7 +123,7 @@ export function createProviderService(): ProviderService {
     const connectionService = getConnectionService();
 
     // Check wallet state
-    const isUnlocked = await walletService.isAnyWalletUnlocked();
+    const isUnlocked = await walletService.isKeychainUnlocked();
     if (!isUnlocked) {
       console.debug('[ProviderService] Wallet not unlocked, returning empty array');
       return [];
@@ -215,13 +210,63 @@ export function createProviderService(): ProviderService {
         case 'xcp_requestAccounts': {
           // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
-            // Open popup for wallet setup
+            // Open popup for wallet setup and wait for onboarding to complete
             await openExtensionPopup();
-            throw new Error('Please complete wallet setup first');
+
+            // Wait for wallet creation, then continue with connection flow
+            return new Promise((resolve, reject) => {
+              let settled = false;
+              let timeout: ReturnType<typeof setTimeout>;
+
+              // Centralized cleanup - called on any exit path
+              const cleanup = () => {
+                if (timeout) clearTimeout(timeout);
+                eventEmitterService.off('wallet-created', handleWalletCreated);
+              };
+
+              const handleWalletCreated = async () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+
+                // Continue with connection flow now that wallet exists
+                try {
+                  const activeAddress = await walletService.getActiveAddress();
+                  const activeWallet = await walletService.getActiveWallet();
+
+                  if (!activeAddress || !activeWallet) {
+                    reject(new Error('No active wallet or address after setup'));
+                    return;
+                  }
+
+                  // Check if already connected (unlikely after fresh setup)
+                  if (await connectionService.hasPermission(origin)) {
+                    resolve(getAccounts(origin));
+                    return;
+                  }
+
+                  // Request connection
+                  const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
+                  await analytics.track('connection_established');
+                  resolve(accounts);
+                } catch (error) {
+                  reject(error);
+                }
+              };
+
+              timeout = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new Error('Wallet setup timeout - please try again'));
+              }, 10 * 60 * 1000); // 10 minute timeout for onboarding
+
+              eventEmitterService.on('wallet-created', handleWalletCreated);
+            });
           }
 
           // Check if wallet is locked
-          const isUnlocked = await walletService.isAnyWalletUnlocked();
+          const isUnlocked = await walletService.isKeychainUnlocked();
           if (!isUnlocked) {
             // Open popup for unlock and store the pending request
             const approvalService = getApprovalService();
@@ -255,7 +300,7 @@ export function createProviderService(): ProviderService {
                 cleanup();
 
                 // Re-check wallet state after unlock
-                const nowUnlocked = await walletService.isAnyWalletUnlocked();
+                const nowUnlocked = await walletService.isKeychainUnlocked();
                 if (!nowUnlocked) {
                   reject(new Error('Wallet still locked after unlock attempt'));
                   return;
@@ -507,7 +552,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve transaction page
-          await openExtensionPopup(`#/provider/approve-transaction?requestId=${signTxRequestId}`);
+          await openExtensionPopup(`#/requests/transaction/approve?requestId=${signTxRequestId}`);
 
           // Track as critical operation to prevent extension updates during transaction signing
           const updateService = getUpdateService();
@@ -610,7 +655,7 @@ export function createProviderService(): ProviderService {
           });
 
           // Open popup at the approve PSBT page
-          await openExtensionPopup(`#/provider/approve-psbt?requestId=${signPsbtRequestId}`);
+          await openExtensionPopup(`#/requests/psbt/approve?requestId=${signPsbtRequestId}`);
 
           // Track as critical operation to prevent extension updates during PSBT signing
           const updateService = getUpdateService();
@@ -801,41 +846,29 @@ export function createProviderService(): ProviderService {
   }
   
   /**
-   * Get all pending approval requests
+   * Get the current pending approval if any
    */
-  async function getApprovalQueue(): Promise<ApprovalRequest[]> {
+  async function getCurrentApproval(): Promise<ApprovalRequest | null> {
     const approvalService = getApprovalService();
-    return await approvalService.getApprovalQueue();
+    return approvalService.getCurrentApproval();
   }
-  
-  /**
-   * Remove an approval request
-   */
-  async function removeApprovalRequest(id: string): Promise<boolean> {
-    const approvalService = getApprovalService();
-    return await approvalService.removeApprovalRequest(id);
-  }
-  
+
   /**
    * Get statistics about pending requests
    */
   async function getRequestStats(): Promise<any> {
     const connectionService = getConnectionService();
     const approvalService = getApprovalService();
-    
-    // Gather stats from all services
+
     const connectedSites = await connectionService.getConnectedWebsites();
-    const approvalQueue = await approvalService.getApprovalQueue();
+    const currentApproval = approvalService.getCurrentApproval();
 
     return {
       connections: {
         connectedSites: connectedSites.length,
         sites: connectedSites
       },
-      approvals: {
-        pending: approvalQueue.length,
-        queue: approvalQueue
-      }
+      approval: currentApproval
     };
   }
   
@@ -869,8 +902,7 @@ export function createProviderService(): ProviderService {
     handleRequest,
     isConnected,
     disconnect,
-    getApprovalQueue,
-    removeApprovalRequest,
+    getCurrentApproval,
     getRequestStats,
     destroy
   };

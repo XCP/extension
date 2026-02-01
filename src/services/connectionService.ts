@@ -180,8 +180,8 @@ export class ConnectionService extends BaseService {
     console.debug('[ConnectionService] getAccounts called for origin:', origin);
     
     const walletService = getWalletService();
-    const isUnlocked = await walletService.isAnyWalletUnlocked();
-    console.debug('[ConnectionService] Wallet unlocked:', isUnlocked);
+    const isUnlocked = await walletService.isKeychainUnlocked();
+    console.debug('[ConnectionService] Keychain unlocked:', isUnlocked);
 
     if (!isUnlocked) {
       console.debug('[ConnectionService] Wallet not unlocked, returning empty array');

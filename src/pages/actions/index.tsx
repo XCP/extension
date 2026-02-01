@@ -1,13 +1,13 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ActionList } from "@/components/lists/action-list";
+import { FaLock } from "@/components/icons";
+import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/lists/action-list";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 
 /**
  * Constants for navigation paths.
@@ -36,8 +36,8 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
         {
           id: "consolidate",
           title: "Recover Bitcoin",
-          description: "Find and consolidate bare multisig UTXOs", 
-          onClick: () => navigate("/consolidate"),
+          description: "Find and consolidate bare multisig UTXOs",
+          onClick: () => navigate("/actions/consolidate"),
           showNotification: showRecoverBitcoinNotification,
           className: showRecoverBitcoinNotification ? "!border !border-orange-500" : "",
         },
@@ -96,7 +96,7 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
           id: "cancel-order",
           title: "Cancel Order",
           description: "Cancel an existing order",
-          onClick: () => navigate("/compose/cancel"),
+          onClick: () => navigate("/compose/order/cancel"),
         },
         {
           id: "close-dispenser",
@@ -130,10 +130,10 @@ const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRec
  * <ActionsScreen />
  * ```
  */
-export default function ActionsScreen(): ReactElement {
+export default function ActionsPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { activeWallet } = useWallet();
+  const { activeWallet, lockKeychain } = useWallet();
   const { settings } = useSettings();
   
   // Check if active wallet uses SegWit addresses (P2WPKH, P2SH-P2WPKH, or P2TR)
@@ -153,8 +153,16 @@ export default function ActionsScreen(): ReactElement {
     setHeaderProps({
       title: "Actions",
       onBack: () => navigate(PATHS.BACK),
+      rightButton: {
+        icon: <FaLock aria-hidden="true" />,
+        onClick: async () => {
+          await lockKeychain();
+          navigate("/keychain/unlock");
+        },
+        ariaLabel: "Lock Keychain",
+      },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, lockKeychain]);
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="actions-title">

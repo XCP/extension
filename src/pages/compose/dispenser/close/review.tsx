@@ -16,9 +16,9 @@ interface ReviewDispenserCloseProps {
 /**
  * Review screen for dispenser close transactions.
  */
-export function ReviewDispenserClose({ 
-  apiResponse, 
-  onSign, 
+export function ReviewDispenserClose({
+  apiResponse,
+  onSign,
   onBack,
   error,
   isSigning
@@ -26,11 +26,16 @@ export function ReviewDispenserClose({
   const { result } = apiResponse;
 
   // Use type assertion for the specific dispenser close params
-  const params = result.params as { asset: string; open_address?: string };
-  
+  const params = result.params as {
+    asset: string;
+    open_address?: string;
+    give_remaining_normalized?: string;
+  };
+
   const customFields = [
     { label: "Asset", value: params.asset },
-    ...(params.open_address ? [{ label: "Dispenser Hash", value: params.open_address }] : []),
+    ...(params.open_address ? [{ label: "Dispenser", value: params.open_address }] : []),
+    ...(params.give_remaining_normalized ? [{ label: "Escrow Returned", value: `${params.give_remaining_normalized} ${params.asset}` }] : []),
   ];
 
   return (

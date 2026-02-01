@@ -1,11 +1,11 @@
 import { useParams } from "react-router-dom";
 import { CancelForm } from "./form";
 import { ReviewCancel } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeCancel } from "@/utils/blockchain/counterparty/compose";
 import type { CancelOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeCancel() {
+function ComposeOrderCancelPage() {
   const { hash } = useParams<{ hash?: string }>();
 
   return (
@@ -21,4 +21,4 @@ function ComposeCancel() {
   );
 }
 
-export default ComposeCancel;
+export default ComposeOrderCancelPage;

@@ -1,18 +1,18 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { DestinationsInput } from "@/components/inputs/destinations-input";
-import { MemoInput } from "@/components/inputs/memo-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
+import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation/amount";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
 import type { Destination } from "@/utils/validation/destinations";
 import type { ReactElement } from "react";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 
 interface SendFormProps {
   formAction: (formData: FormData) => void;
@@ -26,7 +26,8 @@ export function SendForm({
   initialFormData
 }: SendFormProps): ReactElement {
   // Get everything from composer context
-  const { activeAddress, settings, showHelpText } = useComposer<SendOptions>();
+  const { activeAddress, settings, showHelpText, feeRate } = useComposer<SendOptions>();
+  const { activeWallet } = useWallet();
   const enableMPMA = settings?.enableMPMA ?? false;
   
   // Data fetching hooks
@@ -44,7 +45,6 @@ export function SendForm({
   const [amount, setAmount] = useState<string>(
     initialFormData?.quantity?.toString() || ""
   );
-  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   
   // Destinations state for MPMA
   const [destinations, setDestinations] = useState<Destination[]>(() => [
@@ -89,7 +89,9 @@ export function SendForm({
     if (amount) {
       formData.set("quantity", amount);
     }
-    
+
+    const asset = initialAsset || initialFormData?.asset || "BTC";
+
     // Add all destinations to form data
     if (destinations.length > 1) {
       // For MPMA, pass destinations as comma-separated list
@@ -97,14 +99,21 @@ export function SendForm({
       formData.delete("destination"); // Remove single destination field
     } else {
       // For single send, use the first destination
-      formData.set("destination", destinations[0].address);
+      const destination = destinations[0].address;
+      formData.set("destination", destination);
+
+      // Prevent triggering own dispensers when sending BTC to self
+      const isOwnAddress = activeWallet?.addresses.some(a => a.address === destination);
+      if (asset === "BTC" && isOwnAddress) {
+        formData.set("no_dispense", "true");
+      }
     }
-    
+
     // Add memo to form data
     if (memo) {
       formData.set("memo", memo);
     }
-    
+
     formAction(formData);
   };
 
@@ -171,7 +180,7 @@ export function SendForm({
             availableBalance={assetDetails?.availableBalance || "0"}
             value={amount}
             onChange={handleAmountChange}
-            sat_per_vbyte={satPerVbyte}
+            feeRate={feeRate}
             setError={setValidationError}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
@@ -187,6 +196,7 @@ export function SendForm({
             destinationCount={destinations.length}
             destination={destinations.length === 1 ? destinations[0].address : undefined}
             memo={memo}
+            isDivisible={isDivisible}
           />
 
           {(initialAsset || initialFormData?.asset) !== "BTC" && (

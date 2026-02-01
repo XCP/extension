@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { composeSend, composeSweep, getSweepEstimateXcpFee, composeMove } from '../compose';
+import { composeSend, composeSendOrMPMA, composeMPMA, composeSweep, getSweepEstimateXcpFee, composeMove } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import {
@@ -22,6 +22,16 @@ vi.mock('@/utils/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn(),
   },
+}));
+
+// Mock UTXO selection to prevent real API calls to mempool.space
+vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
+  selectUtxosForTransaction: vi.fn().mockResolvedValue({
+    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: 'mock-txid:0',
+    totalValue: 100000,
+    excludedWithAssets: 0,
+  }),
 }));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
@@ -114,6 +124,135 @@ describe('Compose Send Operations', () => {
         ...btcParams,
       });
       assertComposeUrlCalled(mockedApiClient, 'send', btcParams);
+    });
+  });
+
+  describe('composeSendOrMPMA', () => {
+    const defaultParams = {
+      destination: mockDestAddress,
+      asset: testAssets.XCP,
+      quantity: testQuantities.MEDIUM,
+    };
+
+    // composeSendOrMPMA accesses response.result.name, so we need proper ApiResponse structure
+    const createApiResponseWithResult = () => ({
+      data: { result: createMockComposeResult() },
+      status: 200,
+      statusText: 'OK',
+      headers: {},
+      config: { headers: {} as any },
+    });
+
+    it('should use composeSend for single destination and set result.name to "send"', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+
+      const result = await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result.result.name).toBe('send');
+      assertComposeUrlCalled(mockedApiClient, 'send', defaultParams);
+    });
+
+    it('should use composeMPMA for multiple destinations and set result.name to "mpma"', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+      const destinations = `${mockDestAddress}, bc1qanother, bc1qthird`;
+
+      const result = await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress, // ignored when destinations provided
+        destinations,
+      });
+
+      expect(result.result.name).toBe('mpma');
+
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      expect(actualUrl).toContain('/compose/mpma');
+      // MPMA uses comma-separated destinations
+      expect(actualUrl).toContain('destinations=');
+      expect(actualUrl).toContain('bc1qanother');
+      expect(actualUrl).toContain('bc1qthird');
+    });
+
+    it('should duplicate asset and quantity for each destination in MPMA', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+      const destinations = `${mockDestAddress}, bc1qsecond`;
+
+      await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations,
+      });
+
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      // Should have same asset for both destinations
+      expect(actualUrl).toContain(`assets=${testAssets.XCP}%2C${testAssets.XCP}`);
+      // Should have same quantity for both destinations
+      expect(actualUrl).toContain(`quantities=${testQuantities.MEDIUM}%2C${testQuantities.MEDIUM}`);
+    });
+
+    it('should include memo for each destination in MPMA', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+      const destinations = `${mockDestAddress}, bc1qsecond`;
+
+      await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations,
+        memo: testMemos.TEXT,
+        memo_is_hex: false,
+      });
+
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      // Should have memo arrays
+      expect(actualUrl).toContain(`memos[]=${encodeURIComponent(testMemos.TEXT)}`);
+      expect(actualUrl).toContain('memos_are_hex[]=false');
+    });
+
+    it('should treat single destination without comma as regular send', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+
+      const result = await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        destinations: mockDestAddress, // Single destination, no comma
+      });
+
+      expect(result.result.name).toBe('send');
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      expect(actualUrl).toContain('/compose/send');
+    });
+
+    it('should trim whitespace from destinations', async () => {
+      mockedApiClient.get.mockResolvedValue(createApiResponseWithResult());
+      const destinations = `  ${mockDestAddress}  ,  bc1qsecond  `;
+
+      await composeSendOrMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        destination: mockDestAddress,
+        destinations,
+      });
+
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      // Destinations should be trimmed (MPMA uses comma-separated, not array syntax)
+      expect(actualUrl).toContain(`destinations=${encodeURIComponent(mockDestAddress)}%2Cbc1qsecond`);
+      // Should not contain extra whitespace
+      expect(actualUrl).not.toContain('%20%20');
     });
   });
 

@@ -1,18 +1,17 @@
-
 import { useEffect, useState } from "react";
 import { FaCog } from "@/components/icons";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import { ComposerForm } from "@/components/composer-form";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/inputs/asset-select-input";
-import { PriceWithSuggestInput } from "@/components/inputs/price-with-suggest-input";
-import { BalanceHeader } from "@/components/headers/balance-header";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
-import { ErrorAlert } from "@/components/error-alert";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
@@ -22,6 +21,17 @@ interface OrderFormData extends OrderOptions {
   amount?: string;
   price?: string;
   quote_asset?: string;
+  is_pair_flipped?: string;
+}
+
+/**
+ * URL parameters for pre-filling the form (e.g., from market order click)
+ */
+interface OrderUrlParams {
+  type?: "buy" | "sell" | null;
+  quote?: string | null;
+  price?: string | null;
+  amount?: string | null;
 }
 
 /**
@@ -31,6 +41,7 @@ interface OrderFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: OrderFormData | null;
   giveAsset: string;
+  urlParams?: OrderUrlParams;
 }
 
 /**
@@ -40,45 +51,73 @@ export function OrderForm({
   formAction,
   initialFormData,
   giveAsset,
+  urlParams,
 }: OrderFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, settings, showHelpText } = useComposer();
-  
-  // Data fetching hooks
-  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
-  const { data: orderAssetDetails } = useAssetDetails(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
-  const { data: getAssetDetails } = useAssetDetails(
-    (initialFormData?.type === "buy" || (!initialFormData?.type && true)) ? giveAsset : (initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"))
+  const { activeAddress, settings, showHelpText, feeRate } = useComposer();
+
+  // Form state - defined before hooks that depend on it
+  // Priority: initialFormData (from form persistence) > urlParams (from URL) > defaults
+  const [quoteAsset, setQuoteAsset] = useState<string>(
+    initialFormData?.quote_asset || urlParams?.quote || (giveAsset === "XCP" ? "BTC" : "XCP")
   );
+
+  // Data fetching hooks - use current quoteAsset state for reactivity
+  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
+  const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
+  const { data: getAssetDetails } = useAssetDetails(giveAsset);
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
   
-  // Tab state
+  // Tab state - priority: initialFormData > urlParams > default (sell)
+  const initialType = initialFormData?.type || urlParams?.type || "sell";
   const [activeTab, setActiveTab] = useState<"buy" | "sell" | "settings">(
-    initialFormData?.type === "sell" ? "sell" : initialFormData?.type === "buy" ? "buy" : "buy"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [previousTab, setPreviousTab] = useState<"buy" | "sell">(
-    initialFormData?.type === "sell" ? "sell" : "buy"
+    initialType === "buy" ? "buy" : "sell"
   );
   const [tabLoading, setTabLoading] = useState(false);
-  
-  // Form state
-  const [price, setPrice] = useState<string>(initialFormData?.price || "");
-  const [amount, setAmount] = useState<string>(initialFormData?.amount || "");
+
+  // Form state - priority: initialFormData > urlParams > empty
+  const [price, setPrice] = useState<string>(initialFormData?.price || urlParams?.price || "");
+  const [amount, setAmount] = useState<string>(initialFormData?.amount || urlParams?.amount || "");
   const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
-  const [quoteAsset, setQuoteAsset] = useState<string>(initialFormData?.quote_asset || (giveAsset === "XCP" ? "BTC" : "XCP"));
+  // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
   
-  // Trading state
-  const [isPairFlipped, setIsPairFlipped] = useState(false);
+  // Trading state - restore from initialFormData if present
+  const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
+
+  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL entry)
+  // Only applies if no initialFormData (user wasn't editing a form)
+  useEffect(() => {
+    if (initialFormData) return; // Don't override persisted form state
+
+    if (urlParams?.type && urlParams.type !== (activeTab === "buy" ? "buy" : "sell")) {
+      const newTab = urlParams.type === "buy" ? "buy" : "sell";
+      setActiveTab(newTab);
+      setPreviousTab(newTab);
+    }
+    if (urlParams?.price && !price) {
+      setPrice(urlParams.price);
+    }
+    if (urlParams?.amount && !amount) {
+      setAmount(urlParams.amount);
+    }
+    if (urlParams?.quote && urlParams.quote !== quoteAsset) {
+      setQuoteAsset(urlParams.quote);
+    }
+  }, [urlParams?.type, urlParams?.price, urlParams?.amount, urlParams?.quote]);
 
   // Computed values
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
+  const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const orderAssetBalance = orderAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : giveAsset;
@@ -110,6 +149,16 @@ export function OrderForm({
     setPrice(newPrice);
   };
 
+  const handleQuoteAssetChange = (newQuoteAsset: string) => {
+    if (newQuoteAsset !== quoteAsset) {
+      // Clear price and amount when quote asset changes to avoid mistakes
+      setPrice("");
+      setAmount("");
+      setIsPairFlipped(false);
+      setQuoteAsset(newQuoteAsset);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {activeAddress && giveAssetDetails && (
@@ -133,7 +182,7 @@ export function OrderForm({
         <div className="flex space-x-4">
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
               activeTab === "buy" || (activeTab === "settings" && previousTab === "buy") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("buy")}
@@ -143,7 +192,7 @@ export function OrderForm({
           </button>
           <button
             type="button"
-            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none ${
+            className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
               activeTab === "sell" || (activeTab === "settings" && previousTab === "sell") ? "underline" : ""
             }`}
             onClick={() => handleTabChange("sell")}
@@ -154,25 +203,26 @@ export function OrderForm({
         </div>
         <button
           type="button"
-          className={`p-2 hover:bg-gray-100 rounded-full transition-colors ${
+          className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             activeTab === "settings" ? "bg-gray-100" : ""
           }`}
           onClick={() => activeTab === "settings" ? handleTabChange(previousTab) : handleTabChange("settings")}
           disabled={false}
           aria-label="Order Settings"
         >
-          <FaCog className="w-4 h-4 text-gray-600" aria-hidden="true" />
+          <FaCog className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       </div>
       {tabLoading ? (
-        <div className="flex justify-center items-center h-[21rem]">Loading...</div>
+        <div className="flex justify-center items-center h-[21rem]">Loading…</div>
       ) : activeTab === "settings" ? (
-        <OrderSettings 
+        <OrderSettings
           customExpiration={customExpiration}
           onExpirationChange={setCustomExpiration}
           customFeeRequired={customFeeRequired}
           onFeeRequiredChange={setCustomFeeRequired}
           isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
+          showHelpText={showHelpText}
         />
       ) : (
         <ComposerForm
@@ -182,6 +232,7 @@ export function OrderForm({
             formData.set('price', price);
             formData.set('type', activeTab);
             formData.set('quote_asset', quoteAsset);
+            formData.set('is_pair_flipped', isPairFlipped.toString());
             
             // Calculate give_quantity and get_quantity based on buy/sell
             const amountBN = toBigNumber(amount);
@@ -235,24 +286,25 @@ export function OrderForm({
               availableBalance={isBuy ? "" : availableBalance}
               value={amount}
               onChange={setAmount}
-              sat_per_vbyte={initialFormData?.sat_per_vbyte || 0.1}
+              feeRate={feeRate}
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (price ? formatAmount({
-                value: toBigNumber(orderAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
-                maximumFractionDigits: isGetAssetDivisible ? 8 : 0,
+              maxAmount={isBuy ? (toBigNumber(price).isGreaterThan(0) ? formatAmount({
+                value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
+                maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
                 minimumFractionDigits: 0
               }) : "") : availableBalance}
-              disableMaxButton={isBuy && !price}
+              disableMaxButton={isBuy && !toBigNumber(price).isGreaterThan(0)}
               label="Amount"
               name="amount"
               description={`Amount to ${isBuy ? "buy" : "sell"}. ${isBuy ? (isGetAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.") : (isGiveAssetDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only.")}`}
               disabled={false}
+              isDivisible={isBuy ? isGetAssetDivisible : isGiveAssetDivisible}
             />
             <AssetSelectInput
               selectedAsset={quoteAsset}
-              onChange={setQuoteAsset}
+              onChange={handleQuoteAssetChange}
               label="Quote"
               showHelpText={showHelpText}
             />

@@ -1,7 +1,6 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
 import removeConsole from 'vite-plugin-remove-console';
-import pkg from './package.json';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -13,7 +12,7 @@ export default defineConfig({
   },
   manifest: (env) => {
     const baseManifest = {
-      name: `XCP Wallet v${pkg.version}`,
+      name: 'XCP Wallet',
       web_accessible_resources: [
         {
           resources: ['injected.js'],
@@ -64,6 +63,11 @@ export default defineConfig({
       // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
       // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
       __TREZOR_TEST_MODE__: JSON.stringify(process.env.TREZOR_TEST_MODE === 'true'),
+    },
+    build: {
+      // Crypto libraries (@noble/*, @scure/*) are ~500KB minified - this is expected
+      // for a Bitcoin wallet. The warning threshold is raised to avoid noise.
+      chunkSizeWarningLimit: 1500,
     },
   }),
 });

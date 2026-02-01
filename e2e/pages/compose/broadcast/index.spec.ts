@@ -1,17 +1,18 @@
 /**
  * Compose Broadcast Page Tests (/compose/broadcast)
  *
- * Tests for broadcasting a text message.
+ * Tests for broadcasting text messages and inscriptions (file uploads).
+ * Inscription functionality is available for SegWit wallet types.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose, actions } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose, actions } from '@e2e/selectors';
 import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
   clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {
   walletTest('can navigate to broadcast from actions', async ({ page }) => {
@@ -40,8 +41,7 @@ walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {
     const messageInput = compose.broadcast.messageInput(page);
     await messageInput.fill('Test broadcast message');
 
-    const value = await messageInput.inputValue();
-    expect(value).toBe('Test broadcast message');
+    await expect(messageInput).toHaveValue('Test broadcast message');
   });
 
   walletTest('broadcast form shows fee estimation', async ({ page }) => {
@@ -52,12 +52,9 @@ walletTest.describe('Compose Broadcast Page (/compose/broadcast)', () => {
     const messageInput = compose.broadcast.messageInput(page);
     await messageInput.fill('Test broadcast message');
 
-    await page.waitForTimeout(500);
-
-    const feeDisplay = compose.common.feeDisplay(page);
-    const hasFee = await feeDisplay.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasFee || true).toBe(true);
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 5000 });
   });
 });
 
@@ -74,7 +71,6 @@ walletTest.describe('Broadcast Flow - Full Compose Flow', () => {
 
     const messageInput = compose.broadcast.messageInput(page);
     await messageInput.fill('E2E test broadcast message');
-    await page.waitForTimeout(500);
 
     const submitBtn = compose.common.submitButton(page);
     await expect(submitBtn).toBeEnabled({ timeout: 5000 });
@@ -94,13 +90,11 @@ walletTest.describe('Broadcast Flow - Full Compose Flow', () => {
     const testMessage = 'Test message for back navigation';
     const messageInput = compose.broadcast.messageInput(page);
     await messageInput.fill(testMessage);
-    await page.waitForTimeout(500);
 
     await compose.common.submitButton(page).click();
     await waitForReview(page);
 
     await clickBack(page);
-    await page.waitForTimeout(500);
 
     await expect(messageInput).toHaveValue(testMessage);
   });
@@ -119,5 +113,105 @@ walletTest.describe('Broadcast Flow - Full Compose Flow', () => {
 
     const pageContent = await page.content();
     expect(pageContent).toContain(testMessage);
+  });
+});
+
+walletTest.describe('Broadcast Inscription (File Upload)', () => {
+  walletTest('inscription toggle shows file uploader when available', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.broadcastOption(page).click();
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
+
+    const toggleButton = page.locator('button[role="switch"]').first();
+    const toggleCount = await toggleButton.count();
+
+    if (toggleCount === 0) {
+      // Inscription not available for this wallet type - skip
+      return;
+    }
+
+    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+    await toggleButton.click();
+
+    // File uploader should appear
+    await expect(page.locator('text=/Choose File/i')).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('file upload workflow', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.broadcastOption(page).click();
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
+
+    const toggleButton = page.locator('button[role="switch"]').first();
+    const toggleCount = await toggleButton.count();
+
+    if (toggleCount === 0) {
+      return; // Inscription not available
+    }
+
+    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+    await toggleButton.click();
+    await expect(page.locator('text="Choose File"')).toBeVisible();
+
+    const fileContent = 'Test broadcast content';
+    const fileName = 'test-broadcast.txt';
+
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.locator('text="Choose File"').click();
+    const fileChooser = await fileChooserPromise;
+
+    await fileChooser.setFiles({
+      name: fileName,
+      mimeType: 'text/plain',
+      buffer: Buffer.from(fileContent)
+    });
+
+    // File should appear
+    await expect(page.locator(`text="${fileName}"`)).toBeVisible();
+    await expect(page.locator('text="Remove file"')).toBeVisible();
+
+    // File size should show
+    await expect(page.locator('text=/Size:.*B/')).toBeVisible();
+
+    // Remove file
+    await page.locator('text="Remove file"').click();
+    await expect(page.locator(`text="${fileName}"`)).not.toBeVisible();
+    await expect(page.locator('text="Choose File"')).toBeVisible();
+  });
+
+  walletTest('validates file size limit', async ({ page }) => {
+    await navigateTo(page, 'actions');
+    await actions.broadcastOption(page).click();
+    await page.waitForURL('**/compose/broadcast', { timeout: 10000 });
+
+    const toggleButton = page.locator('button[role="switch"]').first();
+    const toggleCount = await toggleButton.count();
+
+    if (toggleCount === 0) {
+      return; // Inscription not available
+    }
+
+    await expect(toggleButton).toBeVisible({ timeout: 5000 });
+    await toggleButton.click();
+    await page.waitForLoadState('networkidle');
+
+    // Create a file larger than 400KB limit
+    const largeContent = 'x'.repeat(450 * 1024);
+
+    const chooseFileButton = page.locator('text=/Choose File/i').first();
+    await expect(chooseFileButton).toBeVisible({ timeout: 5000 });
+
+    const fileChooserPromise = page.waitForEvent('filechooser', { timeout: 5000 });
+    await chooseFileButton.click();
+    const fileChooser = await fileChooserPromise;
+
+    await fileChooser.setFiles({
+      name: 'large-file.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from(largeContent)
+    });
+
+    // Should show error about file size
+    await expect(page.locator('text=/File size must be less than 400KB/i')).toBeVisible({ timeout: 5000 });
   });
 });

@@ -115,13 +115,13 @@ describe('MPMAForm', () => {
     
     expect(screen.getByText('Upload CSV File')).toBeInTheDocument();
     expect(screen.getByText('Upload CSV')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Paste CSV data here...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Paste CSV data here…')).toBeInTheDocument();
   });
 
   it('processes valid CSV data on paste', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     // Use valid Bitcoin addresses
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,BTC,0.001';
     
@@ -133,14 +133,14 @@ describe('MPMAForm', () => {
     
     await waitFor(() => {
       // Address shows first 10 chars
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
   it('skips header row when present', async () => {
     renderWithProvider();
 
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'Address,Asset,Quantity,Memo\nbc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Test memo';
 
     fireEvent.paste(textArea, {
@@ -150,15 +150,15 @@ describe('MPMAForm', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.queryByText(/Address\.\.\./)).not.toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.queryByText(/Address…/)).not.toBeInTheDocument();
     }, { timeout: 5000 });
   });
 
   it('shows error for invalid Bitcoin address', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'invalidaddress,XCP,1.5';
     
     fireEvent.paste(textArea, {
@@ -175,7 +175,7 @@ describe('MPMAForm', () => {
   it('shows error for invalid quantity', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,invalid';
     
     fireEvent.paste(textArea, {
@@ -192,7 +192,7 @@ describe('MPMAForm', () => {
   it('shows error for memo exceeding 34 bytes', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const longMemo = 'This is a very long memo that exceeds the 34 byte limit';
     const csvData = `bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,"${longMemo}"`;
     
@@ -228,7 +228,7 @@ describe('MPMAForm', () => {
   it('shows preview of parsed data', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,Memo1\nbc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4,BTC,0.001,Memo2';
     
     fireEvent.paste(textArea, {
@@ -239,15 +239,15 @@ describe('MPMAForm', () => {
     
     await waitFor(() => {
       expect(screen.getByText('Preview (First 5)')).toBeInTheDocument();
-      expect(screen.getByText(/bc1qar0srr\.\.\. → 1.5 XCP/)).toBeInTheDocument();
-      expect(screen.getByText(/bc1qw508d6\.\.\. → 0.001 BTC/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qar0srr… → 1.5 XCP/)).toBeInTheDocument();
+      expect(screen.getByText(/bc1qw508d6… → 0.001 BTC/)).toBeInTheDocument();
     });
   });
 
   it('shows count when more than 5 items', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     // Generate valid addresses - these are example valid bech32 addresses
     const validAddresses = [
       'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
@@ -269,7 +269,7 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText('... and 2 more')).toBeInTheDocument();
+      expect(screen.getByText('… and 2 more')).toBeInTheDocument();
     });
   });
 
@@ -283,7 +283,7 @@ describe('MPMAForm', () => {
   it('enables submit button when data is valid', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5';
     
     fireEvent.paste(textArea, {
@@ -301,7 +301,7 @@ describe('MPMAForm', () => {
   it('handles quoted values with commas', async () => {
     renderWithProvider();
     
-    const textArea = screen.getByPlaceholderText('Paste CSV data here...');
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
     const csvData = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1.5,"Hello, World"';
     
     fireEvent.paste(textArea, {

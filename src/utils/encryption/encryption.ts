@@ -35,7 +35,7 @@ const MIN_ENCRYPTED_SIZE = IV_BYTES + GCM_TAG_BYTES;
  * This "pit of success" design ensures developers cannot accidentally weaken
  * security by passing empty passwords, low iteration counts, or small salts.
  */
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 8;
 const MIN_ITERATIONS = 500_000;
 const MIN_SALT_BYTES = 16;
 

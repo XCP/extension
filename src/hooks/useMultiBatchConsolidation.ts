@@ -141,7 +141,7 @@ export function useMultiBatchConsolidation() {
       analytics.track('consolidate', getBtcBucket(totalBtc));
 
       // All batches successful - navigate to success with results
-      navigate('/consolidation-success', {
+      navigate('/actions/consolidate/success', {
         state: {
           results: batchResults,
           totalBatches: allBatches.length,

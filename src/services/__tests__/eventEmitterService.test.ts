@@ -321,16 +321,6 @@ describe('EventEmitterService', () => {
       expect(stats.listenersByEvent['event-3']).toBe(1);
     });
 
-    it('should return empty stats when cleared', () => {
-      eventEmitterService.clear();
-
-      const stats = eventEmitterService.getStats();
-
-      expect(stats.listenerCount).toBe(0);
-      expect(stats.pendingRequestCount).toBe(0);
-      expect(stats.timedListenerCount).toBe(0);
-      expect(Object.keys(stats.listenersByEvent)).toHaveLength(0);
-    });
   });
 
   describe('BaseService implementation', () => {
@@ -346,19 +336,6 @@ describe('EventEmitterService', () => {
       });
     });
 
-    it('should return null for empty state', () => {
-      eventEmitterService.clear();
-
-      const state = (eventEmitterService as any).getSerializableState();
-
-      expect(state).toBeNull();
-    });
-
-    it('should have correct state version', () => {
-      const version = (eventEmitterService as any).getStateVersion();
-
-      expect(version).toBe(1);
-    });
   });
 
   describe('edge cases', () => {

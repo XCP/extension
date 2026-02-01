@@ -14,10 +14,13 @@ export default defineConfig({
     include: ['**/*.fuzz.test.ts'],
 
     // Memory management for fuzz tests
-    pool: 'forks',
-    maxWorkers: 1, // Single worker to prevent OOM
+    pool: 'threads', // Use threads instead of forks (faster, less memory)
+    maxWorkers: 1,
     fileParallelism: false,
     isolate: true,
-    retry: 2,
+    retry: 0, // No retries for fuzz tests - they should pass or fail quickly
+
+    // Prevent hanging in CI
+    teardownTimeout: 10000,
   },
 });

@@ -1,11 +1,10 @@
-
 import { useEffect, useState, useMemo } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
-import { AssetNameInput } from "@/components/inputs/asset-name-input";
-import { MemoInput } from "@/components/inputs/memo-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context";
 import { validateQuantity } from "@/utils/validation/amount";
@@ -30,7 +29,7 @@ export function DestroySupplyForm({
   initialAsset,
 }: DestroySupplyFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, showHelpText } = useComposer();
+  const { activeAddress, showHelpText, feeRate } = useComposer();
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
@@ -43,7 +42,6 @@ export function DestroySupplyForm({
   const [amount, setAmount] = useState<string>(
     initialFormData?.quantity?.toString() || ""
   );
-  const [satPerVbyte] = useState<number>(initialFormData?.sat_per_vbyte || 0.1);
   const [assetName, setAssetName] = useState(initialFormData?.asset || "");
   const [, setIsAssetNameValid] = useState(false);
   const [tag, setTag] = useState(initialFormData?.tag || "");
@@ -145,7 +143,7 @@ export function DestroySupplyForm({
             availableBalance={assetDetails?.availableBalance || "0"}
             value={amount}
             onChange={handleAmountChange}
-            sat_per_vbyte={satPerVbyte}
+            feeRate={feeRate}
             setError={(message) => {}}
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.availableBalance || "0"}
@@ -158,6 +156,7 @@ export function DestroySupplyForm({
                 : "Enter a whole number amount to destroy."
             }
             disabled={pending}
+            isDivisible={isDivisible}
           />
 
           <MemoInput

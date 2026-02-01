@@ -199,7 +199,7 @@ describe('ProviderService', () => {
       getLastActiveAddress: vi.fn().mockResolvedValue('bc1qtest123'),
       setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
       setLastActiveTime: vi.fn(),
-      isAnyWalletUnlocked: vi.fn().mockResolvedValue(true),
+      isKeychainUnlocked: vi.fn().mockResolvedValue(true),
       // Additional methods used by provider service
       getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getActiveAddress: vi.fn().mockResolvedValue({
@@ -338,8 +338,9 @@ describe('ProviderService', () => {
         // Should return the accounts
         expect(result).toEqual(['bc1qtest123']);
       });
+
     });
-    
+
     describe('xcp_accounts', () => {
       it('should return empty array if not connected', async () => {
         // Mock connection service to return false
@@ -377,7 +378,7 @@ describe('ProviderService', () => {
         // Override specific methods for this test
         const mockWalletService = vi.mocked(walletService.getWalletService)();
         mockWalletService.getActiveAddress = vi.fn().mockResolvedValue(null);
-        mockWalletService.isAnyWalletUnlocked = vi.fn().mockResolvedValue(false);
+        mockWalletService.isKeychainUnlocked = vi.fn().mockResolvedValue(false);
 
         const result = await providerService.handleRequest(
           'https://connected.com',
@@ -754,24 +755,5 @@ describe('ProviderService', () => {
       });
     });
 
-    describe('Event Emissions', () => {
-      it('should emit events for provider state changes', async () => {
-        // This would test that events are emitted when accounts change, etc.
-        // The actual implementation would need event emitter mocking
-      });
-    });
-
-    describe('Rate Limiting', () => {
-      it('should respect rate limits for signing operations', async () => {
-        // Mock rate limiter to return false
-        vi.mocked(rateLimiter.transactionRateLimiter.isAllowed).mockReturnValue(false);
-
-        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
-
-        // Note: Rate limiting for signing operations
-        // This test documents expected behavior
-      });
-    });
   });
 });

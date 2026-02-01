@@ -11,21 +11,27 @@
  * - Decimal handling
  */
 
-import { walletTest, expect } from '../fixtures';
-import { TEST_AMOUNTS, TEST_ADDRESSES } from '../helpers/test-data';
-import { index, compose } from '../selectors';
+import { walletTest, expect, navigateTo } from '../fixtures';
+import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
+import { index, compose, common } from '../selectors';
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);
 
 walletTest.describe('AmountWithMaxInput Component', () => {
   walletTest.beforeEach(async ({ page }) => {
+    // Ensure we're on the wallet/index page first
+    if (!page.url().includes('/index')) {
+      await navigateTo(page, 'wallet');
+    }
     // Navigate to send page which uses AmountWithMaxInput
     const sendButton = index.sendButton(page);
-    await expect(sendButton).toBeVisible({ timeout: 5000 });
+    await expect(sendButton).toBeVisible({ timeout: 10000 });
     await sendButton.click();
     await page.waitForURL(/compose\/send/, { timeout: 5000 });
     await page.waitForLoadState('networkidle');
+    // Wait for the form to be ready (input visible means form rendered)
+    await getAmountInput(page).waitFor({ state: 'visible', timeout: 10000 });
   });
 
   // Helper to fill destination (needed for some tests)
@@ -43,23 +49,26 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('renders with required indicator', async ({ page }) => {
-      const requiredIndicator = page.locator('label:has-text("Amount") span.text-red-500');
-      await expect(requiredIndicator).toBeVisible();
+      // Required fields show asterisk (*) in the label
+      const label = page.locator('label').filter({ hasText: 'Amount' });
+      const labelText = await label.textContent();
+      expect(labelText).toContain('*');
     });
 
     walletTest('renders input field', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
-      await expect(input).toBeVisible();
-      await expect(input).toBeEnabled();
+      const input = getAmountInput(page);
+      await expect(input).toBeVisible({ timeout: 5000 });
+      await expect(input).toBeEnabled({ timeout: 5000 });
     });
 
     walletTest('renders Max button', async ({ page }) => {
       const maxButton = page.locator('button:has-text("Max")');
-      await expect(maxButton).toBeVisible();
+      await expect(maxButton).toBeVisible({ timeout: 5000 });
     });
 
     walletTest('has placeholder showing format', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
+      await expect(input).toBeVisible({ timeout: 5000 });
       const placeholder = await input.getAttribute('placeholder');
       expect(placeholder).toContain('0.00');
     });
@@ -67,7 +76,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Valid Amount Input', () => {
     walletTest('accepts valid decimal amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.small);
       await input.blur();
 
@@ -77,7 +86,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts integer amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('1');
       await input.blur();
 
@@ -85,7 +94,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts small decimal amounts', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.00001');
       await input.blur();
 
@@ -93,7 +102,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('accepts 8 decimal places (satoshi precision)', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.00000001');
       await input.blur();
 
@@ -103,7 +112,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
   walletTest.describe('Invalid Amount Input', () => {
     walletTest('handles zero amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.zero);
       await input.blur();
 
@@ -112,30 +121,35 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('handles negative amount', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.negative);
       await input.blur();
 
-      // Component may handle negatives in different ways:
-      // 1. Strip the negative sign
-      // 2. Keep it but prevent form submission
-      // 3. Show error styling
+      // Component accepts negative input - form should not allow submission
       const value = await input.inputValue();
 
-      // The key is that it doesn't crash and the form handles it gracefully
-      // Most amount inputs either strip negatives or accept them as invalid
-      expect(typeof value).toBe('string');
+      // Verify the input accepted the value (component handles validation via form, not input mask)
+      expect(value).toContain('-');
+
+      // Submit button should be disabled for invalid input
+      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
+      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
     });
 
     walletTest('handles non-numeric input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.invalid);
       await input.blur();
 
-      // Non-numeric should be rejected or cause error
+      // Component accepts non-numeric input - form should not allow submission
       const value = await input.inputValue();
-      // Either empty (rejected) or shows error
-      expect(value === '' || value === TEST_AMOUNTS.invalid).toBe(true);
+
+      // Verify the input accepted the value
+      expect(value).toBe(TEST_AMOUNTS.invalid);
+
+      // Submit button should be disabled for invalid input
+      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
+      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
     });
   });
 
@@ -153,39 +167,40 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       expect(ariaLabel?.toLowerCase()).toContain('max');
     });
 
-    walletTest('clicking Max fills amount field', async ({ page }) => {
-      // First fill destination to enable max calculation
+    walletTest('clicking Max shows no balance error when wallet is empty', async ({ page }) => {
+      // walletTest fixture wallet has no BTC balance (Available: 0.00000000)
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       const maxButton = page.locator('button:has-text("Max")');
 
       // Clear any existing value
       await input.clear();
 
-      // Click Max
+      // Click Max - should show error (either "No available balance." if API succeeded
+      // with empty array, or "Failed to fetch UTXOs." if network request failed,
+      // or generic "Failed to calculate maximum amount" if other error occurred)
       await maxButton.click();
 
-      // Wait for calculation (may involve API call for fee estimation)
-      await page.waitForTimeout(2000);
+      // Wait for the error to appear
+      const errorAlert = common.errorAlert(page);
+      await expect(errorAlert).toBeVisible({ timeout: 10000 });
 
-      // Amount should be filled (or error shown if no balance)
-      const value = await input.inputValue();
+      // Accept any error message - the important thing is that an error is shown
+      // and the input remains empty (no invalid max amount populated)
+      const errorText = await errorAlert.textContent();
+      const hasExpectedError =
+        errorText?.includes('No available balance') ||
+        errorText?.includes('Failed to fetch UTXOs') ||
+        errorText?.includes('Failed to calculate maximum amount');
+      // Log the actual error for debugging if it fails
+      if (!hasExpectedError) {
+        console.log('Unexpected error text:', errorText);
+      }
+      expect(hasExpectedError).toBe(true);
 
-      // Check for actual error messages (not just required field indicators)
-      // Error messages typically appear as text, not just the * indicators
-      const errorAlert = page.locator('[role="alert"], .text-red-600, p.text-red-500');
-      const hasError = await errorAlert.isVisible().catch(() => false);
-
-      // Max button may:
-      // 1. Fill with calculated max amount
-      // 2. Show error if no balance/insufficient for fees
-      // 3. Show 0 if no spendable balance
-      // All are valid behaviors
-      const hasValue = value !== '' && value !== '0';
-      const hasZero = value === '0' || value === '0.00000000';
-
-      expect(hasValue || hasZero || hasError).toBe(true);
+      // Input should remain empty since there's no balance
+      await expect(input).toHaveValue('');
     });
 
     walletTest('Max button shows loading state during calculation', async ({ page }) => {
@@ -208,65 +223,33 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Fill destination first
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       // Try to send more than any test wallet would have
       await input.fill(TEST_AMOUNTS.veryLarge);
       await input.blur();
 
       // Try to submit form
       const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      if (await submitBtn.isEnabled().catch(() => false)) {
+
+      // Either button is disabled (pre-validation) or clicking shows error
+      const isEnabled = await submitBtn.isEnabled();
+      if (isEnabled) {
         await submitBtn.click();
 
-        // Wait for validation/API response
-        await page.waitForTimeout(2000);
-
-        // Should show an error about insufficient balance/funds
-        // Use specific selector to avoid matching required field indicators (*)
+        // Wait for validation error to appear
         const errorMessage = page.locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
-        const hasError = await errorMessage.first().isVisible().catch(() => false);
-
-        // The form should either show error or prevent submission
-        expect(hasError || !(await submitBtn.isEnabled())).toBe(true);
+        await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
+      } else {
+        // Button disabled due to validation - this is expected behavior
+        await expect(submitBtn).toBeDisabled();
       }
     });
 
-    walletTest('shows error when Max fails due to no balance', async ({ page }) => {
-      await fillDestination(page);
-
-      const maxButton = page.locator('button:has-text("Max")');
-      await maxButton.click();
-
-      // Wait for max calculation
-      await page.waitForTimeout(2000);
-
-      // Check for error message (expected for test wallets with no BTC)
-      const errorMessages = [
-        page.locator('text=/No available balance/i'),
-        page.locator('text=/Insufficient balance/i'),
-        page.locator('text=/Failed to calculate/i'),
-      ];
-
-      // At least one error may be visible, or amount may be 0
-      const input = page.locator('input[name="quantity"]');
-      const value = await input.inputValue();
-
-      let hasError = false;
-      for (const msg of errorMessages) {
-        if (await msg.isVisible().catch(() => false)) {
-          hasError = true;
-          break;
-        }
-      }
-
-      // Either has error message or value is empty/zero (both valid outcomes for no balance)
-      expect(hasError || value === '' || value === '0').toBe(true);
-    });
   });
 
   walletTest.describe('Input Behavior', () => {
     walletTest('allows clearing input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.5');
       await expect(input).toHaveValue('0.5');
@@ -276,7 +259,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('allows editing input', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.1');
       await input.clear();
@@ -286,7 +269,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     });
 
     walletTest('preserves input after blur', async ({ page }) => {
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
 
       await input.fill('0.12345678');
       await input.blur();
@@ -303,7 +286,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     walletTest('valid amount does not prevent form submission', async ({ page }) => {
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.small);
 
       // Amount field should not show error
@@ -313,7 +296,7 @@ walletTest.describe('AmountWithMaxInput Component', () => {
     walletTest('amount is included in form submission', async ({ page }) => {
       await fillDestination(page);
 
-      const input = page.locator('input[name="quantity"]');
+      const input = getAmountInput(page);
       await input.fill('0.001');
 
       // Check input has name attribute for form submission

@@ -5,7 +5,7 @@
  */
 
 import { walletTest, expect, navigateTo, grantClipboardPermissions, TEST_PASSWORD } from '../../fixtures';
-import { actions, verifyMessage, signMessage, viewAddress } from '../../selectors';
+import { actions, verifyMessage, signMessage, viewAddress, index } from '../../selectors';
 
 walletTest.describe('Verify Message', () => {
   walletTest('navigates to verify message page', async ({ page }) => {
@@ -41,8 +41,11 @@ walletTest.describe('Verify Message', () => {
   walletTest('verifies a valid signature', async ({ page, context }) => {
     await grantClipboardPermissions(context);
 
-    // Get full address from the index page
-    await expect(viewAddress.addressDisplay(page)).toBeVisible();
+    // Navigate to view-address page to get the full address
+    await index.receiveButton(page).click();
+    await expect(page).toHaveURL(/addresses\/details/, { timeout: 5000 });
+
+    await expect(viewAddress.addressDisplay(page)).toBeVisible({ timeout: 5000 });
     await viewAddress.addressDisplay(page).click();
 
     const fullAddress = await page.evaluate(async () => {
@@ -98,7 +101,7 @@ walletTest.describe('Verify Message', () => {
     await verifyMessage.verifyButton(page).click();
 
     // Wait for verification result - should show invalid signature message
-    await expect(verifyMessage.invalidResult(page)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Signature Invalid').first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('clears all fields', async ({ page }) => {
@@ -146,8 +149,9 @@ walletTest.describe('Verify Message', () => {
 
     await verifyMessage.verifyButton(page).click();
 
-    const errorResult = page.locator('text=/Failed to verify|Invalid signature|not supported/i');
-
-    await expect(verifyMessage.validResult(page).or(verifyMessage.invalidResult(page)).or(errorResult)).toBeVisible({ timeout: 5000 });
+    // Fake signature should show invalid result or error (not valid)
+    const invalidOrError = verifyMessage.invalidResult(page)
+      .or(page.locator('text=/Failed to verify|Invalid signature|not supported/i'));
+    await expect(invalidOrError.first()).toBeVisible({ timeout: 5000 });
   });
 });

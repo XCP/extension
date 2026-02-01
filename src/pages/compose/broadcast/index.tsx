@@ -1,10 +1,10 @@
 import { BroadcastForm } from "./form";
 import { ReviewBroadcast } from "./review";
-import { Composer } from "@/components/composer";
+import { Composer } from "@/components/composer/composer";
 import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeBroadcast() {
+function ComposeBroadcastPage() {
   return (
     <div className="p-4">
       <Composer<BroadcastOptions>
@@ -18,4 +18,4 @@ function ComposeBroadcast() {
   );
 }
 
-export default ComposeBroadcast;
+export default ComposeBroadcastPage;

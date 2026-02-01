@@ -15,6 +15,7 @@ import {
   fetchOrdersByPair,
   fetchOrderMatches,
   fetchServerInfo,
+  clearApiCache,
   AssetInfo,
   TokenBalance,
   Order,
@@ -108,6 +109,7 @@ const mockTransaction: Transaction = {
 describe('counterparty/api.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearApiCache(); // Clear cache between tests to prevent cached responses affecting subsequent tests
     mockedGetSettings.mockReturnValue(mockSettings as any);
   });
 

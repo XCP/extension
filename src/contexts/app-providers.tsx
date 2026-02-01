@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
-import { ErrorBoundary } from '@/components/error-boundary';
+import { ErrorBoundary } from '@/components/layout/error-boundary';
+import { ApiStatusProvider } from './api-status-context';
 import { HeaderProvider } from './header-context';
 import { SettingsProvider } from './settings-context';
 import { WalletProvider } from './wallet-context';
@@ -95,7 +96,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
   return (
     <ErrorBoundary
       fallback={
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-dvh flex items-center justify-center p-4">
           <div className="text-center">
             <h2 className="text-lg font-semibold mb-2">Application Error</h2>
             <p className="text-sm text-gray-600">Please refresh the page to continue.</p>
@@ -105,7 +106,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
     >
       <ErrorBoundary
         fallback={
-          <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="min-h-dvh flex items-center justify-center p-4">
             <div className="text-center">
               <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
               <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
@@ -116,7 +117,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
         <SettingsProvider>
             <ErrorBoundary
               fallback={
-                <div className="min-h-screen flex items-center justify-center p-4">
+                <div className="min-h-dvh flex items-center justify-center p-4">
                   <div className="text-center">
                     <h2 className="text-lg font-semibold mb-2">Wallet Error</h2>
                     <p className="text-sm text-gray-600">Unable to load wallet. Please refresh.</p>
@@ -126,9 +127,11 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
             >
               <WalletProvider>
                 <IdleTimerWrapper>
-                  <HeaderProvider>
-                    {children}
-                  </HeaderProvider>
+                  <ApiStatusProvider>
+                    <HeaderProvider>
+                      {children}
+                    </HeaderProvider>
+                  </ApiStatusProvider>
                 </IdleTimerWrapper>
               </WalletProvider>
             </ErrorBoundary>

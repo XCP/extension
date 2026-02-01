@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
@@ -36,7 +35,7 @@ export function LockDescriptionForm({
   const [isChecked, setIsChecked] = useState(false);
 
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo) {
@@ -122,6 +121,7 @@ export function LockDescriptionForm({
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
         <input type="hidden" name="description" value="LOCK" />
+        <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
       </Field>
     </ComposerForm>
   );

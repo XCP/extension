@@ -1,12 +1,12 @@
 import { useParams } from "react-router-dom";
-import { Composer } from "@/components/composer";
-import { ErrorAlert } from "@/components/error-alert";
+import { Composer } from "@/components/composer/composer";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { TransferOwnershipForm } from "./form";
 import { ReviewIssuanceTransferOwnership } from "./review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
-function ComposeIssuanceTransferOwnership() {
+function ComposeTransferOwnershipPage() {
   const { asset } = useParams<{ asset?: string }>();
 
   if (!asset) {
@@ -30,4 +30,4 @@ function ComposeIssuanceTransferOwnership() {
   );
 }
 
-export default ComposeIssuanceTransferOwnership;
+export default ComposeTransferOwnershipPage;

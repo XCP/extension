@@ -1,6 +1,7 @@
 import { apiClient } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import { selectUtxosForTransaction } from '@/utils/blockchain/counterparty/utxo-selection';
 
 /**
  * Type guard to check if an error has a response with data
@@ -27,6 +28,26 @@ function toStringParams(obj: Record<string, unknown>): Record<string, string> {
   return result;
 }
 
+/**
+ * Attempt to select UTXOs from mempool.space for better reliability.
+ * Falls back gracefully if selection fails, allowing the Counterparty API to handle it.
+ *
+ * @param sourceAddress - The address to select UTXOs from
+ * @param allowUnconfirmed - Whether to include unconfirmed UTXOs
+ * @returns The inputs_set string if successful, undefined otherwise
+ */
+async function trySelectUtxos(
+  sourceAddress: string,
+  allowUnconfirmed: boolean
+): Promise<string | undefined> {
+  try {
+    const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
+    return selection.inputsSet;
+  } catch {
+    return undefined;
+  }
+}
+
 export interface SignedTxEstimatedSize {
   vsize: number;
   adjusted_vsize: number;
@@ -40,6 +61,8 @@ export interface ComposeAssetInfo {
   divisible: boolean;
   locked: boolean;
   owner: string;
+  supply?: string;
+  supply_normalized?: string;
 }
 
 export interface ComposeParams {
@@ -68,7 +91,7 @@ export interface ComposeResult {
   signed_tx_estimated_size: SignedTxEstimatedSize;
   psbt: string;
   params: ComposeParams & {
-    asset_dest_quant_list?: [string, string, string][];
+    asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];
   };
   name: string;
@@ -177,6 +200,7 @@ export interface SendOptions extends BaseComposeOptions {
   quantity: number;
   memo?: string;
   memo_is_hex?: boolean;
+  no_dispense?: boolean;
 }
 
 export interface SweepOptions extends BaseComposeOptions {
@@ -234,7 +258,201 @@ async function getApiBase() {
   return settings.counterpartyApiBase;
 }
 
-// Helper function for endpoints that need array parameters
+// ============================================================================
+// UTXO Fallback Logic
+// ============================================================================
+//
+// When composing transactions, we fetch UTXOs from mempool.space for better
+// reliability. However, the Counterparty API may reject some UTXOs if:
+// - The transaction was dropped from mempool (RBF, low fee, etc.)
+// - Different Bitcoin nodes have different mempool views
+// - The UTXO was spent between our fetch and the API call
+//
+// We handle this with a 3-attempt fallback strategy:
+// 1. Try with all UTXOs from mempool.space
+// 2. If "invalid UTXOs" error, remove those UTXOs and retry
+// 3. If still failing, let Counterparty API select UTXOs itself
+
+/**
+ * Extract error message from error (handles Axios errors and CounterpartyApiError).
+ */
+function getApiErrorMessage(error: unknown): string | undefined {
+  if (error instanceof CounterpartyApiError) {
+    return error.message;
+  }
+  if (isApiErrorWithResponse(error)) {
+    return error.response?.data?.error;
+  }
+  return undefined;
+}
+
+/**
+ * Check if error message indicates a UTXO-related failure that we should retry.
+ * Handles multiple error formats from the Counterparty API:
+ * - "invalid UTXOs: txid:vout (transaction not found)"
+ * - "UTXO not found for input 0: txid:vout"
+ */
+function isUtxoError(errorMessage: string | undefined): boolean {
+  if (!errorMessage) return false;
+  return (
+    errorMessage.includes('invalid UTXOs') ||
+    errorMessage.includes('UTXO not found') ||
+    errorMessage.includes('transaction not found')
+  );
+}
+
+/**
+ * Parse UTXO references from error message.
+ * Extracts any txid:vout patterns found in the message.
+ */
+function parseUtxosFromError(errorMessage: string): string[] {
+  const utxoPattern = /([a-f0-9]{64}:\d+)/gi;
+  return errorMessage.match(utxoPattern) || [];
+}
+
+/**
+ * Remove specific UTXOs from inputs_set string.
+ */
+function removeUtxosFromInputsSet(inputsSet: string, utxosToRemove: string[]): string | undefined {
+  const removeSet = new Set(utxosToRemove.map(u => u.toLowerCase()));
+  const filtered = inputsSet.split(',').filter(utxo => !removeSet.has(utxo.toLowerCase()));
+  return filtered.length > 0 ? filtered.join(',') : undefined;
+}
+
+/**
+ * Wrap errors in CounterpartyApiError.
+ */
+function wrapComposeError(error: unknown, endpoint: string): CounterpartyApiError {
+  if (error instanceof CounterpartyApiError) return error;
+
+  const message = getApiErrorMessage(error);
+  if (message) {
+    return new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
+  }
+
+  return new CounterpartyApiError(
+    error instanceof Error ? error.message : 'Transaction composition failed',
+    endpoint,
+    { cause: error instanceof Error ? error : undefined }
+  );
+}
+
+/**
+ * Options for making a compose request.
+ */
+interface ComposeRequestOptions {
+  inputsSet: string | undefined;
+  allowUnconfirmed: boolean;
+}
+
+/**
+ * Execute a compose request with automatic UTXO fallback.
+ *
+ * Strategy:
+ * 1. Try with inputs_set from mempool.space (respects user's unconfirmed setting)
+ * 2. If "invalid UTXOs" error, remove those UTXOs and retry
+ * 3. If still failing, retry without inputs_set but force confirmed-only
+ *    (avoids Counterparty selecting stale unconfirmed UTXOs from its mempool)
+ */
+async function executeWithUtxoFallback(
+  makeRequest: (options: ComposeRequestOptions) => Promise<ApiResponse>,
+  inputsSet: string | undefined,
+  allowUnconfirmed: boolean,
+  endpoint: string
+): Promise<ApiResponse> {
+  // No inputs_set - just make the request with confirmed-only for safety
+  if (!inputsSet) {
+    try {
+      return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
+    } catch (error) {
+      throw wrapComposeError(error, endpoint);
+    }
+  }
+
+  // Attempt 1: Try with full inputs_set (respects user's unconfirmed setting)
+  try {
+    return await makeRequest({ inputsSet, allowUnconfirmed });
+  } catch (error) {
+    const errorMessage = getApiErrorMessage(error);
+
+    // If it's a UTXO-related error, try fallbacks
+    if (isUtxoError(errorMessage)) {
+      const badUtxos = parseUtxosFromError(errorMessage || '');
+      const filteredInputsSet = removeUtxosFromInputsSet(inputsSet, badUtxos);
+
+      // Attempt 2: Try with filtered inputs_set (still respects user's setting)
+      if (filteredInputsSet) {
+        try {
+          return await makeRequest({ inputsSet: filteredInputsSet, allowUnconfirmed });
+        } catch {
+          // Fall through to attempt 3
+        }
+      }
+
+      // Attempt 3: Let Counterparty API select, but force confirmed-only
+      // This avoids issues where Counterparty's mempool has stale unconfirmed UTXOs
+      try {
+        return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
+      } catch (finalError) {
+        throw wrapComposeError(finalError, endpoint);
+      }
+    }
+
+    // Not a UTXO error - throw immediately
+    throw wrapComposeError(error, endpoint);
+  }
+}
+
+// ============================================================================
+// Compose Functions
+// ============================================================================
+
+/**
+ * Compose a transaction via the Counterparty API.
+ */
+export async function composeTransaction<T extends Record<string, unknown>>(
+  endpoint: string,
+  paramsObj: T,
+  sourceAddress: string,
+  sat_per_vbyte: number,
+  encoding?: string
+): Promise<ApiResponse> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  const settings = walletManager.getSettings();
+
+  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const params = new URLSearchParams(toStringParams({
+      ...paramsObj,
+      sat_per_vbyte: sat_per_vbyte.toString(),
+      exclude_utxos_with_balances: 'true',
+      allow_unconfirmed_inputs: allowUnconfirmed.toString(),
+      disable_utxo_locks: 'true',
+      verbose: 'true',
+      ...(encoding && { encoding }),
+      ...(inputsSet && { inputs_set: inputsSet }),
+    }));
+
+    const response = await apiClient.get<ApiResponse | { error: string }>(
+      `${apiUrl}?${params.toString()}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if ('error' in response.data) {
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    }
+    return response.data as ApiResponse;
+  };
+
+  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+}
+
+/**
+ * Compose a transaction with array parameters (e.g., MPMA sends).
+ */
 async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
@@ -245,133 +463,48 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-
-  // Get user's unconfirmed transaction preference
   const settings = walletManager.getSettings();
 
-  const params = new URLSearchParams(toStringParams({
-    ...paramsObj,
-    sat_per_vbyte: sat_per_vbyte.toString(),
-    exclude_utxos_with_balances: 'true',
-    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
-    disable_utxo_locks: 'true',
-    verbose: 'true',
-    ...(encoding && { encoding }),
-  }));
+  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const params = new URLSearchParams(toStringParams({
+      ...paramsObj,
+      sat_per_vbyte: sat_per_vbyte.toString(),
+      exclude_utxos_with_balances: 'true',
+      allow_unconfirmed_inputs: allowUnconfirmed.toString(),
+      disable_utxo_locks: 'true',
+      verbose: 'true',
+      ...(encoding && { encoding }),
+      ...(inputsSet && { inputs_set: inputsSet }),
+    }));
 
-  // Build URL with array notation for array params
-  let url = `${apiUrl}?${params.toString()}`;
-
-  for (const [key, values] of Object.entries(arrayParams)) {
-    if (values && Array.isArray(values)) {
-      for (const value of values) {
-        url += `&${key}[]=${encodeURIComponent(String(value ?? ''))}`;
+    // Append array params with [] notation
+    let url = `${apiUrl}?${params.toString()}`;
+    for (const [key, values] of Object.entries(arrayParams)) {
+      if (Array.isArray(values)) {
+        for (const value of values) {
+          url += `&${key}[]=${encodeURIComponent(String(value ?? ''))}`;
+        }
       }
     }
-  }
 
-  try {
-    // Use longApiClient for transaction composition (60 second timeout)
     const response = await apiClient.get<ApiResponse | { error: string }>(url, {
       headers: { 'Content-Type': 'application/json' },
     });
 
-    // Check if the API returned an error response
     if ('error' in response.data) {
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
-
     return response.data as ApiResponse;
-  } catch (error: unknown) {
-    if (error instanceof CounterpartyApiError) throw error;
+  };
 
-    // Handle timeout errors specifically
-    if (isApiErrorWithResponse(error)) {
-      if (error.code === 'TIMEOUT') {
-        throw new CounterpartyApiError(
-          'Transaction composition timed out',
-          endpoint,
-          { cause: error instanceof Error ? error : undefined }
-        );
-      }
-      if (error.response?.data?.error) {
-        throw new CounterpartyApiError(error.response.data.error, endpoint, {
-          cause: error instanceof Error ? error : undefined,
-        });
-      }
-    }
-
-    const message = error instanceof Error ? error.message : 'Transaction composition failed';
-    throw new CounterpartyApiError(message, endpoint, {
-      cause: error instanceof Error ? error : undefined,
-    });
-  }
+  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
 }
 
-export async function composeTransaction<T extends Record<string, unknown>>(
-  endpoint: string,
-  paramsObj: T,
-  sourceAddress: string,
-  sat_per_vbyte: number,
-  encoding?: string
-): Promise<ApiResponse> {
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-
-  // Get user's unconfirmed transaction preference
-  const settings = walletManager.getSettings();
-
-  const params = new URLSearchParams(toStringParams({
-    ...paramsObj,
-    sat_per_vbyte: sat_per_vbyte.toString(),
-    exclude_utxos_with_balances: 'true',
-    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
-    disable_utxo_locks: 'true',
-    verbose: 'true',
-    ...(encoding && { encoding }),
-  }));
-
-  const url = `${apiUrl}?${params.toString()}`;
-
-  try {
-    // Use apiClient for automatic timeout (60s for /compose) and retry logic
-    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
-      headers: { 'Content-Type': 'application/json' },
-    });
-
-    // Check if the API returned an error response
-    if ('error' in response.data) {
-      throw new CounterpartyApiError(response.data.error, endpoint, {});
-    }
-
-    return response.data as ApiResponse;
-  } catch (error: unknown) {
-    if (error instanceof CounterpartyApiError) throw error;
-
-    // Handle timeout errors specifically
-    if (isApiErrorWithResponse(error)) {
-      if (error.code === 'TIMEOUT') {
-        throw new CounterpartyApiError(
-          'Transaction composition timed out',
-          endpoint,
-          { cause: error instanceof Error ? error : undefined }
-        );
-      }
-      if (error.response?.data?.error) {
-        throw new CounterpartyApiError(error.response.data.error, endpoint, {
-          cause: error instanceof Error ? error : undefined,
-        });
-      }
-    }
-
-    const message = error instanceof Error ? error.message : 'Transaction composition failed';
-    throw new CounterpartyApiError(message, endpoint, {
-      cause: error instanceof Error ? error : undefined,
-    });
-  }
-}
-
-// New function for UTXO-based compose transactions (detach, move)
+/**
+ * Compose a UTXO-based transaction (detach, move).
+ * These don't use inputs_set since the source UTXO is specified directly.
+ */
 export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   endpoint: string,
   paramsObj: T,
@@ -539,9 +672,10 @@ export async function composeDispenser(options: DispenserOptions): Promise<ApiRe
   } = options;
   const paramsObj = {
     asset,
-    give_quantity: give_quantity.toString(),
-    escrow_quantity: escrow_quantity.toString(),
-    mainchainrate: mainchainrate.toString(),
+    // When closing a dispenser (status != 0), these values may be undefined - default to 0
+    give_quantity: (give_quantity ?? 0).toString(),
+    escrow_quantity: (escrow_quantity ?? 0).toString(),
+    mainchainrate: (mainchainrate ?? 0).toString(),
     status: status.toString(),
     ...(open_address && { open_address }),
     ...(oracle_address && { oracle_address }),
@@ -613,10 +747,12 @@ export async function composeIssuance(options: IssuanceOptions): Promise<ApiResp
     inscription,
     mime_type,
   } = options;
+  // Boolean values are normalized upstream - convert to API string format
+  // Always include divisible to avoid API defaulting to true when we want false
   const paramsObj = {
     asset,
     quantity: quantity.toString(),
-    ...(divisible !== undefined && { divisible: divisible ? 'true' : 'false' }),
+    divisible: divisible ? 'true' : 'false',
     lock: lock ? 'true' : 'false',
     reset: reset ? 'true' : 'false',
     ...(transfer_destination && { transfer_destination }),
@@ -702,6 +838,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     quantity,
     memo,
     memo_is_hex,
+    no_dispense,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -712,9 +849,54 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     quantity: quantity.toString(),
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
+    ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+/**
+ * Extended send options that support multiple destinations (MPMA convenience).
+ * When `destinations` contains multiple comma-separated addresses, automatically
+ * converts to an MPMA transaction with the same asset/quantity/memo for each.
+ */
+export interface SendOrMPMAOptions extends SendOptions {
+  destinations?: string; // Comma-separated list for MPMA
+}
+
+/**
+ * Compose a send transaction, automatically using MPMA when multiple destinations provided.
+ * This provides a convenient UX where users can add multiple destinations in the send form.
+ */
+export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<ApiResponse> {
+  const { destinations, ...sendOptions } = options;
+
+  // Check if we have multiple destinations (MPMA)
+  if (destinations && destinations.includes(',')) {
+    const destArray = destinations.split(',').map((d: string) => d.trim());
+
+    // Create MPMA options - same asset/quantity/memo for each destination
+    const mpmaOptions: MPMAOptions = {
+      sourceAddress: options.sourceAddress,
+      assets: destArray.map(() => options.asset),
+      destinations: destArray,
+      quantities: destArray.map(() => options.quantity.toString()),
+      sat_per_vbyte: options.sat_per_vbyte,
+      ...(options.memo && {
+        memos: destArray.map(() => options.memo as string),
+        memos_are_hex: destArray.map(() => options.memo_is_hex ?? false)
+      })
+    };
+
+    const response = await composeMPMA(mpmaOptions);
+    response.result.name = 'mpma';
+    return response;
+  }
+
+  // Single destination - regular send
+  const response = await composeSend(sendOptions);
+  response.result.name = 'send';
+  return response;
 }
 
 export async function composeSweep(options: SweepOptions): Promise<ApiResponse> {
@@ -769,6 +951,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     inscription,
     mime_type,
   } = options;
+  // Boolean values are normalized upstream - convert to API string format
   const paramsObj = {
     asset,
     lot_price: lot_price.toString(),
@@ -781,9 +964,9 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     soft_cap: soft_cap.toString(),
     soft_cap_deadline_block: soft_cap_deadline_block.toString(),
     minted_asset_commission: minted_asset_commission.toString(),
-    burn_payment: burn_payment.toString(),
-    lock_description: lock_description.toString(),
-    lock_quantity: lock_quantity.toString(),
+    burn_payment: burn_payment ? 'true' : 'false',
+    lock_description: lock_description ? 'true' : 'false',
+    lock_quantity: lock_quantity ? 'true' : 'false',
     divisible: divisible ? 'true' : 'false',
     ...(description && { description }),
     ...(pubkeys && { pubkeys }),

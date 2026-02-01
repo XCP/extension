@@ -50,6 +50,8 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
       divisible: true,
       locked: false,
       owner: mockAddress,
+      supply: '100000000',
+      supply_normalized: '1.00000000',
     },
     quantity_normalized: '1.00000000',
   },

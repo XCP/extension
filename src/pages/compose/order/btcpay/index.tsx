@@ -1,10 +1,10 @@
 import { BTCPayForm } from './form';
 import { ReviewBTCPay } from './review';
-import { Composer } from '@/components/composer';
+import { Composer } from '@/components/composer/composer';
 import { composeBTCPay } from '@/utils/blockchain/counterparty/compose';
 import type { BTCPayOptions } from '@/utils/blockchain/counterparty/compose';
 
-function ComposeBTCPay() {
+function ComposeOrderBtcPayPage() {
   return (
     <div className="p-4">
       <Composer<BTCPayOptions>
@@ -18,4 +18,4 @@ function ComposeBTCPay() {
   );
 }
 
-export default ComposeBTCPay;
+export default ComposeOrderBtcPayPage;

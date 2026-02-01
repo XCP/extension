@@ -33,6 +33,7 @@ import { onMessage } from 'webext-bridge/popup';
 import { DEFAULT_SETTINGS, type AppSettings } from "@/utils/settings";
 import { getWalletService } from "@/services/walletService";
 import { withStateLock } from "@/utils/wallet/stateLockManager";
+import { analytics } from "@/utils/fathom";
 
 /**
  * Public API for settings management.
@@ -102,6 +103,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // Persist to storage via background service
       const walletService = getWalletService();
       await walletService.updateSettings(newSettings);
+      analytics.track('settings_changed');
     } catch (error) {
       console.error('Failed to persist settings:', error);
       // On error, reload from storage to get the authoritative state.

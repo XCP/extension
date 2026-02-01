@@ -94,15 +94,6 @@ export class WalletManager {
     await sessionManager.setLastActiveTime();
   }
 
-  public async isAnyWalletUnlocked(): Promise<boolean> {
-    for (const w of this.wallets) {
-      if (await sessionManager.getUnlockedSecret(w.id)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   public async refreshWallets(): Promise<void> {
     // If keychain is already loaded, just refresh addresses
     if (this.keychain) {

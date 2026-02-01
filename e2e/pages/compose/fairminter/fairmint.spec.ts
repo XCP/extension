@@ -2,56 +2,38 @@
  * Compose Fairmint Page Tests (/compose/fairmint)
  *
  * Tests for participating in a fairminter (minting from a fair launch).
+ * Component: src/pages/compose/fairminter/fairmint/index.tsx
+ *
+ * Note: This page requires selecting a fairminter from a dropdown.
+ * Fee Rate and Continue button only appear after a fairminter is selected.
+ * Tests check the initial page structure before fairminter selection.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { walletTest, expect } from '@e2e/fixtures';
 
 walletTest.describe('Compose Fairmint Page (/compose/fairmint)', () => {
-  walletTest('fairmint page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
+  walletTest.beforeEach(async ({ page }) => {
+    // Navigate directly to fairmint page
+    // Route is /compose/fairmint/:asset? (not /compose/fairminter/fairmint)
+    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint'));
     await page.waitForLoadState('networkidle');
-
-    const hasFairmint = await page.locator('text=/Fairmint|Mint|Participate/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-    const hasMintButton = await compose.fairmint.mintButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-    const redirected = !page.url().includes('fairmint');
-
-    expect(hasFairmint || hasMintButton || redirected).toBe(true);
   });
 
-  walletTest('fairmint form has quantity input', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasQuantityField = await page.locator('text=/Quantity|Amount|How.*Many/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasQuantityInput = await compose.fairmint.quantityInput(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasQuantityField || hasQuantityInput || true).toBe(true);
-    }
+  walletTest('page loads with Fairmint title', async ({ page }) => {
+    // The header should show "Fairmint"
+    const titleText = page.locator('text="Fairmint"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairmint shows asset information', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasAssetInfo = await page.locator('text=/TESTASSET|Asset.*Info|Token/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      const hasPrice = await page.locator('text=/Price|Rate|Cost/i').first().isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasAssetInfo || hasPrice || true).toBe(true);
-    }
+  walletTest('shows Fairminter Asset selector', async ({ page }) => {
+    // The fairminter selection label should be visible
+    const fairminterLabel = page.locator('label:has-text("Fairminter Asset")');
+    await expect(fairminterLabel).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('fairmint has mint button', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/fairmint/TESTASSET'));
-    await page.waitForLoadState('networkidle');
-
-    if (page.url().includes('fairmint')) {
-      const hasMintButton = await compose.fairmint.mintButton(page).isVisible({ timeout: 5000 }).catch(() => false);
-      const hasSubmitButton = await compose.common.submitButton(page).isVisible({ timeout: 3000 }).catch(() => false);
-
-      expect(hasMintButton || hasSubmitButton || true).toBe(true);
-    }
+  walletTest('has back button', async ({ page }) => {
+    // Back button should exist for navigation
+    const backButton = page.locator('button[aria-label*="back" i], button:has-text("Back")').first();
+    await expect(backButton).toBeVisible({ timeout: 10000 });
   });
 });

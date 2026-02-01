@@ -256,109 +256,99 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       const startLockVersion = lockStateVersionRef.current;
 
       try {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[WalletContext] Starting state refresh, version:', startLockVersion);
-      }
-
-      await walletService.refreshWallets();
-      const allWallets = await walletService.getWallets();
-
-      // Use ref to get current state without triggering re-renders
-      const currentState = walletStateRef.current;
-      const newState: WalletState = { ...currentState };
-
-      // Check if keychain exists in storage (fast check, no crypto)
-      newState.keychainExists = await checkKeychainExists();
-
-      let walletsEqual = walletsEqualArray(newState.wallets, allWallets);
-      let activeChanged = false;
-      let addressChanged = false;
-      let lockChanged = false;
-
-      if (allWallets.length === 0) {
-        if (process.env.NODE_ENV === 'development' && newState.authState !== AuthState.Onboarding) {
-          console.log('[WalletContext] Transition: ', newState.authState, ' -> ', AuthState.Onboarding);
-        }
-        newState.authState = AuthState.Onboarding;
-        newState.activeWallet = null;
-        newState.activeAddress = null;
-        newState.keychainLocked = true;
-      } else {
-        const anyUnlocked = await walletService.isAnyWalletUnlocked();
-        const newAuthState = anyUnlocked ? AuthState.Unlocked : AuthState.Locked;
-        if (process.env.NODE_ENV === 'development' && newState.authState !== newAuthState) {
-          console.log('[WalletContext] Transition: ', newState.authState, ' -> ', newAuthState);
-        }
-        newState.keychainLocked = !anyUnlocked;
-        newState.authState = newAuthState;
-
-        // Store for later use to avoid duplicate call
-        lockChanged = currentState.keychainLocked !== !anyUnlocked;
-      }
-
-      if (!walletsEqual) newState.wallets = allWallets;
-
-      if (allWallets.length > 0) {
-        let active = await walletService.getActiveWallet();
-        if (!active) {
-          active = allWallets[0];
-          await walletService.setActiveWallet(active.id);
-        }
-        if (
-          (activeChanged = newState.activeWallet?.id !== active.id) ||
-          (newState.activeWallet &&
-            active &&
-            !addressesEqual(newState.activeWallet.addresses, active.addresses))
-        ) {
-          newState.activeWallet = active;
-        }
-
-        const lastActiveAddress = await walletService.getLastActiveAddress();
-        const newActiveAddress =
-          lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-            ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
-            : active.addresses[0] || null;
-        addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
-        if (addressChanged) newState.activeAddress = newActiveAddress;
-
-        // No need to call isAnyWalletUnlocked again - we already have the lock state from above
-      } else {
-        newState.activeWallet = null;
-        newState.activeAddress = null;
-        newState.keychainLocked = true;
-        newState.authState = AuthState.Onboarding;
-      }
-
-      newState.isLoading = false;
-
-      // Check if lock version changed during refresh (lock event happened)
-      // If so, don't apply potentially stale unlock state
-      if (lockStateVersionRef.current !== startLockVersion) {
         if (process.env.NODE_ENV === 'development') {
-          console.log('[WalletContext] Discarding stale refresh - lock event occurred');
+          console.log('[WalletContext] Starting state refresh, version:', startLockVersion);
         }
-        // Only update non-lock-related state
-        setWalletState((prev) => ({
-          ...prev,
-          wallets: newState.wallets,
-          isLoading: false,
-        }));
-        return;
-      }
 
-      if (!walletsEqual || activeChanged || addressChanged || lockChanged || currentState.isLoading) {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[WalletContext] State update:', {
-            walletsChanged: !walletsEqual,
-            activeChanged,
-            addressChanged,
-            lockChanged,
-            firstLoad: currentState.isLoading,
-            newAuthState: newState.authState
-          });
+        await walletService.refreshWallets();
+        const allWallets = await walletService.getWallets();
+
+        // Use ref to get current state without triggering re-renders
+        const currentState = walletStateRef.current;
+        const newState: WalletState = { ...currentState };
+
+        // Check if keychain exists in storage (fast check, no crypto)
+        newState.keychainExists = await checkKeychainExists();
+
+        const walletsEqual = walletsEqualArray(newState.wallets, allWallets);
+        let activeChanged = false;
+        let addressChanged = false;
+        let lockChanged = false;
+
+        // Determine auth state: keychainExists → then unlock status
+        const isUnlocked = newState.keychainExists && await walletService.isKeychainUnlocked();
+        const targetAuthState = !newState.keychainExists
+          ? AuthState.Onboarding
+          : isUnlocked ? AuthState.Unlocked : AuthState.Locked;
+
+        if (process.env.NODE_ENV === 'development' && newState.authState !== targetAuthState) {
+          console.log('[WalletContext] Transition:', newState.authState, '->', targetAuthState);
         }
-        setWalletState(newState);
-      }
+
+        newState.authState = targetAuthState;
+        newState.keychainLocked = !isUnlocked;
+        lockChanged = currentState.keychainLocked !== newState.keychainLocked;
+        if (!walletsEqual) newState.wallets = allWallets;
+
+        // Process active wallet/address only when unlocked with wallets available
+        if (isUnlocked && allWallets.length > 0) {
+          let active = await walletService.getActiveWallet();
+          if (!active) {
+            active = allWallets[0];
+            await walletService.setActiveWallet(active.id);
+          }
+          if (
+            (activeChanged = newState.activeWallet?.id !== active.id) ||
+            (newState.activeWallet &&
+              active &&
+              !addressesEqual(newState.activeWallet.addresses, active.addresses))
+          ) {
+            newState.activeWallet = active;
+          }
+
+          const lastActiveAddress = await walletService.getLastActiveAddress();
+          const newActiveAddress =
+            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+              ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+              : active.addresses[0] || null;
+          addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
+          if (addressChanged) newState.activeAddress = newActiveAddress;
+        } else {
+          newState.activeWallet = null;
+          newState.activeAddress = null;
+        }
+
+        newState.isLoading = false;
+
+        // Check if lock version changed during refresh (lock event happened)
+        // If so, don't apply potentially stale unlock state
+        if (lockStateVersionRef.current !== startLockVersion) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[WalletContext] Discarding stale refresh - lock event occurred');
+          }
+          // Only update non-lock-related state
+          setWalletState((prev) => ({
+            ...prev,
+            wallets: newState.wallets,
+            isLoading: false,
+          }));
+          return;
+        }
+
+        const authStateChanged = currentState.authState !== newState.authState;
+        if (!walletsEqual || activeChanged || addressChanged || lockChanged || authStateChanged || currentState.isLoading) {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[WalletContext] State update:', {
+              walletsChanged: !walletsEqual,
+              activeChanged,
+              addressChanged,
+              lockChanged,
+              authStateChanged,
+              firstLoad: currentState.isLoading,
+            });
+          }
+          setWalletState(newState);
+        }
       } catch (error) {
         console.error("Error refreshing wallet state:", error);
         setWalletState((prev) => ({ ...prev, isLoading: false }));
@@ -426,17 +416,15 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
             ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
             : wallet.addresses[0];
         
-        // When switching wallets, maintain unlocked state if ANY wallet is unlocked
-        // This prevents redirect to lock screen when switching between wallets
-        const anyUnlocked = await walletService.isAnyWalletUnlocked();
-        
+        // When switching wallets, maintain unlocked state if keychain is unlocked
+        const isUnlocked = await walletService.isKeychainUnlocked();
+
         setWalletState((prev) => ({
           ...prev,
           activeWallet: wallet,
           activeAddress: newActiveAddress ?? null,
-          // Keep unlocked state if any wallet is unlocked
-          authState: anyUnlocked ? AuthState.Unlocked : prev.authState,
-          keychainLocked: !anyUnlocked,
+          authState: isUnlocked ? AuthState.Unlocked : prev.authState,
+          keychainLocked: !isUnlocked,
         }));
         if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
         } else {
@@ -482,8 +470,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   }, [walletService]);
 
   const isKeychainLocked = useCallback(async () => {
-    // Check if keychain is unlocked (master key available in session)
-    return !(await walletService.isAnyWalletUnlocked());
+    return !(await walletService.isKeychainUnlocked());
   }, [walletService]);
 
   const value = useMemo<WalletContextType>(() => ({

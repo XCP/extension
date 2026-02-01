@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiRefreshCw, FiExternalLink } from "@/components/icons";
-import { Button } from "@/components/button";
+import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
-function ConsolidationStatus() {
+function ConsolidateStatusPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
@@ -99,13 +99,13 @@ function ConsolidationStatus() {
       {/* Overview Card */}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <div className="flex justify-between items-start mb-4">
-          <h3 className="font-semibold">Consolidation Overview</h3>
+          <h2 className="font-semibold">Consolidation Overview</h2>
           <button
             onClick={handleRefresh}
-            className={`p-2 hover:bg-gray-100 rounded-lg transition-colors ${isRefreshing ? 'animate-spin' : ''}`}
-            title="Refresh status"
+            className={`p-2 hover:bg-gray-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isRefreshing ? 'animate-spin' : ''}`}
+            aria-label="Refresh status"
           >
-            <FiRefreshCw className="w-4 h-4 text-gray-600" />
+            <FiRefreshCw className="size-4 text-gray-600" aria-hidden="true" />
           </button>
         </div>
         
@@ -150,7 +150,7 @@ function ConsolidationStatus() {
       {/* Recent Consolidations */}
       {status.recent_consolidations.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-4">
-          <h3 className="font-semibold mb-3">Recent Consolidations</h3>
+          <h2 className="font-semibold mb-3">Recent Consolidations</h2>
           <div className="space-y-2">
             {status.recent_consolidations.filter(tx => tx.status !== 'replaced').map((tx) => (
               <div 
@@ -174,10 +174,10 @@ function ConsolidationStatus() {
                   </div>
                   <button
                     onClick={() => openInExplorer(tx.txid)}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
-                    title="View in explorer"
+                    className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    aria-label="View in explorer"
                   >
-                    <FiExternalLink className="w-4 h-4 text-gray-600" />
+                    <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
                 </div>
                 
@@ -210,7 +210,7 @@ function ConsolidationStatus() {
       <div className="flex space-x-3">
         {status.status.available_utxos > 0 && status.status.pending_utxos === 0 && (
           <Button
-            onClick={() => navigate('/consolidate')}
+            onClick={() => navigate('/actions/consolidate')}
             color="blue"
             fullWidth
           >
@@ -229,4 +229,4 @@ function ConsolidationStatus() {
   );
 }
 
-export default ConsolidationStatus;
+export default ConsolidateStatusPage;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatPriceRatio, formatAssetQuantity } from "@/utils/format";
+import { formatPriceRatio } from "@/utils/format";
 
 /**
  * Props for the ReviewOrder component.
@@ -33,10 +33,16 @@ export function ReviewOrder({
   const giveAssetDisplay = result.params.give_asset_info?.asset_longname || result.params.give_asset;
   const getAssetDisplay = result.params.get_asset_info?.asset_longname || result.params.get_asset;
 
+  // Use normalized values from verbose API response (already formatted correctly for divisibility)
+  const giveQuantityDisplay = result.params.give_quantity_normalized ?? result.params.give_quantity;
+  const getQuantityDisplay = result.params.get_quantity_normalized ?? result.params.get_quantity;
+
   const getPriceDisplay = () => {
+    // Use normalized quantities for correct price calculation
+    // Raw quantities are in satoshi-like units for divisible assets
     return formatPriceRatio(
-      result.params.give_quantity,
-      result.params.get_quantity,
+      giveQuantityDisplay,
+      getQuantityDisplay,
       giveAssetDisplay,
       getAssetDisplay,
       isPriceFlipped
@@ -46,11 +52,11 @@ export function ReviewOrder({
   const customFields = [
     {
       label: "Give",
-      value: `${formatAssetQuantity(result.params.give_quantity, true)} ${giveAssetDisplay}`,
+      value: `${giveQuantityDisplay} ${giveAssetDisplay}`,
     },
     {
       label: "Get",
-      value: `${formatAssetQuantity(result.params.get_quantity, true)} ${getAssetDisplay}`,
+      value: `${getQuantityDisplay} ${getAssetDisplay}`,
     },
     {
       label: "Price",
@@ -59,10 +65,10 @@ export function ReviewOrder({
         <button
           type="button"
           onClick={() => setIsPriceFlipped(!isPriceFlipped)}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
+          className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-label="Flip price ratio"
         >
-          <FaExchangeAlt className="w-4 h-4 text-gray-600" />
+          <FaExchangeAlt className="size-4 text-gray-600" aria-hidden="true" />
         </button>
       ),
     },

@@ -4,24 +4,21 @@
  * Tests for creating DEX orders.
  */
 
-import { walletTest, expect, navigateTo } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { walletTest, expect, navigateTo } from '@e2e/fixtures';
+import { compose } from '@e2e/selectors';
 import {
   enableValidationBypass,
   enableDryRun,
   waitForReview,
-  clickBack,
-} from '../../../helpers/compose-test-helpers';
+} from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Order Page (/compose/order)', () => {
   // Helper to navigate to order form with asset parameter
   const goToOrderForm = async (page: any) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-    // Order form requires asset parameter: /compose/order/:asset
     await page.goto(`${baseUrl}/compose/order/XCP`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
   };
 
   walletTest('can navigate to order form from actions', async ({ page }) => {
@@ -29,25 +26,32 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     await expect(page).toHaveURL(/actions/);
 
     const orderOption = page.locator('text=/Create Order|New Order|Place Order/i').first();
+    const optionCount = await orderOption.count();
 
-    if (await orderOption.isVisible({ timeout: 5000 }).catch(() => false)) {
+    if (optionCount > 0) {
+      await expect(orderOption).toBeVisible({ timeout: 5000 });
       await orderOption.click();
-      await page.waitForTimeout(500);
-
-      expect(page.url()).toContain('order');
+      await expect(page).toHaveURL(/order/, { timeout: 5000 });
     }
   });
 
   walletTest('order form has Buy/Sell tabs', async ({ page }) => {
     await goToOrderForm(page);
 
+    // Both tabs should be visible (they're toggle tabs)
     const buyTab = compose.order.buyTab(page);
     const sellTab = compose.order.sellTab(page);
 
-    const hasBuyTab = await buyTab.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasSellTab = await sellTab.isVisible({ timeout: 3000 }).catch(() => false);
+    await expect(buyTab).toBeVisible({ timeout: 5000 });
+    await expect(sellTab).toBeVisible({ timeout: 5000 });
+  });
 
-    expect(hasBuyTab || hasSellTab).toBe(true);
+  walletTest('order form defaults to Sell tab', async ({ page }) => {
+    await goToOrderForm(page);
+
+    const sellTab = compose.order.sellTab(page);
+    await expect(sellTab).toBeVisible({ timeout: 5000 });
+    await expect(sellTab).toHaveClass(/underline/);
   });
 
   walletTest('order form has amount and price inputs', async ({ page }) => {
@@ -56,46 +60,93 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     const amountInput = compose.order.amountInput(page);
     const priceInput = compose.order.priceInput(page);
 
-    const hasAmount = await amountInput.isVisible({ timeout: 5000 }).catch(() => false);
-    const hasPrice = await priceInput.isVisible({ timeout: 3000 }).catch(() => false);
-
-    expect(hasAmount && hasPrice).toBe(true);
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('order form has settings button', async ({ page }) => {
     await goToOrderForm(page);
 
     const settingsButton = page.locator('button[aria-label="Order Settings"]');
-    const hasSettings = await settingsButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    expect(hasSettings).toBe(true);
+    await expect(settingsButton).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('order form validates required fields', async ({ page }) => {
     await goToOrderForm(page);
 
-    const submitButton = compose.common.submitButton(page);
+    // Order form has amount and price inputs that need values
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
 
-    try {
-      await expect(submitButton).toBeVisible({ timeout: 5000 });
-      const isDisabled = await submitButton.isDisabled();
-      expect(isDisabled).toBe(true);
-    } catch {
-      // Submit button not visible - form may have different structure, test passes
-      expect(true).toBe(true);
-    }
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+
+    // Both inputs should be required for form submission
+    const amountRequired = await amountInput.getAttribute('required');
+    const priceRequired = await priceInput.getAttribute('required');
+
+    // Both inputs should start empty (requiring user input)
+    await expect(amountInput).toHaveValue('');
+    await expect(priceInput).toHaveValue('');
+  });
+
+  walletTest('order form reads type param from URL', async ({ page }) => {
+    const hashIndex = page.url().indexOf('#');
+    const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
+
+    // Navigate with type=buy
+    await page.goto(`${baseUrl}/compose/order/XCP?type=buy`);
+    await page.waitForLoadState('networkidle');
+
+    // Buy tab should be selected (has underline class)
+    const buyTab = compose.order.buyTab(page);
+    await expect(buyTab).toBeVisible({ timeout: 5000 });
+    await expect(buyTab).toHaveClass(/underline/);
+  });
+
+  walletTest('order form reads price and amount params from URL', async ({ page }) => {
+    const hashIndex = page.url().indexOf('#');
+    const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
+
+    // Navigate with price and amount
+    await page.goto(`${baseUrl}/compose/order/XCP?type=sell&price=0.00123456&amount=100`);
+    await page.waitForLoadState('networkidle');
+
+    const amountInput = compose.order.amountInput(page);
+    const priceInput = compose.order.priceInput(page);
+
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+
+    // Inputs should have values from URL
+    await expect(amountInput).toHaveValue('100');
+    await expect(priceInput).toHaveValue('0.00123456');
+  });
+
+  walletTest('order form reads quote param from URL', async ({ page }) => {
+    const hashIndex = page.url().indexOf('#');
+    const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
+
+    // Navigate with quote=PEPECASH
+    await page.goto(`${baseUrl}/compose/order/XCP?quote=PEPECASH`);
+    await page.waitForLoadState('networkidle');
+
+    // Quote asset selector should show PEPECASH
+    const quoteSelect = compose.order.quoteAssetSelect(page);
+    await expect(quoteSelect).toBeVisible({ timeout: 5000 });
+
+    // The combobox or its child should contain PEPECASH
+    const pepecashText = page.getByText('PEPECASH').first();
+    await expect(pepecashText).toBeVisible({ timeout: 5000 });
   });
 });
 
 walletTest.describe('Order Flow - Full Compose Flow', () => {
-  // Helper to navigate to order form with asset parameter
   const goToOrderForm = async (page: any) => {
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
-    // Order form requires asset parameter: /compose/order/:asset
     await page.goto(`${baseUrl}/compose/order/XCP`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(500);
   };
 
   walletTest.beforeEach(async ({ page }) => {
@@ -106,56 +157,44 @@ walletTest.describe('Order Flow - Full Compose Flow', () => {
   walletTest('form → review: valid order shows review page', async ({ page }) => {
     await goToOrderForm(page);
 
-    // Fill order form - amount and price are required
     const amountInput = compose.order.amountInput(page);
     const priceInput = compose.order.priceInput(page);
 
-    if (await amountInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await amountInput.fill('1');
-    }
-    if (await priceInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await priceInput.fill('0.001');
-    }
-    await page.waitForTimeout(500);
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await amountInput.fill('1');
+
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+    await priceInput.fill('0.001');
 
     const submitBtn = compose.common.submitButton(page);
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (isEnabled) {
-        await submitBtn.click();
-        await waitForReview(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
 
-        const reviewContent = await page.content();
-        expect(reviewContent).toMatch(/review|confirm|sign/i);
-      }
-    }
+    await waitForReview(page);
+
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
   });
 
-  walletTest('full flow: order form → review → sign → success', async ({ page }) => {
+  walletTest('full flow: order form → review → verify content', async ({ page }) => {
     await goToOrderForm(page);
 
     const amountInput = compose.order.amountInput(page);
     const priceInput = compose.order.priceInput(page);
 
-    if (await amountInput.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await amountInput.fill('1');
-    }
-    if (await priceInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await priceInput.fill('0.001');
-    }
-    await page.waitForTimeout(500);
+    await expect(amountInput).toBeVisible({ timeout: 5000 });
+    await amountInput.fill('1');
+
+    await expect(priceInput).toBeVisible({ timeout: 5000 });
+    await priceInput.fill('0.001');
 
     const submitBtn = compose.common.submitButton(page);
-    if (await submitBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const isEnabled = await submitBtn.isEnabled().catch(() => false);
-      if (isEnabled) {
-        await submitBtn.click();
-        await waitForReview(page);
+    await expect(submitBtn).toBeEnabled({ timeout: 5000 });
+    await submitBtn.click();
 
-        // Verify review page shows order details
-        const reviewContent = await page.content();
-        expect(reviewContent).toMatch(/review|confirm|sign/i);
-      }
-    }
+    await waitForReview(page);
+
+    const reviewContent = await page.content();
+    expect(reviewContent).toMatch(/review|confirm|sign/i);
   });
 });

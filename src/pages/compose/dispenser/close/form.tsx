@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { FiChevronDown, FaCheck } from "@/components/icons";
+import { FiChevronDown, FaCheck, FaCopy } from "@/components/icons";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { Field, Label, Description, Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { BalanceHeader } from "@/components/headers/balance-header";
-import { AddressHeader } from "@/components/headers/address-header";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
@@ -31,13 +30,9 @@ export function DispenserCloseForm({
   // Context hooks
   const { activeAddress, activeWallet, showHelpText, state } = useComposer();
 
-  // Data fetching hooks
-  const { data: assetDetails, error: assetDetailsError } = useAssetDetails(
-    initialAsset || initialFormData?.asset || "BTC"
-  );
-
   // Form status
   const { pending } = useFormStatus();
+  const { copy, isCopied } = useCopyToClipboard();
 
 
   // Form state
@@ -85,7 +80,7 @@ export function DispenserCloseForm({
     <img
       src={`https://app.xcp.io/img/icon/${asset}`}
       alt={`${asset} icon`}
-      className="w-5 h-5 rounded-full"
+      className="size-5 rounded-full"
       onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
     />
   );
@@ -94,68 +89,48 @@ export function DispenserCloseForm({
     <ComposerForm
       formAction={formAction}
       header={
-        <div className="space-y-4">
-          {activeAddress && (
-            <AddressHeader
-              address={activeAddress.address}
-              walletName={activeWallet?.name ?? ""}
-              className="mt-1 mb-5"
-            />
-          )}
-          {activeAddress && assetDetails && (initialFormData?.asset || asset) && (
-            <BalanceHeader
-              balance={{
-                asset: initialFormData?.asset || asset,
-                quantity_normalized: assetDetails.availableBalance,
-                asset_info: assetDetails.assetInfo ? {
-                  asset_longname: assetDetails.assetInfo.asset_longname,
-                  description: assetDetails.assetInfo.description || '',
-                  issuer: assetDetails.assetInfo.issuer || 'Unknown',
-                  divisible: assetDetails.assetInfo.divisible,
-                  locked: assetDetails.assetInfo.locked,
-                  supply: assetDetails.assetInfo.supply,
-                } : { divisible: true, asset_longname: null, description: "", issuer: "", locked: false },
-              }}
-              className="mt-1 mb-5"
-            />
-          )}
-          {assetDetailsError && <div className="text-red-500 mb-2">Failed to fetch asset details.</div>}
-        </div>
+        activeAddress && (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? ""}
+            className="mt-1 mb-5"
+          />
+        )
       }
     >
       {isLoading ? (
-        <div className="py-4 text-center">Loading dispensers...</div>
+        <div className="py-4 text-center">Loading dispensers…</div>
       ) : (
             <Field>
               <Label className="block text-sm font-medium text-gray-700">
                 Dispenser <span className="text-red-500">*</span>
               </Label>
               {relevantDispensers.length === 0 ? (
-                <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
+                <div className="relative w-full mt-1 cursor-not-allowed rounded-lg bg-gray-100 py-2.5 pl-3 pr-10 text-left border border-gray-300 text-gray-500 sm:text-sm">
                   <span className="block truncate">
                     No open dispensers found for {asset || "this address"}
                   </span>
                   <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                    <FiChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                    <FiChevronDown className="size-4 text-gray-400" aria-hidden="true" />
                   </span>
                 </div>
               ) : (
                 <>
                   <Listbox
-                    name="tx_hash"
                     value={selectedTxHash}
                     onChange={setSelectedTxHash}
                     disabled={pending}
                   >
-                    <ListboxButton className="relative w-full cursor-default rounded-lg bg-gray-50 py-2 pl-3 pr-10 text-left border focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    <div className="relative mt-1">
+                    <ListboxButton className="relative w-full cursor-pointer rounded-lg bg-gray-50 py-2.5 pl-3 pr-10 text-left border border-gray-200 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 text-base disabled:bg-gray-100 disabled:cursor-not-allowed">
                       <div className="flex items-center">
                         {selectedDispenser?.asset && <AssetIcon asset={selectedDispenser.asset} />}
                         <span className={`block truncate ${selectedDispenser ? "ml-2" : ""}`}>
-                          {selectedDispenser ? `${selectedDispenser.asset} - ${selectedDispenser.tx_hash.substring(0, 8)}...` : "Select a dispenser"}
+                          {selectedDispenser ? selectedDispenser.asset : "Select a dispenser"}
                         </span>
                       </div>
                       <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                        <FiChevronDown className="h-5 w-5 text-gray-400" aria-hidden="true" />
+                        <FiChevronDown className="size-4 text-gray-400" aria-hidden="true" />
                       </span>
                     </ListboxButton>
                     <ListboxOptions className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm">
@@ -163,7 +138,7 @@ export function DispenserCloseForm({
                         <ListboxOption
                           key={dispenser.tx_hash}
                           value={dispenser.tx_hash}
-                          className={({ focus }) => `relative cursor-pointer select-none py-2 pl-10 pr-4 ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`}
+                          className={({ focus }) => `relative cursor-pointer select-none py-2.5 pl-10 pr-4 ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`}
                         >
                           {({ selected, focus }) => (
                             <>
@@ -172,12 +147,12 @@ export function DispenserCloseForm({
                                   <AssetIcon asset={dispenser.asset} />
                                 </span>
                                 <span className={`ml-2 block truncate ${selected ? "font-medium" : "font-normal"}`}>
-                                  {dispenser.asset} - {dispenser.tx_hash.substring(0, 8)}...
+                                  {dispenser.asset}
                                 </span>
                               </div>
                               {selected && (
                                 <span className={`absolute inset-y-0 right-0 flex items-center pr-3 ${focus ? "text-white" : "text-blue-500"}`}>
-                                  <FaCheck className="h-5 w-5" aria-hidden="true" />
+                                  <FaCheck className="size-4" aria-hidden="true" />
                                 </span>
                               )}
                             </>
@@ -185,14 +160,36 @@ export function DispenserCloseForm({
                         </ListboxOption>
                       ))}
                     </ListboxOptions>
+                    </div>
                   </Listbox>
                   <input type="hidden" name="asset" value={asset} />
+                  <input type="hidden" name="status" value="10" />
                   {selectedDispenser && (
-                    <div className="mt-2 text-sm text-gray-700">
-                      <p>Asset: {selectedDispenser.asset}</p>
-                      <p>Give Quantity: {selectedDispenser.give_quantity_normalized}</p>
-                      <p>Escrow Quantity: {selectedDispenser.escrow_quantity_normalized}</p>
-                      <p>Price: {selectedDispenser.price_normalized}</p>
+                    <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Remaining</span>
+                        <span className="font-medium text-gray-900">{selectedDispenser.give_remaining_normalized} {selectedDispenser.asset}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500">Price</span>
+                        <span className="font-medium text-gray-900">{selectedDispenser.satoshirate_normalized} BTC</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-500">TX Hash</span>
+                        <button
+                          type="button"
+                          onClick={() => copy(selectedDispenser.tx_hash)}
+                          className="flex items-center gap-1.5 font-mono text-xs text-gray-600 hover:text-gray-900"
+                        >
+                          {selectedDispenser.tx_hash.substring(0, 8)}…{selectedDispenser.tx_hash.slice(-6)}
+                          {isCopied(selectedDispenser.tx_hash) ? (
+                            <FaCheck className="size-3 text-green-500" />
+                          ) : (
+                            <FaCopy className="size-3" />
+                          )}
+                        </button>
+                      </div>
+                      <input type="hidden" name="give_remaining_normalized" value={selectedDispenser.give_remaining_normalized} />
                     </div>
                   )}
                   {showHelpText && (

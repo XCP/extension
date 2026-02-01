@@ -17,11 +17,26 @@ import {
 describe('validateAmount', () => {
   describe('valid amounts', () => {
     it('should accept valid BTC amounts', () => {
-      expect(validateAmount('1').isValid).toBe(true);
-      expect(validateAmount('0.5').isValid).toBe(true);
-      expect(validateAmount('0.00001').isValid).toBe(true);
-      expect(validateAmount(1).isValid).toBe(true);
-      expect(validateAmount(0.5).isValid).toBe(true);
+      // Verify valid amounts have no error property
+      const result1 = validateAmount('1');
+      expect(result1.isValid).toBe(true);
+      expect(result1.error).toBeUndefined();
+
+      const result2 = validateAmount('0.5');
+      expect(result2.isValid).toBe(true);
+      expect(result2.error).toBeUndefined();
+
+      const result3 = validateAmount('0.00001');
+      expect(result3.isValid).toBe(true);
+      expect(result3.error).toBeUndefined();
+
+      const result4 = validateAmount(1);
+      expect(result4.isValid).toBe(true);
+      expect(result4.error).toBeUndefined();
+
+      const result5 = validateAmount(0.5);
+      expect(result5.isValid).toBe(true);
+      expect(result5.error).toBeUndefined();
     });
 
     it('should return satoshis and normalized value', () => {
@@ -40,9 +55,17 @@ describe('validateAmount', () => {
 
   describe('invalid amounts', () => {
     it('should reject empty/null/undefined', () => {
-      expect(validateAmount('').isValid).toBe(false);
-      expect(validateAmount(null as any).isValid).toBe(false);
-      expect(validateAmount(undefined as any).isValid).toBe(false);
+      const emptyResult = validateAmount('');
+      expect(emptyResult.isValid).toBe(false);
+      expect(emptyResult.error).toBe('Amount is required');
+
+      const nullResult = validateAmount(null as any);
+      expect(nullResult.isValid).toBe(false);
+      expect(nullResult.error).toBe('Amount is required');
+
+      const undefinedResult = validateAmount(undefined as any);
+      expect(undefinedResult.isValid).toBe(false);
+      expect(undefinedResult.error).toBe('Amount is required');
     });
 
     it('should reject negative amounts', () => {
@@ -58,17 +81,39 @@ describe('validateAmount', () => {
     });
 
     it('should reject special values', () => {
-      expect(validateAmount('NaN').isValid).toBe(false);
-      expect(validateAmount('Infinity').isValid).toBe(false);
-      expect(validateAmount('-Infinity').isValid).toBe(false);
+      const nanResult = validateAmount('NaN');
+      expect(nanResult.isValid).toBe(false);
+      expect(nanResult.error).toBe('Invalid amount');
+
+      const infResult = validateAmount('Infinity');
+      expect(infResult.isValid).toBe(false);
+      expect(infResult.error).toBe('Invalid amount');
+
+      const negInfResult = validateAmount('-Infinity');
+      expect(negInfResult.isValid).toBe(false);
+      expect(negInfResult.error).toBe('Invalid amount');
     });
 
     it('should reject invalid format', () => {
-      expect(validateAmount('abc').isValid).toBe(false);
-      expect(validateAmount('1.2.3').isValid).toBe(false);
-      expect(validateAmount('.').isValid).toBe(false);
-      expect(validateAmount('-').isValid).toBe(false);
-      expect(validateAmount('1e10').isValid).toBe(false);
+      const abcResult = validateAmount('abc');
+      expect(abcResult.isValid).toBe(false);
+      expect(abcResult.error).toBe('Invalid amount format');
+
+      const multiDotResult = validateAmount('1.2.3');
+      expect(multiDotResult.isValid).toBe(false);
+      expect(multiDotResult.error).toBe('Invalid amount format');
+
+      const dotResult = validateAmount('.');
+      expect(dotResult.isValid).toBe(false);
+      expect(dotResult.error).toBe('Invalid amount format');
+
+      const dashResult = validateAmount('-');
+      expect(dashResult.isValid).toBe(false);
+      expect(dashResult.error).toBe('Invalid amount format');
+
+      const sciNotationResult = validateAmount('1e10');
+      expect(sciNotationResult.isValid).toBe(false);
+      expect(sciNotationResult.error).toBe('Invalid amount format');
     });
 
     it('should reject amounts exceeding max', () => {
@@ -115,9 +160,17 @@ describe('validateAmount', () => {
 describe('validateQuantity', () => {
   describe('valid quantities', () => {
     it('should accept valid quantities', () => {
-      expect(validateQuantity('100').isValid).toBe(true);
-      expect(validateQuantity('0.5').isValid).toBe(true);
-      expect(validateQuantity(100).isValid).toBe(true);
+      const result1 = validateQuantity('100');
+      expect(result1.isValid).toBe(true);
+      expect(result1.error).toBeUndefined();
+
+      const result2 = validateQuantity('0.5');
+      expect(result2.isValid).toBe(true);
+      expect(result2.error).toBeUndefined();
+
+      const result3 = validateQuantity(100);
+      expect(result3.isValid).toBe(true);
+      expect(result3.error).toBeUndefined();
     });
 
     it('should return quantity and normalized value', () => {
@@ -130,9 +183,17 @@ describe('validateQuantity', () => {
 
   describe('invalid quantities', () => {
     it('should reject empty/null/undefined', () => {
-      expect(validateQuantity('').isValid).toBe(false);
-      expect(validateQuantity(null as any).isValid).toBe(false);
-      expect(validateQuantity(undefined as any).isValid).toBe(false);
+      const emptyResult = validateQuantity('');
+      expect(emptyResult.isValid).toBe(false);
+      expect(emptyResult.error).toBe('Quantity is required');
+
+      const nullResult = validateQuantity(null as any);
+      expect(nullResult.isValid).toBe(false);
+      expect(nullResult.error).toBe('Quantity is required');
+
+      const undefinedResult = validateQuantity(undefined as any);
+      expect(undefinedResult.isValid).toBe(false);
+      expect(undefinedResult.error).toBe('Quantity is required');
     });
 
     it('should reject negative quantities', () => {
@@ -148,16 +209,35 @@ describe('validateQuantity', () => {
     });
 
     it('should reject special values', () => {
-      expect(validateQuantity('NaN').isValid).toBe(false);
-      expect(validateQuantity('Infinity').isValid).toBe(false);
-      expect(validateQuantity('-Infinity').isValid).toBe(false);
+      const nanResult = validateQuantity('NaN');
+      expect(nanResult.isValid).toBe(false);
+      expect(nanResult.error).toBe('Invalid quantity');
+
+      const infResult = validateQuantity('Infinity');
+      expect(infResult.isValid).toBe(false);
+      expect(infResult.error).toBe('Invalid quantity');
+
+      const negInfResult = validateQuantity('-Infinity');
+      expect(negInfResult.isValid).toBe(false);
+      expect(negInfResult.error).toBe('Invalid quantity');
     });
 
     it('should reject invalid format', () => {
-      expect(validateQuantity('abc').isValid).toBe(false);
-      expect(validateQuantity('.').isValid).toBe(false);
-      expect(validateQuantity('-').isValid).toBe(false);
-      expect(validateQuantity('1e10').isValid).toBe(false);
+      const abcResult = validateQuantity('abc');
+      expect(abcResult.isValid).toBe(false);
+      expect(abcResult.error).toBe('Invalid quantity format');
+
+      const dotResult = validateQuantity('.');
+      expect(dotResult.isValid).toBe(false);
+      expect(dotResult.error).toBe('Invalid quantity format');
+
+      const dashResult = validateQuantity('-');
+      expect(dashResult.isValid).toBe(false);
+      expect(dashResult.error).toBe('Invalid quantity format');
+
+      const sciNotationResult = validateQuantity('1e10');
+      expect(sciNotationResult.isValid).toBe(false);
+      expect(sciNotationResult.error).toBe('Invalid quantity format');
     });
   });
 

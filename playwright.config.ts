@@ -4,10 +4,11 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
-  // Skip provider tests - webext-bridge initialization issues in test environment
-  testIgnore: ['**/provider.spec.ts'],
   fullyParallel: false,
-  
+
+  // Single worker for extension tests to avoid state conflicts
+  workers: 1,
+
   // Retry flaky tests in CI only
   retries: isCI ? 2 : 0,
   

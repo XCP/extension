@@ -16,6 +16,70 @@ import { walletManager } from '@/utils/wallet/walletManager';
 // =============================================================================
 
 const DEFAULT_LIMIT = 10;
+const CACHE_TTL_MS = 60_000; // 60 seconds
+
+// =============================================================================
+// CACHE
+// =============================================================================
+
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Generate a cache key from URL and params.
+ * Params are sorted for consistent keys regardless of object property order.
+ */
+function getCacheKey(url: string, params?: Record<string, string | number | boolean>): string {
+  if (!params || Object.keys(params).length === 0) return url;
+  const sortedParams = Object.entries(params)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('&');
+  return `${url}?${sortedParams}`;
+}
+
+/**
+ * Get cached data if still valid.
+ */
+function getFromCache<T>(key: string): T | null {
+  const entry = cache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+/**
+ * Store data in cache.
+ */
+function setInCache<T>(key: string, data: T): void {
+  cache.set(key, { data, timestamp: Date.now() });
+}
+
+/**
+ * Clear the API cache. Call after mutations (send, create order, etc.)
+ * to ensure fresh data on next read.
+ */
+export function clearApiCache(): void {
+  cache.clear();
+}
+
+/**
+ * Clear cache entries matching a pattern (e.g., for a specific address).
+ */
+export function clearApiCacheMatching(pattern: string): void {
+  for (const key of cache.keys()) {
+    if (key.includes(pattern)) {
+      cache.delete(key);
+    }
+  }
+}
 
 export const OrderStatus = {
   OPEN: 'open',
@@ -314,12 +378,17 @@ function encodePath(segment: string): string {
 }
 
 /**
- * Generic API GET helper with proper error handling.
+ * Generic API GET helper with proper error handling and caching.
  * Uses unknown instead of any for type safety.
+ *
+ * @param path - API path (e.g., '/v2/addresses/...')
+ * @param params - Query parameters
+ * @param options - Options including skipCache to bypass caching
  */
 async function cpApiGet<T = unknown>(
   path: string,
-  params?: Record<string, string | number | boolean | undefined>
+  params?: Record<string, string | number | boolean | undefined>,
+  options?: { skipCache?: boolean }
 ): Promise<T> {
   const base = await getApiBase();
   const url = `${base}${path}`;
@@ -331,6 +400,15 @@ async function cpApiGet<T = unknown>(
       ) as Record<string, string | number | boolean>
     : undefined;
 
+  // Check cache first (unless explicitly skipped)
+  const cacheKey = getCacheKey(url, filteredParams);
+  if (!options?.skipCache) {
+    const cached = getFromCache<T>(cacheKey);
+    if (cached !== null) {
+      return cached;
+    }
+  }
+
   try {
     const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
 
@@ -341,6 +419,9 @@ async function cpApiGet<T = unknown>(
         { statusCode: response.status }
       );
     }
+
+    // Cache successful response
+    setInCache(cacheKey, response.data as T);
 
     return response.data as T;
   } catch (error: unknown) {
@@ -369,12 +450,12 @@ async function cpApiGet<T = unknown>(
 /**
  * Fetch all token balances for an address.
  * @param address - Bitcoin address to query
- * @param options - Pagination and sorting options
+ * @param options - Pagination, sorting, and type filter options
  * @returns Array of token balances with asset info
  */
 export async function fetchTokenBalances(
   address: string,
-  options: PaginationOptions & { sort?: string } = {}
+  options: PaginationOptions & { sort?: string; type?: 'all' | 'utxo' | 'address' } = {}
 ): Promise<TokenBalance[]> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
     `/v2/addresses/${encodePath(address)}/balances`,
@@ -383,6 +464,7 @@ export async function fetchTokenBalances(
       limit: options.limit ?? DEFAULT_LIMIT,
       offset: options.offset ?? 0,
       ...(options.sort && { sort: options.sort }),
+      ...(options.type && { type: options.type }),
     }
   );
   return data.result ?? [];
@@ -661,8 +743,8 @@ export async function fetchAssetOrders(
 export async function fetchAddressDispensers(
   address: string,
   options: PaginationOptions & { status?: 'open' | 'closed' | 'closing' | 'open_empty_address' } = {}
-): Promise<PaginatedResponse<Dispenser>> {
-  return cpApiGet<PaginatedResponse<Dispenser>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
+): Promise<PaginatedResponse<DispenserDetails>> {
+  return cpApiGet<PaginatedResponse<DispenserDetails>>(`/v2/addresses/${encodePath(address)}/dispensers`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,

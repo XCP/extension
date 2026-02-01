@@ -7,46 +7,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
 
-// Mock RequestManager before any imports - use vi.hoisted for variables used in vi.mock factory
-const mockRequestManagerInstance = vi.hoisted(() => ({
-  createManagedPromise: vi.fn(),
-  resolve: vi.fn().mockReturnValue(true),
-  reject: vi.fn().mockReturnValue(true),
-  remove: vi.fn().mockReturnValue(true),
-  clear: vi.fn(),
-  getStats: vi.fn(),
-  destroy: vi.fn(),
-  size: vi.fn().mockReturnValue(0),
-}));
+// No RequestManager mock needed - new ApprovalService manages pending approval directly
 
-vi.mock('../core/RequestManager', () => {
-  return {
-    RequestManager: class {
-      createManagedPromise = mockRequestManagerInstance.createManagedPromise;
-      resolve = mockRequestManagerInstance.resolve;
-      reject = mockRequestManagerInstance.reject;
-      remove = mockRequestManagerInstance.remove;
-      clear = mockRequestManagerInstance.clear;
-      getStats = mockRequestManagerInstance.getStats;
-      destroy = mockRequestManagerInstance.destroy;
-      size = mockRequestManagerInstance.size;
-    },
-  };
-});
-
-// Mock approvalQueue
-vi.mock('@/utils/provider/approvalQueue', () => ({
-  approvalQueue: {
-    add: vi.fn(),
-    remove: vi.fn().mockReturnValue(true),
-    get: vi.fn(),
-    getAll: vi.fn().mockReturnValue([]),
-    getPendingRequests: vi.fn().mockReturnValue([]),
-    clear: vi.fn(),
-    size: vi.fn().mockReturnValue(0),
-  },
-  getApprovalBadgeText: vi.fn().mockReturnValue(''),
-}));
+// No approvalQueue mock needed - it's not used by the new ApprovalService
 
 // Mock eventEmitterService
 vi.mock('@/services/eventEmitterService', () => ({
@@ -66,15 +29,17 @@ vi.mock('@/utils/fathom', () => ({
   },
 }));
 
+// Mock popup utility
+vi.mock('@/utils/popup', () => ({
+  openPopupWindow: vi.fn().mockResolvedValue({
+    id: 12345,
+    close: vi.fn().mockResolvedValue(undefined),
+  }),
+  focusPopupWindow: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Now import the service
 import { ApprovalService } from '../approvalService';
-
-// Import mocked modules to access them in tests
-import { approvalQueue, getApprovalBadgeText } from '@/utils/provider/approvalQueue';
-
-// Type the mocked functions
-const mockedApprovalQueue = approvalQueue as any;
-const mockedGetApprovalBadgeText = getApprovalBadgeText as ReturnType<typeof vi.fn>;
 
 // Mock chrome APIs
 const mockStorage = {
@@ -111,15 +76,24 @@ beforeEach(() => {
       session: mockStorage,
     },
     action: {
-      openPopup: vi.fn().mockRejectedValue(new Error('Cannot open popup')),
+      setBadgeText: vi.fn(),
+      setBadgeBackgroundColor: vi.fn(),
     },
     windows: {
       getAll: vi.fn().mockResolvedValue([]),
+      getCurrent: vi.fn().mockResolvedValue({ id: 1, width: 1920, height: 1080, top: 0, left: 0 }),
+      create: vi.fn().mockResolvedValue({ id: 12345 }),
+      remove: vi.fn().mockResolvedValue(undefined),
       update: mockWindows.update,
+      onRemoved: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+      },
     },
     runtime: {
       id: 'test-extension-id',
       sendMessage: vi.fn(),
+      getURL: vi.fn((path: string) => `chrome-extension://test/${path}`),
     },
   } as any;
 
@@ -144,22 +118,11 @@ describe('ApprovalService', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
 
-    // Reset mock functions
-    mockRequestManagerInstance.createManagedPromise.mockClear();
-    mockRequestManagerInstance.resolve.mockClear().mockReturnValue(true);
-    mockRequestManagerInstance.reject.mockClear().mockReturnValue(true);
-    mockRequestManagerInstance.remove.mockClear().mockReturnValue(true);
-    mockRequestManagerInstance.size.mockClear().mockReturnValue(0);
-
-    // Reset approval queue mock to return empty array
-    mockedApprovalQueue.getAll.mockReturnValue([]);
-    mockedApprovalQueue.remove.mockReturnValue(true);
-
     approvalService = new ApprovalService();
-    
+
     // Mock initial storage state
     mockStorage.get.mockResolvedValue({});
-    
+
     await approvalService.initialize();
   });
 
@@ -168,18 +131,10 @@ describe('ApprovalService', () => {
   });
 
   describe('requestApproval', () => {
-    it('should create approval request for connection', async () => {
-      // Mock successful promise resolution
-      const mockPromise = Promise.resolve(true);
-      mockRequestManagerInstance.createManagedPromise.mockReturnValue(mockPromise);
-
-      // Ensure conditions for window creation: no existing windows
-      (global.chrome as any).windows.getAll.mockResolvedValueOnce([]);
-      // Mock window creation
-      mockWindows.create.mockResolvedValue({ id: 123 });
-
+    it('should create pending approval and open popup', async () => {
+      // Start a request but don't await it
       const approvalPromise = approvalService.requestApproval({
-        id: 'connection-https://test.com-123',
+        id: 'test-connection',
         origin: 'https://test.com',
         method: 'connection',
         params: [],
@@ -191,340 +146,211 @@ describe('ApprovalService', () => {
         },
       });
 
-      // Wait a bit for async window operations to complete
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // Add catch handler to prevent unhandled rejection
+      approvalPromise.catch(() => {});
 
-      expect(mockRequestManagerInstance.createManagedPromise).toHaveBeenCalledWith(
-        expect.stringMatching(/^connection-https:\/\/test\.com-\d+$/),
-        expect.objectContaining({
-          origin: 'https://test.com',
-          method: 'connection',
-          metadata: expect.objectContaining({
-            domain: 'test.com',
-          }),
-        })
-      );
-      
-      expect(mockWindows.create).toHaveBeenCalledWith({
-        url: expect.stringContaining('/popup.html#/provider/approval-queue'),
-        type: 'popup',
-        width: 400,
-        height: 600,
-        focused: true,
-      });
-      
-      // Should resolve the promise
-      const result = await approvalPromise;
-      expect(result).toBe(true);
+      // Verify approval is now pending
+      expect(approvalService.hasPendingApproval()).toBe(true);
+      const current = approvalService.getCurrentApproval();
+      expect(current?.id).toBe('test-connection');
+      expect(current?.origin).toBe('https://test.com');
+
+      // Clean up
+      approvalService.rejectApproval('test-connection', 'test cleanup');
     });
 
-    it('should create approval request for transaction signing', async () => {
-      const mockPromise = Promise.resolve(true);
-      mockRequestManagerInstance.createManagedPromise.mockReturnValue(mockPromise);
-      
-      mockWindows.create.mockResolvedValue({ id: 456 });
-      
+    it('should resolve when approval is granted', async () => {
       const approvalPromise = approvalService.requestApproval({
-        id: 'transaction-https://dapp.com-456',
+        id: 'test-approve',
         origin: 'https://dapp.com',
-        method: 'transaction',
-        params: ['0x123456...'],
-        type: 'transaction',
+        method: 'connection',
+        params: [],
+        type: 'connection',
         metadata: {
           domain: 'dapp.com',
-          title: 'Sign Transaction',
-          description: 'Sign a send transaction',
+          title: 'Connect',
+          description: 'Connect request',
         },
       });
-      
-      expect(mockRequestManagerInstance.createManagedPromise).toHaveBeenCalledWith(
-        expect.stringMatching(/^transaction-https:\/\/dapp\.com-\d+$/),
-        expect.objectContaining({
-          origin: 'https://dapp.com',
-          method: 'transaction',
-        })
-      );
-      
+
+      // Resolve the approval
+      approvalService.resolveApproval('test-approve', { approved: true });
+
       const result = await approvalPromise;
-      expect(result).toBe(true);
+      expect(result).toEqual({ approved: true });
     });
 
-    it('should create approval request for message signing', async () => {
-      const mockPromise = Promise.resolve('signature-result');
-      mockRequestManagerInstance.createManagedPromise.mockReturnValue(mockPromise);
-      
-      mockWindows.create.mockResolvedValue({ id: 789 });
-      
+    it('should reject when approval is denied', async () => {
       const approvalPromise = approvalService.requestApproval({
-        id: 'signature-https://auth.com-789',
-        origin: 'https://auth.com',
-        method: 'signature',
-        params: ['Please sign this message', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'],
-        type: 'signature',
+        id: 'test-reject',
+        origin: 'https://dapp.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
         metadata: {
-          domain: 'auth.com',
-          title: 'Sign Message',
-          description: 'Authenticate with signature',
+          domain: 'dapp.com',
+          title: 'Connect',
+          description: 'Connect request',
         },
       });
-      
-      const result = await approvalPromise;
-      expect(result).toBe('signature-result');
+
+      // Reject the approval
+      approvalService.rejectApproval('test-reject', 'User denied');
+
+      await expect(approvalPromise).rejects.toThrow('User denied');
     });
 
-    it('should handle multiple approval requests properly', async () => {
-      // Setup mock to return empty array for first call, then existing window for subsequent calls
-      (global.chrome as any).windows.getAll
-        .mockResolvedValueOnce([]) // First request finds no windows
-        .mockResolvedValue([  // All subsequent requests find the created window
-          {
-            id: 100,
-            tabs: [
-              {
-                url: 'chrome-extension://test-extension-id/popup.html',  // Simplified URL for matching
-              },
-            ],
-          },
-        ]);
-
-      mockWindows.create.mockResolvedValueOnce({ id: 100 });
-
-      const mockPromise1 = Promise.resolve(true);
-      const mockPromise2 = Promise.resolve(false);
-
-      mockRequestManagerInstance.createManagedPromise
-        .mockReturnValueOnce(mockPromise1)
-        .mockReturnValueOnce(mockPromise2);
-
-      // Create first approval request - this should create a window
-      await approvalService.requestApproval({
-        id: 'connection-https://first.com-100',
+    it('should supersede existing pending approval with new request', async () => {
+      // First request
+      const firstPromise = approvalService.requestApproval({
+        id: 'first-request',
         origin: 'https://first.com',
         method: 'connection',
         params: [],
         type: 'connection',
-        metadata: { domain: 'first.com', title: 'First', description: 'First request' },
+        metadata: { domain: 'first.com', title: 'First', description: 'First' },
       });
+      firstPromise.catch(() => {});
 
-      // Verify window was created
-      expect(mockWindows.create).toHaveBeenCalledTimes(1);
+      expect(approvalService.getCurrentApproval()?.id).toBe('first-request');
 
-      // Create second approval request which should focus existing window
+      // Second request should supersede the first
       const secondPromise = approvalService.requestApproval({
-        id: 'connection-https://second.com-101',
+        id: 'second-request',
         origin: 'https://second.com',
         method: 'connection',
         params: [],
         type: 'connection',
-        metadata: { domain: 'second.com', title: 'Second', description: 'Second request' },
+        metadata: { domain: 'second.com', title: 'Second', description: 'Second' },
       });
+      secondPromise.catch(() => {});
 
-      // Wait for async operations
-      await new Promise(resolve => setTimeout(resolve, 10));
+      // First should be rejected with "Superseded by new request"
+      await expect(firstPromise).rejects.toThrow('Superseded by new request');
 
-      // Check what actually happened
-      const getAllCalls = (global.chrome as any).windows.getAll.mock.calls;
+      // Second should be the current pending approval
+      expect(approvalService.getCurrentApproval()?.id).toBe('second-request');
 
-      // The second call to getAll should return the existing window
-      // If it's creating 2 windows, it means getAll isn't returning the window properly
-      expect(getAllCalls).toHaveLength(2); // One for each request
-
-      // The important thing is that we handle multiple requests properly
-      // Whether we focus an existing window or use chrome.action.openPopup is an implementation detail
-      // What matters is that both requests are queued and can be approved
-      expect(mockRequestManagerInstance.createManagedPromise).toHaveBeenCalledTimes(2);
-
-      // For now, accept that the implementation creates windows as needed
-      // The key behavior is that requests are properly queued
-      expect(mockWindows.create.mock.calls.length).toBeGreaterThanOrEqual(1);
-
-      // Clean up promise
-      await secondPromise;
-    });
-
-    it('should validate approval request parameters', async () => {
-      // The service doesn't validate URL format in requestApproval
-      // It accepts any origin string and creates a managed promise
-      // Test that it properly creates the request
-      const promise = approvalService.requestApproval({
-        id: 'test-1',
-        origin: 'http://test.com',
-        method: 'connection',
-        params: [],
-        type: 'connection',
-        metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
-      } as any);
-
-      // The promise will timeout since it's not resolved
-      // Just verify it doesn't throw immediately
-      expect(promise).toBeInstanceOf(Promise);
-
-      // Clean up by rejecting the approval
-      approvalService.rejectApproval('test-1', 'Test cleanup');
+      // Clean up
+      approvalService.rejectApproval('second-request', 'test cleanup');
     });
   });
 
   describe('resolveApproval', () => {
-    it('should resolve pending approval with success result', () => {
-      const requestId = 'test-request-123';
-      const result = { approved: true, data: 'success' };
-      
-      const resolved = approvalService.resolveApproval(requestId, result);
-      
+    it('should resolve pending approval with success result', async () => {
+      // First create a pending approval
+      const approvalPromise = approvalService.requestApproval({
+        id: 'test-resolve',
+        origin: 'https://test.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
+        metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
+      });
+
+      // Resolve it
+      const resolved = approvalService.resolveApproval('test-resolve', { approved: true });
       expect(resolved).toBe(true);
-      expect(mockRequestManagerInstance.resolve).toHaveBeenCalledWith(requestId, result);
+
+      // Promise should resolve
+      const result = await approvalPromise;
+      expect(result).toEqual({ approved: true });
     });
 
-    it('should resolve pending approval with rejection', () => {
-      const requestId = 'test-request-456';
-      const result = { approved: false, reason: 'User denied' };
-      
-      const resolved = approvalService.resolveApproval(requestId, result);
-      
+    it('should reject pending approval when approved: false', async () => {
+      // First create a pending approval
+      const approvalPromise = approvalService.requestApproval({
+        id: 'test-reject',
+        origin: 'https://test.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
+        metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
+      });
+
+      // Resolve with approved: false
+      const resolved = approvalService.resolveApproval('test-reject', { approved: false });
       expect(resolved).toBe(true);
-      expect(mockRequestManagerInstance.resolve).toHaveBeenCalledWith(requestId, false);
+
+      // Promise should reject
+      await expect(approvalPromise).rejects.toThrow('User denied the request');
     });
 
     it('should return false for non-existent request', () => {
-      // Mock both queue and request manager to return false for non-existent request
-      mockedApprovalQueue.remove.mockReturnValue(false);
-      mockRequestManagerInstance.resolve.mockReturnValue(false);
-      
+      // No pending approval, so resolving should return false
       const resolved = approvalService.resolveApproval('non-existent', { approved: true });
       expect(resolved).toBe(false);
     });
   });
 
-  describe('getApprovalQueue', () => {
-    it('should return list of pending approvals', async () => {
-      // Mock queue state
-      const mockQueue = [
-        {
-          id: 'req1',
-          origin: 'https://site1.com',
-          method: 'connection',
-          params: [],
-          type: 'connection',
-          metadata: { domain: 'site1.com', title: 'Connect', description: 'Connection request' },
-          timestamp: Date.now(),
-        },
-        {
-          id: 'req2',
-          origin: 'https://site2.com',
-          method: 'transaction',
-          params: [],
-          type: 'transaction',
-          metadata: { domain: 'site2.com', title: 'Sign', description: 'Transaction signing' },
-          timestamp: Date.now(),
-        },
-      ];
-      
-      // Mock the approvalQueue.getAll method to return our mock queue
-      mockedApprovalQueue.getAll.mockReturnValue(mockQueue);
-      
-      const queue = await approvalService.getApprovalQueue();
-      expect(queue).toEqual(mockQueue);
+  describe('getCurrentApproval', () => {
+    it('should return null when no pending approval', () => {
+      const current = approvalService.getCurrentApproval();
+      expect(current).toBeNull();
     });
 
-    it('should return empty array when no pending approvals', async () => {
-      // Ensure the mock returns empty array
-      mockedApprovalQueue.getAll.mockReturnValue([]);
-      
-      const queue = await approvalService.getApprovalQueue();
-      expect(queue).toEqual([]);
-    });
-  });
+    it('should return current approval when one is pending', async () => {
+      // Create a pending approval - don't await, just start it
+      const approvalPromise = approvalService.requestApproval({
+        id: 'test-request',
+        origin: 'https://test.com',
+        method: 'connection',
+        type: 'connection',
+        params: [],
+        metadata: {
+          domain: 'test.com',
+          title: 'Test Connection',
+          description: 'Test connection request',
+        },
+      });
 
-  describe('removeApprovalRequest', () => {
-    it('should remove approval request from queue', async () => {
-      const requestId = 'test-request';
-      
-      const removed = await approvalService.removeApprovalRequest(requestId);
-      
-      expect(removed).toBe(true);
-      expect(mockRequestManagerInstance.remove).toHaveBeenCalledWith(requestId);
+      // Add a catch handler to prevent unhandled rejection
+      approvalPromise.catch(() => {});
+
+      const current = approvalService.getCurrentApproval();
+      expect(current).not.toBeNull();
+      expect(current?.id).toBe('test-request');
+      expect(current?.origin).toBe('https://test.com');
+
+      // Clean up
+      approvalService.rejectApproval('test-request', 'test cleanup');
     });
   });
 
   describe('badge management', () => {
-    it('should update badge when approvals are pending', async () => {
-      // Mock the getApprovalBadgeText function to return '2'
-      mockedGetApprovalBadgeText.mockReturnValue('2');
-      
-      // Trigger badge update (internal method)
-      (approvalService as any).updateBadge();
-      
-      expect((global as any).browser.action.setBadgeText).toHaveBeenCalledWith({ text: '2' });
-      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({
-        color: '#3B82F6'
+    it('should update badge based on pending state', async () => {
+      // Create a pending approval
+      const approvalPromise = approvalService.requestApproval({
+        id: 'badge-test',
+        origin: 'https://test.com',
+        method: 'connection',
+        params: [],
+        type: 'connection',
+        metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       });
-    });
+      approvalPromise.catch(() => {});
 
-    it('should clear badge when no approvals pending', async () => {
-      // Mock the getApprovalBadgeText function to return empty string
-      mockedGetApprovalBadgeText.mockReturnValue('');
-      
-      (approvalService as any).updateBadge();
-      
-      expect((global as any).browser.action.setBadgeText).toHaveBeenCalledWith({ text: '' });
-      expect((global as any).browser.action.setBadgeBackgroundColor).toHaveBeenCalledWith({ 
-        color: '#000000' 
-      });
+      // There should be a pending approval
+      expect(approvalService.hasPendingApproval()).toBe(true);
+
+      // Resolve to clear
+      approvalService.resolveApproval('badge-test', { approved: true });
+
+      // Should be cleared
+      expect(approvalService.hasPendingApproval()).toBe(false);
     });
   });
 
   describe('state persistence', () => {
-    it('should restore pending approvals after service restart', async () => {
-      // Mock saved state (using correct state format)
-      const savedState = {
-        version: 1,
-        data: {
-          currentWindow: 123,
-          requestStats: [
-            { origin: 'https://saved.com', count: 1, lastRequest: Date.now() - 30000 }
-          ]
-        }
-      };
-      
-      mockStorage.get.mockResolvedValue({ 'ApprovalService': savedState });
-      
+    it('should initialize fresh on restart (no state persistence for in-flight requests)', async () => {
       // Reinitialize service
       await approvalService.destroy();
       approvalService = new ApprovalService();
       await approvalService.initialize();
-      
-      // Should restore the state properly (checking that it initialized without error)
-      const stats = approvalService.getApprovalStats();
-      expect(stats).toBeDefined();
-    });
 
-    it('should clean up expired approvals on restart', async () => {
-      // The actual service doesn't persist approval queue in the same way
-      // Test that the service initializes properly and can handle state restoration
-      const savedState = {
-        version: 1,
-        data: {
-          currentWindow: null,
-          requestStats: [
-            { origin: 'https://expired.com', count: 5, lastRequest: Date.now() - 10 * 60 * 1000 },
-            { origin: 'https://valid.com', count: 1, lastRequest: Date.now() - 30000 }
-          ]
-        }
-      };
-
-      mockStorage.get.mockResolvedValue({ 'ApprovalService': savedState });
-
-      await approvalService.destroy();
-
-      // Create new service instance - the mock is already set up from vi.mock
-      approvalService = new ApprovalService();
-      await approvalService.initialize();
-
-      // Check that service restored properly - just verify it initializes without error
-      const stats = approvalService.getApprovalStats();
-      expect(stats.requestsByOrigin).toBeDefined();
-      // The service may or may not restore all stats depending on expiry logic
-      expect(stats.pendingCount).toBe(0);
+      // Should have no pending approval after restart
+      expect(approvalService.hasPendingApproval()).toBe(false);
+      expect(approvalService.getCurrentApproval()).toBeNull();
     });
   });
 

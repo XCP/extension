@@ -1,0 +1,38 @@
+/**
+ * Idle Timer Tests
+ *
+ * Tests for the auto-lock idle timer functionality.
+ */
+
+import {
+  walletTest,
+  expect,
+  navigateTo
+} from '../fixtures';
+import { settings } from '../selectors';
+
+// Skip in CI - this test takes 65+ seconds to wait for idle timer
+walletTest.skip('idle timer triggers auto-lock', async ({ page }) => {
+  await page.goto(page.url().replace('#/index', '#/settings/advanced'));
+  await page.waitForURL(/.*\/settings\/advanced$/);
+
+  const oneMinuteOption = settings.oneMinuteOption(page);
+  await expect(oneMinuteOption).toBeVisible({ timeout: 5000 });
+  await oneMinuteOption.click();
+
+  await page.goto(page.url().replace('#/settings/advanced', '#/index'));
+  await page.waitForURL(/.*\/index$/);
+
+  await page.reload();
+
+  // Wait 65 seconds for the 1-minute timer to trigger
+  await page.waitForTimeout(65000);
+
+  const url = page.url();
+
+  if (url.includes('unlock')) {
+    await expect(page).toHaveURL(/unlock/);
+  } else {
+    throw new Error(`Idle timer failed to trigger. Final URL: ${url}`);
+  }
+});

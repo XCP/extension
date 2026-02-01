@@ -1,10 +1,9 @@
-
 import { useEffect, useState } from "react";
 import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
-import { ComposerForm } from "@/components/composer-form";
-import { AddressHeader } from "@/components/headers/address-header";
-import { SettingSwitch } from "@/components/inputs/setting-switch";
-import { InscriptionUploadInput } from "@/components/inputs/file-upload-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { useComposer } from "@/contexts/composer-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
@@ -49,13 +48,6 @@ export function BroadcastForm({
     }
   }, [initialFormData?.text]);
 
-  // Focus textarea on mount (only if not inscribing)
-  useEffect(() => {
-    if (!inscribeEnabled) {
-      const textarea = document.querySelector("textarea[name='text']") as HTMLTextAreaElement;
-      textarea?.focus();
-    }
-  }, [inscribeEnabled]);
   
   // Handlers
   const handleFileChange = (file: File | null) => {
@@ -146,10 +138,11 @@ export function BroadcastForm({
                 name="text"
                 value={textContent}
                 onChange={(e) => setTextContent(e.target.value)}
-                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-gray-400"
                 required
                 rows={4}
                 disabled={false}
+                autoFocus={!inscribeEnabled}
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
@@ -183,7 +176,7 @@ export function BroadcastForm({
                   inputMode="numeric"
                   pattern="\d*"
                   defaultValue={initialFormData?.value || ""}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
                   disabled={false}
                 />
@@ -205,7 +198,7 @@ export function BroadcastForm({
                   inputMode="numeric"
                   pattern="[0-9]*\.?[0-9]*"
                   defaultValue={initialFormData?.fee_fraction || ""}
-                  className="mt-1 block w-full p-2 rounded-md border border-gray-300 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 hover:border-gray-400"
+                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-gray-400"
                   placeholder="0"
                   disabled={false}
                 />

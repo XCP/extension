@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Button } from "@/components/button";
-import { AddressHeader } from "@/components/headers/address-header";
-import { FeeRateInput } from "@/components/inputs/fee-rate-input";
-import { DestinationInput } from "@/components/inputs/destination-input";
+import { Button } from "@/components/ui/button";
+import { AddressHeader } from "@/components/ui/headers/address-header";
+import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useWallet } from "@/contexts/wallet-context";
 import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
@@ -109,7 +109,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
       )}
       <form onSubmit={handleSubmitInternal} className="bg-white rounded-lg shadow-lg p-4 space-y-6">
         {error && (
-          <div className="p-3 bg-red-100 text-red-700 rounded-md">
+          <div className="p-3 bg-red-100 text-red-700 rounded-md" role="alert">
             {error}
           </div>
         )}
@@ -126,12 +126,12 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
         
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">
-          <h3 className="font-semibold">Recoverable</h3>
+          <h2 className="font-semibold">Recoverable</h2>
           <div className="flex justify-between">
             <span className="text-gray-600">Total Bitcoin</span>
             <span className="font-medium">
               {isLoading ? (
-                <span className="text-gray-400">...</span>
+                <span className="text-gray-400">…</span>
               ) : formData.consolidationData ? (
                 `${formatAmount({
                   value: formData.consolidationData.summary.total_btc,
@@ -147,7 +147,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
             <span className="text-gray-600">Total UTXOs</span>
             <span className="font-medium">
               {isLoading ? (
-                <span className="text-gray-400">...</span>
+                <span className="text-gray-400">…</span>
               ) : formData.consolidationData ? (
                 formData.consolidationData.summary.total_utxos
               ) : (
@@ -188,7 +188,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
               checked={formData.includeStamps}
               onChange={handleIncludeStampsChange}
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-blue-600"></div>
           </label>
         </div>
 
@@ -213,7 +213,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
           fullWidth
           disabled={!formData.consolidationData || formData.consolidationData.summary.total_utxos === 0 || formData.feeRateSatPerVByte <= 0 || isLoading}
         >
-          {isLoading ? "Loading..." : "Continue to Review"}
+          {isLoading ? "Loading…" : "Continue to Review"}
         </Button>
       </form>
 
@@ -222,9 +222,9 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
         <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
           <button
             onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
-            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors"
+            className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="size-5 text-red-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
               <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
             <span className="text-sm font-medium text-gray-700">Watch: How to Recover Bitcoin</span>

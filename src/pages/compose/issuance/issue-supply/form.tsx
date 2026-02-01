@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { ComposerForm } from "@/components/composer-form";
-import { Spinner } from "@/components/spinner";
-import { AssetHeader } from "@/components/headers/asset-header";
-import { CheckboxInput } from "@/components/inputs/checkbox-input";
-import { AmountWithMaxInput } from "@/components/inputs/amount-with-max-input";
+import { ComposerForm } from "@/components/composer/composer-form";
+import { Spinner } from "@/components/ui/spinner";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { toBigNumber } from "@/utils/numeric";
@@ -40,7 +39,6 @@ export function IssueSupplyForm({
   // Form status
   const { pending } = useFormStatus();
   
-  // Form state
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
   const [lock, setLock] = useState(initialFormData?.lock || false);
   const [, setError] = useState<string | null>(null);
@@ -72,27 +70,20 @@ export function IssueSupplyForm({
     });
   };
 
-  // Process form action to convert quantity to integer
   const processedFormAction = async (formData: FormData) => {
     if (assetInfo) {
-      const isDivisible = assetInfo.divisible ?? false;
-      const quantityInt = isDivisible 
-        ? toBigNumber(quantity).multipliedBy(100000000).toFixed(0)
-        : toBigNumber(quantity).toFixed(0);
-      
-      formData.set('quantity', quantityInt);
+      formData.set('quantity', quantity);
       formData.set('asset', asset);
-      formData.set('divisible', String(isDivisible));
+      formData.set('divisible', String(assetInfo.divisible ?? false));
       formData.set('lock', String(lock));
-      formData.set('description', ''); // Empty description for issue supply
+      formData.set('description', '');
     }
-    
     formAction(formData);
   };
 
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details..." />;
+    return <Spinner message="Loading asset details…" />;
   }
 
   if (assetError || !assetInfo) {
@@ -144,15 +135,15 @@ export function IssueSupplyForm({
           availableBalance={calculateMaxAmount()}
           value={quantity}
           onChange={setQuantity}
-          sat_per_vbyte={1} // Not used for token issuance
           setError={setError}
           showHelpText={showHelpText}
           sourceAddress={activeAddress}
           maxAmount={calculateMaxAmount()}
           label="Amount"
           name="quantity_display"
-          description={`Amount of ${asset} to issue (max: ${calculateMaxAmount()})`}
-          disableMaxButton={false}
+          description={`Enter the amount of ${asset} to issue`}
+          disableMaxButton={true}
+          isDivisible={assetInfo?.divisible ?? false}
         />
         
         <CheckboxInput

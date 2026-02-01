@@ -50,6 +50,7 @@ import { useNavigate } from "react-router-dom";
 import { isApiError } from "@/utils/apiClient";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useHeader } from "@/contexts/header-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
@@ -79,10 +80,10 @@ interface ComposerState<T> {
   isComposing: boolean;
   /** True while signing/broadcasting */
   isSigning: boolean;
-  /** Whether auth modal is visible */
-  showAuthModal: boolean;
   /** Timestamp when transaction was composed (for staleness detection) */
   composedAt: number | null;
+  /** Current fee rate in sat/vB (null = use network default, set once user interacts or FeeRateInput initializes) */
+  feeRate: number | null;
 }
 
 /**
@@ -105,14 +106,18 @@ interface ComposerContextType<T> {
   reset: () => void;
   /** Clear current error message */
   clearError: () => void;
-  /** Show/hide the authentication modal */
-  setShowAuthModal: (show: boolean) => void;
 
   // ─── UI State ──────────────────────────────────────────────────────────────
   /** Whether help text is visible */
   showHelpText: boolean;
   /** Toggle help text visibility */
   toggleHelpText: () => void;
+
+  // ─── Fee Rate ─────────────────────────────────────────────────────────────
+  /** Current fee rate in sat/vB (null = use network default) */
+  feeRate: number | null;
+  /** Update the fee rate (called by FeeRateInput) */
+  setFeeRate: (rate: number) => void;
 
   // ─── Wallet/Settings Access ────────────────────────────────────────────────
   /** Currently active address */
@@ -121,10 +126,6 @@ interface ComposerContextType<T> {
   activeWallet: ReturnType<typeof useWallet>["activeWallet"];
   /** Current settings */
   settings: ReturnType<typeof useSettings>["settings"];
-
-  // ─── Auth Modal ────────────────────────────────────────────────────────────
-  /** Unlock wallet and complete signing (called from auth modal) */
-  handleUnlockAndSign: (password: string) => Promise<void>;
 }
 
 /**
@@ -170,13 +171,17 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, selectWallet, isKeychainLocked } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction } = useWallet();
   const { settings } = useSettings();
+  const { clearBalances } = useHeader();
 
   const previousAddressRef = useRef<string | undefined>(activeAddress?.address);
   const previousWalletRef = useRef<string | undefined>(activeWallet?.id);
   const previousAuthStateRef = useRef<string>(authState);
   const currentComposeTypeRef = useRef<string>(composeType);
+
+  // AbortController for cancelling pending operations on unmount/navigation
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize state
   const [state, setState] = useState<ComposerState<T>>({
@@ -186,19 +191,23 @@ export function ComposerProvider<T>({
     error: null,
     isComposing: false,
     isSigning: false,
-    showAuthModal: false,
     composedAt: null,
+    feeRate: null,
   });
 
 
   // Help text state (can be toggled locally)
   const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null);
   const showHelpText = localShowHelpText ?? settings?.showHelpText ?? false;
-  
+
   // Toggle help text
   const toggleHelpText = useCallback(() => {
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
+
+  const setFeeRate = useCallback((rate: number) => {
+    setState(prev => ({ ...prev, feeRate: rate }));
+  }, []);
   
   // Reset composer state when address changes
   useEffect(() => {
@@ -214,8 +223,8 @@ export function ComposerProvider<T>({
         error: null,
         isComposing: false,
         isSigning: false,
-        showAuthModal: false,
         composedAt: null,
+        feeRate: null,
       });
     }
     previousAddressRef.current = activeAddress?.address;
@@ -238,14 +247,21 @@ export function ComposerProvider<T>({
         error: null,
         isComposing: false,
         isSigning: false,
-        showAuthModal: false,
         composedAt: null,
+        feeRate: null,
       });
     }
 
     previousWalletRef.current = activeWallet?.id;
     previousAuthStateRef.current = authState;
   }, [activeWallet?.id, authState]);
+
+  // Cleanup: abort pending operations on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Compose transaction
   const composeTransaction = useCallback(async (formData: FormData) => {
@@ -259,15 +275,19 @@ export function ComposerProvider<T>({
       return;
     }
 
-    // Set isComposing to show local loading state
-    setState(prev => ({ ...prev, isComposing: true, error: null }));
+    // Cancel any pending operation and create new AbortController
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    // Convert FormData to object early so we can preserve it on error
+    const rawData = Object.fromEntries(formData);
+    const userData = rawData as unknown as T;
+
+    // Set isComposing to show local loading state, preserve formData for error recovery
+    setState(prev => ({ ...prev, isComposing: true, error: null, formData: userData }));
 
     try {
-      // Convert FormData to object
-      const rawData = Object.fromEntries(formData);
-
-      // Store original user data for form persistence
-      const userData = rawData as unknown as T;
 
       // Normalize data based on compose type (skip for broadcast which doesn't need normalization)
       let dataForApi: any = { ...userData, sourceAddress: activeAddress.address };
@@ -276,8 +296,14 @@ export function ComposerProvider<T>({
         dataForApi = { ...normalizedData, sourceAddress: activeAddress.address };
       }
 
-      // Call compose API
+      // Check if aborted before API call
+      if (signal.aborted) return;
+
+      // Call compose API (UTXO selection is handled internally by compose functions)
       const response = await composeApi(dataForApi);
+
+      // Check if aborted after API call
+      if (signal.aborted) return;
 
       // Validate response structure
       if (!response || typeof response !== 'object') {
@@ -315,6 +341,9 @@ export function ComposerProvider<T>({
       // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
       // which is allowed through (e.g., BTC-only transactions)
 
+      // Final abort check before state update
+      if (signal.aborted) return;
+
       // Track successful compose (form → review)
       analytics.track('compose');
 
@@ -329,6 +358,11 @@ export function ComposerProvider<T>({
         composedAt: Date.now(),
       }));
     } catch (error) {
+      // Silently ignore abort errors (user navigated away)
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+
       console.error("Compose error:", error);
       analytics.track('compose_error');
 
@@ -338,6 +372,9 @@ export function ComposerProvider<T>({
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
+
+      // Don't update state if aborted
+      if (signal.aborted) return;
 
       setState(prev => ({
         ...prev,
@@ -422,21 +459,28 @@ export function ComposerProvider<T>({
       return;
     }
 
-    // Check if wallet is locked
-    if (await isKeychainLocked()) {
-      setState(prev => ({ ...prev, showAuthModal: true }));
-      return;
-    }
+    // Cancel any pending compose operation and create new AbortController for signing
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     setState(prev => ({ ...prev, isSigning: true, error: null }));
 
     try {
+      // Note: We don't check signal.aborted after performSignAndBroadcast
+      // because once broadcast, the transaction is on the network regardless
       const apiResponseWithBroadcast = await performSignAndBroadcast();
 
       // Track successful broadcast with fee bucket
       const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
       const btcFeeAmount = btcFee / 100000000;
       analytics.track('broadcast', getBtcBucket(btcFeeAmount));
+
+      // Only skip state update if aborted (user navigated away)
+      if (signal.aborted) return;
+
+      // Clear balance cache so it refreshes after broadcast
+      clearBalances();
 
       setState(prev => ({
         ...prev,
@@ -446,19 +490,22 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     } catch (error) {
+      // Silently ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+
       console.error("Sign/broadcast error:", error);
       let errorMessage = "Failed to sign and broadcast transaction";
       if (error instanceof Error) {
         errorMessage = error.message;
 
-        // Special handling for wallet lock (not an error, just needs re-auth)
-        if (error.message.includes("Wallet is locked")) {
-          setState(prev => ({ ...prev, showAuthModal: true, isSigning: false }));
-          return;
-        }
       }
 
       analytics.track('broadcast_error');
+
+      // Don't update state if aborted
+      if (signal.aborted) return;
 
       setState(prev => ({
         ...prev,
@@ -466,38 +513,7 @@ export function ComposerProvider<T>({
         isSigning: false,
       }));
     }
-  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, isKeychainLocked, performSignAndBroadcast]);
-
-  // Handle unlock and sign (for auth modal)
-  const handleUnlockAndSign = useCallback(async (password: string) => {
-    if (!activeWallet || !state.apiResponse || !activeAddress) return;
-
-    setState(prev => ({ ...prev, isSigning: true }));
-    try {
-      // Load the wallet to decrypt its secret
-      await selectWallet(activeWallet.id);
-      setState(prev => ({ ...prev, showAuthModal: false }));
-
-      const apiResponseWithBroadcast = await performSignAndBroadcast();
-
-      // Track successful broadcast with fee bucket
-      const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
-      const btcFeeAmount = btcFee / 100000000;
-      analytics.track('broadcast', getBtcBucket(btcFeeAmount));
-
-      setState(prev => ({
-        ...prev,
-        step: "success",
-        apiResponse: apiResponseWithBroadcast,
-        error: null,
-        isSigning: false,
-      }));
-    } catch (error) {
-      console.error("Authorization error:", error);
-      setState(prev => ({ ...prev, isSigning: false }));
-      throw error; // Let the modal handle the error display
-    }
-  }, [activeWallet, activeAddress, state.apiResponse, selectWallet, performSignAndBroadcast]);
+  }, [state.apiResponse, state.isSigning, state.composedAt, activeAddress, activeWallet, performSignAndBroadcast, clearBalances]);
 
   // Navigation actions
   const reset = useCallback(() => {
@@ -508,8 +524,8 @@ export function ComposerProvider<T>({
       error: null,
       isComposing: false,
       isSigning: false,
-      showAuthModal: false,
       composedAt: null,
+      feeRate: null,
     });
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
@@ -532,13 +548,7 @@ export function ComposerProvider<T>({
   const clearError = useCallback(() => {
     setState(prev => ({ ...prev, error: null }));
   }, []);
-  
-  const setShowAuthModal = useCallback((show: boolean) => {
-    setState(prev => ({ ...prev, showAuthModal: show }));
-  }, []);
-  
-  
-  // Provide unlock handler for auth modal
+
   const contextValue = useMemo(() => ({
     state,
     composeTransaction,
@@ -546,14 +556,13 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
-    setShowAuthModal,
     showHelpText,
     toggleHelpText,
+    feeRate: state.feeRate,
+    setFeeRate,
     activeAddress,
     activeWallet,
     settings,
-    // Special handler for auth modal
-    handleUnlockAndSign,
   }), [
     state,
     composeTransaction,
@@ -561,13 +570,12 @@ export function ComposerProvider<T>({
     goBack,
     reset,
     clearError,
-    setShowAuthModal,
     showHelpText,
     toggleHelpText,
+    setFeeRate,
     activeAddress,
     activeWallet,
     settings,
-    handleUnlockAndSign,
   ]);
   
   return <ComposerContext value={contextValue}>{children}</ComposerContext>;

@@ -1,270 +1,235 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { FaSpinner } from "@/components/icons";
-import { Layout } from '@/components/layout';
-import { useWallet } from '@/contexts/wallet-context';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+
+import { ErrorBoundary } from '@/components/layout/error-boundary';
+import { FaSpinner } from '@/components/icons';
+import { Layout } from '@/components/layout/layout';
 import { AuthRequired } from '@/components/router/auth-required';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { analytics } from '@/utils/fathom';
-import { sanitizePath } from '@/utils/fathom';
+import { NoKeychainOnly } from '@/components/router/no-keychain-only';
+import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
+import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
+import { useWallet } from '@/contexts/wallet-context';
+import { analytics, sanitizePath } from '@/utils/fathom';
 
-// Auth
-import Onboarding from '@/pages/auth/onboarding';
-import UnlockWallet from '@/pages/auth/unlock-wallet';
+// Keychain + Requests (public-ish)
+import OnboardingPage from '@/pages/keychain/onboarding';
+import UnlockPage from '@/pages/keychain/unlock';
+import CreateMnemonicPage from '@/pages/keychain/setup/create-mnemonic';
+import ImportMnemonicPage from '@/pages/keychain/setup/import-mnemonic';
+import ApproveConnectionPage from '@/pages/requests/connect/approve';
+import ApprovePsbtPage from '@/pages/requests/psbt/approve';
+import ApproveTransactionPage from '@/pages/requests/transaction/approve';
 
-// Main navigation
-import Index from '@/pages/index';
-import Market from '@/pages/market';
-import Actions from '@/pages/actions';
-import Settings from '@/pages/settings';
+// Main sections
+import HomePage from '@/pages/index';
+import MarketPage from '@/pages/market';
+import ActionsPage from '@/pages/actions';
+import SettingsPage from '@/pages/settings';
 
 // Market
-import DispenserManagement from '@/pages/dispensers/manage';
-import AssetDispensers from '@/pages/market/asset-dispensers';
-import AssetOrders from '@/pages/market/asset-orders';
-import BtcPrice from '@/pages/market/btc-price';
+import BtcPricePage from '@/pages/market/btc';
+import AssetDispensersPage from '@/pages/market/dispensers/[asset]';
+import AssetOrdersPage from '@/pages/market/orders/[baseAsset]/[quoteAsset]';
 
 // Actions
-import Consolidate from '@/pages/actions/consolidate';
-import ConsolidationSuccess from '@/pages/actions/consolidate/success';
-import ConsolidationStatus from '@/pages/actions/consolidate/status';
-import SignMessage from '@/pages/actions/sign-message';
-import VerifyMessage from '@/pages/actions/verify-message';
+import ConsolidatePage from '@/pages/actions/consolidate';
+import ConsolidateStatusPage from '@/pages/actions/consolidate/status';
+import ConsolidateSuccessPage from '@/pages/actions/consolidate/success';
+import SignMessagePage from '@/pages/actions/sign-message';
+import VerifyMessagePage from '@/pages/actions/verify-message';
 
 // Settings
-import AddressTypeSettings from '@/pages/settings/address-type-settings';
-import AdvancedSettings from '@/pages/settings/advanced-settings';
-import SecuritySettings from '@/pages/settings/security-settings';
-import ConnectedSites from '@/pages/settings/connected-sites';
-import PinnedAssetsSettings from '@/pages/settings/pinned-assets-settings';
+import AddressTypesPage from '@/pages/settings/address-types';
+import AdvancedSettingsPage from '@/pages/settings/advanced';
+import ConnectedSitesPage from '@/pages/settings/connected-sites';
+import SecuritySettingsPage from '@/pages/settings/security';
+import PinnedAssetsPage from '@/pages/settings/pinned-assets';
 
-// Wallet management
-import AddWallet from '@/pages/wallet/add-wallet';
-import SelectWallet from '@/pages/wallet/select-wallet';
-import CreateWallet from '@/pages/wallet/create-wallet';
-import ImportWallet from '@/pages/wallet/import-wallet';
-import ImportPrivateKey from '@/pages/wallet/import-private-key';
-import ImportTestAddress from '@/pages/wallet/import-test-address';
-import ResetWallet from '@/pages/wallet/reset-wallet';
-import RemoveWallet from '@/pages/wallet/remove-wallet';
-import ConnectHardware from '@/pages/wallet/connect-hardware';
-import ShowPassphrase from '@/pages/secrets/show-passphrase';
-import ShowPrivateKey from '@/pages/secrets/show-private-key';
+// Keychain (protected)
+import ImportPrivateKeyPage from '@/pages/keychain/setup/import-private-key';
+import ImportTestAddressPage from '@/pages/keychain/setup/import-test-address';
+import WalletsPage from '@/pages/keychain/wallets';
+import AddWalletPage from '@/pages/keychain/wallets/add';
+import RemoveWalletPage from '@/pages/keychain/wallets/remove';
+import ResetWalletPage from '@/pages/keychain/wallets/reset';
+import ConnectHardwarePage from '@/pages/keychain/wallets/connect-hardware';
+import ShowPassphrasePage from '@/pages/keychain/secrets/show-passphrase';
+import ShowPrivateKeyPage from '@/pages/keychain/secrets/show-private-key';
 
 // Viewing
-import AddressHistory from '@/pages/address/address-history';
-import SelectAddress from '@/pages/address/select-address';
-import ViewAddress from '@/pages/address/view-address';
-import SelectAssets from '@/pages/assets/select-assets';
-import ViewAsset from '@/pages/assets/view-asset';
-import ViewBalance from '@/pages/assets/view-balance';
-import ViewUtxo from '@/pages/assets/view-utxo';
-import ViewTransaction from '@/pages/transaction/view-transaction';
+import AddressesPage from '@/pages/addresses';
+import AddressDetailsPage from '@/pages/addresses/details';
+import AddressHistoryPage from '@/pages/addresses/history';
+import AssetsPage from '@/pages/assets';
+import AssetPage from '@/pages/assets/[asset]';
+import AssetBalancePage from '@/pages/assets/[asset]/balance';
+import UtxoPage from '@/pages/assets/utxos/[txHash]';
+import TransactionPage from '@/pages/transactions/[txHash]';
 
-// Provider/dApp integration
-import ApproveConnection from '@/pages/provider/approve-connection';
-import ApproveTransaction from '@/pages/provider/approve-transaction';
-import ApprovePsbt from '@/pages/provider/approve-psbt';
-import ApprovalQueue from '@/pages/provider/approval-queue';
+// Compose
+import ComposeSendPage from '@/pages/compose/send';
+import ComposeMpmaPage from '@/pages/compose/send/mpma';
+import ComposeSweepPage from '@/pages/compose/sweep';
+import ComposeOrderPage from '@/pages/compose/order';
+import ComposeOrderBtcPayPage from '@/pages/compose/order/btcpay';
+import ComposeOrderCancelPage from '@/pages/compose/order/cancel';
+import ComposeIssuancePage from '@/pages/compose/issuance';
+import ComposeIssueSupplyPage from '@/pages/compose/issuance/issue-supply';
+import ComposeLockSupplyPage from '@/pages/compose/issuance/lock-supply';
+import ComposeResetSupplyPage from '@/pages/compose/issuance/reset-supply';
+import ComposeTransferOwnershipPage from '@/pages/compose/issuance/transfer-ownership';
+import ComposeUpdateDescriptionPage from '@/pages/compose/issuance/update-description';
+import ComposeLockDescriptionPage from '@/pages/compose/issuance/lock-description';
+import ComposeDestroySupplyPage from '@/pages/compose/issuance/destroy-supply';
+import ComposeDispenserPage from '@/pages/compose/dispenser';
+import ComposeDispenserClosePage from '@/pages/compose/dispenser/close';
+import ComposeDispenserCloseByHashPage from '@/pages/compose/dispenser/close-by-hash';
+import ComposeDispensePage from '@/pages/compose/dispenser/dispense';
+import ComposeFairminterPage from '@/pages/compose/fairminter';
+import ComposeFairmintPage from '@/pages/compose/fairminter/fairmint';
+import ComposeDividendPage from '@/pages/compose/dividend';
+import ComposeBroadcastPage from '@/pages/compose/broadcast';
+import ComposeBroadcastAddressOptionsPage from '@/pages/compose/broadcast/address-options';
+import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
+import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
+import ComposeUtxoMovePage from '@/pages/compose/utxo/move';
 
-// Compose - Send & Transfer
-import ComposeSend from '@/pages/compose/send';
-import ComposeMPMA from '@/pages/compose/send/mpma';
-import ComposeSweep from '@/pages/compose/sweep';
+import NotFoundPage from '@/pages/not-found';
 
-// Compose - Trading
-import ComposeOrder from '@/pages/compose/order';
-import ComposeBTCPay from '@/pages/compose/order/btcpay';
-import ComposeCancel from '@/pages/compose/order/cancel';
-
-// Compose - Issuance
-import ComposeIssuance from '@/pages/compose/issuance';
-import ComposeIssuanceIssueSupply from '@/pages/compose/issuance/issue-supply';
-import ComposeIssuanceLockSupply from '@/pages/compose/issuance/lock-supply';
-import ComposeIssuanceResetSupply from '@/pages/compose/issuance/reset-supply';
-import ComposeIssuanceTransferOwnership from '@/pages/compose/issuance/transfer-ownership';
-import ComposeIssuanceUpdateDescription from '@/pages/compose/issuance/update-description';
-import ComposeIssuanceLockDescription from '@/pages/compose/issuance/lock-description';
-import ComposeDestroy from '@/pages/compose/issuance/destroy-supply';
-
-// Compose - Dispensers
-import ComposeDispenser from '@/pages/compose/dispenser';
-import ComposeDispenserClose from '@/pages/compose/dispenser/close';
-import ComposeDispenserCloseByHash from '@/pages/compose/dispenser/close-by-hash';
-import ComposeDispenserDispense from '@/pages/compose/dispenser/dispense';
-
-// Compose - Fairminting
-import ComposeFairminter from '@/pages/compose/fairminter';
-import ComposeFairmint from '@/pages/compose/fairminter/fairmint';
-
-// Compose - Other
-import ComposeDividend from '@/pages/compose/dividend';
-import ComposeBroadcast from '@/pages/compose/broadcast';
-import ComposeBroadcastAddressOptions from '@/pages/compose/broadcast/address-options';
-
-// Compose - UTXO
-import ComposeUtxoAttach from '@/pages/compose/utxo/attach';
-import ComposeUtxoDetach from '@/pages/compose/utxo/detach';
-import ComposeUtxoMove from '@/pages/compose/utxo/move';
-
-
-// Utility
-import NotFound from '@/pages/not-found';
+function FullscreenLoading() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
+      <FaSpinner className="text-4xl text-primary-600 animate-spin" aria-label="Loading…" />
+    </div>
+  );
+}
 
 export default function App() {
   const { keychainExists, keychainLocked, isLoading } = useWallet();
   const location = useLocation();
 
-  // Track page views when route changes
   useEffect(() => {
-    // Sanitize the path to remove sensitive information
-    const sanitizedPath = sanitizePath(location.pathname);
-    // WXT Analytics page() expects just a string URL, not an object
-    analytics.page(sanitizedPath);
+    analytics.page(sanitizePath(location.pathname));
   }, [location.pathname]);
 
-  // Until the wallet metadata has been loaded from storage,
-  // render a loading state.
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
-        <FaSpinner 
-          className="text-4xl text-primary-600 animate-spin" 
-          aria-label="Loading..."
-        />
-      </div>
-    );
-  }
+  if (isLoading) return <FullscreenLoading />;
 
   return (
     <ErrorBoundary>
       <Routes>
-        {/* Root route logic:
-            - If no keychain exists, go to onboarding.
-            - If keychain exists but is locked, go to unlock-wallet.
-            - Otherwise, go to the main page. */}
         <Route
           path="/"
           element={
             !keychainExists ? (
-              <Navigate to="/onboarding" replace />
+              <Navigate to="/keychain/onboarding" replace />
             ) : keychainLocked ? (
-              <Navigate to="/unlock-wallet" replace />
+              <Navigate to="/keychain/unlock" replace />
             ) : (
               <Navigate to="/index" replace />
             )
           }
         />
 
-        {/* Public routes */}
+        {/* Public-ish routes with Layout */}
         <Route element={<Layout />}>
-          <Route path="/onboarding" element={<Onboarding />} />
-          <Route path="/create-wallet" element={<CreateWallet />} />
-          <Route path="/import-wallet" element={<ImportWallet />} />
-          <Route path="/unlock-wallet" element={<UnlockWallet />} />
+          {/* Onboarding: only when no keychain exists */}
+          <Route element={<NoKeychainOnly />}>
+            <Route path="/keychain/onboarding" element={<OnboardingPage />} />
+          </Route>
+
+          {/* Unlock: only when keychain exists but locked */}
+          <Route element={<KeychainLockedOnly />}>
+            <Route path="/keychain/unlock" element={<UnlockPage />} />
+          </Route>
+
+          {/* Setup: allow if no keychain OR unlocked */}
+          <Route element={<KeychainOpenOrNew />}>
+            <Route path="/keychain/setup/create-mnemonic" element={<CreateMnemonicPage />} />
+            <Route path="/keychain/setup/import-mnemonic" element={<ImportMnemonicPage />} />
+          </Route>
+
+          {/* Request approval: handle their own auth states */}
+          <Route path="/requests/connect/approve" element={<ApproveConnectionPage />} />
+          <Route path="/requests/transaction/approve" element={<ApproveTransactionPage />} />
+          <Route path="/requests/psbt/approve" element={<ApprovePsbtPage />} />
         </Route>
 
-        {/* Protected routes */}
         <Route element={<AuthRequired />}>
           <Route element={<Layout showFooter={true} />}>
-            <Route path="/index" element={<Index />} />
-            <Route path="/market" element={<Market />} />
-            <Route path="/actions" element={<Actions />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/index" element={<HomePage />} />
+            <Route path="/market" element={<MarketPage />} />
+            <Route path="/market/dispensers/:asset" element={<AssetDispensersPage />} />
+            <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrdersPage />} />
+            <Route path="/actions" element={<ActionsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
-          <Route element={<Layout />}>
-            {/* Market */}
-            <Route path="/dispensers/manage" element={<DispenserManagement />} />
-            <Route path="/market/btc" element={<BtcPrice />} />
-            <Route path="/market/dispensers/:asset" element={<AssetDispensers />} />
-            <Route path="/market/orders/:baseAsset/:quoteAsset" element={<AssetOrders />} />
 
-            {/* Actions */}
-            <Route path="/consolidate" element={<Consolidate />} />
-            <Route path="/consolidation-success" element={<ConsolidationSuccess />} />
-            <Route path="/consolidation-status" element={<ConsolidationStatus />} />
-            <Route path="/actions/sign-message" element={<SignMessage />} />
-            <Route path="/actions/verify-message" element={<VerifyMessage />} />
-            
-            {/* Settings */}
-            <Route path="/settings/address-type" element={<AddressTypeSettings />} />
-            <Route path="/settings/advanced" element={<AdvancedSettings />} />
-            <Route path="/settings/connected-sites" element={<ConnectedSites />} />
-            <Route path="/settings/security" element={<SecuritySettings />} />
-            <Route path="/settings/pinned-assets" element={<PinnedAssetsSettings />} />
-            
-            {/* Wallet management */}
-            <Route path="/add-wallet" element={<AddWallet />} />
-            <Route path="/select-wallet" element={<SelectWallet />} />
-            <Route path="/reset-wallet" element={<ResetWallet />} />
-            <Route path="/import-private-key" element={<ImportPrivateKey />} />
-            <Route path="/import-test-address" element={<ImportTestAddress />} />
-            <Route path="/remove-wallet/:walletId" element={<RemoveWallet />} />
-            <Route path="/connect-hardware" element={<ConnectHardware />} />
-            <Route path="/show-passphrase/:walletId" element={<ShowPassphrase />} />
-            <Route path="/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKey />} />
-            
-            {/* Viewing */}
-            <Route path="/address-history" element={<AddressHistory />} />
-            <Route path="/select-address" element={<SelectAddress />} />
-            <Route path="/view-address" element={<ViewAddress />} />
-            <Route path="/select-assets" element={<SelectAssets />} />
-            <Route path="/asset/:asset" element={<ViewAsset />} />
-            <Route path="/balance/:asset" element={<ViewBalance />} />
-            <Route path="/utxo/:txid" element={<ViewUtxo />} />
-            <Route path="/transaction/:txHash" element={<ViewTransaction />} />
-            
-            {/* Compose - Send & Transfer */}
-            <Route path="/compose/send/mpma" element={<ComposeMPMA />} />
-            <Route path="/compose/send/:asset" element={<ComposeSend />} />
-            <Route path="/compose/sweep/:address?" element={<ComposeSweep />} />
-            
-            {/* Compose - Trading */}
-            <Route path="/compose/order/:asset?" element={<ComposeOrder />} />
-            <Route path="/compose/btcpay" element={<ComposeBTCPay />} />
-            <Route path="/compose/cancel/:hash?" element={<ComposeCancel />} />
-            
-            {/* Compose - Issuance */}
-            <Route path="/compose/issuance/:asset?" element={<ComposeIssuance />} />
-            <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssuanceIssueSupply />} />
-            <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeIssuanceLockSupply />} />
-            <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeIssuanceResetSupply />} />
-            <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeIssuanceTransferOwnership />} />
-            <Route path="/compose/issuance/update-description/:asset" element={<ComposeIssuanceUpdateDescription />} />
-            <Route path="/compose/issuance/lock-description/:asset" element={<ComposeIssuanceLockDescription />} />
-            <Route path="/compose/destroy/:asset" element={<ComposeDestroy />} />
-            
-            {/* Compose - Dispensers */}
-            <Route path="/compose/dispenser/:asset" element={<ComposeDispenser />} />
-            <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClose />} />
-            <Route path="/compose/dispenser/close-by-hash/:tx_hash?" element={<ComposeDispenserCloseByHash />} />
-            <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispenserDispense />} />
-            
-            {/* Compose - Fairminting */}
-            <Route path="/compose/fairminter/:asset?" element={<ComposeFairminter />} />
-            <Route path="/compose/fairmint/:asset?" element={<ComposeFairmint />} />
-            
-            {/* Compose - Other */}
-            <Route path="/compose/dividend/:asset" element={<ComposeDividend />} />
-            <Route path="/compose/broadcast" element={<ComposeBroadcast />} />
-            <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptions />} />
-            
-            {/* Compose - UTXO */}
-            <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttach />} />
-            <Route path="/compose/utxo/detach/:txid" element={<ComposeUtxoDetach />} />
-            <Route path="/compose/utxo/move/:txid" element={<ComposeUtxoMove />} />
-            
-            {/* Provider approval routes */}
-            <Route path="/provider/approve-connection" element={<ApproveConnection />} />
-            <Route path="/provider/approve-transaction" element={<ApproveTransaction />} />
-            <Route path="/provider/approve-psbt" element={<ApprovePsbt />} />
-            <Route path="/provider/approval-queue" element={<ApprovalQueue />} />
-            
+          <Route element={<Layout />}>
+            <Route path="/market/btc" element={<BtcPricePage />} />
+
+            <Route path="/actions/consolidate" element={<ConsolidatePage />} />
+            <Route path="/actions/consolidate/status" element={<ConsolidateStatusPage />} />
+            <Route path="/actions/consolidate/success" element={<ConsolidateSuccessPage />} />
+            <Route path="/actions/sign-message" element={<SignMessagePage />} />
+            <Route path="/actions/verify-message" element={<VerifyMessagePage />} />
+
+            <Route path="/settings/address-types" element={<AddressTypesPage />} />
+            <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
+            <Route path="/settings/connected-sites" element={<ConnectedSitesPage />} />
+            <Route path="/settings/security" element={<SecuritySettingsPage />} />
+            <Route path="/settings/pinned-assets" element={<PinnedAssetsPage />} />
+
+            <Route path="/keychain/setup/import-private-key" element={<ImportPrivateKeyPage />} />
+            <Route path="/keychain/setup/import-test-address" element={<ImportTestAddressPage />} />
+            <Route path="/keychain/wallets" element={<WalletsPage />} />
+            <Route path="/keychain/wallets/add" element={<AddWalletPage />} />
+            <Route path="/keychain/wallets/remove/:walletId" element={<RemoveWalletPage />} />
+            <Route path="/keychain/wallets/reset" element={<ResetWalletPage />} />
+            <Route path="/keychain/wallets/connect-hardware" element={<ConnectHardwarePage />} />
+            <Route path="/keychain/secrets/show-passphrase/:walletId" element={<ShowPassphrasePage />} />
+            <Route path="/keychain/secrets/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKeyPage />} />
+
+            <Route path="/addresses" element={<AddressesPage />} />
+            <Route path="/addresses/details" element={<AddressDetailsPage />} />
+            <Route path="/addresses/history" element={<AddressHistoryPage />} />
+
+            <Route path="/assets" element={<AssetsPage />} />
+            <Route path="/assets/utxos/:txHash" element={<UtxoPage />} />
+            <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
+            <Route path="/assets/:asset" element={<AssetPage />} />
+
+            <Route path="/transactions/:txHash" element={<TransactionPage />} />
+
+            <Route path="/compose/send/mpma" element={<ComposeMpmaPage />} />
+            <Route path="/compose/send/:asset" element={<ComposeSendPage />} />
+            <Route path="/compose/sweep/:address?" element={<ComposeSweepPage />} />
+            <Route path="/compose/order/btcpay" element={<ComposeOrderBtcPayPage />} />
+            <Route path="/compose/order/cancel/:hash?" element={<ComposeOrderCancelPage />} />
+            <Route path="/compose/order/:asset?" element={<ComposeOrderPage />} />
+            <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssueSupplyPage />} />
+            <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeLockSupplyPage />} />
+            <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeResetSupplyPage />} />
+            <Route path="/compose/issuance/transfer-ownership/:asset" element={<ComposeTransferOwnershipPage />} />
+            <Route path="/compose/issuance/update-description/:asset" element={<ComposeUpdateDescriptionPage />} />
+            <Route path="/compose/issuance/lock-description/:asset" element={<ComposeLockDescriptionPage />} />
+            <Route path="/compose/issuance/destroy/:asset" element={<ComposeDestroySupplyPage />} />
+            <Route path="/compose/issuance/:asset?" element={<ComposeIssuancePage />} />
+            <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClosePage />} />
+            <Route path="/compose/dispenser/close-by-hash/:txHash?" element={<ComposeDispenserCloseByHashPage />} />
+            <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispensePage />} />
+            <Route path="/compose/dispenser/:asset" element={<ComposeDispenserPage />} />
+            <Route path="/compose/fairminter/:asset?" element={<ComposeFairminterPage />} />
+            <Route path="/compose/fairmint/:asset?" element={<ComposeFairmintPage />} />
+            <Route path="/compose/dividend/:asset" element={<ComposeDividendPage />} />
+            <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptionsPage />} />
+            <Route path="/compose/broadcast" element={<ComposeBroadcastPage />} />
+            <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttachPage />} />
+            <Route path="/compose/utxo/detach/:txId" element={<ComposeUtxoDetachPage />} />
+            <Route path="/compose/utxo/move/:txId" element={<ComposeUtxoMovePage />} />
           </Route>
         </Route>
 
-        {/* Catch-all route */}
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </ErrorBoundary>
   );

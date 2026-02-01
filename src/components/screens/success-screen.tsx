@@ -1,6 +1,7 @@
-import { type ReactElement, useState, useCallback } from "react";
-import { FaCheckCircle, FaClipboard, FaCheck, FaExternalLinkAlt } from "@/components/icons";
-import { Button } from "@/components/button";
+import { type ReactElement } from "react";
+import { FaCheckCircle, FaClipboard, FaCheck } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 /**
  * Broadcast response from API
@@ -33,7 +34,7 @@ interface SuccessScreenProps {
 /**
  * Default blockchain explorer URL template
  */
-const DEFAULT_EXPLORER_URL = "https://blockchain.info/tx/{txid}";
+const DEFAULT_EXPLORER_URL = "https://mempool.space/tx/{txid}";
 
 /**
  * Displays a success screen after transaction broadcast.
@@ -51,128 +52,88 @@ const DEFAULT_EXPLORER_URL = "https://blockchain.info/tx/{txid}";
  * />
  * ```
  */
-export function SuccessScreen({ 
-  apiResponse, 
+export function SuccessScreen({
+  apiResponse,
   onReset,
-  explorerUrlTemplate = DEFAULT_EXPLORER_URL 
+  explorerUrlTemplate = DEFAULT_EXPLORER_URL
 }: SuccessScreenProps): ReactElement {
-  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
-  
+  const { copy, isCopied } = useCopyToClipboard();
+
   // Extract transaction ID safely
   const txid = apiResponse?.broadcast?.txid || "unknown";
   const explorerUrl = explorerUrlTemplate.replace("{txid}", txid);
 
-  /**
-   * Copies the transaction ID to clipboard
-   */
-  const handleCopyTxid = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(txid);
-      setCopiedToClipboard(true);
-      
-      // Reset the copied state after 2 seconds
-      setTimeout(() => setCopiedToClipboard(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy transaction ID:", err);
-      // Could add error toast here if we have a toast system
-    }
-  }, [txid]);
-
-  /**
-   * Handles keyboard interaction for the clickable transaction ID
-   */
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleCopyTxid();
-    }
-  }, [handleCopyTxid]);
-
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-6rem)]">
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)]">
+      {/* Success Card */}
       <div className="p-6 bg-green-50 rounded-lg shadow-lg text-center max-w-md w-full">
         {/* Success Icon */}
-        <FaCheckCircle 
-          className="text-green-600 w-12 h-12 mx-auto" 
+        <FaCheckCircle
+          className="text-green-600 size-10 mx-auto"
           aria-hidden="true"
         />
-        
+
         {/* Success Title */}
-        <h2 className="text-2xl font-bold text-green-800 mt-4">
-          Transaction Successful!
+        <h2 className="text-xl font-bold text-green-800 mt-3">
+          Transaction Successful
         </h2>
-        
+
         {/* Success Message */}
-        <p className="mt-2 text-green-700">
-          Your transaction has been signed and broadcast.
+        <p className="mt-1 text-sm text-green-700">
+          Your transaction was broadcasted.
         </p>
-        
-        {/* Transaction ID Display */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Transaction ID:
+
+        {/* Transaction ID Display - Clickable to copy */}
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-gray-600 mb-1">
+            Transaction ID
           </label>
           <div
-            onClick={handleCopyTxid}
-            onKeyDown={handleKeyDown}
+            onClick={() => copy(txid)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && copy(txid)}
             role="button"
             tabIndex={0}
-            aria-label={`Transaction ID: ${txid}. Click to copy`}
-            className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-3 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
+            aria-label="Click to copy transaction ID"
+            className="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors select-all"
           >
             {txid}
           </div>
         </div>
-        
-        {/* Action Buttons */}
-        <div className="mt-6 space-y-3">
-          {/* Copy Button */}
-          <Button
-            onClick={handleCopyTxid}
-            color="blue"
-            fullWidth
-            aria-label={copiedToClipboard ? "Transaction ID copied" : "Copy transaction ID to clipboard"}
-          >
-            {copiedToClipboard ? (
-              <>
-                <FaCheck className="w-4 h-4 mr-2" aria-hidden="true" />
-                <span>Copied!</span>
-              </>
-            ) : (
-              <>
-                <FaClipboard className="w-4 h-4 mr-2" aria-hidden="true" />
-                <span>Copy Transaction ID</span>
-              </>
-            )}
-          </Button>
-          
-          {/* Explorer Link */}
-          {txid !== "unknown" && (
-            <a
-              href={explorerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
-              aria-label="View transaction on blockchain explorer (opens in new tab)"
-            >
-              <FaExternalLinkAlt className="w-4 h-4 mr-2" aria-hidden="true" />
-              View on Explorer
-            </a>
+
+        {/* Copy Button */}
+        <Button
+          onClick={() => copy(txid)}
+          color="blue"
+          fullWidth
+          className="mt-4"
+          aria-label={isCopied(txid) ? "Transaction ID copied" : "Copy transaction ID"}
+        >
+          {isCopied(txid) ? (
+            <>
+              <FaCheck className="size-4 mr-2" aria-hidden="true" />
+              <span>Copied!</span>
+            </>
+          ) : (
+            <>
+              <FaClipboard className="size-4 mr-2" aria-hidden="true" />
+              <span>Copy Transaction ID</span>
+            </>
           )}
-          
-          {/* Reset Button (if callback provided) */}
-          {onReset && (
-            <Button
-              onClick={onReset}
-              color="gray"
-              fullWidth
-              aria-label="Start a new transaction"
-            >
-              New Transaction
-            </Button>
-          )}
-        </div>
+        </Button>
       </div>
+
+      {/* Mempool link - Footer outside the green box */}
+      {txid !== "unknown" && (
+        <a
+          href={explorerUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 text-xs text-gray-500 hover:text-blue-600 hover:underline transition-colors"
+          aria-label="View transaction on mempool.space (opens in new tab)"
+        >
+          View on mempool.space →
+        </a>
+      )}
     </div>
   );
 }

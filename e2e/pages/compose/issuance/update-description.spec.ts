@@ -2,35 +2,39 @@
  * Compose Issuance Update Description Page Tests (/compose/issuance/update-description)
  *
  * Tests for updating asset description.
+ * Component: src/pages/compose/issuance/update-description/index.tsx
+ *
+ * The page shows:
+ * - Title "Update Asset"
+ * - Description textarea
+ * - Fee Rate selector
  */
 
-import { walletTest, expect } from '../../../fixtures';
-import { compose } from '../../../selectors';
+import { walletTest, expect } from '@e2e/fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('Compose Update Description Page (/compose/issuance/update-description)', () => {
-  walletTest('update description page loads with asset parameter', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/update-description/TESTASSET'));
+  walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/update-description/XCP'));
     await page.waitForLoadState('networkidle');
-
-    // Wait for page to fully load - check for form content or redirect
-    const redirected = !page.url().includes('update-description');
-    if (redirected) {
-      expect(true).toBe(true); // Page redirected, test passes
-      return;
-    }
-
-    // Form should have description label or textarea
-    const formContent = page.locator('text=/Description|Update/i').or(page.locator('textarea')).first();
-    await expect(formContent).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('update description shows current description', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/compose/issuance/update-description/TESTASSET'));
-    await page.waitForLoadState('networkidle');
+  walletTest('page loads with Update Asset title', async ({ page }) => {
+    // The header should show "Update Asset"
+    const titleText = page.locator('text="Update Asset"');
+    await expect(titleText).toBeVisible({ timeout: 10000 });
+  });
 
-    if (page.url().includes('update-description')) {
-      const hasCurrentDescription = await page.locator('text=/Current.*Description|Existing/i').first().isVisible({ timeout: 5000 }).catch(() => false);
-      expect(hasCurrentDescription || true).toBe(true);
-    }
+  walletTest('shows Fee Rate selector', async ({ page }) => {
+    // Fee Rate label should be visible
+    const feeRateLabel = page.locator('label:has-text("Fee Rate")');
+    await expect(feeRateLabel).toBeVisible({ timeout: 10000 });
+  });
+
+  walletTest('has Continue button', async ({ page }) => {
+    // Submit button should exist
+    const submitButton = page.locator('button[type="submit"]:has-text("Continue")');
+    await expect(submitButton).toBeVisible({ timeout: 10000 });
   });
 });

@@ -1,6 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAssetQuantity } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
+import { formatAmount } from "@/utils/format";
 
 interface ReviewIssuanceIssueSupplyProps {
   apiResponse: any;
@@ -18,19 +17,16 @@ export function ReviewIssuanceIssueSupply({
   isSigning
 }: ReviewIssuanceIssueSupplyProps) {
   const { result } = apiResponse;
-  const isDivisible = result.params.asset_info.divisible;
 
+  // Use normalized values from verbose API response (handles divisibility correctly)
+  const currentSupply = result.params.asset_info?.supply_normalized ?? "0";
+  const issuedQuantity = result.params.quantity_normalized ?? result.params.quantity;
 
-  const currentSupply = result.params.asset_info.supply
-    ? formatAssetQuantity(result.params.asset_info.supply, isDivisible)
-    : "0";
-  const issuedQuantity = formatAssetQuantity(result.params.quantity, isDivisible);
-  const newTotalSupply = result.params.asset_info.supply
-    ? formatAssetQuantity(
-        toBigNumber(result.params.asset_info.supply).plus(result.params.quantity).toString(),
-        isDivisible
-      )
-    : issuedQuantity;
+  // Calculate new total supply from normalized values
+  const newTotalSupply = formatAmount({
+    value: Number(currentSupply) + Number(issuedQuantity),
+    minimumFractionDigits: 0,
+  });
 
   const customFields = [
     { label: "Asset", value: result.params.asset },
