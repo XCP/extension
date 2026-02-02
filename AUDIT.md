@@ -240,8 +240,11 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Vendor abstraction | IHardwareWalletAdapter interface isolates device-specific logic |
 | ✅ | MV3 service worker compatibility | Uses @trezor/connect-webextension for service worker support |
 | ✅ | PSBT signing flow | BIP-174 format for SegWit transaction signing |
+| ✅ | PSBT input validation | Verifies witnessUtxo values match API-provided amounts |
+| ✅ | RBF enabled by default | Sequence 0xfffffffd allows fee bumping |
 | ✅ | Address derivation paths | Standard BIP-44/49/84/86 paths per address format |
 | ✅ | Reference transaction fetching | Automatically fetches prev tx data for non-SegWit inputs |
+| ✅ | Sidepanel-only access | Hardware wallet features require sidepanel context |
 | ✅ | No extension trust required | Compromised extension cannot sign without device |
 | ⚠️ | Trezor popup UX | Adds friction but expected for hardware wallet security |
 | ⚪ | Ledger support | Future enhancement—interface designed for multi-vendor |
@@ -323,7 +326,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | Error Handling | 4 | 0 | 0 | 0 |
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
-| Hardware Wallet | 9 | 1 | 0 | 1 |
-| **Total** | **76** | **5** | **2** | **11** |
+| Hardware Wallet | 12 | 1 | 0 | 1 |
+| **Total** | **79** | **5** | **2** | **11** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
