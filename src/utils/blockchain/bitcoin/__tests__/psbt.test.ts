@@ -392,6 +392,141 @@ describe('finalizePSBT', () => {
   });
 });
 
+describe('OP_RETURN data extraction', () => {
+  it('should extract raw data without push opcode (direct push)', () => {
+    // Create PSBT with OP_RETURN using direct push (data < 76 bytes)
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const pubkey = getPublicKey(privateKeyBytes, true);
+    const payment = p2wpkh(pubkey);
+
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: {
+        script: payment.script,
+        amount: BigInt(100000),
+      },
+    });
+
+    // Counterparty-like data: "CNTRPRTY" (434e545250525459) + some payload
+    const rawData = '434e545250525459' + '0a00000001deadbeef';
+    const rawDataBytes = hexToBytes(rawData);
+
+    // Create OP_RETURN script with direct push (6a + length byte + data)
+    const opReturnScript = new Uint8Array([
+      0x6a, // OP_RETURN
+      rawDataBytes.length, // Direct push (length < 76)
+      ...rawDataBytes
+    ]);
+
+    tx.addOutput({
+      script: opReturnScript,
+      amount: BigInt(0),
+    });
+
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(99000));
+
+    const psbtHex = bytesToHex(tx.toPSBT());
+    const details = extractPsbtDetails(psbtHex);
+
+    const opReturnOutput = details.outputs.find(o => o.type === 'op_return');
+    expect(opReturnOutput).toBeDefined();
+    // Should extract ONLY the raw data, not the push opcode
+    expect(opReturnOutput!.opReturnData).toBe(rawData);
+  });
+
+  it('should extract raw data from real Counterparty OP_RETURN script', () => {
+    // Create a Counterparty-style OP_RETURN with 51 bytes of data
+    // The push opcode 0x33 (51 decimal) should be stripped
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const pubkey = getPublicKey(privateKeyBytes, true);
+    const payment = p2wpkh(pubkey);
+
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: {
+        script: payment.script,
+        amount: BigInt(100000),
+      },
+    });
+
+    // 51 bytes of data (Counterparty messages are typically this size)
+    // Generate exactly 51 bytes (102 hex characters)
+    const expectedData = 'aa'.repeat(51);
+    const expectedDataBytes = hexToBytes(expectedData);
+
+    // Create OP_RETURN script: 6a (OP_RETURN) + 33 (push 51 bytes) + data
+    const opReturnScript = new Uint8Array([
+      0x6a, // OP_RETURN
+      0x33, // Push 51 bytes (0x33 = 51)
+      ...expectedDataBytes
+    ]);
+
+    tx.addOutput({
+      script: opReturnScript,
+      amount: BigInt(0),
+    });
+
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(99000));
+
+    const psbtHex = bytesToHex(tx.toPSBT());
+    const details = extractPsbtDetails(psbtHex);
+
+    const opReturnOutput = details.outputs.find(o => o.type === 'op_return');
+    expect(opReturnOutput).toBeDefined();
+    // Must extract only the data bytes, NOT the push opcode (33)
+    expect(opReturnOutput!.opReturnData).toBe(expectedData);
+    // Should NOT include the push opcode (0x33 = push 51 bytes)
+    expect(opReturnOutput!.opReturnData?.startsWith('33')).toBe(false);
+  });
+
+  it('should handle OP_PUSHDATA1 (data >= 76 bytes)', () => {
+    // OP_PUSHDATA1 uses 4c followed by 1-byte length
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const pubkey = getPublicKey(privateKeyBytes, true);
+    const payment = p2wpkh(pubkey);
+
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: {
+        script: payment.script,
+        amount: BigInt(100000),
+      },
+    });
+
+    // Create 80 bytes of data (requires OP_PUSHDATA1)
+    const rawData = 'aa'.repeat(80);
+    const rawDataBytes = hexToBytes(rawData);
+
+    // OP_RETURN + OP_PUSHDATA1 + length byte + data
+    const opReturnScript = new Uint8Array([
+      0x6a, // OP_RETURN
+      0x4c, // OP_PUSHDATA1
+      rawDataBytes.length, // 1-byte length (80)
+      ...rawDataBytes
+    ]);
+
+    tx.addOutput({
+      script: opReturnScript,
+      amount: BigInt(0),
+    });
+
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(99000));
+
+    const psbtHex = bytesToHex(tx.toPSBT());
+    const details = extractPsbtDetails(psbtHex);
+
+    const opReturnOutput = details.outputs.find(o => o.type === 'op_return');
+    expect(opReturnOutput).toBeDefined();
+    expect(opReturnOutput!.opReturnData).toBe(rawData);
+  });
+});
+
 describe('Script type detection', () => {
   it('should detect different output types via extractPsbtDetails', () => {
     // Create PSBT with different output types

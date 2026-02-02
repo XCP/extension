@@ -184,6 +184,53 @@ function getScriptType(scriptHex: string): DecodedOutput['type'] {
 }
 
 /**
+ * Extract raw data from an OP_RETURN script.
+ *
+ * OP_RETURN scripts have the structure:
+ *   6a [push_opcode] [data]
+ *
+ * Where push_opcode can be:
+ *   - 0x01-0x4b: Direct push (opcode IS the length)
+ *   - 0x4c (OP_PUSHDATA1): Next 1 byte is length
+ *   - 0x4d (OP_PUSHDATA2): Next 2 bytes are length (little-endian)
+ *   - 0x4e (OP_PUSHDATA4): Next 4 bytes are length (little-endian)
+ *
+ * This function strips the OP_RETURN opcode and push operation,
+ * returning only the raw data bytes.
+ *
+ * @param scriptHex - Full OP_RETURN script in hex (starting with 6a)
+ * @returns Raw data bytes in hex (without opcodes)
+ */
+function extractOpReturnData(scriptHex: string): string {
+  // Remove OP_RETURN opcode (6a)
+  const afterOpReturn = scriptHex.slice(2);
+
+  if (afterOpReturn.length < 2) {
+    return '';
+  }
+
+  // Parse the push opcode
+  const pushOpcode = parseInt(afterOpReturn.slice(0, 2), 16);
+
+  if (pushOpcode >= 0x01 && pushOpcode <= 0x4b) {
+    // Direct push: opcode IS the length, data follows immediately
+    return afterOpReturn.slice(2);
+  } else if (pushOpcode === 0x4c) {
+    // OP_PUSHDATA1: next 1 byte is length, then data
+    return afterOpReturn.slice(4); // Skip 4c + 1 byte length
+  } else if (pushOpcode === 0x4d) {
+    // OP_PUSHDATA2: next 2 bytes are length (little-endian), then data
+    return afterOpReturn.slice(6); // Skip 4d + 2 byte length
+  } else if (pushOpcode === 0x4e) {
+    // OP_PUSHDATA4: next 4 bytes are length (little-endian), then data
+    return afterOpReturn.slice(10); // Skip 4e + 4 byte length
+  }
+
+  // Unknown format - return as-is (shouldn't happen for valid scripts)
+  return afterOpReturn;
+}
+
+/**
  * Extract details from a PSBT using pure Bitcoin parsing
  * Does not call any external APIs - just parses the PSBT structure
  */
@@ -238,8 +285,8 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
 
     if (type === 'op_return') {
       hasOpReturn = true;
-      // Extract OP_RETURN data (remove opcode byte)
-      const opReturnData = scriptHex.slice(2);
+      // Extract raw data bytes (strip OP_RETURN opcode AND push operation)
+      const opReturnData = extractOpReturnData(scriptHex);
       outputs.push({
         index: i,
         value,
