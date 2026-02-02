@@ -31,7 +31,7 @@ import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValue
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret } from '@/types/wallet';
+import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -1185,18 +1185,15 @@ export class WalletManager {
    *
    * @param rawTxHex - Raw transaction hex (used for software wallets)
    * @param sourceAddress - Address signing the transaction
-   * @param psbtHex - Optional PSBT hex (required for hardware wallets)
-   * @param inputValues - Optional array of input values in satoshis (for hardware wallets)
-   * @param lockScripts - Optional array of input lock scripts (for hardware wallets)
+   * @param options - Optional signing options (psbtHex, inputValues, lockScripts for hardware wallets)
    * @returns Signed transaction hex ready for broadcast
    */
   public async signTransaction(
     rawTxHex: string,
     sourceAddress: string,
-    psbtHex?: string,
-    inputValues?: number[],
-    lockScripts?: string[]
+    options?: SignTransactionOptions
   ): Promise<string> {
+    const { psbtHex, inputValues, lockScripts } = options ?? {};
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");

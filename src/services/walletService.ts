@@ -13,7 +13,7 @@ import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager } from '@/utils/wallet/walletManager';
-import type { Wallet, Address } from '@/types/wallet';
+import type { Wallet, Address, SignTransactionOptions } from '@/types/wallet';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
@@ -56,7 +56,7 @@ interface WalletService {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
-  signTransaction: (rawTxHex: string, sourceAddress: string, psbtHex?: string, inputValues?: number[], lockScripts?: string[]) => Promise<string>;
+  signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[]) => Promise<string>;
@@ -175,8 +175,8 @@ function createWalletService(): WalletService {
     getPreviewAddressForFormat: async (walletId, addressFormat) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
     },
-    signTransaction: async (rawTxHex, sourceAddress, psbtHex, inputValues, lockScripts) => {
-      return walletManager.signTransaction(rawTxHex, sourceAddress, psbtHex, inputValues, lockScripts);
+    signTransaction: async (rawTxHex, sourceAddress, options) => {
+      return walletManager.signTransaction(rawTxHex, sourceAddress, options);
     },
     broadcastTransaction: async (signedTxHex) => {
       return walletManager.broadcastTransaction(signedTxHex);

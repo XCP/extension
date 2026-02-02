@@ -107,6 +107,23 @@ export interface KeychainRecord {
 }
 
 // ============================================================================
+// Transaction Signing Types
+// ============================================================================
+
+/**
+ * Options for signing a transaction.
+ * Used to pass additional data required for hardware wallet signing.
+ */
+export interface SignTransactionOptions {
+  /** PSBT hex (required for hardware wallets) */
+  psbtHex?: string;
+  /** Input values in satoshis from API (avoids UTXO fetch for SegWit) */
+  inputValues?: number[];
+  /** Input lock scripts (scriptPubKey) from API */
+  lockScripts?: string[];
+}
+
+// ============================================================================
 // Hardware Wallet Types
 // ============================================================================
 

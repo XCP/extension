@@ -419,7 +419,7 @@ export function ComposerProvider<T>({
     let signedTxHex: string;
     try {
       // Sign transaction - PSBT and input data are passed for hardware wallet support
-      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, psbtHex, inputValues, lockScripts);
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, { psbtHex, inputValues, lockScripts });
     } finally {
       // Re-enable idle timer after hardware signing completes (or fails)
       if (isHardwareWallet) {

@@ -50,7 +50,7 @@ import { walletManager } from "@/utils/wallet/walletManager";
 import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
-import type { Wallet, Address } from "@/types/wallet";
+import type { Wallet, Address, SignTransactionOptions } from "@/types/wallet";
 
 /**
  * Authentication state enum.
@@ -205,15 +205,13 @@ interface WalletContextType {
   // ─── Transactions ──────────────────────────────────────────────────────────
   /**
    * Sign a raw transaction hex.
-   * For hardware wallets, psbtHex is required along with inputValues and lockScripts
+   * For hardware wallets, options.psbtHex is required along with inputValues and lockScripts
    * to complete the PSBT with witnessUtxo data.
    */
   signTransaction: (
     rawTxHex: string,
     sourceAddress: string,
-    psbtHex?: string,
-    inputValues?: number[],
-    lockScripts?: string[]
+    options?: SignTransactionOptions
   ) => Promise<string>;
   /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
