@@ -109,6 +109,8 @@ interface WalletState {
   keychainLocked: boolean;
   /** True while initial wallet data is loading from storage */
   isLoading: boolean;
+  /** True while a hardware wallet operation is in progress (disables idle timer) */
+  hardwareOperationInProgress: boolean;
 }
 
 /**
@@ -131,6 +133,10 @@ interface WalletContextType {
   keychainLocked: boolean;
   /** True while loading initial state */
   isLoading: boolean;
+  /** True while a hardware wallet operation is in progress */
+  hardwareOperationInProgress: boolean;
+  /** Set the hardware operation in progress flag (pauses idle timer) */
+  setHardwareOperationInProgress: (inProgress: boolean) => void;
 
   // ─── Authentication ────────────────────────────────────────────────────────
   /** Unlock the keychain with password */
@@ -179,6 +185,12 @@ interface WalletContextType {
     name?: string,
     usePassphrase?: boolean
   ) => Promise<Wallet>;
+  /** Create a hardware wallet using BIP-44 account discovery (recommended) */
+  createHardwareWalletWithDiscovery: (
+    deviceType: 'trezor' | 'ledger',
+    name?: string,
+    usePassphrase?: boolean
+  ) => Promise<Wallet>;
 
   // ─── Wallet Management ─────────────────────────────────────────────────────
   /** Derive a new address in the wallet */
@@ -199,8 +211,8 @@ interface WalletContextType {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
 
   // ─── Transactions ──────────────────────────────────────────────────────────
-  /** Sign a raw transaction hex */
-  signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+  /** Sign a raw transaction hex. For hardware wallets, psbtHex is required. */
+  signTransaction: (rawTxHex: string, sourceAddress: string, psbtHex?: string) => Promise<string>;
   /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
 }
@@ -239,6 +251,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     activeAddress: null,
     keychainLocked: true,
     isLoading: true,
+    hardwareOperationInProgress: false,
   });
 
   // Use ref to access current state without adding to dependency array
@@ -469,6 +482,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     await walletService.setLastActiveTime();
   }, [walletService]);
 
+  const setHardwareOperationInProgress = useCallback((inProgress: boolean) => {
+    setWalletState((prev) => ({ ...prev, hardwareOperationInProgress: inProgress }));
+  }, []);
+
   const isKeychainLocked = useCallback(async () => {
     return !(await walletService.isKeychainUnlocked());
   }, [walletService]);
@@ -481,6 +498,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     activeAddress: walletState.activeAddress,
     keychainLocked: walletState.keychainLocked,
     isLoading: walletState.isLoading,
+    hardwareOperationInProgress: walletState.hardwareOperationInProgress,
+    setHardwareOperationInProgress,
     unlockKeychain: withRefresh(walletService.unlockKeychain, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
@@ -518,6 +537,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
     createHardwareWallet: withRefresh(walletService.createHardwareWallet, refreshWalletState),
+    createHardwareWalletWithDiscovery: withRefresh(walletService.createHardwareWalletWithDiscovery, refreshWalletState),
     resetKeychain: async (password) => {
       await walletService.resetKeychain(password);
       setWalletState({
@@ -528,6 +548,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         activeAddress: null,
         keychainLocked: true,
         isLoading: false,
+        hardwareOperationInProgress: false,
       });
     },
     getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
@@ -547,6 +568,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     setActiveWallet,
     setActiveAddress,
     setLastActiveTime,
+    setHardwareOperationInProgress,
     isKeychainLocked,
   ]);
 

@@ -10,6 +10,7 @@ const {
   mockGetFeatures,
   mockGetAddress,
   mockGetPublicKey,
+  mockGetAccountInfo,
   mockSignTransaction,
   mockSignMessage,
 } = vi.hoisted(() => ({
@@ -19,6 +20,7 @@ const {
   mockGetFeatures: vi.fn(),
   mockGetAddress: vi.fn(),
   mockGetPublicKey: vi.fn(),
+  mockGetAccountInfo: vi.fn(),
   mockSignTransaction: vi.fn(),
   mockSignMessage: vi.fn(),
 }));
@@ -33,6 +35,7 @@ vi.mock('@trezor/connect-webextension', () => ({
     getFeatures: mockGetFeatures,
     getAddress: mockGetAddress,
     getPublicKey: mockGetPublicKey,
+    getAccountInfo: mockGetAccountInfo,
     signTransaction: mockSignTransaction,
     signMessage: mockSignMessage,
     uiResponse: vi.fn(),
@@ -228,6 +231,14 @@ describe('TrezorAdapter', () => {
         publicKey: '02abcdef',
         path: "m/84'/0'/0'/0/0",
       });
+
+      // Verify correct INPUT script type is passed (SPEND*, not PAYTO*)
+      // This caught a bug where PAYTOWITNESS was passed instead of SPENDWITNESS
+      expect(mockGetAddress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scriptType: 'SPENDWITNESS', // NOT 'PAYTOWITNESS'
+        })
+      );
     });
 
     it('should get address for P2TR (Taproot) format', async () => {
@@ -243,6 +254,44 @@ describe('TrezorAdapter', () => {
 
       expect(result.address).toBe('bc1ptest456');
       expect(result.path).toBe("m/86'/0'/0'/0/5");
+
+      // Verify correct INPUT script type
+      expect(mockGetAddress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scriptType: 'SPENDTAPROOT',
+        })
+      );
+    });
+
+    it('should use correct INPUT script types for all address formats', async () => {
+      mockGetAddress.mockResolvedValue({
+        success: true,
+        payload: { address: 'test', publicKey: '02...' },
+      });
+
+      // P2PKH should use SPENDADDRESS
+      await adapter.getAddress(AddressFormat.P2PKH, 0, 0);
+      expect(mockGetAddress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scriptType: 'SPENDADDRESS' })
+      );
+
+      // P2SH-P2WPKH should use SPENDP2SHWITNESS
+      await adapter.getAddress(AddressFormat.P2SH_P2WPKH, 0, 0);
+      expect(mockGetAddress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scriptType: 'SPENDP2SHWITNESS' })
+      );
+
+      // P2WPKH should use SPENDWITNESS (NOT PAYTOWITNESS)
+      await adapter.getAddress(AddressFormat.P2WPKH, 0, 0);
+      expect(mockGetAddress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scriptType: 'SPENDWITNESS' })
+      );
+
+      // P2TR should use SPENDTAPROOT
+      await adapter.getAddress(AddressFormat.P2TR, 0, 0);
+      expect(mockGetAddress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scriptType: 'SPENDTAPROOT' })
+      );
     });
 
     it('should pass showOnDevice flag', async () => {
@@ -678,6 +727,177 @@ describe('TrezorAdapter', () => {
     });
   });
 
+  describe('discoverAccount', () => {
+    beforeEach(async () => {
+      mockInit.mockResolvedValue(undefined);
+      await adapter.init();
+    });
+
+    it('should discover account and extract xpub from descriptor', async () => {
+      // Mock getAccountInfo response with a real-looking descriptor
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/84'/0'/0'",
+          descriptor: "wpkh([d34db33f/84'/0'/0']xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq/0/*)",
+          balance: '100000',
+          addresses: {
+            unused: [{ address: 'bc1qtest123456789' }],
+            used: [],
+            change: [],
+          },
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result).toEqual({
+        path: "m/84'/0'/0'",
+        descriptor: expect.stringContaining('wpkh'),
+        balance: '100000',
+        address: 'bc1qtest123456789',
+        addressFormat: 'p2wpkh', // Lowercase - matches AddressFormat.P2WPKH
+        accountIndex: 0,
+        xpub: 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq', // Extracted from descriptor!
+      });
+
+      // Verify getAccountInfo was called, NOT getPublicKey
+      expect(mockGetAccountInfo).toHaveBeenCalledTimes(1);
+      // xpub is extracted from descriptor, no separate getPublicKey call needed
+    });
+
+    it('should extract xpub from P2TR (Taproot) descriptor', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/86'/0'/0'",
+          descriptor: "tr([d34db33f/86'/0'/0']xpub6Dk5AGsQw8Vqk8kqD1NbQ8Pm6zJkPnVZ4d6r9LMBvpKHofDLc5bVxM4pkxYVgSrT/0/*)",
+          balance: '0',
+          addresses: {
+            unused: [{ address: 'bc1ptest789' }],
+          },
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result.xpub).toBe('xpub6Dk5AGsQw8Vqk8kqD1NbQ8Pm6zJkPnVZ4d6r9LMBvpKHofDLc5bVxM4pkxYVgSrT');
+      expect(result.addressFormat).toBe('p2tr'); // Lowercase - matches AddressFormat.P2TR
+    });
+
+    it('should extract xpub from P2PKH (Legacy) descriptor', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/44'/0'/0'",
+          descriptor: "pkh([d34db33f/44'/0'/0']xpub6BsLYthLEycvnxBVfGqZ4S5pchR7yDBN/0/*)",
+          balance: '50000',
+          addresses: {
+            used: [{ address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' }],
+          },
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result.xpub).toBe('xpub6BsLYthLEycvnxBVfGqZ4S5pchR7yDBN');
+      expect(result.addressFormat).toBe('p2pkh'); // Lowercase - matches AddressFormat.P2PKH
+    });
+
+    it('should throw specific error when user cancels', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: false,
+        payload: {
+          error: 'User cancelled the action',
+          code: 'Failure_ActionCancelled',
+        },
+      });
+
+      await expect(adapter.discoverAccount(false)).rejects.toThrow(HardwareWalletError);
+      await expect(adapter.discoverAccount(false)).rejects.toThrow('cancelled');
+    });
+
+    it('should throw specific error when device is disconnected', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: false,
+        payload: {
+          error: 'Session not found',
+          code: 'Device_SessionNotFound',
+        },
+      });
+
+      await expect(adapter.discoverAccount(false)).rejects.toThrow(HardwareWalletError);
+    });
+
+    it('should fall back to getAddress if no addresses returned', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/84'/0'/0'",
+          descriptor: "wpkh([d34db33f/84'/0'/0']xpub6CUGRUonZSQ4TWtT/0/*)",
+          balance: '0',
+          addresses: {}, // No addresses
+        },
+      });
+
+      // Mock the fallback getAddress call
+      mockGetAddress.mockResolvedValue({
+        success: true,
+        payload: {
+          address: 'bc1qfallback',
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result.address).toBe('bc1qfallback');
+      expect(mockGetAddress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: "m/84'/0'/0'/0/0",
+        })
+      );
+    });
+
+    it('should extract xpub using fallback regex for simpler descriptor formats', async () => {
+      // Some descriptors may not have the [fingerprint/path] format
+      // The fallback regex handles this case
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/84'/0'/0'",
+          descriptor: "wpkh(xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6/0/*)",
+          balance: '0',
+          addresses: {
+            unused: [{ address: 'bc1qsimple' }],
+          },
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      // The fallback regex should still extract the xpub correctly
+      expect(result.xpub).toBe('xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6');
+    });
+
+    it('should handle testnet pubkey variants (tpub)', async () => {
+      mockGetAccountInfo.mockResolvedValue({
+        success: true,
+        payload: {
+          path: "m/84'/1'/0'",
+          descriptor: "wpkh([d34db33f/84'/1'/0']tpub6CUGRUonZSQ4TWtTMmzTestnet/0/*)",
+          balance: '0',
+          addresses: {
+            unused: [{ address: 'tb1qtestnet' }],
+          },
+        },
+      });
+
+      const result = await adapter.discoverAccount(false);
+
+      expect(result.xpub).toBe('tpub6CUGRUonZSQ4TWtTMmzTestnet');
+    });
+  });
+
   describe('getTrezorAdapter (singleton)', () => {
     it('should return same instance', () => {
       const adapter1 = getTrezorAdapter();
@@ -692,6 +912,25 @@ describe('TrezorAdapter', () => {
       const adapter2 = getTrezorAdapter();
 
       expect(adapter1).not.toBe(adapter2);
+    });
+  });
+
+  describe('resetTrezorAdapter', () => {
+    it('should dispose adapter and call TrezorConnect.dispose()', async () => {
+      mockInit.mockResolvedValue(undefined);
+      const adapter1 = getTrezorAdapter();
+      await adapter1.init();
+
+      await resetTrezorAdapter();
+
+      // Should have disposed the adapter and called TrezorConnect.dispose()
+      expect(mockDispose).toHaveBeenCalled();
+    });
+
+    it('should be safe to call multiple times', async () => {
+      await resetTrezorAdapter();
+      await resetTrezorAdapter();
+      // Should not throw
     });
   });
 });

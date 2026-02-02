@@ -23,7 +23,7 @@ interface AppProvidersProps {
  * @returns {ReactElement | null} Idle timer wrapped content or null if not loaded
  */
 function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement | null {
-  const { setLastActiveTime, lockKeychain, isLoading: walletLoading, authState } = useWallet();
+  const { setLastActiveTime, lockKeychain, isLoading: walletLoading, authState, hardwareOperationInProgress } = useWallet();
   const { settings, isLoading: settingsLoading, refreshSettings } = useSettings();
   const prevAuthStateRef = useRef(authState);
 
@@ -69,12 +69,13 @@ function IdleTimerWrapper({ children }: { children: ReactNode }): ReactElement |
   const isIdleTimerEnabled = autoLockTimeout > 0;
 
   // Use native idle timer hook - MUST be called before any early returns
+  // Disabled during hardware wallet operations to prevent locking mid-confirmation
   useIdleTimer({
     timeout: autoLockTimeout,
     onIdle: handleIdle,
     onActive: handleActive,
     onAction: handleAction,
-    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || walletLoading || settingsLoading,
+    disabled: !isIdleTimerEnabled || authState !== 'UNLOCKED' || walletLoading || settingsLoading || hardwareOperationInProgress,
     stopOnIdle: true,
   });
 

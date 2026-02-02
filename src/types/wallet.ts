@@ -105,3 +105,27 @@ export interface KeychainRecord {
   /** Encrypted keychain blob (base64, IV + ciphertext) */
   encryptedKeychain: string;
 }
+
+// ============================================================================
+// Hardware Wallet Types
+// ============================================================================
+
+/**
+ * Metadata stored for hardware wallets (encrypted in keychain).
+ * Note: Private keys NEVER leave the hardware device - this only stores
+ * the public key and derivation path needed to identify the account.
+ */
+export interface HardwareWalletSecret {
+  /** Hardware wallet vendor */
+  deviceType: 'trezor' | 'ledger';
+  /** Public key or descriptor for the account */
+  publicKey: string;
+  /** BIP32 derivation path to first address */
+  derivationPath: string;
+  /** BIP44 account index */
+  accountIndex: number;
+  /** Whether passphrase protection is enabled */
+  usePassphrase: boolean;
+  /** Extended public key (only present when created via discovery) */
+  xpub?: string;
+}

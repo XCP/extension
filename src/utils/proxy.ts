@@ -39,6 +39,22 @@ interface ProxyResponse {
 // Track registered services to prevent duplicate listeners after service worker restarts
 const registeredServices = new Set<string>();
 
+// Default timeout for proxy calls (30 seconds)
+const DEFAULT_PROXY_TIMEOUT = 30000;
+
+// Extended timeout for operations requiring user interaction (3 minutes)
+// Hardware wallet operations need time for user to confirm on device
+const EXTENDED_PROXY_TIMEOUT = 180000;
+
+// Methods that require extended timeouts (user interaction with external devices)
+const EXTENDED_TIMEOUT_METHODS: Record<string, string[]> = {
+  'WalletService': [
+    'createHardwareWallet',
+    'signTransaction',
+    'signMessage',
+  ],
+};
+
 /**
  * Creates a proxy service that can be registered in the background script
  * and accessed from other contexts.
@@ -97,7 +113,11 @@ export function defineProxyService<T extends Record<string, any>>(
       }
 
       // Execute the method with timeout to prevent indefinite hangs
-      const PROXY_TIMEOUT = 30000; // 30 second timeout for proxy calls
+      // Use extended timeout for methods requiring user interaction (e.g., hardware wallet)
+      const extendedMethods = EXTENDED_TIMEOUT_METHODS[serviceName] || [];
+      const PROXY_TIMEOUT = extendedMethods.includes(methodName)
+        ? EXTENDED_PROXY_TIMEOUT
+        : DEFAULT_PROXY_TIMEOUT;
       let responded = false;
 
       const executeMethod = async () => {

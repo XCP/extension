@@ -257,4 +257,69 @@ export const DerivationPaths = {
       return isHardened ? (value | this.HARDENED) : value;
     });
   },
+
+  /**
+   * Parse and validate a BIP44 account path from hardware wallet discovery.
+   * Expected format: m/purpose'/coin'/account'[/change/index]
+   *
+   * Handles both apostrophe (') and 'h' notation for hardened derivation.
+   *
+   * @param path - Path string from hardware wallet (e.g., "m/84'/0'/0'" or "m/84h/0h/0h")
+   * @returns Parsed path components or null if invalid
+   */
+  parseAccountPath(path: string): {
+    purpose: number;
+    coinType: number;
+    accountIndex: number;
+    addressFormat: AddressFormat;
+  } | null {
+    // Validate path format: must start with m/ and have at least 3 hardened components
+    // Supports both ' and h notation for hardened derivation
+    const pathRegex = /^m\/(\d+)['h]\/(\d+)['h]\/(\d+)['h](?:\/\d+\/\d+)?$/;
+    const match = path.match(pathRegex);
+
+    if (!match) {
+      return null;
+    }
+
+    const purpose = parseInt(match[1], 10);
+    const coinType = parseInt(match[2], 10);
+    const accountIndex = parseInt(match[3], 10);
+
+    // Validate coin type (0 = Bitcoin mainnet, 1 = testnet)
+    if (coinType !== 0 && coinType !== 1) {
+      return null;
+    }
+
+    // Validate purpose and determine address format
+    let addressFormat: AddressFormat;
+    switch (purpose) {
+      case 44:
+        addressFormat = AddressFormat.P2PKH;
+        break;
+      case 49:
+        addressFormat = AddressFormat.P2SH_P2WPKH;
+        break;
+      case 84:
+        addressFormat = AddressFormat.P2WPKH;
+        break;
+      case 86:
+        addressFormat = AddressFormat.P2TR;
+        break;
+      default:
+        return null; // Unknown purpose
+    }
+
+    // Validate account index is within valid BIP32 range
+    if (accountIndex < 0 || accountIndex > 0x7FFFFFFF) {
+      return null;
+    }
+
+    return {
+      purpose,
+      coinType,
+      accountIndex,
+      addressFormat,
+    };
+  },
 };

@@ -146,6 +146,138 @@ describe('DerivationPaths', () => {
       expect(parsed).toEqual(original);
     });
   });
+
+  describe('parseAccountPath', () => {
+    describe('valid paths', () => {
+      it('should parse P2PKH path (purpose 44)', () => {
+        const result = DerivationPaths.parseAccountPath("m/44'/0'/0'");
+        expect(result).toEqual({
+          purpose: 44,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2PKH,
+        });
+      });
+
+      it('should parse P2SH_P2WPKH path (purpose 49)', () => {
+        const result = DerivationPaths.parseAccountPath("m/49'/0'/0'");
+        expect(result).toEqual({
+          purpose: 49,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2SH_P2WPKH,
+        });
+      });
+
+      it('should parse P2WPKH path (purpose 84)', () => {
+        const result = DerivationPaths.parseAccountPath("m/84'/0'/0'");
+        expect(result).toEqual({
+          purpose: 84,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2WPKH,
+        });
+      });
+
+      it('should parse P2TR path (purpose 86)', () => {
+        const result = DerivationPaths.parseAccountPath("m/86'/0'/0'");
+        expect(result).toEqual({
+          purpose: 86,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2TR,
+        });
+      });
+
+      it('should parse path with non-zero account index', () => {
+        const result = DerivationPaths.parseAccountPath("m/84'/0'/5'");
+        expect(result).toEqual({
+          purpose: 84,
+          coinType: 0,
+          accountIndex: 5,
+          addressFormat: AddressFormat.P2WPKH,
+        });
+      });
+
+      it('should parse path with testnet coin type', () => {
+        const result = DerivationPaths.parseAccountPath("m/84'/1'/0'");
+        expect(result).toEqual({
+          purpose: 84,
+          coinType: 1,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2WPKH,
+        });
+      });
+
+      it('should parse path with address suffix (change/index)', () => {
+        const result = DerivationPaths.parseAccountPath("m/84'/0'/0'/0/0");
+        expect(result).toEqual({
+          purpose: 84,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2WPKH,
+        });
+      });
+
+      it('should handle h notation for hardened derivation', () => {
+        const result = DerivationPaths.parseAccountPath("m/84h/0h/0h");
+        expect(result).toEqual({
+          purpose: 84,
+          coinType: 0,
+          accountIndex: 0,
+          addressFormat: AddressFormat.P2WPKH,
+        });
+      });
+
+      it('should handle h notation with address suffix', () => {
+        const result = DerivationPaths.parseAccountPath("m/86h/0h/2h/0/5");
+        expect(result).toEqual({
+          purpose: 86,
+          coinType: 0,
+          accountIndex: 2,
+          addressFormat: AddressFormat.P2TR,
+        });
+      });
+    });
+
+    describe('invalid paths', () => {
+      it('should return null for empty string', () => {
+        expect(DerivationPaths.parseAccountPath('')).toBeNull();
+      });
+
+      it('should return null for path without m/ prefix', () => {
+        expect(DerivationPaths.parseAccountPath("84'/0'/0'")).toBeNull();
+      });
+
+      it('should return null for path with missing components', () => {
+        expect(DerivationPaths.parseAccountPath("m/84'/0'")).toBeNull();
+      });
+
+      it('should return null for path without hardened account components', () => {
+        expect(DerivationPaths.parseAccountPath("m/84/0/0")).toBeNull();
+      });
+
+      it('should return null for unknown purpose', () => {
+        expect(DerivationPaths.parseAccountPath("m/99'/0'/0'")).toBeNull();
+      });
+
+      it('should return null for invalid coin type', () => {
+        expect(DerivationPaths.parseAccountPath("m/84'/2'/0'")).toBeNull();
+      });
+
+      it('should return null for malformed path', () => {
+        expect(DerivationPaths.parseAccountPath("m/84'/abc'/0'")).toBeNull();
+      });
+
+      it('should return null for path with extra slashes', () => {
+        expect(DerivationPaths.parseAccountPath("m//84'/0'/0'")).toBeNull();
+      });
+
+      it('should return null for path with spaces', () => {
+        expect(DerivationPaths.parseAccountPath("m/84'/0'/0' ")).toBeNull();
+      });
+    });
+  });
 });
 
 describe('HardwareWalletError', () => {

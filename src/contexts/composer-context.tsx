@@ -171,7 +171,7 @@ export function ComposerProvider<T>({
   initialTitle,
 }: ComposerProviderProps<T>): ReactElement {
   const navigate = useNavigate();
-  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction } = useWallet();
+  const { activeAddress, activeWallet, authState, signTransaction, broadcastTransaction, setHardwareOperationInProgress } = useWallet();
   const { settings } = useSettings();
   const { clearBalances } = useHeader();
 
@@ -391,6 +391,8 @@ export function ComposerProvider<T>({
     }
 
     const rawTxHex = state.apiResponse.result.rawtransaction;
+    // PSBT is available for hardware wallet signing
+    const psbtHex = state.apiResponse.result.psbt;
 
     // Check for replay attempt before signing
     const replayCheck = await checkReplayAttempt(
@@ -404,7 +406,22 @@ export function ComposerProvider<T>({
       throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
     }
 
-    const signedTxHex = await signTransaction(rawTxHex, activeAddress.address);
+    // For hardware wallets, pause idle timer during signing
+    const isHardwareWallet = activeWallet?.type === 'hardware';
+    if (isHardwareWallet) {
+      setHardwareOperationInProgress(true);
+    }
+
+    let signedTxHex: string;
+    try {
+      // Sign transaction - PSBT is passed for hardware wallet support
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, psbtHex);
+    } finally {
+      // Re-enable idle timer after hardware signing completes (or fails)
+      if (isHardwareWallet) {
+        setHardwareOperationInProgress(false);
+      }
+    }
 
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk
@@ -436,7 +453,7 @@ export function ComposerProvider<T>({
       ...state.apiResponse,
       broadcast: broadcastResponse
     };
-  }, [state.apiResponse, activeAddress, signTransaction, broadcastTransaction]);
+  }, [state.apiResponse, activeAddress, activeWallet, signTransaction, broadcastTransaction, setHardwareOperationInProgress]);
 
   // Sign and broadcast transaction
   const signAndBroadcast = useCallback(async () => {

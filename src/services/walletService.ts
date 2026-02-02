@@ -48,6 +48,11 @@ interface WalletService {
     name?: string,
     usePassphrase?: boolean
   ) => Promise<Wallet>;
+  createHardwareWalletWithDiscovery: (
+    deviceType: 'trezor' | 'ledger',
+    name?: string,
+    usePassphrase?: boolean
+  ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetKeychain: (password: string) => Promise<void>;
@@ -58,7 +63,7 @@ interface WalletService {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
-  signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+  signTransaction: (rawTxHex: string, sourceAddress: string, psbtHex?: string) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
   signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[]) => Promise<string>;
@@ -151,6 +156,9 @@ function createWalletService(): WalletService {
     createHardwareWallet: async (deviceType, addressFormat, accountIndex, name, usePassphrase) => {
       return walletManager.createHardwareWallet(deviceType, addressFormat, accountIndex, name, usePassphrase);
     },
+    createHardwareWalletWithDiscovery: async (deviceType, name, usePassphrase) => {
+      return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
+    },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
     resetKeychain: async (password) => {
@@ -177,8 +185,8 @@ function createWalletService(): WalletService {
     getPreviewAddressForFormat: async (walletId, addressFormat) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
     },
-    signTransaction: async (rawTxHex, sourceAddress) => {
-      return walletManager.signTransaction(rawTxHex, sourceAddress);
+    signTransaction: async (rawTxHex, sourceAddress, psbtHex) => {
+      return walletManager.signTransaction(rawTxHex, sourceAddress, psbtHex);
     },
     broadcastTransaction: async (signedTxHex) => {
       return walletManager.broadcastTransaction(signedTxHex);

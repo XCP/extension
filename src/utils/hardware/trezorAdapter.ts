@@ -237,6 +237,44 @@ function getScriptTypeFromPurpose(purpose: number): InputScriptType {
 }
 
 /**
+ * Extract xpub from a Bitcoin descriptor string.
+ *
+ * Trezor's getAccountInfo returns a descriptor like:
+ * - wpkh([fingerprint/path]xpub6ABC.../0/*)
+ * - pkh([fingerprint/path]xpub6ABC.../0/*)
+ * - tr([fingerprint/path]xpub6ABC.../0/*)
+ * - sh(wpkh([fingerprint/path]ypub6ABC.../0/*))
+ *
+ * This function extracts the extended public key from the descriptor,
+ * eliminating the need for a separate getPublicKey() call.
+ *
+ * @param descriptor - Bitcoin descriptor from getAccountInfo
+ * @returns Extracted xpub/ypub/zpub string
+ * @throws Error if xpub cannot be extracted
+ */
+function extractXpubFromDescriptor(descriptor: string): string {
+  // Match xpub, ypub, zpub, tpub, upub, vpub (mainnet and testnet variants)
+  // The pattern looks for ]xpub... or similar, followed by the key characters
+  const match = descriptor.match(/\]([xyztuv]pub[a-zA-HJ-NP-Z0-9]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  // Fallback: try to match xpub anywhere in the string (for simpler descriptors)
+  const fallbackMatch = descriptor.match(/([xyztuv]pub[a-zA-HJ-NP-Z0-9]+)/);
+  if (fallbackMatch && fallbackMatch[1]) {
+    return fallbackMatch[1];
+  }
+
+  throw new HardwareWalletError(
+    `Could not extract xpub from descriptor: ${descriptor.substring(0, 50)}...`,
+    'XPUB_EXTRACTION_FAILED',
+    'trezor',
+    'Failed to extract public key from account descriptor.'
+  );
+}
+
+/**
  * Trezor Hardware Wallet Adapter
  */
 export class TrezorAdapter implements IHardwareWalletAdapter {
@@ -438,7 +476,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const pathArray = DerivationPaths.getBip44Path(addressFormat, account, 0, index);
     // Use string path format to avoid JavaScript signed integer issues with hardened values
     const pathString = DerivationPaths.pathToString(pathArray);
-    const scriptType = getOutputScriptType(addressFormat);
+    // getAddress expects INPUT script types (SPEND*), not output types (PAYTO*)
+    const scriptType = getInputScriptType(addressFormat);
 
     const result = await TrezorConnect.getAddress({
       path: pathString,
@@ -479,7 +518,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     const addresses: HardwareAddress[] = [];
-    const scriptType = getOutputScriptType(addressFormat);
+    // getAddress expects INPUT script types (SPEND*), not output types (PAYTO*)
+    const scriptType = getInputScriptType(addressFormat);
 
     // Build bundle of address requests using string paths
     // to avoid JavaScript signed integer issues with hardened values
@@ -547,6 +587,122 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     }
 
     return result.payload.xpub;
+  }
+
+  /**
+   * Discover Bitcoin accounts on the device using BIP-44 account discovery.
+   *
+   * This method uses Trezor Connect's getAccountInfo with automatic discovery,
+   * which scans all address types (legacy, segwit, taproot) and finds accounts
+   * with existing funds. The user selects their account in Trezor's UI.
+   *
+   * **Key optimization**: The xpub is extracted directly from the descriptor
+   * returned by getAccountInfo, eliminating the need for a separate
+   * getPublicKey() call. This reduces the number of TrezorConnect calls from
+   * 2 to 1, which means fewer permission prompts when Trezor Suite is open.
+   *
+   * @param usePassphrase - Whether to use passphrase-protected wallet
+   * @returns Discovered account information including path, descriptor, balance, first address, and xpub
+   */
+  async discoverAccount(usePassphrase: boolean = false): Promise<{
+    path: string;
+    descriptor: string;
+    balance: string;
+    address: string;
+    addressFormat: AddressFormat;
+    accountIndex: number;
+    xpub: string;
+  }> {
+    this.ensureInitialized();
+
+    // Use getAccountInfo with just coin parameter for BIP-44 discovery
+    // This triggers Trezor's account selection UI
+    const result = await TrezorConnect.getAccountInfo({
+      coin: 'btc',
+      useEmptyPassphrase: !usePassphrase,
+    });
+
+    if (!result.success) {
+      const errorMsg = result.payload.error?.toLowerCase() || '';
+      const errorCode = result.payload.code ?? 'DISCOVERY_FAILED';
+
+      // Provide specific error messages for common failure modes
+      if (errorMsg.includes('cancelled') || errorMsg.includes('cancel')) {
+        throw new HardwareWalletError(
+          'User cancelled the operation',
+          'USER_CANCELLED',
+          'trezor',
+          'Connection cancelled. Click Connect Trezor to try again.'
+        );
+      }
+
+      if (errorMsg.includes('session not found') || errorMsg.includes('device disconnected')) {
+        throw new HardwareWalletError(
+          'Device disconnected',
+          'DEVICE_DISCONNECTED',
+          'trezor',
+          'Trezor was disconnected. Please reconnect and try again.'
+        );
+      }
+
+      if (errorMsg.includes('permissions') || errorMsg.includes('not permitted')) {
+        throw new HardwareWalletError(
+          'Permission denied',
+          'PERMISSION_DENIED',
+          'trezor',
+          'Please grant permissions in Trezor Suite and try again.'
+        );
+      }
+
+      if (errorMsg.includes('busy') || errorMsg.includes('in use')) {
+        throw new HardwareWalletError(
+          'Device is busy',
+          'DEVICE_BUSY',
+          'trezor',
+          'Another application is using your Trezor. Please close other apps and try again.'
+        );
+      }
+
+      // Default error
+      throw new HardwareWalletError(
+        `Account discovery failed: ${result.payload.error}`,
+        errorCode,
+        'trezor',
+        'Failed to discover accounts. Please check your device and try again.'
+      );
+    }
+
+    const account = result.payload;
+
+    // Validate and parse the account path using the utility
+    const parsedPath = DerivationPaths.parseAccountPath(account.path);
+    if (!parsedPath) {
+      throw new HardwareWalletError(
+        `Invalid account path from device: ${account.path}`,
+        'INVALID_PATH',
+        'trezor',
+        'The device returned an unexpected account path format.'
+      );
+    }
+
+    const addressFormat = parsedPath.addressFormat;
+
+    // Resolve the first address from account info or derive it
+    const firstAddress = await this.resolveFirstAddress(account, usePassphrase);
+
+    // Extract xpub from descriptor - no separate getPublicKey() call needed!
+    // This is the key optimization: one TrezorConnect call instead of two.
+    const xpub = extractXpubFromDescriptor(account.descriptor);
+
+    return {
+      path: account.path,
+      descriptor: account.descriptor,
+      balance: account.balance,
+      address: firstAddress,
+      addressFormat,
+      accountIndex: parsedPath.accountIndex,
+      xpub,
+    };
   }
 
   /**
@@ -873,6 +1029,54 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   }
 
   /**
+   * Resolve the first receiving address from account info or derive it.
+   *
+   * Trezor's getAccountInfo may or may not include address arrays depending
+   * on the account's transaction history. This helper centralizes the logic
+   * to extract the first address from available data, or fall back to
+   * deriving it via getAddress if needed.
+   *
+   * @param account - Account info from getAccountInfo
+   * @param usePassphrase - Whether passphrase is enabled
+   * @returns The first receiving address for this account
+   */
+  private async resolveFirstAddress(
+    account: { path: string; addresses?: { unused?: Array<{ address: string }>; used?: Array<{ address: string }> } },
+    usePassphrase: boolean
+  ): Promise<string> {
+    // Try to get address from account info (preferred - no extra call)
+    const addresses = account.addresses;
+    if (addresses?.unused && addresses.unused.length > 0) {
+      return addresses.unused[0].address;
+    }
+    if (addresses?.used && addresses.used.length > 0) {
+      return addresses.used[0].address;
+    }
+
+    // Fall back to explicit getAddress call if account has no address history
+    // This happens for new/empty accounts
+    const parsedPath = DerivationPaths.parseAccountPath(account.path);
+    if (!parsedPath) {
+      throw new HardwareWalletError(
+        `Invalid account path: ${account.path}`,
+        'INVALID_PATH',
+        'trezor',
+        'Cannot derive address from invalid account path.'
+      );
+    }
+
+    const addressResult = await this.getAddress(
+      parsedPath.addressFormat,
+      parsedPath.accountIndex,
+      0, // First address
+      false, // Don't show on device
+      usePassphrase
+    );
+
+    return addressResult.address;
+  }
+
+  /**
    * Ensure the adapter is initialized, with optional auto-reconnect
    */
   private ensureInitialized(): void {
@@ -901,11 +1105,28 @@ export function getTrezorAdapter(): TrezorAdapter {
 }
 
 /**
- * Reset the Trezor adapter (for testing or cleanup)
+ * Reset the Trezor adapter (for testing, cleanup, or reconnection).
+ *
+ * This function fully resets the Trezor connection state by:
+ * 1. Disposing the adapter instance (removes event listeners)
+ * 2. Calling TrezorConnect.dispose() directly to clear any residual state
+ * 3. Setting the singleton to null for fresh initialization
+ *
+ * Call this before retrying a connection after failure or when reconnecting
+ * a device to ensure clean state.
  */
 export async function resetTrezorAdapter(): Promise<void> {
   if (trezorAdapterInstance) {
+    // dispose() already calls TrezorConnect.dispose() internally
     await trezorAdapterInstance.dispose();
     trezorAdapterInstance = null;
+  } else {
+    // No adapter instance, but TrezorConnect might still have state
+    // (e.g., from a failed init or external initialization)
+    try {
+      TrezorConnect.dispose();
+    } catch {
+      // Ignore if already disposed or not initialized
+    }
   }
 }

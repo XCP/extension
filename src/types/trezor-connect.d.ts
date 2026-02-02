@@ -172,6 +172,57 @@ declare module '@trezor/connect-webextension' {
     [key: string]: unknown;
   }
 
+  export interface GetAccountInfoParams {
+    coin: string;
+    path?: string;
+    descriptor?: string;
+    details?: 'basic' | 'tokens' | 'tokenBalances' | 'txids' | 'txs';
+    tokens?: 'nonzero' | 'used' | 'derived';
+    page?: number;
+    pageSize?: number;
+    from?: number;
+    to?: number;
+    contractFilter?: string;
+    gap?: number;
+    marker?: { ledger: number; seq: number };
+    useEmptyPassphrase?: boolean;
+    [key: string]: unknown;
+  }
+
+  export interface AccountAddress {
+    address: string;
+    path: string;
+    transfers: number;
+    balance: string;
+    sent: string;
+    received: string;
+  }
+
+  export interface AccountInfo {
+    path: string;
+    descriptor: string;
+    balance: string;
+    availableBalance: string;
+    empty: boolean;
+    addresses?: {
+      unused?: AccountAddress[];
+      used?: AccountAddress[];
+      change?: AccountAddress[];
+    };
+    history?: {
+      total: number;
+      unconfirmed: number;
+    };
+    page?: {
+      index: number;
+      size: number;
+      total: number;
+    };
+    misc?: {
+      [key: string]: unknown;
+    };
+  }
+
   export interface TrezorConnect {
     init(settings: InitConfig): Promise<void>;
 
@@ -182,6 +233,8 @@ declare module '@trezor/connect-webextension' {
     getAddress(params: GetAddressParams): Promise<Response<Address | Address[]>>;
 
     getPublicKey(params: GetPublicKeyParams): Promise<Response<HDNodeResponse>>;
+
+    getAccountInfo(params: GetAccountInfoParams): Promise<Response<AccountInfo>>;
 
     signTransaction(params: {
       inputs: Array<{

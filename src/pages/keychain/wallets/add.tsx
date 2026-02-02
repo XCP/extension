@@ -145,10 +145,10 @@ function AddWalletPage() {
                 color="gray"
                 fullWidth
                 onClick={handleConnectHardware}
-                aria-label="Connect Hardware Wallet"
+                aria-label="Use Trezor Connect"
               >
                 <FiShield className="size-4 mr-2" aria-hidden="true" />
-                Connect Hardware Wallet
+                Use Trezor Connect
               </Button>
             )}
             {isDevelopment && (
