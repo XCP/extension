@@ -113,6 +113,7 @@ export default function AddressesPage(): ReactElement {
           selectedAddress={activeAddress}
           onSelectAddress={handleSelectAddress}
           walletId={activeWallet.id}
+          isHardwareWallet={activeWallet.type === 'hardware'}
         />
       </div>
       <div className="p-4">

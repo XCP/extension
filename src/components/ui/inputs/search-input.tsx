@@ -87,7 +87,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>((
           {label} {required && <span className="text-red-500">*</span>}
         </Label>
       )}
-      <div className="relative">
+      <div className="relative z-0">
         <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
           <FaSearch className="size-4 text-gray-400" aria-hidden="true" />
         </div>

@@ -16,6 +16,8 @@ interface AddressMenuProps {
   walletId: string;
   /** Callback when copy address is clicked */
   onCopyAddress: (address: string) => void;
+  /** Whether this address belongs to a hardware wallet */
+  isHardwareWallet?: boolean;
 }
 
 /**
@@ -27,10 +29,11 @@ interface AddressMenuProps {
  * @param props - The component props
  * @returns A ReactElement representing the address menu
  */
-export function AddressMenu({ 
-  address, 
-  walletId, 
-  onCopyAddress 
+export function AddressMenu({
+  address,
+  walletId,
+  onCopyAddress,
+  isHardwareWallet = false,
 }: AddressMenuProps): ReactElement {
   const navigate = useNavigate();
 
@@ -73,16 +76,19 @@ export function AddressMenu({
         </Button>
       </MenuItem>
       
-      <MenuItem>
-        <Button 
-          variant="menu-item" 
-          fullWidth 
-          onClick={handleShowPrivateKey}
-        >
-          <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Show Private Key
-        </Button>
-      </MenuItem>
+      {/* Hide private key option for hardware wallets - keys never leave device */}
+      {!isHardwareWallet && (
+        <MenuItem>
+          <Button
+            variant="menu-item"
+            fullWidth
+            onClick={handleShowPrivateKey}
+          >
+            <VscKey className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+            Show Private Key
+          </Button>
+        </MenuItem>
+      )}
     </BaseMenu>
   );
 } 

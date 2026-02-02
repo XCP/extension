@@ -38,32 +38,33 @@ describe('DerivationPaths', () => {
   describe('getBip44Path', () => {
     it('should return correct path for P2WPKH account 0, address 0', () => {
       const path = DerivationPaths.getBip44Path(AddressFormat.P2WPKH, 0, 0, 0);
+      // Use >>> 0 to get unsigned values (matching what getBip44Path returns)
       expect(path).toEqual([
-        84 | 0x80000000,  // purpose (hardened)
-        0 | 0x80000000,   // coin type (hardened) - Bitcoin mainnet
-        0 | 0x80000000,   // account (hardened)
-        0,                // change (external)
-        0,                // address index
+        (84 | 0x80000000) >>> 0,  // purpose (hardened)
+        (0 | 0x80000000) >>> 0,   // coin type (hardened) - Bitcoin mainnet
+        (0 | 0x80000000) >>> 0,   // account (hardened)
+        0,                         // change (external)
+        0,                         // address index
       ]);
     });
 
     it('should return correct path for P2TR account 1, address 5', () => {
       const path = DerivationPaths.getBip44Path(AddressFormat.P2TR, 1, 0, 5);
       expect(path).toEqual([
-        86 | 0x80000000,  // purpose (hardened)
-        0 | 0x80000000,   // coin type (hardened)
-        1 | 0x80000000,   // account 1 (hardened)
-        0,                // change (external)
-        5,                // address index 5
+        (86 | 0x80000000) >>> 0,  // purpose (hardened)
+        (0 | 0x80000000) >>> 0,   // coin type (hardened)
+        (1 | 0x80000000) >>> 0,   // account 1 (hardened)
+        0,                         // change (external)
+        5,                         // address index 5
       ]);
     });
 
     it('should return correct path for P2PKH with change addresses', () => {
       const path = DerivationPaths.getBip44Path(AddressFormat.P2PKH, 0, 1, 0);
       expect(path).toEqual([
-        44 | 0x80000000,
-        0 | 0x80000000,
-        0 | 0x80000000,
+        (44 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
         1,                // change = 1 (internal)
         0,
       ]);
@@ -72,9 +73,9 @@ describe('DerivationPaths', () => {
     it('should use default values when not provided', () => {
       const path = DerivationPaths.getBip44Path(AddressFormat.P2WPKH);
       expect(path).toEqual([
-        84 | 0x80000000,
-        0 | 0x80000000,
-        0 | 0x80000000,
+        (84 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
         0,
         0,
       ]);
@@ -83,10 +84,11 @@ describe('DerivationPaths', () => {
 
   describe('pathToString', () => {
     it('should convert path array to string format', () => {
+      // pathToString works with both signed and unsigned values
       const path = [
-        84 | 0x80000000,
-        0 | 0x80000000,
-        0 | 0x80000000,
+        (84 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
         0,
         0,
       ];
@@ -100,9 +102,9 @@ describe('DerivationPaths', () => {
 
     it('should handle mixed hardened and non-hardened', () => {
       const path = [
-        44 | 0x80000000,
-        0 | 0x80000000,
-        5 | 0x80000000,
+        (44 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (5 | 0x80000000) >>> 0,
         0,
         10,
       ];
@@ -113,10 +115,11 @@ describe('DerivationPaths', () => {
   describe('stringToPath', () => {
     it('should parse standard BIP44 path', () => {
       const path = DerivationPaths.stringToPath("m/84'/0'/0'/0/0");
+      // Use >>> 0 to get unsigned values (matching what stringToPath returns)
       expect(path).toEqual([
-        84 | 0x80000000,
-        0 | 0x80000000,
-        0 | 0x80000000,
+        (84 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
         0,
         0,
       ]);
@@ -125,19 +128,20 @@ describe('DerivationPaths', () => {
     it('should handle h notation for hardened', () => {
       const path = DerivationPaths.stringToPath("m/44h/0h/0h/0/0");
       expect(path).toEqual([
-        44 | 0x80000000,
-        0 | 0x80000000,
-        0 | 0x80000000,
+        (44 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
         0,
         0,
       ]);
     });
 
     it('should be inverse of pathToString', () => {
+      // Use unsigned values (>>> 0) since that's what stringToPath returns
       const original = [
-        86 | 0x80000000,
-        0 | 0x80000000,
-        2 | 0x80000000,
+        (86 | 0x80000000) >>> 0,
+        (0 | 0x80000000) >>> 0,
+        (2 | 0x80000000) >>> 0,
         1,
         42,
       ];

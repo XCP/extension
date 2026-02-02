@@ -146,15 +146,13 @@ export function IssueSupplyForm({
           isDivisible={assetInfo?.divisible ?? false}
         />
         
-        <div className="relative z-10">
-          <CheckboxInput
-            name="lock_checkbox"
-            label="Lock Supply"
-            checked={lock}
-            onChange={setLock}
-            disabled={pending}
-          />
-        </div>
+        <CheckboxInput
+          name="lock_checkbox"
+          label="Lock Supply"
+          checked={lock}
+          onChange={setLock}
+          disabled={pending}
+        />
 
     </ComposerForm>
   );

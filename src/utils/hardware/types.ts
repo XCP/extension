@@ -212,10 +212,11 @@ export const DerivationPaths = {
     const purpose = this.getPurpose(addressFormat);
     const coinType = 0; // Bitcoin mainnet
 
+    // Use >>> 0 to convert to unsigned 32-bit (JS bitwise ops return signed)
     return [
-      purpose | this.HARDENED,
-      coinType | this.HARDENED,
-      account | this.HARDENED,
+      (purpose | this.HARDENED) >>> 0,
+      (coinType | this.HARDENED) >>> 0,
+      (account | this.HARDENED) >>> 0,
       change,
       index,
     ];
@@ -254,7 +255,8 @@ export const DerivationPaths = {
     return parts.map(part => {
       const isHardened = part.endsWith("'") || part.endsWith('h');
       const value = parseInt(part.replace(/['h]/g, ''), 10);
-      return isHardened ? (value | this.HARDENED) : value;
+      // Use >>> 0 to convert to unsigned 32-bit (JS bitwise ops return signed)
+      return isHardened ? ((value | this.HARDENED) >>> 0) : value;
     });
   },
 

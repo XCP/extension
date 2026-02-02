@@ -5,13 +5,13 @@ import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FiRefreshCw } fro
 import { FiDownload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
-import { Spinner } from "@/components/ui/spinner";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
 import { analytics } from "@/utils/fathom";
 import type { ReactElement } from "react";
+import type { AddressFormat } from "@/utils/blockchain/bitcoin/address";
 
 /**
  * SignMessage component for signing messages with Bitcoin addresses
@@ -100,31 +100,51 @@ export default function SignMessagePage(): ReactElement {
     setSignature("");
 
     try {
-      // Get private key using wallet context
-      // This handles both mnemonic and private key wallets correctly
-      const privateKeyResult = await getPrivateKey(
-        activeWallet.id,
-        activeAddress.path
-      );
+      let resultSignature: string;
 
-      // Use the hex format for signing
-      const privateKeyHex = privateKeyResult.hex;
-      const compressed = privateKeyResult.compressed;
+      // Check if this is a hardware wallet
+      if (activeWallet.type === 'hardware') {
+        // Use TrezorAdapter for hardware wallet signing
+        const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
+        const { DerivationPaths } = await import('@/utils/hardware/types');
+        const trezor = getTrezorAdapter();
+        await trezor.init();
 
-      // Sign the message
-      const result = await signMessage(
-        message,
-        privateKeyHex,
-        addressFormat!,  // We've already checked it exists
-        compressed
-      );
-      
-      setSignature(result.signature);
+        const hwResult = await trezor.signMessage({
+          path: DerivationPaths.stringToPath(activeAddress.path),
+          message: message,
+          coin: 'Bitcoin',
+        });
+
+        resultSignature = hwResult.signature;
+      } else {
+        // Software wallet - get private key and sign locally
+        const privateKeyResult = await getPrivateKey(
+          activeWallet.id,
+          activeAddress.path
+        );
+
+        // Use the hex format for signing
+        const privateKeyHex = privateKeyResult.hex;
+        const compressed = privateKeyResult.compressed;
+
+        // Sign the message
+        const result = await signMessage(
+          message,
+          privateKeyHex,
+          addressFormat as AddressFormat,
+          compressed
+        );
+
+        resultSignature = result.signature;
+      }
+
+      setSignature(resultSignature);
       analytics.track('message_signed');
 
       // If this is a provider request, notify the provider of success
       if (isProviderRequest) {
-        await handleSuccess({ signature: result.signature });
+        await handleSuccess({ signature: resultSignature });
       }
     } catch (err) {
       console.error("Failed to sign message:", err);
@@ -268,15 +288,15 @@ export default function SignMessagePage(): ReactElement {
               fullWidth
             >
               {isSigning ? (
-                <div className="flex items-center justify-center gap-2">
-                  <Spinner />
-                  Signing…
-                </div>
+                <>
+                  <FiRefreshCw className="size-4 mr-2 animate-spin" aria-hidden="true" />
+                  {activeWallet?.type === 'hardware' ? 'Confirm on device…' : 'Signing…'}
+                </>
               ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <FaLock className="size-4" aria-hidden="true" />
+                <>
+                  <FaLock className="size-4 mr-2" aria-hidden="true" />
                   Sign Message
-                </div>
+                </>
               )}
             </Button>
           </div>

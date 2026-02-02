@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -6,6 +6,9 @@ import { FaEye, FaPlus, FiDownload, FiX, VscKey, FiShield } from "@/components/i
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/utils/wallet/constants";
+
+/** Check if we're running in the sidepanel (vs popup) */
+const isSidepanel = () => document.body.dataset.context === 'sidepanel';
 
 const PATHS = {
   BACK: "/keychain/wallets",
@@ -20,7 +23,7 @@ const PATHS = {
 function AddWalletPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, activeWallet, setActiveWallet, removeWallet } = useWallet();
+  const { wallets, removeWallet } = useWallet();
 
   const [error, setError] = useState<string | null>(null);
 
@@ -28,6 +31,9 @@ function AddWalletPage() {
   const hardwareWallet = wallets.find((w) => w.type === 'hardware');
 
   const isDevelopment = process.env.NODE_ENV === "development";
+
+  // Hardware wallets require sidepanel to avoid popup closing during device interaction
+  const canUseHardwareWallet = useMemo(() => isSidepanel(), []);
 
   useEffect(() => {
     setHeaderProps({
@@ -85,14 +91,12 @@ function AddWalletPage() {
     if (!hardwareWallet) return;
 
     // Hardware wallets are session-only, just remove from memory
-    // Match the behavior of remove-wallet: switch active wallet if needed
-    const remainingWallets = wallets.filter((w) => w.id !== hardwareWallet.id);
-    if (activeWallet?.id === hardwareWallet.id) {
-      await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0] : null);
-    }
+    // The removeWallet function will:
+    // 1. Clear activeWalletId if this was the active wallet
+    // 2. Call refreshWalletState which auto-selects the first remaining wallet
     await removeWallet(hardwareWallet.id);
     navigate(PATHS.BACK, { replace: true });
-  }, [wallets, activeWallet, setActiveWallet, removeWallet, hardwareWallet, navigate]);
+  }, [removeWallet, hardwareWallet, navigate]);
 
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
@@ -140,14 +144,14 @@ function AddWalletPage() {
                 <FiX className="size-4 mr-2" aria-hidden="true" />
                 Disconnect {hardwareWallet.name}
               </Button>
-            ) : (
+            ) : canUseHardwareWallet && (
               <Button
-                color="gray"
+                color="black"
                 fullWidth
                 onClick={handleConnectHardware}
                 aria-label="Use Trezor Connect"
               >
-                <FiShield className="size-4 mr-2" aria-hidden="true" />
+                <FiShield className="size-4 mr-2 text-[#00854D]" aria-hidden="true" />
                 Use Trezor Connect
               </Button>
             )}

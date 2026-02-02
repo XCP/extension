@@ -16,7 +16,12 @@ const PATHS = {
   BACK: "/index",
 } as const;
 
-const getActionSections = (isSegwitWallet: boolean, enableMPMA: boolean, showRecoverBitcoinNotification: boolean, navigate: (path: string) => void): ActionSection[] => {
+const getActionSections = (
+  isSegwitWallet: boolean,
+  enableMPMA: boolean,
+  showRecoverBitcoinNotification: boolean,
+  navigate: (path: string) => void
+): ActionSection[] => {
   const sections: ActionSection[] = [
     {
       title: "Tools",

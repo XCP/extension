@@ -10,6 +10,8 @@ interface AddressListProps {
   selectedAddress?: Address | null;
   onSelectAddress: (address: Address) => void;
   walletId: string;
+  /** Whether this is a hardware wallet (hides private key option) */
+  isHardwareWallet?: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface AddressListProps {
  * @param props - The component props
  * @returns A ReactElement representing the address list
  */
-export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId }: AddressListProps): ReactElement => {
+export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false }: AddressListProps): ReactElement => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopyAddress = (address: string) => {
@@ -69,6 +71,7 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
                   address={address}
                   walletId={walletId}
                   onCopyAddress={handleCopyAddress}
+                  isHardwareWallet={isHardwareWallet}
                 />
               </div>
               <div className="text-sm mb-1 font-medium">{address.name}</div>

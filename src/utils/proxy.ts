@@ -49,9 +49,10 @@ const EXTENDED_PROXY_TIMEOUT = 180000;
 // Methods that require extended timeouts (user interaction with external devices)
 const EXTENDED_TIMEOUT_METHODS: Record<string, string[]> = {
   'WalletService': [
-    'createHardwareWallet',
+    'createHardwareWalletWithDiscovery',
     'signTransaction',
     'signMessage',
+    'signPsbt',
   ],
 };
 

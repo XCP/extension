@@ -79,6 +79,7 @@ describe('TrezorAdapter', () => {
 
       await adapter.init();
 
+      // Production mode: popup=true, no explicit transports (auto-detect)
       expect(mockInit).toHaveBeenCalledWith({
         manifest: {
           appName: 'XCP Wallet',
@@ -87,7 +88,6 @@ describe('TrezorAdapter', () => {
         },
         popup: true,
         debug: expect.any(Boolean),
-        transports: ['WebUsbTransport'],
       });
     });
 
@@ -709,6 +709,81 @@ describe('TrezorAdapter', () => {
           ]),
         })
       );
+    });
+
+    it('should use SPENDADDRESS script type for legacy P2PKH path (purpose 44)', async () => {
+      // Legacy P2PKH uses purpose 44'
+      const legacyPsbtDetails = {
+        ...mockPsbtDetails,
+        outputs: [
+          {
+            index: 0,
+            value: 90000,
+            type: 'p2pkh' as const,
+            // P2PKH script: 76a914 + 20-byte-hash + 88ac
+            script: '76a914751e76e8199196d454941c45d1b3a323f1433bd688ac',
+          },
+        ],
+      };
+      mockExtractPsbtDetails.mockReturnValue(legacyPsbtDetails);
+
+      mockSignTransaction.mockResolvedValue({
+        success: true,
+        payload: {
+          serializedTx: '02000000...',
+          txid: 'legacy_tx_id...',
+        },
+      });
+
+      const inputPaths = new Map<number, number[]>();
+      // Legacy P2PKH path: m/44'/0'/0'/0/0
+      inputPaths.set(0, [44 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      await adapter.signPsbt({
+        psbtHex: 'any_psbt_hex',
+        inputPaths,
+      });
+
+      // Should use SPENDADDRESS for input (legacy P2PKH)
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          inputs: expect.arrayContaining([
+            expect.objectContaining({
+              script_type: 'SPENDADDRESS', // Legacy P2PKH input type
+            }),
+          ]),
+          outputs: expect.arrayContaining([
+            expect.objectContaining({
+              script_type: 'PAYTOADDRESS', // Legacy P2PKH output type
+            }),
+          ]),
+        })
+      );
+    });
+
+    it('should throw if input value is missing', async () => {
+      const psbtWithMissingValue = {
+        ...mockPsbtDetails,
+        inputs: [
+          {
+            index: 0,
+            txid: 'def456789012345678901234567890123456789012345678901234567890abcd',
+            vout: 0,
+            value: undefined, // Missing value!
+          },
+        ],
+      };
+      mockExtractPsbtDetails.mockReturnValue(psbtWithMissingValue);
+
+      const inputPaths = new Map<number, number[]>();
+      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      await expect(
+        adapter.signPsbt({
+          psbtHex: 'any_psbt_hex',
+          inputPaths,
+        })
+      ).rejects.toThrow(/missing value/i);
     });
   });
 
