@@ -26,8 +26,8 @@ import { isValidCounterwalletMnemonic, getCounterwalletSeed } from '@/utils/bloc
 import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/utils/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { signPSBT as btcSignPSBT } from '@/utils/blockchain/bitcoin/psbt';
-// Note: getTrezorAdapter is dynamically imported in createHardwareWallet to avoid
+import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValues } from '@/utils/blockchain/bitcoin/psbt';
+// Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
@@ -173,7 +173,7 @@ export class WalletManager {
         // We need the address from the record's previewAddress since
         // hardware secrets don't store the address directly
         return [{
-          name: `Account ${hardwareData.accountIndex}`,
+          name: 'Address 1',
           path: hardwareData.derivationPath,
           address: record.previewAddress,
           pubKey: hardwareData.publicKey,
@@ -523,9 +523,9 @@ export class WalletManager {
       throw new Error('This hardware wallet account is already connected.');
     }
 
-    // Use provided name if non-empty, otherwise generate default
-    // Note: name?.trim() handles both undefined and empty string cases
-    const walletName = name?.trim() || `Trezor ${this.wallets.length + 1}`;
+    // Use provided name if non-empty, otherwise just "Trezor"
+    // Hardware wallets don't use incremental numbering like software wallets
+    const walletName = name?.trim() || 'Trezor';
 
     // Build hardware secret (public metadata only - private keys never leave device)
     const hardwareSecret: HardwareWalletSecret = {
@@ -566,7 +566,8 @@ export class WalletManager {
       addressFormat: account.addressFormat,
       addressCount: 1,
       addresses: [{
-        name: `Account ${account.accountIndex}`,
+        // Use "Address 1" to match software wallet UX (1-indexed for users)
+        name: 'Address 1',
         path: account.derivationPath,
         address: account.address,
         pubKey: account.publicKey,
@@ -590,68 +591,11 @@ export class WalletManager {
   }
 
   /**
-   * Creates a hardware wallet by connecting to the device and getting the public key.
-   * Private keys NEVER leave the hardware device - only public keys are stored.
-   *
-   * @param deviceType - Hardware wallet vendor ('trezor' or 'ledger')
-   * @param addressFormat - Bitcoin address format (P2WPKH, P2TR, etc.)
-   * @param accountIndex - BIP44 account index (default 0)
-   * @param name - Optional wallet name
-   * @param usePassphrase - Whether to use passphrase-protected wallet
-   */
-  public async createHardwareWallet(
-    deviceType: 'trezor' | 'ledger',
-    addressFormat: AddressFormat,
-    accountIndex: number = 0,
-    name?: string,
-    usePassphrase: boolean = false
-  ): Promise<Wallet> {
-    // Currently only Trezor is supported
-    if (deviceType !== 'trezor') {
-      throw new Error(`Hardware wallet type '${deviceType}' is not yet supported`);
-    }
-
-    // Dynamically import Trezor adapter to avoid loading @trezor/connect-webextension
-    // at extension startup (the module auto-initializes and can cause issues)
-    const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
-    const trezor = getTrezorAdapter();
-
-    // Initialize with settings (for emulator mode support)
-    const settings = this.getSettings();
-    await trezor.init({ testMode: settings?.trezorEmulatorMode });
-
-    // Get address and public key from the hardware device
-    // This will trigger the Trezor popup for user confirmation
-    const hardwareAddress = await trezor.getAddress(
-      addressFormat,
-      accountIndex,
-      0, // index
-      true, // showOnDevice - user should verify the address
-      usePassphrase
-    );
-
-    return this.finalizeHardwareWallet({
-      deviceType,
-      address: hardwareAddress.address,
-      publicKey: hardwareAddress.publicKey,
-      derivationPath: hardwareAddress.path,
-      addressFormat,
-      accountIndex,
-      usePassphrase,
-      idSuffix: hardwareAddress.publicKey,
-    }, name);
-  }
-
-  /**
    * Creates a hardware wallet using BIP-44 account discovery.
    *
    * This method triggers Trezor's account discovery UI, which scans all address
    * types (legacy, segwit, taproot) and finds accounts with existing funds.
    * The user selects their account in Trezor's interface.
-   *
-   * This provides better UX than createHardwareWallet() because users don't need
-   * to manually select address format or account index - the device discovers
-   * what exists and lets them pick.
    *
    * @param deviceType - Hardware wallet vendor ('trezor' or 'ledger')
    * @param name - Optional wallet name
@@ -1194,6 +1138,46 @@ export class WalletManager {
   }
 
   /**
+   * Get an initialized Trezor adapter for a hardware wallet.
+   *
+   * Centralizes the common pattern of:
+   * 1. Getting hardware wallet secret from session
+   * 2. Validating it's a Trezor device
+   * 3. Dynamically importing and initializing the adapter
+   *
+   * @param walletId - The hardware wallet ID
+   * @returns Initialized Trezor adapter and DerivationPaths utility
+   * @throws Error if wallet is not unlocked or not a Trezor
+   */
+  private async getInitializedTrezor(walletId: string): Promise<{
+    trezor: import('@/utils/hardware/trezorAdapter').TrezorAdapter;
+    DerivationPaths: typeof import('@/utils/hardware/types').DerivationPaths;
+    hardwareData: HardwareWalletSecret;
+  }> {
+    const secret = await sessionManager.getUnlockedSecret(walletId);
+    if (!secret) {
+      throw new Error("Hardware wallet not unlocked");
+    }
+
+    const hardwareData: HardwareWalletSecret = JSON.parse(secret);
+
+    if (hardwareData.deviceType !== 'trezor') {
+      throw new Error(`Hardware wallet type '${hardwareData.deviceType}' is not yet supported`);
+    }
+
+    // Dynamically import to avoid loading @trezor/connect-webextension at startup
+    const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
+    const { DerivationPaths } = await import('@/utils/hardware/types');
+    const trezor = getTrezorAdapter();
+
+    // Initialize with settings
+    const settings = this.getSettings();
+    await trezor.init({ testMode: settings?.trezorEmulatorMode });
+
+    return { trezor, DerivationPaths, hardwareData };
+  }
+
+  /**
    * Sign a Bitcoin transaction.
    *
    * For software wallets (mnemonic/privateKey), signs the raw transaction hex.
@@ -1202,9 +1186,17 @@ export class WalletManager {
    * @param rawTxHex - Raw transaction hex (used for software wallets)
    * @param sourceAddress - Address signing the transaction
    * @param psbtHex - Optional PSBT hex (required for hardware wallets)
+   * @param inputValues - Optional array of input values in satoshis (for hardware wallets)
+   * @param lockScripts - Optional array of input lock scripts (for hardware wallets)
    * @returns Signed transaction hex ready for broadcast
    */
-  public async signTransaction(rawTxHex: string, sourceAddress: string, psbtHex?: string): Promise<string> {
+  public async signTransaction(
+    rawTxHex: string,
+    sourceAddress: string,
+    psbtHex?: string,
+    inputValues?: number[],
+    lockScripts?: string[]
+  ): Promise<string> {
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
@@ -1218,37 +1210,28 @@ export class WalletManager {
         throw new Error("Hardware wallet signing requires a PSBT. The transaction cannot be signed without PSBT data.");
       }
 
-      // Get hardware wallet metadata from secret
-      const secret = await sessionManager.getUnlockedSecret(wallet.id);
-      if (!secret) {
-        throw new Error("Hardware wallet not unlocked");
-      }
-
-      const hardwareData: HardwareWalletSecret = JSON.parse(secret);
-
-      if (hardwareData.deviceType !== 'trezor') {
-        throw new Error(`Hardware wallet type '${hardwareData.deviceType}' signing is not yet supported`);
-      }
-
-      // Dynamically import Trezor adapter
-      const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
-      const { DerivationPaths } = await import('@/utils/hardware/types');
-      const trezor = getTrezorAdapter();
-
-      // Initialize with settings
-      const settings = this.getSettings();
-      await trezor.init({ testMode: settings?.trezorEmulatorMode });
+      const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
 
       // Convert derivation path string to number array
       const pathArray = DerivationPaths.stringToPath(targetAddress.path);
+
+      // Complete the PSBT with input values - required for hardware wallet signing
+      // The Counterparty API returns PSBTs without witnessUtxo data, providing
+      // inputs_values and lock_scripts separately. We need to combine them.
+      if (!inputValues || !lockScripts || inputValues.length === 0 || lockScripts.length === 0) {
+        throw new Error(
+          "Hardware wallet signing requires input values and lock scripts from the API. " +
+          "The transaction data appears incomplete. Please try again."
+        );
+      }
+      const completedPsbtHex = completePsbtWithInputValues(psbtHex, inputValues, lockScripts);
 
       // Create input paths map - all inputs use the same path for single-address wallets
       // For multi-input transactions, we'd need to map each input to its path
       const inputPaths = new Map<number, number[]>();
 
       // Parse PSBT to find how many inputs there are
-      const { extractPsbtDetails } = await import('@/utils/blockchain/bitcoin/psbt');
-      const psbtDetails = extractPsbtDetails(psbtHex);
+      const psbtDetails = extractPsbtDetails(completedPsbtHex);
 
       // For now, assume all inputs are from our address (single-signer scenario)
       for (let i = 0; i < psbtDetails.inputs.length; i++) {
@@ -1257,7 +1240,7 @@ export class WalletManager {
 
       // Sign PSBT with hardware wallet - returns fully signed raw tx
       const result = await trezor.signPsbt({
-        psbtHex,
+        psbtHex: completedPsbtHex,
         inputPaths,
       });
 
@@ -1265,8 +1248,17 @@ export class WalletManager {
     }
 
     // Software wallet signing path (mnemonic or private key)
+    // Pass input values and lock scripts when available to avoid fetching previous transactions
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
-    return btcSignTransaction(rawTxHex, wallet, targetAddress, privateKeyResult.hex, privateKeyResult.compressed);
+    return btcSignTransaction(
+      rawTxHex,
+      wallet,
+      targetAddress,
+      privateKeyResult.hex,
+      privateKeyResult.compressed,
+      inputValues,
+      lockScripts
+    );
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
@@ -1293,26 +1285,16 @@ export class WalletManager {
 
     // Hardware wallet signing path
     if (wallet.type === 'hardware') {
-      // Get hardware wallet metadata from secret
-      const secret = await sessionManager.getUnlockedSecret(wallet.id);
-      if (!secret) {
-        throw new Error("Hardware wallet not unlocked");
+      // Trezor does not support message signing for Taproot (P2TR) addresses
+      // Check both wallet format and address prefix (bc1p = Taproot)
+      if (wallet.addressFormat === AddressFormat.P2TR || address.startsWith('bc1p')) {
+        throw new Error(
+          "Trezor does not support message signing for Taproot (P2TR) addresses. " +
+          "This is a hardware limitation. To sign messages, use a wallet with a different address type (e.g., Native SegWit bc1q...)."
+        );
       }
 
-      const hardwareData: HardwareWalletSecret = JSON.parse(secret);
-
-      if (hardwareData.deviceType !== 'trezor') {
-        throw new Error(`Hardware wallet type '${hardwareData.deviceType}' message signing is not yet supported`);
-      }
-
-      // Dynamically import Trezor adapter
-      const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
-      const { DerivationPaths } = await import('@/utils/hardware/types');
-      const trezor = getTrezorAdapter();
-
-      // Initialize with settings
-      const settings = this.getSettings();
-      await trezor.init({ testMode: settings?.trezorEmulatorMode });
+      const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
 
       // Convert derivation path string to number array
       const pathArray = DerivationPaths.stringToPath(targetAddress.path);

@@ -12,6 +12,73 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 
 /**
+ * Normalize PSBT string to hex format.
+ *
+ * PSBTs can be provided in either hex or base64 format:
+ * - Hex: starts with "70736274" (ASCII "psbt")
+ * - Base64: starts with "cHNidP" (base64 of "psbt")
+ *
+ * The Counterparty API returns PSBTs in base64 format, while our internal
+ * functions expect hex. This normalizes to hex.
+ *
+ * @param psbt - PSBT in either hex or base64 format
+ * @returns PSBT in hex format
+ */
+export function normalizePsbtToHex(psbt: string): string {
+  if (!psbt || typeof psbt !== 'string') {
+    throw new ValidationError('INVALID_PSBT', 'PSBT must be a non-empty string');
+  }
+
+  // Check if it's already hex (starts with PSBT magic bytes in hex)
+  // PSBT magic: 0x70736274 = "psbt" in ASCII
+  if (psbt.startsWith('70736274')) {
+    return psbt;
+  }
+
+  // Check if it looks like base64 (PSBT magic in base64 is "cHNidP")
+  if (psbt.startsWith('cHNidP')) {
+    try {
+      // Decode base64 to bytes, then convert to hex
+      const binary = atob(psbt);
+      let hex = '';
+      for (let i = 0; i < binary.length; i++) {
+        hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
+      }
+      return hex;
+    } catch {
+      throw new ValidationError('INVALID_PSBT', 'Failed to decode base64 PSBT');
+    }
+  }
+
+  // Try to determine format by checking if it's valid hex with PSBT magic
+  if (/^[0-9a-fA-F]*$/.test(psbt) && psbt.length % 2 === 0) {
+    const lowercased = psbt.toLowerCase();
+    // Must start with PSBT magic bytes
+    if (lowercased.startsWith('70736274')) {
+      return lowercased;
+    }
+    // Valid hex but not a PSBT - fall through to error
+  }
+
+  // Last resort: try base64 decode
+  try {
+    const binary = atob(psbt);
+    let hex = '';
+    for (let i = 0; i < binary.length; i++) {
+      hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
+    }
+    // Verify it starts with PSBT magic
+    if (hex.startsWith('70736274')) {
+      return hex;
+    }
+  } catch {
+    // Not valid base64
+  }
+
+  throw new ValidationError('INVALID_PSBT', 'PSBT must be in hex or base64 format');
+}
+
+/**
  * Decoded output from a transaction
  */
 export interface DecodedOutput {
@@ -73,10 +140,16 @@ export interface SignPsbtParams {
 }
 
 /**
- * Parse a PSBT hex string and return Transaction object
+ * Parse a PSBT string and return Transaction object.
+ * Accepts both hex and base64 formats - normalizes internally.
+ *
+ * @param psbt - PSBT in hex or base64 format
+ * @returns Parsed Transaction object
  */
-export function parsePSBT(psbtHex: string): Transaction {
+export function parsePSBT(psbt: string): Transaction {
   try {
+    // Normalize to hex (handles both hex and base64 input)
+    const psbtHex = normalizePsbtToHex(psbt);
     const psbtBytes = hexToBytes(psbtHex);
     return Transaction.fromPSBT(psbtBytes, {
       allowUnknownInputs: true,
@@ -201,7 +274,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
 /**
  * Sign specified inputs of a PSBT
  *
- * @param psbtHex - PSBT in hex format
+ * @param psbt - PSBT in hex or base64 format
  * @param privateKeyHex - Private key to sign with
  * @param inputIndices - Which input indices to sign (if empty, tries all)
  * @param addressFormat - Address format for the signing key
@@ -209,12 +282,14 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
  * @returns Signed PSBT hex (not finalized - caller can finalize or pass to next signer)
  */
 export function signPSBT(
-  psbtHex: string,
+  psbt: string,
   privateKeyHex: string,
   inputIndices: number[],
   addressFormat: AddressFormat,
   sighashTypes?: number[]
 ): string {
+  // Normalize to hex (handles both hex and base64 input)
+  const psbtHex = normalizePsbtToHex(psbt);
   const psbtBytes = hexToBytes(psbtHex);
   const tx = Transaction.fromPSBT(psbtBytes, {
     allowUnknownInputs: true,
@@ -267,10 +342,12 @@ export function signPSBT(
 /**
  * Finalize a fully-signed PSBT and extract the raw transaction
  *
- * @param psbtHex - Signed PSBT hex
+ * @param psbt - Signed PSBT in hex or base64 format
  * @returns Raw transaction hex ready for broadcast
  */
-export function finalizePSBT(psbtHex: string): string {
+export function finalizePSBT(psbt: string): string {
+  // Normalize to hex (handles both hex and base64 input)
+  const psbtHex = normalizePsbtToHex(psbt);
   const psbtBytes = hexToBytes(psbtHex);
   const tx = Transaction.fromPSBT(psbtBytes, {
     allowUnknownInputs: true,
@@ -281,6 +358,65 @@ export function finalizePSBT(psbtHex: string): string {
 
   tx.finalize();
   return tx.hex;
+}
+
+/**
+ * Complete a PSBT by adding witnessUtxo data for each input.
+ *
+ * The Counterparty API returns PSBTs without witnessUtxo data embedded.
+ * Instead, it provides `inputs_values` (amounts) and `lock_scripts` (scriptPubKeys)
+ * separately. This function combines them into the PSBT so hardware wallets
+ * can properly verify and display transaction details.
+ *
+ * @param psbt - PSBT in hex or base64 format
+ * @param inputValues - Array of satoshi values for each input (from inputs_values)
+ * @param lockScripts - Array of scriptPubKey hex strings for each input (from lock_scripts)
+ * @returns Completed PSBT in hex format with witnessUtxo data added
+ */
+export function completePsbtWithInputValues(
+  psbt: string,
+  inputValues: number[],
+  lockScripts: string[]
+): string {
+  // Normalize to hex
+  const psbtHex = normalizePsbtToHex(psbt);
+  const psbtBytes = hexToBytes(psbtHex);
+  const tx = Transaction.fromPSBT(psbtBytes, {
+    allowUnknownInputs: true,
+    allowUnknownOutputs: true,
+    allowLegacyWitnessUtxo: true,
+    disableScriptCheck: true,
+  });
+
+  // Validate arrays match input count
+  if (inputValues.length !== tx.inputsLength) {
+    throw new ValidationError(
+      'INVALID_PSBT',
+      `Input values count (${inputValues.length}) doesn't match PSBT inputs (${tx.inputsLength})`
+    );
+  }
+  if (lockScripts.length !== tx.inputsLength) {
+    throw new ValidationError(
+      'INVALID_PSBT',
+      `Lock scripts count (${lockScripts.length}) doesn't match PSBT inputs (${tx.inputsLength})`
+    );
+  }
+
+  // Add witnessUtxo to each input
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const amount = BigInt(inputValues[i]);
+    const script = hexToBytes(lockScripts[i]);
+
+    tx.updateInput(i, {
+      witnessUtxo: {
+        amount,
+        script,
+      },
+    });
+  }
+
+  // Return updated PSBT as hex
+  return bytesToHex(tx.toPSBT());
 }
 
 /**

@@ -177,15 +177,7 @@ interface WalletContextType {
   ) => Promise<Wallet>;
   /** Import a test/watch-only address (dev mode only) */
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
-  /** Create a hardware wallet (Trezor) - private keys never leave device */
-  createHardwareWallet: (
-    deviceType: 'trezor' | 'ledger',
-    addressFormat: AddressFormat,
-    accountIndex?: number,
-    name?: string,
-    usePassphrase?: boolean
-  ) => Promise<Wallet>;
-  /** Create a hardware wallet using BIP-44 account discovery (recommended) */
+  /** Create a hardware wallet using BIP-44 account discovery */
   createHardwareWalletWithDiscovery: (
     deviceType: 'trezor' | 'ledger',
     name?: string,
@@ -211,8 +203,18 @@ interface WalletContextType {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
 
   // ─── Transactions ──────────────────────────────────────────────────────────
-  /** Sign a raw transaction hex. For hardware wallets, psbtHex is required. */
-  signTransaction: (rawTxHex: string, sourceAddress: string, psbtHex?: string) => Promise<string>;
+  /**
+   * Sign a raw transaction hex.
+   * For hardware wallets, psbtHex is required along with inputValues and lockScripts
+   * to complete the PSBT with witnessUtxo data.
+   */
+  signTransaction: (
+    rawTxHex: string,
+    sourceAddress: string,
+    psbtHex?: string,
+    inputValues?: number[],
+    lockScripts?: string[]
+  ) => Promise<string>;
   /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
 }
@@ -307,25 +309,32 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         if (isUnlocked && allWallets.length > 0) {
           let active = await walletService.getActiveWallet();
           if (!active) {
-            active = allWallets[0];
-            await walletService.setActiveWallet(active.id);
+            // No active wallet - select the first one (this decrypts and derives addresses)
+            await walletService.selectWallet(allWallets[0].id);
+            active = await walletService.getActiveWallet();
           }
-          if (
-            (activeChanged = newState.activeWallet?.id !== active.id) ||
-            (newState.activeWallet &&
-              active &&
-              !addressesEqual(newState.activeWallet.addresses, active.addresses))
-          ) {
-            newState.activeWallet = active;
-          }
+          // Safety check - if still no active wallet, skip wallet/address processing
+          if (!active) {
+            newState.activeWallet = null;
+            newState.activeAddress = null;
+          } else {
+            if (
+              (activeChanged = newState.activeWallet?.id !== active.id) ||
+              (newState.activeWallet &&
+                active &&
+                !addressesEqual(newState.activeWallet.addresses, active.addresses))
+            ) {
+              newState.activeWallet = active;
+            }
 
-          const lastActiveAddress = await walletService.getLastActiveAddress();
-          const newActiveAddress =
-            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-              ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
-              : active.addresses[0] || null;
-          addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
-          if (addressChanged) newState.activeAddress = newActiveAddress;
+            const lastActiveAddress = await walletService.getLastActiveAddress();
+            const newActiveAddress =
+              lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+                ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+                : active.addresses[0] || null;
+            addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
+            if (addressChanged) newState.activeAddress = newActiveAddress;
+          }
         } else {
           newState.activeWallet = null;
           newState.activeAddress = null;
@@ -536,7 +545,6 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
-    createHardwareWallet: withRefresh(walletService.createHardwareWallet, refreshWalletState),
     createHardwareWalletWithDiscovery: withRefresh(walletService.createHardwareWalletWithDiscovery, refreshWalletState),
     resetKeychain: async (password) => {
       await walletService.resetKeychain(password);

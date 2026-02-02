@@ -105,7 +105,12 @@ interface TrezorSignInput {
   prev_index: number;
   amount: string;
   script_type: TrezorScriptType;
+  sequence?: number;
 }
+
+// Sequence number that enables RBF (Replace-By-Fee)
+// 0xffffffff = final (no RBF), 0xfffffffd or lower = RBF enabled
+const RBF_SEQUENCE = 0xfffffffd;
 
 /**
  * Output format expected by TrezorConnect.signTransaction()
@@ -293,11 +298,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    * @param options Configuration options for test mode or custom settings
    */
   async init(options?: TrezorAdapterOptions): Promise<void> {
+    console.log('[TrezorAdapter] init called, already initialized:', this.initialized);
     if (this.initialized) {
+      console.log('[TrezorAdapter] Already initialized, returning early');
       return;
     }
 
     this.options = options ?? {};
+    console.log('[TrezorAdapter] Starting initialization...');
 
     try {
       this.connectionStatus = 'connecting';
@@ -351,11 +359,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         }
       } else {
         // Production mode: Use popup for user interactions
+        // Don't specify transports - let @trezor/connect-webextension auto-detect
+        // The popup window handles USB/Bridge communication
         initConfig.popup = true;
-        initConfig.transports = ['WebUsbTransport'];
       }
 
+      console.log('[TrezorAdapter] Calling TrezorConnect.init with config:', JSON.stringify(initConfig, null, 2));
       await TrezorConnect.init(initConfig);
+      console.log('[TrezorAdapter] TrezorConnect.init completed successfully');
 
       // Create and store device event handler for cleanup
       this.deviceEventHandler = (rawEvent: unknown) => {
@@ -614,16 +625,20 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     xpub: string;
   }> {
     this.ensureInitialized();
+    console.log('[TrezorAdapter] discoverAccount called, usePassphrase:', usePassphrase);
 
     // Use getAccountInfo with just coin parameter for BIP-44 discovery
     // This triggers Trezor's account selection UI
+    console.log('[TrezorAdapter] Calling TrezorConnect.getAccountInfo...');
     const result = await TrezorConnect.getAccountInfo({
       coin: 'btc',
       useEmptyPassphrase: !usePassphrase,
     });
+    console.log('[TrezorAdapter] getAccountInfo result:', JSON.stringify(result, null, 2));
 
     if (!result.success) {
       const errorMsg = result.payload.error?.toLowerCase() || '';
+      console.error('[TrezorAdapter] Discovery failed:', result.payload);
       const errorCode = result.payload.code ?? 'DISCOVERY_FAILED';
 
       // Provide specific error messages for common failure modes
@@ -718,6 +733,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       prev_index: input.prevIndex,
       amount: input.amount,
       script_type: input.scriptType,
+      sequence: RBF_SEQUENCE,
     }));
 
     // Convert outputs to Trezor format
@@ -796,6 +812,17 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   async signMessage(request: HardwareMessageSignRequest): Promise<HardwareMessageSignResult> {
     this.ensureInitialized();
 
+    // Check for Taproot path (purpose 86') - Trezor doesn't support Taproot message signing
+    const purpose = request.path[0] & ~DerivationPaths.HARDENED;
+    if (purpose === 86) {
+      throw new HardwareWalletError(
+        'Trezor does not support message signing for Taproot (P2TR) addresses',
+        'TAPROOT_SIGNING_NOT_SUPPORTED',
+        'trezor',
+        'Trezor cannot sign messages with Taproot addresses. Use a wallet with a different address type (e.g., Native SegWit).'
+      );
+    }
+
     const result = await TrezorConnect.signMessage({
       path: request.path,
       message: request.message,
@@ -803,6 +830,17 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     });
 
     if (!result.success) {
+      // Provide better error message for script type errors
+      const errorMsg = result.payload.error?.toLowerCase() || '';
+      if (errorMsg.includes('script type') || errorMsg.includes('unsupported')) {
+        throw new HardwareWalletError(
+          `Failed to sign message: ${result.payload.error}`,
+          result.payload.code ?? 'SIGN_MESSAGE_FAILED',
+          'trezor',
+          'This address type is not supported for message signing on Trezor. Try using a Native SegWit (bc1q...) address.'
+        );
+      }
+
       throw new HardwareWalletError(
         `Failed to sign message: ${result.payload.error}`,
         result.payload.code ?? 'SIGN_MESSAGE_FAILED',
@@ -884,6 +922,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         prev_index: input.vout,
         amount: String(input.value),
         script_type: scriptType,
+        sequence: RBF_SEQUENCE,
       });
     }
 

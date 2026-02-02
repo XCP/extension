@@ -393,6 +393,10 @@ export function ComposerProvider<T>({
     const rawTxHex = state.apiResponse.result.rawtransaction;
     // PSBT is available for hardware wallet signing
     const psbtHex = state.apiResponse.result.psbt;
+    // Input values and lock scripts are needed to complete PSBT for hardware wallets
+    // The Counterparty API returns these separately from the PSBT
+    const inputValues = state.apiResponse.result.inputs_values;
+    const lockScripts = state.apiResponse.result.lock_scripts;
 
     // Check for replay attempt before signing
     const replayCheck = await checkReplayAttempt(
@@ -414,8 +418,8 @@ export function ComposerProvider<T>({
 
     let signedTxHex: string;
     try {
-      // Sign transaction - PSBT is passed for hardware wallet support
-      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, psbtHex);
+      // Sign transaction - PSBT and input data are passed for hardware wallet support
+      signedTxHex = await signTransaction(rawTxHex, activeAddress.address, psbtHex, inputValues, lockScripts);
     } finally {
       // Re-enable idle timer after hardware signing completes (or fails)
       if (isHardwareWallet) {

@@ -6,16 +6,97 @@ import { Transaction, p2wpkh } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import {
+  normalizePsbtToHex,
   parsePSBT,
   extractPsbtDetails,
   validateSignInputs,
   signPSBT,
   finalizePSBT,
+  completePsbtWithInputValues,
 } from '../psbt';
 import { AddressFormat } from '../address';
 
 // Test private key (DO NOT USE IN PRODUCTION)
 const TEST_PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35';
+
+// Real base64 PSBT from Counterparty API (dispense transaction)
+const REAL_BASE64_PSBT = 'cHNidP8BAIsCAAAAAfenzbA/xu3VDRlYuH8butApRC5TWmdACFtFtFJY4rbLAAAAAAD/////AgAAAAAAAAAAMGou91NEQhwmK/eEu8p4IuIeXnrNctzd68uypEohxWsegKVm4JyRI51E6MKOCvnm1BAZBioBAAAAFgAUjVCFq5uFyn2l1qBY7mY3iuyvdiIAAAAAAAAAAA==';
+
+// The same PSBT in hex format (pre-computed for verification)
+const REAL_HEX_PSBT = '70736274ff01008b020000000177a7cdb03fc6edd50d1958b87f1bbad029442e535a674008' +
+  '5b45b45258e2b6cb0000000000ffffffff020000000000000000306a2ef7534442' +
+  '1c262bf784bbca7822e21e5e7acd72dcddebcbb2a44a21c56b1e80a566e09c9123' +
+  '9d44e8c28e0af9e6d4101906260a0100000016001488d5085ab9b85ca7da5d6a05' +
+  '8ee663788aecaf762200000000000000';
+
+describe('normalizePsbtToHex', () => {
+  it('should pass through valid hex PSBT unchanged', () => {
+    const hexPsbt = createTestPsbt();
+    const normalized = normalizePsbtToHex(hexPsbt);
+    expect(normalized).toBe(hexPsbt);
+  });
+
+  it('should convert base64 PSBT to hex', () => {
+    const normalized = normalizePsbtToHex(REAL_BASE64_PSBT);
+    // Should start with PSBT magic bytes in hex
+    expect(normalized.startsWith('70736274')).toBe(true);
+    // Should be valid hex (even length, only hex chars)
+    expect(normalized.length % 2).toBe(0);
+    expect(/^[0-9a-f]+$/i.test(normalized)).toBe(true);
+  });
+
+  it('should produce consistent hex from base64 conversion', () => {
+    // Convert base64 to hex
+    const normalized = normalizePsbtToHex(REAL_BASE64_PSBT);
+    // Should start with PSBT magic "psbt\xff" = 70736274ff
+    expect(normalized.startsWith('70736274ff')).toBe(true);
+  });
+
+  it('should handle hex PSBT that already starts with magic bytes', () => {
+    // A hex PSBT starts with 70736274 (psbt magic)
+    const hexPsbt = '70736274ff0100'; // Minimal PSBT header
+    const normalized = normalizePsbtToHex(hexPsbt);
+    expect(normalized).toBe(hexPsbt);
+  });
+
+  it('should reject empty string', () => {
+    expect(() => normalizePsbtToHex('')).toThrow('PSBT must be a non-empty string');
+  });
+
+  it('should reject null/undefined', () => {
+    expect(() => normalizePsbtToHex(null as unknown as string)).toThrow('PSBT must be a non-empty string');
+    expect(() => normalizePsbtToHex(undefined as unknown as string)).toThrow('PSBT must be a non-empty string');
+  });
+
+  it('should reject invalid base64', () => {
+    expect(() => normalizePsbtToHex('not-valid-base64!!!')).toThrow();
+  });
+
+  it('should reject random hex that is not a PSBT', () => {
+    // Random hex that doesn't start with PSBT magic
+    expect(() => normalizePsbtToHex('deadbeef')).toThrow('PSBT must be in hex or base64 format');
+  });
+
+  it('should reject base64 that decodes to non-PSBT data', () => {
+    // Base64 of "hello world" - valid base64 but not a PSBT
+    const notPsbt = btoa('hello world');
+    expect(() => normalizePsbtToHex(notPsbt)).toThrow('PSBT must be in hex or base64 format');
+  });
+
+  it('should be idempotent - normalizing twice gives same result', () => {
+    const first = normalizePsbtToHex(REAL_BASE64_PSBT);
+    const second = normalizePsbtToHex(first);
+    expect(first).toBe(second);
+  });
+
+  it('should produce parseable PSBT from base64 input', () => {
+    const normalized = normalizePsbtToHex(REAL_BASE64_PSBT);
+    // Should be parseable by parsePSBT
+    const tx = parsePSBT(normalized);
+    expect(tx).toBeDefined();
+    expect(tx.inputsLength).toBeGreaterThan(0);
+  });
+});
 
 /**
  * Create a simple test PSBT with one input and two outputs
@@ -55,13 +136,22 @@ function createTestPsbt(): string {
 }
 
 describe('parsePSBT', () => {
-  it('should parse a valid PSBT', () => {
+  it('should parse a valid hex PSBT', () => {
     const psbtHex = createTestPsbt();
     const tx = parsePSBT(psbtHex);
 
     expect(tx).toBeDefined();
     expect(tx.inputsLength).toBe(1);
     expect(tx.outputsLength).toBe(3);
+  });
+
+  it('should parse a valid base64 PSBT (from Counterparty API)', () => {
+    // Real base64 PSBT from Counterparty API
+    const tx = parsePSBT(REAL_BASE64_PSBT);
+
+    expect(tx).toBeDefined();
+    expect(tx.inputsLength).toBe(1);
+    expect(tx.outputsLength).toBe(2);
   });
 
   it('should throw on invalid PSBT hex', () => {
@@ -338,5 +428,121 @@ describe('Script type detection', () => {
     expect(details.outputs[1].type).toBe('p2tr');
     expect(details.outputs[2].type).toBe('p2pkh');
     expect(details.outputs[3].type).toBe('p2sh');
+  });
+});
+
+describe('completePsbtWithInputValues', () => {
+  it('should add witnessUtxo data to PSBT inputs', () => {
+    // Create a PSBT WITHOUT witnessUtxo data
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      // No witnessUtxo here - simulates what Counterparty API returns
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(50000));
+
+    const incompletePsbt = bytesToHex(tx.toPSBT());
+
+    // Verify input has no value initially
+    const detailsBefore = extractPsbtDetails(incompletePsbt);
+    expect(detailsBefore.inputs[0].value).toBeUndefined();
+
+    // P2WPKH lock script for bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+    // Format: OP_0 <20-byte-hash>
+    const lockScript = '0014751e76e8199196d454941c45d1b3a323f1433bd6';
+
+    // Complete the PSBT with input values
+    const completedPsbt = completePsbtWithInputValues(
+      incompletePsbt,
+      [100000], // input value in satoshis
+      [lockScript]
+    );
+
+    // Verify input now has value
+    const detailsAfter = extractPsbtDetails(completedPsbt);
+    expect(detailsAfter.inputs[0].value).toBe(100000);
+    expect(detailsAfter.totalInputValue).toBe(100000);
+    expect(detailsAfter.fee).toBe(50000); // 100000 - 50000
+  });
+
+  it('should handle multiple inputs', () => {
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+    });
+    tx.addInput({
+      txid: hexToBytes('1'.repeat(64)),
+      index: 1,
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(150000));
+
+    const incompletePsbt = bytesToHex(tx.toPSBT());
+    const lockScript = '0014751e76e8199196d454941c45d1b3a323f1433bd6';
+
+    const completedPsbt = completePsbtWithInputValues(
+      incompletePsbt,
+      [100000, 80000], // two input values
+      [lockScript, lockScript] // same script for both (same address)
+    );
+
+    const details = extractPsbtDetails(completedPsbt);
+    expect(details.inputs[0].value).toBe(100000);
+    expect(details.inputs[1].value).toBe(80000);
+    expect(details.totalInputValue).toBe(180000);
+    expect(details.fee).toBe(30000); // 180000 - 150000
+  });
+
+  it('should accept base64 PSBT input', () => {
+    // Use the real base64 PSBT from Counterparty
+    // This PSBT has 1 input
+    const lockScript = '001488d5085ab9b85ca7da5d6a058ee663788aecaf76';
+
+    const completedPsbt = completePsbtWithInputValues(
+      REAL_BASE64_PSBT,
+      [10000],
+      [lockScript]
+    );
+
+    const details = extractPsbtDetails(completedPsbt);
+    expect(details.inputs[0].value).toBe(10000);
+    expect(details.totalInputValue).toBe(10000);
+  });
+
+  it('should throw if input values count mismatches', () => {
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(50000));
+
+    const psbt = bytesToHex(tx.toPSBT());
+    const lockScript = '0014751e76e8199196d454941c45d1b3a323f1433bd6';
+
+    expect(() => completePsbtWithInputValues(
+      psbt,
+      [100000, 50000], // 2 values but only 1 input
+      [lockScript]
+    )).toThrow(/doesn't match/);
+  });
+
+  it('should throw if lock scripts count mismatches', () => {
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(50000));
+
+    const psbt = bytesToHex(tx.toPSBT());
+    const lockScript = '0014751e76e8199196d454941c45d1b3a323f1433bd6';
+
+    expect(() => completePsbtWithInputValues(
+      psbt,
+      [100000],
+      [lockScript, lockScript] // 2 scripts but only 1 input
+    )).toThrow(/doesn't match/);
   });
 });
