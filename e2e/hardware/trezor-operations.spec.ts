@@ -90,7 +90,7 @@ async function setupHardwareWallet(page: Page): Promise<SetupResult> {
 
   // Wait for the page - add debugging on failure
   try {
-    await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 15000 });
   } catch (error) {
     // Debug: capture page state on failure
     const html = await page.content();

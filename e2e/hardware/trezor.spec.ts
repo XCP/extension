@@ -99,28 +99,26 @@ test.describe('Trezor Hardware Wallet', () => {
       const buttons = await page.getByRole('button').allTextContents();
       console.log('Visible buttons on add-wallet page:', buttons);
 
-      // Check if the Connect Hardware Wallet button exists
-      const hardwareButton = page.getByRole('button', { name: /Connect Hardware Wallet/i });
+      // Check if the Trezor Connect button exists (button text is "Use Trezor Connect")
+      const hardwareButton = page.getByRole('button', { name: /Use Trezor Connect/i });
       const hardwareButtonVisible = await hardwareButton.isVisible({ timeout: 5000 }).catch(() => false);
 
       if (!hardwareButtonVisible) {
-        console.log('Connect Hardware Wallet button not found. Taking debug screenshot...');
+        console.log('Use Trezor Connect button not found. Taking debug screenshot...');
         await page.screenshot({ path: 'test-results/screenshots/add-wallet-debug.png' });
-        throw new Error('Connect Hardware Wallet button not visible. Available buttons: ' + buttons.join(', '));
+        throw new Error('Use Trezor Connect button not visible. Available buttons: ' + buttons.join(', '));
       }
 
-      // Click on Connect Hardware Wallet button
+      // Click on Use Trezor Connect button
       await hardwareButton.click();
       await page.waitForLoadState('networkidle');
 
-      // Should see the connect hardware page with new UI
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+      // Should see the connect hardware page with discovery-based UI
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
 
-      // Should see address format options as buttons (not dropdown)
-      // Use role-based selectors to avoid matching description text
-      await expect(page.getByRole('button', { name: /Native SegWit/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /Taproot/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /^Legacy/ })).toBeVisible();
+      // Should see the prerequisite checklist
+      await expect(page.getByText('Before connecting:')).toBeVisible();
+      await expect(page.getByText('Connect your Trezor via USB')).toBeVisible();
 
       // Connect button should be visible
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
@@ -131,7 +129,7 @@ test.describe('Trezor Hardware Wallet', () => {
     }
   });
 
-  test('can select different address formats', async () => {
+  test('can see discovery-based connection UI', async () => {
     const { context, page } = await launchExtension('trezor-formats');
 
     try {
@@ -141,23 +139,22 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      // Wait for the connect hardware page to load
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
+      // Wait for the connect hardware page to load (discovery-based UI)
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 15000 });
 
-      // Native SegWit should be selected by default (has border-blue-500)
-      const segwitButton = page.getByRole('button', { name: /Native SegWit/ });
-      await expect(segwitButton).toBeVisible();
+      // Should see the prerequisite checklist
+      await expect(page.getByText('Before connecting:')).toBeVisible();
+      await expect(page.getByText('Connect your Trezor via USB')).toBeVisible();
+      await expect(page.getByText('Unlock your device with PIN')).toBeVisible();
+      await expect(page.getByText('Select your account when prompted')).toBeVisible();
 
-      // Click on Legacy format (use specific selector to avoid matching description text)
-      await page.getByRole('button', { name: /^Legacy/ }).click();
+      // Connect button should be visible
+      await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
 
-      // Click on Taproot format
-      await page.getByRole('button', { name: /Taproot/ }).click();
+      // Should have Advanced options toggle
+      await expect(page.getByText('Advanced options')).toBeVisible();
 
-      // Should show firmware warning for Taproot
-      await expect(page.getByText(/firmware/i)).toBeVisible();
-
-      await page.screenshot({ path: 'test-results/screenshots/trezor-format-selection.png' });
+      await page.screenshot({ path: 'test-results/screenshots/trezor-discovery-ui.png' });
     } finally {
       await cleanup(context);
     }
@@ -173,23 +170,27 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      // Wait for the connect hardware page to load
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 15000 });
+      // Wait for the connect hardware page to load (discovery-based UI)
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 15000 });
 
-      // Advanced options should be hidden initially
-      await expect(page.getByText('Account Index')).not.toBeVisible();
+      // Advanced options should be hidden initially (passphrase, wallet name)
+      await expect(page.getByText('Use passphrase')).not.toBeVisible();
 
       // Click to show advanced options
       await page.getByText(/Advanced options/i).click();
 
-      // Now should see account selection and passphrase option
-      await expect(page.getByText('Account Index')).toBeVisible();
+      // Now should see passphrase checkbox and wallet name input
       await expect(page.getByText('Use passphrase')).toBeVisible();
       await expect(page.getByPlaceholder('My Trezor')).toBeVisible();
+      await expect(page.getByText('Wallet Name (optional)')).toBeVisible();
 
-      // Should have account buttons 0-4 (use exact matching to avoid matching address format buttons)
-      await expect(page.getByRole('button', { name: '0', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible();
+      // Passphrase checkbox should be unchecked by default
+      const passphraseCheckbox = page.locator('#usePassphrase');
+      await expect(passphraseCheckbox).not.toBeChecked();
+
+      // Can toggle passphrase
+      await passphraseCheckbox.click();
+      await expect(passphraseCheckbox).toBeChecked();
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-advanced-options.png' });
     } finally {
@@ -209,10 +210,10 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      // Wait for the page to load
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+      // Wait for the page to load (discovery-based UI)
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
 
-      // Native SegWit is selected by default, click Connect
+      // Connect button should be visible
       const connectButton = page.getByRole('button', { name: /Connect Trezor/i });
       await expect(connectButton).toBeEnabled();
 
@@ -222,10 +223,10 @@ test.describe('Trezor Hardware Wallet', () => {
       // Click the connect button
       await connectButton.click();
 
-      // Should show connecting state
-      const connectingVisible = await page.getByText('Connecting to Trezor').isVisible({ timeout: 5000 }).catch(() => false);
-      if (connectingVisible) {
-        console.log('Saw connecting state');
+      // Should show discovering state
+      const discoveringVisible = await page.getByText('Discovering Accounts').isVisible({ timeout: 5000 }).catch(() => false);
+      if (discoveringVisible) {
+        console.log('Saw discovering state');
       }
 
       // Wait for either:
@@ -253,7 +254,7 @@ test.describe('Trezor Hardware Wallet', () => {
         await expect(page.getByText('Counterparty Assets')).toBeVisible();
 
         // Should have a button to continue
-        const continueButton = page.getByRole('button', { name: /Use This Wallet|Continue with Empty Wallet/i });
+        const continueButton = page.getByRole('button', { name: /Use This Wallet|Continue/i });
         await expect(continueButton).toBeVisible();
 
         await page.screenshot({ path: 'test-results/screenshots/trezor-discovery-results.png' });
@@ -292,7 +293,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
 
       // Listen for new pages (Trezor Connect popup)
       const popupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
@@ -337,7 +338,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
 
       // Check if TrezorConnect is available in the page context
       const trezorStatus = await page.evaluate(async () => {
@@ -421,16 +422,13 @@ test.describe('Trezor Wallet Integration Proof', () => {
       await page.goto(`${baseUrl}#/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Select the address format')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
       console.log('  ✓ Connect Hardware page loaded');
 
-      // Step 2: Verify UI elements
+      // Step 2: Verify UI elements (discovery-based flow)
       console.log('\nStep 2: Verifying UI elements...');
-      // Use role-based selectors to avoid matching description text
-      await expect(page.getByRole('button', { name: /Native SegWit/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /Taproot/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /^Legacy/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: /Nested SegWit/ })).toBeVisible();
+      await expect(page.getByText('Before connecting:')).toBeVisible();
+      await expect(page.getByText('Connect your Trezor via USB')).toBeVisible();
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
       console.log('  ✓ All UI elements present');
 
