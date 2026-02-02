@@ -89,7 +89,7 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Navigate to add-wallet page, then to connect-hardware
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/add-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets/add`);
       await page.waitForLoadState('networkidle');
 
       // Wait for the Add Wallet page to load by checking for the heading
@@ -136,7 +136,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await setupWalletForHardwareTest(page);
 
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       // Wait for the connect hardware page to load (discovery-based UI)
@@ -167,7 +167,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await setupWalletForHardwareTest(page);
 
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       // Wait for the connect hardware page to load (discovery-based UI)
@@ -207,7 +207,7 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       // Wait for the page to load (discovery-based UI)
@@ -290,7 +290,7 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
@@ -335,7 +335,7 @@ test.describe('Trezor Hardware Wallet', () => {
 
       // Navigate to connect-hardware page
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
@@ -419,7 +419,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
       // Step 1: Navigate to connect hardware
       console.log('\nStep 1: Navigating to Connect Hardware page...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/connect-hardware`);
+      await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
       await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });

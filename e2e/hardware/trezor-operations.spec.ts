@@ -85,7 +85,7 @@ async function setupHardwareWallet(page: Page): Promise<SetupResult> {
 
   // Now navigate to connect hardware (protected route)
   const baseUrl = page.url().split('#')[0];
-  await page.goto(`${baseUrl}#/connect-hardware`);
+  await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
   await page.waitForLoadState('networkidle');
 
   // Wait for the page - add debugging on failure
@@ -387,7 +387,7 @@ test.describe('Trezor Transaction Signing Flow', () => {
       // Navigate to send page
       console.log('\nStep 2: Navigating to Send page...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/compose/send`);
+      await page.goto(`${baseUrl}#/compose/send/BTC`);
       await page.waitForLoadState('networkidle');
 
       // Check if send page loaded (might redirect to MPMA or show error about no UTXOs)
@@ -573,12 +573,12 @@ test.describe('Trezor Disconnect Flow', () => {
       // Navigate to add-wallet page
       console.log('\nStep 2: Navigating to Add Wallet page...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/add-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets/add`);
       await page.waitForLoadState('networkidle');
 
       // Should see "Disconnect" button instead of "Connect Hardware Wallet"
       const disconnectButton = await page.getByRole('button', { name: /Disconnect/i }).isVisible({ timeout: 5000 }).catch(() => false);
-      const connectButton = await page.getByRole('button', { name: /Connect Hardware Wallet/i }).isVisible({ timeout: 2000 }).catch(() => false);
+      const connectButton = await page.getByRole('button', { name: /Use Trezor Connect/i }).isVisible({ timeout: 2000 }).catch(() => false);
 
       if (disconnectButton) {
         console.log('  ✓ Disconnect button visible (correct behavior)');
@@ -594,7 +594,7 @@ test.describe('Trezor Disconnect Flow', () => {
         await page.getByRole('button', { name: /Disconnect/i }).click();
 
         // Should redirect to select-wallet page
-        await page.waitForURL(/select-wallet/, { timeout: 10000 });
+        await page.waitForURL(/keychain\/wallets/, { timeout: 10000 });
         console.log('  ✓ Redirected to select-wallet page');
 
         // Verify hardware wallet is no longer in the list
@@ -642,7 +642,7 @@ test.describe('Trezor Disconnect Flow', () => {
       // Navigate to select-wallet page
       console.log('\nStep 2: Navigating to Select Wallet page...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/select-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets`);
       await page.waitForLoadState('networkidle');
 
       // Find and click the wallet menu (three dots)
@@ -665,7 +665,7 @@ test.describe('Trezor Disconnect Flow', () => {
           await page.getByText(/Disconnect/i).click();
 
           // Should redirect
-          await page.waitForURL(/select-wallet/, { timeout: 10000 });
+          await page.waitForURL(/keychain\/wallets/, { timeout: 10000 });
           console.log('  ✓ Hardware wallet disconnected');
         } else {
           console.log('  Disconnect option not visible - checking for Remove option');
@@ -718,7 +718,7 @@ test.describe('Trezor Session-Only Behavior', () => {
       // Verify hardware wallet is in the list
       console.log('\nStep 2: Verifying hardware wallet is visible...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/select-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets`);
       await page.waitForLoadState('networkidle');
 
       const hardwareVisible = await page.getByText(/Hardware/i).isVisible({ timeout: 5000 }).catch(() => false);
@@ -816,7 +816,7 @@ test.describe('Trezor Multi-Wallet Switching', () => {
       // Navigate to select-wallet to see both wallets
       console.log('\nStep 2: Viewing wallet list...');
       const baseUrl = page.url().split('#')[0];
-      await page.goto(`${baseUrl}#/select-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets`);
       await page.waitForLoadState('networkidle');
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-multi-wallet-list.png' });
@@ -849,7 +849,7 @@ test.describe('Trezor Multi-Wallet Switching', () => {
 
       // Switch back to hardware wallet
       console.log('\nStep 4: Switching back to hardware wallet...');
-      await page.goto(`${baseUrl}#/select-wallet`);
+      await page.goto(`${baseUrl}#/keychain/wallets`);
       await page.waitForLoadState('networkidle');
 
       if (hasHardwareWallet) {
