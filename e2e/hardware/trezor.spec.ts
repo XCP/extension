@@ -114,7 +114,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Should see the connect hardware page with discovery-based UI
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Should see the prerequisite checklist
       await expect(page.getByText('Before connecting:')).toBeVisible();
@@ -140,7 +140,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Wait for the connect hardware page to load (discovery-based UI)
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 15000 });
 
       // Should see the prerequisite checklist
       await expect(page.getByText('Before connecting:')).toBeVisible();
@@ -171,7 +171,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Wait for the connect hardware page to load (discovery-based UI)
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 15000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 15000 });
 
       // Advanced options should be hidden initially (passphrase, wallet name)
       await expect(page.getByText('Use passphrase')).not.toBeVisible();
@@ -211,7 +211,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.waitForLoadState('networkidle');
 
       // Wait for the page to load (discovery-based UI)
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Connect button should be visible
       const connectButton = page.getByRole('button', { name: /Connect Trezor/i });
@@ -293,7 +293,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Listen for new pages (Trezor Connect popup)
       const popupPromise = context.waitForEvent('page', { timeout: 15000 }).catch(() => null);
@@ -338,7 +338,7 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
 
       // Check if TrezorConnect is available in the page context
       const trezorStatus = await page.evaluate(async () => {
@@ -422,7 +422,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
       await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      await expect(page.getByText('Connect Your Trezor')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 10000 });
       console.log('  ✓ Connect Hardware page loaded');
 
       // Step 2: Verify UI elements (discovery-based flow)

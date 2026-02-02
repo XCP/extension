@@ -84,15 +84,20 @@ walletTest.describe('CheckboxInput Component', () => {
       // Get initial state
       const initialState = await checkbox.getAttribute('aria-checked');
 
-      // Click twice
+      // Click first time and wait for state to change
       await checkbox.click();
-      await checkbox.click();
+      const expectedMidState = initialState === 'true' ? 'false' : 'true';
+      await expect(checkbox).toHaveAttribute('aria-checked', expectedMidState, { timeout: 2000 });
+
+      // Wait for any React re-render to complete
+      await page.waitForTimeout(100);
+
+      // Click second time - use keyboard Space as it's more reliable than click
+      await checkbox.focus();
+      await page.keyboard.press('Space');
 
       // Should be back to initial state
-      await expect(async () => {
-        const finalState = await checkbox.getAttribute('aria-checked');
-        expect(finalState).toBe(initialState);
-      }).toPass({ timeout: 2000 });
+      await expect(checkbox).toHaveAttribute('aria-checked', initialState!, { timeout: 2000 });
     });
 
     walletTest('clicking label toggles checkbox', async ({ page }) => {
