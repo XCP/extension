@@ -1,4 +1,27 @@
 import { toSatoshis } from '@/utils/numeric';
+import { KeyedTTLCache, CacheTTL, cachedFetch } from '@/utils/cache';
+
+// Balance can change with each block but short cache prevents API spam
+const balanceCache = new KeyedTTLCache<string, number>(CacheTTL.MEDIUM);
+const inflightBalanceRequests = new Map<string, Promise<number>>();
+
+// Activity status changes less frequently
+const activityCache = new KeyedTTLCache<string, boolean>(CacheTTL.MEDIUM);
+const inflightActivityRequests = new Map<string, Promise<boolean>>();
+
+/**
+ * Clears the balance and activity caches for a specific address or all addresses.
+ * Call this after broadcasting a transaction to ensure fresh data.
+ */
+export function clearBalanceCache(address?: string): void {
+  if (address) {
+    balanceCache.invalidate(address);
+    activityCache.invalidate(address);
+  } else {
+    balanceCache.invalidateAll();
+    activityCache.invalidateAll();
+  }
+}
 
 /**
  * Response format from Blockstream.info and Mempool.space APIs.
@@ -70,48 +93,76 @@ function isSochainResponse(data: unknown): data is SochainAddressResponse {
 }
 
 /**
- * Checks if a Bitcoin address has any transaction history (received or sent)
+ * Checks if a Bitcoin address has any transaction history (received or sent).
+ * Results are cached for 30 seconds on successful API responses.
+ * If all endpoints fail, returns false without caching (next call will retry).
+ *
  * @param address - The Bitcoin address to check
  * @param timeoutMs - Timeout in milliseconds for the API request (default: 5000ms)
  * @returns A Promise that resolves to true if the address has activity, false otherwise
  */
 export async function hasAddressActivity(address: string, timeoutMs = 5000): Promise<boolean> {
-  const endpoints = [
-    `https://blockstream.info/api/address/${address}`,
-    `https://mempool.space/api/address/${address}`,
-  ];
-
-  for (const endpoint of endpoints) {
-    try {
-      const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
-      if (!resp.ok) {
-        console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
-        continue;
-      }
-      const data = await resp.json();
-
-      // Check if address has any transaction history
-      if (data.chain_stats?.tx_count > 0 || data.mempool_stats?.tx_count > 0) {
-        return true;
-      }
-
-      // If we got a valid response with 0 transactions, return false
-      if (data.chain_stats?.tx_count === 0 && data.mempool_stats?.tx_count === 0) {
-        return false;
-      }
-    } catch (error) {
-      console.warn(`Error calling ${endpoint}:`, error);
-      continue;
-    }
+  // Check cache first
+  const cached = activityCache.get(address);
+  if (cached !== null) {
+    return cached;
   }
 
-  // If all endpoints failed, return false (assume no activity)
-  return false;
+  // Deduplicate concurrent requests
+  const inflight = inflightActivityRequests.get(address);
+  if (inflight) {
+    return inflight;
+  }
+
+  const request = (async (): Promise<boolean> => {
+    const endpoints = [
+      `https://blockstream.info/api/address/${address}`,
+      `https://mempool.space/api/address/${address}`,
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
+        if (!resp.ok) {
+          console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
+          continue;
+        }
+        const data = await resp.json();
+
+        // Check if address has any transaction history
+        if (data.chain_stats?.tx_count > 0 || data.mempool_stats?.tx_count > 0) {
+          activityCache.set(address, true);
+          return true;
+        }
+
+        // If we got a valid response with 0 transactions, cache and return false
+        if (data.chain_stats?.tx_count === 0 && data.mempool_stats?.tx_count === 0) {
+          activityCache.set(address, false);
+          return false;
+        }
+      } catch (error) {
+        console.warn(`Error calling ${endpoint}:`, error);
+        continue;
+      }
+    }
+
+    // If all endpoints failed, return false WITHOUT caching (next call will retry)
+    return false;
+  })();
+
+  inflightActivityRequests.set(address, request);
+
+  try {
+    return await request;
+  } finally {
+    inflightActivityRequests.delete(address);
+  }
 }
 
 /**
  * Fetches the Bitcoin balance (in satoshis) for a given address by querying multiple API endpoints.
  * The function returns as soon as one of the endpoints successfully returns a balance.
+ * Results are cached for 30 seconds to reduce API load.
  *
  * @param address - The Bitcoin address.
  * @param timeoutMs - Timeout in milliseconds for each API request (default: 5000ms).
@@ -119,32 +170,39 @@ export async function hasAddressActivity(address: string, timeoutMs = 5000): Pro
  * @throws Error if all API calls fail or no valid balance is returned.
  */
 export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promise<number> {
-  const endpoints = [
-    `https://blockstream.info/api/address/${address}`,
-    `https://mempool.space/api/address/${address}`,
-    `https://api.blockcypher.com/v1/btc/main/addrs/${address}/balance`,
-    `https://blockchain.info/rawaddr/${address}?cors=true`,
-    `https://sochain.com/api/v2/get_address_balance/BTC/${address}`,
-  ];
+  return cachedFetch(
+    balanceCache,
+    inflightBalanceRequests,
+    address,
+    async () => {
+      const endpoints = [
+        `https://blockstream.info/api/address/${address}`,
+        `https://mempool.space/api/address/${address}`,
+        `https://api.blockcypher.com/v1/btc/main/addrs/${address}/balance`,
+        `https://blockchain.info/rawaddr/${address}?cors=true`,
+        `https://sochain.com/api/v2/get_address_balance/BTC/${address}`,
+      ];
 
-  for (const endpoint of endpoints) {
-    try {
-      const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
-      if (!resp.ok) {
-        console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
-        continue;
+      for (const endpoint of endpoints) {
+        try {
+          const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
+          if (!resp.ok) {
+            console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
+            continue;
+          }
+          const data = await resp.json();
+          const parsed = parseBTCBalance(endpoint, data);
+          if (parsed !== null && parsed !== undefined && typeof parsed === 'number') {
+            return parsed;
+          }
+        } catch (error) {
+          console.warn(`Error calling ${endpoint}:`, error);
+          continue;
+        }
       }
-      const data = await resp.json();
-      const parsed = parseBTCBalance(endpoint, data);
-      if (parsed !== null && parsed !== undefined && typeof parsed === 'number') {
-        return parsed;
-      }
-    } catch (error) {
-      console.warn(`Error calling ${endpoint}:`, error);
-      continue;
+      throw new Error('Failed to fetch BTC balance from all explorers');
     }
-  }
-  throw new Error('Failed to fetch BTC balance from all explorers');
+  );
 }
 
 /**

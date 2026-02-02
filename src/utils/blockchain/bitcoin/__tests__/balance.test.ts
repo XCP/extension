@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchBTCBalance, hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';
+import { fetchBTCBalance, hasAddressActivity, clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
 
 describe('Bitcoin Balance Utilities', () => {
   const originalFetch = globalThis.fetch;
@@ -8,6 +8,8 @@ describe('Bitcoin Balance Utilities', () => {
   beforeEach(() => {
     globalThis.fetch = vi.fn();
     vi.clearAllMocks();
+    // Clear all caches to ensure test isolation
+    clearBalanceCache();
   });
 
   afterEach(() => {

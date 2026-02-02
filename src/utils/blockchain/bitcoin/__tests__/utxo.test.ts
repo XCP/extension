@@ -4,7 +4,8 @@ import {
   fetchUTXOs,
   formatInputsSet,
   getUtxoByTxid,
-  fetchPreviousRawTransaction
+  fetchPreviousRawTransaction,
+  clearBitcoinCaches
 } from '@/utils/blockchain/bitcoin/utxo';
 import { apiClient, isCancel } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
@@ -39,6 +40,8 @@ describe('UTXO Utilities', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Clear all caches to ensure test isolation
+    clearBitcoinCaches();
 
     // Setup the settings mock
     mockGetSettings.mockReturnValue({

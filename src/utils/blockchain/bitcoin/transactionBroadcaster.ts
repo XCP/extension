@@ -1,6 +1,8 @@
 import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { clearApiCache } from '@/utils/blockchain/counterparty/api';
+import { clearBitcoinCaches } from '@/utils/blockchain/bitcoin/utxo';
+import { clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
 
 export interface TransactionResponse {
   txid: string;
@@ -88,8 +90,10 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       throw new Error('Simulated broadcast error for testing');
     }
 
-    // Clear API cache after successful transaction
+    // Clear all caches after successful transaction
     clearApiCache();
+    clearBitcoinCaches();
+    clearBalanceCache();
 
     return {
       txid: generateMockTxid(signedTxHex),
@@ -115,8 +119,10 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       if (response && response.status >= 200 && response.status < 300) {
         const formatted = formatResponse(endpoint, response);
         if (formatted && formatted.txid) {
-          // Clear API cache after successful transaction
+          // Clear all caches after successful transaction
           clearApiCache();
+          clearBitcoinCaches();
+          clearBalanceCache();
           return formatted;
         }
       }

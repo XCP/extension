@@ -215,3 +215,54 @@ export const CacheTTL = {
   /** 10 minutes - for block height, price data */
   VERY_LONG: 600000,
 } as const;
+
+/**
+ * Helper for cached async fetches with inflight request deduplication.
+ *
+ * This pattern prevents:
+ * 1. Redundant API calls when cached data exists
+ * 2. Duplicate concurrent requests for the same key (request coalescing)
+ *
+ * @param cache - The KeyedTTLCache instance to use
+ * @param inflightMap - Map tracking in-progress requests
+ * @param key - Cache key (e.g., address, txid)
+ * @param fetcher - Async function that fetches the data
+ * @param shouldCache - Optional predicate to decide if result should be cached (default: always cache)
+ * @returns The cached or freshly fetched value
+ */
+export async function cachedFetch<K, V>(
+  cache: KeyedTTLCache<K, V>,
+  inflightMap: Map<K, Promise<V>>,
+  key: K,
+  fetcher: () => Promise<V>,
+  shouldCache: (result: V) => boolean = () => true
+): Promise<V> {
+  // Check cache first
+  const cached = cache.get(key);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // Deduplicate concurrent requests for the same key
+  const inflight = inflightMap.get(key);
+  if (inflight) {
+    return inflight;
+  }
+
+  // Create and track the request
+  const request = (async (): Promise<V> => {
+    const result = await fetcher();
+    if (shouldCache(result)) {
+      cache.set(key, result);
+    }
+    return result;
+  })();
+
+  inflightMap.set(key, request);
+
+  try {
+    return await request;
+  } finally {
+    inflightMap.delete(key);
+  }
+}
