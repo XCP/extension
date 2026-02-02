@@ -18,6 +18,7 @@ export type BlockchainErrorCode =
   | 'INVALID_ADDRESS'
   | 'INVALID_PRIVATE_KEY'
   | 'INVALID_TRANSACTION'
+  | 'INVALID_PSBT'
   | 'INVALID_SIGNATURE'
   // State errors
   | 'NO_UTXOS'
@@ -66,7 +67,7 @@ export class BlockchainError extends Error {
  */
 export class ValidationError extends BlockchainError {
   constructor(
-    code: Extract<BlockchainErrorCode, 'INVALID_ADDRESS' | 'INVALID_PRIVATE_KEY' | 'INVALID_TRANSACTION' | 'INVALID_SIGNATURE'>,
+    code: Extract<BlockchainErrorCode, 'INVALID_ADDRESS' | 'INVALID_PRIVATE_KEY' | 'INVALID_TRANSACTION' | 'INVALID_PSBT' | 'INVALID_SIGNATURE'>,
     message: string,
     options?: { userMessage?: string; cause?: Error }
   ) {

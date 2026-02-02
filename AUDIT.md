@@ -230,6 +230,25 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Minimal dependencies | 12 runtime deps (most wallets have 50+) |
 | ⚪ | Dependency confusion | Not applicable—no private packages |
 
+## Hardware Wallet Security
+
+| Status | Item | Implementation |
+|--------|------|----------------|
+| ✅ | Device-bound keys | Private keys never leave hardware device |
+| ✅ | Physical confirmation | User must confirm transactions on device display |
+| ✅ | WYSIWYS enforcement | Device shows full transaction details before signing |
+| ✅ | Vendor abstraction | IHardwareWalletAdapter interface isolates device-specific logic |
+| ✅ | MV3 service worker compatibility | Uses @trezor/connect-webextension for service worker support |
+| ✅ | PSBT signing flow | BIP-174 format for SegWit transaction signing |
+| ✅ | PSBT input validation | Verifies witnessUtxo values match API-provided amounts |
+| ✅ | RBF enabled by default | Sequence 0xfffffffd allows fee bumping |
+| ✅ | Address derivation paths | Standard BIP-44/49/84/86 paths per address format |
+| ✅ | Reference transaction fetching | Automatically fetches prev tx data for non-SegWit inputs |
+| ✅ | Sidepanel-only access | Hardware wallet features require sidepanel context |
+| ✅ | No extension trust required | Compromised extension cannot sign without device |
+| ⚠️ | Trezor popup UX | Adds friction but expected for hardware wallet security |
+| ⚪ | Ledger support | Future enhancement—interface designed for multi-vendor |
+
 ---
 
 ## Known Limitations
@@ -288,6 +307,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/utils/encryption/encryption.ts) |
 | ADR-015 | Unified keychain architecture | [walletManager.ts](src/utils/wallet/walletManager.ts) |
 | ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/utils/fathom.ts) |
+| ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/utils/hardware/trezorAdapter.ts) |
 
 ---
 
@@ -306,6 +326,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | Error Handling | 4 | 0 | 0 | 0 |
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
-| **Total** | **67** | **4** | **2** | **10** |
+| Hardware Wallet | 12 | 1 | 0 | 1 |
+| **Total** | **79** | **5** | **2** | **11** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)

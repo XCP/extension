@@ -1,0 +1,48 @@
+# Trezor Emulator Environment for Integration Testing
+#
+# This docker-compose file sets up the Trezor emulator environment for testing
+# hardware wallet integration without a physical device.
+#
+# Usage:
+#   docker-compose -f docker-compose.trezor.yml up -d
+#   npm run test:emulator
+#   docker-compose -f docker-compose.trezor.yml down
+#
+# Prerequisites:
+#   - Docker and Docker Compose installed
+#   - No physical Trezor devices connected
+#   - No trezord (Trezor Bridge) running locally
+#
+# The emulator will be available at:
+#   - Emulator: ws://localhost:21325
+#   - Bridge: http://localhost:21325
+
+version: '3.8'
+
+services:
+  trezor-user-env:
+    image: ghcr.io/trezor/trezor-user-env:latest
+    container_name: trezor-emulator
+    ports:
+      - "9001:9001"   # Emulator control
+      - "21324:21324" # Emulator WebSocket
+      - "21325:21325" # Trezor Bridge
+    environment:
+      # Run with temporary profile that resets on restart
+      - TREZOR_EMULATOR_TEMPORARY_PROFILE=1
+      # Disable animations for faster tests
+      - TREZOR_EMULATOR_DISABLE_ANIMATIONS=1
+    # Health check to ensure emulator is ready
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/status"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    # Restart policy for development
+    restart: unless-stopped
+
+# Network configuration
+networks:
+  default:
+    name: trezor-test-network

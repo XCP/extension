@@ -458,9 +458,9 @@ describe('Transaction Signer Utilities', () => {
           // Skip P2TR test due to schnorr key requirements
           continue;
         }
-        
+
         const wallet = { ...mockWallet, addressFormat };
-        
+
         mockFetchUTXOs.mockResolvedValue([mockUtxo]);
         mockGetUtxoByTxid.mockReturnValue(mockUtxo);
         mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
@@ -471,6 +471,149 @@ describe('Transaction Signer Utilities', () => {
 
         vi.clearAllMocks();
       }
+    });
+  });
+
+  describe('API data optimization (inputValues + lockScripts)', () => {
+    it('should NOT fetch previous transactions for SegWit when API data provided', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+      // Don't mock fetchPreviousRawTransaction - it shouldn't be called
+
+      // P2WPKH lock script for our test address
+      const lockScript = '0014' + pubKeyHashHex;
+      const inputValues = [100000];
+      const lockScripts = [lockScript];
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true, // compressed
+        inputValues,
+        lockScripts
+      );
+
+      expect(typeof result).toBe('string');
+      expect(result).toMatch(/^[0-9a-f]+$/i);
+      // Key assertion: fetchPreviousRawTransaction should NOT have been called
+      expect(mockFetchPreviousRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it('should NOT fetch UTXOs when API data is provided for SegWit', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+
+      // No need to mock fetchUTXOs - it shouldn't be called
+
+      const lockScript = '0014' + pubKeyHashHex;
+
+      await signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        [100000],
+        [lockScript]
+      );
+
+      // With API data, skip UTXO fetch - the data is fresh from compose
+      expect(mockFetchUTXOs).not.toHaveBeenCalled();
+    });
+
+    it('should fetch previous transactions for SegWit when API data NOT provided', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+
+      // No inputValues or lockScripts provided
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey
+      );
+
+      expect(typeof result).toBe('string');
+      // Should have fetched the previous transaction as fallback
+      expect(mockFetchPreviousRawTransaction).toHaveBeenCalled();
+    });
+
+    it('should ALWAYS fetch previous transactions for Legacy P2PKH even with API data', async () => {
+      // Legacy P2PKH needs full previous transaction for nonWitnessUtxo
+      const p2pkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2PKH };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+
+      // Even with API data provided...
+      const lockScript = '76a914' + pubKeyHashHex + '88ac';
+      const inputValues = [100000];
+      const lockScripts = [lockScript];
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2pkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        inputValues,
+        lockScripts
+      );
+
+      expect(typeof result).toBe('string');
+      // Should STILL fetch previous transaction for legacy
+      expect(mockFetchPreviousRawTransaction).toHaveBeenCalled();
+    });
+
+    it('should validate inputValues count matches transaction inputs', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+
+      const lockScript = '0014' + pubKeyHashHex;
+      // Mismatched: 2 values but transaction has 1 input
+      const inputValues = [100000, 50000];
+      const lockScripts = [lockScript];
+
+      await expect(signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        inputValues,
+        lockScripts
+      )).rejects.toThrow(/doesn't match/);
+    });
+
+    it('should validate lockScripts count matches transaction inputs', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+
+      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+
+      const lockScript = '0014' + pubKeyHashHex;
+      // Mismatched: 1 value but 2 scripts
+      const inputValues = [100000];
+      const lockScripts = [lockScript, lockScript];
+
+      await expect(signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        inputValues,
+        lockScripts
+      )).rejects.toThrow(/doesn't match/);
     });
   });
 });

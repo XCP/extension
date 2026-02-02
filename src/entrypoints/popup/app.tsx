@@ -52,6 +52,7 @@ import WalletsPage from '@/pages/keychain/wallets';
 import AddWalletPage from '@/pages/keychain/wallets/add';
 import RemoveWalletPage from '@/pages/keychain/wallets/remove';
 import ResetWalletPage from '@/pages/keychain/wallets/reset';
+import ConnectHardwarePage from '@/pages/keychain/wallets/connect-hardware';
 import ShowPassphrasePage from '@/pages/keychain/secrets/show-passphrase';
 import ShowPrivateKeyPage from '@/pages/keychain/secrets/show-private-key';
 
@@ -184,6 +185,7 @@ export default function App() {
             <Route path="/keychain/wallets/add" element={<AddWalletPage />} />
             <Route path="/keychain/wallets/remove/:walletId" element={<RemoveWalletPage />} />
             <Route path="/keychain/wallets/reset" element={<ResetWalletPage />} />
+            <Route path="/keychain/wallets/connect-hardware" element={<ConnectHardwarePage />} />
             <Route path="/keychain/secrets/show-passphrase/:walletId" element={<ShowPassphrasePage />} />
             <Route path="/keychain/secrets/show-private-key/:walletId/:addressPath?" element={<ShowPrivateKeyPage />} />
 

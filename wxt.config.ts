@@ -24,6 +24,12 @@ export default defineConfig({
         'storage',
         'tabs',
         'alarms',
+        'scripting', // Required for Trezor Connect to inject content scripts
+      ],
+      host_permissions: [
+        '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
+        'http://localhost:21325/*', // Trezor Bridge for emulator testing
+        'http://127.0.0.1:21325/*', // Trezor Bridge alternative address
       ],
     };
 
@@ -53,6 +59,12 @@ export default defineConfig({
       ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'error'] })] : []),
       tailwindcss(),
     ],
+    define: {
+      // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
+      // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
+      // Note: Don't use JSON.stringify - we need actual boolean, not string "true"
+      __TREZOR_TEST_MODE__: process.env.TREZOR_TEST_MODE === 'true',
+    },
     build: {
       // Crypto libraries (@noble/*, @scure/*) are ~500KB minified - this is expected
       // for a Bitcoin wallet. The warning threshold is raised to avoid noise.

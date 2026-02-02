@@ -2,6 +2,34 @@ import { beforeAll, afterAll, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { configure } from '@testing-library/react';
 
+// Mock @trezor/connect-webextension to prevent auto-initialization during import
+// The module tries to use browser.runtime.onConnect.addListener which isn't implemented in fake-browser
+vi.mock('@trezor/connect-webextension', () => ({
+  default: {
+    init: vi.fn().mockResolvedValue(undefined),
+    getAddress: vi.fn().mockResolvedValue({ success: true, payload: { address: 'bc1q...', publicKey: '02...' } }),
+    getPublicKey: vi.fn().mockResolvedValue({ success: true, payload: { xpub: 'xpub...' } }),
+    signTransaction: vi.fn().mockResolvedValue({ success: true, payload: { serializedTx: '0x...' } }),
+    signMessage: vi.fn().mockResolvedValue({ success: true, payload: { signature: 'sig' } }),
+    dispose: vi.fn().mockResolvedValue(undefined),
+    on: vi.fn(),
+    off: vi.fn(),
+    removeAllListeners: vi.fn(),
+  },
+  DEVICE_EVENT: 'DEVICE_EVENT',
+  DEVICE: {
+    CONNECT: 'device-connect',
+    DISCONNECT: 'device-disconnect',
+  },
+  UI_EVENT: 'UI_EVENT',
+  UI: {
+    REQUEST_PIN: 'ui-request_pin',
+    REQUEST_PASSPHRASE: 'ui-request_passphrase',
+    REQUEST_BUTTON: 'ui-request_button',
+    REQUEST_CONFIRMATION: 'ui-request_confirmation',
+  },
+}));
+
 // Configure testing-library with longer async timeouts for CI
 configure({
   asyncUtilTimeout: 5000,

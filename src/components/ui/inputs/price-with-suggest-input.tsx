@@ -111,7 +111,7 @@ export function PriceWithSuggestInput({
           </button>
         )}
       </Label>
-      <div className="relative">
+      <div className="relative z-0">
         <input
           type="text"
           id={name}

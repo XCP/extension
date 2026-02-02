@@ -2,7 +2,7 @@ import { forwardRef, useMemo } from 'react';
 import { Button as HeadlessButton } from '@headlessui/react';
 import { FaYoutube } from '@/components/icons';
 
-export type ButtonColor = 'blue' | 'gray' | 'green' | 'red';
+export type ButtonColor = 'blue' | 'gray' | 'green' | 'red' | 'black';
 export type ButtonVariant = 'solid' | 'transparent' | 'icon' | 'header' | 'menu' | 'menu-item' | 'input' | 'youtube';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -53,6 +53,10 @@ const COLOR_STYLES: Record<ButtonColor, { base: string; active: string }> = {
   red: {
     base: 'bg-red-500 hover:bg-red-600 text-white focus-visible:ring-red-500',
     active: 'bg-red-700 text-white focus-visible:ring-red-500'
+  },
+  black: {
+    base: 'bg-black hover:bg-gray-800 text-white focus-visible:ring-black',
+    active: 'bg-gray-900 text-white focus-visible:ring-black'
   },
 };
 

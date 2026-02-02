@@ -56,7 +56,7 @@ export default function AddressTypesPage(): ReactElement {
         navigate(PATHS.BACK);
       }
     };
-    
+
     setHeaderProps({
       title: "Address Type",
       onBack: handleBack,
@@ -76,10 +76,10 @@ export default function AddressTypesPage(): ReactElement {
         setIsInitialLoading(false);
         return;
       }
-      
+
       setIsInitialLoading(true);
       const addressMap: { [key: string]: string } = {};
-      
+
       for (const format of AVAILABLE_ADDRESS_TYPES) {
         try {
           // Try to get cached or generate preview
@@ -91,11 +91,11 @@ export default function AddressTypesPage(): ReactElement {
           addressMap[format] = "";
         }
       }
-      
+
       setAddresses(addressMap);
       setIsInitialLoading(false);
     };
-    
+
     loadAddresses();
   }, [activeWallet, getPreviewAddressForFormat]);
 
@@ -120,7 +120,7 @@ export default function AddressTypesPage(): ReactElement {
 
     // Update selected type immediately for instant UI response
     setSelectedFormat(newType);
-    
+
     // Track that a change has been made
     hasChangedType.current = newType !== originalAddressFormat.current;
 
@@ -164,7 +164,7 @@ export default function AddressTypesPage(): ReactElement {
     }
   };
 
-  
+
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -172,10 +172,13 @@ export default function AddressTypesPage(): ReactElement {
       </div>
     );
   }
-  
+
   if (!activeWallet) {
     return <div className="p-4 text-center text-gray-500">No wallet available</div>;
   }
+
+  // Hardware wallets cannot change address type - they need to be reconnected with a different format
+  const isHardwareWallet = activeWallet.type === 'hardware';
 
   return (
     <div className="space-y-2 p-4" role="main" aria-labelledby="address-type-settings-title">
@@ -183,10 +186,19 @@ export default function AddressTypesPage(): ReactElement {
         Address Type Settings
       </h2>
       {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+      {isHardwareWallet && (
+        <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 mb-4">
+          <p className="text-sm text-blue-200">
+            <strong>Hardware Wallet</strong>: Address type is set when you connect your device.
+            To use a different address format, go to Add Wallet and connect your Trezor again with the desired format.
+          </p>
+        </div>
+      )}
       <RadioGroup
         value={selectedFormat}
         onChange={handleAddressFormatChange}
         className="space-y-2"
+        disabled={isHardwareWallet}
       >
         <SelectionCardGroup>
           {AVAILABLE_ADDRESS_TYPES.filter((type) => {

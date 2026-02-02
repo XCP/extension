@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { FaEye, FaPlus, FiDownload, FiX, VscKey } from "@/components/icons";
+import { FaEye, FaPlus, FiDownload, FiX, VscKey, FiShield } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/utils/wallet/constants";
+
+/** Check if we're running in the sidepanel (vs popup) */
+const isSidepanel = () => document.body.dataset.context === 'sidepanel';
 
 const PATHS = {
   BACK: "/keychain/wallets",
@@ -14,16 +17,23 @@ const PATHS = {
   IMPORT_WALLET: "/keychain/setup/import-mnemonic",
   IMPORT_PRIVATE_KEY: "/keychain/setup/import-private-key",
   IMPORT_TEST_ADDRESS: "/keychain/setup/import-test-address",
+  CONNECT_HARDWARE: "/keychain/wallets/connect-hardware",
 } as const;
 
 function AddWalletPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets } = useWallet();
+  const { wallets, removeWallet } = useWallet();
 
   const [error, setError] = useState<string | null>(null);
 
+  // Find any connected hardware wallet
+  const hardwareWallet = wallets.find((w) => w.type === 'hardware');
+
   const isDevelopment = process.env.NODE_ENV === "development";
+
+  // Hardware wallets require sidepanel to avoid popup closing during device interaction
+  const canUseHardwareWallet = useMemo(() => isSidepanel(), []);
 
   useEffect(() => {
     setHeaderProps({
@@ -69,6 +79,25 @@ function AddWalletPage() {
     navigate(PATHS.IMPORT_TEST_ADDRESS);
   }
 
+  function handleConnectHardware() {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.CONNECT_HARDWARE);
+  }
+
+  const handleDisconnectHardware = useCallback(async () => {
+    if (!hardwareWallet) return;
+
+    // Hardware wallets are session-only, just remove from memory
+    // The removeWallet function will:
+    // 1. Clear activeWalletId if this was the active wallet
+    // 2. Call refreshWalletState which auto-selects the first remaining wallet
+    await removeWallet(hardwareWallet.id);
+    navigate(PATHS.BACK, { replace: true });
+  }, [removeWallet, hardwareWallet, navigate]);
+
   return (
     <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
       <div className="flex-grow flex items-center justify-center p-4">
@@ -105,6 +134,27 @@ function AddWalletPage() {
               <VscKey className="size-4 mr-2" aria-hidden="true" />
               Import Private Key
             </Button>
+            {hardwareWallet ? (
+              <Button
+                color="red"
+                fullWidth
+                onClick={handleDisconnectHardware}
+                aria-label="Disconnect Hardware Wallet"
+              >
+                <FiX className="size-4 mr-2" aria-hidden="true" />
+                Disconnect {hardwareWallet.name}
+              </Button>
+            ) : canUseHardwareWallet && (
+              <Button
+                color="black"
+                fullWidth
+                onClick={handleConnectHardware}
+                aria-label="Use Trezor Connect"
+              >
+                <FiShield className="size-4 mr-2 text-[#00854D]" aria-hidden="true" />
+                Use Trezor Connect
+              </Button>
+            )}
             {isDevelopment && (
               <Button
                 color="gray"

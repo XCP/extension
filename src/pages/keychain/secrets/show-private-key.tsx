@@ -25,7 +25,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
   const [privateKey, setPrivateKey] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
-  const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | null>(null);
+  const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | "hardware" | null>(null);
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,6 +34,9 @@ export default function ShowPrivateKeyPage(): ReactElement {
       const wallet = wallets.find((w) => w.id === walletId);
       if (!wallet) {
         setSubmissionError("Wallet not found.");
+      } else if (wallet.type === "hardware") {
+        setSubmissionError("Hardware wallets do not expose private keys. Keys are stored securely on your device.");
+        setWalletType("hardware");
       } else {
         setWalletType(wallet.type);
       }

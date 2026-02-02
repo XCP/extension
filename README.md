@@ -10,6 +10,7 @@ Browser extension wallet for Counterparty on Bitcoin.
 - Issue and manage assets
 - Connect to dApps via provider API
 - BIP-322 message signing
+- Hardware wallet support (Trezor)
 
 ## Install
 
@@ -24,6 +25,7 @@ Not yet independently audited. See [AUDIT.md](AUDIT.md) for our self-reported se
 - Local transaction verification (detects malicious API responses)
 - Audited crypto libraries ([noble](https://paulmillr.com/noble/) family, Cure53 audited)
 - Minimal permissions, MV3 strict CSP, no remote code
+- Hardware wallet support: private keys never leave device
 
 **Does not protect against:** compromised OS, malicious extensions with higher privileges, physical access to unlocked device.
 

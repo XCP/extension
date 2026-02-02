@@ -50,7 +50,7 @@ import { walletManager } from "@/utils/wallet/walletManager";
 import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
-import type { Wallet, Address } from "@/types/wallet";
+import type { Wallet, Address, SignTransactionOptions } from "@/types/wallet";
 
 /**
  * Authentication state enum.
@@ -109,6 +109,8 @@ interface WalletState {
   keychainLocked: boolean;
   /** True while initial wallet data is loading from storage */
   isLoading: boolean;
+  /** True while a hardware wallet operation is in progress (disables idle timer) */
+  hardwareOperationInProgress: boolean;
 }
 
 /**
@@ -131,6 +133,10 @@ interface WalletContextType {
   keychainLocked: boolean;
   /** True while loading initial state */
   isLoading: boolean;
+  /** True while a hardware wallet operation is in progress */
+  hardwareOperationInProgress: boolean;
+  /** Set the hardware operation in progress flag (pauses idle timer) */
+  setHardwareOperationInProgress: (inProgress: boolean) => void;
 
   // ─── Authentication ────────────────────────────────────────────────────────
   /** Unlock the keychain with password */
@@ -171,6 +177,12 @@ interface WalletContextType {
   ) => Promise<Wallet>;
   /** Import a test/watch-only address (dev mode only) */
   importTestAddress: (address: string, name?: string) => Promise<Wallet>;
+  /** Create a hardware wallet using BIP-44 account discovery */
+  createHardwareWalletWithDiscovery: (
+    deviceType: 'trezor' | 'ledger',
+    name?: string,
+    usePassphrase?: boolean
+  ) => Promise<Wallet>;
 
   // ─── Wallet Management ─────────────────────────────────────────────────────
   /** Derive a new address in the wallet */
@@ -191,8 +203,16 @@ interface WalletContextType {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
 
   // ─── Transactions ──────────────────────────────────────────────────────────
-  /** Sign a raw transaction hex */
-  signTransaction: (rawTxHex: string, sourceAddress: string) => Promise<string>;
+  /**
+   * Sign a raw transaction hex.
+   * For hardware wallets, options.psbtHex is required along with inputValues and lockScripts
+   * to complete the PSBT with witnessUtxo data.
+   */
+  signTransaction: (
+    rawTxHex: string,
+    sourceAddress: string,
+    options?: SignTransactionOptions
+  ) => Promise<string>;
   /** Broadcast a signed transaction to the network */
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
 }
@@ -231,6 +251,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     activeAddress: null,
     keychainLocked: true,
     isLoading: true,
+    hardwareOperationInProgress: false,
   });
 
   // Use ref to access current state without adding to dependency array
@@ -286,25 +307,32 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         if (isUnlocked && allWallets.length > 0) {
           let active = await walletService.getActiveWallet();
           if (!active) {
-            active = allWallets[0];
-            await walletService.setActiveWallet(active.id);
+            // No active wallet - select the first one (this decrypts and derives addresses)
+            await walletService.selectWallet(allWallets[0].id);
+            active = await walletService.getActiveWallet();
           }
-          if (
-            (activeChanged = newState.activeWallet?.id !== active.id) ||
-            (newState.activeWallet &&
-              active &&
-              !addressesEqual(newState.activeWallet.addresses, active.addresses))
-          ) {
-            newState.activeWallet = active;
-          }
+          // Safety check - if still no active wallet, skip wallet/address processing
+          if (!active) {
+            newState.activeWallet = null;
+            newState.activeAddress = null;
+          } else {
+            if (
+              (activeChanged = newState.activeWallet?.id !== active.id) ||
+              (newState.activeWallet &&
+                active &&
+                !addressesEqual(newState.activeWallet.addresses, active.addresses))
+            ) {
+              newState.activeWallet = active;
+            }
 
-          const lastActiveAddress = await walletService.getLastActiveAddress();
-          const newActiveAddress =
-            lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-              ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
-              : active.addresses[0] || null;
-          addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
-          if (addressChanged) newState.activeAddress = newActiveAddress;
+            const lastActiveAddress = await walletService.getLastActiveAddress();
+            const newActiveAddress =
+              lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
+                ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+                : active.addresses[0] || null;
+            addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
+            if (addressChanged) newState.activeAddress = newActiveAddress;
+          }
         } else {
           newState.activeWallet = null;
           newState.activeAddress = null;
@@ -461,6 +489,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     await walletService.setLastActiveTime();
   }, [walletService]);
 
+  const setHardwareOperationInProgress = useCallback((inProgress: boolean) => {
+    setWalletState((prev) => ({ ...prev, hardwareOperationInProgress: inProgress }));
+  }, []);
+
   const isKeychainLocked = useCallback(async () => {
     return !(await walletService.isKeychainUnlocked());
   }, [walletService]);
@@ -473,6 +505,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     activeAddress: walletState.activeAddress,
     keychainLocked: walletState.keychainLocked,
     isLoading: walletState.isLoading,
+    hardwareOperationInProgress: walletState.hardwareOperationInProgress,
+    setHardwareOperationInProgress,
     unlockKeychain: withRefresh(walletService.unlockKeychain, async () => {
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
@@ -509,6 +543,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }),
+    createHardwareWalletWithDiscovery: withRefresh(walletService.createHardwareWalletWithDiscovery, refreshWalletState),
     resetKeychain: async (password) => {
       await walletService.resetKeychain(password);
       setWalletState({
@@ -519,6 +554,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         activeAddress: null,
         keychainLocked: true,
         isLoading: false,
+        hardwareOperationInProgress: false,
       });
     },
     getUnencryptedMnemonic: walletService.getUnencryptedMnemonic,
@@ -538,6 +574,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     setActiveWallet,
     setActiveAddress,
     setLastActiveTime,
+    setHardwareOperationInProgress,
     isKeychainLocked,
   ]);
 

@@ -72,7 +72,7 @@ export function BlockHeightInput({
       <Label htmlFor={name} className="text-sm font-medium text-gray-700">
         {label}
       </Label>
-      <div className="mt-1 relative rounded-md">
+      <div className="mt-1 relative z-0 rounded-md">
         <Input
           type="text"
           name={name}

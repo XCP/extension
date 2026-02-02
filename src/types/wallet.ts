@@ -32,8 +32,8 @@ export interface Wallet {
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase or single private key */
-  type: 'mnemonic' | 'privateKey';
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */
@@ -59,8 +59,8 @@ export interface WalletRecord {
   id: string;
   /** User-facing wallet name */
   name: string;
-  /** Secret type: mnemonic phrase or single private key */
-  type: 'mnemonic' | 'privateKey';
+  /** Secret type: mnemonic phrase, single private key, or hardware wallet */
+  type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
   /** Number of derived addresses */
@@ -104,4 +104,45 @@ export interface KeychainRecord {
   salt: string;
   /** Encrypted keychain blob (base64, IV + ciphertext) */
   encryptedKeychain: string;
+}
+
+// ============================================================================
+// Transaction Signing Types
+// ============================================================================
+
+/**
+ * Options for signing a transaction.
+ * Used to pass additional data required for hardware wallet signing.
+ */
+export interface SignTransactionOptions {
+  /** PSBT hex (required for hardware wallets) */
+  psbtHex?: string;
+  /** Input values in satoshis from API (avoids UTXO fetch for SegWit) */
+  inputValues?: number[];
+  /** Input lock scripts (scriptPubKey) from API */
+  lockScripts?: string[];
+}
+
+// ============================================================================
+// Hardware Wallet Types
+// ============================================================================
+
+/**
+ * Metadata stored for hardware wallets (encrypted in keychain).
+ * Note: Private keys NEVER leave the hardware device - this only stores
+ * the public key and derivation path needed to identify the account.
+ */
+export interface HardwareWalletSecret {
+  /** Hardware wallet vendor */
+  deviceType: 'trezor' | 'ledger';
+  /** Public key or descriptor for the account */
+  publicKey: string;
+  /** BIP32 derivation path to first address */
+  derivationPath: string;
+  /** BIP44 account index */
+  accountIndex: number;
+  /** Whether passphrase protection is enabled */
+  usePassphrase: boolean;
+  /** Extended public key (only present when created via discovery) */
+  xpub?: string;
 }
