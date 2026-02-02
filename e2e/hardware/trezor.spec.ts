@@ -31,7 +31,7 @@ async function setupWalletForHardwareTest(page: Page): Promise<void> {
   // Check current URL state - we might be on onboarding, unlock, or index
   const currentUrl = page.url();
 
-  if (currentUrl.includes('/onboarding') || (currentUrl.includes('popup.html') && !currentUrl.includes('#'))) {
+  if (currentUrl.includes('/onboarding') || ((currentUrl.includes('popup.html') || currentUrl.includes('sidepanel.html')) && !currentUrl.includes('#'))) {
     // Need to wait for onboarding page content to appear
     const createButton = page.getByRole('button', { name: 'Create Wallet' });
     await createButton.waitFor({ state: 'visible', timeout: 15000 });
@@ -81,7 +81,7 @@ test.describe('Trezor Hardware Wallet', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('can navigate to connect hardware wallet page', async () => {
-    const { context, page } = await launchExtension('trezor-nav');
+    const { context, page } = await launchExtension('trezor-nav', { useSidepanel: true });
 
     try {
       // First, create a wallet to get authenticated
@@ -130,7 +130,7 @@ test.describe('Trezor Hardware Wallet', () => {
   });
 
   test('can see discovery-based connection UI', async () => {
-    const { context, page } = await launchExtension('trezor-formats');
+    const { context, page } = await launchExtension('trezor-formats', { useSidepanel: true });
 
     try {
       await setupWalletForHardwareTest(page);
@@ -161,7 +161,7 @@ test.describe('Trezor Hardware Wallet', () => {
   });
 
   test('can access advanced options', async () => {
-    const { context, page } = await launchExtension('trezor-advanced');
+    const { context, page } = await launchExtension('trezor-advanced', { useSidepanel: true });
 
     try {
       await setupWalletForHardwareTest(page);
@@ -199,7 +199,7 @@ test.describe('Trezor Hardware Wallet', () => {
   });
 
   test('can connect to Trezor emulator and see discovery results', async () => {
-    const { context, page } = await launchExtension('trezor-connect');
+    const { context, page } = await launchExtension('trezor-connect', { useSidepanel: true });
 
     try {
       // First, create a wallet to get authenticated
@@ -282,7 +282,7 @@ test.describe('Trezor Hardware Wallet', () => {
   });
 
   test('shows Trezor popup when connecting', async () => {
-    const { context, page } = await launchExtension('trezor-popup');
+    const { context, page } = await launchExtension('trezor-popup', { useSidepanel: true });
 
     try {
       // First, create a wallet to get authenticated
@@ -327,7 +327,7 @@ test.describe('Trezor Hardware Wallet', () => {
   });
 
   test('validates that Trezor Connect SDK is loaded', async () => {
-    const { context, page } = await launchExtension('trezor-sdk');
+    const { context, page } = await launchExtension('trezor-sdk', { useSidepanel: true });
 
     try {
       // First, create a wallet to get authenticated
@@ -404,7 +404,7 @@ test.describe('Trezor Wallet Integration Proof', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('complete Trezor wallet setup proves integration works', async () => {
-    const { context, page } = await launchExtension('trezor-integration');
+    const { context, page } = await launchExtension('trezor-integration', { useSidepanel: true });
 
     try {
       console.log('\n========================================');

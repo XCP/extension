@@ -47,7 +47,12 @@ interface WalletFixtures {
 // Core: Launch Extension
 // ============================================================================
 
-async function launchExtension(testId: string): Promise<{
+interface LaunchOptions {
+  /** Use sidepanel.html instead of popup.html - required for hardware wallet tests */
+  useSidepanel?: boolean;
+}
+
+async function launchExtension(testId: string, options?: LaunchOptions): Promise<{
   context: BrowserContext;
   page: Page;
   extensionId: string;
@@ -125,7 +130,9 @@ async function launchExtension(testId: string): Promise<{
   }
 
   const page = await context.newPage();
-  await page.goto(`chrome-extension://${extensionId}/popup.html`);
+  // Use sidepanel for hardware wallet tests (Trezor button only shows in sidepanel context)
+  const entrypoint = options?.useSidepanel ? 'sidepanel.html' : 'popup.html';
+  await page.goto(`chrome-extension://${extensionId}/${entrypoint}`);
   await page.waitForLoadState('domcontentloaded');
 
   return { context, page, extensionId, contextPath };

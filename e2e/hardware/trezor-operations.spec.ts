@@ -194,7 +194,7 @@ test.describe('Trezor Hardware Wallet Operations', () => {
   });
 
   test('can sign a message with hardware wallet', async () => {
-    const { context, page } = await launchExtension('trezor-sign-message');
+    const { context, page } = await launchExtension('trezor-sign-message', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
@@ -291,7 +291,7 @@ test.describe('Trezor Hardware Wallet Operations', () => {
   });
 
   test('sign message page works with hardware wallet (no password needed)', async () => {
-    const { context, page } = await launchExtension('trezor-sign-no-password');
+    const { context, page } = await launchExtension('trezor-sign-no-password', { useSidepanel: true });
 
     try {
       // Connect Trezor
@@ -362,7 +362,7 @@ test.describe('Trezor Transaction Signing Flow', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('transaction signing flow initiates correctly for hardware wallet', async () => {
-    const { context, page } = await launchExtension('trezor-tx-flow');
+    const { context, page } = await launchExtension('trezor-tx-flow', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
@@ -448,7 +448,7 @@ test.describe('Trezor Wallet Display', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('hardware wallet appears correctly in wallet list', async () => {
-    const { context, page } = await launchExtension('trezor-wallet-list');
+    const { context, page } = await launchExtension('trezor-wallet-list', { useSidepanel: true });
 
     try {
       // Connect Trezor
@@ -490,7 +490,7 @@ test.describe('Trezor Wallet Display', () => {
   });
 
   test('hardware wallet blocks show private key', async () => {
-    const { context, page } = await launchExtension('trezor-block-privkey');
+    const { context, page } = await launchExtension('trezor-block-privkey', { useSidepanel: true });
 
     try {
       // Connect Trezor
@@ -548,7 +548,7 @@ test.describe('Trezor Disconnect Flow', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('can disconnect hardware wallet from add-wallet page', async () => {
-    const { context, page } = await launchExtension('trezor-disconnect-add-wallet');
+    const { context, page } = await launchExtension('trezor-disconnect-add-wallet', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
@@ -618,7 +618,7 @@ test.describe('Trezor Disconnect Flow', () => {
   });
 
   test('can disconnect hardware wallet from wallet menu', async () => {
-    const { context, page } = await launchExtension('trezor-disconnect-menu');
+    const { context, page } = await launchExtension('trezor-disconnect-menu', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
@@ -693,7 +693,7 @@ test.describe('Trezor Session-Only Behavior', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('hardware wallet is session-only and not persisted', async () => {
-    const { context, page } = await launchExtension('trezor-session-only');
+    const { context, page } = await launchExtension('trezor-session-only', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
@@ -789,7 +789,7 @@ test.describe('Trezor Multi-Wallet Switching', () => {
   test.skip(SKIP_EMULATOR_TESTS, 'Trezor emulator not available');
 
   test('can switch between software and hardware wallets', async () => {
-    const { context, page } = await launchExtension('trezor-multi-wallet');
+    const { context, page } = await launchExtension('trezor-multi-wallet', { useSidepanel: true });
 
     try {
       console.log('\n========================================');
