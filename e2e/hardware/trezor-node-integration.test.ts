@@ -8,7 +8,7 @@
  * Prerequisites:
  *   - Trezor emulator running via trezor-user-env (docker)
  *   - Bridge running on localhost:21325
- *   - Emulator initialized with test seed via init-trezor-emulator.js
+ *   - Emulator initialized with test seed via ./init-trezor-emulator.js
  *
  * Run with: npx vitest run e2e/hardware/trezor-node-integration.test.ts
  */

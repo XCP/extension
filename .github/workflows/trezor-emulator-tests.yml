@@ -15,7 +15,7 @@ on:
     branches: [ main, feature/trezor-hardware-wallet ]
     paths:
       - 'src/utils/hardware/**'
-      - 'scripts/init-trezor-emulator.js'
+      - 'e2e/hardware/init-trezor-emulator.js'
       - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
   # Allow manual trigger
@@ -77,7 +77,7 @@ jobs:
           echo "Installing ws for WebSocket communication..."
           npm install ws
           echo "Starting emulator and bridge via WebSocket API..."
-          node scripts/init-trezor-emulator.js
+          node e2e/hardware/init-trezor-emulator.js
 
           # Wait for bridge to be ready and verify
           echo ""

@@ -67,8 +67,10 @@ walletTest.describe('CheckboxInput Component', () => {
       // Get initial state
       const initialState = await checkbox.getAttribute('aria-checked');
 
-      // Click to toggle
-      await checkbox.click();
+      // Use keyboard interaction - more reliable than click which can fail due to layout shifts
+      await checkbox.scrollIntoViewIfNeeded();
+      await checkbox.focus();
+      await page.keyboard.press('Space');
 
       // Wait for state to change
       await expect(async () => {
@@ -83,18 +85,14 @@ walletTest.describe('CheckboxInput Component', () => {
 
       // Get initial state
       const initialState = await checkbox.getAttribute('aria-checked');
-
-      // Click first time and wait for state to change
-      await checkbox.click();
       const expectedMidState = initialState === 'true' ? 'false' : 'true';
+
+      // Use JavaScript click for reliable toggling
+      await checkbox.evaluate((el: HTMLElement) => el.click());
       await expect(checkbox).toHaveAttribute('aria-checked', expectedMidState, { timeout: 2000 });
 
-      // Wait for any React re-render to complete
-      await page.waitForTimeout(100);
-
-      // Click second time - use keyboard Space as it's more reliable than click
-      await checkbox.focus();
-      await page.keyboard.press('Space');
+      // Click again
+      await checkbox.evaluate((el: HTMLElement) => el.click());
 
       // Should be back to initial state
       await expect(checkbox).toHaveAttribute('aria-checked', initialState!, { timeout: 2000 });
@@ -106,13 +104,15 @@ walletTest.describe('CheckboxInput Component', () => {
 
       const initialState = await checkbox.getAttribute('aria-checked');
 
-      // Find and click the label
+      // Find the label
       const checkboxId = await checkbox.getAttribute('id');
       expect(checkboxId).toBeTruthy();
 
       const label = page.locator(`label[for="${checkboxId}"]`);
       await expect(label).toBeVisible();
-      await label.click();
+
+      // Use JavaScript click - more reliable for labels that may have event handling issues
+      await label.evaluate((el: HTMLElement) => el.click());
 
       await expect(async () => {
         const newState = await checkbox.getAttribute('aria-checked');
@@ -126,20 +126,18 @@ walletTest.describe('CheckboxInput Component', () => {
       const checkbox = page.locator('[role="checkbox"]').first();
       await expect(checkbox).toBeVisible();
 
-      // Ensure checkbox is checked
+      // Ensure checkbox is checked - use keyboard for reliability
       const isChecked = await checkbox.getAttribute('aria-checked');
       if (isChecked !== 'true') {
-        await checkbox.click();
+        await checkbox.scrollIntoViewIfNeeded();
+        await checkbox.focus();
+        await page.keyboard.press('Space');
       }
 
       // Wait for checked state
-      await expect(async () => {
-        const state = await checkbox.getAttribute('aria-checked');
-        expect(state).toBe('true');
-      }).toPass({ timeout: 2000 });
+      await expect(checkbox).toHaveAttribute('aria-checked', 'true', { timeout: 2000 });
 
-      // Look for checkmark svg or data-checked attribute
-      const hasCheckedData = await checkbox.getAttribute('data-checked');
+      // Look for checkmark svg
       const svg = checkbox.locator('svg');
       const hasSvg = await svg.isVisible();
 

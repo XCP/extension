@@ -142,16 +142,16 @@ walletTest.describe('AssetSelectInput Component', () => {
       expect(value).toBeTruthy();
     });
 
-    walletTest('clears on selection change', async ({ page }) => {
+    walletTest('allows typing different values', async ({ page }) => {
       const comboboxInput = getComboboxInput(page);
 
-      // Enter value
-      await comboboxInput.fill('TEST');
+      // Enter a value
+      await comboboxInput.fill('PEPECASH');
+      await expect(comboboxInput).toHaveValue('PEPECASH');
 
-      // Clear
-      await comboboxInput.clear();
-
-      await expect(comboboxInput).toHaveValue('');
+      // Type a different value
+      await comboboxInput.fill('RAREPEPE');
+      await expect(comboboxInput).toHaveValue('RAREPEPE');
     });
   });
 

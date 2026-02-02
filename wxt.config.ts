@@ -56,7 +56,7 @@ export default defineConfig({
   },
   vite: (configEnv) => ({
     plugins: [
-      ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'error'] })] : []),
+      ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'warn', 'error'] })] : []),
       tailwindcss(),
     ],
     define: {

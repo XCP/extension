@@ -5,7 +5,7 @@
  * This script connects to the trezor-user-env WebSocket controller
  * and starts the emulator with a known test seed.
  *
- * Usage: node scripts/init-trezor-emulator.js
+ * Usage: node e2e/hardware/init-trezor-emulator.js
  */
 
 import WebSocket from 'ws';
