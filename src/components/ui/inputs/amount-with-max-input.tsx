@@ -88,11 +88,13 @@ export function AmountWithMaxInput({
       if (!isNaN(maxNum)) {
         // Use appropriate decimal places based on divisibility
         // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
+        // useGrouping: false prevents commas in the value (e.g., "1000000" not "1,000,000")
         const decimals = isDivisible ? 8 : 0;
         const perDestination = formatAmount({
           value: maxNum / destinationCount,
           maximumFractionDigits: decimals,
-          minimumFractionDigits: 0
+          minimumFractionDigits: 0,
+          useGrouping: false
         });
         onChange(perDestination);
       }
