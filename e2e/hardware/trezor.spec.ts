@@ -151,8 +151,8 @@ test.describe('Trezor Hardware Wallet', () => {
       // Connect button should be visible
       await expect(page.getByRole('button', { name: /Connect Trezor/i })).toBeVisible();
 
-      // Should have Advanced options toggle
-      await expect(page.getByText('Advanced options')).toBeVisible();
+      // Security note should be visible
+      await expect(page.getByText('Your private keys never leave your Trezor device.')).toBeVisible();
 
       await page.screenshot({ path: 'test-results/screenshots/trezor-discovery-ui.png' });
     } finally {
@@ -160,8 +160,8 @@ test.describe('Trezor Hardware Wallet', () => {
     }
   });
 
-  test('can access advanced options', async () => {
-    const { context, page } = await launchExtension('trezor-advanced', { useSidepanel: true });
+  test('shows security messaging and help link', async () => {
+    const { context, page } = await launchExtension('trezor-security', { useSidepanel: true });
 
     try {
       await setupWalletForHardwareTest(page);
@@ -170,29 +170,21 @@ test.describe('Trezor Hardware Wallet', () => {
       await page.goto(`${baseUrl}#/keychain/wallets/connect-hardware`);
       await page.waitForLoadState('networkidle');
 
-      // Wait for the connect hardware page to load (discovery-based UI)
+      // Wait for the connect hardware page to load
       await expect(page.getByRole('heading', { name: 'Connect Your Trezor' })).toBeVisible({ timeout: 15000 });
 
-      // Advanced options should be hidden initially (passphrase, wallet name)
-      await expect(page.getByText('Use passphrase')).not.toBeVisible();
+      // Verify security messaging is present
+      await expect(page.getByText('Your private keys never leave your Trezor device.')).toBeVisible();
 
-      // Click to show advanced options
-      await page.getByText(/Advanced options/i).click();
+      // Verify help button is in header
+      const helpButton = page.getByRole('button', { name: /Help/i });
+      await expect(helpButton).toBeVisible();
 
-      // Now should see passphrase checkbox and wallet name input
-      await expect(page.getByText('Use passphrase')).toBeVisible();
-      await expect(page.getByPlaceholder('My Trezor')).toBeVisible();
-      await expect(page.getByText('Wallet Name (optional)')).toBeVisible();
+      // Verify the shield icon area is present (security visual indicator)
+      const shieldIcon = page.locator('.bg-\\[\\#00854D\\]\\/10');
+      await expect(shieldIcon).toBeVisible();
 
-      // Passphrase checkbox should be unchecked by default
-      const passphraseCheckbox = page.locator('#usePassphrase');
-      await expect(passphraseCheckbox).not.toBeChecked();
-
-      // Can toggle passphrase
-      await passphraseCheckbox.click();
-      await expect(passphraseCheckbox).toBeChecked();
-
-      await page.screenshot({ path: 'test-results/screenshots/trezor-advanced-options.png' });
+      await page.screenshot({ path: 'test-results/screenshots/trezor-security-ui.png' });
     } finally {
       await cleanup(context);
     }
