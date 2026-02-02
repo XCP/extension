@@ -62,7 +62,8 @@ export default defineConfig({
     define: {
       // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
       // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
-      __TREZOR_TEST_MODE__: JSON.stringify(process.env.TREZOR_TEST_MODE === 'true'),
+      // Note: Don't use JSON.stringify - we need actual boolean, not string "true"
+      __TREZOR_TEST_MODE__: process.env.TREZOR_TEST_MODE === 'true',
     },
     build: {
       // Crypto libraries (@noble/*, @scure/*) are ~500KB minified - this is expected
