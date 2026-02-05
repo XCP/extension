@@ -9,6 +9,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateQuantity } from "@/utils/validation/amount";
+import { isMultisigAddress } from "@/utils/validation/bitcoin";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
 import type { Destination } from "@/utils/validation/destinations";
 import type { ReactElement } from "react";
@@ -55,6 +56,12 @@ export function SendForm({
   // Memo state and validation
   const [memo, setMemo] = useState(initialFormData?.memo || "");
   const [memoValid, setMemoValid] = useState(true);
+
+  // Detect if any destination is a multisig address (memos not supported for legacy sends)
+  const hasMultisigDestination = useMemo(
+    () => destinations.some(d => d.address && isMultisigAddress(d.address)),
+    [destinations]
+  );
   
   // Computed values
   const isDivisible = useMemo(() => {
@@ -200,13 +207,20 @@ export function SendForm({
           />
 
           {(initialAsset || initialFormData?.asset) !== "BTC" && (
-            <MemoInput
-              value={memo}
-              onChange={setMemo}
-              onValidationChange={setMemoValid}
-              disabled={pending}
-              showHelpText={showHelpText}
-            />
+            <>
+              <MemoInput
+                value={hasMultisigDestination ? "" : memo}
+                onChange={setMemo}
+                onValidationChange={setMemoValid}
+                disabled={pending || hasMultisigDestination}
+                showHelpText={showHelpText}
+              />
+              {hasMultisigDestination && (
+                <p className="text-xs text-amber-600 -mt-1">
+                  Memos are not supported when sending to multisig.
+                </p>
+              )}
+            </>
           )}
 
     </ComposerForm>
