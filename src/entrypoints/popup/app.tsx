@@ -36,6 +36,10 @@ import ConsolidatePage from '@/pages/actions/consolidate';
 import ConsolidateStatusPage from '@/pages/actions/consolidate/status';
 import ConsolidateSuccessPage from '@/pages/actions/consolidate/success';
 import SignMessagePage from '@/pages/actions/sign-message';
+import SignTransactionPage from '@/pages/actions/sign-transaction';
+import CombineSignaturesPage from '@/pages/actions/combine-signatures';
+import BroadcastTransactionPage from '@/pages/actions/broadcast-transaction';
+import FundBareMultisigPage from '@/pages/actions/fund-bare-multisig';
 import VerifyMessagePage from '@/pages/actions/verify-message';
 
 // Settings
@@ -171,6 +175,10 @@ export default function App() {
             <Route path="/actions/consolidate/status" element={<ConsolidateStatusPage />} />
             <Route path="/actions/consolidate/success" element={<ConsolidateSuccessPage />} />
             <Route path="/actions/sign-message" element={<SignMessagePage />} />
+            <Route path="/actions/sign-transaction" element={<SignTransactionPage />} />
+            <Route path="/actions/combine-signatures" element={<CombineSignaturesPage />} />
+            <Route path="/actions/broadcast-transaction" element={<BroadcastTransactionPage />} />
+            <Route path="/actions/fund-bare-multisig" element={<FundBareMultisigPage />} />
             <Route path="/actions/verify-message" element={<VerifyMessagePage />} />
 
             <Route path="/settings/address-types" element={<AddressTypesPage />} />

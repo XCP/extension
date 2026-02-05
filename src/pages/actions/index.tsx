@@ -117,6 +117,35 @@ const getActionSections = (
         },
       ],
     },
+    {
+      title: "Multisig",
+      items: [
+        {
+          id: "fund-bare-multisig",
+          title: "Fund Multisig",
+          description: "Create a transaction funding a multisig output",
+          onClick: () => navigate("/actions/fund-bare-multisig"),
+        },
+        {
+          id: "sign-transaction",
+          title: "Sign Transaction",
+          description: "Sign a raw transaction with your key",
+          onClick: () => navigate("/actions/sign-transaction"),
+        },
+        {
+          id: "combine-signatures",
+          title: "Combine Sigs",
+          description: "Combine multisig signatures into a broadcast-ready transaction",
+          onClick: () => navigate("/actions/combine-signatures"),
+        },
+        {
+          id: "broadcast-transaction",
+          title: "Broadcast Transaction",
+          description: "Broadcast a signed transaction to the network",
+          onClick: () => navigate("/actions/broadcast-transaction"),
+        },
+      ],
+    },
   ];
 
   return sections;
