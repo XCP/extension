@@ -159,6 +159,8 @@ export default function AddressTypesPage(): ReactElement {
           return "CounterWallet (P2PKH)";
       case AddressFormat.CounterwalletSegwit:
           return "CounterWallet SegWit (P2WPKH)";
+      case AddressFormat.FreewalletBIP39:
+          return "FreeWallet (P2PKH)";
       default:
         return type;
     }

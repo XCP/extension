@@ -227,6 +227,7 @@ export const DerivationPaths = {
     switch (addressFormat) {
       case AddressFormat.P2PKH:
       case AddressFormat.Counterwallet:
+      case AddressFormat.FreewalletBIP39:
         return 44;
       case AddressFormat.P2SH_P2WPKH:
         return 49;

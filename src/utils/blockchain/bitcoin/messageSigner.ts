@@ -118,6 +118,7 @@ export async function signMessage(
     switch (addressFormat) {
       case AddressFormat.P2PKH:
       case AddressFormat.Counterwallet:
+      case AddressFormat.FreewalletBIP39:
         // Use BIP-322 for P2PKH
         signature = await signBIP322P2PKH(message, privateKey, compressed);
         // Generate address for test compatibility
@@ -208,6 +209,13 @@ export function getSigningCapabilities(addressFormat: AddressFormat | string): {
         canSign: true,
         method: 'BIP-322',
         notes: 'Generic signed message format (BIP-322) with P2WPKH witness'
+      };
+
+    case 'Freewallet-bip39':
+      return {
+        canSign: true,
+        method: 'BIP-322',
+        notes: 'Generic signed message format (BIP-322) with P2PKH virtual transaction'
       };
 
     default:
