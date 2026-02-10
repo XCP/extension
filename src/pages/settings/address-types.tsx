@@ -204,8 +204,8 @@ export default function AddressTypesPage(): ReactElement {
       >
         <SelectionCardGroup>
           {AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            const isCounterwallet = activeWallet?.addressFormat &&
-                                   isCounterwalletFormat(activeWallet.addressFormat);
+            const walletFormat = activeWallet?.addressFormat;
+            const isCounterwallet = walletFormat && isCounterwalletFormat(walletFormat);
 
             // For Counterwallet users, only show Counterwallet and CounterwalletSegwit options
             if (isCounterwallet) {
@@ -215,6 +215,11 @@ export default function AddressTypesPage(): ReactElement {
             // For non-Counterwallet users, hide both Counterwallet formats
             if (isCounterwalletFormat(type)) {
               return false;
+            }
+
+            // Only show FreewalletBIP39 if the wallet was imported with that format
+            if (type === AddressFormat.FreewalletBIP39) {
+              return walletFormat === AddressFormat.FreewalletBIP39;
             }
 
             return true;
