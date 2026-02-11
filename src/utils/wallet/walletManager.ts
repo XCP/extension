@@ -1,7 +1,7 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import {
@@ -19,10 +19,10 @@ import {
   DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/encryption';
 import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat, getSeedFromMnemonic } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
-import { isValidCounterwalletMnemonic, getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
 import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/utils/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
@@ -233,7 +233,7 @@ export class WalletManager {
     }
 
     // Validate mnemonic
-    const isValid = addressFormat === AddressFormat.Counterwallet
+    const isValid = isCounterwalletFormat(addressFormat)
       ? isValidCounterwalletMnemonic(mnemonic)
       : validateMnemonic(mnemonic, wordlist);
 
@@ -1392,9 +1392,7 @@ export class WalletManager {
   }
 
   private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {
-    const seed = isCounterwalletFormat(addressFormat)
-      ? getCounterwalletSeed(mnemonic)
-      : mnemonicToSeedSync(mnemonic);
+    const seed = getSeedFromMnemonic(mnemonic, addressFormat);
     const derivationPath = getDerivationPathForAddressFormat(addressFormat);
     const pathParts = derivationPath.split('/').slice(0, -1).join('/');
     const root = HDKey.fromMasterSeed(seed);
@@ -1420,9 +1418,7 @@ export class WalletManager {
   private deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
     const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
     const address = getAddressFromMnemonic(mnemonic, path, addressFormat);
-    const seed = isCounterwalletFormat(addressFormat)
-      ? getCounterwalletSeed(mnemonic)
-      : mnemonicToSeedSync(mnemonic);
+    const seed = getSeedFromMnemonic(mnemonic, addressFormat);
     const root = HDKey.fromMasterSeed(seed);
     const child = root.derive(path);
     if (!child.publicKey) {

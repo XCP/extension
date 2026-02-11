@@ -3,10 +3,9 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
-import { generateMnemonic, mnemonicToSeedSync } from '@scure/bip39';
+import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { encodeAddress, isCounterwalletFormat, AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
+import { encodeAddress, getSeedFromMnemonic, AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Create a base58check encoder instance for WIF usage.
 const base58check = createBase58check(sha256);
@@ -126,9 +125,7 @@ export function getPrivateKeyFromMnemonic(
   path: string,
   addressFormat: AddressFormat
 ): string {
-  const seed: Uint8Array = isCounterwalletFormat(addressFormat)
-    ? getCounterwalletSeed(mnemonic)
-    : mnemonicToSeedSync(mnemonic);
+  const seed: Uint8Array = getSeedFromMnemonic(mnemonic, addressFormat);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.privateKey) {

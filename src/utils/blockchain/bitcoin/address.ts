@@ -2,7 +2,8 @@ import { ripemd160 } from '@noble/hashes/legacy.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bech32, bech32m, base58, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
-import { mnemonicToSeedSync } from '@scure/bip39';
+import { mnemonicToEntropy, mnemonicToSeedSync } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as btc from '@scure/btc-signer';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
@@ -17,6 +18,10 @@ export const AddressFormat = {
   Counterwallet: 'counterwallet',
   /** FreeWallet Style SegWit (Native SegWit with Counterwallet derivation) */
   CounterwalletSegwit: 'counterwallet-segwit',
+  /** FreeWallet BIP39 (P2PKH with raw entropy seed derivation) */
+  FreewalletBIP39: 'freewallet-bip39',
+  /** FreeWallet BIP39 SegWit (P2WPKH with raw entropy seed derivation) */
+  FreewalletBIP39Segwit: 'freewallet-bip39-segwit',
   /** Taproot (Pay-to-Taproot) */
   P2TR: 'p2tr',
   /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
@@ -29,7 +34,7 @@ export const AddressFormat = {
 
 /**
  * Type representing valid address format values.
- * This creates a union type: 'counterwallet' | 'counterwallet-segwit' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
+ * This creates a union type: 'counterwallet' | 'counterwallet-segwit' | 'freewallet-bip39' | 'freewallet-bip39-segwit' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
@@ -40,6 +45,7 @@ export function isSegwitFormat(format: AddressFormat): boolean {
   return format === AddressFormat.P2WPKH ||
          format === AddressFormat.P2SH_P2WPKH ||
          format === AddressFormat.CounterwalletSegwit ||
+         format === AddressFormat.FreewalletBIP39Segwit ||
          format === AddressFormat.P2TR;
 }
 
@@ -51,6 +57,26 @@ export function isCounterwalletFormat(format: AddressFormat): boolean {
          format === AddressFormat.CounterwalletSegwit;
 }
 
+/**
+ * Check if an address format is a FreeWallet BIP39 style format.
+ */
+export function isFreewalletBIP39Format(format: AddressFormat): boolean {
+  return format === AddressFormat.FreewalletBIP39 ||
+         format === AddressFormat.FreewalletBIP39Segwit;
+}
+
+/**
+ * Derive the appropriate seed from a mnemonic based on the address format.
+ *
+ * - Counterwallet/CounterwalletSegwit: Electrum v1 triplet-based seed (16 bytes)
+ * - FreewalletBIP39: raw BIP39 entropy via mnemonicToEntropy (16 bytes)
+ * - All others: standard BIP39 PBKDF2 seed (64 bytes)
+ */
+export function getSeedFromMnemonic(mnemonic: string, addressFormat: AddressFormat): Uint8Array {
+  if (isCounterwalletFormat(addressFormat)) return getCounterwalletSeed(mnemonic);
+  if (isFreewalletBIP39Format(addressFormat)) return mnemonicToEntropy(mnemonic, wordlist);
+  return mnemonicToSeedSync(mnemonic);
+}
 
 // Create a base58check encoder instance using SHA-256.
 const base58check = createBase58check(sha256);
@@ -144,6 +170,10 @@ export function getDerivationPathForAddressFormat(addressFormat: AddressFormat):
       return "m/0'/0";
     case AddressFormat.CounterwalletSegwit:
       return "m/0'/0";
+    case AddressFormat.FreewalletBIP39:
+      return "m/0'/0";
+    case AddressFormat.FreewalletBIP39Segwit:
+      return "m/0'/0";
     default:
       throw new Error(`Unsupported address type: ${ addressFormat }`);
   }
@@ -185,8 +215,9 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
     }
-    case AddressFormat.CounterwalletSegwit: {
-      // CounterwalletSegwit uses Native SegWit (P2WPKH) encoding
+    case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit: {
+      // CounterwalletSegwit and FreewalletBIP39Segwit use Native SegWit (P2WPKH) encoding
       const pubKeyHash = ripemd160(sha256(publicKey));
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
@@ -205,8 +236,9 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
       }
       return p2tr.address;
     }
-    case AddressFormat.Counterwallet: {
-      // For Counterwallet, we use a legacy P2PKH scheme.
+    case AddressFormat.Counterwallet:
+    case AddressFormat.FreewalletBIP39: {
+      // For Counterwallet and FreewalletBIP39, we use a legacy P2PKH scheme.
       const pubKeyHash = ripemd160(sha256(publicKey));
       const payload = new Uint8Array(1 + pubKeyHash.length);
       payload[0] = 0x00;
@@ -232,10 +264,7 @@ export function getAddressFromMnemonic(
   path: string,
   addressFormat: AddressFormat
 ): string {
-  // Use a specialized seed for Counterwallet and CounterwalletSegwit; otherwise use standard BIP39 seed.
-  const seed: Uint8Array = isCounterwalletFormat(addressFormat)
-    ? getCounterwalletSeed(mnemonic)
-    : mnemonicToSeedSync(mnemonic);
+  const seed: Uint8Array = getSeedFromMnemonic(mnemonic, addressFormat);
   const root = HDKey.fromMasterSeed(seed);
   const child = root.derive(path);
   if (!child.publicKey) {
@@ -295,6 +324,8 @@ export async function detectAddressFormat(
     AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
+    AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
+    AddressFormat.FreewalletBIP39Segwit, // FreeWallet BIP39 SegWit
   ];
 
   // First, generate all preview addresses (or use cached ones)
@@ -349,6 +380,8 @@ export function getPreviewAddresses(mnemonic: string): Partial<Record<AddressFor
     AddressFormat.P2TR,
     AddressFormat.Counterwallet,
     AddressFormat.CounterwalletSegwit,
+    AddressFormat.FreewalletBIP39,
+    AddressFormat.FreewalletBIP39Segwit,
   ];
 
   const previews: Partial<Record<AddressFormat, string>> = {};
@@ -379,6 +412,8 @@ export async function detectAddressFormatFromPreviews(
     AddressFormat.P2SH_P2WPKH,        // Nested SegWit (3)
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
+    AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
+    AddressFormat.FreewalletBIP39Segwit, // FreeWallet BIP39 SegWit
   ];
 
   // Check each preview address for activity

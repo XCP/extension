@@ -7,7 +7,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/utils/blockchain/bitcoin/address';
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -159,6 +159,10 @@ export default function AddressTypesPage(): ReactElement {
           return "CounterWallet (P2PKH)";
       case AddressFormat.CounterwalletSegwit:
           return "CounterWallet SegWit (P2WPKH)";
+      case AddressFormat.FreewalletBIP39:
+          return "FreeWallet (P2PKH)";
+      case AddressFormat.FreewalletBIP39Segwit:
+          return "FreeWallet SegWit (P2WPKH)";
       default:
         return type;
     }
@@ -202,16 +206,20 @@ export default function AddressTypesPage(): ReactElement {
       >
         <SelectionCardGroup>
           {AVAILABLE_ADDRESS_TYPES.filter((type) => {
-            const isCounterwallet = activeWallet?.addressFormat &&
-                                   isCounterwalletFormat(activeWallet.addressFormat);
+            const walletFormat = activeWallet?.addressFormat;
 
-            // For Counterwallet users, only show Counterwallet and CounterwalletSegwit options
-            if (isCounterwallet) {
+            // For Counterwallet users, only show Counterwallet formats
+            if (walletFormat && isCounterwalletFormat(walletFormat)) {
               return isCounterwalletFormat(type);
             }
 
-            // For non-Counterwallet users, hide both Counterwallet formats
-            if (isCounterwalletFormat(type)) {
+            // For FreeWallet BIP39 users, only show FreeWallet BIP39 formats
+            if (walletFormat && isFreewalletBIP39Format(walletFormat)) {
+              return isFreewalletBIP39Format(type);
+            }
+
+            // For standard BIP39 users, hide both Counterwallet and FreeWallet groups
+            if (isCounterwalletFormat(type) || isFreewalletBIP39Format(type)) {
               return false;
             }
 

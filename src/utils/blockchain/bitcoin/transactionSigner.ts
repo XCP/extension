@@ -31,9 +31,11 @@ function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
+    case AddressFormat.FreewalletBIP39:
       return p2pkh(pubkeyBytes);
     case AddressFormat.P2WPKH:
     case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit:
       return p2wpkh(pubkeyBytes);
     case AddressFormat.P2SH_P2WPKH:
       return p2sh(p2wpkh(pubkeyBytes));
@@ -85,7 +87,8 @@ export async function signTransaction(
 
     // Determine if this is a legacy (non-SegWit) wallet
     const isLegacy = wallet.addressFormat === AddressFormat.P2PKH ||
-                     wallet.addressFormat === AddressFormat.Counterwallet;
+                     wallet.addressFormat === AddressFormat.Counterwallet ||
+                     wallet.addressFormat === AddressFormat.FreewalletBIP39;
 
     // Can use API-provided data for SegWit when available (avoids N network fetches)
     const hasApiData = inputValues && lockScripts &&
@@ -238,7 +241,7 @@ export async function signTransaction(
 
     // Sign and finalize the transaction
     try {
-      if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet)) {
+      if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet || wallet.addressFormat === AddressFormat.FreewalletBIP39)) {
         // Uncompressed P2PKH - use hybrid signing approach
         const compressedPubkey = getPublicKey(privateKeyBytes, true);
         hybridSignTransaction(

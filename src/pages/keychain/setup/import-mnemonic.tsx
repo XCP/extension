@@ -38,12 +38,12 @@ function ImportMnemonicPage() {
   const [state, formAction, isPending] = useActionState(
     async (_prevState: { error: string | null }, formData: FormData) => {
       const words = Array.from({ length: 12 }, (_, i) => formData.get(`word-${i}`) as string);
-      const mnemonic = words.join(" ").trim();
+      const mnemonic = words.join(" ").trim().toLowerCase();
       const password = formData.get("password") as string;
 
-      let validMnemonic = validateMnemonic(mnemonic, wordlist);
-      if (!validMnemonic && isValidCounterwalletMnemonic(mnemonic)) validMnemonic = true;
-      if (!validMnemonic) {
+      const isBip39Valid = validateMnemonic(mnemonic, wordlist);
+      const isCwValid = isValidCounterwalletMnemonic(mnemonic);
+      if (!isBip39Valid && !isCwValid) {
         return { error: "Invalid recovery phrase. Please check each word carefully." };
       }
 
@@ -67,9 +67,14 @@ function ImportMnemonicPage() {
       try {
         let addressFormat: AddressFormat;
 
-        if (isValidCounterwalletMnemonic(mnemonic)) {
+        if (isCwValid && !isBip39Valid) {
+          // Unambiguously a Counterwallet mnemonic (words are in CW list but
+          // don't form a valid BIP39 checksum) — use CW format directly.
           addressFormat = AddressFormat.Counterwallet;
         } else {
+          // Either a BIP39 mnemonic, or ambiguous (valid in both wordlists).
+          // Use activity detection to pick the right format — detectAddressFormat
+          // already checks CW-derived addresses alongside BIP39 formats.
           try {
             addressFormat = await detectAddressFormat(mnemonic);
           } catch (detectError) {
