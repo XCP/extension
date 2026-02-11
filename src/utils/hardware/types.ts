@@ -233,6 +233,7 @@ export const DerivationPaths = {
         return 49;
       case AddressFormat.P2WPKH:
       case AddressFormat.CounterwalletSegwit:
+      case AddressFormat.FreewalletBIP39Segwit:
         return 84;
       case AddressFormat.P2TR:
         return 86;

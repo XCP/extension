@@ -20,6 +20,7 @@ describe('Address Type Detector', () => {
     [AddressFormat.Counterwallet]: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
     [AddressFormat.CounterwalletSegwit]: 'bc1qcounterwalletsegwitexampleaddressxxxxxx',
     [AddressFormat.FreewalletBIP39]: '1FreewalletBIP39ExampleAddressXXXXXX',
+    [AddressFormat.FreewalletBIP39Segwit]: 'bc1qfreewalletbip39segwitexampleaddrxxxxxxx',
   };
 
   beforeEach(() => {
@@ -135,7 +136,7 @@ describe('Address Type Detector', () => {
       expect(result).toBe(AddressFormat.P2TR);
 
       // Verify hasAddressActivity was called for the non-Taproot formats
-      expect(hasAddressActivity).toHaveBeenCalledTimes(4);
+      expect(hasAddressActivity).toHaveBeenCalledTimes(5);
     });
   });
 

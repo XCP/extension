@@ -20,6 +20,8 @@ export const AddressFormat = {
   CounterwalletSegwit: 'counterwallet-segwit',
   /** FreeWallet BIP39 (P2PKH with raw entropy seed derivation) */
   FreewalletBIP39: 'freewallet-bip39',
+  /** FreeWallet BIP39 SegWit (P2WPKH with raw entropy seed derivation) */
+  FreewalletBIP39Segwit: 'freewallet-bip39-segwit',
   /** Taproot (Pay-to-Taproot) */
   P2TR: 'p2tr',
   /** Native SegWit (Pay-to-Witness-PubKey-Hash) */
@@ -32,7 +34,7 @@ export const AddressFormat = {
 
 /**
  * Type representing valid address format values.
- * This creates a union type: 'counterwallet' | 'counterwallet-segwit' | 'freewallet-bip39' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
+ * This creates a union type: 'counterwallet' | 'counterwallet-segwit' | 'freewallet-bip39' | 'freewallet-bip39-segwit' | 'p2tr' | 'p2wpkh' | 'p2sh-p2wpkh' | 'p2pkh'
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
@@ -43,6 +45,7 @@ export function isSegwitFormat(format: AddressFormat): boolean {
   return format === AddressFormat.P2WPKH ||
          format === AddressFormat.P2SH_P2WPKH ||
          format === AddressFormat.CounterwalletSegwit ||
+         format === AddressFormat.FreewalletBIP39Segwit ||
          format === AddressFormat.P2TR;
 }
 
@@ -55,6 +58,14 @@ export function isCounterwalletFormat(format: AddressFormat): boolean {
 }
 
 /**
+ * Check if an address format is a FreeWallet BIP39 style format.
+ */
+export function isFreewalletBIP39Format(format: AddressFormat): boolean {
+  return format === AddressFormat.FreewalletBIP39 ||
+         format === AddressFormat.FreewalletBIP39Segwit;
+}
+
+/**
  * Derive the appropriate seed from a mnemonic based on the address format.
  *
  * - Counterwallet/CounterwalletSegwit: Electrum v1 triplet-based seed (16 bytes)
@@ -63,7 +74,7 @@ export function isCounterwalletFormat(format: AddressFormat): boolean {
  */
 export function getSeedFromMnemonic(mnemonic: string, addressFormat: AddressFormat): Uint8Array {
   if (isCounterwalletFormat(addressFormat)) return getCounterwalletSeed(mnemonic);
-  if (addressFormat === AddressFormat.FreewalletBIP39) return mnemonicToEntropy(mnemonic, wordlist);
+  if (isFreewalletBIP39Format(addressFormat)) return mnemonicToEntropy(mnemonic, wordlist);
   return mnemonicToSeedSync(mnemonic);
 }
 
@@ -161,6 +172,8 @@ export function getDerivationPathForAddressFormat(addressFormat: AddressFormat):
       return "m/0'/0";
     case AddressFormat.FreewalletBIP39:
       return "m/0'/0";
+    case AddressFormat.FreewalletBIP39Segwit:
+      return "m/0'/0";
     default:
       throw new Error(`Unsupported address type: ${ addressFormat }`);
   }
@@ -202,8 +215,9 @@ export function encodeAddress(publicKey: Uint8Array, addressFormat: AddressForma
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
     }
-    case AddressFormat.CounterwalletSegwit: {
-      // CounterwalletSegwit uses Native SegWit (P2WPKH) encoding
+    case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit: {
+      // CounterwalletSegwit and FreewalletBIP39Segwit use Native SegWit (P2WPKH) encoding
       const pubKeyHash = ripemd160(sha256(publicKey));
       const words = bech32.toWords(pubKeyHash);
       return bech32.encode('bc', [0, ...words]);
@@ -311,6 +325,7 @@ export async function detectAddressFormat(
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
     AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
+    AddressFormat.FreewalletBIP39Segwit, // FreeWallet BIP39 SegWit
   ];
 
   // First, generate all preview addresses (or use cached ones)
@@ -366,6 +381,7 @@ export function getPreviewAddresses(mnemonic: string): Partial<Record<AddressFor
     AddressFormat.Counterwallet,
     AddressFormat.CounterwalletSegwit,
     AddressFormat.FreewalletBIP39,
+    AddressFormat.FreewalletBIP39Segwit,
   ];
 
   const previews: Partial<Record<AddressFormat, string>> = {};
@@ -397,6 +413,7 @@ export async function detectAddressFormatFromPreviews(
     AddressFormat.Counterwallet,      // Counterwallet P2PKH
     AddressFormat.CounterwalletSegwit,// Counterwallet SegWit
     AddressFormat.FreewalletBIP39,    // FreeWallet BIP39 P2PKH
+    AddressFormat.FreewalletBIP39Segwit, // FreeWallet BIP39 SegWit
   ];
 
   // Check each preview address for activity

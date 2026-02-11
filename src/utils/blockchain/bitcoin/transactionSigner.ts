@@ -35,6 +35,7 @@ function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
       return p2pkh(pubkeyBytes);
     case AddressFormat.P2WPKH:
     case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit:
       return p2wpkh(pubkeyBytes);
     case AddressFormat.P2SH_P2WPKH:
       return p2sh(p2wpkh(pubkeyBytes));
