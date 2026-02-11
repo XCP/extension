@@ -85,6 +85,9 @@ async function launchExtension(testId: string, options?: LaunchOptions): Promise
     timeout,
   });
 
+  // Block Fathom analytics in E2E tests to avoid polluting dashboards
+  await context.route('**/cdn.usefathom.com/**', route => route.abort());
+
   // Find extension ID - try multiple methods
   let extensionId: string | null = null;
   const maxWait = isCI ? 45 : 20;
