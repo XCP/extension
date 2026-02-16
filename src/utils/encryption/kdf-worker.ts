@@ -23,30 +23,35 @@ async function deriveKeyInWorker(
   const saltBytes = Uint8Array.from(atob(saltBase64), (c) => c.charCodeAt(0));
 
   // Import password as key material
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password) as BufferSource,
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
+  const passwordBytes = encoder.encode(password);
+  try {
+    const passwordKey = await crypto.subtle.importKey(
+      'raw',
+      passwordBytes as BufferSource,
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
 
-  // Derive AES-GCM key
-  const derivedKey = await crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: saltBytes,
-      iterations,
-      hash: 'SHA-256',
-    },
-    passwordKey,
-    { name: 'AES-GCM', length: 256 },
-    true, // extractable - needed for session storage
-    ['encrypt', 'decrypt']
-  );
+    // Derive AES-GCM key
+    const derivedKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: saltBytes,
+        iterations,
+        hash: 'SHA-256',
+      },
+      passwordKey,
+      { name: 'AES-GCM', length: 256 },
+      true, // extractable - needed for session storage
+      ['encrypt', 'decrypt']
+    );
 
-  // Export raw key bytes
-  return crypto.subtle.exportKey('raw', derivedKey);
+    // Export raw key bytes
+    return await crypto.subtle.exportKey('raw', derivedKey);
+  } finally {
+    passwordBytes.fill(0);
+  }
 }
 
 // Worker message handler

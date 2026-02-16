@@ -20,7 +20,7 @@ function CreateMnemonicPage() {
   const [mnemonicWords, setMnemonicWords] = useState(() => generateNewMnemonic().split(" "));
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [password, setPassword] = useState("");
+  const [passwordReady, setPasswordReady] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
 
   const passwordInputRef = useRef<HTMLInputElement>(null);
@@ -62,8 +62,7 @@ function CreateMnemonicPage() {
     { error: null }
   );
 
-  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
-  const canSubmit = isRecoveryPhraseVisible && isConfirmed && isPasswordValid && !isPending;
+  const canSubmit = isRecoveryPhraseVisible && isConfirmed && passwordReady && !isPending;
 
   useEffect(() => {
     if (state.error) setErrorDismissed(false);
@@ -87,7 +86,8 @@ function CreateMnemonicPage() {
     setMnemonic(newMnemonic);
     setMnemonicWords(newMnemonic.split(" "));
     setIsConfirmed(false);
-    setPassword("");
+    if (passwordInputRef.current) passwordInputRef.current.value = "";
+    setPasswordReady(false);
   }
 
   function handleRevealPhrase() {
@@ -102,7 +102,7 @@ function CreateMnemonicPage() {
   }
 
   function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPassword(e.target.value);
+    setPasswordReady(e.target.value.length >= MIN_PASSWORD_LENGTH);
   }
 
   return (
