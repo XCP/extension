@@ -56,4 +56,6 @@ To qualify for a reward, your report must:
 
 We recognize all valid security contributions, regardless of severity:
 
-*No submissions yet — be the first!*
+| Contributor | Finding | PR |
+|-------------|---------|-----|
+| Niftyboss | Password memory cleanup | [#178](https://github.com/XCP/extension/pull/178) |
