@@ -38,9 +38,9 @@ function ImportPrivateKeyPage() {
   const { createPrivateKeyWallet, verifyPassword } = useWallet();
 
   const [addressFormat, setAddressFormat] = useState<AddressFormat>(AddressFormat.P2PKH);
-  const [privateKeyValue, setPrivateKeyValue] = useState("");
+  const [privateKeyReady, setPrivateKeyReady] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [password, setPassword] = useState("");
+  const [passwordReady, setPasswordReady] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
 
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
@@ -96,8 +96,7 @@ function ImportPrivateKeyPage() {
     { error: null }
   );
 
-  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
-  const canSubmit = isConfirmed && isPasswordValid && !isPending;
+  const canSubmit = isConfirmed && passwordReady && !isPending;
 
   useEffect(() => {
     if (state.error) setErrorDismissed(false);
@@ -120,7 +119,7 @@ function ImportPrivateKeyPage() {
   }, []);
 
   function handlePrivateKeyChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPrivateKeyValue(e.target.value);
+    setPrivateKeyReady(e.target.value.trim().length > 0);
   }
 
   function handleCheckboxChange(checked: boolean) {
@@ -131,7 +130,7 @@ function ImportPrivateKeyPage() {
   }
 
   function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPassword(e.target.value);
+    setPasswordReady(e.target.value.length >= MIN_PASSWORD_LENGTH);
   }
 
   return (
@@ -207,7 +206,7 @@ function ImportPrivateKeyPage() {
           <CheckboxInput
             name="confirmed"
             label="I have backed up this private key securely."
-            disabled={isPending || !privateKeyValue.trim()}
+            disabled={isPending || !privateKeyReady}
             checked={isConfirmed}
             onChange={handleCheckboxChange}
           />

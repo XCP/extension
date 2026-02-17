@@ -68,21 +68,26 @@ export async function deriveKey(
     throw new Error(`PBKDF2 iterations must be at least ${MIN_ITERATIONS}`);
   }
 
-  const passwordKey = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(password) as BufferSource,
-    'PBKDF2',
-    false,
-    ['deriveKey']
-  );
+  const passwordBytes = encoder.encode(password);
+  try {
+    const passwordKey = await crypto.subtle.importKey(
+      'raw',
+      passwordBytes as BufferSource,
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
 
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
-    passwordKey,
-    { name: 'AES-GCM', length: KEY_BITS },
-    true, // extractable - needed for session storage
-    ['encrypt', 'decrypt']
-  );
+    return await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+      passwordKey,
+      { name: 'AES-GCM', length: KEY_BITS },
+      true, // extractable - needed for session storage
+      ['encrypt', 'decrypt']
+    );
+  } finally {
+    passwordBytes.fill(0);
+  }
 }
 
 /**
@@ -304,6 +309,8 @@ export async function deriveKeyAsync(
     const handleMessage = async (e: MessageEvent<WorkerResponse>) => {
       worker.removeEventListener('message', handleMessage);
       worker.removeEventListener('error', handleError);
+      worker.terminate();
+      kdfWorker = null;
 
       if (e.data.success && e.data.keyBase64) {
         try {
@@ -329,6 +336,8 @@ export async function deriveKeyAsync(
     const handleError = (e: ErrorEvent) => {
       worker.removeEventListener('message', handleMessage);
       worker.removeEventListener('error', handleError);
+      worker.terminate();
+      kdfWorker = null;
       reject(new Error(`Worker error: ${e.message}`));
     };
 

@@ -18,7 +18,7 @@ function UnlockPage() {
   const { setHeaderProps } = useHeader();
   const { unlockKeychain } = useWallet();
 
-  const [password, setPassword] = useState("");
+  const [passwordReady, setPasswordReady] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [isUnlocking, setIsUnlocking] = useState(false);
 
@@ -43,6 +43,8 @@ function UnlockPage() {
     e?.preventDefault();
     setError(undefined);
 
+    const password = passwordInputRef.current?.value ?? "";
+
     if (!password) {
       setError("Password cannot be empty.");
       return;
@@ -57,7 +59,8 @@ function UnlockPage() {
 
     try {
       await unlockKeychain(password);
-      setPassword("");
+      if (passwordInputRef.current) passwordInputRef.current.value = "";
+      setPasswordReady(false);
       navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
@@ -78,7 +81,7 @@ function UnlockPage() {
   }
 
   function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPassword(e.target.value);
+    setPasswordReady(e.target.value.length >= MIN_PASSWORD_LENGTH);
   }
 
   return (
@@ -94,7 +97,6 @@ function UnlockPage() {
               innerRef={passwordInputRef}
               name="password"
               placeholder="Enter your password"
-              value={password}
               onChange={handlePasswordChange}
               onKeyDown={handleKeyDown}
               disabled={isUnlocking}
@@ -110,7 +112,7 @@ function UnlockPage() {
             <Button
               type="submit"
               fullWidth
-              disabled={!password || isUnlocking}
+              disabled={!passwordReady || isUnlocking}
               aria-label={isUnlocking ? "Unlocking…" : "Unlock"}
             >
               {isUnlocking ? "Unlocking…" : "Unlock"}

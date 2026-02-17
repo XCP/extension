@@ -24,7 +24,7 @@ function ImportMnemonicPage() {
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(""));
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
-  const [password, setPassword] = useState("");
+  const [passwordReady, setPasswordReady] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
@@ -92,8 +92,7 @@ function ImportMnemonicPage() {
   );
 
   const allWordsPopulated = mnemonicWords.every((word) => word.trim().length > 0);
-  const isPasswordValid = password.length >= MIN_PASSWORD_LENGTH;
-  const canSubmit = isConfirmed && isPasswordValid && !isPending;
+  const canSubmit = isConfirmed && passwordReady && !isPending;
 
   useEffect(() => {
     if (state.error) setErrorDismissed(false);
@@ -164,7 +163,7 @@ function ImportMnemonicPage() {
   }
 
   function handlePasswordChange(e: React.ChangeEvent<HTMLInputElement>) {
-    setPassword(e.target.value);
+    setPasswordReady(e.target.value.length >= MIN_PASSWORD_LENGTH);
   }
 
   return (

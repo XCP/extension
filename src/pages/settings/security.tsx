@@ -28,16 +28,14 @@ const PATHS = {
  * ```
  */
 export default function SecuritySettingsPage(): ReactElement {
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
+  const [formReady, setFormReady] = useState(false);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
   const currentPasswordRef = useRef<HTMLInputElement>(null);
+  const newPasswordRef = useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -63,22 +61,18 @@ export default function SecuritySettingsPage(): ReactElement {
   }, []);
 
   /**
-   * Validates the password length.
-   * @param password - The password to validate.
-   * @returns {boolean} Whether the password is valid.
+   * Checks if the form has enough input to enable submission.
    */
-  const isPasswordValid = (password: string): boolean =>
-    password.length >= MIN_PASSWORD_LENGTH;
-
-  /**
-   * Checks if the form is valid for submission.
-   * @returns {boolean} Whether the form is valid.
-   */
-  const isFormValid = (): boolean =>
-    Boolean(passwordForm.currentPassword) &&
-    Boolean(passwordForm.newPassword) &&
-    Boolean(passwordForm.confirmPassword) &&
-    isPasswordValid(passwordForm.newPassword);
+  const checkFormReady = () => {
+    const current = currentPasswordRef.current?.value ?? "";
+    const newPw = newPasswordRef.current?.value ?? "";
+    const confirm = confirmPasswordRef.current?.value ?? "";
+    setFormReady(
+      current.length > 0 &&
+      newPw.length >= MIN_PASSWORD_LENGTH &&
+      confirm.length > 0
+    );
+  };
 
   /**
    * Handles the password change process.
@@ -88,16 +82,23 @@ export default function SecuritySettingsPage(): ReactElement {
     setSuccess("");
     setIsLoading(true);
 
+    const currentPassword = currentPasswordRef.current?.value ?? "";
+    const newPassword = newPasswordRef.current?.value ?? "";
+    const confirmPassword = confirmPasswordRef.current?.value ?? "";
+
     try {
-      if (!isPasswordValid(passwordForm.newPassword)) {
+      if (newPassword.length < MIN_PASSWORD_LENGTH) {
         throw new Error(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
       }
-      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      if (newPassword !== confirmPassword) {
         throw new Error("New passwords do not match");
       }
-      await updatePassword(passwordForm.currentPassword, passwordForm.newPassword);
+      await updatePassword(currentPassword, newPassword);
       await lockKeychain();
-      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      if (currentPasswordRef.current) currentPasswordRef.current.value = "";
+      if (newPasswordRef.current) newPasswordRef.current.value = "";
+      if (confirmPasswordRef.current) confirmPasswordRef.current.value = "";
+      setFormReady(false);
       setSuccess("Password successfully changed");
     } catch (err) {
       console.error("Error changing password:", err);
@@ -111,7 +112,7 @@ export default function SecuritySettingsPage(): ReactElement {
    * Handles Enter key press to submit the form.
    */
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !isLoading && isFormValid()) {
+    if (e.key === "Enter" && !isLoading && formReady) {
       handlePasswordChange();
     }
   };
@@ -138,41 +139,40 @@ export default function SecuritySettingsPage(): ReactElement {
               innerRef={currentPasswordRef}
               label="Current Password"
               name="currentPassword"
-              value={passwordForm.currentPassword}
-              onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+              onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
               helpText="Enter your current wallet password to authorize the change."
             />
-            
+
             <PasswordInput
+              innerRef={newPasswordRef}
               label="New Password"
               name="newPassword"
-              value={passwordForm.newPassword}
-              onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+              onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
               helpText={`Choose a new password that is at least ${MIN_PASSWORD_LENGTH} characters long.`}
             />
-            
+
             <PasswordInput
+              innerRef={confirmPasswordRef}
               label="Confirm New Password"
               name="confirmPassword"
-              value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+              onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
               helpText="Re-enter your new password to confirm it was typed correctly."
             />
-            
+
             <Button
               color="blue"
               onClick={handlePasswordChange}
               fullWidth
-              disabled={isLoading || !isFormValid()}
+              disabled={isLoading || !formReady}
               aria-label="Change Password"
             >
               {isLoading ? "Changing Password…" : "Change Password"}
