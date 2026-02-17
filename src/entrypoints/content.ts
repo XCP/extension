@@ -189,10 +189,7 @@ export default defineContentScript({
     };
 
     // Add message event listeners
-    if (messageHandler) {
-      window.addEventListener('message', messageHandler);
-    }
-
+    window.addEventListener('message', messageHandler);
 
     console.log('XCP Wallet content script loaded on:', window.location.href);
 
