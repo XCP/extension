@@ -192,7 +192,7 @@ export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promis
           }
           const data = await resp.json();
           const parsed = parseBTCBalance(endpoint, data);
-          if (parsed !== null && parsed !== undefined && typeof parsed === 'number') {
+          if (parsed !== null && parsed !== undefined && typeof parsed === 'number' && !Number.isNaN(parsed)) {
             return parsed;
           }
         } catch (error) {

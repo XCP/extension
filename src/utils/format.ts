@@ -36,7 +36,7 @@ export function formatAmount({
   locale,
   signDisplay,
 }: AmountFormatterOptions): string {
-  if (value === null || value === undefined) return "N/A";
+  if (value === null || value === undefined || Number.isNaN(value)) return "N/A";
 
   const notation: "compact" | "standard" = compact ? "compact" : "standard";
   const formatOptions: Intl.NumberFormatOptions = {
