@@ -99,11 +99,13 @@ walletTest.describe('Compose Issuance Page (/compose/issuance)', () => {
 });
 
 walletTest.describe('Issuance Flow - Full Compose Flow', () => {
-  // Generate unique asset name for each test run
+  // Generate unique valid asset name for each test run
+  // Named assets must start with B-Z (A is reserved for numeric assets)
   const generateAssetName = () => {
+    const firstChars = 'BCDEFGHIJKLMNOPQRSTUVWXYZ';
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let result = '';
-    for (let i = 0; i < 10; i++) {
+    let result = firstChars.charAt(Math.floor(Math.random() * firstChars.length));
+    for (let i = 1; i < 10; i++) {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
