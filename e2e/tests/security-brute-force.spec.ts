@@ -14,8 +14,9 @@ walletTest.describe('Brute Force Protection', () => {
     await expect(unlock.passwordInput(page)).toBeVisible();
 
     // Reduced set for CI performance - 5 attempts is sufficient to verify protection
+    // All passwords must be >= 8 chars (MIN_PASSWORD_LENGTH) to enable the unlock button
     const commonPasswords = [
-      '123456', 'password', 'qwerty', 'admin', 'test'
+      '12345678', 'password', 'qwerty12', 'administrator', 'testtest'
     ];
 
     for (const wrongPassword of commonPasswords) {
@@ -44,7 +45,7 @@ walletTest.describe('Brute Force Protection', () => {
 
     for (let i = 0; i < rapidAttempts; i++) {
       promises.push(
-        unlock.passwordInput(page).fill(`wrong${i}`)
+        unlock.passwordInput(page).fill(`wrongpwd${i}`)
           .then(() => unlock.unlockButton(page).click())
           .catch(() => {})
       );
@@ -64,7 +65,7 @@ walletTest.describe('Brute Force Protection', () => {
 
     // Reduced from 5 for CI performance
     for (let i = 0; i < 3; i++) {
-      await unlock.passwordInput(page).fill(`wrong${i}`);
+      await unlock.passwordInput(page).fill(`wrongpwd${i}`);
       await unlock.unlockButton(page).click();
       await unlock.passwordInput(page).clear();
     }
@@ -77,7 +78,7 @@ walletTest.describe('Brute Force Protection', () => {
 
     // Reduced from 5 for CI performance
     for (let i = 3; i < 6; i++) {
-      await unlock.passwordInput(page).fill(`wrong${i}`);
+      await unlock.passwordInput(page).fill(`wrongpwd${i}`);
       await unlock.unlockButton(page).click();
       await unlock.passwordInput(page).clear();
     }
