@@ -50,10 +50,22 @@ export default function AddressDetailsPage(): ReactElement {
 
   if (!activeAddress) return <div className="p-4">No address selected</div>;
 
-  const addressTypeLabel =
-    activeWallet?.addressFormat && activeWallet.addressFormat !== AddressFormat.Counterwallet
-      ? activeWallet.addressFormat.toUpperCase()
-      : "P2PKH";
+  const addressTypeLabel = (() => {
+    const format = activeWallet?.addressFormat;
+    if (!format) return "";
+    switch (format) {
+      case AddressFormat.Counterwallet:
+      case AddressFormat.FreewalletBIP39:
+      case AddressFormat.P2PKH:
+        return "P2PKH";
+      case AddressFormat.CounterwalletSegwit:
+      case AddressFormat.FreewalletBIP39Segwit:
+      case AddressFormat.P2WPKH:
+        return "P2WPKH";
+      default:
+        return format.toUpperCase();
+    }
+  })();
 
   return (
     <div

@@ -190,9 +190,11 @@ function getInputScriptType(addressFormat: AddressFormat): InputScriptType {
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
+    case AddressFormat.FreewalletBIP39:
       return 'SPENDADDRESS';
     case AddressFormat.P2WPKH:
     case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit:
       return 'SPENDWITNESS';
     case AddressFormat.P2SH_P2WPKH:
       return 'SPENDP2SHWITNESS';
@@ -210,9 +212,11 @@ function getOutputScriptType(addressFormat: AddressFormat): OutputScriptType {
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:
+    case AddressFormat.FreewalletBIP39:
       return 'PAYTOADDRESS';
     case AddressFormat.P2WPKH:
     case AddressFormat.CounterwalletSegwit:
+    case AddressFormat.FreewalletBIP39Segwit:
       return 'PAYTOWITNESS';
     case AddressFormat.P2SH_P2WPKH:
       return 'PAYTOP2SHWITNESS';
