@@ -187,15 +187,7 @@ export default function UtxoPage(): ReactElement {
             <h2 className="text-sm font-medium text-gray-900">Balances</h2>
             <div className="mt-2 space-y-2">
               {balances.map((balance, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between p-2 -mx-2 rounded hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  onClick={() => navigate(`/assets/${balance.asset}/balance`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/assets/${balance.asset}/balance`); } }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`View ${balance.asset} balance`}
-                >
+                <div key={index} className="flex justify-between p-2 -mx-2">
                   <span className="text-sm text-gray-500">{balance.asset}</span>
                   <span className="text-sm text-gray-900">{balance.quantity_normalized}</span>
                 </div>

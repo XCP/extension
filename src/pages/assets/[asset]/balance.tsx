@@ -5,7 +5,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatTxid } from "@/utils/format";
+
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 import type { ActionSection } from "@/components/ui/lists/action-list";
@@ -16,7 +16,6 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
  */
 const PATHS = {
   COMPOSE: "/compose",
-  UTXO: "/assets/utxos",
 } as const;
 
 /**
@@ -218,27 +217,6 @@ export default function AssetBalancePage(): ReactElement {
         <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
       </div>
       <ActionList sections={getActionSections()} />
-      {assetDetails?.utxoBalances && assetDetails.utxoBalances.length > 0 && (
-        <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-          <h2 className="text-sm font-medium text-gray-900">UTXO Balances</h2>
-          <div className="space-y-2">
-            {assetDetails.utxoBalances.map((utxo, index) => (
-              <div
-                key={index}
-                onClick={() => navigate(`${PATHS.UTXO}/${utxo.txid}`)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`${PATHS.UTXO}/${utxo.txid}`); } }}
-                className="flex justify-between items-center p-2 hover:bg-gray-50 rounded cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                role="button"
-                tabIndex={0}
-                aria-label={`View UTXO ${utxo.txid}`}
-              >
-                <span className="text-sm font-mono text-gray-500">{formatTxid(utxo.txid)}</span>
-                <span className="text-sm text-gray-900">{utxo.amount}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
