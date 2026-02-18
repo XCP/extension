@@ -35,7 +35,7 @@ const PATHS = {
  * ```
  */
 export default function UtxoPage(): ReactElement {
-  const { txid } = useParams<{ txid: string }>();
+  const { txHash: txid } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress, activeWallet } = useWallet();
