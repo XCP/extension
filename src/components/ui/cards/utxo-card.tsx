@@ -39,18 +39,17 @@ export function UtxoCard({ token }: UtxoCardProps): ReactElement {
         <div className="font-medium text-sm text-gray-900">
           {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
         </div>
+        <div className="text-sm text-gray-500">
+          {formatAmount({
+            value: Number(token.quantity_normalized),
+            minimumFractionDigits: isDivisible ? 8 : 0,
+            maximumFractionDigits: isDivisible ? 8 : 0,
+            useGrouping: true,
+          })}
+        </div>
         <div className="text-xs text-gray-400 font-mono">
           {formatTxid(token.utxo)}
         </div>
-      </div>
-
-      <div className="text-sm text-gray-500">
-        {formatAmount({
-          value: Number(token.quantity_normalized),
-          minimumFractionDigits: isDivisible ? 8 : 0,
-          maximumFractionDigits: isDivisible ? 8 : 0,
-          useGrouping: true,
-        })}
       </div>
 
       <div className="absolute top-2 right-2">
