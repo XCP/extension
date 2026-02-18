@@ -18,23 +18,63 @@ export const UtxoList = (): ReactElement => {
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
 
-  // Reset when address changes
+  // Initial load (and reset) when address changes
   useEffect(() => {
+    if (!activeAddress || !activeWallet) {
+      setBalances([]);
+      setIsInitialLoading(false);
+      return;
+    }
+
+    let isCancelled = false;
+
     setBalances([]);
     setOffset(0);
     setHasMore(true);
     setIsInitialLoading(true);
+
+    const loadInitial = async () => {
+      try {
+        const fetched = await fetchTokenBalances(activeAddress.address, {
+          type: 'utxo',
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+
+        if (isCancelled) return;
+
+        if (fetched.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+
+        if (fetched.length > 0) {
+          setBalances(fetched as UtxoBalance[]);
+          setOffset(PAGE_SIZE);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching UTXO balances:", error);
+        if (!isCancelled) setHasMore(false);
+      } finally {
+        if (!isCancelled) setIsInitialLoading(false);
+      }
+    };
+
+    loadInitial();
+
+    return () => { isCancelled = true; };
   }, [activeAddress, activeWallet]);
 
-  // Load more on scroll (including initial load)
+  // Load more on scroll
   useEffect(() => {
-    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore) return;
-    // For subsequent pages, only load when scrolled into view
-    if (!isInitialLoading && !inView) return;
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore || !inView || isInitialLoading) {
+      return;
+    }
 
     let isCancelled = false;
 
-    const loadBalances = async () => {
+    const loadMore = async () => {
       setIsFetchingMore(true);
       try {
         const fetched = await fetchTokenBalances(activeAddress.address, {
@@ -52,19 +92,18 @@ export const UtxoList = (): ReactElement => {
         if (fetched.length > 0) {
           setBalances((prev) => [...prev, ...fetched as UtxoBalance[]]);
           setOffset((prev) => prev + PAGE_SIZE);
+        } else {
+          setHasMore(false);
         }
       } catch (error) {
         console.error("Error fetching UTXO balances:", error);
         if (!isCancelled) setHasMore(false);
       } finally {
-        if (!isCancelled) {
-          setIsFetchingMore(false);
-          setIsInitialLoading(false);
-        }
+        if (!isCancelled) setIsFetchingMore(false);
       }
     };
 
-    loadBalances();
+    loadMore();
 
     return () => { isCancelled = true; };
   }, [activeAddress, activeWallet, hasMore, offset, isFetchingMore, inView, isInitialLoading]);
