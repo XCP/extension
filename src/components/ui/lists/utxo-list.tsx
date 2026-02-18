@@ -133,7 +133,7 @@ export const UtxoList = (): ReactElement => {
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Filter by asset or txid…"
+        placeholder="Search UTXOs…"
         name="utxo-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
