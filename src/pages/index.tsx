@@ -42,6 +42,7 @@ export default function HomePage(): ReactElement {
   const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "UTXOs") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [hasUtxos, setHasUtxos] = useState(false);
+  const [utxoCheckDone, setUtxoCheckDone] = useState(false);
 
   useEffect(() => {
     setHeaderProps({
@@ -74,25 +75,33 @@ export default function HomePage(): ReactElement {
   useEffect(() => {
     if (!activeAddress) {
       setHasUtxos(false);
+      setUtxoCheckDone(true);
       return;
     }
     let isCancelled = false;
+    setUtxoCheckDone(false);
     fetchTokenBalances(activeAddress.address, { type: 'utxo', limit: 1 })
       .then((result) => {
-        if (!isCancelled) setHasUtxos(result.length > 0);
+        if (!isCancelled) {
+          setHasUtxos(result.length > 0);
+          setUtxoCheckDone(true);
+        }
       })
       .catch(() => {
-        if (!isCancelled) setHasUtxos(false);
+        if (!isCancelled) {
+          setHasUtxos(false);
+          setUtxoCheckDone(true);
+        }
       });
     return () => { isCancelled = true; };
   }, [activeAddress]);
 
   // If UTXOs tab is active but no UTXOs exist, fall back to Balances
   useEffect(() => {
-    if (activeTab === "UTXOs" && !hasUtxos) {
+    if (utxoCheckDone && activeTab === "UTXOs" && !hasUtxos) {
       setSearchParams({ tab: "Balances" });
     }
-  }, [activeTab, hasUtxos, setSearchParams]);
+  }, [activeTab, hasUtxos, utxoCheckDone, setSearchParams]);
 
   const handleCopyAddress = () => {
     if (!activeAddress) return;

@@ -59,7 +59,7 @@ export function getBtcBucket(btcAmount: number): number {
  * - Asset names (e.g., /assets/:asset, /compose/send/:asset)
  * - Transaction hashes (e.g., /transaction/:txHash)
  * - Bitcoin addresses (e.g., /compose/sweep/:address)
- * - UTXO identifiers (e.g., /assets/utxo/:txHash)
+ * - UTXO identifiers (e.g., /assets/utxos/:txHash)
  * - Derivation paths (e.g., /wallet/secrets/show-private-key/:walletId/:path)
  *
  * Order matters! More specific paths must come before general ones.
@@ -83,7 +83,7 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   { prefix: '/assets/utxos/', sanitized: '/assets/utxos' },
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // ASSET VIEWING (asset names - must come after /assets/utxo/)
+  // ASSET VIEWING (asset names - must come after /assets/utxos/)
   // ═══════════════════════════════════════════════════════════════════════════
   { prefix: '/assets/', sanitized: '/assets' },
 
