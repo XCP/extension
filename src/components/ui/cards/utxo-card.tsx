@@ -35,20 +35,22 @@ export function UtxoCard({ token }: UtxoCardProps): ReactElement {
     >
       <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
 
-      <div className="ml-3 flex-grow">
+      <div className="ml-3 flex-grow min-w-0">
         <div className="font-medium text-sm text-gray-900">
           {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
         </div>
-        <div className="text-sm text-gray-500">
-          {formatAmount({
-            value: Number(token.quantity_normalized),
-            minimumFractionDigits: isDivisible ? 8 : 0,
-            maximumFractionDigits: isDivisible ? 8 : 0,
-            useGrouping: true,
-          })}
-        </div>
-        <div className="text-xs text-gray-400 font-mono">
-          {formatTxid(token.utxo)}
+        <div className="flex justify-between items-baseline">
+          <span className="text-sm text-gray-500">
+            {formatAmount({
+              value: Number(token.quantity_normalized),
+              minimumFractionDigits: isDivisible ? 8 : 0,
+              maximumFractionDigits: isDivisible ? 8 : 0,
+              useGrouping: true,
+            })}
+          </span>
+          <span className="text-xs text-gray-400 font-mono ml-2">
+            {formatTxid(token.utxo)}
+          </span>
         </div>
       </div>
 
