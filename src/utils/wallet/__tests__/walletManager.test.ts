@@ -150,6 +150,29 @@ describe('WalletManager', () => {
 
       expect(walletManager.getWallets()).toEqual([]);
     });
+
+    it('should call selectWallet to restore addresses after SW restart', async () => {
+      const testWallet = createTestWallet();
+      const keychain = createTestKeychain([testWallet]);
+
+      // Mock that keychain is unlocked (master key in session) but no secrets in memory
+      mockKeychainUnlocked(mocks, keychain);
+      // decryptWithKey returns the wallet secret (needed by selectWallet)
+      mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
+
+      await walletManager.refreshWallets();
+
+      // selectWallet should have been called, which stores the unlocked secret
+      expect(mocks.sessionManager.storeUnlockedSecret).toHaveBeenCalledWith(
+        testWallet.id,
+        'test mnemonic'
+      );
+      // The active wallet should be set and have derived addresses
+      const active = walletManager.getActiveWallet();
+      expect(active).toBeDefined();
+      expect(active!.id).toBe(testWallet.id);
+      expect(active!.addresses.length).toBeGreaterThan(0);
+    });
   });
 
   describe('Wallet Management', () => {
