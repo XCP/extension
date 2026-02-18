@@ -1,0 +1,94 @@
+import { useState, useEffect, type ReactElement } from "react";
+import { useInView } from "@/hooks/useInView";
+import { Spinner } from "@/components/ui/spinner";
+import { UtxoCard } from "@/components/ui/cards/utxo-card";
+import { useWallet } from "@/contexts/wallet-context";
+import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
+import type { UtxoBalance } from "@/utils/blockchain/counterparty/api";
+
+const PAGE_SIZE = 20;
+
+export const UtxoList = (): ReactElement => {
+  const { activeWallet, activeAddress } = useWallet();
+  const [balances, setBalances] = useState<UtxoBalance[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+
+  // Reset when address changes
+  useEffect(() => {
+    setBalances([]);
+    setOffset(0);
+    setHasMore(true);
+    setIsInitialLoading(true);
+  }, [activeAddress, activeWallet]);
+
+  // Load more on scroll (including initial load)
+  useEffect(() => {
+    if (!activeAddress || !activeWallet || !hasMore || isFetchingMore) return;
+    // For subsequent pages, only load when scrolled into view
+    if (!isInitialLoading && !inView) return;
+
+    let isCancelled = false;
+
+    const loadBalances = async () => {
+      setIsFetchingMore(true);
+      try {
+        const fetched = await fetchTokenBalances(activeAddress.address, {
+          type: 'utxo',
+          limit: PAGE_SIZE,
+          offset,
+        });
+
+        if (isCancelled) return;
+
+        if (fetched.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+
+        if (fetched.length > 0) {
+          setBalances((prev) => [...prev, ...fetched as UtxoBalance[]]);
+          setOffset((prev) => prev + PAGE_SIZE);
+        }
+      } catch (error) {
+        console.error("Error fetching UTXO balances:", error);
+        if (!isCancelled) setHasMore(false);
+      } finally {
+        if (!isCancelled) {
+          setIsFetchingMore(false);
+          setIsInitialLoading(false);
+        }
+      }
+    };
+
+    loadBalances();
+
+    return () => { isCancelled = true; };
+  }, [activeAddress, activeWallet, hasMore, offset, isFetchingMore, inView, isInitialLoading]);
+
+  if (isInitialLoading) return <Spinner message="Loading UTXO balances…" />;
+
+  if (balances.length === 0) {
+    return <div className="text-center py-4 text-gray-500">No UTXO-attached balances</div>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {balances.map((token) => (
+        <UtxoCard token={token} key={token.utxo} />
+      ))}
+      <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
+        {hasMore ? (
+          isFetchingMore ? (
+            <Spinner className="py-4" />
+          ) : (
+            <div className="text-sm text-gray-500">Scroll to load more…</div>
+          )
+        ) : null}
+      </div>
+    </div>
+  );
+};

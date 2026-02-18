@@ -130,7 +130,7 @@ export const BalanceList = (): ReactElement => {
       setIsFetchingMore(true);
       try {
         const limit = 20; // Increased from 10 to 20
-        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { limit, offset });
+        const fetchedBalances = await fetchTokenBalances(activeAddress.address, { type: 'address', limit, offset });
         console.log('[BalanceList] Fetched', fetchedBalances.length, 'balances');
 
         // If we get less than requested, or no balances at all, no more to load

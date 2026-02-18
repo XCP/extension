@@ -14,8 +14,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { AssetList } from "@/components/ui/lists/asset-list";
 import { BalanceList } from "@/components/ui/lists/balance-list";
+import { UtxoList } from "@/components/ui/lists/utxo-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 import { formatAddress } from "@/utils/format";
 import type { ReactElement } from "react";
 
@@ -37,8 +39,9 @@ export default function HomePage(): ReactElement {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = (searchParams.get("tab") as "Assets" | "Balances") || "Balances";
+  const activeTab = (searchParams.get("tab") as "Assets" | "Balances" | "UTXOs") || "Balances";
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const [hasUtxos, setHasUtxos] = useState(false);
 
   useEffect(() => {
     setHeaderProps({
@@ -66,6 +69,30 @@ export default function HomePage(): ReactElement {
       return () => clearTimeout(timer);
     }
   }, [copiedToClipboard]);
+
+  // Check if address has UTXO-attached balances
+  useEffect(() => {
+    if (!activeAddress) {
+      setHasUtxos(false);
+      return;
+    }
+    let isCancelled = false;
+    fetchTokenBalances(activeAddress.address, { type: 'utxo', limit: 1 })
+      .then((result) => {
+        if (!isCancelled) setHasUtxos(result.length > 0);
+      })
+      .catch(() => {
+        if (!isCancelled) setHasUtxos(false);
+      });
+    return () => { isCancelled = true; };
+  }, [activeAddress]);
+
+  // If UTXOs tab is active but no UTXOs exist, fall back to Balances
+  useEffect(() => {
+    if (activeTab === "UTXOs" && !hasUtxos) {
+      setSearchParams({ tab: "Balances" });
+    }
+  }, [activeTab, hasUtxos, setSearchParams]);
 
   const handleCopyAddress = () => {
     if (!activeAddress) return;
@@ -163,14 +190,24 @@ export default function HomePage(): ReactElement {
           >
             Balances
           </button>
+          {hasUtxos && (
+            <button
+              className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              style={{ textDecoration: activeTab === "UTXOs" ? "underline" : "none" }}
+              onClick={() => setSearchParams({ tab: "UTXOs" })}
+              aria-label="View UTXOs"
+            >
+              UTXOs
+            </button>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <button
             onClick={() => navigate(PATHS.BUY_XCP)}
             className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Buy XCP"
+            aria-label="Get XCP"
           >
-            Buy XCP
+            Get XCP
           </button>
           <button
             onClick={() => navigate(PATHS.PINNED_ASSETS)}
@@ -209,6 +246,11 @@ export default function HomePage(): ReactElement {
         <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
           <AssetList />
         </div>
+        {hasUtxos && (
+          <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "UTXOs" ? "block" : "none" }}>
+            <UtxoList />
+          </div>
+        )}
       </div>
     </div>
   );
