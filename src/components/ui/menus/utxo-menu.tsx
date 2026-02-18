@@ -1,6 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsThreeDots, FaExchangeAlt, FiPlus } from '@/components/icons';
+import { BsThreeDots, FaExchangeAlt, FaPlus } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/ui/button';
@@ -26,15 +26,15 @@ export function UtxoMenu({ utxo }: UtxoMenuProps): ReactElement {
       ariaLabel="UTXO actions"
     >
       <MenuItem>
-        <Button variant="menu-item" fullWidth onClick={handleMove}>
-          <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Move
+        <Button variant="menu-item" fullWidth onClick={handleDetach}>
+          <FaPlus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+          Detach
         </Button>
       </MenuItem>
       <MenuItem>
-        <Button variant="menu-item" fullWidth onClick={handleDetach}>
-          <FiPlus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          Detach
+        <Button variant="menu-item" fullWidth onClick={handleMove}>
+          <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+          Move
         </Button>
       </MenuItem>
     </BaseMenu>
