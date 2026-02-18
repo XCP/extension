@@ -95,11 +95,11 @@ export function UtxoDetachForm({
             <div>
               <label className="text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></label>
               <div
-                onClick={() => navigate(`/assets/utxo/${initialUtxo || initialFormData?.sourceUtxo}`)}
+                onClick={() => navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
-                    navigate(`/assets/utxo/${initialUtxo || initialFormData?.sourceUtxo}`);
+                    navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`);
                   }
                 }}
                 className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"

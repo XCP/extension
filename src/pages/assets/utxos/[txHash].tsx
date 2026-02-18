@@ -61,14 +61,7 @@ export default function UtxoPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "UTXO Details",
-      onBack: () => {
-        // Navigate to view-balance of the first asset if available
-        if (balances.length > 0) {
-          navigate(`/assets/${balances[0].asset}/balance`);
-        } else {
-          navigate(-1);
-        }
-      },
+      onBack: () => navigate(-1),
       rightButton: {
         icon: copiedToClipboard ? <FaCheck className="size-4" aria-hidden="true" /> : <FaClipboard className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
