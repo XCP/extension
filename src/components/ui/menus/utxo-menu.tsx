@@ -13,11 +13,11 @@ export function UtxoMenu({ utxo }: UtxoMenuProps): ReactElement {
   const navigate = useNavigate();
 
   const handleMove = useCallback(() => {
-    navigate(`/compose/utxo/move/${encodeURIComponent(utxo)}`);
+    navigate(`/compose/utxo/move/${utxo}`);
   }, [utxo, navigate]);
 
   const handleDetach = useCallback(() => {
-    navigate(`/compose/utxo/detach/${encodeURIComponent(utxo)}`);
+    navigate(`/compose/utxo/detach/${utxo}`);
   }, [utxo, navigate]);
 
   return (

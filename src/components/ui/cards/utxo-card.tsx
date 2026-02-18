@@ -13,7 +13,7 @@ export function UtxoCard({ token }: UtxoCardProps): ReactElement {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/assets/utxos/${encodeURIComponent(token.utxo)}`);
+    navigate(`/assets/utxos/${token.utxo}`);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
