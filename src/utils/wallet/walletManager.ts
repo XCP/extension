@@ -114,9 +114,14 @@ export class WalletManager {
       this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
       await this.refreshWalletAddresses();
 
+      // Restore active wallet — use selectWallet() instead of just setting activeWalletId
+      // so the wallet secret is decrypted and addresses are derived.
+      // After a service worker restart, in-memory secrets are lost even though
+      // the master key survives in chrome.storage.session.
       const settings = this.getSettings();
-      if (settings.lastActiveWalletId && this.getWalletById(settings.lastActiveWalletId)) {
-        this.activeWalletId = settings.lastActiveWalletId;
+      const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
+      if (walletId && this.getWalletById(walletId)) {
+        await this.selectWallet(walletId);
       }
     } catch {
       this.wallets = [];
