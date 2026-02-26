@@ -35,7 +35,7 @@ const PATHS = {
  * ```
  */
 export default function UtxoPage(): ReactElement {
-  const { txid } = useParams<{ txid: string }>();
+  const { txHash: txid } = useParams<{ txHash: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress, activeWallet } = useWallet();
@@ -61,14 +61,7 @@ export default function UtxoPage(): ReactElement {
   useEffect(() => {
     setHeaderProps({
       title: "UTXO Details",
-      onBack: () => {
-        // Navigate to view-balance of the first asset if available
-        if (balances.length > 0) {
-          navigate(`/assets/${balances[0].asset}/balance`);
-        } else {
-          navigate(-1);
-        }
-      },
+      onBack: () => navigate(-1),
       rightButton: {
         icon: copiedToClipboard ? <FaCheck className="size-4" aria-hidden="true" /> : <FaClipboard className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
@@ -194,15 +187,7 @@ export default function UtxoPage(): ReactElement {
             <h2 className="text-sm font-medium text-gray-900">Balances</h2>
             <div className="mt-2 space-y-2">
               {balances.map((balance, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between p-2 -mx-2 rounded hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  onClick={() => navigate(`/assets/${balance.asset}/balance`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/assets/${balance.asset}/balance`); } }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`View ${balance.asset} balance`}
-                >
+                <div key={index} className="flex justify-between p-2 -mx-2">
                   <span className="text-sm text-gray-500">{balance.asset}</span>
                   <span className="text-sm text-gray-900">{balance.quantity_normalized}</span>
                 </div>
