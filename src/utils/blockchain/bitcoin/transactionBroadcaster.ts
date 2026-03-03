@@ -1,5 +1,5 @@
 import { Transaction } from '@scure/btc-signer';
-import { hexToBytes } from '@noble/hashes/utils.js';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { clearApiCache } from '@/utils/blockchain/counterparty/api';
@@ -86,7 +86,9 @@ export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vou
     for (let i = 0; i < tx.inputsLength; i++) {
       const input = tx.getInput(i);
       if (input.txid) {
-        inputs.push({ txid: input.txid, vout: input.index ?? 0 });
+        // txid bytes are in internal (reversed) order; reverse for standard display format
+        const txid = bytesToHex(Uint8Array.from(input.txid).reverse());
+        inputs.push({ txid, vout: input.index ?? 0 });
       }
     }
     return inputs;
