@@ -9,6 +9,7 @@
 
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/utils/blockchain/bitcoin/utxo';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { isUtxoRecentlySpent } from '@/utils/blockchain/bitcoin/spentUtxoCache';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).
@@ -93,6 +94,11 @@ export async function selectUtxosForTransaction(
   for (const utxo of allUtxos) {
     // Skip unconfirmed if not allowed
     if (!allowUnconfirmed && !utxo.status.confirmed) {
+      continue;
+    }
+
+    // Skip UTXOs that were recently spent (prevents race conditions)
+    if (isUtxoRecentlySpent(utxo.txid, utxo.vout)) {
       continue;
     }
 

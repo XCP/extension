@@ -1,8 +1,11 @@
+import { Transaction } from '@scure/btc-signer';
+import { hexToBytes } from '@noble/hashes/utils.js';
 import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { clearApiCache } from '@/utils/blockchain/counterparty/api';
 import { clearBitcoinCaches } from '@/utils/blockchain/bitcoin/utxo';
 import { clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
+import { recordSpentUtxos } from '@/utils/blockchain/bitcoin/spentUtxoCache';
 
 export interface TransactionResponse {
   txid: string;
@@ -71,6 +74,27 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): Tra
   }
 };
 
+/**
+ * Parse a signed transaction hex to extract its inputs (txid + vout pairs).
+ * Used to record spent UTXOs after broadcast. Fails gracefully — returns
+ * empty array if parsing fails so broadcast is never blocked.
+ */
+export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vout: number }[] {
+  try {
+    const tx = Transaction.fromRaw(hexToBytes(signedTxHex));
+    const inputs: { txid: string; vout: number }[] = [];
+    for (let i = 0; i < tx.inputsLength; i++) {
+      const input = tx.getInput(i);
+      if (input.txid) {
+        inputs.push({ txid: input.txid, vout: input.index ?? 0 });
+      }
+    }
+    return inputs;
+  } catch {
+    return [];
+  }
+}
+
 const MOCK_TXID_PREFIX = 'dev_mock_tx_';
 const FORCE_ERROR_HEX = 'FORCE_ERROR';
 
@@ -94,6 +118,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
     clearApiCache();
     clearBitcoinCaches();
     clearBalanceCache();
+    recordSpentUtxos(extractInputsFromRawTx(signedTxHex));
 
     return {
       txid: generateMockTxid(signedTxHex),
@@ -123,6 +148,7 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
           clearApiCache();
           clearBitcoinCaches();
           clearBalanceCache();
+          recordSpentUtxos(extractInputsFromRawTx(signedTxHex));
           return formatted;
         }
       }
