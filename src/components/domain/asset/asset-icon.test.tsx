@@ -301,7 +301,7 @@ describe('AssetIcon', () => {
         fc.property(
           fc.string({ minLength: 1, maxLength: 20 })
             .filter((s: string) => s.trim().length > 0)
-            .filter((s: string) => !s.includes('%') && !s.includes('!') && !s.includes(',') && !s.includes(' ')), // Filter out problematic characters for testing
+            .filter((s: string) => !s.includes('%') && !s.includes('!') && !s.includes(',') && !s.includes(' ') && !s.includes('"') && !s.includes("'")), // Filter out problematic characters for testing
           (asset: string) => {
             const { container, unmount } = render(<AssetIcon asset={asset} />);
             

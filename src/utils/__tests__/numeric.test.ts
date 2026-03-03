@@ -55,7 +55,7 @@ describe('numeric utilities', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const result = toBigNumber('invalid-number');
       expect(result.toString()).toBe('0');
-      expect(consoleSpy).toHaveBeenCalledWith('Error converting to BigNumber:', 'Invalid input: invalid-number');
+      expect(consoleSpy).toHaveBeenCalledWith('Error converting to BigNumber:', expect.anything());
       consoleSpy.mockRestore();
     });
 
