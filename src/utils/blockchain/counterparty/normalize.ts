@@ -5,7 +5,7 @@
 
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
-import { toSatoshis } from "@/utils/numeric";
+import { toSatoshis, toBigNumber } from "@/utils/numeric";
 import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 /**
@@ -94,8 +94,14 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity', 'lot_size'],
-    assetFields: { premint_quantity: 'asset', lot_size: 'asset' },
+    quantityFields: ['premint_quantity', 'lot_size', 'max_mint_per_tx', 'hard_cap', 'soft_cap'],
+    assetFields: {
+      premint_quantity: 'asset',
+      lot_size: 'asset',
+      max_mint_per_tx: 'asset',
+      hard_cap: 'asset',
+      soft_cap: 'asset'
+    },
     booleanFields: ['burn_payment', 'lock_description', 'lock_quantity', 'divisible']
   },
   sweep: {
@@ -241,7 +247,7 @@ export async function normalizeFormData(
         if (isDivisible) {
           normalizedData[quantityField] = toSatoshis(value.toString());
         } else {
-          normalizedData[quantityField] = value.toString();
+          normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
         }
         continue;
       }
@@ -254,7 +260,7 @@ export async function normalizeFormData(
       if (isDivisible) {
         normalizedData[quantityField] = toSatoshis(value.toString());
       } else {
-        normalizedData[quantityField] = value.toString();
+        normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
       }
       continue;
     }
@@ -279,11 +285,12 @@ export async function normalizeFormData(
     // Determine if asset is divisible
     const isDivisible = assetInfo?.divisible ?? false;
     
-    // Convert to satoshis if divisible
+    // Convert to satoshis if divisible, enforce integer if not
     if (isDivisible) {
       normalizedData[quantityField] = toSatoshis(value.toString());
     } else {
-      normalizedData[quantityField] = value.toString();
+      // Non-divisible assets must be whole integers — truncate any decimals
+      normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
     }
   }
 

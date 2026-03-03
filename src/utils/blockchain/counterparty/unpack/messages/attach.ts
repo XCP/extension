@@ -1,7 +1,7 @@
 /**
  * Attach/Detach Message Unpacker
  *
- * Message ID: 100 (Detach - moved to address), 101 (Attach - moved to UTXO)
+ * Message ID: 100 (legacy UTXO move), 101 (Attach - move to UTXO), 102 (Detach - move to address)
  *
  * Format: Pipe-delimited string
  *   asset|quantity|destination_vout
@@ -10,7 +10,7 @@
  */
 
 /**
- * Unpacked Attach/Detach data
+ * Unpacked Attach data
  */
 export interface AttachData {
   /** Asset name */
@@ -19,6 +19,14 @@ export interface AttachData {
   quantity: bigint;
   /** Destination vout (for attach) */
   destinationVout?: number;
+}
+
+/**
+ * Unpacked Detach data
+ */
+export interface DetachData {
+  /** Destination address (or "0" for default = sender's address) */
+  destination: string;
 }
 
 /**
@@ -60,14 +68,20 @@ export function unpackAttach(payload: Uint8Array): AttachData {
 }
 
 /**
- * Unpack a Detach message (type 100).
- * Uses the same format as Attach.
+ * Unpack a Detach message (type 102).
+ * Format: just a destination address, or "0" if detaching to sender's own address.
  *
  * @param payload - Message payload (after prefix and type ID)
- * @returns Unpacked Attach/Detach data
+ * @returns Unpacked Detach data
  * @throws Error if payload is invalid
  */
-export function unpackDetach(payload: Uint8Array): AttachData {
-  // Detach uses same format as attach
-  return unpackAttach(payload);
+export function unpackDetach(payload: Uint8Array): DetachData {
+  if (payload.length === 0) {
+    throw new Error('Empty detach payload');
+  }
+
+  const text = new TextDecoder('utf-8').decode(payload);
+  return {
+    destination: text === '0' ? '' : text,
+  };
 }

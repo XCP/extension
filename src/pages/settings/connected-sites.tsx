@@ -4,7 +4,7 @@ import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { walletManager } from "@/utils/wallet/walletManager";
+import { getWalletService } from "@/services/walletService";
 import { getProviderService } from "@/services/providerService";
 import type { ReactElement } from "react";
 
@@ -40,9 +40,8 @@ export default function ConnectedSitesPage(): ReactElement {
   const loadConnections = useCallback(async () => {
     try {
       setIsLoading(true);
-      console.log('Loading connected sites from settings...');
-      const settings = walletManager.getSettings();
-      console.log('Connected websites:', settings.connectedWebsites);
+      const walletService = getWalletService();
+      const settings = await walletService.getSettings();
       
       // Convert origins to ConnectedSite objects
       const sites: ConnectedSite[] = settings.connectedWebsites.map(origin => ({

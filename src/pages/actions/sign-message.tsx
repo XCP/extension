@@ -1,8 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
-import { FaCopy, FaCheck, FaLock, FaCheckCircle, FaInfoCircle, FiRefreshCw } from "@/components/icons";
-import { FiDownload } from "@/components/icons";
+import { FaCopy, FaCheck, FaLock, FaCheckCircle, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -12,24 +10,17 @@ import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/
 import { analytics } from "@/utils/fathom";
 import type { ReactElement } from "react";
 import type { AddressFormat } from "@/utils/blockchain/bitcoin/address";
+import { useEffect } from "react";
 
 /**
- * SignMessage component for signing messages with Bitcoin addresses
+ * SignMessage component for signing messages with Bitcoin addresses.
+ * This is the manual signing tool available from the Actions menu.
+ * dApp signing requests are handled by /requests/message/approve instead.
  */
 export default function SignMessagePage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeWallet, activeAddress, getPrivateKey } = useWallet();
-
-  // Provider request hook for handling dApp integration
-  const {
-    providerMessage,
-    providerOrigin,
-    signMessageRequestId,
-    handleSuccess,
-    handleCancel,
-    isProviderRequest
-  } = useSignMessageRequest();
 
   // State
   const [message, setMessage] = useState("");
@@ -37,13 +28,6 @@ export default function SignMessagePage(): ReactElement {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<'message' | 'signature' | null>(null);
-  
-  // Load provider message if coming from dApp request
-  useEffect(() => {
-    if (providerMessage && !message) {
-      setMessage(providerMessage);
-    }
-  }, [providerMessage, message]);
 
   // Reset function with stable reference
   const handleReset = useCallback(() => {
@@ -52,17 +36,13 @@ export default function SignMessagePage(): ReactElement {
     setError(null);
   }, []);
 
-  // Configure header with reset button (always icon-only)
+  // Configure header
   useEffect(() => {
-    const headerTitle = isProviderRequest
-      ? `Sign Message - ${new URL(providerOrigin || '').hostname}`
-      : "Sign Message";
-
     const hasContent = Boolean(message || signature || error);
 
     setHeaderProps({
-      title: headerTitle,
-      onBack: isProviderRequest ? handleCancel : () => navigate(-1),
+      title: "Sign Message",
+      onBack: () => navigate(-1),
       rightButton: {
         ariaLabel: "Reset form",
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
@@ -71,14 +51,14 @@ export default function SignMessagePage(): ReactElement {
       },
     });
     return () => setHeaderProps(null);
-  }, [setHeaderProps, navigate, isProviderRequest, providerOrigin, handleCancel, handleReset, message, signature, error]);
-  
+  }, [setHeaderProps, navigate, handleReset, message, signature, error]);
+
   // Get signing capabilities for current address
   const addressFormat = activeWallet?.addressFormat;
-  const signingCapabilities = activeAddress && addressFormat ? 
-    getSigningCapabilities(addressFormat) : 
+  const signingCapabilities = activeAddress && addressFormat ?
+    getSigningCapabilities(addressFormat) :
     { canSign: false, method: "Not available", notes: "No address selected" };
-  
+
   const handleSign = async () => {
     if (!activeWallet || !activeAddress) {
       setError("No active wallet or address");
@@ -141,11 +121,6 @@ export default function SignMessagePage(): ReactElement {
 
       setSignature(resultSignature);
       analytics.track('message_signed');
-
-      // If this is a provider request, notify the provider of success
-      if (isProviderRequest) {
-        await handleSuccess({ signature: resultSignature });
-      }
     } catch (err) {
       console.error("Failed to sign message:", err);
       setError(err instanceof Error ? err.message : "Failed to sign message");
@@ -153,7 +128,7 @@ export default function SignMessagePage(): ReactElement {
       setIsSigning(false);
     }
   };
-  
+
   const handleCopy = async (text: string, field: 'message' | 'signature' | 'json') => {
     try {
       if (field === 'json') {
@@ -193,7 +168,7 @@ export default function SignMessagePage(): ReactElement {
       </div>
     );
   }
-  
+
   return (
     <div className="p-4 space-y-4">
       {/* Message Input */}
@@ -238,7 +213,7 @@ export default function SignMessagePage(): ReactElement {
             </button>
           )}
         </div>
-        
+
         {/* Signature Output */}
         <div className="mt-4">
           <TextAreaInput

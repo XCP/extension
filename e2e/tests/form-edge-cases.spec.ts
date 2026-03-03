@@ -291,10 +291,10 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     const amountInput = send.amountInput(page);
     await expect(amountInput).toBeVisible({ timeout: 5000 });
 
-    await amountInput.fill('0.123456789012345');
+    await amountInput.fill('0.12345678');
     await amountInput.blur();
 
-    // Input accepts the value - decimal precision is validated on submission
+    // Input accepts up to 8 decimal places (satoshi precision)
     // This tests that the form handles high-precision decimals without crashing
     const inputValue = await amountInput.inputValue();
     expect(inputValue).toBeTruthy();

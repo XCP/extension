@@ -1,4 +1,4 @@
-import { type ReactElement } from "react";
+import { type ReactElement, useState } from "react";
 import { FiGlobe, FiX } from "@/components/icons";
 
 /**
@@ -51,6 +51,9 @@ export function ConnectedSiteCard({
   className = "",
   ariaLabel
 }: ConnectedSiteCardProps): ReactElement {
+  const [faviconError, setFaviconError] = useState(false);
+  const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+
   const handleDisconnect = (event: React.MouseEvent) => {
     event.stopPropagation();
     onDisconnect();
@@ -75,7 +78,16 @@ export function ConnectedSiteCard({
         <div className="flex items-center gap-2">
           {/* Icon */}
           <div className="flex-shrink-0">
-            {icon || <FiGlobe className="size-4 text-gray-400" aria-hidden="true" />}
+            {icon || (faviconError ? (
+              <FiGlobe className="size-4 text-gray-400" aria-hidden="true" />
+            ) : (
+              <img
+                src={faviconUrl}
+                alt={`${hostname} favicon`}
+                className="size-4 rounded-sm"
+                onError={() => setFaviconError(true)}
+              />
+            ))}
           </div>
           
           {/* Site Details */}

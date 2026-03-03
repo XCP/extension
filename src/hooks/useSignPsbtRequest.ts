@@ -4,7 +4,8 @@
  * This hook centralizes the logic for:
  * - Loading PSBT request data from storage
  * - Decoding PSBT details (inputs, outputs, fee)
- * - Optionally decoding Counterparty messages
+ * - ARC4 decryption of OP_RETURN data for Counterparty detection
+ * - Safety analysis (block sweeps, warn on suspicious outputs)
  * - Handling success/cancel callbacks
  * - Cleaning up storage
  */
@@ -16,13 +17,17 @@ import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin
 import {
   decodeRawTransaction,
   decodeCounterpartyMessage,
-  hasCounterpartyPrefix,
+  decryptOpReturnData,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
 } from '@/utils/blockchain/counterparty/unpack';
+import {
+  analyzeTransactionSafety,
+  type SafetyAnalysis,
+} from '@/utils/blockchain/counterparty/transactionSafety';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message
@@ -34,6 +39,8 @@ export interface DecodedPsbtInfo {
   txid?: string;
   /** Local verification result */
   verification: ProviderVerificationResult;
+  /** Security analysis (dangerous types, suspicious outputs) */
+  safety: SafetyAnalysis;
 }
 
 /**
@@ -51,7 +58,7 @@ function emitToBackground(event: string, data: unknown): void {
   });
 }
 
-export function useSignPsbtRequest() {
+export function useSignPsbtRequest(signerAddress?: string) {
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState<SignPsbtRequest | null>(null);
   const [decodedInfo, setDecodedInfo] = useState<DecodedPsbtInfo | null>(null);
@@ -61,40 +68,41 @@ export function useSignPsbtRequest() {
   const requestId = searchParams.get('requestId');
 
   // Decode PSBT and enrich with API data
-  const decodePsbt = useCallback(async (psbtHex: string): Promise<DecodedPsbtInfo> => {
+  const decodePsbt = useCallback(async (psbtHex: string, signerAddress?: string): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
-    let opReturnData: string | undefined;
+    let decryptedDataHex: string | undefined;
 
-    // If we have raw tx hex and OP_RETURN, try to decode Counterparty message
-    if (psbtDetails.rawTxHex && psbtDetails.hasOpReturn) {
-      // Check if any OP_RETURN has Counterparty prefix
-      const hasCounterparty = psbtDetails.outputs.some(
-        o => o.opReturnData && hasCounterpartyPrefix(o.opReturnData)
-      );
-
-      if (hasCounterparty) {
-        // Get the OP_RETURN data for verification
-        const opReturnOutput = psbtDetails.outputs.find(
-          o => o.opReturnData && hasCounterpartyPrefix(o.opReturnData)
-        );
-        opReturnData = opReturnOutput?.opReturnData;
-
-        // Try to decode via API
-        try {
-          const msg = await decodeCounterpartyMessage(psbtDetails.rawTxHex);
-          if (msg) {
-            counterpartyMessage = msg;
+    // ARC4 decrypt OP_RETURN data using the first input's txid as key
+    if (psbtDetails.hasOpReturn && psbtDetails.inputs.length > 0 && psbtDetails.inputs[0].txid) {
+      for (const output of psbtDetails.outputs) {
+        if (output.type === 'op_return' && output.script) {
+          const decrypted = decryptOpReturnData(output.script, psbtDetails.inputs[0].txid);
+          if (decrypted) {
+            decryptedDataHex = decrypted;
+            break;
           }
-        } catch (err) {
-          console.warn('Failed to decode Counterparty message:', err);
         }
       }
+    }
 
-      // Try to get txid and enrich outputs with addresses
+    // If we decrypted Counterparty data, try API unpack for rich message info
+    if (decryptedDataHex) {
+      try {
+        const msg = await decodeCounterpartyMessage(decryptedDataHex);
+        if (msg) {
+          counterpartyMessage = msg;
+        }
+      } catch (err) {
+        console.warn('Failed to decode Counterparty message:', err);
+      }
+    }
+
+    // Try to get txid and enrich outputs with addresses from API
+    if (psbtDetails.rawTxHex) {
       try {
         const decoded = await decodeRawTransaction(psbtDetails.rawTxHex, true);
         txid = decoded.txid;
@@ -111,14 +119,20 @@ export function useSignPsbtRequest() {
       }
     }
 
-    // Verify locally and compare against API
-    const verification = verifyProviderTransaction(opReturnData, counterpartyMessage);
+    // Verify locally (compares local binary unpack against API result)
+    const verification = verifyProviderTransaction(decryptedDataHex, counterpartyMessage);
+
+    // Analyze for security risks (dangerous types, suspicious outputs)
+    const messageType = counterpartyMessage?.messageType
+      ?? verification.localUnpack?.messageType;
+    const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddress || '');
 
     return {
       psbtDetails,
       counterpartyMessage,
       txid,
-      verification
+      verification,
+      safety,
     };
   }, []);
 
@@ -145,7 +159,7 @@ export function useSignPsbtRequest() {
         setRequest(req);
 
         // Decode the PSBT
-        const decoded = await decodePsbt(req.psbtHex);
+        const decoded = await decodePsbt(req.psbtHex, signerAddress);
         setDecodedInfo(decoded);
       } catch (err) {
         console.error('Failed to load PSBT request:', err);
@@ -167,7 +181,7 @@ export function useSignPsbtRequest() {
           const req = await signPsbtRequestStorage.get(message.signPsbtRequestId);
           if (req) {
             setRequest(req);
-            const decoded = await decodePsbt(req.psbtHex);
+            const decoded = await decodePsbt(req.psbtHex, signerAddress);
             setDecodedInfo(decoded);
           }
         };

@@ -396,6 +396,7 @@ export function DispenseForm({
                 onMaxClick={handleMaxClick}
                 disableMaxButton={spendableBtc.isLoading}
                 hasError={!!errorMessage}
+                isDivisible={false}
               />
 
               {/* Hidden input to convert numberOfDispenses to quantity for the API */}

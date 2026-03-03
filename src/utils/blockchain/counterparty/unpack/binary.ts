@@ -199,6 +199,33 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 /**
+ * ARC4 (RC4) decrypt/encrypt. ARC4 is symmetric — same operation for both.
+ * Used by Counterparty to encrypt OP_RETURN data with the first input's txid.
+ */
+export function arc4(key: Uint8Array, data: Uint8Array): Uint8Array {
+  // Key-scheduling algorithm (KSA)
+  const S = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) S[i] = i;
+  let j = 0;
+  for (let i = 0; i < 256; i++) {
+    j = (j + S[i] + key[i % key.length]) & 0xff;
+    [S[i], S[j]] = [S[j], S[i]];
+  }
+
+  // Pseudo-random generation algorithm (PRGA)
+  const output = new Uint8Array(data.length);
+  let a = 0;
+  let b = 0;
+  for (let k = 0; k < data.length; k++) {
+    a = (a + 1) & 0xff;
+    b = (b + S[a]) & 0xff;
+    [S[a], S[b]] = [S[b], S[a]];
+    output[k] = data[k] ^ S[(S[a] + S[b]) & 0xff];
+  }
+  return output;
+}
+
+/**
  * Compare two byte arrays for equality.
  */
 export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {

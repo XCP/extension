@@ -7,6 +7,8 @@
 
 import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
+import { fromSatoshis } from '@/utils/numeric';
+import { arc4, hexToBytes, bytesToHex } from './unpack/binary';
 
 /**
  * Counterparty message decoded from OP_RETURN
@@ -24,6 +26,9 @@ export interface CounterpartyMessage {
  */
 export interface DecodedBitcoinTransaction {
   txid: string;
+  size?: number;
+  vsize?: number;
+  weight?: number;
   vin: Array<{
     txid: string;
     vout: number;
@@ -82,6 +87,72 @@ export async function decodeRawTransaction(
 }
 
 /**
+ * Fetch the satoshi value of a specific transaction output.
+ * Uses mempool.space with blockstream.info fallback.
+ */
+async function fetchOutputValue(txid: string, vout: number): Promise<number | null> {
+  const endpoints = [
+    `https://mempool.space/api/tx/${txid}`,
+    `https://blockstream.info/api/tx/${txid}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, {
+        timeout: API_TIMEOUTS.DEFAULT,
+      });
+      if (response.status === 200 && response.data?.vout?.[vout]) {
+        return response.data.vout[vout].value;
+      }
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+/**
+ * Look up input values for a decoded transaction.
+ * Returns a map of "txid:vout" → satoshi value.
+ */
+export async function fetchInputValues(
+  inputs: Array<{ txid: string; vout: number }>
+): Promise<Map<string, number>> {
+  const values = new Map<string, number>();
+
+  // Deduplicate by txid to minimize API calls
+  const uniqueTxids = [...new Set(inputs.map(i => i.txid))];
+
+  await Promise.all(uniqueTxids.map(async (txid) => {
+    const endpoints = [
+      `https://mempool.space/api/tx/${txid}`,
+      `https://blockstream.info/api/tx/${txid}`,
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, {
+          timeout: API_TIMEOUTS.DEFAULT,
+        });
+        if (response.status === 200 && response.data?.vout) {
+          // Store all vout values for this txid
+          for (const input of inputs) {
+            if (input.txid === txid && response.data.vout[input.vout]) {
+              values.set(`${txid}:${input.vout}`, response.data.vout[input.vout].value);
+            }
+          }
+          break; // Success, skip fallback
+        }
+      } catch {
+        continue;
+      }
+    }
+  }));
+
+  return values;
+}
+
+/**
  * Call Counterparty API to unpack a data hex payload
  */
 export async function unpackCounterpartyData(
@@ -129,20 +200,49 @@ export function describeCounterpartyMessage(
   messageType: string,
   messageData: Record<string, unknown>
 ): string {
+  /**
+   * Normalize a raw quantity for display.
+   * Checks (in order): _normalized field from API, _info.divisible flag,
+   * then falls back to known-divisible assets (BTC, XCP).
+   */
+  const q = (qtyField: string, assetField?: string): string => {
+    // 1. API already provided a normalized value
+    const normalized = messageData[`${qtyField}_normalized`];
+    if (normalized != null) return String(normalized);
+
+    const raw = messageData[qtyField];
+    if (raw == null) return '?';
+
+    // 2. Check verbose asset_info for divisibility
+    const assetName = assetField ? String(messageData[assetField] ?? '') : '';
+    const infoKey = assetField ? `${assetField}_info` : 'asset_info';
+    const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
+
+    const isDivisible = assetInfo?.divisible === true
+      || assetName.toUpperCase() === 'BTC'
+      || assetName.toUpperCase() === 'XCP';
+
+    if (isDivisible) {
+      return fromSatoshis(Number(raw));
+    }
+
+    return BigInt(String(raw)).toLocaleString();
+  };
+
   switch (messageType) {
     case 'enhanced_send':
     case 'send':
-      return `Send ${messageData.quantity} ${messageData.asset} to ${messageData.destination}`;
+      return `Send ${q('quantity', 'asset')} ${messageData.asset} to ${messageData.destination}`;
     case 'order':
-      return `DEX Order: Give ${messageData.give_quantity} ${messageData.give_asset} for ${messageData.get_quantity} ${messageData.get_asset}`;
+      return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${messageData.give_asset} for ${q('get_quantity', 'get_asset')} ${messageData.get_asset}`;
     case 'dispenser':
-      return `Create Dispenser: ${messageData.give_quantity} ${messageData.asset} per ${messageData.mainchainrate} sats`;
+      return `Create Dispenser: ${q('give_quantity', 'asset')} ${messageData.asset} per ${messageData.mainchainrate} sats`;
     case 'dispense':
       return `Dispense from ${messageData.dispenser}`;
     case 'issuance':
-      return `Issue Asset: ${messageData.asset}${messageData.quantity ? ` (${messageData.quantity} units)` : ''}`;
+      return `Issue Asset: ${messageData.asset}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
     case 'dividend':
-      return `Pay Dividend: ${messageData.quantity_per_unit} ${messageData.dividend_asset} per ${messageData.asset}`;
+      return `Pay Dividend: ${q('quantity_per_unit', 'dividend_asset')} ${messageData.dividend_asset} per ${messageData.asset}`;
     case 'cancel':
       return `Cancel Order: ${messageData.offer_hash}`;
     case 'btcpay':
@@ -156,13 +256,13 @@ export function describeCounterpartyMessage(
     case 'fairmint':
       return `Mint from Fairminter: ${messageData.asset}`;
     case 'attach':
-      return `Attach ${messageData.quantity} ${messageData.asset} to UTXO`;
+      return `Attach ${q('quantity', 'asset')} ${messageData.asset} to UTXO`;
     case 'detach':
       return `Detach assets from UTXO`;
     case 'utxo_move':
       return `Move UTXO to ${messageData.destination}`;
     case 'destroy':
-      return `Destroy ${messageData.quantity} ${messageData.asset}`;
+      return `Destroy ${q('quantity', 'asset')} ${messageData.asset}`;
     default:
       return `Counterparty ${messageType} transaction`;
   }
@@ -176,14 +276,14 @@ export function hasCounterpartyPrefix(opReturnData: string): boolean {
 }
 
 /**
- * Decode Counterparty message from raw transaction hex
- * Returns null if not a Counterparty transaction or decoding fails
+ * Decode Counterparty message from datahex (decrypted OP_RETURN payload with CNTRPRTY prefix).
+ * Returns null if unpacking fails.
  */
 export async function decodeCounterpartyMessage(
-  rawTxHex: string
+  dataHex: string
 ): Promise<CounterpartyMessage | null> {
   try {
-    const unpacked = await unpackCounterpartyData(rawTxHex, true);
+    const unpacked = await unpackCounterpartyData(dataHex, true);
     if (!unpacked) {
       return null;
     }
@@ -194,6 +294,82 @@ export async function decodeCounterpartyMessage(
       messageData: unpacked.message_data,
       description: describeCounterpartyMessage(unpacked.message_type, unpacked.message_data),
     };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract the data payload from an OP_RETURN scriptPubKey hex.
+ * Strips the OP_RETURN opcode (0x6a) and push-data length prefix.
+ *
+ * @param scriptPubKeyHex - Full scriptPubKey hex (e.g., "6a2e...")
+ * @returns Data payload hex, or null if not a valid OP_RETURN
+ */
+export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
+  try {
+    const bytes = hexToBytes(scriptPubKeyHex);
+    if (bytes.length < 2 || bytes[0] !== 0x6a) return null;
+
+    let offset = 1;
+    let dataLength: number;
+
+    const pushByte = bytes[offset];
+    if (pushByte <= 0x4b) {
+      // Direct push (1-75 bytes)
+      dataLength = pushByte;
+      offset += 1;
+    } else if (pushByte === 0x4c) {
+      // OP_PUSHDATA1
+      if (bytes.length < 3) return null;
+      dataLength = bytes[offset + 1];
+      offset += 2;
+    } else if (pushByte === 0x4d) {
+      // OP_PUSHDATA2
+      if (bytes.length < 4) return null;
+      dataLength = bytes[offset + 1] | (bytes[offset + 2] << 8);
+      offset += 3;
+    } else {
+      return null;
+    }
+
+    if (offset + dataLength > bytes.length) return null;
+
+    const data = bytes.slice(offset, offset + dataLength);
+    return bytesToHex(data);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Decrypt ARC4-encrypted OP_RETURN data using the first input's txid as key.
+ * Returns the decrypted datahex (including CNTRPRTY prefix) if valid, or null.
+ *
+ * @param scriptPubKeyHex - Full OP_RETURN scriptPubKey hex from decoded transaction
+ * @param firstInputTxid - Txid of the first input (used as ARC4 key)
+ * @returns Decrypted Counterparty datahex with CNTRPRTY prefix, or null
+ */
+export function decryptOpReturnData(
+  scriptPubKeyHex: string,
+  firstInputTxid: string
+): string | null {
+  const payload = extractOpReturnPayload(scriptPubKeyHex);
+  if (!payload) return null;
+
+  try {
+    const payloadBytes = hexToBytes(payload);
+    const keyBytes = hexToBytes(firstInputTxid);
+
+    const decrypted = arc4(keyBytes, payloadBytes);
+    const decryptedHex = bytesToHex(decrypted);
+
+    // Check for CNTRPRTY prefix in decrypted data
+    if (decryptedHex.startsWith(COUNTERPARTY_PREFIX_HEX)) {
+      return decryptedHex;
+    }
+
+    return null;
   } catch {
     return null;
   }
