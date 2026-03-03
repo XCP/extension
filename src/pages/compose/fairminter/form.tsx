@@ -79,6 +79,13 @@ export function FairminterForm({
   const [assetName, setAssetName] = useState(initialFormData?.asset || asset || "");
   const [isAssetNameValid, setIsAssetNameValid] = useState(false);
   const [isDivisible, setIsDivisible] = useState(initialFormData?.divisible ?? true);
+
+  // Quantity field state (controlled for decimal enforcement)
+  const [maxMintPerTx, setMaxMintPerTx] = useState(initialFormData?.max_mint_per_tx?.toString() || "");
+  const [lotSize, setLotSize] = useState(initialFormData?.lot_size?.toString() || "");
+  const [hardCap, setHardCap] = useState(initialFormData?.hard_cap?.toString() || "");
+  const [premintQuantity, setPremintQuantity] = useState(initialFormData?.premint_quantity?.toString() || "0");
+  const [softCap, setSoftCap] = useState(initialFormData?.soft_cap?.toString() || "");
   
   // Check if active wallet uses SegWit addresses
   const isSegwit = activeWallet?.addressFormat && isSegwitFormat(activeWallet.addressFormat);
@@ -106,6 +113,14 @@ export function FairminterForm({
   // Helper function to get input step based on divisibility
   const getInputStep = () => isDivisible ? "0.00000001" : "1";
   const getInputPlaceholder = () => isDivisible ? "0.00000000" : "0";
+
+  // Shared onChange handler that enforces decimal rules based on divisibility
+  const handleQuantityChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!isDivisible && val.includes('.')) return;
+    if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+    setter(val);
+  };
 
   // Handlers
   const enhancedFormAction = (formData: FormData) => {
@@ -147,7 +162,14 @@ export function FairminterForm({
     
     // Add divisible value
     processedFormData.set('divisible', isDivisible.toString());
-    
+
+    // Set controlled quantity fields from state
+    if (maxMintPerTx) processedFormData.set('max_mint_per_tx', maxMintPerTx);
+    if (lotSize) processedFormData.set('lot_size', lotSize);
+    if (hardCap) processedFormData.set('hard_cap', hardCap);
+    if (premintQuantity) processedFormData.set('premint_quantity', premintQuantity);
+    if (softCap) processedFormData.set('soft_cap', softCap);
+
     // Call the original formAction with the processed FormData
     formAction(processedFormData);
   };
@@ -252,7 +274,8 @@ export function FairminterForm({
                 name="max_mint_per_tx"
                 type="text"
                 inputMode="decimal"
-                defaultValue={initialFormData?.max_mint_per_tx?.toString() || ""}
+                value={maxMintPerTx}
+                onChange={handleQuantityChange(setMaxMintPerTx)}
                 step={getInputStep()}
                 placeholder={getInputPlaceholder()}
                 className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -277,7 +300,8 @@ export function FairminterForm({
                   name="lot_size"
                   type="text"
                   inputMode="decimal"
-                  defaultValue={initialFormData?.lot_size?.toString() || ""}
+                  value={lotSize}
+                  onChange={handleQuantityChange(setLotSize)}
                   step={getInputStep()}
                   placeholder={getInputPlaceholder()}
                   className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -368,7 +392,8 @@ export function FairminterForm({
               name="hard_cap"
               type="text"
               inputMode="decimal"
-              defaultValue={initialFormData?.hard_cap?.toString() || ""}
+              value={hardCap}
+              onChange={handleQuantityChange(setHardCap)}
               step={getInputStep()}
               placeholder={getInputPlaceholder()}
               className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -427,7 +452,8 @@ export function FairminterForm({
                       name="premint_quantity"
                       type="text"
                       inputMode="decimal"
-                      defaultValue={initialFormData?.premint_quantity?.toString() || "0"}
+                      value={premintQuantity}
+                      onChange={handleQuantityChange(setPremintQuantity)}
                       step={getInputStep()}
                       placeholder={getInputPlaceholder()}
                       className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -472,9 +498,10 @@ export function FairminterForm({
                           name="soft_cap"
                           type="text"
                           inputMode="decimal"
-                          defaultValue={initialFormData?.soft_cap?.toString() || ""}
+                          value={softCap}
+                          onChange={handleQuantityChange(setSoftCap)}
                           className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                          placeholder="0"
+                          placeholder={getInputPlaceholder()}
                           disabled={pending}
                         />
                         {showHelpText && (

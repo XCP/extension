@@ -100,6 +100,7 @@ export interface DecodedInput {
   vout: number;
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
+  sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
 }
 
 /**
@@ -264,6 +265,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         txid: txidHex,
         vout: input.index ?? 0,
         value,
+        sighashType: input.sighashType,
       });
     }
   }
@@ -353,6 +355,12 @@ export function signPSBT(
     ? inputIndices
     : Array.from({ length: tx.inputsLength }, (_, i) => i);
 
+  // When specific indices are requested, failures are real errors.
+  // When trying all inputs (no signInputs specified), gracefully skip
+  // inputs that don't belong to us (e.g., other party's input in an atomic swap).
+  const bestEffort = inputIndices.length === 0;
+  let signedCount = 0;
+
   try {
     for (const inputIdx of indicesToSign) {
       // For P2SH-P2WPKH, we may need to add the redeem script
@@ -366,11 +374,24 @@ export function signPSBT(
         }
       }
 
-      // Get sighash type for this input (default: SIGHASH_ALL)
-      const sighashType = sighashTypes?.[inputIdx] ?? SigHash.ALL;
+      // Determine sighash: use the explicit sighashTypes param if provided,
+      // then fall back to the sighash embedded in the PSBT input, then default to ALL
+      const input = tx.getInput(inputIdx);
+      const sighashType = sighashTypes?.[inputIdx]
+        ?? input.sighashType
+        ?? SigHash.ALL;
 
-      // Sign the input
-      tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
+      try {
+        tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
+        signedCount++;
+      } catch (inputErr) {
+        if (!bestEffort) throw inputErr;
+        // Best-effort mode: skip inputs we can't sign (e.g., other party's UTXO)
+      }
+    }
+
+    if (signedCount === 0) {
+      throw new Error('No inputs could be signed with the provided key');
     }
 
     // Return as PSBT (not finalized - allows chaining for multi-sig)

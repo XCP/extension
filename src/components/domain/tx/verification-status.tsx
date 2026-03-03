@@ -45,7 +45,7 @@ export function VerificationStatus({
           <div className="text-sm text-green-800">
             <p className="font-medium">Transaction Verified</p>
             <p className="text-xs mt-1">
-              Local verification confirms this transaction matches the expected format.
+              The transaction data was decoded locally and matches what the site requested. No tampering detected.
             </p>
           </div>
         </div>

@@ -29,39 +29,54 @@ function emitToBackground(event: string, data: unknown): void {
 
 export function useSignMessageRequest() {
   const [searchParams] = useSearchParams();
-  const [providerMessage, setProviderMessage] = useState<string | null>(null);
-  const [providerOrigin, setProviderOrigin] = useState<string | null>(null);
-  const signMessageRequestId = searchParams.get('signMessageRequestId');
+  const [request, setRequest] = useState<SignMessageRequest | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const requestId = searchParams.get('requestId');
 
   // Load sign message request data if we have a request ID
   useEffect(() => {
-    if (signMessageRequestId) {
-      const loadSignMessageRequest = async () => {
-        const request = await signMessageRequestStorage.get(signMessageRequestId);
-        if (request) {
-          setProviderMessage(request.message);
-          setProviderOrigin(request.origin);
-        }
-      };
-      loadSignMessageRequest();
+    if (!requestId) {
+      setIsLoading(false);
+      setError('No request ID provided');
+      return;
     }
-  }, [signMessageRequestId]);
+
+    const loadRequest = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const req = await signMessageRequestStorage.get(requestId);
+        if (!req) {
+          setError('Sign message request not found or expired');
+          setIsLoading(false);
+          return;
+        }
+        setRequest(req);
+      } catch (err) {
+        console.error('Failed to load sign message request:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load sign message request');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadRequest();
+  }, [requestId]);
 
   // Listen for navigation messages from background
   useEffect(() => {
     const handleMessage = (message: any) => {
-      if (message.type === 'NAVIGATE_TO_SIGN_MESSAGE') {
-        // Load the sign message request
-        if (message.signMessageRequestId) {
-          const loadSignMessageRequest = async () => {
-            const request = await signMessageRequestStorage.get(message.signMessageRequestId);
-            if (request) {
-              setProviderMessage(request.message);
-              setProviderOrigin(request.origin);
-            }
-          };
-          loadSignMessageRequest();
-        }
+      if (message.type === 'NAVIGATE_TO_SIGN_MESSAGE' && message.signMessageRequestId) {
+        const loadRequest = async () => {
+          const req = await signMessageRequestStorage.get(message.signMessageRequestId);
+          if (req) {
+            setRequest(req);
+          }
+        };
+        loadRequest();
       }
     };
 
@@ -73,34 +88,33 @@ export function useSignMessageRequest() {
 
   // Handle completion for provider requests
   const handleSuccess = useCallback(async (result: { signature: string }) => {
-    if (signMessageRequestId) {
+    if (requestId) {
       // Notify the background that the sign message is complete
-      // Uses chrome.runtime.sendMessage to cross the context boundary
-      emitToBackground(`sign-message-complete-${signMessageRequestId}`, result);
+      emitToBackground(`sign-message-complete-${requestId}`, result);
 
       // Clean up the request
-      await signMessageRequestStorage.remove(signMessageRequestId);
+      await signMessageRequestStorage.remove(requestId);
     }
-  }, [signMessageRequestId]);
+  }, [requestId]);
 
   // Handle cancellation for provider requests
   const handleCancel = useCallback(async () => {
-    if (signMessageRequestId) {
+    if (requestId) {
       // Notify the background that the sign message was cancelled
-      // Uses chrome.runtime.sendMessage to cross the context boundary
-      emitToBackground(`sign-message-cancel-${signMessageRequestId}`, { reason: 'User cancelled' });
+      emitToBackground(`sign-message-cancel-${requestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
-      await signMessageRequestStorage.remove(signMessageRequestId);
+      await signMessageRequestStorage.remove(requestId);
     }
-  }, [signMessageRequestId]);
+  }, [requestId]);
 
   return {
-    providerMessage,
-    providerOrigin,
-    signMessageRequestId,
+    request,
+    isLoading,
+    error,
+    requestId,
     handleSuccess,
     handleCancel,
-    isProviderRequest: !!signMessageRequestId
+    isProviderRequest: !!requestId
   };
 }

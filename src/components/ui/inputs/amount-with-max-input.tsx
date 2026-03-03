@@ -76,7 +76,12 @@ export function AmountWithMaxInput({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
+    const val = e.target.value;
+    // Block decimal input for non-divisible assets
+    if (!isDivisible && val.includes('.')) return;
+    // Limit to 8 decimal places for divisible assets
+    if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+    onChange(val);
     setError(null);
   };
 
@@ -194,7 +199,7 @@ export function AmountWithMaxInput({
               ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
-          placeholder="0.00000000"
+          placeholder={isDivisible ? "0.00000000" : "0"}
           disabled={disabled}
           autoFocus={autoFocus}
         />

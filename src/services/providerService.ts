@@ -459,8 +459,8 @@ export function createProviderService(): ProviderService {
             // Popup might not be open yet
           });
 
-          // Open popup at the sign message form
-          await openExtensionPopup(`#/actions/sign-message?signMessageRequestId=${signMessageRequestId}`);
+          // Open popup at the sign message approval page
+          await openExtensionPopup(`#/requests/message/approve?requestId=${signMessageRequestId}`);
 
           // Track as critical operation to prevent extension updates during sign message
           const updateService = getUpdateService();

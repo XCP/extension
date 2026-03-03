@@ -15,13 +15,18 @@ import { signTransactionRequestStorage, type SignTransactionRequest } from '@/ut
 import {
   decodeRawTransaction,
   decodeCounterpartyMessage,
-  hasCounterpartyPrefix,
+  decryptOpReturnData,
+  fetchInputValues,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
 } from '@/utils/blockchain/counterparty/unpack';
+import {
+  analyzeTransactionSafety,
+  type SafetyAnalysis,
+} from '@/utils/blockchain/counterparty/transactionSafety';
 
 /**
  * Decoded transaction details
@@ -44,10 +49,14 @@ export interface DecodedTransactionInfo {
   totalInputValue: number;
   totalOutputValue: number;
   fee: number;
+  /** Transaction virtual size in vbytes (for fee rate calculation) */
+  vsize?: number;
   hasOpReturn: boolean;
   counterpartyMessage?: CounterpartyMessage;
   /** Local verification result */
   verification: ProviderVerificationResult;
+  /** Security analysis (dangerous types, suspicious outputs) */
+  safety: SafetyAnalysis;
 }
 
 /**
@@ -65,7 +74,7 @@ function emitToBackground(event: string, data: unknown): void {
   });
 }
 
-export function useSignTransactionRequest() {
+export function useSignTransactionRequest(signerAddress?: string) {
   const [searchParams] = useSearchParams();
   const [request, setRequest] = useState<SignTransactionRequest | null>(null);
   const [decodedInfo, setDecodedInfo] = useState<DecodedTransactionInfo | null>(null);
@@ -75,7 +84,7 @@ export function useSignTransactionRequest() {
   const requestId = searchParams.get('requestId');
 
   // Decode raw transaction and enrich with API data
-  const decodeTransaction = useCallback(async (rawTxHex: string): Promise<DecodedTransactionInfo> => {
+  const decodeTransaction = useCallback(async (rawTxHex: string, signerAddress?: string): Promise<DecodedTransactionInfo> => {
     // Decode the raw transaction via API
     const decoded = await decodeRawTransaction(rawTxHex, true);
 
@@ -97,6 +106,23 @@ export function useSignTransactionRequest() {
       };
     });
 
+    // If decode didn't provide input values (prevout), look them up from blockchain
+    const hasInputValues = inputs.some(i => i.value != null && i.value > 0);
+    if (!hasInputValues && inputs.length > 0) {
+      try {
+        const inputValues = await fetchInputValues(inputs);
+        for (const input of inputs) {
+          const key = `${input.txid}:${input.vout}`;
+          const value = inputValues.get(key);
+          if (value != null) {
+            input.value = value;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch input values:', err);
+      }
+    }
+
     const totalInputValue = inputs.reduce((sum, input) => sum + (input.value || 0), 0);
     const totalOutputValue = outputs.reduce((sum, output) => sum + output.value, 0);
     const fee = totalInputValue > 0 ? totalInputValue - totalOutputValue : 0;
@@ -104,31 +130,41 @@ export function useSignTransactionRequest() {
     const hasOpReturn = outputs.some(o => o.type === 'op_return');
 
     let counterpartyMessage: CounterpartyMessage | undefined;
-    let opReturnData: string | undefined;
+    let decryptedDataHex: string | undefined;
 
-    // Check if any OP_RETURN has Counterparty prefix
-    if (hasOpReturn) {
-      const cpOutput = outputs.find(
-        o => o.opReturnData && hasCounterpartyPrefix(o.opReturnData)
-      );
-
-      if (cpOutput) {
-        opReturnData = cpOutput.opReturnData;
-
-        // Try to decode via API
-        try {
-          const msg = await decodeCounterpartyMessage(rawTxHex);
-          if (msg) {
-            counterpartyMessage = msg;
+    // Counterparty encrypts OP_RETURN data with ARC4 using the first input's txid.
+    // Decrypt to get the CNTRPRTY-prefixed datahex for local verification and API decode.
+    if (hasOpReturn && inputs.length > 0 && inputs[0].txid) {
+      for (const output of outputs) {
+        if (output.opReturnData) {
+          const decrypted = decryptOpReturnData(output.opReturnData, inputs[0].txid);
+          if (decrypted) {
+            decryptedDataHex = decrypted;
+            break;
           }
-        } catch (err) {
-          console.warn('Failed to decode Counterparty message:', err);
         }
       }
     }
 
-    // Verify locally and compare against API
-    const verification = verifyProviderTransaction(opReturnData, counterpartyMessage);
+    // If we decrypted Counterparty data, try API unpack for rich message info
+    if (decryptedDataHex) {
+      try {
+        const msg = await decodeCounterpartyMessage(decryptedDataHex);
+        if (msg) {
+          counterpartyMessage = msg;
+        }
+      } catch (err) {
+        console.warn('Failed to decode Counterparty message:', err);
+      }
+    }
+
+    // Verify locally (compares local binary unpack against API result)
+    const verification = verifyProviderTransaction(decryptedDataHex, counterpartyMessage);
+
+    // Analyze for security risks (dangerous types, suspicious outputs)
+    const messageType = counterpartyMessage?.messageType
+      ?? verification.localUnpack?.messageType;
+    const safety = analyzeTransactionSafety(messageType, outputs, signerAddress || '');
 
     return {
       txid: decoded.txid,
@@ -137,9 +173,11 @@ export function useSignTransactionRequest() {
       totalInputValue,
       totalOutputValue,
       fee,
+      vsize: decoded.vsize ?? decoded.size,
       hasOpReturn,
       counterpartyMessage,
-      verification
+      verification,
+      safety,
     };
   }, []);
 
@@ -166,7 +204,7 @@ export function useSignTransactionRequest() {
         setRequest(req);
 
         // Decode the transaction
-        const decoded = await decodeTransaction(req.rawTxHex);
+        const decoded = await decodeTransaction(req.rawTxHex, signerAddress);
         setDecodedInfo(decoded);
       } catch (err) {
         console.error('Failed to load transaction request:', err);
@@ -188,7 +226,7 @@ export function useSignTransactionRequest() {
           const req = await signTransactionRequestStorage.get(message.signTxRequestId);
           if (req) {
             setRequest(req);
-            const decoded = await decodeTransaction(req.rawTxHex);
+            const decoded = await decodeTransaction(req.rawTxHex, signerAddress);
             setDecodedInfo(decoded);
           }
         };

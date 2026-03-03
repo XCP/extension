@@ -36,12 +36,12 @@ export function DividendForm({
   
   // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
-  
-  
+
   // Form state
   const [selectedDividendAsset, setSelectedDividendAsset] = useState<string>(
     initialFormData?.dividend_asset || "XCP"
   );
+  const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
   const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit || ""
@@ -103,8 +103,9 @@ export function DividendForm({
     return formatDecimal(rounded);
   };
 
-  const handleDividendAssetChange = (asset: string) => {
-    setSelectedDividendAsset(asset);
+  const handleDividendAssetChange = (newAsset: string) => {
+    setSelectedDividendAsset(newAsset);
+    setQuantityPerUnit("");
   };
 
   const processedFormAction = async (formData: FormData) => {
@@ -172,6 +173,7 @@ export function DividendForm({
             name="quantity_per_unit"
             description={`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}`}
             disableMaxButton={false}
+            isDivisible={dividendAssetInfo?.assetInfo?.divisible ?? true}
           />
 
     </ComposerForm>

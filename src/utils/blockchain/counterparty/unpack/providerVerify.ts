@@ -22,7 +22,7 @@ import type { BroadcastData } from './messages/broadcast';
 import type { DividendData } from './messages/dividend';
 import type { FairminterData } from './messages/fairminter';
 import type { FairmintData } from './messages/fairmint';
-import type { AttachData } from './messages/attach';
+import type { AttachData, DetachData } from './messages/attach';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -38,8 +38,8 @@ export interface ApiCounterpartyMessage {
  * Result of provider transaction verification
  */
 export interface ProviderVerificationResult {
-  /** Whether verification passed (no critical mismatches) */
-  passed: boolean;
+  /** Whether verification passed (no critical mismatches). undefined = not attempted. */
+  passed: boolean | undefined;
   /** Warning message if verification failed or had issues */
   warning?: string;
   /** Detailed list of mismatches found */
@@ -484,8 +484,8 @@ function verifyAttach(
     mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
   }
 
-  const apiVout = getApiValue(api, 'destination_vout', 'destinationVout') as number | undefined;
-  if (apiVout !== undefined && local.destinationVout !== apiVout) {
+  const apiVout = getApiValue(api, 'destination_vout', 'destinationVout') as number | null | undefined;
+  if (apiVout != null && local.destinationVout !== apiVout) {
     mismatches.push(`Destination vout: local=${local.destinationVout}, API=${apiVout}`);
   }
 
@@ -503,19 +503,10 @@ export function verifyProviderTransaction(
   opReturnData: string | undefined,
   apiMessage?: ApiCounterpartyMessage
 ): ProviderVerificationResult {
-  // No OP_RETURN data - not a Counterparty transaction
-  if (!opReturnData) {
+  // No OP_RETURN data or not recognizable Counterparty data — skip verification
+  if (!opReturnData || !isCounterpartyData(opReturnData)) {
     return {
-      passed: true,
-      mismatches: [],
-      warning: undefined,
-    };
-  }
-
-  // Check if it's Counterparty data
-  if (!isCounterpartyData(opReturnData)) {
-    return {
-      passed: true,
+      passed: undefined,
       mismatches: [],
       warning: undefined,
     };
@@ -623,8 +614,11 @@ export function verifyProviderTransaction(
       break;
 
     case 'attach':
-    case 'detach':
       mismatches.push(...verifyAttach(localUnpack.data as AttachData, apiData));
+      break;
+
+    case 'detach':
+      // Detach payload is just a destination address — minimal verification
       break;
 
     case 'dispense':

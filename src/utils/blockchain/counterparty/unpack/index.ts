@@ -31,7 +31,7 @@ import { unpackBroadcast, type BroadcastData } from './messages/broadcast';
 import { unpackDividend, type DividendData } from './messages/dividend';
 import { unpackFairminter, type FairminterData } from './messages/fairminter';
 import { unpackFairmint, type FairmintData } from './messages/fairmint';
-import { unpackAttach, unpackDetach, type AttachData } from './messages/attach';
+import { unpackAttach, unpackDetach, type AttachData, type DetachData } from './messages/attach';
 
 /**
  * Union type of all possible unpacked message data
@@ -53,6 +53,7 @@ export type UnpackedMessageData =
   | FairminterData
   | FairmintData
   | AttachData
+  | DetachData
   | Record<string, unknown>; // Fallback for unsupported types
 
 /**
@@ -210,13 +211,18 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           break;
 
         case MessageTypeId.UTXO:
-          // UTXO type 100 is detach (move to address)
-          unpackedData = unpackDetach(rawPayload);
+          // UTXO type 100 is legacy move (move to UTXO)
+          unpackedData = unpackAttach(rawPayload);
           break;
 
         case MessageTypeId.UTXO_ATTACH:
           // UTXO type 101 is attach (move to UTXO)
           unpackedData = unpackAttach(rawPayload);
+          break;
+
+        case MessageTypeId.UTXO_DETACH:
+          // UTXO type 102 is detach (move to address)
+          unpackedData = unpackDetach(rawPayload);
           break;
 
         default:

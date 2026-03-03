@@ -52,8 +52,7 @@ export const DispenserForm = memo(function DispenserForm({
     initialFormData?.mainchainrate?.toString() || ""
   );
   const [giveQuantity, setGiveQuantity] = useState<string>(
-    initialFormData?.give_quantity?.toString() || 
-    ((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1")
+    initialFormData?.give_quantity?.toString() || "1"
   );
   
   // Asset state
@@ -63,7 +62,7 @@ export const DispenserForm = memo(function DispenserForm({
   const { data: tradingPairData } = useTradingPair(asset, 'BTC');
 
   // Computed values
-  const isDivisible = assetDetails?.assetInfo?.divisible ?? true;
+  const isDivisible = assetDetails?.assetInfo?.divisible ?? false;
 
   // Effects - composer error first
   useEffect(() => {
@@ -101,7 +100,7 @@ export const DispenserForm = memo(function DispenserForm({
     if (initialFormData === null && prevInitialFormDataRef.current !== null) {
       setEscrowQuantity("");
       setMainchainRate("");
-      setGiveQuantity((assetDetails?.assetInfo?.divisible ?? true) ? "1.00000000" : "1");
+      setGiveQuantity("1");
     } else if (initialFormData !== null && prevInitialFormDataRef.current !== initialFormData) {
       // Update form values when initialFormData changes (e.g., after error)
       setEscrowQuantity(initialFormData.escrow_quantity?.toString() || "");
@@ -226,7 +225,12 @@ export const DispenserForm = memo(function DispenserForm({
               type="text"
               name="give_quantity_display"
               value={giveQuantity}
-              onChange={(e) => setGiveQuantity(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (!isDivisible && val.includes('.')) return;
+                if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+                setGiveQuantity(val);
+              }}
               className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 isRefill ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
               }`}

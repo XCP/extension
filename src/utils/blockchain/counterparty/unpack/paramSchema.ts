@@ -333,7 +333,7 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
 
   detach: {
     messageType: 'detach',
-    messageTypeIds: [100],
+    messageTypeIds: [102],
     params: {
       asset: {
         criticality: 'critical',

@@ -19,6 +19,7 @@ import ImportMnemonicPage from '@/pages/keychain/setup/import-mnemonic';
 import ApproveConnectionPage from '@/pages/requests/connect/approve';
 import ApprovePsbtPage from '@/pages/requests/psbt/approve';
 import ApproveTransactionPage from '@/pages/requests/transaction/approve';
+import ApproveMessagePage from '@/pages/requests/message/approve';
 
 // Main sections
 import HomePage from '@/pages/index';
@@ -152,6 +153,7 @@ export default function App() {
           <Route path="/requests/connect/approve" element={<ApproveConnectionPage />} />
           <Route path="/requests/transaction/approve" element={<ApproveTransactionPage />} />
           <Route path="/requests/psbt/approve" element={<ApprovePsbtPage />} />
+          <Route path="/requests/message/approve" element={<ApproveMessagePage />} />
         </Route>
 
         <Route element={<AuthRequired />}>
