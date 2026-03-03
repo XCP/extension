@@ -10,9 +10,13 @@ vi.mock('../api', () => ({
 }));
 
 // Mock the numeric module
-vi.mock('@/utils/numeric', () => ({
-  toSatoshis: vi.fn(),
-}));
+vi.mock('@/utils/numeric', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/numeric')>();
+  return {
+    ...actual,
+    toSatoshis: vi.fn(),
+  };
+});
 
 const mockFetchAssetDetails = vi.mocked(api.fetchAssetDetails);
 const mockToSatoshis = vi.mocked(numeric.toSatoshis);
@@ -514,7 +518,7 @@ describe('normalize.ts', () => {
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(result.normalizedData.quantity).toBe('1.5'); // Not normalized due to undefined divisible
+        expect(result.normalizedData.quantity).toBe('1'); // Treated as non-divisible (integer) when undefined
       });
 
       it('should handle asset info with null divisible property', async () => {
@@ -534,7 +538,7 @@ describe('normalize.ts', () => {
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(result.normalizedData.quantity).toBe('1.5'); // Not normalized due to null divisible
+        expect(result.normalizedData.quantity).toBe('1'); // Treated as non-divisible (integer) when null
       });
     });
 
