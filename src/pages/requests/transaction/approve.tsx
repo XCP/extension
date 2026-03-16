@@ -3,7 +3,7 @@ import { FiGlobe, FiAlertTriangle, FiShieldOff, FiClock, FiChevronDown, FiChevro
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { formatAddress, formatAmount } from '@/utils/format';
+import { formatAddress, formatAmount, formatPriceRatio } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
 import { useSettings } from '@/contexts/settings-context';
@@ -13,16 +13,34 @@ import { getWalletService } from '@/services/walletService';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 
 /**
- * Normalize a raw quantity bigint for display.
- * BTC and XCP are always divisible (8 decimals).
- * For other assets we show the raw value (divisibility unknown without API).
+ * Check if an asset is divisible, using enriched messageData when available.
+ * Returns true for BTC/XCP, checks asset_info for other assets, undefined if unknown.
  */
-function normalizeQuantity(quantity: unknown, asset: string): string {
-  const val = BigInt(String(quantity));
+function isAssetDivisible(
+  asset: string,
+  messageData?: Record<string, unknown>,
+  assetField?: string,
+): boolean | undefined {
   const name = asset.toUpperCase();
-  if (name === 'BTC' || name === 'XCP') {
-    return fromSatoshis(Number(val));
+  if (name === 'BTC' || name === 'XCP') return true;
+
+  if (messageData && assetField) {
+    const assetInfo = messageData[`${assetField}_info`] as Record<string, unknown> | undefined;
+    if (assetInfo?.divisible === true) return true;
+    if (assetInfo?.divisible === false) return false;
   }
+  return undefined; // Unknown
+}
+
+/**
+ * Normalize a raw quantity for display.
+ * Divisible assets divide by 10^8, indivisible show raw with commas.
+ */
+function normalizeQuantity(quantity: unknown, asset: string, messageData?: Record<string, unknown>, assetField?: string): string {
+  if (quantity == null) return '?';
+  const val = BigInt(String(quantity));
+  const divisible = isAssetDivisible(asset, messageData, assetField);
+  if (divisible === true) return fromSatoshis(Number(val));
   return val.toLocaleString();
 }
 
@@ -97,20 +115,14 @@ type TxActionData =
       giveAsset: string;
       getAmount: string;
       getAsset: string;
-      price: string;
-      priceAsset: string;
+      /** Normalized give quantity (for price ratio formatting) */
+      normalizedGive: number;
+      /** Normalized get quantity (for price ratio formatting) */
+      normalizedGet: number;
       expiration: number;
     }
   | { type: 'fallback'; label: string; description: string }
   | null;
-
-/**
- * Format a number to N significant figures (avoids trailing zeros).
- */
-function toSigFigs(n: number, figs: number): string {
-  if (n === 0) return '0';
-  return Number(n.toPrecision(figs)).toString();
-}
 
 /**
  * Extract structured action data for visual rendering.
@@ -122,16 +134,15 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
     const { messageType, messageData } = decodedInfo.counterpartyMessage;
 
     if (messageType === 'order') {
-      const giveAmount = normalizeQuantity(messageData.give_quantity, String(messageData.give_asset ?? ''));
-      const getAmount = normalizeQuantity(messageData.get_quantity, String(messageData.get_asset ?? ''));
       const giveAsset = String(messageData.give_asset ?? '');
       const getAsset = String(messageData.get_asset ?? '');
+      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAsset, messageData, 'give_asset');
+      const getAmount = normalizeQuantity(messageData.get_quantity, getAsset, messageData, 'get_asset');
 
-      // Price = getQty / giveQty (how much you get per unit given)
-      const giveNum = Number(messageData.give_quantity);
-      const getNum = Number(messageData.get_quantity);
-      const ratio = giveNum > 0 ? getNum / giveNum : 0;
-      const price = toSigFigs(ratio, 6);
+      const rawGive = Number(messageData.give_quantity);
+      const rawGet = Number(messageData.get_quantity);
+      const giveDivisor = isAssetDivisible(giveAsset, messageData, 'give_asset') ? 1e8 : 1;
+      const getDivisor = isAssetDivisible(getAsset, messageData, 'get_asset') ? 1e8 : 1;
 
       return {
         type: 'order',
@@ -139,8 +150,8 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
         giveAsset,
         getAmount,
         getAsset,
-        price,
-        priceAsset: getAsset,
+        normalizedGive: rawGive / giveDivisor,
+        normalizedGet: rawGet / getDivisor,
         expiration: Number(messageData.expiration ?? 0),
       };
     }
@@ -160,19 +171,14 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
     const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
     const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
 
-    const giveNum = Number(data.giveQuantity);
-    const getNum = Number(data.getQuantity);
-    const ratio = giveNum > 0 ? getNum / giveNum : 0;
-    const price = toSigFigs(ratio, 6);
-
     return {
       type: 'order',
       giveAmount,
       giveAsset: data.giveAsset,
       getAmount,
       getAsset: data.getAsset,
-      price,
-      priceAsset: data.getAsset,
+      normalizedGive: Number(data.giveQuantity),
+      normalizedGet: Number(data.getQuantity),
       expiration: data.expiration,
     };
   }
@@ -203,6 +209,7 @@ export default function ApproveTransactionPage() {
   const [error, setError] = useState<string>('');
   const [showDetails, setShowDetails] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
+  const [priceFlipped, setPriceFlipped] = useState(false);
 
   // Parse origin to get domain name
   const getDomain = (url: string) => {
@@ -369,9 +376,20 @@ export default function ApproveTransactionPage() {
                   <div className="bg-white border border-gray-200 rounded-full p-1">
                     <FiArrowDown className="size-3.5 text-gray-400" aria-hidden="true" />
                   </div>
-                  <span className="text-xs text-gray-400">
-                    1 {txAction.giveAsset} = {txAction.price} {txAction.priceAsset}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPriceFlipped(f => !f)}
+                    className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
+                    title="Click to flip price"
+                  >
+                    {formatPriceRatio(
+                      txAction.normalizedGive,
+                      txAction.normalizedGet,
+                      txAction.giveAsset,
+                      txAction.getAsset,
+                      priceFlipped,
+                    )}
+                  </button>
                 </div>
 
                 {/* Get box */}

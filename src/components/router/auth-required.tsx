@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useCallback, useMemo } from 'react';
+import { type ReactElement, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useWallet } from '@/contexts/wallet-context';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
@@ -15,6 +15,47 @@ const AUTH_ROUTES = {
   UNLOCK: '/keychain/unlock',
   ONBOARDING: '/keychain/onboarding',
 } as const;
+
+/**
+ * Paths that are NOT safe for deep linking (popup reopen with session alive).
+ * These pages depend on ephemeral state (form data, query params, compose flow)
+ * that is lost when the popup closes.
+ *
+ * Each entry maps an unsafe prefix to a fallback route.
+ * Anything not listed here is considered safe.
+ */
+const UNSAFE_DEEP_LINK_ROUTES: Array<{ prefix: string; fallback: string }> = [
+  // Compose forms — lose form state, API response, review data
+  { prefix: '/compose/', fallback: '/index' },
+
+  // Consolidate flow — multi-step with ephemeral state
+  { prefix: '/actions/consolidate/', fallback: '/actions' },
+
+  // Swap listing form — needs ?utxo= query param context
+  { prefix: '/market/swaps/list', fallback: '/index' },
+
+  // Swap manage page — safe to redirect to market swaps tab
+  { prefix: '/market/swaps/manage', fallback: '/market?tab=swaps' },
+
+  // Swap buy page — listing may have changed
+  { prefix: '/market/swaps/buy/', fallback: '/market?tab=swaps' },
+
+  // Approval windows — ephemeral request data from provider, never valid on reopen
+  { prefix: '/requests/', fallback: '/index' },
+];
+
+/**
+ * Check if a path is safe for deep linking. If not, return a fallback path.
+ * Returns null if the path is safe (no redirect needed).
+ */
+function getDeepLinkFallback(pathname: string): string | null {
+  for (const { prefix, fallback } of UNSAFE_DEEP_LINK_ROUTES) {
+    if (pathname.startsWith(prefix)) {
+      return fallback;
+    }
+  }
+  return null; // Safe, no redirect
+}
 
 /**
  * AuthRequired Component - Route guard for protected routes
@@ -87,6 +128,9 @@ export function AuthRequired(): ReactElement | null {
     state: location.pathname !== '/' ? { from: location.pathname } : undefined
   }), [location.pathname]);
 
+  // Track whether we've done the initial deep-link safety check
+  const hasCheckedDeepLink = useRef(false);
+
   /**
    * Handle authentication-based navigation
    */
@@ -105,8 +149,20 @@ export function AuthRequired(): ReactElement | null {
         : { replace: true };
 
       navigate(redirectPath, options);
+      return;
     }
-  }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions]);
+
+    // On first render when unlocked, check if the current deep URL is safe.
+    // Unsafe routes (compose forms, swap list with params) lose their context
+    // when the popup closes and reopens — redirect to a sensible fallback.
+    if (authState === 'UNLOCKED' && !hasCheckedDeepLink.current) {
+      hasCheckedDeepLink.current = true;
+      const fallback = getDeepLinkFallback(location.pathname);
+      if (fallback) {
+        navigate(fallback, { replace: true });
+      }
+    }
+  }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions, location.pathname]);
 
   /**
    * Only render child routes when:

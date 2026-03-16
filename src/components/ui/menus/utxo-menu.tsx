@@ -1,6 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsThreeDots, FaExchangeAlt, FaPlus } from '@/components/icons';
+import { BsThreeDots, FaExchangeAlt, FaPlus, FaCoins } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,10 @@ interface UtxoMenuProps {
 
 export function UtxoMenu({ utxo }: UtxoMenuProps): ReactElement {
   const navigate = useNavigate();
+
+  const handleListForSale = useCallback(() => {
+    navigate(`/market/swaps/list?utxo=${encodeURIComponent(utxo)}`);
+  }, [utxo, navigate]);
 
   const handleMove = useCallback(() => {
     navigate(`/compose/utxo/move/${utxo}`);
@@ -35,6 +39,12 @@ export function UtxoMenu({ utxo }: UtxoMenuProps): ReactElement {
         <Button variant="menu-item" fullWidth onClick={handleMove}>
           <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
           Move
+        </Button>
+      </MenuItem>
+      <MenuItem>
+        <Button variant="menu-item" fullWidth onClick={handleListForSale}>
+          <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+          Swap
         </Button>
       </MenuItem>
     </BaseMenu>

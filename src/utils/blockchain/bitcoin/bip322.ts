@@ -225,61 +225,58 @@ function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array):
 }
 
 /**
- * Calculate legacy sighash for P2PKH
+ * Calculate legacy sighash for P2PKH.
+ *
+ * Builds the signing transaction dynamically with scriptPubKey inserted,
+ * rather than splicing into serialized bytes at hardcoded positions.
+ * This matches the exchange server's approach in bip322-verify.ts.
+ *
+ * @param toSignBytes - The unsigned to_sign transaction bytes. Used to extract
+ *   the prevout txid (bytes 5-36) for reconstructing the signing transaction.
+ * @param _inputIndex - Unused (always input 0 for BIP-322).
+ * @param scriptPubKey - The locking script to insert for signing.
+ * @param hashType - SIGHASH flag (default ALL = 0x01).
  */
 function calculateLegacySighashManual(
   toSignBytes: Uint8Array,
-  inputIndex: number,
+  _inputIndex: number,
   scriptPubKey: Uint8Array,
-  hashType: number = 0x01 // SIGHASH_ALL
+  hashType: number = 0x01
 ): Uint8Array {
-  // For legacy sighash, we need to:
-  // 1. Copy the transaction
-  // 2. Clear all input scripts
-  // 3. Set the script for the input we're signing to scriptPubKey
-  // 4. Append hashType and double SHA256
+  // Extract the prevout txid from the unsigned to_sign transaction.
+  // Layout: version(4) + input_count(1) + txid(32) starts at byte 5.
+  const reversedTxid = toSignBytes.slice(5, 37);
 
-  const modifiedTx = toSignBytes.slice(); // Copy
+  const opReturn = new Uint8Array([0x6a]); // OP_RETURN
 
-  // Find and replace the empty scriptSig with scriptPubKey
-  // This is a simplified version - in production you'd parse properly
-  // For our to_sign tx, the scriptSig is at a known position
+  // Build the transaction with scriptPubKey in the scriptSig position,
+  // exactly as the server's calculateLegacySighash does.
+  const parts: Uint8Array[] = [
+    writeUint32LE(0),                        // nVersion
+    writeCompactSize(1),                     // input count
+    reversedTxid,                            // prevout txid (already reversed in to_sign)
+    writeUint32LE(0),                        // prevout index
+    writeCompactSize(scriptPubKey.length),   // scriptSig length = scriptPubKey length
+    scriptPubKey,                            // scriptSig = scriptPubKey (for signing)
+    writeUint32LE(0),                        // nSequence
+    writeCompactSize(1),                     // output count
+    writeUint64LE(0n),                       // output amount (0)
+    writeCompactSize(opReturn.length),       // output script length
+    opReturn,                                // output script (OP_RETURN)
+    writeUint32LE(0),                        // nLockTime
+    writeUint32LE(hashType),                 // SIGHASH type
+  ];
 
-  // The structure is:
-  // version(4) + input_count(1) + txid(32) + index(4) + script_length(1) + script(0) + sequence(4)
-  // So scriptSig length is at byte 42
-
-  const scriptLengthPos = 42;
-  const scriptPos = 43;
-
-  // Create new transaction with scriptPubKey
-  const parts: Uint8Array[] = [];
-
-  // Everything before script length
-  parts.push(modifiedTx.slice(0, scriptLengthPos));
-
-  // New script length and script
-  parts.push(writeCompactSize(scriptPubKey.length));
-  parts.push(scriptPubKey);
-
-  // Everything after the original empty script (sequence onwards)
-  parts.push(modifiedTx.slice(scriptPos));
-
-  // Concatenate
-  const withScript = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  // Concatenate and double-SHA256
+  const totalLen = parts.reduce((sum, p) => sum + p.length, 0);
+  const preimage = new Uint8Array(totalLen);
   let offset = 0;
   for (const part of parts) {
-    withScript.set(part, offset);
+    preimage.set(part, offset);
     offset += part.length;
   }
 
-  // Append hashType (4 bytes, little-endian)
-  const withHashType = new Uint8Array(withScript.length + 4);
-  withHashType.set(withScript, 0);
-  withHashType.set(writeUint32LE(hashType), withScript.length);
-
-  // Double SHA256
-  return sha256(sha256(withHashType));
+  return sha256(sha256(preimage));
 }
 
 /**

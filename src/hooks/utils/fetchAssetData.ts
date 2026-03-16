@@ -42,7 +42,7 @@ export async function fetchAssetDetailsAndBalance(
   }
 
   const balance = await fetchTokenBalance(address, asset, {
-    excludeUtxos: true,
+    type: 'address',
     verbose: options.verbose,
   });
 

@@ -79,6 +79,8 @@ export interface AppSettings {
   allowUnconfirmedTxs: boolean;
   /** Enable multi-peer multi-asset sends */
   enableMPMA: boolean;
+  /** Enable attaching BTC to asset sends via more_outputs */
+  enableMoreOutputs: boolean;
   /** Enable advanced broadcast options */
   enableAdvancedBroadcasts: boolean;
   /** Dry-run transactions before broadcast */
@@ -116,6 +118,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   analyticsAllowed: true,
   allowUnconfirmedTxs: true,
   enableMPMA: false,
+  enableMoreOutputs: false,
   enableAdvancedBroadcasts: false,
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',

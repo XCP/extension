@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type ReactElement } from "react";
+import { useState, type ChangeEvent, type ReactElement, type ReactNode } from "react";
 import { Field, Input, Label, Description } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
 import { formatAmount } from "@/utils/format";
@@ -41,6 +41,10 @@ interface AmountWithMaxInputProps {
   hasError?: boolean;
   autoFocus?: boolean;
   isDivisible?: boolean; // Whether the asset is divisible (default: true for BTC-like decimals)
+  labelRight?: ReactNode; // Optional content aligned right of the label
+  labelSrOnly?: boolean; // Hide label visually (still accessible to screen readers)
+  placeholder?: string; // Override default placeholder text
+  extraOutputCount?: number; // Additional outputs to account for in fee estimation (e.g., more_outputs)
 }
 
 /**
@@ -72,6 +76,10 @@ export function AmountWithMaxInput({
   hasError = false,
   autoFocus = false,
   isDivisible = true,
+  labelRight,
+  labelSrOnly = false,
+  placeholder: placeholderOverride,
+  extraOutputCount = 0,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -128,8 +136,8 @@ export function AmountWithMaxInput({
       }
 
       // Estimate vsize based on spendable UTXO count and address type
-      // Add 1 to destinationCount for change output (most transactions have destination + change)
-      const estimatedVbytes = estimateVsize(utxos.length, destinationCount + 1, sourceAddress.address);
+      // Add 1 for change output, plus any extra outputs (e.g., more_outputs adds to the transaction)
+      const estimatedVbytes = estimateVsize(utxos.length, destinationCount + 1 + extraOutputCount, sourceAddress.address);
 
       // Add overhead for Counterparty OP_RETURN output (~30 vbytes for protocol message)
       // This accounts for the encoded send data that the Counterparty API adds
@@ -183,8 +191,9 @@ export function AmountWithMaxInput({
 
   return (
     <Field>
-      <Label htmlFor={name} className="text-sm font-medium text-gray-700">
-        {label} <span className="text-red-500">*</span>
+      <Label htmlFor={name} className={`text-sm font-medium text-gray-700 ${labelSrOnly ? 'sr-only' : ''} ${labelRight ? 'flex justify-between items-center' : ''}`}>
+        <span>{label} <span className="text-red-500">*</span></span>
+        {labelRight}
       </Label>
       <div className="mt-1 relative z-0 rounded-md">
         <Input
@@ -199,7 +208,7 @@ export function AmountWithMaxInput({
               ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
-          placeholder={isDivisible ? "0.00000000" : "0"}
+          placeholder={placeholderOverride ?? (isDivisible ? "0.00000000" : "0")}
           disabled={disabled}
           autoFocus={autoFocus}
         />

@@ -123,6 +123,14 @@ export default function AdvancedSettingsPage(): ReactElement {
       />
 
       <SettingSwitch
+        label="Enable More Outputs"
+        description="Attach BTC to asset sends. Adds a + BTC option on the send form."
+        checked={settings.enableMoreOutputs}
+        onChange={(checked) => updateSettings({ enableMoreOutputs: checked })}
+        showHelpText={shouldShowHelpText}
+      />
+
+      <SettingSwitch
         label="Enable MPMA Sends"
         description="Enable multi-destination sends (MPMA) for supported assets."
         checked={settings.enableMPMA}

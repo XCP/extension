@@ -480,11 +480,14 @@ export async function fetchTokenBalances(
 export async function fetchTokenBalance(
   address: string,
   asset: string,
-  options: { excludeUtxos?: boolean; verbose?: boolean } = {}
+  options: { type?: 'all' | 'utxo' | 'address'; verbose?: boolean } = {}
 ): Promise<TokenBalance> {
   const data = await cpApiGet<PaginatedResponse<TokenBalance>>(
     `/v2/addresses/${encodePath(address)}/balances/${encodePath(asset)}`,
-    { verbose: options.verbose ?? true }
+    {
+      verbose: options.verbose ?? true,
+      ...(options.type && { type: options.type }),
+    }
   );
 
   const emptyBalance: TokenBalance = {
@@ -496,7 +499,7 @@ export async function fetchTokenBalance(
 
   if (!data.result?.length) return emptyBalance;
 
-  const balances = options.excludeUtxos ? data.result.filter((b) => !b.utxo) : data.result;
+  const balances = data.result;
   if (!balances.length) return emptyBalance;
 
   return {

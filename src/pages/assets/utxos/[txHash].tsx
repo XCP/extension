@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaClipboard, FaCheck } from "@/components/icons";
+import { FiCopy, FiCheck } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { ActionList } from "@/components/ui/lists/action-list";
@@ -63,7 +63,7 @@ export default function UtxoPage(): ReactElement {
       title: "UTXO Details",
       onBack: () => navigate(-1),
       rightButton: {
-        icon: copiedToClipboard ? <FaCheck className="size-4" aria-hidden="true" /> : <FaClipboard className="size-4" aria-hidden="true" />,
+        icon: copiedToClipboard ? <FiCheck className="size-4" aria-hidden="true" /> : <FiCopy className="size-4" aria-hidden="true" />,
         onClick: handleCopyUtxo,
         ariaLabel: "Copy UTXO"
       }
@@ -113,6 +113,12 @@ export default function UtxoPage(): ReactElement {
     return [
       {
         items: [
+          {
+            id: "swap",
+            title: "Swap",
+            description: "List this UTXO asset for sale on xcpdex.com",
+            onClick: () => navigate(`/market/swaps/list?utxo=${encodeURIComponent(txid)}`),
+          },
           {
             id: "move",
             title: "Move",

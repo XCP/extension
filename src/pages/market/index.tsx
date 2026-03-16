@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { FaChevronRight, FaClipboard, FaCheck, FaLock } from "@/components/icons";
+import { FaChevronRight, FaClipboard, FaCheck, FaLock, FiGlobe, FiUser } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { MarketDispenserCard } from "@/components/ui/cards/market-dispenser-card";
 import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
 import { ManageDispenserCard } from "@/components/ui/cards/manage-dispenser-card";
 import { ManageOrderCard } from "@/components/ui/cards/manage-order-card";
+import { MarketSwapCard } from "@/components/ui/cards/market-swap-card";
+import { ManageSwapCard } from "@/components/ui/cards/manage-swap-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabButton } from "@/components/ui/tab-button";
 import { PriceTicker } from "@/components/domain/price/price-ticker";
@@ -20,6 +22,13 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { formatAddress } from "@/utils/format";
 import { formatPrice } from "@/utils/price-format";
 import { getTradingPair } from "@/utils/trading-pair";
+import { getWalletService } from "@/services/walletService";
+import {
+  fetchSwapListings,
+  prepareCancel,
+  cancelListing,
+  type SwapListing,
+} from "@/utils/xcpdex-api";
 import type { DispenserDetails, OrderDetails } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
@@ -27,7 +36,7 @@ import type { ReactElement } from "react";
 const COPY_FEEDBACK_MS = 2000;
 
 /**
- * Market page displays the XCP DEX marketplace with Dispensers and Orders tabs.
+ * Market page displays the XCP DEX marketplace with Dispensers, Orders, and Swaps tabs.
  */
 export default function MarketPage(): ReactElement {
   const navigate = useNavigate();
@@ -42,13 +51,15 @@ export default function MarketPage(): ReactElement {
 
   // Tab and view mode state from URL params
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get("tab") === "dispensers" ? 0 : 1;
+  const tabParam = searchParams.get("tab");
+  const activeTab = tabParam === "dispensers" ? 0 : tabParam === "swaps" ? 2 : 1;
   const viewMode = searchParams.get("mode") === "manage" ? "manage" : "explore";
 
+  const TAB_NAMES = ["dispensers", "orders", "swaps"] as const;
   const setActiveTab = (tab: number) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set("tab", tab === 0 ? "dispensers" : "orders");
+      next.set("tab", TAB_NAMES[tab]);
       return next;
     }, { replace: true });
   };
@@ -103,6 +114,70 @@ export default function MarketPage(): ReactElement {
     searchQuery,
     inView,
   });
+
+  // Swap listings state (explore = all listings, manage = user's listings)
+  const [exploreSwaps, setExploreSwaps] = useState<SwapListing[]>([]);
+  const [userSwaps, setUserSwaps] = useState<SwapListing[]>([]);
+  const [swapsLoading, setSwapsLoading] = useState(false);
+  const [swapsError, setSwapsError] = useState("");
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const loadSwapListings = useCallback(async () => {
+    setSwapsLoading(true);
+    setSwapsError("");
+    try {
+      if (viewMode === "manage") {
+        if (!activeAddress) return;
+        const data = await fetchSwapListings({ seller: activeAddress.address });
+        setUserSwaps(data);
+      } else {
+        const data = await fetchSwapListings();
+        setExploreSwaps(data);
+      }
+    } catch (err) {
+      setSwapsError(err instanceof Error ? err.message : "Failed to load listings");
+    } finally {
+      setSwapsLoading(false);
+    }
+  }, [activeAddress, viewMode]);
+
+  useEffect(() => {
+    if (activeTab === 2) {
+      loadSwapListings();
+    }
+  }, [activeTab, loadSwapListings]);
+
+  // Filter swaps by search query
+  const filterSwaps = (swaps: SwapListing[]) => {
+    const q = searchQuery.trim().toUpperCase();
+    if (!q) return swaps;
+    return swaps.filter(s =>
+      s.asset.toUpperCase().includes(q) ||
+      (s.asset_longname && s.asset_longname.toUpperCase().includes(q))
+    );
+  };
+  const filteredExploreSwaps = filterSwaps(exploreSwaps);
+  const filteredUserSwaps = filterSwaps(userSwaps);
+
+  const handleCancelSwap = async (listing: SwapListing) => {
+    if (!activeAddress) return;
+    setCancellingId(listing.id);
+    setSwapsError("");
+    try {
+      const { challenge } = await prepareCancel(listing.id);
+      const walletService = getWalletService();
+      const { signature } = await walletService.signMessage(challenge, activeAddress.address);
+      await cancelListing(listing.id, activeAddress.address, challenge, signature);
+      setUserSwaps((prev) => prev.filter((l) => l.id !== listing.id));
+    } catch (err: unknown) {
+      console.error("Cancel failed:", err);
+      const apiErr = err as { response?: { data?: { error?: string } } };
+      const serverMsg = apiErr?.response?.data?.error;
+      setSwapsError(serverMsg || (err instanceof Error ? err.message : "Failed to cancel listing"));
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   // Configure header
   useEffect(() => {
@@ -213,37 +288,32 @@ export default function MarketPage(): ReactElement {
           />
 
           {/* Tab Header */}
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex space-x-4" role="tablist" aria-label="Market sections">
-              <button
-                role="tab"
-                aria-selected={activeTab === 0}
-                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
-                  activeTab === 0 ? "underline" : ""
-                }`}
-                onClick={() => setActiveTab(0)}
-              >
-                Dispensers
-              </button>
-              <button
-                role="tab"
-                aria-selected={activeTab === 1}
-                className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
-                  activeTab === 1 ? "underline" : ""
-                }`}
-                onClick={() => setActiveTab(1)}
-              >
-                Orders
-              </button>
-            </div>
-            {/* View Mode Toggle */}
-            <div className="flex gap-1" role="tablist" aria-label="View mode">
-              <TabButton isActive={viewMode === "explore"} onClick={() => setViewMode("explore")}>
-                Explore
-              </TabButton>
-              <TabButton isActive={viewMode === "manage"} onClick={() => setViewMode("manage")}>
-                Manage
-              </TabButton>
+          <div className="mb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex space-x-4" role="tablist" aria-label="Market sections">
+                {(["Dispensers", "Orders", "Swaps"] as const).map((label, idx) => (
+                  <button
+                    key={label}
+                    role="tab"
+                    aria-selected={activeTab === idx}
+                    className={`text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
+                      activeTab === idx ? "underline" : ""
+                    }`}
+                    onClick={() => setActiveTab(idx)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* View Mode Toggle */}
+              <div className="flex gap-1" role="tablist" aria-label="View mode">
+                <TabButton isActive={viewMode === "explore"} onClick={() => setViewMode("explore")}>
+                  <FiGlobe className="size-3.5" aria-hidden="true" />
+                </TabButton>
+                <TabButton isActive={viewMode === "manage"} onClick={() => setViewMode("manage")}>
+                  <FiUser className="size-3.5" aria-hidden="true" />
+                </TabButton>
+              </div>
             </div>
           </div>
         </div>
@@ -472,6 +542,85 @@ export default function MarketPage(): ReactElement {
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
                         Create New Order →
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          {activeTab === 2 && (
+            <div className="space-y-3">
+              {viewMode === "explore" ? (
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search asset swaps..."
+                    name="swap-filter"
+                    showClearButton
+                    className="mt-0.5"
+                  />
+                  {swapsLoading ? (
+                    <Spinner message="Loading swap listings…" />
+                  ) : swapsError ? (
+                    <EmptyState message={swapsError} />
+                  ) : filteredExploreSwaps.length > 0 ? (
+                    <div className="space-y-2">
+                      {filteredExploreSwaps.map((listing) => (
+                        <MarketSwapCard
+                          key={listing.id}
+                          listing={listing}
+                          onClick={() => navigate(`/market/swaps/${encodeURIComponent(listing.asset_longname || listing.asset)}`)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState message={searchQuery.trim() ? `No swap listings matching "${searchQuery}"` : "No active swap listings"} />
+                  )}
+                </>
+              ) : (
+                <>
+                  <SearchInput
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Search your swaps..."
+                    name="swap-manage-filter"
+                    showClearButton
+                    className="mt-0.5"
+                  />
+                  {swapsLoading ? (
+                    <Spinner message="Loading your swap listings…" />
+                  ) : swapsError ? (
+                    <EmptyState message={swapsError} />
+                  ) : (
+                    <>
+                      {filteredUserSwaps.length > 0 ? (
+                        <div className="space-y-2">
+                          {filteredUserSwaps.map((listing) => (
+                            <ManageSwapCard
+                              key={listing.id}
+                              listing={listing}
+                              isCancelling={cancellingId === listing.id}
+                              onCancel={() => handleCancelSwap(listing)}
+                              onClick={() => {
+                                const displayAsset = listing.asset_longname || listing.asset;
+                                window.open(`https://xcpdex.com/swap/${encodeURIComponent(displayAsset)}`, '_blank');
+                              }}
+                            />
+                          ))}
+                        </div>
+                      ) : searchQuery.trim() ? (
+                        <EmptyState message={`No swap listings matching "${searchQuery}"`} />
+                      ) : (
+                        <EmptyState message="You don't have any active swap listings" />
+                      )}
+                      <button
+                        onClick={() => navigate("/index?tab=UTXOs")}
+                        className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                      >
+                        List a UTXO asset for sale →
                       </button>
                     </>
                   )}

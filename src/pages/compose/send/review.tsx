@@ -105,6 +105,20 @@ export function ReviewSend({
         ) : undefined,
       },
       ...(result.params.memo ? [{ label: "Memo", value: String(result.params.memo) }] : []),
+      ...(result.params.more_outputs ? [(() => {
+        const sats = Number(String(result.params.more_outputs).split(':')[0]);
+        const btcVal = sats / 100_000_000;
+        const fiatVal = btcPrice ? btcVal * btcPrice : null;
+        return {
+          label: "Amount",
+          value: `${formatAmount({ value: btcVal, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`,
+          rightElement: fiatVal !== null ? (
+            <span className="text-gray-500">
+              ${formatAmount({ value: fiatVal, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          ) : undefined,
+        };
+      })()] : []),
     ];
   }
 

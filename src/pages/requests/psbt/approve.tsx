@@ -188,8 +188,13 @@ export default function ApprovePsbtPage() {
   const { psbtDetails, counterpartyMessage, txid, verification, safety } = decodedInfo;
   const txAction = getTxActionInfo(decodedInfo);
   const hasHighFee = psbtDetails.fee > 10000000; // > 0.1 BTC fee
-  const hasAnyoneCanPay = request.sighashTypes?.some(t => (t & 0x80) !== 0)
-    || psbtDetails.inputs.some(inp => inp.sighashType != null && (inp.sighashType & 0x80) !== 0);
+
+  // Distinguish seller vs buyer in atomic swap PSBTs:
+  // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)
+  // - Buyer: the PSBT contains an ANYONECANPAY input (seller's signature) but
+  //   the user is signing with SIGHASH_ALL — they are completing the swap
+  const userSignsWithAnyoneCanPay = request.sighashTypes?.some(t => (t & 0x80) !== 0) ?? false;
+
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
   const verificationFailed = verificationPassed === false;
@@ -197,6 +202,38 @@ export default function ApprovePsbtPage() {
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
   const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+
+  // Detect swap buy PSBT fee breakdown (buyer completing a swap):
+  // The PSBT has the seller's ANYONECANPAY input, but the USER is not signing
+  // with ANYONECANPAY (they sign with ALL). Output pattern:
+  //   Output 0 = seller payment, Output 1 = dust to buyer (546), Output 2 = platform fee
+  const swapFeeBreakdown = (() => {
+    if (txAction || userSignsWithAnyoneCanPay || counterpartyMessage) return null;
+    const outputs = psbtDetails.outputs;
+    if (outputs.length < 3) return null;
+
+    const signerAddr = activeAddress?.address;
+    const sellerOutput = outputs[0];
+    const dustOutput = outputs[1];
+    const feeOutput = outputs[2];
+
+    // Validate pattern: dust output should be 546 sats to the signer address
+    if (dustOutput.value !== 546) return null;
+    if (dustOutput.address && signerAddr && dustOutput.address !== signerAddr) return null;
+
+    // Fee output should be to neither the seller nor the buyer address
+    if (!feeOutput.address) return null;
+    if (feeOutput.address === signerAddr) return null;
+    if (feeOutput.address === sellerOutput.address) return null;
+
+    return {
+      sellerPayment: sellerOutput.value,
+      sellerAddress: sellerOutput.address,
+      platformFee: feeOutput.value,
+      platformAddress: feeOutput.address,
+      networkFee: psbtDetails.fee,
+    };
+  })();
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -248,7 +285,7 @@ export default function ApprovePsbtPage() {
                   <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
                   <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
                 </>
-              ) : hasAnyoneCanPay ? (
+              ) : userSignsWithAnyoneCanPay ? (
                 <>
                   <p className="text-xs text-gray-500 mb-1">Atomic Swap Listing</p>
                   <p className="text-lg font-bold text-gray-900">
@@ -260,6 +297,20 @@ export default function ApprovePsbtPage() {
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     Listing price (paid to you when sold)
+                  </p>
+                </>
+              ) : swapFeeBreakdown ? (
+                <>
+                  <p className="text-xs text-gray-500 mb-1">Atomic Swap Purchase</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatAmount({
+                      value: fromSatoshis(swapFeeBreakdown.sellerPayment, true),
+                      minimumFractionDigits: 8,
+                      maximumFractionDigits: 8,
+                    })} <span className="text-base font-medium text-gray-500">BTC</span>
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Payment to seller
                   </p>
                 </>
               ) : (
@@ -276,31 +327,61 @@ export default function ApprovePsbtPage() {
               )}
             </div>
             <div className="text-center pt-3 border-t border-gray-100 space-y-1.5">
-              {psbtDetails.fee > 0 && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-gray-500">Network Fee:</span>
-                  <span className={`text-xs font-medium ${psbtDetails.fee > 10000000 ? 'text-orange-600' : 'text-gray-900'}`}>
-                    {formatAmount({
-                      value: fromSatoshis(psbtDetails.fee, true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} BTC
-                    <span className="text-gray-400 font-normal ml-1">({psbtDetails.fee.toLocaleString()} sats)</span>
-                  </span>
-                </div>
-              )}
-              {counterpartyMessage?.messageData?.fee != null &&
-                Number(counterpartyMessage.messageData.fee) > 0 && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-gray-500">Protocol Fee:</span>
-                  <span className="text-sm font-medium text-purple-700">
-                    {formatAmount({
-                      value: fromSatoshis(Number(counterpartyMessage.messageData.fee), true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} XCP
-                  </span>
-                </div>
+              {swapFeeBreakdown ? (
+                <>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-gray-500">Seller payment:</span>
+                    <span className="text-xs font-medium text-gray-900">
+                      {swapFeeBreakdown.sellerPayment.toLocaleString()} sats
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-gray-500">Platform fee:</span>
+                    <span className="text-xs font-medium text-gray-900">
+                      {swapFeeBreakdown.platformFee.toLocaleString()} sats
+                      {swapFeeBreakdown.sellerPayment > 0 && (
+                        <span className="text-gray-400 font-normal ml-1">
+                          ({((swapFeeBreakdown.platformFee / swapFeeBreakdown.sellerPayment) * 100).toFixed(1)}%)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-gray-500">Network fee:</span>
+                    <span className={`text-xs font-medium ${swapFeeBreakdown.networkFee > 10000000 ? 'text-orange-600' : 'text-gray-900'}`}>
+                      {swapFeeBreakdown.networkFee.toLocaleString()} sats
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {psbtDetails.fee > 0 && (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs text-gray-500">Network Fee:</span>
+                      <span className={`text-xs font-medium ${psbtDetails.fee > 10000000 ? 'text-orange-600' : 'text-gray-900'}`}>
+                        {formatAmount({
+                          value: fromSatoshis(psbtDetails.fee, true),
+                          minimumFractionDigits: 8,
+                          maximumFractionDigits: 8,
+                        })} BTC
+                        <span className="text-gray-400 font-normal ml-1">({psbtDetails.fee.toLocaleString()} sats)</span>
+                      </span>
+                    </div>
+                  )}
+                  {counterpartyMessage?.messageData?.fee != null &&
+                    Number(counterpartyMessage.messageData.fee) > 0 && (
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-xs text-gray-500">Protocol Fee:</span>
+                      <span className="text-sm font-medium text-purple-700">
+                        {formatAmount({
+                          value: fromSatoshis(Number(counterpartyMessage.messageData.fee), true),
+                          minimumFractionDigits: 8,
+                          maximumFractionDigits: 8,
+                        })} XCP
+                      </span>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -425,13 +506,26 @@ export default function ApprovePsbtPage() {
           )}
 
           {/* ANYONECANPAY Info (PSBT-specific) */}
-          {hasAnyoneCanPay && (
+          {userSignsWithAnyoneCanPay && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <div className="flex items-start">
                 <FaCheckCircle className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
                 <div className="text-sm text-green-800">
                   <p className="font-medium">Atomic Swap</p>
                   <p className="text-xs mt-1">Your signature only authorizes this specific UTXO and payment amount. The buyer will add their inputs to complete the trade.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Swap purchase info (buyer completing a swap) */}
+          {swapFeeBreakdown && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <FaCheckCircle className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-green-800">
+                  <p className="font-medium">Atomic Swap Purchase</p>
+                  <p className="text-xs mt-1">You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast.</p>
                 </div>
               </div>
             </div>

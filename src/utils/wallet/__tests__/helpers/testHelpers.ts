@@ -170,6 +170,7 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     connectedWebsites: [],
     allowUnconfirmedTxs: true,
     enableMPMA: false,
+    enableMoreOutputs: false,
     enableAdvancedBroadcasts: false,
     transactionDryRun: false,
     counterpartyApiBase: 'https://api.counterparty.io:4000',

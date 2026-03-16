@@ -8,6 +8,7 @@
 import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { fromSatoshis } from '@/utils/numeric';
+import { fetchAssetDetails } from './api';
 import { arc4, hexToBytes, bytesToHex } from './unpack/binary';
 
 /**
@@ -202,8 +203,8 @@ export function describeCounterpartyMessage(
 ): string {
   /**
    * Normalize a raw quantity for display.
-   * Checks (in order): _normalized field from API, _info.divisible flag,
-   * then falls back to known-divisible assets (BTC, XCP).
+   * Checks (in order): _normalized field from API, then _info.divisible flag
+   * (injected by enrichWithAssetInfo for all assets including BTC/XCP).
    */
   const q = (qtyField: string, assetField?: string): string => {
     // 1. API already provided a normalized value
@@ -218,11 +219,7 @@ export function describeCounterpartyMessage(
     const infoKey = assetField ? `${assetField}_info` : 'asset_info';
     const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
 
-    const isDivisible = assetInfo?.divisible === true
-      || assetName.toUpperCase() === 'BTC'
-      || assetName.toUpperCase() === 'XCP';
-
-    if (isDivisible) {
+    if (assetInfo?.divisible === true) {
       return fromSatoshis(Number(raw));
     }
 
@@ -276,7 +273,57 @@ export function hasCounterpartyPrefix(opReturnData: string): boolean {
 }
 
 /**
+ * Find all asset field names in messageData using Counterparty naming convention.
+ * Fields are either 'asset' or end with '_asset' (e.g., 'give_asset', 'get_asset', 'dividend_asset').
+ */
+function findAssetFields(data: Record<string, unknown>): string[] {
+  return Object.keys(data).filter(k => k === 'asset' || k.endsWith('_asset'));
+}
+
+/**
+ * Enrich messageData with asset divisibility info.
+ * The unpack endpoint doesn't include _info or _normalized fields, so we
+ * inject known divisibility for BTC/XCP and fetch from the API for the rest.
+ * This allows describeCounterpartyMessage's q() helper to normalize quantities correctly.
+ */
+async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void> {
+  const assetFields = findAssetFields(data);
+
+  // BTC and XCP are always divisible (protocol-level) — inject directly
+  for (const field of assetFields) {
+    const name = String(data[field] ?? '').toUpperCase();
+    if (name === 'BTC' || name === 'XCP') {
+      data[`${field}_info`] = { divisible: true };
+    }
+  }
+
+  // Fetch divisibility for remaining assets that still need it
+  const needsLookup = assetFields
+    .filter(f => !data[`${f}_info`])
+    .map(f => String(data[f] ?? ''))
+    .filter(Boolean);
+
+  if (needsLookup.length === 0) return;
+
+  const unique = [...new Set(needsLookup)];
+  const infos = await Promise.all(
+    unique.map(a => fetchAssetDetails(a, { verbose: false }).catch(() => null))
+  );
+
+  for (let i = 0; i < unique.length; i++) {
+    if (infos[i]) {
+      for (const field of assetFields) {
+        if (String(data[field]) === unique[i]) {
+          data[`${field}_info`] = { divisible: infos[i]!.divisible };
+        }
+      }
+    }
+  }
+}
+
+/**
  * Decode Counterparty message from datahex (decrypted OP_RETURN payload with CNTRPRTY prefix).
+ * Enriches messageData with asset divisibility info for display normalization.
  * Returns null if unpacking fails.
  */
 export async function decodeCounterpartyMessage(
@@ -287,6 +334,9 @@ export async function decodeCounterpartyMessage(
     if (!unpacked) {
       return null;
     }
+
+    // Enrich with asset divisibility info before generating description
+    await enrichWithAssetInfo(unpacked.message_data);
 
     return {
       messageType: unpacked.message_type,

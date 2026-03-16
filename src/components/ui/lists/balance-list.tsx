@@ -87,7 +87,7 @@ export const BalanceList = (): ReactElement => {
         const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
         const balancePromises = nonBTCAssets.map(async (asset) => {
           try {
-            const balance = await fetchTokenBalance(activeAddress.address, asset);
+            const balance = await fetchTokenBalance(activeAddress.address, asset, { type: 'address' });
             return { asset, balance };
           } catch (error) {
             console.error(`Error fetching ${asset} balance:`, error);

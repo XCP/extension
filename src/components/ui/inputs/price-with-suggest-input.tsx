@@ -17,6 +17,7 @@ interface PriceWithSuggestInputProps {
   isPairFlipped?: boolean;
   setIsPairFlipped?: React.Dispatch<React.SetStateAction<boolean>>;
   disabled?: boolean;
+  hideTradingPairInfo?: boolean;
 }
 
 /**
@@ -37,7 +38,8 @@ export function PriceWithSuggestInput({
   showPairFlip = false,
   isPairFlipped = false,
   setIsPairFlipped,
-  disabled = false
+  disabled = false,
+  hideTradingPairInfo = false,
 }: PriceWithSuggestInputProps): ReactElement {
   const flipPairName = (pairName: string) => {
     const [baseAsset, quoteAsset] = pairName.split('/');
@@ -138,7 +140,7 @@ export function PriceWithSuggestInput({
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {priceDescription}
-          {tradingPairData?.last_trade_price && (
+          {!hideTradingPairInfo && tradingPairData?.last_trade_price && (
             <span className="ml-1">
               Last trade: {formatAmount({
                 value: showPairFlip && isPairFlipped

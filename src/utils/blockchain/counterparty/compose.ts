@@ -77,6 +77,7 @@ export interface ComposeParams {
   skip_validation: boolean;
   asset_info: ComposeAssetInfo;
   quantity_normalized: string;
+  more_outputs?: string;
 }
 
 export interface ComposeResult {
@@ -839,6 +840,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     memo,
     memo_is_hex,
     no_dispense,
+    more_outputs,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -850,6 +852,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
+    ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
@@ -896,6 +899,10 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
   // Single destination - regular send
   const response = await composeSend(sendOptions);
   response.result.name = 'send';
+  // Preserve more_outputs in result for review page display
+  if (sendOptions.more_outputs) {
+    response.result.params.more_outputs = sendOptions.more_outputs;
+  }
   return response;
 }
 
