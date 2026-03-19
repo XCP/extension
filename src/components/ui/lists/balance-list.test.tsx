@@ -201,8 +201,8 @@ describe('BalanceList', () => {
     render(<BalanceList />);
     
     await waitFor(() => {
-      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'XCP');
-      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'PEPECASH');
+      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'XCP', { type: 'address' });
+      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'PEPECASH', { type: 'address' });
     });
   });
 
@@ -523,7 +523,7 @@ describe('BalanceList', () => {
     
     // Should refetch with new pinned assets
     await waitFor(() => {
-      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'NEWASSET');
+      expect(mockFetchTokenBalance).toHaveBeenCalledWith('bc1qtest123', 'NEWASSET', { type: 'address' });
     });
   });
 

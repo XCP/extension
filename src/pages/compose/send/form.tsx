@@ -220,6 +220,7 @@ export function SendForm({
             destination={destinations.length === 1 ? destinations[0].address : undefined}
             memo={memo}
             isDivisible={isDivisible}
+            placeholder={showBtcOutput && (initialAsset || initialFormData?.asset) ? `${isDivisible ? "0.00000000" : "0"} ${initialAsset || initialFormData?.asset}` : undefined}
             labelRight={
               enableMoreOutputs && !isBtcAsset && destinations.length === 1 ? (
                 <button

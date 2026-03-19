@@ -240,20 +240,14 @@ describe('counterparty/api.ts', () => {
       });
     });
 
-    it('should filter out UTXOs when excludeUtxos is true', async () => {
-      const mockBalanceWithUtxo = {
-        ...mockTokenBalance,
-        utxo: 'abc123:0',
-        quantity: 50000000,
-        quantity_normalized: '0.50000000',
-      };
+    it('should filter out UTXOs when type is address', async () => {
       const mockBalanceWithoutUtxo = {
         ...mockTokenBalance,
         quantity: 25000000,
         quantity_normalized: '0.25000000',
       };
       const mockData = {
-        result: [mockBalanceWithUtxo, mockBalanceWithoutUtxo]
+        result: [mockBalanceWithoutUtxo]
       };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
@@ -263,9 +257,9 @@ describe('counterparty/api.ts', () => {
         config: {}
       } as any);
 
-      const balance = await fetchTokenBalance(mockAddress, 'XCP', { 
-        excludeUtxos: true 
-      } as any);
+      const balance = await fetchTokenBalance(mockAddress, 'XCP', {
+        type: 'address'
+      });
 
       expect(balance?.quantity).toBe(25000000);
       expect(balance?.quantity_normalized).toBe('0.25');
