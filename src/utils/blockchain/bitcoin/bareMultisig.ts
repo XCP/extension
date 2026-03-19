@@ -85,14 +85,12 @@ export async function fetchConsolidationFeeConfig(address: string): Promise<Serv
   try {
     // Use the Laravel API consolidation endpoint to get fee configuration
     // This endpoint includes fee_config in the response
-    const response = await apiClient.get<{
-      fee_config: ServiceFeeConfig;
-      summary: any;
-      utxos: any[];
-    }>(`https://app.xcp.io/api/v1/address/${address}/consolidation?max_utxos=1`);
-    
-    if (response.data?.fee_config) {
-      const feeConfig = response.data.fee_config;
+    const response = await fetch(`https://app.xcp.io/api/v1/address/${address}/consolidation?max_utxos=1`);
+    if (!response.ok) return null;
+    const data = await response.json();
+
+    if (data?.fee_config) {
+      const feeConfig = data.fee_config;
       
       // Validate the response
       if (feeConfig.fee_address && feeConfig.fee_percent > 0) {
@@ -497,17 +495,17 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
     
     for (const endpoint of endpoints) {
       try {
-        const response = await apiClient.get<{ spent?: boolean; txid?: string }>(endpoint);
+        const response = await fetch(endpoint);
+        if (!response.ok) continue;
+        const data = await response.json();
         // If the UTXO is spent, the response will have a 'spent' field set to true
         // or will have 'txid' field indicating the spending transaction
-        if (response.data) {
-          const isSpent = response.data.spent === true || response.data.txid !== undefined;
-          if (isSpent) {
-            console.log(`UTXO ${txid}:${vout} is already spent`);
-            return false;
-          }
-          return true;
+        const isSpent = data.spent === true || data.txid !== undefined;
+        if (isSpent) {
+          console.log(`UTXO ${txid}:${vout} is already spent`);
+          return false;
         }
+        return true;
       } catch (error) {
         // Try next endpoint
         continue;
@@ -531,8 +529,10 @@ async function isUTXOUnspent(txid: string, vout: number): Promise<boolean> {
  * Fetch bare multisig UTXOs for the given address.
  */
 async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
-  const response = await apiClient.get<{ data: any[] }>(`https://app.xcp.io/api/v1/address/${address}/utxos`);
-  const utxos = response.data.data;
+  const response = await fetch(`https://app.xcp.io/api/v1/address/${address}/utxos`);
+  if (!response.ok) throw new Error('Failed to fetch bare multisig UTXOs');
+  const responseData = await response.json();
+  const utxos = responseData.data;
   if (!utxos || utxos.length === 0) throw new Error('No bare multisig UTXOs found');
   return utxos.map((utxo: any) => ({
     txid: utxo.txid,
@@ -548,26 +548,34 @@ async function fetchBareMultisigUTXOs(address: string): Promise<UTXO[]> {
  * Fetch a previous transaction's raw hex given its txid.
  */
 async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
-  const endpoints = [
-    { url: `https://blockstream.info/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
-    { url: `https://mempool.space/api/tx/${txid}/hex`, transform: (d: string) => d.trim() },
-    { url: async () => {
-      const settings = walletManager.getSettings();
-      return `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`;
-    }, transform: (d: any) => d.result.hex },
+  // Try external explorers first (raw fetch to avoid CORS preflight)
+  const externalEndpoints = [
+    `https://blockstream.info/api/tx/${txid}/hex`,
+    `https://mempool.space/api/tx/${txid}/hex`,
   ];
-  for (const endpoint of endpoints) {
+  for (const url of externalEndpoints) {
     try {
-      const url = typeof endpoint.url === 'function' ? await endpoint.url() : endpoint.url;
-      // Use quickApiClient with 10 second timeout for transaction lookups
-      const response = await apiClient.get<string | { result: { hex: string } }>(url);
-      const result = endpoint.transform(response.data as any);
-      if (typeof result === 'string') {
-        return result;
-      }
+      const response = await fetch(url);
+      if (!response.ok) continue;
+      const hex = (await response.text()).trim();
+      if (hex.length > 0) return hex;
     } catch (_) {
       continue;
     }
   }
+
+  // Fallback to Counterparty API
+  try {
+    const settings = walletManager.getSettings();
+    const response = await apiClient.get<{ result: { hex: string } }>(
+      `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
+    );
+    if (typeof response.data?.result?.hex === 'string') {
+      return response.data.result.hex;
+    }
+  } catch (_) {
+    // All sources failed
+  }
+
   return null;
 }

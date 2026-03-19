@@ -146,8 +146,9 @@ export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise
 
       for (const endpoint of endpoints) {
         try {
-          const response = await apiClient.get<UTXO[]>(endpoint, { signal });
-          const utxos = response.data;
+          const response = await fetch(endpoint, { signal });
+          if (!response.ok) continue;
+          const utxos = await response.json();
 
           if (!isValidUtxoArray(utxos)) {
             continue;
@@ -220,12 +221,12 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 
       // Fallback to mempool.space (handles unconfirmed txs better)
       try {
-        const response = await apiClient.get<string>(
-          `https://mempool.space/api/tx/${txid}/hex`
-        );
-
-        if (typeof response.data === 'string' && response.data.length > 0) {
-          return response.data;
+        const response = await fetch(`https://mempool.space/api/tx/${txid}/hex`);
+        if (response.ok) {
+          const data = await response.text();
+          if (data.length > 0) {
+            return data;
+          }
         }
       } catch {
         // Both sources failed
@@ -260,18 +261,18 @@ export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTran
           apiClient.get<{ result: BitcoinTransaction }>(
             `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
           ),
-          apiClient.get<MempoolTxStatus>(
-            `https://mempool.space/api/tx/${txid}/status`
-          ).catch(() => null) // Don't fail if mempool.space is unavailable
+          fetch(`https://mempool.space/api/tx/${txid}/status`)
+            .then(r => r.ok ? r.json() : null)
+            .catch(() => null) // Don't fail if mempool.space is unavailable
         ]);
 
         if (counterpartyResponse.data && counterpartyResponse.data.result) {
           const result: BitcoinTransactionWithStatus = counterpartyResponse.data.result;
 
           // Add status info from mempool.space if available
-          if (mempoolResponse?.data) {
-            result.status = mempoolResponse.data;
-            result.blocktime = mempoolResponse.data.block_time;
+          if (mempoolResponse) {
+            result.status = mempoolResponse;
+            result.blocktime = mempoolResponse.block_time;
           }
 
           return result;
