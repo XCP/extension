@@ -119,7 +119,7 @@ describe('AssetList', () => {
     render(<AssetList />);
     
     await waitFor(() => {
-      expect(mockFetchOwnedAssets).toHaveBeenCalledWith('bc1qtest123');
+      expect(mockFetchOwnedAssets).toHaveBeenCalledWith('bc1qtest123', { limit: 20, offset: 0 });
     });
   });
 

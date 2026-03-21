@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useInView } from "@/hooks/useInView";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { AssetCard } from "@/components/ui/cards/asset-card";
 import { SearchResultCard } from "@/components/ui/cards/search-result-card";
@@ -8,50 +9,93 @@ import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterpar
 import { Spinner } from "@/components/ui/spinner";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
+const PAGE_SIZE = 20;
+
 export const AssetList = (): React.ReactElement => {
   const { activeAddress } = useWallet();
   const { cacheOwnedAssets } = useHeader();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
 
+  const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+
+  // Reset when address changes
   useEffect(() => {
     if (!activeAddress?.address) {
       setOwnedAssets([]);
-      return;
+      setOffset(0);
+      setHasMore(true);
+      setInitialLoaded(false);
     }
+  }, [activeAddress]);
+
+  const appendAssets = useCallback((newAssets: OwnedAsset[]) => {
+    setOwnedAssets((prev) => {
+      const existingKeys = new Set(prev.map((a) => a.asset));
+      const unique = newAssets.filter((a) => !existingKeys.has(a.asset));
+      return [...prev, ...unique];
+    });
+    cacheOwnedAssets(newAssets);
+  }, [cacheOwnedAssets]);
+
+  // Initial load
+  useEffect(() => {
+    if (!activeAddress?.address || initialLoaded) return;
 
     let isCancelled = false;
 
-    const loadOwnedAssets = async () => {
+    const loadInitial = async () => {
       setIsLoading(true);
       try {
-        const assets = await fetchOwnedAssets(activeAddress.address);
+        const assets = await fetchOwnedAssets(activeAddress.address, { limit: PAGE_SIZE, offset: 0 });
         if (!isCancelled) {
           setOwnedAssets(assets);
-          // Cache assets for instant display on detail pages
           cacheOwnedAssets(assets);
+          setOffset(PAGE_SIZE);
+          if (assets.length < PAGE_SIZE) setHasMore(false);
+          setInitialLoaded(true);
         }
       } catch (error) {
         console.error("Error fetching owned assets:", error);
       } finally {
-        if (!isCancelled) {
-          setIsLoading(false);
-        }
+        if (!isCancelled) setIsLoading(false);
       }
     };
 
-    loadOwnedAssets();
+    loadInitial();
+    return () => { isCancelled = true; };
+  }, [activeAddress, cacheOwnedAssets, initialLoaded]);
 
-    return () => {
-      isCancelled = true;
+  // Load more on scroll
+  useEffect(() => {
+    if (!activeAddress?.address || !hasMore || isFetchingMore || !inView || !initialLoaded) return;
+
+    const loadMore = async () => {
+      setIsFetchingMore(true);
+      try {
+        const assets = await fetchOwnedAssets(activeAddress.address, { limit: PAGE_SIZE, offset });
+        if (assets.length < PAGE_SIZE) setHasMore(false);
+        if (assets.length > 0) {
+          appendAssets(assets);
+          setOffset((prev) => prev + PAGE_SIZE);
+        } else {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.error("Error fetching more assets:", error);
+        setHasMore(false);
+      } finally {
+        setIsFetchingMore(false);
+      }
     };
-  }, [activeAddress, cacheOwnedAssets]);
 
-  const renderAssetItem = (asset: OwnedAsset) => (
-    <AssetCard key={asset.asset} asset={asset} />
-  );
-
+    loadMore();
+  }, [inView, activeAddress, hasMore, offset, appendAssets, isFetchingMore, initialLoaded]);
 
   if (isLoading) return <Spinner message="Loading owned assets…" />;
 
@@ -82,7 +126,20 @@ export const AssetList = (): React.ReactElement => {
           </div>
         </div>
       ) : (
-        ownedAssets.map(renderAssetItem)
+        <>
+          {ownedAssets.map((asset) => (
+            <AssetCard key={asset.asset} asset={asset} />
+          ))}
+          <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
+            {hasMore ? (
+              isFetchingMore ? (
+                <Spinner className="py-4" />
+              ) : (
+                <div className="text-sm text-gray-500">Scroll to load more…</div>
+              )
+            ) : null}
+          </div>
+        </>
       )}
     </div>
   );
