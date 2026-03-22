@@ -81,7 +81,10 @@ export default function SwapListPage(): ReactElement {
 
   // Load UTXO balances
   useEffect(() => {
-    if (!utxoParam) return;
+    if (!utxoParam) {
+      setIsLoadingUtxo(false);
+      return;
+    }
     setIsLoadingUtxo(true);
     fetchUtxoBalances(utxoParam)
       .then((res) => setBalances(res.result))
