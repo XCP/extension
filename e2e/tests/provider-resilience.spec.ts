@@ -516,7 +516,16 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await dappPage.waitForLoadState('networkidle');
 
       // Lock the wallet mid-connection
+      // The connect() call may have opened an approval page that doesn't have the
+      // lock button, so navigate back to index first.
       await extensionPage.bringToFront();
+      const currentUrl = extensionPage.url();
+      if (!currentUrl.includes('/index')) {
+        const hashIndex = currentUrl.indexOf('#');
+        const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
+        await extensionPage.goto(`${baseUrl}/index`);
+        await extensionPage.waitForLoadState('networkidle');
+      }
       await lockWallet(extensionPage);
 
       // Wait for the connection attempt to complete (should fail or timeout)
