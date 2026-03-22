@@ -9,7 +9,7 @@ import {
   expect,
   navigateTo
 } from '../../fixtures';
-import { footer } from '../../selectors';
+import { footer, market } from '../../selectors';
 
 walletTest.describe('Market Page', () => {
   walletTest('market page loads and displays content', async ({ page }) => {
@@ -41,7 +41,7 @@ walletTest.describe('Market Page', () => {
     await expect(content.first()).toBeVisible({ timeout: 15000 });
   });
 
-  walletTest('dispensers tab shows view mode tabs', async ({ page }) => {
+  walletTest('dispensers tab shows view mode toggles', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -50,15 +50,12 @@ walletTest.describe('Market Page', () => {
     // Click dispensers tab
     await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    // View mode tabs should be visible (Explore and Manage)
-    const exploreTab = page.getByRole('tab', { name: 'Explore' });
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-
-    await expect(exploreTab).toBeVisible();
-    await expect(manageTab).toBeVisible();
+    // View mode toggle icons should be visible (globe for explore, user for manage)
+    await expect(market.exploreToggle(page)).toBeVisible();
+    await expect(market.manageToggle(page)).toBeVisible();
   });
 
-  walletTest('orders tab shows view mode tabs', async ({ page }) => {
+  walletTest('orders tab shows view mode toggles', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
@@ -67,12 +64,9 @@ walletTest.describe('Market Page', () => {
     // Click orders tab
     await page.getByRole('tab', { name: 'Orders' }).click();
 
-    // View mode tabs should be visible (Explore and Manage)
-    const exploreTab = page.getByRole('tab', { name: 'Explore' });
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
-
-    await expect(exploreTab).toBeVisible();
-    await expect(manageTab).toBeVisible();
+    // View mode toggle icons should be visible (globe for explore, user for manage)
+    await expect(market.exploreToggle(page)).toBeVisible();
+    await expect(market.manageToggle(page)).toBeVisible();
   });
 
   walletTest('can switch between Orders and Dispensers tabs', async ({ page }) => {
@@ -100,21 +94,21 @@ walletTest.describe('Market Page', () => {
     await expect(page.getByPlaceholder(/dispenser/i).first()).toBeVisible();
   });
 
-  walletTest('view mode tabs switch between Explore and Manage', async ({ page }) => {
+  walletTest('view mode toggles switch between Explore and Manage', async ({ page }) => {
     await navigateTo(page, 'market');
     await expect(page).toHaveURL(/market/);
 
     await page.waitForLoadState('networkidle');
 
-    // View mode tabs: Explore and Manage
-    const exploreTab = page.getByRole('tab', { name: 'Explore' });
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
+    // View mode toggle icons
+    const exploreToggle = market.exploreToggle(page);
+    const manageToggle = market.manageToggle(page);
 
-    await expect(exploreTab).toBeVisible();
-    await expect(manageTab).toBeVisible();
+    await expect(exploreToggle).toBeVisible();
+    await expect(manageToggle).toBeVisible();
 
-    // Click Manage tab
-    await manageTab.click();
+    // Click Manage toggle
+    await manageToggle.click();
 
     // Should show manage content or empty state
     const manageContent = page.getByText(/[A-Z]{3,}/).first() // Asset names in manage cards
@@ -122,7 +116,7 @@ walletTest.describe('Market Page', () => {
     await expect(manageContent.first()).toBeVisible({ timeout: 10000 });
 
     // Click back to Explore
-    await exploreTab.click();
+    await exploreToggle.click();
     await expect(page).toHaveURL(/market/);
   });
 
@@ -173,12 +167,12 @@ walletTest.describe('Market Page', () => {
     // Go to dispensers tab
     await page.getByRole('tab', { name: 'Dispensers' }).click();
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
+    const manageToggle = market.manageToggle(page);
 
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    await expect(manageToggle).toBeVisible();
+    await manageToggle.click();
 
-    // After clicking tab, page should still be on market
+    // After clicking toggle, page should still be on market
     await expect(page).toHaveURL(/market/);
   });
 
@@ -191,12 +185,12 @@ walletTest.describe('Market Page', () => {
     // Go to orders tab
     await page.getByRole('tab', { name: 'Orders' }).click();
 
-    const manageTab = page.getByRole('tab', { name: 'Manage' });
+    const manageToggle = market.manageToggle(page);
 
-    await expect(manageTab).toBeVisible();
-    await manageTab.click();
+    await expect(manageToggle).toBeVisible();
+    await manageToggle.click();
 
-    // After clicking tab, page should still be on market
+    // After clicking toggle, page should still be on market
     await expect(page).toHaveURL(/market/);
   });
 

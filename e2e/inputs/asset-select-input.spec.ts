@@ -169,6 +169,7 @@ walletTest.describe('AssetSelectInput Component', () => {
     walletTest('selected asset is included in form', async ({ page }) => {
       // The combobox should have form integration
       const comboboxInput = getComboboxInput(page);
+      await expect(comboboxInput).toBeVisible();
 
       // Check if input is part of a form
       const isInForm = await comboboxInput.evaluate((el: HTMLElement) => {
