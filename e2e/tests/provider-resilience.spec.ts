@@ -515,18 +515,18 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       // Give it a moment to start
       await dappPage.waitForLoadState('networkidle');
 
-      // Lock the wallet mid-connection
-      // The connect() call may have opened an approval page that doesn't have the
-      // lock button, so navigate back to index first.
+      // Lock the wallet mid-connection via the WalletService proxy.
+      // The connect() call may have opened an approval page without a lock button,
+      // so we lock programmatically instead of clicking the UI button.
       await extensionPage.bringToFront();
-      const currentUrl = extensionPage.url();
-      if (!currentUrl.includes('/index')) {
-        const hashIndex = currentUrl.indexOf('#');
-        const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-        await extensionPage.goto(`${baseUrl}/index`);
-        await extensionPage.waitForLoadState('networkidle');
-      }
-      await lockWallet(extensionPage);
+      await extensionPage.evaluate(async () => {
+        await chrome.runtime.sendMessage({
+          serviceName: 'WalletService',
+          methodName: 'lockKeychain',
+          args: [],
+        });
+      });
+      await extensionPage.waitForURL(/unlock/, { timeout: 15000 });
 
       // Wait for the connection attempt to complete (should fail or timeout)
       await dappPage.waitForLoadState('networkidle');
