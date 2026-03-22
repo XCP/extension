@@ -108,6 +108,7 @@ walletTest.describe('Market Swaps Tab', () => {
 walletTest.describe('List for Sale Form (/market/swaps/list)', () => {
   walletTest('shows error when no UTXO specified', async ({ page }) => {
     const baseUrl = getBaseUrl(page);
+    await page.evaluate(() => sessionStorage.setItem('__nav_active', '1'));
     await page.goto(`${baseUrl}/market/swaps/list`);
     await page.waitForLoadState('networkidle');
 
