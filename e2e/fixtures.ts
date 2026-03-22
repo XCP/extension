@@ -375,6 +375,9 @@ export const walletTest = base.extend<WalletFixtures>({
     const page = context.pages().find(p => p.url().includes('chrome-extension://'));
     if (!page) throw new Error('Extension page not found');
     await setupWallet(page);
+    // Mark session as active so the deep-link safety guard in auth-required.tsx
+    // doesn't redirect compose/swap routes (it only redirects on fresh popup opens)
+    await page.evaluate(() => sessionStorage.setItem('__nav_active', '1'));
     await use(page);
   },
 
