@@ -4,7 +4,7 @@ import { Transaction, OutScript } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 
-// Mock the apiClient
+// Mock the apiClient (still needed for counterparty API fallback in fetchPreviousRawTransaction)
 vi.mock('@/utils/apiClient', () => ({
   apiClient: {
     get: vi.fn()
@@ -19,38 +19,47 @@ vi.mock('@/utils/storage/settingsStorage');
 import { apiClient } from '@/utils/apiClient';
 const mockApiClient = apiClient as any;
 
-// Helper function to create a mock implementation that handles URLs
-const createMockGetImplementation = (mockResponses: Map<string, any>) => {
+// Helper to create a mock fetch Response
+const createMockResponse = (body: any, options: { ok?: boolean } = {}) => ({
+  ok: options.ok !== false,
+  status: options.ok !== false ? 200 : 500,
+  json: () => Promise.resolve(body),
+  text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
+} as unknown as Response);
+
+// Helper function to create a mock fetch implementation that handles URLs
+const createMockFetchImplementation = (mockResponses: Map<string, any>) => {
   return vi.fn((url: string) => {
+    // Consolidation fee config - return not found
+    if (url.includes('/consolidation')) {
+      return Promise.resolve(createMockResponse(null, { ok: false }));
+    }
     // Check if it's a UTXO fetch request
     if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
       const response = mockResponses.get('utxos');
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(createMockResponse(response));
     }
-    
     // Check if it's a spent check request
-    if (url.includes('/v2/utxos/')) {
+    if (url.includes('/outspend/')) {
       const response = mockResponses.get('spent');
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(createMockResponse(response));
     }
-    
     // Check if it's a raw transaction fetch
     if (url.includes('/tx/') && url.includes('/hex')) {
       const response = mockResponses.get('rawtx');
       if (response instanceof Error) {
         return Promise.reject(response);
       }
-      return Promise.resolve({ data: response });
+      return Promise.resolve(createMockResponse(response));
     }
-    
-    // Default: reject with not found
-    return Promise.reject(new Error('Not found'));
+    // Default: return not found
+    return Promise.resolve(createMockResponse(null, { ok: false }));
   });
 };
 
@@ -58,6 +67,8 @@ describe('Bare Multisig Utilities', () => {
   const mockPrivateKey = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
   const mockAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
   const mockTxid = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+
+  const originalFetch = global.fetch;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -69,6 +80,7 @@ describe('Bare Multisig Utilities', () => {
   });
 
   afterEach(() => {
+    global.fetch = originalFetch;
     vi.restoreAllMocks();
   });
 
@@ -79,9 +91,15 @@ describe('Bare Multisig Utilities', () => {
     });
 
     it('should throw error when no UTXOs are found', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { data: [] }
-      });
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
+        if (url.includes('/utxos')) {
+          return Promise.resolve(createMockResponse({ data: [] }));
+        }
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10))
         .rejects.toThrow('No bare multisig UTXOs found');
@@ -100,7 +118,7 @@ describe('Bare Multisig Utilities', () => {
         ['utxos', { data: mockUtxos }],
         ['rawtx', 'deadbeef']
       ]);
-      mockApiClient.get = createMockGetImplementation(mockResponses);
+      global.fetch = createMockFetchImplementation(mockResponses) as any;
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('No suitable UTXOs after filtering.');
@@ -140,26 +158,24 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      let callCount = 0;
-      mockApiClient.get = vi.fn((url: string) => {
-        callCount++;
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Spent check
-        if (url.includes('/v2/utxos/')) {
-          return Promise.resolve({ data: { spent: false } });
+        if (url.includes('/outspend/')) {
+          return Promise.resolve(createMockResponse({ spent: false }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
-      
+
       expect(result).toBeDefined();
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
@@ -169,7 +185,7 @@ describe('Bare Multisig Utilities', () => {
       const destinationAddress = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -198,28 +214,29 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, destinationAddress, { skipSpentCheck: true });
-      
+
       expect(result).toBeDefined();
-      expect(mockApiClient.get).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
     });
 
     it('should handle insufficient funds error', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -248,17 +265,18 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 1000, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('Insufficient funds');
@@ -267,7 +285,7 @@ describe('Bare Multisig Utilities', () => {
     it('should skip UTXOs without previous transaction data', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -283,23 +301,23 @@ describe('Bare Multisig Utilities', () => {
         scriptPubKeyType: 'bare_multisig'
       }];
 
-      // Mock all endpoints to fail
-      let callCount = 0;
-      mockApiClient.get = vi.fn((url: string) => {
-        callCount++;
-        // UTXO fetch
+      // Mock fetch - all raw tx endpoints fail
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch - all endpoints fail
+        // Raw tx fetch - all external endpoints fail
         if (url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.reject(new Error('Not found'));
+          return Promise.resolve(createMockResponse(null, { ok: false }));
         }
-        if (url.includes('/v2/bitcoin/transactions/')) {
-          return Promise.reject(new Error('Not found'));
-        }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
+
+      // Also mock apiClient.get for counterparty API fallback
+      mockApiClient.get = vi.fn(() => Promise.reject(new Error('Not found')));
 
       await expect(consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true }))
         .rejects.toThrow('No suitable UTXOs after filtering.');
@@ -308,7 +326,7 @@ describe('Bare Multisig Utilities', () => {
     it('should handle multiple UTXOs with same transaction ID', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -349,33 +367,32 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Spent check
-        if (url.includes('/v2/utxos/')) {
-          return Promise.resolve({ data: { spent: false } });
+        if (url.includes('/outspend/')) {
+          return Promise.resolve(createMockResponse({ spent: false }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
-      
+
       expect(result).toBeDefined();
-      // The mock implementation is being called more times due to fallbacks
-      expect(mockApiClient.get).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
     });
 
     it('should work with compressed public key in multisig script', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const compressedPubKey = getPublicKey(privateKeyBytes, true);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -404,20 +421,21 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true });
-      
+
       expect(result).toBeDefined();
       expect(typeof result).toBe('string');
     });
@@ -425,7 +443,7 @@ describe('Bare Multisig Utilities', () => {
     it('should filter out spent UTXOs when validation is enabled', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -463,32 +481,32 @@ describe('Bare Multisig Utilities', () => {
         '00000000'; // Locktime
 
       let spentCheckCount = 0;
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
-        if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
         }
-        // Spent check - first is unspent, second is spent
-        if (url.includes('/v2/utxos/')) {
+        if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
+        }
+        // Spent check - first UTXO is unspent, second is spent
+        if (url.includes('/outspend/')) {
           spentCheckCount++;
-          if (spentCheckCount === 1) {
-            return Promise.resolve({ data: { spent: false } });
+          if (spentCheckCount <= 1) {
+            return Promise.resolve(createMockResponse({ spent: false }));
           } else {
-            return Promise.resolve({ data: { spent: true, txid: 'spending_tx_id' } });
+            return Promise.resolve(createMockResponse({ spent: true, txid: 'spending_tx_id' }));
           }
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10);
-      
+
       expect(result).toBeDefined();
-      // Multiple calls due to spent checks and raw tx fetches for both UTXOs
-      expect(mockApiClient.get).toHaveBeenCalled();
+      expect(global.fetch).toHaveBeenCalled();
     });
 
   });
@@ -497,7 +515,7 @@ describe('Bare Multisig Utilities', () => {
     it('should try multiple endpoints when fetching raw transaction', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -525,28 +543,30 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      let callCount = 0;
-      mockApiClient.get = vi.fn((url: string) => {
-        callCount++;
-        // UTXO fetch
-        if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+      let fetchCallCount = 0;
+      global.fetch = vi.fn((url: string) => {
+        fetchCallCount++;
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
         }
-        // Raw tx fetch - first endpoint fails, second succeeds
+        if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
+        }
+        // Raw tx fetch - first endpoint (blockstream) fails, second (mempool) succeeds
         if (url.includes('blockstream.info') && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.reject(new Error('Not found'));
+          return Promise.resolve(createMockResponse(null, { ok: false }));
         }
         if (url.includes('mempool.space') && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(mockPrivateKey, mockAddress, 10, undefined, { skipSpentCheck: true });
-      
+
       expect(result).toBeDefined();
-      // Should have tried at least UTXOs fetch + failed blockstream + successful mempool
-      expect(callCount).toBeGreaterThanOrEqual(3);
+      // Should have tried: consolidation + UTXOs fetch + failed blockstream + successful mempool
+      expect(fetchCallCount).toBeGreaterThanOrEqual(3);
     });
   });
 
@@ -554,7 +574,7 @@ describe('Bare Multisig Utilities', () => {
     it('should respect maxInputsPerTx option', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -575,11 +595,11 @@ describe('Bare Multisig Utilities', () => {
       // First, let's build the outputs part
       let outputsHex = '';
       const numOutputs = 500;
-      
+
       // Use hex string for number of outputs (500 = 0x01F4, but needs varint encoding)
       // 500 in varint = 0xFD F401 (since 500 > 252)
       outputsHex = 'fdf401'; // VarInt for 500 outputs
-      
+
       // Add 500 outputs
       for (let i = 0; i < numOutputs; i++) {
         outputsHex += 'a086010000000000'; // Amount (100000 satoshis = 0.001 BTC)
@@ -596,26 +616,27 @@ describe('Bare Multisig Utilities', () => {
         outputsHex + // All 500 outputs
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(
-        mockPrivateKey, 
-        mockAddress, 
-        10, 
+        mockPrivateKey,
+        mockAddress,
+        10,
         undefined,
         { maxInputsPerTx: 10, skipSpentCheck: true }
       );
-      
+
       expect(result).toBeDefined();
       // Transaction should be built with only 10 inputs (limited by maxInputsPerTx)
       const tx = Transaction.fromRaw(hexToBytes(result));
@@ -625,7 +646,7 @@ describe('Bare Multisig Utilities', () => {
     it('should skip spent check when skipSpentCheck is true', async () => {
       const privateKeyBytes = hexToBytes(mockPrivateKey);
       const uncompressedPubKey = getPublicKey(privateKeyBytes, false);
-      
+
       const mockMultisigScript = OutScript.encode({
         type: 'ms',
         m: 1,
@@ -653,29 +674,31 @@ describe('Bare Multisig Utilities', () => {
         mockScriptHex + // Our bare multisig script
         '00000000'; // Locktime
 
-      mockApiClient.get = vi.fn((url: string) => {
-        // UTXO fetch
+      global.fetch = vi.fn((url: string) => {
+        if (url.includes('/consolidation')) {
+          return Promise.resolve(createMockResponse(null, { ok: false }));
+        }
         if (url.includes('/api/v1/address/') && url.includes('/utxos')) {
-          return Promise.resolve({ data: { data: mockUtxos } });
+          return Promise.resolve(createMockResponse({ data: mockUtxos }));
         }
-        // Raw tx fetch
-        if ((url.includes('blockstream.info') || url.includes('mempool.space')) && url.includes('/tx/') && url.includes('/hex')) {
-          return Promise.resolve({ data: mockRawTx });
+        if (url.includes('/tx/') && url.includes('/hex')) {
+          return Promise.resolve(createMockResponse(mockRawTx));
         }
-        return Promise.reject(new Error('Not found'));
-      });
+        return Promise.resolve(createMockResponse(null, { ok: false }));
+      }) as any;
 
       const result = await consolidateBareMultisig(
-        mockPrivateKey, 
-        mockAddress, 
+        mockPrivateKey,
+        mockAddress,
         10,
         undefined,
         { skipSpentCheck: true }
       );
-      
+
       expect(result).toBeDefined();
-      // Should call API at least twice: UTXOs fetch and raw tx fetch
-      expect(mockApiClient.get).toHaveBeenCalledTimes(3);
+      // Should not have called any outspend endpoints
+      const fetchCalls = (global.fetch as any).mock.calls.map((c: any) => c[0]);
+      expect(fetchCalls.some((url: string) => url.includes('/outspend/'))).toBe(false);
     });
   });
 });

@@ -237,8 +237,9 @@ async function fetchWithTimeout(
  */
 function parseBTCBalance(endpoint: string, data: unknown): number | null {
   try {
+    const hostname = new URL(endpoint).hostname;
     // Format from blockstream.info or mempool.space.
-    if (endpoint.includes('blockstream.info') || endpoint.includes('mempool.space')) {
+    if (hostname === 'blockstream.info' || hostname === 'mempool.space') {
       if (!isBlockstreamResponse(data)) {
         return null;
       }
@@ -249,14 +250,14 @@ function parseBTCBalance(endpoint: string, data: unknown): number | null {
       return Number(funded - spent + memFunded - memSpent);
     }
     // Format from blockcypher.com or blockchain.info.
-    if (endpoint.includes('blockcypher.com') || endpoint.includes('blockchain.info')) {
+    if (hostname === 'api.blockcypher.com' || hostname === 'blockchain.info') {
       if (!isBlockcypherResponse(data)) {
         return null;
       }
       return data.final_balance;
     }
     // Format from sochain.com.
-    if (endpoint.includes('sochain.com')) {
+    if (hostname === 'sochain.com') {
       if (!isSochainResponse(data)) {
         return null;
       }
