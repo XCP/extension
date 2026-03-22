@@ -25,20 +25,8 @@ const AUTH_ROUTES = {
  * Anything not listed here is considered safe.
  */
 const UNSAFE_DEEP_LINK_ROUTES: Array<{ prefix: string; fallback: string }> = [
-  // Compose forms — lose form state, API response, review data
-  { prefix: '/compose/', fallback: '/index' },
-
   // Consolidate flow — multi-step with ephemeral state
   { prefix: '/actions/consolidate/', fallback: '/actions' },
-
-  // Swap listing form — needs ?utxo= query param context
-  { prefix: '/market/swaps/list', fallback: '/index' },
-
-  // Swap manage page — safe to redirect to market swaps tab
-  { prefix: '/market/swaps/manage', fallback: '/market?tab=swaps' },
-
-  // Swap buy page — listing may have changed
-  { prefix: '/market/swaps/buy/', fallback: '/market?tab=swaps' },
 
   // Approval windows — ephemeral request data from provider, never valid on reopen
   { prefix: '/requests/', fallback: '/index' },
@@ -153,19 +141,13 @@ export function AuthRequired(): ReactElement | null {
     }
 
     // On first render when unlocked, check if the current deep URL is safe.
-    // Unsafe routes (compose forms, swap list with params) lose their context
-    // when the popup closes and reopens — redirect to a sensible fallback.
-    // Use sessionStorage to skip the check after the first successful navigation,
-    // since the extension popup creates a fresh browsing context on each reopen
-    // but preserves sessionStorage across in-app navigations.
+    // Unsafe routes (consolidate flow, provider approval windows) depend on
+    // ephemeral state that is lost when the popup closes and reopens.
     if (authState === 'UNLOCKED' && !hasCheckedDeepLink.current) {
       hasCheckedDeepLink.current = true;
-      if (!sessionStorage.getItem('__nav_active')) {
-        sessionStorage.setItem('__nav_active', '1');
-        const fallback = getDeepLinkFallback(location.pathname);
-        if (fallback) {
-          navigate(fallback, { replace: true });
-        }
+      const fallback = getDeepLinkFallback(location.pathname);
+      if (fallback) {
+        navigate(fallback, { replace: true });
       }
     }
   }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions, location.pathname]);
