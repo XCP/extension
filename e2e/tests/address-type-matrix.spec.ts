@@ -279,14 +279,15 @@ test.describe('Address Type Matrix - Counterwallet Wallet', () => {
   test('importing Counterwallet mnemonic creates Counterwallet wallet', async ({ extensionPage }) => {
     await importMnemonic(extensionPage, TEST_COUNTERWALLET_MNEMONIC, TEST_PASSWORD);
 
-    // Wait for wallet state to propagate after import
-    // React state updates from createMnemonicWallet may still be pending after navigation
+    // Wait for wallet state to propagate after import.
+    // PBKDF2 key derivation (600K iterations) can take 10-15s on CI runners,
+    // and the wallet context refresh adds more time after that.
     await extensionPage.waitForLoadState('networkidle');
 
     // Wait for the address container to appear - this only renders when wallet data is ready
     // (not during "Loading wallet data..." or "No wallet unlocked" states)
     const addressContainer = extensionPage.locator('[aria-label="Current address"]');
-    await expect(addressContainer).toBeVisible({ timeout: 20000 });
+    await expect(addressContainer).toBeVisible({ timeout: 30000 });
 
     // Now verify the address text matches expected format
     const address = await getCurrentDisplayedAddress(extensionPage);
