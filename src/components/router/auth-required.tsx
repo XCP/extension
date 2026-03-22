@@ -128,7 +128,7 @@ export function AuthRequired(): ReactElement | null {
     state: location.pathname !== '/' ? { from: location.pathname } : undefined
   }), [location.pathname]);
 
-  // Track whether we've done the initial deep-link safety check
+  // Track whether we've done the initial deep-link safety check.
   const hasCheckedDeepLink = useRef(false);
 
   /**
@@ -155,11 +155,17 @@ export function AuthRequired(): ReactElement | null {
     // On first render when unlocked, check if the current deep URL is safe.
     // Unsafe routes (compose forms, swap list with params) lose their context
     // when the popup closes and reopens — redirect to a sensible fallback.
+    // Use sessionStorage to skip the check after the first successful navigation,
+    // since the extension popup creates a fresh browsing context on each reopen
+    // but preserves sessionStorage across in-app navigations.
     if (authState === 'UNLOCKED' && !hasCheckedDeepLink.current) {
       hasCheckedDeepLink.current = true;
-      const fallback = getDeepLinkFallback(location.pathname);
-      if (fallback) {
-        navigate(fallback, { replace: true });
+      if (!sessionStorage.getItem('__nav_active')) {
+        sessionStorage.setItem('__nav_active', '1');
+        const fallback = getDeepLinkFallback(location.pathname);
+        if (fallback) {
+          navigate(fallback, { replace: true });
+        }
       }
     }
   }, [authState, keychainExists, navigate, isLoading, getRedirectPath, navigationOptions, location.pathname]);
