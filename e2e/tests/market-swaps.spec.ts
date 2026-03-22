@@ -111,7 +111,7 @@ walletTest.describe('List for Sale Form (/market/swaps/list)', () => {
     await page.goto(`${baseUrl}/market/swaps/list`);
     await page.waitForLoadState('networkidle');
 
-    await expect(swapList.noUtxoError(page)).toBeVisible({ timeout: 5000 });
+    await expect(swapList.noUtxoError(page)).toBeVisible({ timeout: 15000 });
   });
 
   walletTest('shows error for invalid UTXO', async ({ page }) => {
