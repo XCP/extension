@@ -140,15 +140,17 @@ export function createProviderService(): ProviderService {
 
       const message = `xcp-wallet\norigin:${origin}\nnonce:${nonce}\nissued:${issued}`;
 
+      const addressFormat = activeWallet.addressFormat || 'p2tr';
+
       const privateKeyResult = await walletService.getPrivateKey(
         activeWallet.id,
-        activeAddress.derivationPath
+        activeAddress.path
       );
 
       const result = await signMessageDirect(
         message,
         privateKeyResult.hex,
-        activeAddress.addressFormat || 'p2tr',
+        addressFormat,
         privateKeyResult.compressed
       );
 
@@ -158,7 +160,7 @@ export function createProviderService(): ProviderService {
         signature: result.signature,
         verification: {
           method: 'BIP-322' as const,
-          format: activeAddress.addressFormat || 'p2tr',
+          format: addressFormat,
         },
       };
     } catch (error) {
