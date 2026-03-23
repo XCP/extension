@@ -56,6 +56,9 @@ vi.mock('@/utils/wallet/walletManager', () => ({
   },
 }));
 vi.mock('@/utils/storage/signMessageRequestStorage');
+vi.mock('@/utils/blockchain/bitcoin/messageSigner', () => ({
+  signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qtest123' }),
+}));
 vi.mock('@/utils/storage/signPsbtRequestStorage');
 vi.mock('@/services/updateService');
 vi.mock('@/utils/provider/approvalQueue');
@@ -191,7 +194,7 @@ describe('ProviderService', () => {
       updateWalletAddressFormat: vi.fn(),
       updateWalletPinnedAssets: vi.fn(),
       getUnencryptedMnemonic: vi.fn(),
-      getPrivateKey: vi.fn(),
+      getPrivateKey: vi.fn().mockResolvedValue({ hex: 'deadbeef'.repeat(8), wif: 'test-wif', compressed: true }),
       removeWallet: vi.fn(),
       getPreviewAddressForFormat: vi.fn(),
       signTransaction: vi.fn(),
@@ -310,9 +313,10 @@ describe('ProviderService', () => {
           'https://test.com',
           'xcp_requestAccounts',
           []
-        );
+        ) as any;
 
-        expect(result).toEqual(['bc1qtest123']);
+        expect(result.accounts).toEqual(['bc1qtest123']);
+        expect(result.proof).toBeDefined();
       });
       
       it('should request permission if not connected', async () => {
@@ -335,8 +339,9 @@ describe('ProviderService', () => {
           'wallet1'       // activeWallet.id from mock (no hyphen)
         );
 
-        // Should return the accounts
-        expect(result).toEqual(['bc1qtest123']);
+        // Should return accounts with proof
+        expect((result as any).accounts).toEqual(['bc1qtest123']);
+        expect((result as any).proof).toBeDefined();
       });
 
     });

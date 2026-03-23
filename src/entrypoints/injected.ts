@@ -112,10 +112,12 @@ export default defineUnlistedScript(() => {
     }
 
     // Update accounts state from account-related responses
-    if (data?.method === 'xcp_requestAccounts' || data?.method === 'xcp_accounts') {
-      if (Array.isArray(data.result)) {
-        updateAccounts(data.result);
-      }
+    if (data?.method === 'xcp_requestAccounts') {
+      // New shape: { accounts: string[], proof: ... }
+      const accts = data.result?.accounts ?? data.result;
+      if (Array.isArray(accts)) updateAccounts(accts);
+    } else if (data?.method === 'xcp_accounts') {
+      if (Array.isArray(data.result)) updateAccounts(data.result);
     }
 
     pending.resolve(data?.result);
@@ -206,6 +208,14 @@ export default defineUnlistedScript(() => {
     enumerable: true
   });
 
+  // Announce provider is available
   window.dispatchEvent(new Event('xcp-wallet#initialized'));
+
+  // Re-announce whenever a dApp asks — handles dApps that load before the
+  // content script injects, or single-page apps that mount later.
+  window.addEventListener('xcp-wallet#discover', () => {
+    window.dispatchEvent(new Event('xcp-wallet#initialized'));
+  });
+
   console.log('XCP Wallet provider initialized');
 });

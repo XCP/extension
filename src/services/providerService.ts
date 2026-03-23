@@ -23,6 +23,7 @@ import { getUpdateService } from '@/services/updateService';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
+import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
 import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
 import { keychainExists } from '@/utils/storage/walletStorage';
@@ -116,30 +117,74 @@ export function createProviderService(): ProviderService {
   /**
    * Get accounts for connected origin
    */
-  async function getAccounts(origin: string): Promise<string[]> {
-    console.debug('[ProviderService] getAccounts called for origin:', origin);
+  /**
+   * Generate a connection proof: auto-sign a deterministic message proving
+   * the user controls the address. No user prompt — they already approved connecting.
+   * The message format is locked down so it can't be confused with arbitrary signing.
+   */
+  async function generateConnectionProof(origin: string): Promise<{
+    address: string;
+    message: string;
+    signature: string;
+    verification: { method: 'BIP-322'; format: string };
+  } | null> {
+    try {
+      const walletService = getWalletService();
+      const activeAddress = await walletService.getActiveAddress();
+      const activeWallet = await walletService.getActiveWallet();
+      if (!activeAddress || !activeWallet) return null;
 
+      const nonce = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+      const issued = Math.floor(Date.now() / 1000);
+
+      const message = `xcp-wallet\norigin:${origin}\nnonce:${nonce}\nissued:${issued}`;
+
+      const privateKeyResult = await walletService.getPrivateKey(
+        activeWallet.id,
+        activeAddress.derivationPath
+      );
+
+      const result = await signMessageDirect(
+        message,
+        privateKeyResult.hex,
+        activeAddress.addressFormat || 'p2tr',
+        privateKeyResult.compressed
+      );
+
+      return {
+        address: result.address,
+        message,
+        signature: result.signature,
+        verification: {
+          method: 'BIP-322' as const,
+          format: activeAddress.addressFormat || 'p2tr',
+        },
+      };
+    } catch (error) {
+      console.warn('[ProviderService] Failed to generate connection proof:', error);
+      return null;
+    }
+  }
+
+  async function getAccounts(origin: string): Promise<string[]> {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
 
-    // Check wallet state
     const isUnlocked = await walletService.isKeychainUnlocked();
-    if (!isUnlocked) {
-      console.debug('[ProviderService] Wallet not unlocked, returning empty array');
-      return [];
-    }
+    if (!isUnlocked) return [];
 
     const activeAddress = await walletService.getActiveAddress();
-    if (!activeAddress) {
-      console.debug('[ProviderService] No active address, returning empty array');
-      return [];
-    }
+    if (!activeAddress) return [];
 
-    // Check if origin is connected
     const isConnected = await connectionService.hasPermission(origin);
-    console.debug('[ProviderService] Connection check:', { origin, isConnected });
-
     return isConnected ? [activeAddress.address] : [];
+  }
+
+  /** Build the standard response for xcp_requestAccounts with proof. */
+  async function buildConnectResponse(origin: string, accounts: string[]) {
+    const proof = accounts.length > 0 ? await generateConnectionProof(origin) : null;
+    return { accounts, proof };
   }
 
   /**
@@ -241,14 +286,14 @@ export function createProviderService(): ProviderService {
 
                   // Check if already connected (unlikely after fresh setup)
                   if (await connectionService.hasPermission(origin)) {
-                    resolve(getAccounts(origin));
+                    resolve(await buildConnectResponse(origin, await getAccounts(origin)));
                     return;
                   }
 
                   // Request connection
                   const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
                   await analytics.track('connection_established');
-                  resolve(accounts);
+                  resolve(await buildConnectResponse(origin, accounts));
                 } catch (error) {
                   reject(error);
                 }
@@ -318,14 +363,14 @@ export function createProviderService(): ProviderService {
 
                   // Check if already connected
                   if (await connectionService.hasPermission(origin)) {
-                    resolve(getAccounts(origin));
+                    resolve(await buildConnectResponse(origin, await getAccounts(origin)));
                     return;
                   }
 
                   // Request connection
                   const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
                   await analytics.track('connection_established');
-                  resolve(accounts);
+                  resolve(await buildConnectResponse(origin, accounts));
                 } catch (error) {
                   reject(error);
                 }
@@ -355,7 +400,7 @@ export function createProviderService(): ProviderService {
 
           // Check if already connected
           if (await connectionService.hasPermission(origin)) {
-            return getAccounts(origin);
+            return buildConnectResponse(origin, await getAccounts(origin));
           }
           
           // CSP Security Analysis (warning mode only)
@@ -383,11 +428,11 @@ export function createProviderService(): ProviderService {
           
           // Request connection through ConnectionService
           const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-          
+
           // Track successful connection
           await analytics.track('connection_established');
-          
-          return accounts;
+
+          return buildConnectResponse(origin, accounts);
         }
         
         case 'xcp_accounts': {

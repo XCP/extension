@@ -7,6 +7,7 @@ const matches = ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'];
 
 export default defineContentScript({
   matches,
+  runAt: 'document_start',
   async main(ctx) {
     /**
      * CRITICAL: Send "ready" signal to background immediately
