@@ -5,6 +5,7 @@ import {
   formatInputsSet,
   getUtxoByTxid,
   fetchPreviousRawTransaction,
+  fetchBitcoinTransaction,
   clearBitcoinCaches
 } from '@/utils/blockchain/bitcoin/utxo';
 import { apiClient } from '@/utils/apiClient';
@@ -587,6 +588,130 @@ describe('UTXO Utilities', () => {
         const found = getUtxoByTxid(utxos, mockTxid, utxo.vout);
         expect(found).toEqual(utxo);
       });
+    });
+  });
+
+  describe('fetchBitcoinTransaction', () => {
+    const mockBtcTx = {
+      hex: '0200000001...',
+      txid: mockTxid,
+      version: 2,
+      locktime: 0,
+      size: 225,
+      vsize: 141,
+      weight: 561,
+      vin: [{ txid: 'input-txid', vout: 0, sequence: 0xffffffff }],
+      vout: [{ value: 0.001, n: 0, scriptPubKey: { asm: '', hex: '', type: 'witness_v0_keyhash', address: 'bc1qtest' } }],
+    };
+
+    const mockStatus = {
+      confirmed: true,
+      block_height: 850000,
+      block_hash: 'block-hash',
+      block_time: 1700000000,
+    };
+
+    beforeEach(() => {
+      clearBitcoinCaches();
+    });
+
+    it('returns transaction with status from parallel fetches', async () => {
+      mockApiClient.get.mockResolvedValueOnce({
+        data: { result: { ...mockBtcTx } },
+      } as any);
+
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(
+        mockFetchResponse(mockStatus)
+      );
+
+      const result = await fetchBitcoinTransaction(mockTxid);
+      expect(result).not.toBeNull();
+      expect(result!.txid).toBe(mockTxid);
+      expect(result!.status).toEqual(mockStatus);
+      expect(result!.blocktime).toBe(1700000000);
+    });
+
+    it('returns transaction without status when mempool fails', async () => {
+      mockApiClient.get.mockResolvedValueOnce({
+        data: { result: { ...mockBtcTx } },
+      } as any);
+
+      vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('mempool down'));
+
+      const result = await fetchBitcoinTransaction(mockTxid);
+      expect(result).not.toBeNull();
+      expect(result!.txid).toBe(mockTxid);
+      // Status not set since mempool failed (catch returns null)
+      expect(result!.status).toBeUndefined();
+    });
+
+    it('returns null when counterparty API fails', async () => {
+      mockApiClient.get.mockRejectedValueOnce(new Error('API error'));
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      const result = await fetchBitcoinTransaction(mockTxid);
+      expect(result).toBeNull();
+    });
+
+    it('returns null when counterparty API returns no result', async () => {
+      mockApiClient.get.mockResolvedValueOnce({
+        data: {},
+      } as any);
+
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      const result = await fetchBitcoinTransaction(mockTxid);
+      expect(result).toBeNull();
+    });
+
+    it('uses settings for API base URL', async () => {
+      mockGetSettings.mockReturnValue({
+        counterpartyApiBase: 'https://custom-api.example.com',
+      } as any);
+
+      mockApiClient.get.mockResolvedValueOnce({
+        data: { result: { ...mockBtcTx } },
+      } as any);
+
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      await fetchBitcoinTransaction(mockTxid);
+      expect(mockApiClient.get).toHaveBeenCalledWith(
+        expect.stringContaining('https://custom-api.example.com/v2/bitcoin/transactions/')
+      );
+    });
+
+    it('caches results and returns cached value on second call', async () => {
+      mockApiClient.get.mockResolvedValueOnce({
+        data: { result: { ...mockBtcTx } },
+      } as any);
+
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      const result1 = await fetchBitcoinTransaction(mockTxid);
+      const result2 = await fetchBitcoinTransaction(mockTxid);
+
+      expect(result1).toEqual(result2);
+      // Only one API call since second call uses cache
+      expect(mockApiClient.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not cache null results', async () => {
+      mockApiClient.get.mockRejectedValueOnce(new Error('fail'));
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      const result1 = await fetchBitcoinTransaction(mockTxid);
+      expect(result1).toBeNull();
+
+      // Second call should retry since null wasn't cached
+      mockApiClient.get.mockResolvedValueOnce({
+        data: { result: { ...mockBtcTx } },
+      } as any);
+      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+
+      const result2 = await fetchBitcoinTransaction(mockTxid);
+      expect(result2).not.toBeNull();
+      expect(mockApiClient.get).toHaveBeenCalledTimes(2);
     });
   });
 });
