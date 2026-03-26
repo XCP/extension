@@ -3,14 +3,18 @@
 Browser extension wallet for Counterparty on Bitcoin.
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/nicpjdbehgcjbjfjkobcidnfmfpijohg?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
+[![Chrome Web Store Users](https://img.shields.io/chrome-web-store/users/nicpjdbehgcjbjfjkobcidnfmfpijohg)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
+[![CI](https://github.com/XCP/extension/actions/workflows/pr-tests.yml/badge.svg)](https://github.com/XCP/extension/actions/workflows/pr-tests.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ## Features
 
 - Multiple wallets and address types (SegWit, Taproot, Legacy)
 - Send/receive BTC and Counterparty assets
 - Create dispensers and DEX orders
+- UTXO consolidation
 - Issue and manage assets
-- Connect to dApps via provider API
+- Connect to dApps via [provider API](PROVIDER.md)
 - BIP-322 message signing
 - Hardware wallet support (Trezor)
 
@@ -35,7 +39,7 @@ Report vulnerabilities via [GitHub Security Advisories](../../security/advisorie
 
 ## Dependencies
 
-We intentionally minimized runtime dependencies—most wallets ship dozens, we ship 12. What remains is carefully vetted.
+We intentionally minimized runtime dependencies—most wallets ship dozens, we ship 14. What remains is carefully vetted.
 
 | Package | Purpose |
 |---------|---------|
