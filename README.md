@@ -73,6 +73,10 @@ npm run test:unit  # Unit only
 npm run test:e2e   # E2E only
 ```
 
+## Community
+
+[Telegram](https://t.me/xcpwallet) for support, feedback, and discussion.
+
 ## License
 
 MIT
