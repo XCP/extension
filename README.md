@@ -2,6 +2,8 @@
 
 Browser extension wallet for Counterparty on Bitcoin.
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/nicpjdbehgcjbjfjkobcidnfmfpijohg?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
+
 ## Features
 
 - Multiple wallets and address types (SegWit, Taproot, Legacy)
@@ -14,7 +16,7 @@ Browser extension wallet for Counterparty on Bitcoin.
 
 ## Install
 
-Coming soon to Chrome Web Store.
+[**Chrome Web Store**](https://chromewebstore.google.com/detail/xcp-wallet/nicpjdbehgcjbjfjkobcidnfmfpijohg)
 
 ## Security
 
