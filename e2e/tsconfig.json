@@ -4,12 +4,10 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
-    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "strict": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
       "@e2e/*": ["./*"]
     }
