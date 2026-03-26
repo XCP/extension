@@ -134,15 +134,21 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
     const { messageType, messageData } = decodedInfo.counterpartyMessage;
 
     if (messageType === 'order') {
-      const giveAsset = String(messageData.give_asset ?? '');
-      const getAsset = String(messageData.get_asset ?? '');
-      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAsset, messageData, 'give_asset');
-      const getAmount = normalizeQuantity(messageData.get_quantity, getAsset, messageData, 'get_asset');
+      const giveAssetRaw = String(messageData.give_asset ?? '');
+      const getAssetRaw = String(messageData.get_asset ?? '');
+      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAssetRaw, messageData, 'give_asset');
+      const getAmount = normalizeQuantity(messageData.get_quantity, getAssetRaw, messageData, 'get_asset');
+
+      // Prefer asset_longname (subasset display name) over numeric ID
+      const giveInfo = messageData.give_asset_info as { asset_longname?: string | null } | undefined;
+      const getInfo = messageData.get_asset_info as { asset_longname?: string | null } | undefined;
+      const giveAsset = giveInfo?.asset_longname || giveAssetRaw;
+      const getAsset = getInfo?.asset_longname || getAssetRaw;
 
       const rawGive = Number(messageData.give_quantity);
       const rawGet = Number(messageData.get_quantity);
-      const giveDivisor = isAssetDivisible(giveAsset, messageData, 'give_asset') ? 1e8 : 1;
-      const getDivisor = isAssetDivisible(getAsset, messageData, 'get_asset') ? 1e8 : 1;
+      const giveDivisor = isAssetDivisible(giveAssetRaw, messageData, 'give_asset') ? 1e8 : 1;
+      const getDivisor = isAssetDivisible(getAssetRaw, messageData, 'get_asset') ? 1e8 : 1;
 
       return {
         type: 'order',

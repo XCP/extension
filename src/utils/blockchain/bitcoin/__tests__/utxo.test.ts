@@ -29,15 +29,9 @@ vi.mock('@/utils/wallet/walletManager', () => ({
 const mockApiClient = vi.mocked(apiClient, true);
 const mockGetSettings = vi.mocked(walletManager.getSettings);
 
-/** Helper to create a mock fetch Response */
-function mockFetchResponse(body: unknown, ok = true): Response {
-  const isString = typeof body === 'string';
-  return {
-    ok,
-    status: ok ? 200 : 500,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(isString ? body : JSON.stringify(body)),
-  } as Response;
+/** Helper to create a mock apiClient response */
+function mockApiResponse<T>(data: T) {
+  return { data, status: 200, statusText: 'OK', headers: {} };
 }
 
 describe('UTXO Utilities', () => {
@@ -85,7 +79,7 @@ describe('UTXO Utilities', () => {
     };
 
     it('should fetch UTXOs successfully', async () => {
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse([mockApiUtxo]));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse([mockApiUtxo]));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -96,27 +90,27 @@ describe('UTXO Utilities', () => {
       expect(result[0].value).toBe(100000);
       expect(result[0].status.confirmed).toBe(true);
       expect(result[0].status.block_height).toBe(850000);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
-        { signal: undefined }
+        { retries: 0, signal: undefined }
       );
     });
 
     it('should fetch UTXOs with AbortSignal', async () => {
       const abortController = new AbortController();
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse([mockApiUtxo]));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse([mockApiUtxo]));
 
       const result = await fetchUTXOs(mockAddress, abortController.signal);
 
       expect(result).toHaveLength(1);
-      expect(global.fetch).toHaveBeenCalledWith(
+      expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
-        { signal: abortController.signal }
+        { retries: 0, signal: abortController.signal }
       );
     });
 
     it('should return empty array when no UTXOs found', async () => {
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse([]));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse([]));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -124,34 +118,35 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle network errors', async () => {
-      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+      mockApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle HTTP error responses', async () => {
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(null, false));
+      // apiClient.get throws on non-ok HTTP responses
+      mockApiClient.get.mockRejectedValue(new Error('HTTP 500'));
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should re-throw cancellation errors', async () => {
       const cancelError = new DOMException('Request cancelled', 'AbortError');
-      vi.spyOn(global, 'fetch').mockRejectedValue(cancelError);
+      mockApiClient.get.mockRejectedValue(cancelError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Request cancelled');
     });
 
     it('should handle timeout errors', async () => {
-      const timeoutError = new Error('timeout');
-      (timeoutError as any).code = 'TIMEOUT';
-      vi.spyOn(global, 'fetch').mockRejectedValue(timeoutError);
+      const timeoutError = Object.assign(new Error('timeout'), { code: 'TIMEOUT' });
+      mockApiClient.get.mockRejectedValue(timeoutError);
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
 
     it('should handle malformed response data', async () => {
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(null));
+      // Both endpoints return non-array data
+      mockApiClient.get.mockResolvedValue(mockApiResponse(null));
 
       await expect(fetchUTXOs(mockAddress)).rejects.toThrow('Failed to fetch UTXOs.');
     });
@@ -163,7 +158,7 @@ describe('UTXO Utilities', () => {
         { txid: mockTxid, vout: 1, value: 100000, status: confirmedStatus },
         { txid: mockTxid, vout: 2, value: 200000, status: confirmedStatus }
       ];
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(apiUtxos));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(apiUtxos));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -181,7 +176,7 @@ describe('UTXO Utilities', () => {
         { txid: mockTxid, vout: 0, value: 100000, status: confirmedStatus },
         { txid: mockTxid, vout: 1, value: 100000, status: unconfirmedStatus }
       ];
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(apiUtxos));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(apiUtxos));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -192,7 +187,7 @@ describe('UTXO Utilities', () => {
     it('should handle very large UTXO values', async () => {
       const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
       const apiUtxos = [{ txid: mockTxid, vout: 0, value: 2100000000000000, status: confirmedStatus }];
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(apiUtxos));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(apiUtxos));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -202,7 +197,7 @@ describe('UTXO Utilities', () => {
     it('should handle zero-value UTXOs', async () => {
       const confirmedStatus = { confirmed: true, block_height: 850000, block_hash: 'hash', block_time: 1640995200 };
       const apiUtxos = [{ txid: mockTxid, vout: 0, value: 0, status: confirmedStatus }];
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(apiUtxos));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(apiUtxos));
 
       const result = await fetchUTXOs(mockAddress);
 
@@ -339,13 +334,7 @@ describe('UTXO Utilities', () => {
     const mockRawHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
 
     it('should fetch raw transaction from Counterparty API', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -356,14 +345,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when transaction not found', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: null },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns null result -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: null }));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -371,14 +356,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when hex not present in response', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { no_hex_field: 'data' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns result without hex field -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { no_hex_field: 'data' } }));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -386,14 +367,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when response data is malformed', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: null,
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns null data -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(null));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -401,14 +378,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should return null when result is undefined', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: undefined },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns undefined result -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: undefined }));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -416,20 +389,24 @@ describe('UTXO Utilities', () => {
     });
 
     it('should fall back to mempool.space when Counterparty API fails', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('Network error'));
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse(mockRawHex, true));
+      // Counterparty API fails
+      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
+      // Mempool fallback succeeds
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockRawHex));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
       expect(result).toBe(mockRawHex);
-      expect(global.fetch).toHaveBeenCalledWith(
-        `https://mempool.space/api/tx/${mockTxid}/hex`
+      expect(mockApiClient.get).toHaveBeenCalledWith(
+        `https://mempool.space/api/tx/${mockTxid}/hex`,
+        { retries: 0 }
       );
     });
 
     it('should return null when all sources fail', async () => {
-      mockApiClient.get.mockRejectedValue(new Error('Network error'));
-      vi.spyOn(global, 'fetch').mockRejectedValue(new Error('Network error'));
+      // Both Counterparty and mempool fail
+      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
+      mockApiClient.get.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -442,13 +419,7 @@ describe('UTXO Utilities', () => {
         counterpartyApiBase: 'https://custom.api.com'
       } as any);
 
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -459,13 +430,7 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle empty hex field', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: '' } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: '' } }));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -474,13 +439,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle very long transaction hex', async () => {
       const longHex = 'a'.repeat(10000);
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: longHex } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: longHex } }));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -489,13 +448,7 @@ describe('UTXO Utilities', () => {
 
     it('should handle special characters in txid', async () => {
       const specialTxid = 'abc-def_123';
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: mockRawHex } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: mockRawHex } }));
 
       await fetchPreviousRawTransaction(specialTxid);
 
@@ -505,20 +458,14 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle response with extra fields', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: {
-          result: {
-            hex: mockRawHex,
-            extra_field: 'extra_data',
-            another_field: 123
-          },
-          extra_top_level: 'data'
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({
+        result: {
+          hex: mockRawHex,
+          extra_field: 'extra_data',
+          another_field: 123
         },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
+        extra_top_level: 'data'
+      }));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -526,14 +473,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle null hex value', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: null } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns null hex -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: null } }));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -541,14 +484,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('should handle undefined hex value', async () => {
-      mockApiClient.get.mockResolvedValue({
-        data: { result: { hex: undefined } },
-        status: 200,
-        statusText: 'OK',
-        headers: {},
-        config: {}
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValue(mockFetchResponse('', true));
+      // Counterparty returns undefined hex -> falls through to mempool
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { hex: undefined } }));
+      // Mempool returns empty string
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(''));
 
       const result = await fetchPreviousRawTransaction(mockTxid);
 
@@ -616,13 +555,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('returns transaction with status from parallel fetches', async () => {
-      mockApiClient.get.mockResolvedValueOnce({
-        data: { result: { ...mockBtcTx } },
-      } as any);
-
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(
-        mockFetchResponse(mockStatus)
-      );
+      // Counterparty API call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      // Mempool status call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).not.toBeNull();
@@ -632,11 +568,10 @@ describe('UTXO Utilities', () => {
     });
 
     it('returns transaction without status when mempool fails', async () => {
-      mockApiClient.get.mockResolvedValueOnce({
-        data: { result: { ...mockBtcTx } },
-      } as any);
-
-      vi.spyOn(global, 'fetch').mockRejectedValueOnce(new Error('mempool down'));
+      // Counterparty API call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      // Mempool status call fails
+      mockApiClient.get.mockRejectedValueOnce(new Error('mempool down'));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).not.toBeNull();
@@ -646,19 +581,20 @@ describe('UTXO Utilities', () => {
     });
 
     it('returns null when counterparty API fails', async () => {
+      // Both calls are in Promise.all, but the outer try/catch handles the error
       mockApiClient.get.mockRejectedValueOnce(new Error('API error'));
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      // Mempool call would also happen but Promise.all rejects on first failure
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).toBeNull();
     });
 
     it('returns null when counterparty API returns no result', async () => {
-      mockApiClient.get.mockResolvedValueOnce({
-        data: {},
-      } as any);
-
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      // Counterparty returns empty data
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({}));
+      // Mempool status call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result = await fetchBitcoinTransaction(mockTxid);
       expect(result).toBeNull();
@@ -669,11 +605,10 @@ describe('UTXO Utilities', () => {
         counterpartyApiBase: 'https://custom-api.example.com',
       } as any);
 
-      mockApiClient.get.mockResolvedValueOnce({
-        data: { result: { ...mockBtcTx } },
-      } as any);
-
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      // Counterparty API call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      // Mempool status call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       await fetchBitcoinTransaction(mockTxid);
       expect(mockApiClient.get).toHaveBeenCalledWith(
@@ -682,36 +617,35 @@ describe('UTXO Utilities', () => {
     });
 
     it('caches results and returns cached value on second call', async () => {
-      mockApiClient.get.mockResolvedValueOnce({
-        data: { result: { ...mockBtcTx } },
-      } as any);
-
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      // Counterparty API call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      // Mempool status call
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result1 = await fetchBitcoinTransaction(mockTxid);
       const result2 = await fetchBitcoinTransaction(mockTxid);
 
       expect(result1).toEqual(result2);
-      // Only one API call since second call uses cache
-      expect(mockApiClient.get).toHaveBeenCalledTimes(1);
+      // Two API calls on first fetch (counterparty + mempool), none on second (cached)
+      expect(mockApiClient.get).toHaveBeenCalledTimes(2);
     });
 
     it('does not cache null results', async () => {
+      // First attempt: Counterparty fails, mempool succeeds but doesn't matter
       mockApiClient.get.mockRejectedValueOnce(new Error('fail'));
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result1 = await fetchBitcoinTransaction(mockTxid);
       expect(result1).toBeNull();
 
       // Second call should retry since null wasn't cached
-      mockApiClient.get.mockResolvedValueOnce({
-        data: { result: { ...mockBtcTx } },
-      } as any);
-      vi.spyOn(global, 'fetch').mockResolvedValueOnce(mockFetchResponse(mockStatus));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse({ result: { ...mockBtcTx } }));
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse(mockStatus));
 
       const result2 = await fetchBitcoinTransaction(mockTxid);
       expect(result2).not.toBeNull();
-      expect(mockApiClient.get).toHaveBeenCalledTimes(2);
+      // 4 total calls: 2 per attempt (counterparty + mempool) x 2 attempts
+      expect(mockApiClient.get).toHaveBeenCalledTimes(4);
     });
   });
 });

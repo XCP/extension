@@ -99,10 +99,8 @@ async function fetchOutputValue(txid: string, vout: number): Promise<number | nu
 
   for (const url of endpoints) {
     try {
-      const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, {
-        timeout: API_TIMEOUTS.DEFAULT,
-      });
-      if (response.status === 200 && response.data?.vout?.[vout]) {
+      const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, { retries: 0 });
+      if (response.data?.vout?.[vout]) {
         return response.data.vout[vout].value;
       }
     } catch {
@@ -132,10 +130,8 @@ export async function fetchInputValues(
 
     for (const url of endpoints) {
       try {
-        const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, {
-          timeout: API_TIMEOUTS.DEFAULT,
-        });
-        if (response.status === 200 && response.data?.vout) {
+        const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, { retries: 0 });
+        if (response.data?.vout) {
           // Store all vout values for this txid
           for (const input of inputs) {
             if (input.txid === txid && response.data.vout[input.vout]) {
@@ -201,6 +197,15 @@ export function describeCounterpartyMessage(
   messageType: string,
   messageData: Record<string, unknown>
 ): string {
+  /** Resolve display name for an asset field, preferring asset_longname for subassets. */
+  const displayName = (assetField: string): string => {
+    const raw = String(messageData[assetField] ?? '');
+    const info = messageData[`${assetField}_info`] as Record<string, unknown> | undefined;
+    return (info?.asset_longname && typeof info.asset_longname === 'string')
+      ? info.asset_longname
+      : raw;
+  };
+
   /**
    * Normalize a raw quantity for display.
    * Checks (in order): _normalized field from API, then _info.divisible flag
@@ -229,17 +234,17 @@ export function describeCounterpartyMessage(
   switch (messageType) {
     case 'enhanced_send':
     case 'send':
-      return `Send ${q('quantity', 'asset')} ${messageData.asset} to ${messageData.destination}`;
+      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
     case 'order':
-      return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${messageData.give_asset} for ${q('get_quantity', 'get_asset')} ${messageData.get_asset}`;
+      return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${displayName('give_asset')} for ${q('get_quantity', 'get_asset')} ${displayName('get_asset')}`;
     case 'dispenser':
-      return `Create Dispenser: ${q('give_quantity', 'asset')} ${messageData.asset} per ${messageData.mainchainrate} sats`;
+      return `Create Dispenser: ${q('give_quantity', 'asset')} ${displayName('asset')} per ${messageData.mainchainrate} sats`;
     case 'dispense':
       return `Dispense from ${messageData.dispenser}`;
     case 'issuance':
-      return `Issue Asset: ${messageData.asset}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
+      return `Issue Asset: ${displayName('asset')}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
     case 'dividend':
-      return `Pay Dividend: ${q('quantity_per_unit', 'dividend_asset')} ${messageData.dividend_asset} per ${messageData.asset}`;
+      return `Pay Dividend: ${q('quantity_per_unit', 'dividend_asset')} ${displayName('dividend_asset')} per ${displayName('asset')}`;
     case 'cancel':
       return `Cancel Order: ${messageData.offer_hash}`;
     case 'btcpay':
@@ -249,17 +254,17 @@ export function describeCounterpartyMessage(
     case 'broadcast':
       return `Broadcast: ${messageData.text || 'message'}`;
     case 'fairminter':
-      return `Create Fairminter: ${messageData.asset}`;
+      return `Create Fairminter: ${displayName('asset')}`;
     case 'fairmint':
-      return `Mint from Fairminter: ${messageData.asset}`;
+      return `Mint from Fairminter: ${displayName('asset')}`;
     case 'attach':
-      return `Attach ${q('quantity', 'asset')} ${messageData.asset} to UTXO`;
+      return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
     case 'detach':
       return `Detach assets from UTXO`;
     case 'utxo_move':
       return `Move UTXO to ${messageData.destination}`;
     case 'destroy':
-      return `Destroy ${q('quantity', 'asset')} ${messageData.asset}`;
+      return `Destroy ${q('quantity', 'asset')} ${displayName('asset')}`;
     default:
       return `Counterparty ${messageType} transaction`;
   }
@@ -307,14 +312,17 @@ async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void>
 
   const unique = [...new Set(needsLookup)];
   const infos = await Promise.all(
-    unique.map(a => fetchAssetDetails(a, { verbose: false }).catch(() => null))
+    unique.map(a => fetchAssetDetails(a).catch(() => null))
   );
 
   for (let i = 0; i < unique.length; i++) {
     if (infos[i]) {
       for (const field of assetFields) {
         if (String(data[field]) === unique[i]) {
-          data[`${field}_info`] = { divisible: infos[i]!.divisible };
+          data[`${field}_info`] = {
+            divisible: infos[i]!.divisible,
+            asset_longname: infos[i]!.asset_longname,
+          };
         }
       }
     }

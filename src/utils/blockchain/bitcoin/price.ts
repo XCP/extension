@@ -1,5 +1,6 @@
 import { KeyedTTLCache, CacheTTL } from '@/utils/cache';
 import { DataFetchError } from '@/utils/blockchain/errors';
+import { apiClient } from '@/utils/apiClient';
 
 /**
  * Supported fiat currencies for price display.
@@ -59,8 +60,8 @@ export interface PriceData {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromCoinbase(): Promise<PriceData> {
-  const response = await fetch("https://api.coinbase.com/v2/prices/spot?currency=USD");
-  const data = await response.json();
+  const response = await apiClient.get<{ data?: { amount?: string } }>("https://api.coinbase.com/v2/prices/spot?currency=USD", { retries: 0 });
+  const data = response.data;
   if (!data || !data.data || !data.data.amount) {
     throw new DataFetchError("Invalid response data", "coinbase.com", {
       endpoint: "/v2/prices/spot",
@@ -75,8 +76,8 @@ export async function fetchFromCoinbase(): Promise<PriceData> {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromKraken(): Promise<PriceData> {
-  const response = await fetch("https://api.kraken.com/0/public/Ticker?pair=XBTUSD");
-  const data = await response.json();
+  const response = await apiClient.get<{ result?: { XXBTZUSD?: { c?: string[] } } }>("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", { retries: 0 });
+  const data = response.data;
   if (!data.result || !data.result.XXBTZUSD || !data.result.XXBTZUSD.c) {
     throw new DataFetchError("Invalid response data", "kraken.com", {
       endpoint: "/0/public/Ticker",
@@ -91,8 +92,8 @@ export async function fetchFromKraken(): Promise<PriceData> {
  * @throws {DataFetchError} If the API response is invalid.
  */
 export async function fetchFromMempool(): Promise<PriceData> {
-  const response = await fetch("https://mempool.space/api/v1/prices");
-  const data = await response.json();
+  const response = await apiClient.get<{ USD?: number }>("https://mempool.space/api/v1/prices", { retries: 0 });
+  const data = response.data;
   if (!data || typeof data.USD !== "number") {
     throw new DataFetchError("Invalid response data", "mempool.space", {
       endpoint: "/api/v1/prices",
@@ -208,15 +209,8 @@ async function fetchHistoryFromCoinGecko(range: TimeRange, currency: FiatCurrenc
   const days = timeRangeToDays[range];
   const url = `https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=${currency}&days=${days}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new DataFetchError(`API error: ${response.status}`, "coingecko.com", {
-      endpoint: "/api/v3/coins/bitcoin/market_chart",
-      statusCode: response.status,
-    });
-  }
-
-  const data = await response.json();
+  const response = await apiClient.get<{ prices?: [number, number][] }>(url, { retries: 0 });
+  const data = response.data;
   if (!data.prices || !Array.isArray(data.prices)) {
     throw new DataFetchError("Invalid response data", "coingecko.com", {
       endpoint: "/api/v3/coins/bitcoin/market_chart",
@@ -247,15 +241,8 @@ async function fetchHistoryFromCoinCap(range: TimeRange): Promise<PricePoint[]> 
 
   const url = `https://api.coincap.io/v2/assets/bitcoin/history?interval=${interval}&start=${start}&end=${now}`;
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new DataFetchError(`API error: ${response.status}`, "coincap.io", {
-      endpoint: "/v2/assets/bitcoin/history",
-      statusCode: response.status,
-    });
-  }
-
-  const data = await response.json();
+  const response = await apiClient.get<{ data?: { time: number; priceUsd: string }[] }>(url, { retries: 0 });
+  const data = response.data;
   if (!data.data || !Array.isArray(data.data)) {
     throw new DataFetchError("Invalid response data", "coincap.io", {
       endpoint: "/v2/assets/bitcoin/history",
@@ -274,15 +261,8 @@ async function fetchHistoryFromCoinCap(range: TimeRange): Promise<PricePoint[]> 
 async function fetchStatsFromCoinCap(): Promise<BtcStats> {
   const url = 'https://api.coincap.io/v2/assets/bitcoin';
 
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new DataFetchError(`API error: ${response.status}`, "coincap.io", {
-      endpoint: "/v2/assets/bitcoin",
-      statusCode: response.status,
-    });
-  }
-
-  const data = await response.json();
+  const response = await apiClient.get<{ data?: { priceUsd: string; changePercent24Hr: string } }>(url, { retries: 0 });
+  const data = response.data;
   if (!data.data || !data.data.priceUsd) {
     throw new DataFetchError("Invalid response data", "coincap.io", {
       endpoint: "/v2/assets/bitcoin",
@@ -390,16 +370,8 @@ export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<Bt
     // Try CoinGecko first
     try {
       const url = `https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=${currency}&include_24hr_change=true`;
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new DataFetchError(`API error: ${response.status}`, "coingecko.com", {
-          endpoint: "/api/v3/simple/price",
-          statusCode: response.status,
-        });
-      }
-
-      const data = await response.json();
+      const response = await apiClient.get<{ bitcoin?: Record<string, number> }>(url, { retries: 0 });
+      const data = response.data;
       if (!data.bitcoin) {
         throw new DataFetchError("Invalid response data", "coingecko.com", {
           endpoint: "/api/v3/simple/price",

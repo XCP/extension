@@ -146,9 +146,8 @@ export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise
 
       for (const endpoint of endpoints) {
         try {
-          const response = await fetch(endpoint, { signal });
-          if (!response.ok) continue;
-          const utxos = await response.json();
+          const response = await apiClient.get<unknown>(endpoint, { retries: 0, signal });
+          const utxos = response.data;
 
           if (!isValidUtxoArray(utxos)) {
             continue;
@@ -221,12 +220,10 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
 
       // Fallback to mempool.space (handles unconfirmed txs better)
       try {
-        const response = await fetch(`https://mempool.space/api/tx/${txid}/hex`);
-        if (response.ok) {
-          const data = await response.text();
-          if (data.length > 0) {
-            return data;
-          }
+        const response = await apiClient.get<string>(`https://mempool.space/api/tx/${txid}/hex`, { retries: 0 });
+        const data = String(response.data).trim();
+        if (data.length > 0) {
+          return data;
         }
       } catch {
         // Both sources failed
@@ -261,8 +258,8 @@ export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTran
           apiClient.get<{ result: BitcoinTransaction }>(
             `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
           ),
-          fetch(`https://mempool.space/api/tx/${txid}/status`)
-            .then(r => r.ok ? r.json() : null)
+          apiClient.get<MempoolTxStatus>(`https://mempool.space/api/tx/${txid}/status`, { retries: 0 })
+            .then(r => r.data)
             .catch(() => null) // Don't fail if mempool.space is unavailable
         ]);
 

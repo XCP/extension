@@ -20,7 +20,16 @@ interface PendingRequest {
 // Constants
 // =============================================================================
 
-const REQUEST_TIMEOUT_MS = 60000;
+const REQUEST_TIMEOUT_MS = 60_000;
+
+// Methods that open a popup for user approval — no injected-side timeout.
+// The background's own timeout (10 min) is the safety net.
+const INTERACTIVE_METHODS = new Set([
+  'xcp_requestAccounts',
+  'xcp_signTransaction',
+  'xcp_signPsbt',
+  'xcp_signMessage',
+]);
 
 // =============================================================================
 // EventEmitter
@@ -172,12 +181,14 @@ export default defineUnlistedScript(() => {
         data: { method, params }
       }, window.location.origin);
 
-      setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id);
-          reject(new Error('Request timeout'));
-        }
-      }, REQUEST_TIMEOUT_MS);
+      if (!INTERACTIVE_METHODS.has(method)) {
+        setTimeout(() => {
+          if (pendingRequests.has(id)) {
+            pendingRequests.delete(id);
+            reject(new Error('Request timeout'));
+          }
+        }, REQUEST_TIMEOUT_MS);
+      }
     });
   }
 

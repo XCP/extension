@@ -24,6 +24,7 @@ export interface RequestConfig {
   headers?: Record<string, string>;
   signal?: AbortSignal;
   params?: Record<string, string | number | boolean>;
+  retries?: number;
 }
 
 /**
@@ -312,12 +313,9 @@ export const apiClient = {
 
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...config?.headers,
-      },
+      headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
-    }, config?.signal));
+    }, config?.signal), config?.retries);
   },
 
   /**
@@ -347,7 +345,7 @@ export const apiClient = {
       },
       body,
       timeout,
-    }, config?.signal));
+    }, config?.signal), config?.retries);
   },
 
   /**
@@ -368,7 +366,7 @@ export const apiClient = {
       },
       body,
       timeout,
-    }, config?.signal));
+    }, config?.signal), config?.retries);
   },
 
   /**
@@ -380,12 +378,9 @@ export const apiClient = {
 
     return withRetry(() => fetchWithTimeout<T>(fullUrl, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...config?.headers,
-      },
+      headers: config?.headers ? { ...config.headers } : undefined,
       timeout,
-    }, config?.signal));
+    }, config?.signal), config?.retries);
   },
 
   /**
@@ -406,6 +401,6 @@ export const apiClient = {
       },
       body,
       timeout,
-    }, config?.signal));
+    }, config?.signal), config?.retries);
   },
 };

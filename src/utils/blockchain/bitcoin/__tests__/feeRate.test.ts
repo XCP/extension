@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { FeeRates } from '@/utils/blockchain/bitcoin/feeRate';
+import { apiClient } from '@/utils/apiClient';
+import type { ApiResponse } from '@/utils/apiClient';
+
+vi.mock('@/utils/apiClient');
+
+/** Helper to build a successful ApiResponse */
+function okResponse<T>(data: T): ApiResponse<T> {
+  return { data, status: 200, statusText: 'OK', headers: {} };
+}
 
 describe('Fee Rate Utilities', () => {
-  const originalFetch = globalThis.fetch;
   const mockFeeRates: FeeRates = {
     fastestFee: 20,
     halfHourFee: 15,
@@ -22,46 +30,35 @@ describe('Fee Rate Utilities', () => {
     fetchFromBlockstream = feeRateModule.fetchFromBlockstream;
     getFeeRates = feeRateModule.getFeeRates;
 
-    globalThis.fetch = vi.fn();
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
   });
 
   describe('fetchFromMempoolSpace', () => {
     it('should fetch fee rates successfully', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => mockFeeRates,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(mockFeeRates));
 
       const feeRates = await fetchFromMempoolSpace();
       expect(feeRates).toEqual(mockFeeRates);
-      expect(globalThis.fetch).toHaveBeenCalledWith('https://mempool.space/api/v1/fees/recommended');
+      expect(apiClient.get).toHaveBeenCalledWith(
+        'https://mempool.space/api/v1/fees/recommended',
+        { retries: 0 }
+      );
     });
 
     it('should throw error when API response is not ok', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 500,
-      });
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Request failed with status 500'));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
-        'Failed to fetch fee rates'
+        'Request failed with status 500'
       );
     });
 
     it('should throw error when fastestFee is not a number', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          fastestFee: 'invalid',
-          halfHourFee: 15,
-          hourFee: 10
-        }),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
+        fastestFee: 'invalid',
+        halfHourFee: 15,
+        hourFee: 10
+      }));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
         'Invalid response data format'
@@ -69,14 +66,11 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should throw error when halfHourFee is not a number', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          fastestFee: 20,
-          halfHourFee: null,
-          hourFee: 10
-        }),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
+        fastestFee: 20,
+        halfHourFee: null,
+        hourFee: 10
+      }));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
         'Invalid response data format'
@@ -84,14 +78,11 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should throw error when hourFee is not a number', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          fastestFee: 20,
-          halfHourFee: 15,
-          hourFee: undefined
-        }),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
+        fastestFee: 20,
+        halfHourFee: 15,
+        hourFee: undefined
+      }));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
         'Invalid response data format'
@@ -99,13 +90,10 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should throw error when required fields are missing', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          fastestFee: 20,
-          // Missing halfHourFee and hourFee
-        }),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({
+        fastestFee: 20,
+        // Missing halfHourFee and hourFee
+      }));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow(
         'Invalid response data format'
@@ -113,18 +101,9 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should handle network errors', async () => {
-      (globalThis.fetch as any).mockRejectedValue(new Error('Network error'));
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Network error'));
 
       await expect(fetchFromMempoolSpace()).rejects.toThrow('Network error');
-    });
-
-    it('should handle JSON parsing errors', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => { throw new Error('Invalid JSON'); },
-      });
-
-      await expect(fetchFromMempoolSpace()).rejects.toThrow('Invalid JSON');
     });
 
     it('should handle zero fee rates', async () => {
@@ -134,10 +113,7 @@ describe('Fee Rate Utilities', () => {
         hourFee: 0
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => zeroFeeRates,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(zeroFeeRates));
 
       const feeRates = await fetchFromMempoolSpace();
       expect(feeRates).toEqual(zeroFeeRates);
@@ -150,10 +126,7 @@ describe('Fee Rate Utilities', () => {
         hourFee: -3
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => negativeFeeRates,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(negativeFeeRates));
 
       const feeRates = await fetchFromMempoolSpace();
       expect(feeRates).toEqual(negativeFeeRates);
@@ -171,24 +144,21 @@ describe('Fee Rate Utilities', () => {
         "24": 5
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       const feeRates = await fetchFromBlockstream();
       expect(feeRates).toEqual(mockFeeRates);
-      expect(globalThis.fetch).toHaveBeenCalledWith('https://blockstream.info/api/fee-estimates');
+      expect(apiClient.get).toHaveBeenCalledWith(
+        'https://blockstream.info/api/fee-estimates',
+        { retries: 0 }
+      );
     });
 
     it('should throw error when API response is not ok', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: false,
-        status: 429,
-      });
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Request failed with status 429'));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
-        'Failed to fetch fee rates'
+        'Request failed with status 429'
       );
     });
 
@@ -199,10 +169,7 @@ describe('Fee Rate Utilities', () => {
         "6": 10
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
         'Invalid response data format'
@@ -216,10 +183,7 @@ describe('Fee Rate Utilities', () => {
         "6": 10
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
         'Invalid response data format'
@@ -233,10 +197,7 @@ describe('Fee Rate Utilities', () => {
         "6": undefined
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
         'Invalid response data format'
@@ -250,10 +211,7 @@ describe('Fee Rate Utilities', () => {
         // Missing "2", "3", "6"
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
         'Invalid response data format'
@@ -261,25 +219,13 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should handle network errors', async () => {
-      (globalThis.fetch as any).mockRejectedValue(new Error('Connection timeout'));
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('Connection timeout'));
 
       await expect(fetchFromBlockstream()).rejects.toThrow('Connection timeout');
     });
 
-    it('should handle JSON parsing errors', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => { throw new Error('Malformed JSON'); },
-      });
-
-      await expect(fetchFromBlockstream()).rejects.toThrow('Malformed JSON');
-    });
-
     it('should handle empty response object', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({}),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({}));
 
       await expect(fetchFromBlockstream()).rejects.toThrow(
         'Invalid response data format'
@@ -293,10 +239,7 @@ describe('Fee Rate Utilities', () => {
         "6": 10.1
       };
 
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => blockstreamResponse,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(blockstreamResponse));
 
       const feeRates = await fetchFromBlockstream();
       expect(feeRates).toEqual({
@@ -309,14 +252,11 @@ describe('Fee Rate Utilities', () => {
 
   describe('getFeeRates', () => {
     it('should return fee rates from first successful source', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => mockFeeRates,
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse(mockFeeRates));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual(mockFeeRates);
-      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+      expect(apiClient.get).toHaveBeenCalledTimes(1);
     });
 
     it('should try second source if first fails', async () => {
@@ -326,16 +266,13 @@ describe('Fee Rate Utilities', () => {
         "6": 10
       };
 
-      (globalThis.fetch as any)
+      vi.mocked(apiClient.get)
         .mockRejectedValueOnce(new Error('Mempool.space failed'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => blockstreamResponse,
-        });
+        .mockResolvedValueOnce(okResponse(blockstreamResponse));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual(mockFeeRates);
-      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+      expect(apiClient.get).toHaveBeenCalledTimes(2);
     });
 
     it('should skip invalid responses and continue to next source', async () => {
@@ -345,19 +282,13 @@ describe('Fee Rate Utilities', () => {
         "6": 15
       };
 
-      (globalThis.fetch as any)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            fastestFee: 'invalid',
-            halfHourFee: 15,
-            hourFee: 10
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => blockstreamResponse,
-        });
+      vi.mocked(apiClient.get)
+        .mockResolvedValueOnce(okResponse({
+          fastestFee: 'invalid',
+          halfHourFee: 15,
+          hourFee: 10
+        }))
+        .mockResolvedValueOnce(okResponse(blockstreamResponse));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual({
@@ -368,7 +299,7 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should throw error when all sources fail', async () => {
-      (globalThis.fetch as any).mockRejectedValue(new Error('All sources failed'));
+      vi.mocked(apiClient.get).mockRejectedValue(new Error('All sources failed'));
 
       await expect(getFeeRates()).rejects.toThrow(
         'Unable to fetch fee rates from any source'
@@ -376,10 +307,7 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should throw error when all sources return invalid data', async () => {
-      (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        json: async () => ({ invalid: 'data' }),
-      });
+      vi.mocked(apiClient.get).mockResolvedValue(okResponse({ invalid: 'data' }));
 
       await expect(getFeeRates()).rejects.toThrow(
         'Unable to fetch fee rates from any source'
@@ -387,23 +315,17 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should validate returned fee rates structure', async () => {
-      (globalThis.fetch as any)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            fastestFee: 20,
-            halfHourFee: 15,
-            // Missing hourFee
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            "2": 20,
-            "3": 15,
-            "6": 10
-          }),
-        });
+      vi.mocked(apiClient.get)
+        .mockResolvedValueOnce(okResponse({
+          fastestFee: 20,
+          halfHourFee: 15,
+          // Missing hourFee
+        }))
+        .mockResolvedValueOnce(okResponse({
+          "2": 20,
+          "3": 15,
+          "6": 10
+        }));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual(mockFeeRates);
@@ -416,15 +338,9 @@ describe('Fee Rate Utilities', () => {
         "6": 20
       };
 
-      (globalThis.fetch as any)
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => blockstreamResponse,
-        });
+      vi.mocked(apiClient.get)
+        .mockRejectedValueOnce(new Error('Request failed with status 500'))
+        .mockResolvedValueOnce(okResponse(blockstreamResponse));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual({
@@ -441,12 +357,9 @@ describe('Fee Rate Utilities', () => {
         "6": 25
       };
 
-      (globalThis.fetch as any)
+      vi.mocked(apiClient.get)
         .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => blockstreamResponse,
-        });
+        .mockResolvedValueOnce(okResponse(blockstreamResponse));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual({
@@ -457,23 +370,17 @@ describe('Fee Rate Utilities', () => {
     });
 
     it('should handle partial invalid data in response', async () => {
-      (globalThis.fetch as any)
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            fastestFee: 20,
-            halfHourFee: NaN, // Invalid
-            hourFee: 10
-          }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            "2": 40,
-            "3": 35,
-            "6": 30
-          }),
-        });
+      vi.mocked(apiClient.get)
+        .mockResolvedValueOnce(okResponse({
+          fastestFee: 20,
+          halfHourFee: NaN, // Invalid
+          hourFee: 10
+        }))
+        .mockResolvedValueOnce(okResponse({
+          "2": 40,
+          "3": 35,
+          "6": 30
+        }));
 
       const feeRates = await getFeeRates();
       expect(feeRates).toEqual({

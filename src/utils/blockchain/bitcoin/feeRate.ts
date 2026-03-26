@@ -1,5 +1,6 @@
 import { TTLCache, CacheTTL } from '@/utils/cache';
 import { DataFetchError } from '@/utils/blockchain/errors';
+import { apiClient } from '@/utils/apiClient';
 
 export interface FeeRates {
   fastestFee: number;
@@ -27,14 +28,8 @@ let inflightRequest: Promise<FeeRates> | null = null;
  * }
  */
 export async function fetchFromMempoolSpace(): Promise<FeeRates> {
-  const response = await fetch('https://mempool.space/api/v1/fees/recommended');
-  if (!response.ok) {
-    throw new DataFetchError('Failed to fetch fee rates', 'mempool.space', {
-      endpoint: '/api/v1/fees/recommended',
-      statusCode: response.status,
-    });
-  }
-  const data = await response.json();
+  const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/recommended', { retries: 0 });
+  const data = response.data;
   if (
     typeof data.fastestFee !== 'number' || isNaN(data.fastestFee) ||
     typeof data.halfHourFee !== 'number' || isNaN(data.halfHourFee) ||
@@ -61,14 +56,8 @@ export async function fetchFromMempoolSpace(): Promise<FeeRates> {
  *   - hourFee: confirmation within 6 blocks (data["6"])
  */
 export async function fetchFromBlockstream(): Promise<FeeRates> {
-  const response = await fetch('https://blockstream.info/api/fee-estimates');
-  if (!response.ok) {
-    throw new DataFetchError('Failed to fetch fee rates', 'blockstream.info', {
-      endpoint: '/api/fee-estimates',
-      statusCode: response.status,
-    });
-  }
-  const data = await response.json();
+  const response = await apiClient.get<Record<string, number>>('https://blockstream.info/api/fee-estimates', { retries: 0 });
+  const data = response.data;
   const fastestFee = data["2"];
   const halfHourFee = data["3"];
   const hourFee = data["6"];

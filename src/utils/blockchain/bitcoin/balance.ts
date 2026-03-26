@@ -1,5 +1,6 @@
 import { toSatoshis } from '@/utils/numeric';
 import { KeyedTTLCache, CacheTTL, cachedFetch } from '@/utils/cache';
+import { apiClient } from '@/utils/apiClient';
 
 // Balance can change with each block but short cache prevents API spam
 const balanceCache = new KeyedTTLCache<string, number>(CacheTTL.MEDIUM);
@@ -122,12 +123,8 @@ export async function hasAddressActivity(address: string, timeoutMs = 5000): Pro
 
     for (const endpoint of endpoints) {
       try {
-        const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
-        if (!resp.ok) {
-          console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
-          continue;
-        }
-        const data = await resp.json();
+        const resp = await apiClient.get<Record<string, any>>(endpoint, { timeout: timeoutMs, retries: 0 });
+        const data = resp.data;
 
         // Check if address has any transaction history
         if (data.chain_stats?.tx_count > 0 || data.mempool_stats?.tx_count > 0) {
@@ -185,13 +182,8 @@ export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promis
 
       for (const endpoint of endpoints) {
         try {
-          const resp = await fetchWithTimeout(endpoint, { timeout: timeoutMs });
-          if (!resp.ok) {
-            console.warn(`API call failed with HTTP ${resp.status}: ${endpoint}`);
-            continue;
-          }
-          const data = await resp.json();
-          const parsed = parseBTCBalance(endpoint, data);
+          const resp = await apiClient.get<unknown>(endpoint, { timeout: timeoutMs, retries: 0 });
+          const parsed = parseBTCBalance(endpoint, resp.data);
           if (parsed !== null && parsed !== undefined && typeof parsed === 'number' && !Number.isNaN(parsed)) {
             return parsed;
           }
@@ -203,29 +195,6 @@ export async function fetchBTCBalance(address: string, timeoutMs = 5000): Promis
       throw new Error('Failed to fetch BTC balance from all explorers');
     }
   );
-}
-
-/**
- * Helper function to perform a fetch with a timeout.
- *
- * @param resource - The resource URL or Request object.
- * @param options - Fetch options, including a 'timeout' field (in ms).
- * @returns A Promise that resolves to the Response.
- */
-async function fetchWithTimeout(
-  resource: RequestInfo,
-  options: { timeout: number } & RequestInit
-): Promise<Response> {
-  const { timeout, ...rest } = options;
-  const controller = new AbortController();
-  const timerId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const resp = await fetch(resource, { ...rest, signal: controller.signal });
-    return resp;
-  } finally {
-    clearTimeout(timerId);
-  }
 }
 
 /**

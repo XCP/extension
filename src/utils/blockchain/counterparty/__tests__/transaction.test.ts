@@ -341,10 +341,7 @@ describe('fetchInputValues', () => {
     mockedApiClient.get.mockResolvedValue({
       status: 200,
       data: {
-        vout: [
-          { value: 50000 },
-          { value: 100000 },
-        ],
+        vout: [{ value: 50000 }, { value: 100000 }],
       },
     } as any);
 

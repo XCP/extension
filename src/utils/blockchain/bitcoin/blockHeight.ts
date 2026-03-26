@@ -5,6 +5,7 @@
 
 import { TTLCache, CacheTTL } from '@/utils/cache';
 import { DataFetchError } from '@/utils/blockchain/errors';
+import { apiClient } from '@/utils/apiClient';
 
 /**
  * Cache for block height with request deduplication.
@@ -26,14 +27,8 @@ export function clearBlockHeightCache(): void {
  * Fetch block height from Blockstream API
  */
 export async function fetchFromBlockstream(): Promise<number> {
-  const response = await fetch('https://blockstream.info/api/blocks/tip/height');
-  if (!response.ok) {
-    throw new DataFetchError('Failed to fetch block height', 'blockstream.info', {
-      endpoint: '/api/blocks/tip/height',
-      statusCode: response.status,
-    });
-  }
-  const data = await response.text();
+  const response = await apiClient.get<string>('https://blockstream.info/api/blocks/tip/height', { retries: 0 });
+  const data = String(response.data);
   const height = parseInt(data, 10);
   if (isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'blockstream.info', {
@@ -47,14 +42,8 @@ export async function fetchFromBlockstream(): Promise<number> {
  * Fetch block height from Mempool.space API
  */
 export async function fetchFromMempoolSpace(): Promise<number> {
-  const response = await fetch('https://mempool.space/api/blocks/tip/height');
-  if (!response.ok) {
-    throw new DataFetchError('Failed to fetch block height', 'mempool.space', {
-      endpoint: '/api/blocks/tip/height',
-      statusCode: response.status,
-    });
-  }
-  const data = await response.text();
+  const response = await apiClient.get<string>('https://mempool.space/api/blocks/tip/height', { retries: 0 });
+  const data = String(response.data);
   const height = parseInt(data, 10);
   if (isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'mempool.space', {
@@ -68,14 +57,8 @@ export async function fetchFromMempoolSpace(): Promise<number> {
  * Fetch block height from Blockchain.info API
  */
 export async function fetchFromBlockchainInfo(): Promise<number> {
-  const response = await fetch('https://blockchain.info/q/getblockcount');
-  if (!response.ok) {
-    throw new DataFetchError('Failed to fetch block height', 'blockchain.info', {
-      endpoint: '/q/getblockcount',
-      statusCode: response.status,
-    });
-  }
-  const data = await response.text();
+  const response = await apiClient.get<string>('https://blockchain.info/q/getblockcount', { retries: 0 });
+  const data = String(response.data);
   const height = parseInt(data, 10);
   if (isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'blockchain.info', {
