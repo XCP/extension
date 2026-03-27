@@ -14,6 +14,7 @@ function createMockPort(name: string) {
 
   return {
     name,
+    sender: { id: 'test-extension-id' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {

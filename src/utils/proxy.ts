@@ -36,7 +36,7 @@ const PORT_PREFIX = 'proxy:';
  * or when the extension context is invalidated.
  */
 export function disconnectAllPorts(): void {
-  for (const [name, port] of activePorts) {
+  for (const [, port] of activePorts) {
     try { port.disconnect(); } catch {}
   }
   activePorts.clear();
@@ -73,6 +73,10 @@ export function defineProxyService<T extends Record<string, any>>(
 
     chrome.runtime.onConnect.addListener((port) => {
       if (port.name !== portName) return;
+      if (port.sender?.id !== chrome.runtime.id) {
+        port.disconnect();
+        return;
+      }
 
       port.onMessage.addListener(async (msg: PortRequest) => {
         const { id, methodName, args } = msg;

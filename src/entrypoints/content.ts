@@ -203,8 +203,10 @@ export default defineContentScript({
       console.error('Failed to inject XCP Wallet provider:', error);
     }
 
-    // BFCache: when a page is restored from back-forward cache, proxy ports
-    // are dead. Force reconnection and re-announce readiness to background.
+    // BFCache handling: disconnect stale ports before freeze, reconnect on restore.
+    window.addEventListener('pagehide', (event) => {
+      if ((event as PageTransitionEvent).persisted) disconnectAllPorts();
+    });
     window.addEventListener('pageshow', (event) => {
       if ((event as PageTransitionEvent).persisted) {
         disconnectAllPorts();
