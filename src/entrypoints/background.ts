@@ -101,10 +101,7 @@ export default defineBackground(() => {
   // Single consolidated port handler for error consumption and message handling
   // This prevents duplicate listeners being added per port
   chrome.runtime.onConnect.addListener((port) => {
-    // Check for connection errors immediately
-    if (chrome.runtime.lastError) {
-      // Error consumed - handles port connection failures
-    }
+    if (chrome.runtime.lastError) { /* consumed */ }
 
     // SECURITY: Validate port sender is from our own extension
     if (port.sender?.id !== chrome.runtime.id) {
@@ -113,19 +110,17 @@ export default defineBackground(() => {
       return;
     }
 
-    // Handle ping messages on this port
+    // Proxy service ports are handled by their own onConnect listeners in proxy.ts
+    if (port.name.startsWith('proxy:')) return;
+
     port.onMessage.addListener((msg) => {
       if (msg?.action === 'ping') {
         port.postMessage({ status: 'ready', timestamp: Date.now() });
       }
     });
 
-    // Single disconnect handler (instead of adding multiple)
     port.onDisconnect.addListener(() => {
-      // Consume disconnect errors
-      if (chrome.runtime.lastError) {
-        // Error consumed - handles port disconnection issues
-      }
+      if (chrome.runtime.lastError) { /* consumed */ }
     });
   });
 

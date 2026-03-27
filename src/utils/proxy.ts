@@ -1,82 +1,57 @@
 /**
- * Native proxy service replacement for @webext-core/proxy-service
+ * Port-based proxy service for cross-context communication.
  *
- * This utility provides a simple way to expose services from the background
- * script to other contexts (popup, content scripts) using Chrome's runtime messaging.
+ * Exposes background services to content scripts and popup via persistent
+ * chrome.runtime.connect ports. Ports give instant disconnect detection and
+ * natural reconnection — no timeout hacks or retry loops needed.
  *
- * WHY THIS EXISTS:
- * - Security: Reduces dependencies (replaced @webext-core/proxy-service)
- * - Control: Full control over service communication patterns
- * - Type Safety: Maintains TypeScript types across contexts
- *
- * HOW IT WORKS:
- * 1. Services are defined and registered in the background script
- * 2. Other contexts get a proxy object that looks like the real service
- * 3. Method calls on the proxy are converted to Chrome runtime messages
- * 4. Background script receives messages, calls real service, returns results
- *
- * USED BY:
- * - WalletService: Core wallet operations
- * - ProviderService: Web3 provider methods
- * - ConnectionService: DApp connection management
- * - ApprovalService: User approval flows
+ * API is unchanged: defineProxyService(name, factory) => [register, getService]
  */
 
 type ServiceFactory<T> = () => T;
 
-interface ProxyMessage {
-  serviceName: string;
+interface PortRequest {
+  id: number;
   methodName: string;
   args: any[];
 }
 
-interface ProxyResponse {
+interface PortResponse {
+  id: number;
   success: boolean;
   result?: any;
   error?: string;
 }
 
-// Track registered services to prevent duplicate listeners after service worker restarts
+// Prevent duplicate onConnect listeners after service worker restarts
 const registeredServices = new Set<string>();
 
-// Default timeout for proxy calls (30 seconds)
-const DEFAULT_PROXY_TIMEOUT = 30000;
+// Track all client-side ports for disconnectAllPorts()
+const activePorts = new Map<string, chrome.runtime.Port>();
 
-// Extended timeout for operations requiring user interaction (3 minutes)
-// Hardware wallet operations need time for user to confirm on device
-const EXTENDED_PROXY_TIMEOUT = 180000;
-
-// Methods that require extended timeouts (user interaction with external devices)
-const EXTENDED_TIMEOUT_METHODS: Record<string, string[]> = {
-  'WalletService': [
-    'createHardwareWalletWithDiscovery',
-    'signTransaction',
-    'signMessage',
-    'signPsbt',
-  ],
-};
-
-// Methods that manage their own timeouts (approval popups, signing, onboarding).
-// The proxy must not race against user interaction.
-const NO_PROXY_TIMEOUT_METHODS: Record<string, string[]> = {
-  'ProviderService': ['handleRequest'],
-};
+const PORT_PREFIX = 'proxy:';
 
 /**
- * Creates a proxy service that can be registered in the background script
- * and accessed from other contexts.
- *
- * @param serviceName - Unique name for the service
- * @param factory - Factory function that creates the service instance
- * @returns Tuple of [registerFunction, getServiceFunction]
+ * Disconnect all cached proxy ports. Call this before BFCache freeze
+ * or when the extension context is invalidated.
  */
+export function disconnectAllPorts(): void {
+  for (const [name, port] of activePorts) {
+    try { port.disconnect(); } catch {}
+  }
+  activePorts.clear();
+}
+
 export function defineProxyService<T extends Record<string, any>>(
   serviceName: string,
   factory: ServiceFactory<T>
 ): [() => T, () => T] {
   let serviceInstance: T | undefined;
+  const portName = `${PORT_PREFIX}${serviceName}`;
 
-  // Register function for background script
+  // ---------------------------------------------------------------------------
+  // Background side: listen for port connections, dispatch to service methods
+  // ---------------------------------------------------------------------------
   const register = (): T => {
     if (!isBackgroundScript()) {
       throw new Error(
@@ -88,92 +63,88 @@ export function defineProxyService<T extends Record<string, any>>(
       throw new Error(`[ProxyService] Chrome runtime not available for ${serviceName}`);
     }
 
-    // Prevent duplicate registration (can happen on service worker restart)
     if (registeredServices.has(serviceName)) {
-      console.log(`[ProxyService] ${serviceName} already registered, skipping listener setup`);
-      // Still create new instance but don't add another listener
       serviceInstance = factory();
       return serviceInstance;
     }
 
-    // Mark as registered before adding listener
     registeredServices.add(serviceName);
-
-    // Create service instance
     serviceInstance = factory();
 
-    // Listen for messages from other contexts
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-      if (message.serviceName !== serviceName) {
-        return false;
-      }
+    chrome.runtime.onConnect.addListener((port) => {
+      if (port.name !== portName) return;
 
-      const { methodName, args } = message as ProxyMessage;
+      port.onMessage.addListener(async (msg: PortRequest) => {
+        const { id, methodName, args } = msg;
 
-      // Check if method exists on service
-      if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
-        sendResponse({
-          success: false,
-          error: `Method ${methodName} not found on ${serviceName}`
-        } as ProxyResponse);
-        return true;
-      }
-
-      // Timeout to prevent indefinite hangs (skipped for methods with own timeouts)
-      const noTimeoutMethods = NO_PROXY_TIMEOUT_METHODS[serviceName] || [];
-      const skipTimeout = noTimeoutMethods.includes(methodName);
-      const extendedMethods = EXTENDED_TIMEOUT_METHODS[serviceName] || [];
-      const PROXY_TIMEOUT = extendedMethods.includes(methodName)
-        ? EXTENDED_PROXY_TIMEOUT
-        : DEFAULT_PROXY_TIMEOUT;
-      let responded = false;
-
-      const executeMethod = async () => {
-        try {
-          const result = await serviceInstance![methodName](...args);
-          if (!responded) {
-            responded = true;
-            sendResponse({
-              success: true,
-              result
-            } as ProxyResponse);
-          }
-        } catch (error) {
-          if (!responded) {
-            responded = true;
-            sendResponse({
-              success: false,
-              error: error instanceof Error ? error.message : String(error)
-            } as ProxyResponse);
-          }
+        if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
+          try {
+            port.postMessage({ id, success: false, error: `Method ${methodName} not found on ${serviceName}` } as PortResponse);
+          } catch {}
+          return;
         }
-      };
 
-      // Set up timeout to prevent indefinite waits (unless the method manages its own)
-      if (!skipTimeout) {
-        setTimeout(() => {
-          if (!responded) {
-            responded = true;
-            console.error(`[ProxyService] ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT}ms`);
-            sendResponse({
+        try {
+          const result = await serviceInstance[methodName](...args);
+          try { port.postMessage({ id, success: true, result } as PortResponse); } catch {}
+        } catch (error) {
+          try {
+            port.postMessage({
+              id,
               success: false,
-              error: `Request to ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT / 1000}s`
-            } as ProxyResponse);
-          }
-        }, PROXY_TIMEOUT);
-      }
+              error: error instanceof Error ? error.message : String(error),
+            } as PortResponse);
+          } catch {}
+        }
+      });
 
-      executeMethod();
-      return true; // Keep message channel open for async response
+      port.onDisconnect.addListener(() => {
+        if (chrome.runtime.lastError) { /* consumed */ }
+      });
     });
 
-    console.log(`[ProxyService] Registered ${serviceName}`);
     return serviceInstance;
   };
 
-  // Get service function for popup/content scripts
+  // ---------------------------------------------------------------------------
+  // Client side: lazy port connection with id-based multiplexing
+  // ---------------------------------------------------------------------------
+  let port: chrome.runtime.Port | null = null;
+  let pendingCalls = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
+  let nextId = 0;
+
+  function ensurePort(): chrome.runtime.Port {
+    if (port) return port;
+
+    port = chrome.runtime.connect({ name: portName });
+    activePorts.set(serviceName, port);
+
+    port.onMessage.addListener((msg: PortResponse) => {
+      const pending = pendingCalls.get(msg.id);
+      if (!pending) return;
+      pendingCalls.delete(msg.id);
+      if (msg.success) {
+        pending.resolve(msg.result);
+      } else {
+        pending.reject(new Error(msg.error || `${serviceName} call failed`));
+      }
+    });
+
+    port.onDisconnect.addListener(() => {
+      if (chrome.runtime?.lastError) { /* consumed */ }
+      port = null;
+      activePorts.delete(serviceName);
+      // Reject all in-flight calls — callers can retry
+      for (const [, pending] of pendingCalls) {
+        pending.reject(new Error('Port disconnected'));
+      }
+      pendingCalls.clear();
+    });
+
+    return port;
+  }
+
   const getService = (): T => {
-    // If we're in the background script, return the actual service instance
     if (isBackgroundScript()) {
       if (!serviceInstance) {
         throw new Error(
@@ -182,101 +153,47 @@ export function defineProxyService<T extends Record<string, any>>(
       }
       return serviceInstance;
     }
-    // Create a proxy object that forwards all method calls to the background script
+
     return new Proxy({} as T, {
-      get: (target, prop: string) => {
-        // Return a function that sends a message to the background script
+      get: (_target, prop: string) => {
         return async (...args: any[]) => {
-          if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
-            throw new Error(`Chrome runtime not available for ${serviceName}`);
+          // Try the call, and if the port is dead, reconnect once and retry
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              const p = ensurePort();
+              const id = ++nextId;
+
+              return await new Promise<any>((resolve, reject) => {
+                pendingCalls.set(id, { resolve, reject });
+                p.postMessage({ id, methodName: prop, args } as PortRequest);
+              });
+            } catch (error) {
+              const msg = error instanceof Error ? error.message : '';
+              const isDisconnect = msg.includes('Port disconnected') ||
+                msg.includes('Attempting to use a disconnected port') ||
+                msg.includes('Extension context invalidated');
+
+              if (isDisconnect && attempt === 0) {
+                // Port died — null it out and retry once
+                port = null;
+                activePorts.delete(serviceName);
+                await new Promise(r => setTimeout(r, 200));
+                continue;
+              }
+              throw error;
+            }
           }
-
-          return new Promise((resolve, reject) => {
-            const message: ProxyMessage = {
-              serviceName,
-              methodName: prop,
-              args
-            };
-
-            chrome.runtime.sendMessage(message, (response: ProxyResponse) => {
-              // ALWAYS check lastError first to prevent console warnings
-              const error = chrome.runtime.lastError;
-
-              if (error) {
-                // Transient errors during service worker startup or extension updates
-                if (error.message?.includes('Could not establish connection') ||
-                    error.message?.includes('Receiving end does not exist') ||
-                    error.message?.includes('Extension context invalidated')) {
-                  let retries = 3;
-                  let delay = 100;
-
-                  const retry = () => {
-                    if (retries > 0) {
-                      retries--;
-                      setTimeout(() => {
-                        chrome.runtime.sendMessage(message, (retryResponse: ProxyResponse) => {
-                          const retryError = chrome.runtime.lastError;
-                          if (retryError) {
-                            if (retries > 0) {
-                              delay *= 2; // Exponential backoff
-                              retry();
-                            } else {
-                              reject(new Error(retryError.message || 'Unknown runtime error'));
-                            }
-                          } else if (!retryResponse) {
-                            reject(new Error(`No response from ${serviceName}.${prop}`));
-                          } else if (retryResponse.success) {
-                            resolve(retryResponse.result);
-                          } else {
-                            reject(new Error(retryResponse.error || `${serviceName}.${prop} failed`));
-                          }
-                        });
-                      }, delay);
-                    } else {
-                      reject(new Error(error.message || 'Unknown runtime error'));
-                    }
-                  };
-
-                  retry();
-                  return;
-                }
-
-                // Other errors - don't retry
-                reject(new Error(error.message || 'Unknown runtime error'));
-                return;
-              }
-
-              if (!response) {
-                reject(new Error(`No response from ${serviceName}.${prop}`));
-                return;
-              }
-
-              if (response.success) {
-                resolve(response.result);
-              } else {
-                reject(new Error(response.error || `${serviceName}.${prop} failed`));
-              }
-            });
-          });
         };
-      }
+      },
     });
   };
 
   return [register, getService];
 }
 
-/**
- * Helper to check if we're in the background script context
- * (Manifest V3 service worker only)
- */
 export function isBackgroundScript(): boolean {
-  // Check if we can access the extension API
   if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
     return false;
   }
-
-  // For Manifest V3: Check if we're in a service worker context
-  // Service workers have `self` but no `window`
   return typeof self !== 'undefined' && typeof window === 'undefined';
 }

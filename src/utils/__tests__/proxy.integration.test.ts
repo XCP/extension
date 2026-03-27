@@ -1,21 +1,50 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock Chrome API for integration test
+// ---------------------------------------------------------------------------
+// Mock Chrome API for port-based integration test
+// ---------------------------------------------------------------------------
+
+type PortMessageListener = (msg: any) => void;
+type PortDisconnectListener = () => void;
+type OnConnectListener = (port: any) => void;
+
+function createMockPort(name: string) {
+  const messageListeners: PortMessageListener[] = [];
+  const disconnectListeners: PortDisconnectListener[] = [];
+  return {
+    name,
+    postMessage: vi.fn(),
+    disconnect: vi.fn(),
+    onMessage: {
+      addListener: vi.fn((fn: PortMessageListener) => messageListeners.push(fn)),
+      removeListener: vi.fn(),
+    },
+    onDisconnect: {
+      addListener: vi.fn((fn: PortDisconnectListener) => disconnectListeners.push(fn)),
+      removeListener: vi.fn(),
+    },
+    _fireMessage: (msg: any) => messageListeners.forEach(fn => fn(msg)),
+    _fireDisconnect: () => disconnectListeners.forEach(fn => fn()),
+  };
+}
+
+let onConnectListeners: OnConnectListener[] = [];
+
 const mockChrome = {
   runtime: {
     id: 'test-extension-id',
-    onMessage: {
-      addListener: vi.fn(),
+    onConnect: {
+      addListener: vi.fn((fn: OnConnectListener) => onConnectListeners.push(fn)),
+      removeListener: vi.fn(),
     },
+    onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
+    connect: vi.fn(),
     sendMessage: vi.fn(),
     lastError: null,
   },
 };
 
-Object.defineProperty(global, 'chrome', {
-  value: mockChrome,
-  writable: true,
-});
+Object.defineProperty(global, 'chrome', { value: mockChrome, writable: true });
 
 describe('Proxy Service Integration', () => {
   interface TestWalletService {
@@ -29,15 +58,13 @@ describe('Proxy Service Integration', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Reset module to clear registeredServices set between tests
     vi.resetModules();
+    onConnectListeners = [];
 
-    // Re-import the module fresh
     const { defineProxyService } = await import('../proxy');
 
-    // Create a mock service similar to what we have in the app
     mockWalletService = {
-      getBalance: vi.fn().mockResolvedValue(100000000), // 1 BTC in satoshis
+      getBalance: vi.fn().mockResolvedValue(100000000),
       sendTransaction: vi.fn().mockResolvedValue('abc123txhash'),
     };
 
@@ -48,116 +75,68 @@ describe('Proxy Service Integration', () => {
   });
 
   it('should work end-to-end like our actual services', async () => {
-    // Mock service worker environment
-    Object.defineProperty(global, 'self', {
-      value: {},
-      writable: true,
-    });
-    Object.defineProperty(global, 'window', {
-      value: undefined,
-      writable: true,
-    });
+    Object.defineProperty(global, 'self', { value: {}, writable: true });
+    Object.defineProperty(global, 'window', { value: undefined, writable: true });
 
-    // Register the service (like in background.ts)
     const bgService = registerService();
     expect(bgService).toBe(mockWalletService);
 
-    // Simulate getting the service from background context
     const serviceFromBackground = getService();
     expect(serviceFromBackground).toBe(mockWalletService);
 
-    // Test that we can call methods
     const balance = await serviceFromBackground.getBalance('bc1q123...');
     expect(balance).toBe(100000000);
     expect(mockWalletService.getBalance).toHaveBeenCalledWith('bc1q123...');
   });
 
-  it('should work from popup context with messaging', async () => {
-    // Mock popup environment
-    Object.defineProperty(global, 'window', {
-      value: {},
-      writable: true,
-    });
-
-    // First register in background (this would happen in background.ts)
-    Object.defineProperty(global, 'self', {
-      value: {},
-      writable: true,
-    });
-    Object.defineProperty(global, 'window', {
-      value: undefined,
-      writable: true,
-    });
+  /**
+   * Simulate the full flow: background registers service, then a popup/content
+   * script calls a method through the port-based proxy.
+   */
+  function setupIntegration() {
+    // Register in background context
+    Object.defineProperty(global, 'self', { value: {}, writable: true });
+    Object.defineProperty(global, 'window', { value: undefined, writable: true });
     registerService();
 
-    // Get message listener for testing
-    const messageListener = mockChrome.runtime.onMessage.addListener.mock.calls[0][0];
+    // Switch to popup/content context
+    Object.defineProperty(global, 'window', { value: {}, writable: true });
 
-    // Switch back to popup environment
-    Object.defineProperty(global, 'window', {
-      value: {},
-      writable: true,
+    // Wire up: when client connects, create a server-side port that dispatches
+    // to the onConnect listeners (simulating Chrome's port plumbing)
+    mockChrome.runtime.connect.mockImplementation(({ name }: { name: string }) => {
+      const clientPort = createMockPort(name);
+      const serverPort = createMockPort(name);
+
+      // Client postMessage → server onMessage
+      clientPort.postMessage.mockImplementation((msg: any) => {
+        setTimeout(() => serverPort._fireMessage(msg), 0);
+      });
+      // Server postMessage → client onMessage
+      serverPort.postMessage.mockImplementation((msg: any) => {
+        setTimeout(() => clientPort._fireMessage(msg), 0);
+      });
+
+      // Notify background of new connection
+      setTimeout(() => onConnectListeners.forEach(fn => fn(serverPort)), 0);
+
+      return clientPort;
     });
+  }
 
-    // Mock sendMessage to simulate background response
-    mockChrome.runtime.sendMessage.mockImplementation((message, callback) => {
-      // Simulate the background script processing the message
-      const mockSendResponse = vi.fn();
+  it('should work from popup context with port messaging', async () => {
+    setupIntegration();
 
-      messageListener(message, {}, mockSendResponse);
-
-      // Get the response that was sent and pass it to the callback
-      setTimeout(() => {
-        const response = mockSendResponse.mock.calls[0]?.[0];
-        if (response) {
-          callback(response);
-        }
-      }, 0);
-    });
-
-    // Get service from popup context (should create proxy)
     const popupService = getService();
     expect(popupService).not.toBe(mockWalletService);
 
-    // Call method through proxy
     const balance = await popupService.getBalance('bc1q456...');
-
-    // Verify the method was called and returned the expected result
     expect(balance).toBe(100000000);
     expect(mockWalletService.getBalance).toHaveBeenCalledWith('bc1q456...');
   });
 
   it('should handle method with multiple parameters', async () => {
-    // Setup background
-    Object.defineProperty(global, 'self', {
-      value: {},
-      writable: true,
-    });
-    Object.defineProperty(global, 'window', {
-      value: undefined,
-      writable: true,
-    });
-    registerService();
-
-    const messageListener = mockChrome.runtime.onMessage.addListener.mock.calls[0][0];
-
-    // Setup popup
-    Object.defineProperty(global, 'window', {
-      value: {},
-      writable: true,
-    });
-
-    mockChrome.runtime.sendMessage.mockImplementation((message, callback) => {
-      const mockSendResponse = vi.fn();
-      messageListener(message, {}, mockSendResponse);
-
-      setTimeout(() => {
-        const response = mockSendResponse.mock.calls[0]?.[0];
-        if (response) {
-          callback(response);
-        }
-      }, 0);
-    });
+    setupIntegration();
 
     const popupService = getService();
     const txHash = await popupService.sendTransaction('bc1q789...', 50000000);

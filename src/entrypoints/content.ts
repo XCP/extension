@@ -1,5 +1,6 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
+import { disconnectAllPorts } from '@/utils/proxy';
 
 // Always include localhost for local dApp testing (safe - only accessible locally)
 // HTTPS for all other sites
@@ -202,9 +203,22 @@ export default defineContentScript({
       console.error('Failed to inject XCP Wallet provider:', error);
     }
 
+    // BFCache: when a page is restored from back-forward cache, proxy ports
+    // are dead. Force reconnection and re-announce readiness to background.
+    window.addEventListener('pageshow', (event) => {
+      if ((event as PageTransitionEvent).persisted) {
+        disconnectAllPorts();
+        try {
+          chrome.runtime.sendMessage({ __xcp_cs_ready: true, tabUrl: window.location.href }, () => {
+            if (chrome.runtime.lastError) { /* consumed */ }
+          });
+        } catch {}
+      }
+    });
+
     // Keep the window message listener alive across extension updates so the
     // bridge between window.xcpwallet and the background survives. The proxy
-    // layer retries until the new service worker is ready.
+    // layer reconnects its port automatically.
     ctx.onInvalidated(() => {
       try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch {}
     });
