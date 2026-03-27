@@ -56,6 +56,12 @@ const EXTENDED_TIMEOUT_METHODS: Record<string, string[]> = {
   ],
 };
 
+// Methods that manage their own timeouts (approval popups, signing, onboarding).
+// The proxy must not race against user interaction.
+const NO_PROXY_TIMEOUT_METHODS: Record<string, string[]> = {
+  'ProviderService': ['handleRequest'],
+};
+
 /**
  * Creates a proxy service that can be registered in the background script
  * and accessed from other contexts.
@@ -113,8 +119,9 @@ export function defineProxyService<T extends Record<string, any>>(
         return true;
       }
 
-      // Execute the method with timeout to prevent indefinite hangs
-      // Use extended timeout for methods requiring user interaction (e.g., hardware wallet)
+      // Timeout to prevent indefinite hangs (skipped for methods with own timeouts)
+      const noTimeoutMethods = NO_PROXY_TIMEOUT_METHODS[serviceName] || [];
+      const skipTimeout = noTimeoutMethods.includes(methodName);
       const extendedMethods = EXTENDED_TIMEOUT_METHODS[serviceName] || [];
       const PROXY_TIMEOUT = extendedMethods.includes(methodName)
         ? EXTENDED_PROXY_TIMEOUT
@@ -142,17 +149,19 @@ export function defineProxyService<T extends Record<string, any>>(
         }
       };
 
-      // Set up timeout to prevent indefinite waits
-      setTimeout(() => {
-        if (!responded) {
-          responded = true;
-          console.error(`[ProxyService] ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT}ms`);
-          sendResponse({
-            success: false,
-            error: `Request to ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT / 1000}s`
-          } as ProxyResponse);
-        }
-      }, PROXY_TIMEOUT);
+      // Set up timeout to prevent indefinite waits (unless the method manages its own)
+      if (!skipTimeout) {
+        setTimeout(() => {
+          if (!responded) {
+            responded = true;
+            console.error(`[ProxyService] ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT}ms`);
+            sendResponse({
+              success: false,
+              error: `Request to ${serviceName}.${methodName} timed out after ${PROXY_TIMEOUT / 1000}s`
+            } as ProxyResponse);
+          }
+        }, PROXY_TIMEOUT);
+      }
 
       executeMethod();
       return true; // Keep message channel open for async response
@@ -194,10 +203,10 @@ export function defineProxyService<T extends Record<string, any>>(
               const error = chrome.runtime.lastError;
 
               if (error) {
-                // For "Receiving end does not exist" errors, retry with exponential backoff
+                // Transient errors during service worker startup or extension updates
                 if (error.message?.includes('Could not establish connection') ||
-                    error.message?.includes('Receiving end does not exist')) {
-                  // Retry logic for startup race conditions
+                    error.message?.includes('Receiving end does not exist') ||
+                    error.message?.includes('Extension context invalidated')) {
                   let retries = 3;
                   let delay = 100;
 

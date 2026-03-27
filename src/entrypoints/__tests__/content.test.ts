@@ -414,32 +414,25 @@ describe('Content Script', () => {
       expect(mockContext.onInvalidated).toHaveBeenCalledTimes(1);
     });
 
-    it('should remove event listeners when cleanup callback is called', async () => {
-      // Create spies for removeEventListener methods
+    it('should keep window message listener alive but remove runtime listener on invalidation', async () => {
       const windowRemoveEventListenerSpy = vi.spyOn(mockWindow, 'removeEventListener');
       const runtimeRemoveListenerSpy = vi.spyOn(fakeBrowser.runtime.onMessage, 'removeListener');
-      
+
       const contentScript = await import('../content');
-      
+
       await contentScript.default.main(mockContext as any);
-      
-      // Get the cleanup callback that was registered
+
       const cleanupCallback = mockContext.onInvalidated.mock.calls[0][0];
       expect(typeof cleanupCallback).toBe('function');
-      
-      // Call the cleanup callback
+
       cleanupCallback();
-      
-      // Should have removed the window message listener
-      expect(windowRemoveEventListenerSpy).toHaveBeenCalledWith('message', expect.any(Function));
-      
-      // Should have removed the runtime message listener
+
+      // Window message listener stays alive (bridge must survive extension updates)
+      expect(windowRemoveEventListenerSpy).not.toHaveBeenCalledWith('message', expect.any(Function));
+
+      // Runtime listener is removed (background→content channel is dead)
       expect(runtimeRemoveListenerSpy).toHaveBeenCalledWith(expect.any(Function));
-      
-      // Should log cleanup message
-      expect(mockConsole.log).toHaveBeenCalledWith('XCP Wallet content script cleaned up.');
-      
-      // Clean up spies
+
       windowRemoveEventListenerSpy.mockRestore();
       runtimeRemoveListenerSpy.mockRestore();
     });

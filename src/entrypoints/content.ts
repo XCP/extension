@@ -202,21 +202,11 @@ export default defineContentScript({
       console.error('Failed to inject XCP Wallet provider:', error);
     }
 
-    // Clean up event listeners when context is invalidated
+    // Keep the window message listener alive across extension updates so the
+    // bridge between window.xcpwallet and the background survives. The proxy
+    // layer retries until the new service worker is ready.
     ctx.onInvalidated(() => {
-      try {
-        window.removeEventListener('message', messageHandler);
-      } catch (error) {
-        console.debug('Failed to remove window message listener:', error);
-      }
-
-      try {
-        browser.runtime.onMessage.removeListener(runtimeMessageHandler);
-      } catch (error) {
-        console.debug('Failed to remove runtime message listener:', error);
-      }
-
-      console.log('XCP Wallet content script cleaned up.');
+      try { browser.runtime.onMessage.removeListener(runtimeMessageHandler); } catch {}
     });
   },
 });
