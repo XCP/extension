@@ -168,7 +168,7 @@ export async function signTransaction(
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true });
+        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {
@@ -204,7 +204,7 @@ export async function signTransaction(
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true });
+        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {

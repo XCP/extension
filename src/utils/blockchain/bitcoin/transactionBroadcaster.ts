@@ -81,7 +81,7 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): Tra
  */
 export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vout: number }[] {
   try {
-    const tx = Transaction.fromRaw(hexToBytes(signedTxHex));
+    const tx = Transaction.fromRaw(hexToBytes(signedTxHex), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
     const inputs: { txid: string; vout: number }[] = [];
     for (let i = 0; i < tx.inputsLength; i++) {
       const input = tx.getInput(i);
