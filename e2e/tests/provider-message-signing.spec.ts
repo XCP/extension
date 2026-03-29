@@ -183,9 +183,10 @@ walletTest.describe('Message Signing', () => {
       if (!provider) return { error: 'No provider' };
 
       try {
-        const accounts = await provider.request({
-          method: 'xcp_requestAccounts'
-        });
+        const accounts = await Promise.race([
+          provider.request({ method: 'xcp_requestAccounts' }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('request timeout')), 30000)),
+        ]);
         return { accounts };
       } catch (error: any) {
         return { error: error.message };

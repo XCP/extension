@@ -448,7 +448,7 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       await waitForProvider(dappPage);
       await dappPage.waitForSelector('.status.disconnected', { timeout: 10000 });
 
-      // Start connection
+      // Start connection (don't await — it may hang if popup doesn't open in CI)
       const connectPromise = dappPage.evaluate(() => {
         return (window as any).testFunctions.connect();
       });
@@ -467,7 +467,11 @@ test.describe('Provider Resilience - Connection Recovery', () => {
         }
       }
 
-      await connectPromise.catch(() => {});
+      // Wait for connect to finish or time out (provider has no timeout by design)
+      await Promise.race([
+        connectPromise,
+        new Promise(resolve => setTimeout(resolve, 30000)),
+      ]).catch(() => {});
       await dappPage.waitForLoadState('networkidle');
 
       // Check if connected
@@ -519,11 +523,15 @@ test.describe('Provider Resilience - Connection Recovery', () => {
       // The connect() call may have opened an approval page without a lock button,
       // so we lock programmatically instead of clicking the UI button.
       await extensionPage.bringToFront();
-      await extensionPage.evaluate(async () => {
-        await chrome.runtime.sendMessage({
-          serviceName: 'WalletService',
-          methodName: 'lockKeychain',
-          args: [],
+      await extensionPage.evaluate(() => {
+        return new Promise<void>((resolve, reject) => {
+          const port = chrome.runtime.connect({ name: 'proxy:WalletService' });
+          port.onMessage.addListener((msg: any) => {
+            port.disconnect();
+            if (msg.success) resolve();
+            else reject(new Error(msg.error));
+          });
+          port.postMessage({ id: 1, methodName: 'lockKeychain', args: [] });
         });
       });
       await extensionPage.waitForURL(/unlock/, { timeout: 15000 });

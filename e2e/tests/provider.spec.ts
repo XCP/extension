@@ -205,12 +205,18 @@ walletTest.describe('XCP Provider', () => {
       });
 
       // Request accounts - this should either open popup or return error
+      // Timeout inside evaluate so the promise resolves even if the extension
+      // never responds (e.g. approval popup doesn't open in CI).
       const accountsPromise = testPage.evaluate(async () => {
         const provider = (window as any).xcpwallet;
         if (!provider) throw new Error('Provider not found');
 
         try {
-          return await provider.request({ method: 'xcp_requestAccounts' });
+          const result = await Promise.race([
+            provider.request({ method: 'xcp_requestAccounts' }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('request timeout')), 30000)),
+          ]);
+          return result;
         } catch (error: any) {
           return { error: error.message };
         }

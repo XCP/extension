@@ -486,8 +486,11 @@ test.describe('Provider Integration - Full Flow', () => {
         console.log('No popup found, request may have failed');
       }
 
-      // Check connection result
-      const result = await connectionPromise.catch(e => ({ error: e.message }));
+      // Check connection result (timeout in case popup never opened)
+      const result = await Promise.race([
+        connectionPromise,
+        new Promise(resolve => setTimeout(() => resolve({ error: 'test timeout' }), 30000)),
+      ]).catch(e => ({ error: e.message }));
       console.log('Connection result:', result);
 
       // If we got accounts, verify the connection
