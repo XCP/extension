@@ -24,8 +24,8 @@ walletTest.describe('AssetSelectInput Component', () => {
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
     await page.goto(`${baseUrl}/compose/dividend/XCP`);
     await page.waitForLoadState('networkidle');
-    // Wait for combobox to be ready
-    await page.locator('[role="combobox"] input, input[class*="uppercase"]').first().waitFor({ state: 'visible', timeout: 15000 });
+    // Wait for combobox to be ready (allow extra time for API response in CI)
+    await page.locator('[role="combobox"] input, input[class*="uppercase"]').first().waitFor({ state: 'visible', timeout: 30000 });
   });
 
   // Helper to get combobox elements
