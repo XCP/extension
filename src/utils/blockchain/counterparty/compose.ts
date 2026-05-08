@@ -237,6 +237,24 @@ export interface FairmintOptions extends BaseComposeOptions {
   quantity?: number;
 }
 
+export interface PoolDepositOptions extends BaseComposeOptions {
+  asset_a: string;
+  asset_b: string;
+  quantity_a: number | string;
+  quantity_b: number | string;
+  min_lp_quantity?: number | string;
+  lp_asset?: string;
+}
+
+export interface PoolWithdrawOptions extends BaseComposeOptions {
+  asset_a?: string;
+  asset_b?: string;
+  quantity: number | string;
+  min_quantity_a?: number | string;
+  min_quantity_b?: number | string;
+  lp_asset?: string;
+}
+
 export interface AttachOptions extends BaseComposeOptions {
   asset: string;
   quantity: number;
@@ -999,6 +1017,70 @@ export async function composeFairmint(options: FairmintOptions): Promise<ApiResp
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composePoolDeposit(options: PoolDepositOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset_a,
+    asset_b,
+    quantity_a,
+    quantity_b,
+    min_lp_quantity = 0,
+    lp_asset,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset_a,
+    asset_b,
+    quantity_a: quantity_a.toString(),
+    quantity_b: quantity_b.toString(),
+    min_lp_quantity: min_lp_quantity.toString(),
+    ...(lp_asset && { lp_asset }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('pooldeposit', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function getPoolDepositEstimateXcpFee(sourceAddress: string): Promise<number> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/pooldeposit/estimatexcpfees`;
+  const response = await apiClient.get<{ result: number }>(apiUrl);
+  return response.data.result;
+}
+
+export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset_a,
+    asset_b,
+    quantity,
+    min_quantity_a = 0,
+    min_quantity_b = 0,
+    lp_asset,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    ...(asset_a && { asset_a }),
+    ...(asset_b && { asset_b }),
+    quantity: quantity.toString(),
+    min_quantity_a: min_quantity_a.toString(),
+    min_quantity_b: min_quantity_b.toString(),
+    ...(lp_asset && { lp_asset }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function getPoolWithdrawEstimateXcpFee(sourceAddress: string): Promise<number> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/poolwithdraw/estimatexcpfees`;
+  const response = await apiClient.get<{ result: number }>(apiUrl);
+  return response.data.result;
 }
 
 export async function composeAttach(options: AttachOptions): Promise<ApiResponse> {

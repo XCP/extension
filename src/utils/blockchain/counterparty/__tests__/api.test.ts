@@ -14,6 +14,11 @@ import {
   fetchOwnedAssets,
   fetchOrdersByPair,
   fetchOrderMatches,
+  fetchPools,
+  fetchPool,
+  fetchPoolQuote,
+  fetchPoolDepositQuote,
+  fetchPoolWithdrawQuote,
   fetchServerInfo,
   clearApiCache,
   AssetInfo,
@@ -1129,6 +1134,74 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchOrderMatches('abc123')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('AMM pool endpoints', () => {
+    const mockPool = {
+      asset_a: 'XCP',
+      asset_b: 'POOLTEST',
+      reserve_a: 100000000,
+      reserve_b: 500000000,
+      lp_asset: 'A77777777777777777',
+    };
+
+    beforeEach(() => {
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: [mockPool], result_count: 1 },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+    });
+
+    it('should fetch pool collection and pair resources', async () => {
+      await fetchPools({ limit: 25, offset: 5 });
+      await fetchPool('XCP', 'POOLTEST');
+
+      expect(mockedApiClient.get).toHaveBeenNthCalledWith(
+        1,
+        `${mockApiBase}/v2/pools`,
+        expect.objectContaining({
+          params: expect.objectContaining({ verbose: true, limit: 25, offset: 5 }),
+        })
+      );
+      expect(mockedApiClient.get).toHaveBeenNthCalledWith(
+        2,
+        `${mockApiBase}/v2/pools/XCP/POOLTEST`,
+        expect.objectContaining({ params: expect.objectContaining({ verbose: true }) })
+      );
+    });
+
+    it('should fetch pool quote endpoints with quantity parameter', async () => {
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: { estimated_output: 123 } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {}
+      } as any);
+
+      await fetchPoolQuote('XCP', 'POOLTEST', '100000000');
+      await fetchPoolDepositQuote('XCP', 'POOLTEST', '100000000');
+      await fetchPoolWithdrawQuote('XCP', 'POOLTEST', '1000');
+
+      expect(mockedApiClient.get).toHaveBeenNthCalledWith(
+        1,
+        `${mockApiBase}/v2/pools/XCP/POOLTEST/quote`,
+        expect.objectContaining({ params: { quantity: '100000000' } })
+      );
+      expect(mockedApiClient.get).toHaveBeenNthCalledWith(
+        2,
+        `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/deposit`,
+        expect.objectContaining({ params: { quantity: '100000000' } })
+      );
+      expect(mockedApiClient.get).toHaveBeenNthCalledWith(
+        3,
+        `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/withdraw`,
+        expect.objectContaining({ params: { quantity: '1000' } })
+      );
     });
   });
 

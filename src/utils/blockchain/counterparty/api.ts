@@ -239,6 +239,68 @@ export interface OrderMatch {
 }
 
 // =============================================================================
+// TYPES - AMM Pools
+// =============================================================================
+
+export interface Pool {
+  tx_hash?: string;
+  tx_index?: number;
+  block_index?: number;
+  block_time?: number;
+  source?: string;
+  asset_a: string;
+  asset_b: string;
+  reserve_a: number;
+  reserve_b: number;
+  lp_asset: string;
+  status?: string;
+  reserve_a_normalized?: string;
+  reserve_b_normalized?: string;
+  confirmed?: boolean;
+  [key: string]: unknown;
+}
+
+export interface PoolQuote {
+  estimated_output?: number;
+  pool_output?: number;
+  book_output?: number;
+  book_orders_matched?: number;
+  give_remaining?: number;
+  effective_price?: number;
+  price_impact?: number;
+  pool_exists?: boolean;
+  fee_bps?: number;
+  fee_amount?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface PoolDepositQuote {
+  first_deposit: boolean;
+  asset_a?: string;
+  asset_b?: string;
+  quantity_a_required?: number | null;
+  quantity_b_required?: number | null;
+  quantity_minted_estimate?: number | null;
+  message?: string;
+  [key: string]: unknown;
+}
+
+export interface PoolWithdrawQuote {
+  pool_exists: boolean;
+  asset_a?: string;
+  asset_b?: string;
+  quantity?: number;
+  supply?: number;
+  quantity_a_estimate?: number;
+  quantity_b_estimate?: number;
+  reserve_a?: number;
+  reserve_b?: number;
+  message?: string;
+  [key: string]: unknown;
+}
+
+// =============================================================================
 // TYPES - Dispensers
 // =============================================================================
 
@@ -731,6 +793,71 @@ export async function fetchAssetOrders(
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
   });
+}
+
+// =============================================================================
+// API - AMM Pools
+// =============================================================================
+
+export async function fetchPools(
+  options: PaginationOptions = {}
+): Promise<PaginatedResponse<Pool>> {
+  return cpApiGet<PaginatedResponse<Pool>>('/v2/pools', {
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? DEFAULT_LIMIT,
+    offset: options.offset ?? 0,
+  });
+}
+
+export async function fetchPool(
+  asset1: string,
+  asset2: string,
+  options: { verbose?: boolean } = {}
+): Promise<Pool | null> {
+  const data = await cpApiGet<{ result: Pool | null }>(
+    `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}`,
+    { verbose: options.verbose ?? true }
+  );
+  return data.result ?? null;
+}
+
+export async function fetchPoolQuote(
+  asset1: string,
+  asset2: string,
+  quantity: number | string
+): Promise<PoolQuote> {
+  const data = await cpApiGet<{ result: PoolQuote }>(
+    `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote`,
+    { quantity: quantity.toString() },
+    { skipCache: true }
+  );
+  return data.result;
+}
+
+export async function fetchPoolDepositQuote(
+  asset1: string,
+  asset2: string,
+  quantity: number | string
+): Promise<PoolDepositQuote> {
+  const data = await cpApiGet<{ result: PoolDepositQuote }>(
+    `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/deposit`,
+    { quantity: quantity.toString() },
+    { skipCache: true }
+  );
+  return data.result;
+}
+
+export async function fetchPoolWithdrawQuote(
+  asset1: string,
+  asset2: string,
+  quantity: number | string
+): Promise<PoolWithdrawQuote> {
+  const data = await cpApiGet<{ result: PoolWithdrawQuote }>(
+    `/v2/pools/${encodePath(asset1)}/${encodePath(asset2)}/quote/withdraw`,
+    { quantity: quantity.toString() },
+    { skipCache: true }
+  );
+  return data.result;
 }
 
 // =============================================================================

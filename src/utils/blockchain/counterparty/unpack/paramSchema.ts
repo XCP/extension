@@ -383,6 +383,64 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
       },
     },
   },
+
+  pooldeposit: {
+    messageType: 'pooldeposit',
+    messageTypeIds: [120],
+    params: {
+      asset_a: {
+        criticality: 'critical',
+        riskDescription: 'Wrong asset = depositing wrong tokens',
+      },
+      asset_b: {
+        criticality: 'critical',
+        riskDescription: 'Wrong asset = depositing wrong tokens',
+      },
+      quantity_a: {
+        criticality: 'critical',
+        riskDescription: 'Wrong amount = depositing more than intended',
+      },
+      quantity_b: {
+        criticality: 'critical',
+        riskDescription: 'Wrong amount = depositing more than intended',
+      },
+      min_lp_quantity: {
+        criticality: 'dangerous',
+        riskDescription: 'Lower minimum = weaker slippage protection',
+      },
+      lp_asset: {
+        criticality: 'dangerous',
+        riskDescription: 'Wrong LP asset = creates or references an unintended pool token',
+      },
+    },
+  },
+
+  poolwithdraw: {
+    messageType: 'poolwithdraw',
+    messageTypeIds: [121],
+    params: {
+      asset_a: {
+        criticality: 'critical',
+        riskDescription: 'Wrong asset = withdrawing from wrong pool',
+      },
+      asset_b: {
+        criticality: 'critical',
+        riskDescription: 'Wrong asset = withdrawing from wrong pool',
+      },
+      quantity: {
+        criticality: 'critical',
+        riskDescription: 'Wrong amount = burning more LP tokens than intended',
+      },
+      min_quantity_a: {
+        criticality: 'dangerous',
+        riskDescription: 'Lower minimum = weaker slippage protection',
+      },
+      min_quantity_b: {
+        criticality: 'dangerous',
+        riskDescription: 'Lower minimum = weaker slippage protection',
+      },
+    },
+  },
 };
 
 /**

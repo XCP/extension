@@ -18,6 +18,7 @@ import type { DestroyData } from './messages/destroy';
 import type { SweepData } from './messages/sweep';
 import type { SendData } from './messages/send';
 import type { IssuanceData } from './messages/issuance';
+import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 import { addressesEqual } from './address';
 import { getMessageSchema, type Criticality } from './paramSchema';
 
@@ -30,6 +31,8 @@ import type {
   DestroyOptions,
   SweepOptions,
   IssuanceOptions,
+  PoolDepositOptions,
+  PoolWithdrawOptions,
 } from '@/utils/blockchain/counterparty/compose';
 
 /**
@@ -43,7 +46,9 @@ export type VerifiableComposeType =
   | 'cancel'
   | 'destroy'
   | 'sweep'
-  | 'issuance';
+  | 'issuance'
+  | 'pooldeposit'
+  | 'poolwithdraw';
 
 /**
  * Compose params - the params object from compose options
@@ -56,7 +61,9 @@ export type ComposeParams =
   | Pick<CancelOptions, 'offer_hash'>
   | Pick<DestroyOptions, 'asset' | 'quantity' | 'tag'>
   | Pick<SweepOptions, 'destination' | 'flags' | 'memo'>
-  | Pick<IssuanceOptions, 'asset' | 'quantity' | 'divisible' | 'lock' | 'reset' | 'transfer_destination' | 'description'>;
+  | Pick<IssuanceOptions, 'asset' | 'quantity' | 'divisible' | 'lock' | 'reset' | 'transfer_destination' | 'description'>
+  | Pick<PoolDepositOptions, 'asset_a' | 'asset_b' | 'quantity_a' | 'quantity_b' | 'min_lp_quantity' | 'lp_asset'>
+  | Pick<PoolWithdrawOptions, 'asset_a' | 'asset_b' | 'quantity' | 'min_quantity_a' | 'min_quantity_b' | 'lp_asset'>;
 
 /**
  * A mismatch found during verification
@@ -479,6 +486,73 @@ function verifyIssuance(
   }
 }
 
+function verifyPoolDeposit(
+  data: PoolDepositData,
+  params: Record<string, unknown>,
+  result: VerificationResult
+): void {
+  if (!valuesEqual(data.assetA, params.asset_a)) {
+    addMismatch(result, 'asset_a', params.asset_a, data.assetA, 'critical',
+      'Wrong asset = depositing wrong tokens');
+  }
+
+  if (!valuesEqual(data.assetB, params.asset_b)) {
+    addMismatch(result, 'asset_b', params.asset_b, data.assetB, 'critical',
+      'Wrong asset = depositing wrong tokens');
+  }
+
+  if (!valuesEqual(data.quantityA, params.quantity_a)) {
+    addMismatch(result, 'quantity_a', params.quantity_a, data.quantityA, 'critical',
+      'Wrong amount = depositing more than intended');
+  }
+
+  if (!valuesEqual(data.quantityB, params.quantity_b)) {
+    addMismatch(result, 'quantity_b', params.quantity_b, data.quantityB, 'critical',
+      'Wrong amount = depositing more than intended');
+  }
+
+  if (params.min_lp_quantity !== undefined && !valuesEqual(data.minLpQuantity, params.min_lp_quantity)) {
+    addMismatch(result, 'min_lp_quantity', params.min_lp_quantity, data.minLpQuantity, 'dangerous',
+      'Lower minimum = weaker slippage protection');
+  }
+
+  if (params.lp_asset !== undefined && data.lpAsset && !valuesEqual(data.lpAsset, params.lp_asset)) {
+    addMismatch(result, 'lp_asset', params.lp_asset, data.lpAsset, 'dangerous',
+      'Wrong LP asset = creates or references an unintended pool token');
+  }
+}
+
+function verifyPoolWithdraw(
+  data: PoolWithdrawData,
+  params: Record<string, unknown>,
+  result: VerificationResult
+): void {
+  if (params.asset_a !== undefined && !valuesEqual(data.assetA, params.asset_a)) {
+    addMismatch(result, 'asset_a', params.asset_a, data.assetA, 'critical',
+      'Wrong asset = withdrawing from wrong pool');
+  }
+
+  if (params.asset_b !== undefined && !valuesEqual(data.assetB, params.asset_b)) {
+    addMismatch(result, 'asset_b', params.asset_b, data.assetB, 'critical',
+      'Wrong asset = withdrawing from wrong pool');
+  }
+
+  if (!valuesEqual(data.quantity, params.quantity)) {
+    addMismatch(result, 'quantity', params.quantity, data.quantity, 'critical',
+      'Wrong amount = burning more LP tokens than intended');
+  }
+
+  if (params.min_quantity_a !== undefined && !valuesEqual(data.minQuantityA, params.min_quantity_a)) {
+    addMismatch(result, 'min_quantity_a', params.min_quantity_a, data.minQuantityA, 'dangerous',
+      'Lower minimum = weaker slippage protection');
+  }
+
+  if (params.min_quantity_b !== undefined && !valuesEqual(data.minQuantityB, params.min_quantity_b)) {
+    addMismatch(result, 'min_quantity_b', params.min_quantity_b, data.minQuantityB, 'dangerous',
+      'Lower minimum = weaker slippage protection');
+  }
+}
+
 /**
  * Verify a composed transaction matches the request params.
  *
@@ -594,6 +668,22 @@ export function verifyTransaction(
         return result;
       }
       verifyIssuance(unpacked.data as IssuanceData, actualParams, result);
+      break;
+
+    case 'pooldeposit':
+      if (unpacked.messageTypeId !== MessageTypeId.POOL_DEPOSIT) {
+        result.errors.push(`Message type mismatch: expected pooldeposit, got ${unpacked.messageType}`);
+        return result;
+      }
+      verifyPoolDeposit(unpacked.data as PoolDepositData, actualParams, result);
+      break;
+
+    case 'poolwithdraw':
+      if (unpacked.messageTypeId !== MessageTypeId.POOL_WITHDRAW) {
+        result.errors.push(`Message type mismatch: expected poolwithdraw, got ${unpacked.messageType}`);
+        return result;
+      }
+      verifyPoolWithdraw(unpacked.data as PoolWithdrawData, actualParams, result);
       break;
 
     default:

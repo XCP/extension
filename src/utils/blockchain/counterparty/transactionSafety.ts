@@ -69,6 +69,8 @@ const SAFE_MESSAGE_TYPES = new Set([
   'detach',
   'mpma_send',
   'btcpay',
+  'pooldeposit',
+  'poolwithdraw',
 ]);
 
 /**

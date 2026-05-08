@@ -23,6 +23,7 @@ import type { DividendData } from './messages/dividend';
 import type { FairminterData } from './messages/fairminter';
 import type { FairmintData } from './messages/fairmint';
 import type { AttachData, DetachData } from './messages/attach';
+import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -492,6 +493,73 @@ function verifyAttach(
   return mismatches;
 }
 
+function verifyPoolDeposit(
+  local: PoolDepositData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiAssetA = getApiValue(api, 'asset_a', 'assetA') as string | undefined;
+  if (apiAssetA && !assetsEqual(local.assetA, apiAssetA)) {
+    mismatches.push(`Asset A: local="${local.assetA}", API="${apiAssetA}"`);
+  }
+
+  const apiAssetB = getApiValue(api, 'asset_b', 'assetB') as string | undefined;
+  if (apiAssetB && !assetsEqual(local.assetB, apiAssetB)) {
+    mismatches.push(`Asset B: local="${local.assetB}", API="${apiAssetB}"`);
+  }
+
+  const apiQuantityA = getApiValue(api, 'quantity_a', 'quantityA');
+  if (apiQuantityA !== undefined && !quantitiesEqual(local.quantityA, apiQuantityA)) {
+    mismatches.push(`Quantity A: local=${local.quantityA}, API=${apiQuantityA}`);
+  }
+
+  const apiQuantityB = getApiValue(api, 'quantity_b', 'quantityB');
+  if (apiQuantityB !== undefined && !quantitiesEqual(local.quantityB, apiQuantityB)) {
+    mismatches.push(`Quantity B: local=${local.quantityB}, API=${apiQuantityB}`);
+  }
+
+  const apiMinLp = getApiValue(api, 'min_lp_quantity', 'minLpQuantity');
+  if (apiMinLp !== undefined && !quantitiesEqual(local.minLpQuantity, apiMinLp)) {
+    mismatches.push(`Min LP quantity: local=${local.minLpQuantity}, API=${apiMinLp}`);
+  }
+
+  return mismatches;
+}
+
+function verifyPoolWithdraw(
+  local: PoolWithdrawData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiAssetA = getApiValue(api, 'asset_a', 'assetA') as string | undefined;
+  if (apiAssetA && !assetsEqual(local.assetA, apiAssetA)) {
+    mismatches.push(`Asset A: local="${local.assetA}", API="${apiAssetA}"`);
+  }
+
+  const apiAssetB = getApiValue(api, 'asset_b', 'assetB') as string | undefined;
+  if (apiAssetB && !assetsEqual(local.assetB, apiAssetB)) {
+    mismatches.push(`Asset B: local="${local.assetB}", API="${apiAssetB}"`);
+  }
+
+  if (api.quantity !== undefined && !quantitiesEqual(local.quantity, api.quantity)) {
+    mismatches.push(`Quantity: local=${local.quantity}, API=${api.quantity}`);
+  }
+
+  const apiMinA = getApiValue(api, 'min_quantity_a', 'minQuantityA');
+  if (apiMinA !== undefined && !quantitiesEqual(local.minQuantityA, apiMinA)) {
+    mismatches.push(`Min quantity A: local=${local.minQuantityA}, API=${apiMinA}`);
+  }
+
+  const apiMinB = getApiValue(api, 'min_quantity_b', 'minQuantityB');
+  if (apiMinB !== undefined && !quantitiesEqual(local.minQuantityB, apiMinB)) {
+    mismatches.push(`Min quantity B: local=${local.minQuantityB}, API=${apiMinB}`);
+  }
+
+  return mismatches;
+}
+
 /**
  * Verify a provider transaction by comparing local unpack against API decode.
  *
@@ -615,6 +683,14 @@ export function verifyProviderTransaction(
 
     case 'attach':
       mismatches.push(...verifyAttach(localUnpack.data as AttachData, apiData));
+      break;
+
+    case 'pooldeposit':
+      mismatches.push(...verifyPoolDeposit(localUnpack.data as PoolDepositData, apiData));
+      break;
+
+    case 'poolwithdraw':
+      mismatches.push(...verifyPoolWithdraw(localUnpack.data as PoolWithdrawData, apiData));
       break;
 
     case 'detach':

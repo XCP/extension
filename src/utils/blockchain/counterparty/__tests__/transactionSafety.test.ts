@@ -126,6 +126,11 @@ describe('message type safety', () => {
     expect(result.warnings).toHaveLength(0);
   });
 
+  it('should allow pool deposit and withdraw without unknown-type warnings', () => {
+    expect(analyzeTransactionSafety('pooldeposit', normalOutputs, SIGNER).warnings).toHaveLength(0);
+    expect(analyzeTransactionSafety('poolwithdraw', normalOutputs, SIGNER).warnings).toHaveLength(0);
+  });
+
   it('should warn about unknown message types', () => {
     const result = analyzeTransactionSafety('totally_new_type', normalOutputs, SIGNER);
     expect(result.blocked).toBe(false);
