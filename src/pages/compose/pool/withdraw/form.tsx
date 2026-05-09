@@ -38,12 +38,13 @@ export function PoolWithdrawForm({
 }: PoolWithdrawFormProps): ReactElement {
   const { activeAddress, showHelpText, feeRate } = useComposer<PoolWithdrawOptions>();
   const { pending } = useFormStatus();
-  const { data: pool, isLoading } = useLpAssetPool(lpAsset);
+  const { data: pool, isLoading, error: poolError } = useLpAssetPool(lpAsset);
   const { data: assetADetails } = useAssetDetails(pool?.asset_a || "");
   const { data: assetBDetails } = useAssetDetails(pool?.asset_b || "");
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
   const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolWithdrawQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
@@ -65,18 +66,28 @@ export function PoolWithdrawForm({
   useEffect(() => {
     if (!pool || !canQuote) {
       setQuote(null);
+      setQuoteError(null);
+      setIsLoadingQuote(false);
       return;
     }
 
     let cancelled = false;
+    setQuote(null);
+    setQuoteError(null);
+    setIsLoadingQuote(true);
     const timer = setTimeout(() => {
-      setIsLoadingQuote(true);
       fetchPoolWithdrawQuote(pool.asset_a, pool.asset_b, toSatoshis(quantity))
         .then((result) => {
-          if (!cancelled) setQuote(result);
+          if (!cancelled) {
+            setQuote(result);
+            setQuoteError(null);
+          }
         })
-        .catch(() => {
-          if (!cancelled) setQuote(null);
+        .catch((err) => {
+          if (!cancelled) {
+            setQuote(null);
+            setQuoteError(err instanceof Error ? err.message : "Unable to load withdrawal quote.");
+          }
         })
         .finally(() => {
           if (!cancelled) setIsLoadingQuote(false);
@@ -114,6 +125,13 @@ export function PoolWithdrawForm({
   }
 
   if (!pool) {
+    if (poolError) {
+      return (
+        <div className="p-4">
+          <ErrorAlert message={poolError.message} />
+        </div>
+      );
+    }
     return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
   }
 
@@ -149,6 +167,10 @@ export function PoolWithdrawForm({
 
       {isLoadingQuote && (
         <p className="text-sm text-gray-500">Loading withdrawal quote...</p>
+      )}
+
+      {quoteError && (
+        <ErrorAlert message={quoteError} onClose={() => setQuoteError(null)} />
       )}
 
       {quote?.pool_exists && (

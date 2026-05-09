@@ -5,29 +5,34 @@ import { fetchAddressPoolByLpAsset, type PoolPosition } from "@/utils/blockchain
 interface LpAssetPoolState {
   data: PoolPosition | null;
   isLoading: boolean;
+  error: Error | null;
 }
 
 export function useLpAssetPool(asset: string | undefined): LpAssetPoolState {
   const { activeAddress } = useWallet();
-  const [state, setState] = useState<LpAssetPoolState>({ data: null, isLoading: false });
+  const [state, setState] = useState<LpAssetPoolState>({ data: null, isLoading: false, error: null });
 
   useEffect(() => {
     if (!asset || !activeAddress?.address || asset === "BTC") {
-      setState({ data: null, isLoading: false });
+      setState({ data: null, isLoading: false, error: null });
       return;
     }
 
     let cancelled = false;
-    setState((current) => ({ ...current, isLoading: true }));
+    setState((current) => ({ ...current, isLoading: true, error: null }));
 
     fetchAddressPoolByLpAsset(activeAddress.address, asset, { limit: 100 })
       .then((response) => {
         if (cancelled) return;
-        setState({ data: response, isLoading: false });
+        setState({ data: response, isLoading: false, error: null });
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
-          setState({ data: null, isLoading: false });
+          setState({
+            data: null,
+            isLoading: false,
+            error: err instanceof Error ? err : new Error("Failed to check pool position"),
+          });
         }
       });
 

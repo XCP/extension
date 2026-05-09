@@ -94,6 +94,7 @@ export function PoolDepositForm({
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
   const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolDepositQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
@@ -108,18 +109,28 @@ export function PoolDepositForm({
   useEffect(() => {
     if (!canQuote) {
       setQuote(null);
+      setQuoteError(null);
+      setIsLoadingQuote(false);
       return;
     }
 
     let cancelled = false;
+    setQuote(null);
+    setQuoteError(null);
+    setIsLoadingQuote(true);
     const timer = setTimeout(() => {
-      setIsLoadingQuote(true);
       fetchPoolDepositQuote(assetA, assetB, toRawQuantity(quantityA, isAssetADivisible))
         .then((result) => {
-          if (!cancelled) setQuote(result);
+          if (!cancelled) {
+            setQuote(result);
+            setQuoteError(null);
+          }
         })
-        .catch(() => {
-          if (!cancelled) setQuote(null);
+        .catch((err) => {
+          if (!cancelled) {
+            setQuote(null);
+            setQuoteError(err instanceof Error ? err.message : "Unable to load pool quote.");
+          }
         })
         .finally(() => {
           if (!cancelled) setIsLoadingQuote(false);
@@ -259,6 +270,10 @@ export function PoolDepositForm({
 
       {isLoadingQuote && (
         <p className="text-sm text-gray-500">Loading pool quote...</p>
+      )}
+
+      {quoteError && (
+        <ErrorAlert message={quoteError} onClose={() => setQuoteError(null)} />
       )}
 
       {quote?.message && (

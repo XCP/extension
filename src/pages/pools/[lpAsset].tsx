@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
@@ -15,7 +16,7 @@ export default function PoolPositionPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const asset = lpAsset ? decodeURIComponent(lpAsset) : undefined;
-  const { data: pool, isLoading } = useLpAssetPool(asset);
+  const { data: pool, isLoading, error } = useLpAssetPool(asset);
   const { data: lpAssetInfo } = useAssetInfo(pool?.lp_asset || "");
 
   useEffect(() => {
@@ -31,6 +32,13 @@ export default function PoolPositionPage(): ReactElement {
   }
 
   if (!pool) {
+    if (error) {
+      return (
+        <div className="p-4">
+          <ErrorAlert message={error.message} />
+        </div>
+      );
+    }
     return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
   }
 
