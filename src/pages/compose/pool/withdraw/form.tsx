@@ -9,7 +9,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
 import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
-import { fromSatoshis, isValidPositiveNumber, toBigNumber } from "@/utils/numeric";
+import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/utils/numeric";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
@@ -33,7 +33,7 @@ export function PoolWithdrawForm({
   const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const canQuote = !!pool && toBigNumber(quantity || 0).isGreaterThan(0);
+  const canQuote = !!pool && isGreaterThan(quantity || 0, 0);
   const isAssetADivisible = assetADetails?.isDivisible ?? true;
   const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolWithdrawQuote({
@@ -50,14 +50,14 @@ export function PoolWithdrawForm({
 
   const minQuantityA = applyPoolSlippage(quote?.quantity_a_estimate, slippage);
   const minQuantityB = applyPoolSlippage(quote?.quantity_b_estimate, slippage);
-  const hasMinimums = toBigNumber(minQuantityA).isGreaterThan(0) || toBigNumber(minQuantityB).isGreaterThan(0);
+  const hasMinimums = isGreaterThan(minQuantityA, 0) || isGreaterThan(minQuantityB, 0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
-    && toBigNumber(slippage).isLessThanOrEqualTo(50);
+    && isLessThanOrEqualTo(slippage, 50);
 
   const submitDisabled = useMemo(() => {
     if (!pool) return true;
-    if (!toBigNumber(quantity || 0).isGreaterThan(0)) return true;
-    if (toBigNumber(quantity).isGreaterThan(pool.quantity_normalized ?? pool.quantity)) return true;
+    if (!isGreaterThan(quantity || 0, 0)) return true;
+    if (isGreaterThan(quantity, pool.quantity_normalized ?? pool.quantity)) return true;
     if (canQuote && (isLoadingQuote || !quote?.pool_exists)) return true;
     if (!isSlippageValid) return true;
     return false;

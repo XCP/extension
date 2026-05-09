@@ -19,7 +19,7 @@ export function useLpAssetPool(asset: string | undefined): LpAssetPoolState {
     }
 
     let cancelled = false;
-    setState((current) => ({ ...current, isLoading: true, error: null }));
+    setState({ data: null, isLoading: true, error: null });
 
     fetchAddressPoolByLpAsset(activeAddress.address, asset, { limit: 100 })
       .then((response) => {

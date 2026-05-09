@@ -10,7 +10,11 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
-import { BigNumber } from "@/utils/numeric";
+import {
+  isFiniteNumber,
+  isGreaterThanOrEqualTo,
+  isLessThan,
+} from "@/utils/numeric";
 import type { ReactElement } from "react";
 
 export const DEFAULT_POOL_SLIPPAGE = "2.5";
@@ -57,13 +61,12 @@ export function SlippageInput({
     { id: "custom" as const, name: "Custom", value: customInput || DEFAULT_POOL_SLIPPAGE },
   ];
 
-  const slippageValue = new BigNumber(value);
-  const showSlippageWarning = value.trim() !== "" && slippageValue.isFinite();
+  const showSlippageWarning = value.trim() !== "" && isFiniteNumber(value);
   const isLowSlippage = showSlippageWarning
-    && slippageValue.isGreaterThanOrEqualTo(0)
-    && slippageValue.isLessThan(LOW_SLIPPAGE_THRESHOLD);
+    && isGreaterThanOrEqualTo(value, 0)
+    && isLessThan(value, LOW_SLIPPAGE_THRESHOLD);
   const isHighSlippage = showSlippageWarning
-    && slippageValue.isGreaterThanOrEqualTo(HIGH_SLIPPAGE_THRESHOLD);
+    && isGreaterThanOrEqualTo(value, HIGH_SLIPPAGE_THRESHOLD);
 
   const handleOptionSelect = (option: typeof options[number] | null) => {
     if (!option) return;
@@ -79,14 +82,14 @@ export function SlippageInput({
     const nextValue = event.target.value.trim();
     const parts = nextValue.split(".");
     if (parts.length > 2) return;
-    if (nextValue !== "" && !new BigNumber(nextValue).isFinite()) return;
+    if (nextValue !== "" && !isFiniteNumber(nextValue)) return;
 
     setCustomInput(nextValue);
     onChange(nextValue);
   };
 
   const handleCustomInputBlur = () => {
-    if (!customInput || new BigNumber(customInput).isLessThan(0)) {
+    if (!customInput || isLessThan(customInput, 0)) {
       setCustomInput(DEFAULT_POOL_SLIPPAGE);
       onChange(DEFAULT_POOL_SLIPPAGE);
     }

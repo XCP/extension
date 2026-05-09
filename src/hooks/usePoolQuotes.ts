@@ -5,16 +5,12 @@ import {
   type PoolDepositQuote,
   type PoolWithdrawQuote,
 } from "@/utils/blockchain/counterparty/api";
-import { toBigNumber, toSatoshis } from "@/utils/numeric";
+import { roundDown, toSatoshis } from "@/utils/numeric";
 
 interface PoolQuoteState<T> {
   data: T | null;
   isLoading: boolean;
   error: string | null;
-}
-
-function toRawQuantity(value: string, divisible: boolean): string {
-  return divisible ? toSatoshis(value) : toBigNumber(value).integerValue().toString();
 }
 
 export function usePoolDepositQuote({
@@ -46,7 +42,11 @@ export function usePoolDepositQuote({
     setState({ data: null, isLoading: true, error: null });
 
     const timer = setTimeout(() => {
-      fetchPoolDepositQuote(assetA, assetB, toRawQuantity(quantityA, isAssetADivisible))
+      fetchPoolDepositQuote(
+        assetA,
+        assetB,
+        isAssetADivisible ? toSatoshis(quantityA) : roundDown(quantityA).toString()
+      )
         .then((data) => {
           if (!cancelled) setState({ data, isLoading: false, error: null });
         })

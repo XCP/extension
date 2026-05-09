@@ -7,7 +7,7 @@ import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
-import { formatDecimal, toBigNumber } from "@/utils/numeric";
+import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/utils/numeric";
 
 import type { ReactElement } from "react";
 
@@ -45,13 +45,13 @@ export default function PoolPositionPage(): ReactElement {
   const pair = `${pool.asset_a} / ${pool.asset_b}`;
   const lpBalance = toBigNumber(pool.quantity_normalized ?? pool.quantity);
   const lpSupply = toBigNumber(lpAssetInfo?.supply_normalized);
-  const poolShare = lpSupply.isGreaterThan(0) ? lpBalance.div(lpSupply) : null;
-  const poolSharePercent = poolShare ? formatDecimal(poolShare.times(100), 4) : null;
+  const poolShare = isGreaterThan(lpSupply, 0) ? divide(lpBalance, lpSupply) : null;
+  const poolSharePercent = poolShare ? formatDecimal(multiply(poolShare, 100), 4) : null;
   const underlyingA = poolShare
-    ? formatDecimal(poolShare.times(toBigNumber(pool.reserve_a_normalized ?? pool.reserve_a)))
+    ? formatDecimal(multiply(poolShare, pool.reserve_a_normalized ?? pool.reserve_a))
     : null;
   const underlyingB = poolShare
-    ? formatDecimal(poolShare.times(toBigNumber(pool.reserve_b_normalized ?? pool.reserve_b)))
+    ? formatDecimal(multiply(poolShare, pool.reserve_b_normalized ?? pool.reserve_b))
     : null;
 
   return (

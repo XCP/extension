@@ -16,8 +16,12 @@ import {
 } from "@/utils/blockchain/counterparty/pool";
 import {
   fromSatoshis,
+  isEqualTo,
+  isGreaterThan,
+  isLessThan,
+  isLessThanOrEqualTo,
   isValidPositiveNumber,
-  toBigNumber,
+  roundDown,
   toSatoshis,
 } from "@/utils/numeric";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
@@ -28,10 +32,6 @@ interface PoolDepositFormProps {
   initialFormData: PoolDepositOptions | null;
   initialAssetA?: string;
   initialAssetB?: string;
-}
-
-function toRawQuantity(value: string, divisible: boolean): string {
-  return divisible ? toSatoshis(value) : toBigNumber(value).integerValue().toString();
 }
 
 export function PoolDepositForm({
@@ -54,10 +54,12 @@ export function PoolDepositForm({
   const { data: assetADetails } = useAssetDetails(assetA);
   const { data: assetBDetails } = useAssetDetails(assetB);
 
-  const isAssetADivisible = assetADetails?.isDivisible ?? true;
-  const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
-  const canQuote = assetA && assetB && assetA !== assetB && toBigNumber(quantityA || 0).isGreaterThan(0);
-  const needsQuote = canQuote && toBigNumber(quantityB || 0).isGreaterThan(0);
+  const assetADetailsReady = assetADetails?.assetInfo?.asset === assetA;
+  const assetBDetailsReady = assetB ? assetBDetails?.assetInfo?.asset === assetB : false;
+  const isAssetADivisible = assetADetailsReady ? assetADetails.isDivisible : true;
+  const isAssetBDivisible = assetBDetailsReady && assetBDetails ? assetBDetails.isDivisible : true;
+  const canQuote = assetA && assetB && assetA !== assetB && assetADetailsReady && isGreaterThan(quantityA || 0, 0);
+  const needsQuote = canQuote && isGreaterThan(quantityB || 0, 0);
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolDepositQuote({
     assetA,
     assetB,
@@ -75,32 +77,37 @@ export function PoolDepositForm({
       ? fromSatoshis(partnerQuantityRaw, { removeTrailingZeros: true })
       : partnerQuantityRaw.toString()
     : null;
-  const quantityARaw = quantityA ? toRawQuantity(quantityA, isAssetADivisible) : "0";
-  const quantityBRaw = quantityB ? toRawQuantity(quantityB, isAssetBDivisible) : "0";
+  const quantityARaw = quantityA
+    ? isAssetADivisible ? toSatoshis(quantityA) : roundDown(quantityA).toString()
+    : "0";
+  const quantityBRaw = quantityB
+    ? isAssetBDivisible ? toSatoshis(quantityB) : roundDown(quantityB).toString()
+    : "0";
   const partnerQuantityMatches = partnerQuantityRaw === undefined || partnerQuantityRaw === null
-    || toBigNumber(quantityBRaw).isEqualTo(partnerQuantityRaw);
+    || isEqualTo(quantityBRaw, partnerQuantityRaw);
   const partnerQuantityIsLow = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
-    && toBigNumber(quantityBRaw).isLessThan(partnerQuantityRaw);
+    && isLessThan(quantityBRaw, partnerQuantityRaw);
   const partnerQuantityIsHigh = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
-    && toBigNumber(quantityBRaw).isGreaterThan(partnerQuantityRaw);
+    && isGreaterThan(quantityBRaw, partnerQuantityRaw);
   const isZeroSupplyRestart = !isFirstDeposit && quote?.quantity_minted_estimate === 0;
   const initialLpEstimate = calculateInitialLpEstimate(quantityARaw, quantityBRaw);
   const limitingLpEstimate = calculateLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
   const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
   const minLpQuantity = applyPoolSlippage(lpEstimateForMinimum, slippage);
-  const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
+  const hasLpMinimum = isGreaterThan(minLpQuantity, 0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
-    && toBigNumber(slippage).isLessThanOrEqualTo(50);
+    && isLessThanOrEqualTo(slippage, 50);
 
   const submitDisabled = useMemo(() => {
     if (!assetA || !assetB || assetA === assetB) return true;
-    if (!toBigNumber(quantityA || 0).isGreaterThan(0)) return true;
-    if (!toBigNumber(quantityB || 0).isGreaterThan(0)) return true;
+    if (!assetADetailsReady || !assetBDetailsReady) return true;
+    if (!isGreaterThan(quantityA || 0, 0)) return true;
+    if (!isGreaterThan(quantityB || 0, 0)) return true;
     if (needsQuote && (isLoadingQuote || !quote)) return true;
     if (isFirstDeposit && lpAsset && !isLpAssetValid) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [assetA, assetB, quantityA, quantityB, needsQuote, isLoadingQuote, quote, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
+  }, [assetA, assetB, assetADetailsReady, assetBDetailsReady, quantityA, quantityB, needsQuote, isLoadingQuote, quote, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {
