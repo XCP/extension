@@ -103,6 +103,7 @@ export function PoolDepositForm({
   const isAssetADivisible = assetADetails?.isDivisible ?? true;
   const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
   const canQuote = assetA && assetB && assetA !== assetB && toBigNumber(quantityA || 0).isGreaterThan(0);
+  const needsQuote = canQuote && toBigNumber(quantityB || 0).isGreaterThan(0);
 
   useEffect(() => {
     if (!canQuote) {
@@ -164,10 +165,11 @@ export function PoolDepositForm({
     if (!assetA || !assetB || assetA === assetB) return true;
     if (!toBigNumber(quantityA || 0).isGreaterThan(0)) return true;
     if (!toBigNumber(quantityB || 0).isGreaterThan(0)) return true;
+    if (needsQuote && (isLoadingQuote || !quote)) return true;
     if (isFirstDeposit && lpAsset && !isLpAssetValid) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [assetA, assetB, quantityA, quantityB, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
+  }, [assetA, assetB, quantityA, quantityB, needsQuote, isLoadingQuote, quote, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {

@@ -93,9 +93,10 @@ export function PoolWithdrawForm({
     if (!pool) return true;
     if (!toBigNumber(quantity || 0).isGreaterThan(0)) return true;
     if (toBigNumber(quantity).isGreaterThan(pool.quantity_normalized ?? pool.quantity)) return true;
+    if (canQuote && (isLoadingQuote || !quote?.pool_exists)) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [pool, quantity, isSlippageValid]);
+  }, [pool, quantity, canQuote, isLoadingQuote, quote?.pool_exists, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (!pool) return;
