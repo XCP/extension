@@ -19,6 +19,8 @@ import {
   fetchPoolQuote,
   fetchPoolDepositQuote,
   fetchPoolWithdrawQuote,
+  fetchAddressPools,
+  fetchAddressPoolByLpAsset,
   fetchServerInfo,
   clearApiCache,
   AssetInfo,
@@ -1204,6 +1206,29 @@ describe('counterparty/api.ts', () => {
         3,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/withdraw`,
         expect.objectContaining({ params: { quantity: '1000' } })
+      );
+    });
+
+    it('should fetch address LP pool positions', async () => {
+      await fetchAddressPools(mockAddress, { limit: 50, offset: 10 });
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/addresses/${mockAddress}/pools`,
+        expect.objectContaining({
+          params: expect.objectContaining({ verbose: true, limit: 50, offset: 10 }),
+        })
+      );
+    });
+
+    it('should find an address LP pool position by LP asset', async () => {
+      const result = await fetchAddressPoolByLpAsset(mockAddress, 'A77777777777777777');
+
+      expect(result).toEqual(mockPool);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/addresses/${mockAddress}/pools`,
+        expect.objectContaining({
+          params: expect.objectContaining({ verbose: true, limit: 100, offset: 0 }),
+        })
       );
     });
   });

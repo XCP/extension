@@ -79,6 +79,7 @@ export interface ComposeParams {
   asset_info: ComposeAssetInfo;
   quantity_normalized: string;
   more_outputs?: string;
+  lp_asset?: string;
 }
 
 export interface ComposeResult {
@@ -1080,7 +1081,11 @@ export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise
     ...(lp_asset && { lp_asset }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const response = await composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (lp_asset && response.result?.params) {
+    response.result.params.lp_asset = lp_asset;
+  }
+  return response;
 }
 
 export async function getPoolWithdrawEstimateXcpFee(sourceAddress: string): Promise<number> {

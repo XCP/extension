@@ -16,7 +16,7 @@ export type ComposeType =
   | 'cancel' | 'dispenser-close-by-hash' | 'broadcast'
   | 'attach' | 'detach' | 'move-utxo' | 'move' | 'destroy' | 'issue-supply'
   | 'lock-supply' | 'reset-supply' | 'transfer' | 'update-description'
-  | 'lock-description' | 'issuance';
+  | 'lock-description' | 'issuance' | 'pooldeposit' | 'poolwithdraw';
 
 /**
  * Props for the Composer component.

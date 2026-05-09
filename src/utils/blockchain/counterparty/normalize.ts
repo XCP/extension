@@ -132,6 +132,17 @@ const NORMALIZATION_CONFIG: Record<string, {
   cancel: {
     quantityFields: [],
     assetFields: {}
+  },
+  pooldeposit: {
+    quantityFields: ['quantity_a', 'quantity_b'],
+    assetFields: {
+      quantity_a: 'asset_a',
+      quantity_b: 'asset_b'
+    }
+  },
+  poolwithdraw: {
+    quantityFields: ['quantity'],
+    assetFields: { quantity: 'lp_asset' }
   }
 };
 
@@ -161,6 +172,8 @@ export function getComposeType(formData: Record<string, any>): string | undefine
     'CancelOptions': 'cancel',
     'MPMAOptions': 'mpma',
     'MPMAData': 'mpma',
+    'PoolDepositOptions': 'pooldeposit',
+    'PoolWithdrawOptions': 'poolwithdraw',
   };
   
   // Try to detect based on presence of specific fields
@@ -175,6 +188,8 @@ export function getComposeType(formData: Record<string, any>): string | undefine
   if ('quantity' in formData && 'asset_name' in formData) return 'issuance';
   if ('destination' in formData && 'asset' in formData) return 'attach';
   if ('utxo_address' in formData) return 'movetoutxo';
+  if ('asset_a' in formData && 'asset_b' in formData && 'quantity_a' in formData && 'quantity_b' in formData) return 'pooldeposit';
+  if ('lp_asset' in formData && 'quantity' in formData && ('min_quantity_a' in formData || 'min_quantity_b' in formData)) return 'poolwithdraw';
   
   // Fallback: check if type is explicitly provided
   const typeName = formData.__type || formData.type;
