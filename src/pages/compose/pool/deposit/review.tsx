@@ -48,6 +48,8 @@ export function ReviewPoolDeposit({
 
   const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
   const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
+  const minimumLpDisplay = params.min_lp_quantity_normalized
+    ?? fromSatoshis(params.min_lp_quantity ?? 0, { removeTrailingZeros: true });
 
   const customFields = [
     {
@@ -59,7 +61,7 @@ export function ReviewPoolDeposit({
       value: `${params.quantity_a_normalized ?? params.quantity_a} ${params.asset_a}\n${params.quantity_b_normalized ?? params.quantity_b} ${params.asset_b}`,
     },
     ...(params.min_lp_quantity && params.min_lp_quantity !== "0"
-      ? [{ label: "Minimum LP", value: params.min_lp_quantity_normalized ?? params.min_lp_quantity }]
+      ? [{ label: "Minimum LP", value: minimumLpDisplay }]
       : []),
     ...(params.lp_asset ? [{ label: "LP Asset", value: params.lp_asset }] : []),
     {

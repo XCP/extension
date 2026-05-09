@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { getPoolWithdrawEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
@@ -25,6 +26,8 @@ export function ReviewPoolWithdraw({
   const params = result.params;
   const { settings } = useSettings();
   const { xcp: xcpPrice } = useMarketPrices(settings.fiat);
+  const { data: assetAInfo, isLoading: isLoadingAssetA } = useAssetInfo(params.asset_a || "");
+  const { data: assetBInfo, isLoading: isLoadingAssetB } = useAssetInfo(params.asset_b || "");
   const [xcpFeeEstimate, setXcpFeeEstimate] = useState<number | null>(null);
   const [feeLoading, setFeeLoading] = useState(true);
 
@@ -48,6 +51,19 @@ export function ReviewPoolWithdraw({
 
   const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
   const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
+  const formatMinimum = (
+    normalized: string | undefined,
+    raw: string | number | undefined,
+    divisible: boolean | undefined,
+    isLoadingAsset: boolean
+  ) => {
+    if (normalized !== undefined) return normalized;
+    if (raw === undefined) return "0";
+    if (divisible === undefined && isLoadingAsset) return "Loading...";
+    return divisible ? fromSatoshis(raw, { removeTrailingZeros: true }) : raw.toString();
+  };
+  const minQuantityADisplay = formatMinimum(params.min_quantity_a_normalized, params.min_quantity_a, assetAInfo?.divisible, isLoadingAssetA);
+  const minQuantityBDisplay = formatMinimum(params.min_quantity_b_normalized, params.min_quantity_b, assetBInfo?.divisible, isLoadingAssetB);
 
   const customFields = [
     {
@@ -61,7 +77,7 @@ export function ReviewPoolWithdraw({
     ...(params.min_quantity_a || params.min_quantity_b
       ? [{
           label: "Minimum Receive",
-          value: `${params.min_quantity_a_normalized ?? params.min_quantity_a ?? "0"} ${params.asset_a ?? ""}\n${params.min_quantity_b_normalized ?? params.min_quantity_b ?? "0"} ${params.asset_b ?? ""}`,
+          value: `${minQuantityADisplay} ${params.asset_a ?? ""}\n${minQuantityBDisplay} ${params.asset_b ?? ""}`,
         }]
       : []),
     {
