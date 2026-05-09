@@ -92,7 +92,7 @@ export function PoolDepositForm({
   const [quantityB, setQuantityB] = useState(initialFormData?.quantity_b?.toString() || "");
   const [lpAsset, setLpAsset] = useState(initialFormData?.lp_asset || "");
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
-  const [slippage, setSlippage] = useState("1");
+  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || "1");
   const [localError, setLocalError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolDepositQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
@@ -332,6 +332,7 @@ export function PoolDepositForm({
       <input type="hidden" name="quantity_a" value={canonicalQuantityA} />
       <input type="hidden" name="quantity_b" value={canonicalQuantityB} />
       <input type="hidden" name="min_lp_quantity" value={minLpQuantity} />
+      <input type="hidden" name="slippage" value={slippage} />
       {lpAsset && <input type="hidden" name="lp_asset" value={lpAsset} />}
     </ComposerForm>
   );

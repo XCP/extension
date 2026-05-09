@@ -42,7 +42,7 @@ export function PoolWithdrawForm({
   const { data: assetADetails } = useAssetDetails(pool?.asset_a || "");
   const { data: assetBDetails } = useAssetDetails(pool?.asset_b || "");
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [slippage, setSlippage] = useState("1");
+  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || "1");
   const [localError, setLocalError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolWithdrawQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
@@ -196,6 +196,7 @@ export function PoolWithdrawForm({
       <input type="hidden" name="quantity" value={quantity} />
       <input type="hidden" name="min_quantity_a" value={minQuantityA} />
       <input type="hidden" name="min_quantity_b" value={minQuantityB} />
+      <input type="hidden" name="slippage" value={slippage} />
     </ComposerForm>
   );
 }
