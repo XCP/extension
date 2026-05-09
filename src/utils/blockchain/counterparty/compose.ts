@@ -1,6 +1,7 @@
 import { apiClient } from '@/utils/apiClient';
 import { walletManager } from '@/utils/wallet/walletManager';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import { requireCounterpartyFeature } from '@/utils/blockchain/counterparty/capabilities';
 import { selectUtxosForTransaction } from '@/utils/blockchain/counterparty/utxo-selection';
 
 /**
@@ -1020,6 +1021,8 @@ export async function composeFairmint(options: FairmintOptions): Promise<ApiResp
 }
 
 export async function composePoolDeposit(options: PoolDepositOptions): Promise<ApiResponse> {
+  await requireCounterpartyFeature('ammPools');
+
   const {
     sourceAddress,
     asset_a,
@@ -1045,6 +1048,8 @@ export async function composePoolDeposit(options: PoolDepositOptions): Promise<A
 }
 
 export async function getPoolDepositEstimateXcpFee(sourceAddress: string): Promise<number> {
+  await requireCounterpartyFeature('ammPools');
+
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/pooldeposit/estimatexcpfees`;
   const response = await apiClient.get<{ result: number }>(apiUrl);
@@ -1052,6 +1057,8 @@ export async function getPoolDepositEstimateXcpFee(sourceAddress: string): Promi
 }
 
 export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise<ApiResponse> {
+  await requireCounterpartyFeature('ammPools');
+
   const {
     sourceAddress,
     asset_a,
@@ -1077,6 +1084,8 @@ export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise
 }
 
 export async function getPoolWithdrawEstimateXcpFee(sourceAddress: string): Promise<number> {
+  await requireCounterpartyFeature('ammPools');
+
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/poolwithdraw/estimatexcpfees`;
   const response = await apiClient.get<{ result: number }>(apiUrl);

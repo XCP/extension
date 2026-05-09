@@ -39,6 +39,9 @@ import { walletManager } from '@/utils/wallet/walletManager';
 vi.mock('@/utils/apiClient');
 vi.mock('@/utils/format');
 vi.mock('@/utils/blockchain/bitcoin/balance');
+vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/utils/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
