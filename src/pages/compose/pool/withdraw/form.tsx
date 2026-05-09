@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactElement } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context";
@@ -92,16 +93,11 @@ export function PoolWithdrawForm({
   return (
     <ComposerForm
       formAction={handleFormAction}
+      header={<PoolHeader pool={pool} className="mt-1 mb-5" />}
       submitText="Review Withdrawal"
       submitDisabled={pending || submitDisabled}
     >
       {localError && <ErrorAlert message={localError} onClose={() => setLocalError(null)} />}
-
-      <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700">
-        <div className="font-semibold text-gray-900">{pool.asset_a} / {pool.asset_b}</div>
-        <div className="mt-1 text-gray-600">LP Asset: {pool.lp_asset}</div>
-        <div className="mt-1 text-gray-600">Available: {pool.quantity_normalized ?? pool.quantity}</div>
-      </div>
 
       <AmountWithMaxInput
         asset={pool.lp_asset}

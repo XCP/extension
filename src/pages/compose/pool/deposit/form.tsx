@@ -3,6 +3,7 @@ import { useFormStatus } from "react-dom";
 import { Field, Description } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
@@ -25,6 +26,7 @@ import {
   toSatoshis,
 } from "@/utils/numeric";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
 interface PoolDepositFormProps {
@@ -97,6 +99,20 @@ export function PoolDepositForm({
   const hasLpMinimum = isGreaterThan(minLpQuantity, 0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && isLessThanOrEqualTo(slippage, 50);
+  const assetABalanceHeader: TokenBalance | null = assetADetailsReady && assetADetails
+    ? {
+        asset: assetA,
+        quantity_normalized: assetADetails.availableBalance,
+        asset_info: assetADetails.assetInfo ? {
+          asset_longname: assetADetails.assetInfo.asset_longname,
+          description: assetADetails.assetInfo.description || "",
+          issuer: assetADetails.assetInfo.issuer || "",
+          divisible: assetADetails.assetInfo.divisible,
+          locked: assetADetails.assetInfo.locked,
+          supply: assetADetails.assetInfo.supply,
+        } : undefined,
+      }
+    : null;
 
   const submitDisabled = useMemo(() => {
     if (!assetA || !assetB || assetA === assetB) return true;
@@ -131,6 +147,7 @@ export function PoolDepositForm({
   return (
     <ComposerForm
       formAction={handleFormAction}
+      header={assetABalanceHeader ? <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" /> : null}
       submitText="Review Deposit"
       submitDisabled={pending || submitDisabled}
     >

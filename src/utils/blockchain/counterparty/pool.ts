@@ -1,5 +1,13 @@
 import { BigNumber, toBigNumber } from "@/utils/numeric";
 
+export function getCanonicalPoolAssets(assetA: string, assetB: string): [string, string] {
+  return assetA <= assetB ? [assetA, assetB] : [assetB, assetA];
+}
+
+export function getCanonicalPoolPair(assetA: string, assetB: string): string {
+  return getCanonicalPoolAssets(assetA, assetB).join(" / ");
+}
+
 export function applyPoolSlippage(value: number | string | null | undefined, slippagePercent: string): string {
   if (value === null || value === undefined) return "0";
 

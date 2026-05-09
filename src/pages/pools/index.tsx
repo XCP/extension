@@ -8,6 +8,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useInView } from "@/hooks/useInView";
 import { fetchAddressPools, type PoolPosition } from "@/utils/blockchain/counterparty/api";
+import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 
 const PAGE_SIZE = 20;
 
@@ -133,7 +134,7 @@ export default function ManagePoolsPage(): ReactElement {
       title: "Your Positions",
       items: positions.map((position) => ({
         id: position.lp_asset,
-        title: `${position.asset_a} / ${position.asset_b}`,
+        title: getCanonicalPoolPair(position.asset_a, position.asset_b),
         description: `${position.quantity_normalized ?? position.quantity} ${position.lp_asset}`,
         onClick: () => navigate(`/pools/${encodeURIComponent(position.lp_asset)}`),
       })),

@@ -3,6 +3,7 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
 import { getPoolDepositEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
+import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
@@ -54,7 +55,7 @@ export function ReviewPoolDeposit({
   const customFields = [
     {
       label: "Pool",
-      value: `${params.asset_a} / ${params.asset_b}`,
+      value: getCanonicalPoolPair(params.asset_a, params.asset_b),
     },
     {
       label: "Deposit",

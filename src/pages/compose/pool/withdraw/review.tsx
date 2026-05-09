@@ -4,6 +4,7 @@ import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { getPoolWithdrawEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
+import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
@@ -70,7 +71,7 @@ export function ReviewPoolWithdraw({
   const customFields = [
     {
       label: "Pool",
-      value: params.asset_a && params.asset_b ? `${params.asset_a} / ${params.asset_b}` : params.lp_asset,
+      value: params.asset_a && params.asset_b ? getCanonicalPoolPair(params.asset_a, params.asset_b) : params.lp_asset,
     },
     {
       label: "Withdraw",

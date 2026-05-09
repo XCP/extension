@@ -3,9 +3,17 @@ import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
+  getCanonicalPoolAssets,
+  getCanonicalPoolPair,
 } from "../pool";
 
 describe("counterparty pool utilities", () => {
+  it("formats pool pairs in canonical Counterparty asset order", () => {
+    expect(getCanonicalPoolAssets("XCP", "PEPECASH")).toEqual(["PEPECASH", "XCP"]);
+    expect(getCanonicalPoolPair("XCP", "PEPECASH")).toBe("PEPECASH / XCP");
+    expect(getCanonicalPoolPair("A111111111111111111", "XCP")).toBe("A111111111111111111 / XCP");
+  });
+
   it("applies pool slippage to raw integer quantities", () => {
     expect(applyPoolSlippage("100000000", "2.5")).toBe("97500000");
     expect(applyPoolSlippage("100", "0.5")).toBe("99");

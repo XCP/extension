@@ -3,10 +3,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
+import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/utils/numeric";
 
 import type { ReactElement } from "react";
@@ -42,10 +44,15 @@ export default function PoolPositionPage(): ReactElement {
     return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
   }
 
-  const pair = `${pool.asset_a} / ${pool.asset_b}`;
-  const lpBalance = toBigNumber(pool.quantity_normalized ?? pool.quantity);
+  const pair = getCanonicalPoolPair(pool.asset_a, pool.asset_b);
+  const [firstReserveAsset, secondReserveAsset] = getCanonicalPoolAssets(pool.asset_a, pool.asset_b);
+  const reserveByAsset = {
+    [pool.asset_a]: pool.reserve_a_normalized ?? pool.reserve_a,
+    [pool.asset_b]: pool.reserve_b_normalized ?? pool.reserve_b,
+  };
+  const lpBalanceValue = toBigNumber(pool.quantity_normalized ?? pool.quantity);
   const lpSupply = toBigNumber(lpAssetInfo?.supply_normalized);
-  const poolShare = isGreaterThan(lpSupply, 0) ? divide(lpBalance, lpSupply) : null;
+  const poolShare = isGreaterThan(lpSupply, 0) ? divide(lpBalanceValue, lpSupply) : null;
   const poolSharePercent = poolShare ? formatDecimal(multiply(poolShare, 100), 4) : null;
   const underlyingA = poolShare
     ? formatDecimal(multiply(poolShare, pool.reserve_a_normalized ?? pool.reserve_a))
@@ -55,32 +62,29 @@ export default function PoolPositionPage(): ReactElement {
     : null;
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-labelledby="pool-title">
-      <section className="space-y-4">
+    <div className="p-4 space-y-6" role="main" aria-label={pair}>
+      <section className="space-y-5">
         <div>
-          <h1 id="pool-title" className="text-xl font-semibold text-gray-900">{pair}</h1>
-          <p className="mt-1 text-sm text-gray-500">{pool.lp_asset}</p>
+          <PoolHeader pool={pool} className="mt-1 mb-5" />
         </div>
 
         <div className="rounded border border-gray-200 bg-white">
+          <div className="border-b border-gray-200 p-4">
+            <div className="text-xs font-medium uppercase text-gray-500">LP Asset</div>
+            <div className="mt-1 break-all text-sm font-semibold text-gray-900">{pool.lp_asset}</div>
+          </div>
           <div className="grid grid-cols-2 divide-x divide-gray-200 border-b border-gray-200">
             <div className="p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Reserve {pool.asset_a}</div>
+              <div className="text-xs font-medium uppercase text-gray-500">Reserve {firstReserveAsset}</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {pool.reserve_a_normalized ?? pool.reserve_a}
+                {reserveByAsset[firstReserveAsset]}
               </div>
             </div>
             <div className="p-4">
-              <div className="text-xs font-medium uppercase text-gray-500">Reserve {pool.asset_b}</div>
+              <div className="text-xs font-medium uppercase text-gray-500">Reserve {secondReserveAsset}</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
-                {pool.reserve_b_normalized ?? pool.reserve_b}
+                {reserveByAsset[secondReserveAsset]}
               </div>
-            </div>
-          </div>
-          <div className="p-4">
-            <div className="text-xs font-medium uppercase text-gray-500">Your LP balance</div>
-            <div className="mt-1 text-sm font-semibold text-gray-900">
-              {pool.quantity_normalized ?? pool.quantity}
             </div>
           </div>
           {poolSharePercent && underlyingA && underlyingB && (

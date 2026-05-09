@@ -168,6 +168,7 @@ export const actions = {
   cancelOrderOption: (page: Page) => page.getByText('Cancel Order'),
   closeDispenserOption: (page: Page) => page.getByText('Close Dispenser', { exact: true }),
   recoverBitcoinOption: (page: Page) => page.getByText('Recover Bitcoin'),
+  managePoolsOption: (page: Page) => page.getByText('Manage Pools'),
   toolsSection: (page: Page) => page.getByText('Tools'),
   assetsSection: (page: Page) => page.locator('text=Assets').first(),
   addressSection: (page: Page) => page.locator('text=Address').first(),
@@ -355,6 +356,17 @@ export const compose = {
   fairmint: {
     mintButton: (page: Page) => page.locator('button:has-text("Mint"), button:has-text("Participate")').first(),
     quantityInput: (page: Page) => page.locator('input[name*="quantity"], input[type="number"]').first(),
+  },
+
+  // AMM pool operations (/compose/pool/*)
+  pool: {
+    assetAAmountInput: (page: Page) => page.locator('input[name="quantity_a_display"]'),
+    assetBAmountInput: (page: Page) => page.locator('input[name="quantity_b_display"]'),
+    lpWithdrawInput: (page: Page) => page.locator('input[name="quantity_display"]'),
+    depositButton: (page: Page) => page.getByRole('button', { name: /Review Deposit/i }),
+    withdrawButton: (page: Page) => page.getByRole('button', { name: /Review Withdrawal/i }),
+    useQuoteButton: (page: Page) => page.getByRole('button', { name: /Use quote/i }),
+    slippageInput: (page: Page) => page.locator('input[name="slippage"]'),
   },
 
   // UTXO operations (/compose/utxo/*)
