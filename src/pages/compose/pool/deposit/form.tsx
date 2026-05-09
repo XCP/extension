@@ -51,6 +51,27 @@ function applySlippage(value: number | string | null | undefined, slippagePercen
     .toString();
 }
 
+function getLimitingLpEstimate(
+  mintedEstimate: number | string | null | undefined,
+  partnerRequired: number | string | null | undefined,
+  partnerProvided: string
+): string {
+  if (mintedEstimate === null || mintedEstimate === undefined) return "0";
+  if (partnerRequired === null || partnerRequired === undefined) return mintedEstimate.toString();
+
+  const required = toBigNumber(partnerRequired);
+  const provided = toBigNumber(partnerProvided);
+  if (!required.isGreaterThan(0) || provided.isGreaterThanOrEqualTo(required)) {
+    return mintedEstimate.toString();
+  }
+
+  return toBigNumber(mintedEstimate)
+    .times(provided)
+    .div(required)
+    .integerValue(BigNumber.ROUND_DOWN)
+    .toString();
+}
+
 export function PoolDepositForm({
   formAction,
   initialFormData,
@@ -114,11 +135,16 @@ export function PoolDepositForm({
   const quantityBRaw = quantityB ? toRawQuantity(quantityB, isAssetBDivisible) : "0";
   const partnerQuantityMatches = partnerQuantityRaw === undefined || partnerQuantityRaw === null
     || toBigNumber(quantityBRaw).isEqualTo(partnerQuantityRaw);
+  const partnerQuantityIsLow = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
+    && toBigNumber(quantityBRaw).isLessThan(partnerQuantityRaw);
+  const partnerQuantityIsHigh = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
+    && toBigNumber(quantityBRaw).isGreaterThan(partnerQuantityRaw);
   const isZeroSupplyRestart = !isFirstDeposit && quote?.quantity_minted_estimate === 0;
   const [canonicalAssetA, canonicalAssetB] = getCanonicalPair(assetA, assetB, quote);
   const canonicalQuantityA = canonicalAssetA === assetA ? quantityA : quantityB;
   const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
-  const minLpQuantity = applySlippage(quote?.quantity_minted_estimate, slippage);
+  const limitingLpEstimate = getLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
+  const minLpQuantity = applySlippage(limitingLpEstimate, slippage);
   const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && toBigNumber(slippage).isLessThanOrEqualTo(50);
@@ -127,11 +153,10 @@ export function PoolDepositForm({
     if (!assetA || !assetB || assetA === assetB) return true;
     if (!toBigNumber(quantityA || 0).isGreaterThan(0)) return true;
     if (!toBigNumber(quantityB || 0).isGreaterThan(0)) return true;
-    if (!partnerQuantityMatches) return true;
     if (isFirstDeposit && lpAsset && !isLpAssetValid) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [assetA, assetB, quantityA, quantityB, partnerQuantityMatches, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
+  }, [assetA, assetB, quantityA, quantityB, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {
@@ -237,7 +262,11 @@ export function PoolDepositForm({
 
       {partnerQuantity && !isFirstDeposit && !partnerQuantityMatches && (
         <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-          Existing pool deposits must match the pool ratio. Use quote to continue.
+          {partnerQuantityIsHigh
+            ? "Only the pool-ratio amount will be deposited; extra is left unused."
+            : partnerQuantityIsLow
+              ? "This deposits less than the quoted ratio allows."
+              : "Pool deposits use the current pool ratio."}
         </div>
       )}
 
