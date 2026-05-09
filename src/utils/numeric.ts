@@ -65,7 +65,7 @@ export const toBigNumber = (value: string | number | BigNumber | null | undefine
  * @returns Formatted string
  */
 export const formatBigNumber = (value: BigNumber, decimals = 8): string => {
-  return value.toFormat(decimals);
+  return value.toFixed(decimals, BigNumber.ROUND_DOWN);
 };
 
 /**

@@ -135,9 +135,8 @@ walletTest.describe('Compose Order Page (/compose/order)', () => {
     const quoteSelect = compose.order.quoteAssetSelect(page);
     await expect(quoteSelect).toBeVisible({ timeout: 5000 });
 
-    // The combobox or its child should contain PEPECASH
-    const pepecashText = page.getByText('PEPECASH').first();
-    await expect(pepecashText).toBeVisible({ timeout: 5000 });
+    // AssetSelectInput renders the selected quote asset as the combobox input value.
+    await expect(quoteSelect).toHaveValue('PEPECASH', { timeout: 5000 });
   });
 });
 

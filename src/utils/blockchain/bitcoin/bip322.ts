@@ -15,18 +15,12 @@ import { hashes } from '@noble/secp256k1';
 
 // Ensure secp256k1 hashes are properly initialized
 if (!hashes.sha256) {
-  hashes.sha256 = sha256;
+  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
 }
 if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key: Uint8Array, msg: Uint8Array): Uint8Array => {
-    return hmac(sha256, key, msg);
-  };
-  hashes.hmacSha256Async = async (key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> => {
-    return hmac(sha256, key, msg);
-  };
-  hashes.sha256Async = async (msg: Uint8Array): Promise<Uint8Array> => {
-    return sha256(msg);
-  };
+  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
+  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
+  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
 }
 
 // BIP-322 tagged hash prefix
@@ -884,6 +878,7 @@ export function supportsBIP322(address: string): boolean {
   try {
     // Only support mainnet addresses
     const decoded = btc.Address(btc.NETWORK).decode(address);
+    if (!decoded) return false;
 
     // Check if it's one of our supported types
     if (decoded.type === 'pkh' || // P2PKH (legacy)
