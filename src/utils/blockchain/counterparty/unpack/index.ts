@@ -32,6 +32,7 @@ import { unpackDividend, type DividendData } from './messages/dividend';
 import { unpackFairminter, type FairminterData } from './messages/fairminter';
 import { unpackFairmint, type FairmintData } from './messages/fairmint';
 import { unpackAttach, unpackDetach, type AttachData, type DetachData } from './messages/attach';
+import { unpackPoolDeposit, unpackPoolWithdraw, type PoolDepositData, type PoolWithdrawData } from './messages/pool';
 
 /**
  * Union type of all possible unpacked message data
@@ -54,6 +55,8 @@ export type UnpackedMessageData =
   | FairmintData
   | AttachData
   | DetachData
+  | PoolDepositData
+  | PoolWithdrawData
   | Record<string, unknown>; // Fallback for unsupported types
 
 /**
@@ -171,6 +174,14 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           unpackedData = unpackDestroy(rawPayload);
           break;
 
+        case MessageTypeId.POOL_DEPOSIT:
+          unpackedData = unpackPoolDeposit(rawPayload);
+          break;
+
+        case MessageTypeId.POOL_WITHDRAW:
+          unpackedData = unpackPoolWithdraw(rawPayload);
+          break;
+
         case MessageTypeId.SWEEP:
           unpackedData = unpackSweep(rawPayload);
           break;
@@ -286,6 +297,7 @@ export type { DividendData } from './messages/dividend';
 export type { FairminterData } from './messages/fairminter';
 export type { FairmintData } from './messages/fairmint';
 export type { AttachData } from './messages/attach';
+export type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 
 // Re-export verification utilities
 export {

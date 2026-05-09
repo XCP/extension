@@ -5,6 +5,10 @@ import {
   composeMPMA,
   composeFairminter,
   composeFairmint,
+  composePoolDeposit,
+  composePoolWithdraw,
+  getPoolDepositEstimateXcpFee,
+  getPoolWithdrawEstimateXcpFee,
   composeAttach,
   getAttachEstimateXcpFee,
   composeDetach,
@@ -365,6 +369,115 @@ describe('Compose Specialized Operations', () => {
       const actualParams = Object.fromEntries(urlParams.entries());
         expect(url).toContain(`quantity=${quantity}`);
       }
+    });
+  });
+
+  describe('composePoolDeposit', () => {
+    const defaultParams = {
+      asset_a: 'XCP',
+      asset_b: 'POOLTEST',
+      quantity_a: '100000000',
+      quantity_b: '500000000',
+    };
+
+    it('should compose pool deposit transaction', async () => {
+      const result = await composePoolDeposit({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'pooldeposit', {
+        ...defaultParams,
+        min_lp_quantity: '0',
+      });
+    });
+
+    it('should include slippage and LP asset parameters', async () => {
+      await composePoolDeposit({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        min_lp_quantity: '1000',
+        lp_asset: 'A77777777777777777',
+      });
+
+      const actualCall = mockedApiClient.get.mock.calls[0];
+      const url = actualCall[0] as string;
+      expect(url).toContain('min_lp_quantity=1000');
+      expect(url).toContain('lp_asset=A77777777777777777');
+    });
+  });
+
+  describe('getPoolDepositEstimateXcpFee', () => {
+    it('should get pool deposit fee estimate', async () => {
+      const mockFeeEstimate = 10000;
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
+
+      const result = await getPoolDepositEstimateXcpFee(mockAddress);
+
+      expect(result).toBe(mockFeeEstimate);
+      expect(mockedApiClient.get.mock.calls[0][0]).toBe(
+        `${mockApiBase}/v2/addresses/${mockAddress}/compose/pooldeposit/estimatexcpfees`
+      );
+    });
+  });
+
+  describe('composePoolWithdraw', () => {
+    const defaultParams = {
+      asset_a: 'XCP',
+      asset_b: 'POOLTEST',
+      quantity: '1000000',
+    };
+
+    it('should compose pool withdraw transaction', async () => {
+      const result = await composePoolWithdraw({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'poolwithdraw', {
+        ...defaultParams,
+        min_quantity_a: '0',
+        min_quantity_b: '0',
+      });
+    });
+
+    it('should compose pool withdraw with LP asset and slippage parameters', async () => {
+      await composePoolWithdraw({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        quantity: '1000000',
+        min_quantity_a: '100',
+        min_quantity_b: '200',
+        lp_asset: 'A77777777777777777',
+      });
+
+      const actualCall = mockedApiClient.get.mock.calls[0];
+      const url = actualCall[0] as string;
+      expect(url).toContain('quantity=1000000');
+      expect(url).toContain('min_quantity_a=100');
+      expect(url).toContain('min_quantity_b=200');
+      expect(url).toContain('lp_asset=A77777777777777777');
+      expect(url).not.toContain('asset_a=');
+      expect(url).not.toContain('asset_b=');
+    });
+  });
+
+  describe('getPoolWithdrawEstimateXcpFee', () => {
+    it('should get pool withdraw fee estimate', async () => {
+      const mockFeeEstimate = 11000;
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
+
+      const result = await getPoolWithdrawEstimateXcpFee(mockAddress);
+
+      expect(result).toBe(mockFeeEstimate);
+      expect(mockedApiClient.get.mock.calls[0][0]).toBe(
+        `${mockApiBase}/v2/addresses/${mockAddress}/compose/poolwithdraw/estimatexcpfees`
+      );
     });
   });
 

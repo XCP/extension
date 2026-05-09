@@ -183,6 +183,28 @@ describe('describeCounterpartyMessage', () => {
     expect(desc).toContain('FAIRTOKEN');
   });
 
+  it('describes pooldeposit', () => {
+    const desc = describeCounterpartyMessage('pooldeposit', {
+      asset_a: 'XCP',
+      asset_b: 'POOLTEST',
+      quantity_a: 100000000,
+      quantity_b: 500000000,
+    });
+    expect(desc).toContain('Deposit liquidity');
+    expect(desc).toContain('XCP');
+    expect(desc).toContain('POOLTEST');
+  });
+
+  it('describes poolwithdraw', () => {
+    const desc = describeCounterpartyMessage('poolwithdraw', {
+      asset_a: 'XCP',
+      asset_b: 'POOLTEST',
+      quantity: 1000000,
+    });
+    expect(desc).toContain('Withdraw liquidity');
+    expect(desc).toContain('XCP/POOLTEST');
+  });
+
   it('describes attach', () => {
     const desc = describeCounterpartyMessage('attach', {
       quantity: 500,

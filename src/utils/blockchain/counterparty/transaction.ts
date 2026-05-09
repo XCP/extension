@@ -257,6 +257,10 @@ export function describeCounterpartyMessage(
       return `Create Fairminter: ${displayName('asset')}`;
     case 'fairmint':
       return `Mint from Fairminter: ${displayName('asset')}`;
+    case 'pooldeposit':
+      return `Deposit liquidity: ${q('quantity_a', 'asset_a')} ${displayName('asset_a')} and ${q('quantity_b', 'asset_b')} ${displayName('asset_b')}`;
+    case 'poolwithdraw':
+      return `Withdraw liquidity: burn ${q('quantity')} LP tokens from ${displayName('asset_a')}/${displayName('asset_b')}`;
     case 'attach':
       return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
     case 'detach':

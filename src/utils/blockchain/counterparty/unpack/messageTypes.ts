@@ -29,6 +29,8 @@ export const MessageTypeId = {
   UTXO_ATTACH: 101,     // Attach assets to UTXO
   UTXO_DETACH: 102,     // Detach assets from UTXO (move to address)
   DESTROY: 110,         // Destroy assets
+  POOL_DEPOSIT: 120,    // Deposit liquidity into AMM pool
+  POOL_WITHDRAW: 121,   // Withdraw liquidity from AMM pool
 } as const;
 
 export type MessageTypeId = typeof MessageTypeId[keyof typeof MessageTypeId];
@@ -57,6 +59,8 @@ export const MessageTypeName: Record<number, string> = {
   [MessageTypeId.UTXO_ATTACH]: 'attach',
   [MessageTypeId.UTXO_DETACH]: 'detach',
   [MessageTypeId.DESTROY]: 'destroy',
+  [MessageTypeId.POOL_DEPOSIT]: 'pooldeposit',
+  [MessageTypeId.POOL_WITHDRAW]: 'poolwithdraw',
 };
 
 /** The "CNTRPRTY" prefix as bytes */

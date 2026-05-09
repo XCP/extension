@@ -99,6 +99,10 @@ function getTxActionInfo(decodedInfo: DecodedTransactionInfo): { label: string; 
       return { label: 'Fairminter', description: `${data.asset}` };
     case 'fairmint':
       return { label: 'Fairmint', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
+    case 'pooldeposit':
+      return { label: 'Pool Deposit', description: `${normalizeQuantity(data.quantityA, data.assetA as string)} ${data.assetA} + ${normalizeQuantity(data.quantityB, data.assetB as string)} ${data.assetB}` };
+    case 'poolwithdraw':
+      return { label: 'Pool Withdraw', description: `Burn ${String(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
     default:
       return { label, description: unpack.messageType };
   }

@@ -66,6 +66,10 @@ function getTxActionInfo(decodedInfo: DecodedPsbtInfo): { label: string; descrip
       return { label: 'Fairminter', description: `${data.asset}` };
     case 'fairmint':
       return { label: 'Fairmint', description: `${data.quantity} ${data.asset}` };
+    case 'pooldeposit':
+      return { label: 'Pool Deposit', description: `${data.quantityA} ${data.assetA} + ${data.quantityB} ${data.assetB}` };
+    case 'poolwithdraw':
+      return { label: 'Pool Withdraw', description: `Burn ${data.quantity} LP tokens from ${data.assetA}/${data.assetB}` };
     default:
       return { label, description: unpack.messageType };
   }
