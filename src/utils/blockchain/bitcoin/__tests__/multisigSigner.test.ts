@@ -171,12 +171,6 @@ describe('Multisig Signer', () => {
         0xAE  // OP_CHECKMULTISIG
       ]);
 
-      // Mock OutScript.decode to throw for this invalid script
-      const originalDecode = OutScript.decode;
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid pubkey');
-      });
-
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
 
       expect(result).toEqual({
@@ -186,8 +180,6 @@ describe('Multisig Signer', () => {
         ourKeyIsUncompressed: false
       });
 
-      // Restore original decode
-      OutScript.decode = originalDecode;
     });
 
     it('should handle invalid pubkeys with uncompressed key', () => {
@@ -200,10 +192,6 @@ describe('Multisig Signer', () => {
         0x52, // OP_2
         0xAE  // OP_CHECKMULTISIG
       ]);
-
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid pubkey');
-      });
 
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
 
@@ -224,22 +212,23 @@ describe('Multisig Signer', () => {
         0xAE  // OP_CHECKMULTISIG
       ]);
 
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid pubkey');
-      });
-
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
 
       expect(result).toBeNull();
     });
 
     it('should handle edge case with both compressed and uncompressed keys in invalid script', () => {
-      const scriptHex = bytesToHex(compressedPubkey) + bytesToHex(uncompressedPubkey);
-      const scriptBytes = hexToBytes('51' + scriptHex + '52ae'); // Simplified invalid script
-
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid pubkey');
-      });
+      const scriptBytes = new Uint8Array([
+        0x51, // OP_1
+        0x21, // Push 33 bytes
+        ...compressedPubkey,
+        0x41, // Push 65 bytes
+        ...uncompressedPubkey,
+        0x21, // Push 33 bytes
+        ...new Uint8Array(33).fill(0xFF), // Invalid data
+        0x53, // OP_3
+        0xAE  // OP_CHECKMULTISIG
+      ]);
 
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
 
@@ -896,23 +885,32 @@ describe('Multisig Signer', () => {
     it('should handle malformed script bytes in hex search', () => {
       // Create a script with partial key matches that shouldn't match
       const partialCompressedHex = bytesToHex(compressedPubkey).substring(0, 20);
-      const scriptBytes = hexToBytes('51' + partialCompressedHex + '52ae');
-
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid script');
-      });
+      const partialCompressedBytes = hexToBytes(partialCompressedHex);
+      const scriptBytes = new Uint8Array([
+        0x51, // OP_1
+        0x21, // Push 33 bytes
+        ...new Uint8Array([
+          ...partialCompressedBytes,
+          ...new Uint8Array(33 - partialCompressedBytes.length).fill(0xFF)
+        ]),
+        0x51, // OP_1
+        0xAE  // OP_CHECKMULTISIG
+      ]);
 
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
       expect(result).toBeNull(); // Partial match should not count
     });
 
     it('should handle case-insensitive hex matching', () => {
-      const upperCaseScript = bytesToHex(compressedPubkey).toUpperCase();
-      const scriptBytes = hexToBytes('51' + bytesToHex(compressedPubkey) + '52ae');
-
-      vi.spyOn(OutScript, 'decode').mockImplementationOnce(() => {
-        throw new Error('Invalid script');
-      });
+      const scriptBytes = new Uint8Array([
+        0x51, // OP_1
+        0x21, // Push 33 bytes
+        ...compressedPubkey,
+        0x21, // Push 33 bytes
+        ...new Uint8Array(33).fill(0xFF), // Invalid data
+        0x52, // OP_2
+        0xAE  // OP_CHECKMULTISIG
+      ]);
 
       const result = analyzeMultisigScript(scriptBytes, compressedPubkey, uncompressedPubkey);
 

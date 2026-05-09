@@ -23,18 +23,12 @@ import {
 import { hashes } from '@noble/secp256k1';
 
 if (!hashes.hmacSha256) {
-  hashes.hmacSha256 = (key: Uint8Array, msg: Uint8Array): Uint8Array => {
-    return hmac(sha256, key, msg);
-  };
-  hashes.sha256 = sha256;
+  hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
+  hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
   
   // Also set async versions if needed
-  hashes.hmacSha256Async = async (key: Uint8Array, msg: Uint8Array): Promise<Uint8Array> => {
-    return hmac(sha256, key, msg);
-  };
-  hashes.sha256Async = async (msg: Uint8Array): Promise<Uint8Array> => {
-    return sha256(msg);
-  };
+  hashes.hmacSha256Async = async (key, msg) => new Uint8Array(hmac(sha256, key, msg));
+  hashes.sha256Async = async (msg) => new Uint8Array(sha256(msg));
 }
 
 /**

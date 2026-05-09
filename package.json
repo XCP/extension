@@ -4,6 +4,10 @@
   "private": true,
   "version": "0.3.2",
   "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/XCP/extension.git"
@@ -28,43 +32,43 @@
     "postinstall": "wxt prepare"
   },
   "dependencies": {
-    "@headlessui/react": "2.2.9",
-    "@noble/curves": "2.0.1",
-    "@noble/hashes": "2.0.1",
-    "@noble/secp256k1": "3.0.0",
-    "@scure/base": "2.0.0",
-    "@scure/bip32": "2.0.1",
-    "@scure/bip39": "2.0.1",
-    "@scure/btc-signer": "2.0.1",
-    "@trezor/connect-webextension": "9.7.2",
-    "bignumber.js": "10.0.2",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "react-router-dom": "7.13.2",
+    "@headlessui/react": "2.2.10",
+    "@noble/curves": "2.2.0",
+    "@noble/hashes": "2.2.0",
+    "@noble/secp256k1": "3.1.0",
+    "@scure/base": "2.2.0",
+    "@scure/bip32": "2.2.0",
+    "@scure/bip39": "2.2.0",
+    "@scure/btc-signer": "2.2.0",
+    "@trezor/connect-webextension": "9.7.3",
+    "bignumber.js": "11.1.1",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-router-dom": "7.15.0",
     "webext-bridge": "6.0.1"
   },
   "overrides": {
-    "axios": ">=1.13.5"
+    "protobufjs": "7.5.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.58.2",
-    "@tailwindcss/vite": "4.2.2",
+    "@playwright/test": "1.59.1",
+    "@tailwindcss/vite": "4.3.0",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
     "@trezor/trezor-user-env-link": "1.0.0",
-    "@types/chrome": "0.1.38",
+    "@types/chrome": "0.1.42",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitest/coverage-v8": "4.1.1",
+    "@vitest/coverage-v8": "4.1.5",
     "@wxt-dev/module-react": "1.2.2",
-    "archiver": "7.0.1",
-    "fast-check": "4.6.0",
-    "happy-dom": "20.8.8",
-    "tailwindcss": "4.2.2",
-    "typescript": "6.0.2",
+    "archiver": "8.0.0",
+    "fast-check": "4.7.0",
+    "happy-dom": "20.9.0",
+    "tailwindcss": "4.3.0",
+    "typescript": "6.0.3",
     "vite-plugin-remove-console": "2.2.0",
-    "vitest": "4.1.1",
-    "wxt": "0.20.20"
+    "vitest": "4.1.5",
+    "wxt": "0.20.25"
   }
 }
