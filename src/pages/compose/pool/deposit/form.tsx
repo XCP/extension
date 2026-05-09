@@ -11,7 +11,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchPoolDepositQuote, type PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
 import { BigNumber, fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
-import { SlippageInput } from "../slippage-input";
+import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;
@@ -92,7 +92,7 @@ export function PoolDepositForm({
   const [quantityB, setQuantityB] = useState(initialFormData?.quantity_b?.toString() || "");
   const [lpAsset, setLpAsset] = useState(initialFormData?.lp_asset || "");
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
-  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || "1");
+  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolDepositQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);

@@ -10,7 +10,7 @@ import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { fetchPoolWithdrawQuote, type PoolWithdrawQuote } from "@/utils/blockchain/counterparty/api";
 import { BigNumber, isValidPositiveNumber, toBigNumber, toSatoshis, fromSatoshis } from "@/utils/numeric";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
-import { SlippageInput } from "../slippage-input";
+import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;
@@ -42,7 +42,7 @@ export function PoolWithdrawForm({
   const { data: assetADetails } = useAssetDetails(pool?.asset_a || "");
   const { data: assetBDetails } = useAssetDetails(pool?.asset_b || "");
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || "1");
+  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
   const [quote, setQuote] = useState<PoolWithdrawQuote | null>(null);
   const [isLoadingQuote, setIsLoadingQuote] = useState(false);
