@@ -28,6 +28,16 @@ function fromRawQuantity(value: number | string, divisible: boolean): string {
   return divisible ? fromSatoshis(value, { removeTrailingZeros: true }) : value.toString();
 }
 
+function getCanonicalPair(firstAsset: string, secondAsset: string, quote: PoolDepositQuote | null) {
+  if (quote?.asset_a && quote?.asset_b) {
+    return [quote.asset_a, quote.asset_b] as const;
+  }
+
+  return firstAsset > secondAsset
+    ? [secondAsset, firstAsset] as const
+    : [firstAsset, secondAsset] as const;
+}
+
 function applySlippage(value: number | string | null | undefined, slippagePercent: string): string {
   if (value === null || value === undefined) return "0";
 
@@ -101,6 +111,9 @@ export function PoolDepositForm({
   const partnerQuantity = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
     ? fromRawQuantity(partnerQuantityRaw, isAssetBDivisible)
     : null;
+  const [canonicalAssetA, canonicalAssetB] = getCanonicalPair(assetA, assetB, quote);
+  const canonicalQuantityA = canonicalAssetA === assetA ? quantityA : quantityB;
+  const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
   const minLpQuantity = applySlippage(quote?.quantity_minted_estimate, slippage);
   const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
@@ -121,10 +134,10 @@ export function PoolDepositForm({
       return;
     }
 
-    formData.set("asset_a", assetA);
-    formData.set("asset_b", assetB);
-    formData.set("quantity_a", quantityA);
-    formData.set("quantity_b", quantityB);
+    formData.set("asset_a", canonicalAssetA);
+    formData.set("asset_b", canonicalAssetB);
+    formData.set("quantity_a", canonicalQuantityA);
+    formData.set("quantity_b", canonicalQuantityB);
     formData.set("min_lp_quantity", minLpQuantity);
     if (lpAsset.trim()) {
       formData.set("lp_asset", lpAsset.trim());
@@ -257,10 +270,10 @@ export function PoolDepositForm({
         </Field>
       )}
 
-      <input type="hidden" name="asset_a" value={assetA} />
-      <input type="hidden" name="asset_b" value={assetB} />
-      <input type="hidden" name="quantity_a" value={quantityA} />
-      <input type="hidden" name="quantity_b" value={quantityB} />
+      <input type="hidden" name="asset_a" value={canonicalAssetA} />
+      <input type="hidden" name="asset_b" value={canonicalAssetB} />
+      <input type="hidden" name="quantity_a" value={canonicalQuantityA} />
+      <input type="hidden" name="quantity_b" value={canonicalQuantityB} />
       <input type="hidden" name="min_lp_quantity" value={minLpQuantity} />
       {lpAsset && <input type="hidden" name="lp_asset" value={lpAsset} />}
     </ComposerForm>
