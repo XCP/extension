@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -7,9 +7,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
-import { fetchPoolWithdrawQuote, type PoolWithdrawQuote } from "@/utils/blockchain/counterparty/api";
+import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
 import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
-import { fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
+import { fromSatoshis, isValidPositiveNumber, toBigNumber } from "@/utils/numeric";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
@@ -32,13 +32,16 @@ export function PoolWithdrawForm({
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
   const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [quote, setQuote] = useState<PoolWithdrawQuote | null>(null);
-  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
   const canQuote = !!pool && toBigNumber(quantity || 0).isGreaterThan(0);
   const isAssetADivisible = assetADetails?.isDivisible ?? true;
   const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
+  const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolWithdrawQuote({
+    assetA: pool?.asset_a || "",
+    assetB: pool?.asset_b || "",
+    quantity,
+    enabled: canQuote,
+  });
 
   const formatReceived = (value: number | string | undefined, divisible: boolean): string => {
     if (value === undefined) return "0";
@@ -50,43 +53,6 @@ export function PoolWithdrawForm({
   const hasMinimums = toBigNumber(minQuantityA).isGreaterThan(0) || toBigNumber(minQuantityB).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && toBigNumber(slippage).isLessThanOrEqualTo(50);
-
-  useEffect(() => {
-    if (!pool || !canQuote) {
-      setQuote(null);
-      setQuoteError(null);
-      setIsLoadingQuote(false);
-      return;
-    }
-
-    let cancelled = false;
-    setQuote(null);
-    setQuoteError(null);
-    setIsLoadingQuote(true);
-    const timer = setTimeout(() => {
-      fetchPoolWithdrawQuote(pool.asset_a, pool.asset_b, toSatoshis(quantity))
-        .then((result) => {
-          if (!cancelled) {
-            setQuote(result);
-            setQuoteError(null);
-          }
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setQuote(null);
-            setQuoteError(err instanceof Error ? err.message : "Unable to load withdrawal quote.");
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setIsLoadingQuote(false);
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [pool, quantity, canQuote]);
 
   const submitDisabled = useMemo(() => {
     if (!pool) return true;
@@ -158,7 +124,7 @@ export function PoolWithdrawForm({
       )}
 
       {quoteError && (
-        <ErrorAlert message={quoteError} onClose={() => setQuoteError(null)} />
+        <ErrorAlert message={quoteError} />
       )}
 
       {quote?.pool_exists && (

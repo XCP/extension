@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useMemo, useState, type ReactElement } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Description } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
@@ -8,7 +8,8 @@ import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { fetchPoolDepositQuote, type PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
+import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
+import type { PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
@@ -60,9 +61,6 @@ export function PoolDepositForm({
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
   const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [quoteError, setQuoteError] = useState<string | null>(null);
-  const [quote, setQuote] = useState<PoolDepositQuote | null>(null);
-  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
   const { data: assetADetails } = useAssetDetails(assetA);
   const { data: assetBDetails } = useAssetDetails(assetB);
@@ -71,43 +69,13 @@ export function PoolDepositForm({
   const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
   const canQuote = assetA && assetB && assetA !== assetB && toBigNumber(quantityA || 0).isGreaterThan(0);
   const needsQuote = canQuote && toBigNumber(quantityB || 0).isGreaterThan(0);
-
-  useEffect(() => {
-    if (!canQuote) {
-      setQuote(null);
-      setQuoteError(null);
-      setIsLoadingQuote(false);
-      return;
-    }
-
-    let cancelled = false;
-    setQuote(null);
-    setQuoteError(null);
-    setIsLoadingQuote(true);
-    const timer = setTimeout(() => {
-      fetchPoolDepositQuote(assetA, assetB, toRawQuantity(quantityA, isAssetADivisible))
-        .then((result) => {
-          if (!cancelled) {
-            setQuote(result);
-            setQuoteError(null);
-          }
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            setQuote(null);
-            setQuoteError(err instanceof Error ? err.message : "Unable to load pool quote.");
-          }
-        })
-        .finally(() => {
-          if (!cancelled) setIsLoadingQuote(false);
-        });
-    }, 300);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [assetA, assetB, quantityA, canQuote, isAssetADivisible]);
+  const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolDepositQuote({
+    assetA,
+    assetB,
+    quantityA,
+    isAssetADivisible,
+    enabled: Boolean(canQuote),
+  });
 
   const isFirstDeposit = quote?.first_deposit === true;
   const partnerQuantityRaw = quote?.asset_a === assetA
@@ -241,7 +209,7 @@ export function PoolDepositForm({
       )}
 
       {quoteError && (
-        <ErrorAlert message={quoteError} onClose={() => setQuoteError(null)} />
+        <ErrorAlert message={quoteError} />
       )}
 
       {quote?.message && (

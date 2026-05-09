@@ -64,6 +64,8 @@ export function ReviewPoolWithdraw({
   };
   const minQuantityADisplay = formatMinimum(params.min_quantity_a_normalized, params.min_quantity_a, assetAInfo?.divisible, isLoadingAssetA);
   const minQuantityBDisplay = formatMinimum(params.min_quantity_b_normalized, params.min_quantity_b, assetBInfo?.divisible, isLoadingAssetB);
+  const quantityDisplay = params.quantity_normalized
+    ?? fromSatoshis(params.quantity ?? 0, { removeTrailingZeros: true });
 
   const customFields = [
     {
@@ -72,7 +74,7 @@ export function ReviewPoolWithdraw({
     },
     {
       label: "Withdraw",
-      value: `${params.quantity_normalized ?? params.quantity} ${params.lp_asset ?? "LP"}`,
+      value: `${quantityDisplay} ${params.lp_asset ?? "LP"}`,
     },
     ...(params.min_quantity_a || params.min_quantity_b
       ? [{
