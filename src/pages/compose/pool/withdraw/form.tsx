@@ -8,7 +8,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { fetchPoolWithdrawQuote, type PoolWithdrawQuote } from "@/utils/blockchain/counterparty/api";
-import { BigNumber, isValidPositiveNumber, toBigNumber, toSatoshis, fromSatoshis } from "@/utils/numeric";
+import { applySlippage, fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
@@ -16,19 +16,6 @@ interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;
   initialFormData: PoolWithdrawOptions | null;
   lpAsset: string;
-}
-
-function applySlippage(value: number | string | null | undefined, slippagePercent: string): string {
-  if (value === null || value === undefined) return "0";
-
-  const bps = toBigNumber(slippagePercent || "0").times(100);
-  const multiplier = BigNumber.maximum(0, toBigNumber(10000).minus(bps));
-
-  return toBigNumber(value)
-    .times(multiplier)
-    .div(10000)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toString();
 }
 
 export function PoolWithdrawForm({

@@ -9,7 +9,15 @@ import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchPoolDepositQuote, type PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
-import { BigNumber, fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
+import {
+  applySlippage,
+  calculateInitialLpEstimate,
+  calculateLimitingLpEstimate,
+  fromSatoshis,
+  isValidPositiveNumber,
+  toBigNumber,
+  toSatoshis,
+} from "@/utils/numeric";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
@@ -18,14 +26,6 @@ interface PoolDepositFormProps {
   initialFormData: PoolDepositOptions | null;
   initialAssetA?: string;
   initialAssetB?: string;
-}
-
-function toRawQuantity(value: string, divisible: boolean): string {
-  return divisible ? toSatoshis(value) : toBigNumber(value).integerValue().toString();
-}
-
-function fromRawQuantity(value: number | string, divisible: boolean): string {
-  return divisible ? fromSatoshis(value, { removeTrailingZeros: true }) : value.toString();
 }
 
 function getCanonicalPair(firstAsset: string, secondAsset: string, quote: PoolDepositQuote | null) {
@@ -38,44 +38,8 @@ function getCanonicalPair(firstAsset: string, secondAsset: string, quote: PoolDe
     : [firstAsset, secondAsset] as const;
 }
 
-function applySlippage(value: number | string | null | undefined, slippagePercent: string): string {
-  if (value === null || value === undefined) return "0";
-
-  const bps = toBigNumber(slippagePercent || "0").times(100);
-  const multiplier = BigNumber.maximum(0, toBigNumber(10000).minus(bps));
-
-  return toBigNumber(value)
-    .times(multiplier)
-    .div(10000)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toString();
-}
-
-function getLimitingLpEstimate(
-  mintedEstimate: number | string | null | undefined,
-  partnerRequired: number | string | null | undefined,
-  partnerProvided: string
-): string {
-  if (mintedEstimate === null || mintedEstimate === undefined) return "0";
-  if (partnerRequired === null || partnerRequired === undefined) return mintedEstimate.toString();
-
-  const required = toBigNumber(partnerRequired);
-  const provided = toBigNumber(partnerProvided);
-  if (!required.isGreaterThan(0) || provided.isGreaterThanOrEqualTo(required)) {
-    return mintedEstimate.toString();
-  }
-
-  return toBigNumber(mintedEstimate)
-    .times(provided)
-    .div(required)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toString();
-}
-
-function getInitialLpEstimate(quantityA: string, quantityB: string): string {
-  const product = toBigNumber(quantityA).times(quantityB);
-  if (!product.isGreaterThan(0)) return "0";
-  return product.sqrt().integerValue(BigNumber.ROUND_DOWN).toString();
+function toRawQuantity(value: string, divisible: boolean): string {
+  return divisible ? toSatoshis(value) : toBigNumber(value).integerValue().toString();
 }
 
 export function PoolDepositForm({
@@ -148,7 +112,9 @@ export function PoolDepositForm({
     ? quote?.quantity_b_required
     : quote?.quantity_a_required;
   const partnerQuantity = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
-    ? fromRawQuantity(partnerQuantityRaw, isAssetBDivisible)
+    ? isAssetBDivisible
+      ? fromSatoshis(partnerQuantityRaw, { removeTrailingZeros: true })
+      : partnerQuantityRaw.toString()
     : null;
   const quantityARaw = quantityA ? toRawQuantity(quantityA, isAssetADivisible) : "0";
   const quantityBRaw = quantityB ? toRawQuantity(quantityB, isAssetBDivisible) : "0";
@@ -164,8 +130,8 @@ export function PoolDepositForm({
   const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
   const canonicalQuantityARaw = canonicalAssetA === assetA ? quantityARaw : quantityBRaw;
   const canonicalQuantityBRaw = canonicalAssetB === assetB ? quantityBRaw : quantityARaw;
-  const initialLpEstimate = getInitialLpEstimate(canonicalQuantityARaw, canonicalQuantityBRaw);
-  const limitingLpEstimate = getLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
+  const initialLpEstimate = calculateInitialLpEstimate(canonicalQuantityARaw, canonicalQuantityBRaw);
+  const limitingLpEstimate = calculateLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
   const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
   const minLpQuantity = applySlippage(lpEstimateForMinimum, slippage);
   const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
@@ -316,7 +282,7 @@ export function PoolDepositForm({
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
               Minimum LP tokens:{" "}
               <span className="font-medium text-gray-900">
-                {fromRawQuantity(minLpQuantity, true)}
+                {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
               </span>{" "}
               after {slippage || "0"}% slippage.
             </div>

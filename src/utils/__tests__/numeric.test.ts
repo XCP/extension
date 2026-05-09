@@ -13,6 +13,9 @@ import {
   isLessThanOrEqualToSatoshis,
   normalizeAssetSupply,
   calculateMaxDividendPerUnit,
+  applySlippage,
+  calculateInitialLpEstimate,
+  calculateLimitingLpEstimate,
 } from '../numeric';
 
 describe('numeric utilities', () => {
@@ -488,6 +491,27 @@ describe('numeric utilities', () => {
       expect(normalizeAssetSupply('100', false)).toBe(100);
       expect(normalizeAssetSupply('1', false)).toBe(1);
       expect(normalizeAssetSupply('1000000', false)).toBe(1000000);
+    });
+  });
+
+  describe('slippage calculations', () => {
+    it('applies percentage slippage to raw integer quantities', () => {
+      expect(applySlippage('100000000', '2.5')).toBe('97500000');
+      expect(applySlippage('100', '0.5')).toBe('99');
+      expect(applySlippage(undefined, '1')).toBe('0');
+    });
+  });
+
+  describe('LP estimate calculations', () => {
+    it('estimates initial LP supply from the geometric mean', () => {
+      expect(calculateInitialLpEstimate('100', '400')).toBe('200');
+      expect(calculateInitialLpEstimate('0', '400')).toBe('0');
+    });
+
+    it('uses the limiting side when a deposit is below the quoted ratio', () => {
+      expect(calculateLimitingLpEstimate('1000', '500', '250')).toBe('500');
+      expect(calculateLimitingLpEstimate('1000', '500', '500')).toBe('1000');
+      expect(calculateLimitingLpEstimate('1000', null, '250')).toBe('1000');
     });
   });
 
