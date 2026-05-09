@@ -13,12 +13,15 @@
  */
 
 import { walletTest, expect } from '../fixtures';
+import { enableValidationBypass } from '../compose-test-helpers';
 
 walletTest.describe('AssetSelectInput Component', () => {
   // AssetSelectInput is used on asset-specific pages
   // Navigate to dividend compose page which has AssetSelectInput
 
   walletTest.beforeEach(async ({ page }) => {
+    await enableValidationBypass(page);
+
     // Navigate to dividend page with asset parameter (required for this page)
     const hashIndex = page.url().indexOf('#');
     const baseUrl = hashIndex !== -1 ? page.url().substring(0, hashIndex + 1) : page.url() + '#';
