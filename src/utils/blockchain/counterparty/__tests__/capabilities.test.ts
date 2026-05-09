@@ -28,7 +28,7 @@ function mockServerInfo(overrides: Record<string, unknown> = {}) {
         network: 'mainnet',
         version: '11.1.0',
         backend_height: 900000,
-        counterparty_height: 999999999,
+        counterparty_height: 952500,
         ...overrides,
       },
     },
@@ -75,7 +75,7 @@ describe('counterparty capabilities', () => {
     const status = await getCounterpartyFeatureStatus('ammPools');
 
     expect(status.supported).toBe(false);
-    expect(status.reason).toContain('activate at block 999999999');
+    expect(status.reason).toContain('activate at block 952500');
   });
 
   it('allows AMM pools on regtest once the API version supports them', async () => {

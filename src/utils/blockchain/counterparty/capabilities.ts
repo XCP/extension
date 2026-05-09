@@ -20,15 +20,33 @@ interface FeatureRequirement {
 
 const CAPABILITY_CACHE_TTL_MS = 60_000;
 
+const AMM_POOLS_PROTOCOL_CHANGE = {
+  minimum_version_major: 11,
+  minimum_version_minor: 1,
+  minimum_version_revision: 0,
+  block_index: 952500,
+  testnet3_block_index: 4961000,
+  testnet4_block_index: 136000,
+  signet_block_index: 310000,
+};
+
+function protocolChangeVersion(change: typeof AMM_POOLS_PROTOCOL_CHANGE): string {
+  return [
+    change.minimum_version_major,
+    change.minimum_version_minor,
+    change.minimum_version_revision,
+  ].join('.');
+}
+
 const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {
-    minVersion: '11.1.0',
+    minVersion: protocolChangeVersion(AMM_POOLS_PROTOCOL_CHANGE),
     activationHeights: {
-      mainnet: 999999999,
-      testnet: 999999999,
-      testnet3: 999999999,
-      testnet4: 999999999,
-      signet: 0,
+      mainnet: AMM_POOLS_PROTOCOL_CHANGE.block_index,
+      testnet: AMM_POOLS_PROTOCOL_CHANGE.testnet3_block_index,
+      testnet3: AMM_POOLS_PROTOCOL_CHANGE.testnet3_block_index,
+      testnet4: AMM_POOLS_PROTOCOL_CHANGE.testnet4_block_index,
+      signet: AMM_POOLS_PROTOCOL_CHANGE.signet_block_index,
       regtest: 0,
     },
     label: 'AMM pools',
