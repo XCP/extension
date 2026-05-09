@@ -29,6 +29,9 @@ import {
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
+vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/utils/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn(),
