@@ -111,6 +111,10 @@ export function PoolDepositForm({
   const partnerQuantity = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
     ? fromRawQuantity(partnerQuantityRaw, isAssetBDivisible)
     : null;
+  const quantityBRaw = quantityB ? toRawQuantity(quantityB, isAssetBDivisible) : "0";
+  const partnerQuantityMatches = partnerQuantityRaw === undefined || partnerQuantityRaw === null
+    || toBigNumber(quantityBRaw).isEqualTo(partnerQuantityRaw);
+  const isZeroSupplyRestart = !isFirstDeposit && quote?.quantity_minted_estimate === 0;
   const [canonicalAssetA, canonicalAssetB] = getCanonicalPair(assetA, assetB, quote);
   const canonicalQuantityA = canonicalAssetA === assetA ? quantityA : quantityB;
   const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
@@ -123,10 +127,11 @@ export function PoolDepositForm({
     if (!assetA || !assetB || assetA === assetB) return true;
     if (!toBigNumber(quantityA || 0).isGreaterThan(0)) return true;
     if (!toBigNumber(quantityB || 0).isGreaterThan(0)) return true;
+    if (!partnerQuantityMatches) return true;
     if (isFirstDeposit && lpAsset && !isLpAssetValid) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [assetA, assetB, quantityA, quantityB, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
+  }, [assetA, assetB, quantityA, quantityB, partnerQuantityMatches, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {
@@ -230,7 +235,19 @@ export function PoolDepositForm({
         </div>
       )}
 
-      {!isFirstDeposit && quote?.quantity_minted_estimate !== undefined && quote.quantity_minted_estimate !== null && (
+      {partnerQuantity && !isFirstDeposit && !partnerQuantityMatches && (
+        <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+          Existing pool deposits must match the pool ratio. Use quote to continue.
+        </div>
+      )}
+
+      {isZeroSupplyRestart && (
+        <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+          LP supply is zero. This deposit restarts the pool at the current reserve ratio.
+        </div>
+      )}
+
+      {!isZeroSupplyRestart && !isFirstDeposit && quote?.quantity_minted_estimate !== undefined && quote.quantity_minted_estimate !== null && (
         <>
           <SlippageInput
             value={slippage}
