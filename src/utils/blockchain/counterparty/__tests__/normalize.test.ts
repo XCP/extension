@@ -91,6 +91,25 @@ describe('normalize.ts', () => {
       expect(getComposeType(formData)).toBe('movetoutxo');
     });
 
+    it('should detect pool deposit type from pool deposit fields', () => {
+      const formData = {
+        asset_a: 'XCP',
+        asset_b: 'POOLTEST',
+        quantity_a: '1',
+        quantity_b: '2',
+      };
+      expect(getComposeType(formData)).toBe('pooldeposit');
+    });
+
+    it('should detect pool withdraw type from LP asset withdraw fields', () => {
+      const formData = {
+        lp_asset: 'A77777777777777777',
+        quantity: '1',
+        min_quantity_a: '0',
+      };
+      expect(getComposeType(formData)).toBe('poolwithdraw');
+    });
+
     it('should use explicit type mapping from __type field', () => {
       const formData = { __type: 'SendOptions' };
       expect(getComposeType(formData)).toBe('send');
@@ -204,6 +223,65 @@ describe('normalize.ts', () => {
         expect(result.normalizedData.give_quantity).toBe('250000000');
         expect(result.normalizedData.get_quantity).toBe('100000');
         expect(result.assetInfoCache.size).toBe(2);
+      });
+
+      it('should normalize pool deposit asset quantities', async () => {
+        const formData = new FormData();
+        formData.set('asset_a', 'XCP');
+        formData.set('asset_b', 'POOLTEST');
+        formData.set('quantity_a', '1.5');
+        formData.set('quantity_b', '2');
+        formData.set('min_lp_quantity', '0');
+
+        const mockPoolAsset: AssetInfo = {
+          asset: 'POOLTEST',
+          asset_longname: null,
+          divisible: true,
+          locked: false,
+          supply_normalized: '1000000.00000000'
+        };
+
+        mockFetchAssetDetails
+          .mockResolvedValueOnce(mockDivisibleAsset)
+          .mockResolvedValueOnce(mockPoolAsset);
+
+        mockToSatoshis
+          .mockReturnValueOnce('150000000')
+          .mockReturnValueOnce('200000000');
+
+        const result = await normalizeFormData(formData, 'pooldeposit');
+
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('XCP');
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('POOLTEST');
+        expect(result.normalizedData.quantity_a).toBe('150000000');
+        expect(result.normalizedData.quantity_b).toBe('200000000');
+        expect(result.normalizedData.min_lp_quantity).toBe('0');
+      });
+
+      it('should normalize pool withdraw LP quantity', async () => {
+        const formData = new FormData();
+        formData.set('lp_asset', 'A77777777777777777');
+        formData.set('quantity', '3.25');
+        formData.set('min_quantity_a', '0');
+        formData.set('min_quantity_b', '0');
+
+        const mockLpAsset: AssetInfo = {
+          asset: 'A77777777777777777',
+          asset_longname: null,
+          divisible: true,
+          locked: false,
+          supply_normalized: '1000000.00000000'
+        };
+
+        mockFetchAssetDetails.mockResolvedValue(mockLpAsset);
+        mockToSatoshis.mockReturnValue('325000000');
+
+        const result = await normalizeFormData(formData, 'poolwithdraw');
+
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('A77777777777777777');
+        expect(result.normalizedData.quantity).toBe('325000000');
+        expect(result.normalizedData.min_quantity_a).toBe('0');
+        expect(result.normalizedData.min_quantity_b).toBe('0');
       });
     });
 

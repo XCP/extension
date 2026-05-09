@@ -65,6 +65,7 @@ import AssetsPage from '@/pages/assets';
 import AssetPage from '@/pages/assets/[asset]';
 import AssetBalancePage from '@/pages/assets/[asset]/balance';
 import UtxoPage from '@/pages/assets/utxos/[txHash]';
+import ManagePoolsPage from '@/pages/pools';
 import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import TransactionPage from '@/pages/transactions/[txHash]';
 
@@ -101,6 +102,8 @@ import ComposeBroadcastAddressOptionsPage from '@/pages/compose/broadcast/addres
 import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
 import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
 import ComposeUtxoMovePage from '@/pages/compose/utxo/move';
+import ComposePoolDepositPage from '@/pages/compose/pool/deposit';
+import ComposePoolWithdrawPage from '@/pages/compose/pool/withdraw';
 
 import NotFoundPage from '@/pages/not-found';
 
@@ -206,6 +209,7 @@ export default function App() {
             <Route path="/assets/utxos/:txHash" element={<UtxoPage />} />
             <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
             <Route path="/assets/:asset" element={<AssetPage />} />
+            <Route path="/pools" element={<ManagePoolsPage />} />
             <Route path="/pools/:lpAsset" element={<PoolPositionPage />} />
 
             <Route path="/transactions/:txHash" element={<TransactionPage />} />
@@ -233,6 +237,9 @@ export default function App() {
             <Route path="/compose/dividend/:asset" element={<ComposeDividendPage />} />
             <Route path="/compose/broadcast/address-options" element={<ComposeBroadcastAddressOptionsPage />} />
             <Route path="/compose/broadcast" element={<ComposeBroadcastPage />} />
+            <Route path="/compose/pool/deposit" element={<ComposePoolDepositPage />} />
+            <Route path="/compose/pool/deposit/:assetA/:assetB" element={<ComposePoolDepositPage />} />
+            <Route path="/compose/pool/withdraw/:lpAsset" element={<ComposePoolWithdrawPage />} />
             <Route path="/market/swaps/list" element={<SwapListPage />} />
             <Route path="/market/swaps/manage" element={<SwapManagePage />} />
             <Route path="/market/swaps/buy/:id" element={<SwapBuyPage />} />
