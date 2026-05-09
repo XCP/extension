@@ -81,6 +81,7 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   // ═══════════════════════════════════════════════════════════════════════════
   { prefix: '/transactions/', sanitized: '/transactions' },
   { prefix: '/assets/utxos/', sanitized: '/assets/utxos' },
+  { prefix: '/pools/', sanitized: '/pools' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ASSET VIEWING (asset names - must come after /assets/utxos/)

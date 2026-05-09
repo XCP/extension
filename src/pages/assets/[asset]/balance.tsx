@@ -5,6 +5,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
@@ -37,6 +38,7 @@ export default function AssetBalancePage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps, getCachedBalance } = useHeader();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
+  const { data: lpPool } = useLpAssetPool(asset);
 
   // Get cached data for instant display
   const cachedBalance = useMemo(() => getCachedBalance(asset || ""), [getCachedBalance, asset]);
@@ -168,6 +170,22 @@ export default function AssetBalancePage(): ReactElement {
             className: "!border !border-red-500",
           },
         ];
+    if (lpPool) {
+      return [
+        {
+          title: "Liquidity Pool",
+          items: [
+            {
+              id: "manage-pool",
+              title: "Manage Pool",
+              description: `${lpPool.asset_a} / ${lpPool.asset_b}`,
+              onClick: () => navigate(`/pools/${encodeURIComponent(lpPool.lp_asset)}`),
+            },
+          ],
+        },
+        { items },
+      ];
+    }
     return [{ items }];
   };
 
