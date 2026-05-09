@@ -72,6 +72,12 @@ function getLimitingLpEstimate(
     .toString();
 }
 
+function getInitialLpEstimate(quantityA: string, quantityB: string): string {
+  const product = toBigNumber(quantityA).times(quantityB);
+  if (!product.isGreaterThan(0)) return "0";
+  return product.sqrt().integerValue(BigNumber.ROUND_DOWN).toString();
+}
+
 export function PoolDepositForm({
   formAction,
   initialFormData,
@@ -132,6 +138,7 @@ export function PoolDepositForm({
   const partnerQuantity = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
     ? fromRawQuantity(partnerQuantityRaw, isAssetBDivisible)
     : null;
+  const quantityARaw = quantityA ? toRawQuantity(quantityA, isAssetADivisible) : "0";
   const quantityBRaw = quantityB ? toRawQuantity(quantityB, isAssetBDivisible) : "0";
   const partnerQuantityMatches = partnerQuantityRaw === undefined || partnerQuantityRaw === null
     || toBigNumber(quantityBRaw).isEqualTo(partnerQuantityRaw);
@@ -143,8 +150,12 @@ export function PoolDepositForm({
   const [canonicalAssetA, canonicalAssetB] = getCanonicalPair(assetA, assetB, quote);
   const canonicalQuantityA = canonicalAssetA === assetA ? quantityA : quantityB;
   const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
+  const canonicalQuantityARaw = canonicalAssetA === assetA ? quantityARaw : quantityBRaw;
+  const canonicalQuantityBRaw = canonicalAssetB === assetB ? quantityBRaw : quantityARaw;
+  const initialLpEstimate = getInitialLpEstimate(canonicalQuantityARaw, canonicalQuantityBRaw);
   const limitingLpEstimate = getLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
-  const minLpQuantity = applySlippage(limitingLpEstimate, slippage);
+  const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
+  const minLpQuantity = applySlippage(lpEstimateForMinimum, slippage);
   const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && toBigNumber(slippage).isLessThanOrEqualTo(50);
@@ -272,11 +283,11 @@ export function PoolDepositForm({
 
       {isZeroSupplyRestart && (
         <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-          LP supply is zero. This deposit restarts the pool at the current reserve ratio.
+          LP supply is zero. This deposit re-seeds the pool with the amounts entered.
         </div>
       )}
 
-      {!isZeroSupplyRestart && !isFirstDeposit && quote?.quantity_minted_estimate !== undefined && quote.quantity_minted_estimate !== null && (
+      {(isFirstDeposit || isZeroSupplyRestart || (quote?.quantity_minted_estimate !== undefined && quote.quantity_minted_estimate !== null)) && (
         <>
           <SlippageInput
             value={slippage}
