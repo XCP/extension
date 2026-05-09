@@ -12,6 +12,11 @@ import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 
+function normalizeLpQuantity(quantity: unknown): string {
+  if (quantity == null) return '?';
+  return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+}
+
 /**
  * Build a human-readable label and description from PSBT decoded info.
  * Uses the API counterpartyMessage if available, otherwise falls back
@@ -69,7 +74,7 @@ function getTxActionInfo(decodedInfo: DecodedPsbtInfo): { label: string; descrip
     case 'pooldeposit':
       return { label: 'Pool Deposit', description: `${data.quantityA} ${data.assetA} + ${data.quantityB} ${data.assetB}` };
     case 'poolwithdraw':
-      return { label: 'Pool Withdraw', description: `Burn ${data.quantity} LP tokens from ${data.assetA}/${data.assetB}` };
+      return { label: 'Pool Withdraw', description: `Burn ${normalizeLpQuantity(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
     default:
       return { label, description: unpack.messageType };
   }

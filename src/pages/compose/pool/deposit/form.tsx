@@ -9,7 +9,6 @@ import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
-import type { PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
@@ -29,16 +28,6 @@ interface PoolDepositFormProps {
   initialFormData: PoolDepositOptions | null;
   initialAssetA?: string;
   initialAssetB?: string;
-}
-
-function getCanonicalPair(firstAsset: string, secondAsset: string, quote: PoolDepositQuote | null) {
-  if (quote?.asset_a && quote?.asset_b) {
-    return [quote.asset_a, quote.asset_b] as const;
-  }
-
-  return firstAsset > secondAsset
-    ? [secondAsset, firstAsset] as const
-    : [firstAsset, secondAsset] as const;
 }
 
 function toRawQuantity(value: string, divisible: boolean): string {
@@ -95,12 +84,7 @@ export function PoolDepositForm({
   const partnerQuantityIsHigh = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
     && toBigNumber(quantityBRaw).isGreaterThan(partnerQuantityRaw);
   const isZeroSupplyRestart = !isFirstDeposit && quote?.quantity_minted_estimate === 0;
-  const [canonicalAssetA, canonicalAssetB] = getCanonicalPair(assetA, assetB, quote);
-  const canonicalQuantityA = canonicalAssetA === assetA ? quantityA : quantityB;
-  const canonicalQuantityB = canonicalAssetB === assetB ? quantityB : quantityA;
-  const canonicalQuantityARaw = canonicalAssetA === assetA ? quantityARaw : quantityBRaw;
-  const canonicalQuantityBRaw = canonicalAssetB === assetB ? quantityBRaw : quantityARaw;
-  const initialLpEstimate = calculateInitialLpEstimate(canonicalQuantityARaw, canonicalQuantityBRaw);
+  const initialLpEstimate = calculateInitialLpEstimate(quantityARaw, quantityBRaw);
   const limitingLpEstimate = calculateLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
   const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
   const minLpQuantity = applyPoolSlippage(lpEstimateForMinimum, slippage);
@@ -124,10 +108,10 @@ export function PoolDepositForm({
       return;
     }
 
-    formData.set("asset_a", canonicalAssetA);
-    formData.set("asset_b", canonicalAssetB);
-    formData.set("quantity_a", canonicalQuantityA);
-    formData.set("quantity_b", canonicalQuantityB);
+    formData.set("asset_a", assetA);
+    formData.set("asset_b", assetB);
+    formData.set("quantity_a", quantityA);
+    formData.set("quantity_b", quantityB);
     formData.set("min_lp_quantity", minLpQuantity);
     if (lpAsset.trim()) {
       formData.set("lp_asset", lpAsset.trim());
@@ -280,10 +264,10 @@ export function PoolDepositForm({
         </Field>
       )}
 
-      <input type="hidden" name="asset_a" value={canonicalAssetA} />
-      <input type="hidden" name="asset_b" value={canonicalAssetB} />
-      <input type="hidden" name="quantity_a" value={canonicalQuantityA} />
-      <input type="hidden" name="quantity_b" value={canonicalQuantityB} />
+      <input type="hidden" name="asset_a" value={assetA} />
+      <input type="hidden" name="asset_b" value={assetB} />
+      <input type="hidden" name="quantity_a" value={quantityA} />
+      <input type="hidden" name="quantity_b" value={quantityB} />
       <input type="hidden" name="min_lp_quantity" value={minLpQuantity} />
       <input type="hidden" name="slippage" value={slippage} />
       {lpAsset && <input type="hidden" name="lp_asset" value={lpAsset} />}

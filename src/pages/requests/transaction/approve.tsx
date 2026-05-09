@@ -44,6 +44,11 @@ function normalizeQuantity(quantity: unknown, asset: string, messageData?: Recor
   return val.toLocaleString();
 }
 
+function normalizeLpQuantity(quantity: unknown): string {
+  if (quantity == null) return '?';
+  return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+}
+
 /**
  * Build a human-readable label and description from transaction data.
  * Uses the API counterpartyMessage if available, otherwise falls back
@@ -102,7 +107,7 @@ function getTxActionInfo(decodedInfo: DecodedTransactionInfo): { label: string; 
     case 'pooldeposit':
       return { label: 'Pool Deposit', description: `${normalizeQuantity(data.quantityA, data.assetA as string)} ${data.assetA} + ${normalizeQuantity(data.quantityB, data.assetB as string)} ${data.assetB}` };
     case 'poolwithdraw':
-      return { label: 'Pool Withdraw', description: `Burn ${String(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
+      return { label: 'Pool Withdraw', description: `Burn ${normalizeLpQuantity(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
     default:
       return { label, description: unpack.messageType };
   }
