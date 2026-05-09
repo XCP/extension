@@ -283,7 +283,7 @@ export function PoolDepositForm({
 
       {isZeroSupplyRestart && (
         <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-          LP supply is zero. This deposit re-seeds the pool with the amounts entered.
+          LP supply is zero. This deposit restarts the pool and may claim existing reserves.
         </div>
       )}
 
