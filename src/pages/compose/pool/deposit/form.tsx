@@ -10,9 +10,11 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchPoolDepositQuote, type PoolDepositQuote } from "@/utils/blockchain/counterparty/api";
 import {
-  applySlippage,
+  applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
+} from "@/utils/blockchain/counterparty/pool";
+import {
   fromSatoshis,
   isValidPositiveNumber,
   toBigNumber,
@@ -133,7 +135,7 @@ export function PoolDepositForm({
   const initialLpEstimate = calculateInitialLpEstimate(canonicalQuantityARaw, canonicalQuantityBRaw);
   const limitingLpEstimate = calculateLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
   const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
-  const minLpQuantity = applySlippage(lpEstimateForMinimum, slippage);
+  const minLpQuantity = applyPoolSlippage(lpEstimateForMinimum, slippage);
   const hasLpMinimum = toBigNumber(minLpQuantity).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && toBigNumber(slippage).isLessThanOrEqualTo(50);

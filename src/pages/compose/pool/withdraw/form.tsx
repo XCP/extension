@@ -8,7 +8,8 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { fetchPoolWithdrawQuote, type PoolWithdrawQuote } from "@/utils/blockchain/counterparty/api";
-import { applySlippage, fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
+import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
+import { fromSatoshis, isValidPositiveNumber, toBigNumber, toSatoshis } from "@/utils/numeric";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
 
@@ -44,8 +45,8 @@ export function PoolWithdrawForm({
     return divisible ? fromSatoshis(value.toString(), { removeTrailingZeros: true }) : value.toString();
   };
 
-  const minQuantityA = applySlippage(quote?.quantity_a_estimate, slippage);
-  const minQuantityB = applySlippage(quote?.quantity_b_estimate, slippage);
+  const minQuantityA = applyPoolSlippage(quote?.quantity_a_estimate, slippage);
+  const minQuantityB = applyPoolSlippage(quote?.quantity_b_estimate, slippage);
   const hasMinimums = toBigNumber(minQuantityA).isGreaterThan(0) || toBigNumber(minQuantityB).isGreaterThan(0);
   const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
     && toBigNumber(slippage).isLessThanOrEqualTo(50);
