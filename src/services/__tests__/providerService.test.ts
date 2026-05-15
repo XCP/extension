@@ -173,6 +173,7 @@ describe('ProviderService', () => {
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
+        isTestOnly: false,
         addresses: []
       }]),
       getActiveWallet: vi.fn().mockResolvedValue({
@@ -180,6 +181,7 @@ describe('ProviderService', () => {
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
+        isTestOnly: false,
         addresses: []
       }),
       setActiveWallet: vi.fn().mockResolvedValue(undefined),
@@ -208,6 +210,7 @@ describe('ProviderService', () => {
       getActiveAddress: vi.fn().mockResolvedValue({
         id: 'addr1',
         address: 'bc1qtest123',
+        pubKey: '038ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4',
         label: 'Test Address',
         walletId: 'wallet1',
         walletName: 'Test Wallet',
@@ -316,6 +319,17 @@ describe('ProviderService', () => {
         ) as any;
 
         expect(result.accounts).toEqual(['bc1qtest123']);
+        expect(result.account).toEqual({
+          address: 'bc1qtest123',
+          publicKey: '038ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4',
+          xOnlyPublicKey: '8ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4',
+          addressType: 'p2wpkh',
+          network: 'mainnet',
+          walletType: 'software',
+        });
+        expect(result.account).not.toHaveProperty('path');
+        expect(result.account).not.toHaveProperty('xpub');
+        expect(result.account).not.toHaveProperty('privateKey');
         expect(result.proof).toBeDefined();
       });
       
@@ -341,6 +355,8 @@ describe('ProviderService', () => {
 
         // Should return accounts with proof
         expect((result as any).accounts).toEqual(['bc1qtest123']);
+        expect((result as any).account.publicKey).toBe('038ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4');
+        expect((result as any).account.xOnlyPublicKey).toBe('8ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4');
         expect((result as any).proof).toBeDefined();
       });
 
