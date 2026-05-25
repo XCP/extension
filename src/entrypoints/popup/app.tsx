@@ -66,6 +66,7 @@ import AssetPage from '@/pages/assets/[asset]';
 import AssetBalancePage from '@/pages/assets/[asset]/balance';
 import UtxoPage from '@/pages/assets/utxos/[txHash]';
 import ManagePoolsPage from '@/pages/pools';
+import PoolPage from '@/pages/pools/[assetA]/[assetB]';
 import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import TransactionPage from '@/pages/transactions/[txHash]';
 
@@ -210,6 +211,7 @@ export default function App() {
             <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
             <Route path="/assets/:asset" element={<AssetPage />} />
             <Route path="/pools" element={<ManagePoolsPage />} />
+            <Route path="/pools/:assetA/:assetB" element={<PoolPage />} />
             <Route path="/pools/:lpAsset" element={<PoolPositionPage />} />
 
             <Route path="/transactions/:txHash" element={<TransactionPage />} />
@@ -231,7 +233,7 @@ export default function App() {
             <Route path="/compose/dispenser/close/:asset?" element={<ComposeDispenserClosePage />} />
             <Route path="/compose/dispenser/close-by-hash/:txHash?" element={<ComposeDispenserCloseByHashPage />} />
             <Route path="/compose/dispenser/dispense/:address?" element={<ComposeDispensePage />} />
-            <Route path="/compose/dispenser/:asset" element={<ComposeDispenserPage />} />
+            <Route path="/compose/dispenser/:asset?" element={<ComposeDispenserPage />} />
             <Route path="/compose/fairminter/:asset?" element={<ComposeFairminterPage />} />
             <Route path="/compose/fairmint/:asset?" element={<ComposeFairmintPage />} />
             <Route path="/compose/dividend/:asset" element={<ComposeDividendPage />} />

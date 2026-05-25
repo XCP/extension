@@ -230,6 +230,14 @@ declare module '@trezor/connect-webextension' {
 
     getFeatures(): Promise<Response<Features>>;
 
+    pingDevice(params?: {
+      message?: string;
+      button_protection?: boolean;
+    }): Promise<Response<{
+      message?: string;
+      button_protection?: boolean;
+    }>>;
+
     getAddress(params: GetAddressParams): Promise<Response<Address | Address[]>>;
 
     getPublicKey(params: GetPublicKeyParams): Promise<Response<HDNodeResponse>>;

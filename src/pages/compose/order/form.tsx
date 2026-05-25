@@ -4,6 +4,7 @@ import { OrderSettings } from "@/pages/settings/order-settings";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { useComposer } from "@/contexts/composer-context";
@@ -54,18 +55,25 @@ export function OrderForm({
   urlParams,
 }: OrderFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, settings, showHelpText, feeRate } = useComposer();
+  const { activeAddress, activeWallet, settings, showHelpText, feeRate } = useComposer();
+
+  const initialBaseAsset = giveAsset || (
+    initialFormData?.type === "buy"
+      ? initialFormData.get_asset
+      : initialFormData?.give_asset
+  ) || "";
+  const [baseAsset, setBaseAsset] = useState<string>(initialBaseAsset);
 
   // Form state - defined before hooks that depend on it
   // Priority: initialFormData (from form persistence) > urlParams (from URL) > defaults
   const [quoteAsset, setQuoteAsset] = useState<string>(
-    initialFormData?.quote_asset || urlParams?.quote || (giveAsset === "XCP" ? "BTC" : "XCP")
+    initialFormData?.quote_asset || urlParams?.quote || (baseAsset === "XCP" ? "BTC" : "XCP")
   );
 
   // Data fetching hooks - use current quoteAsset state for reactivity
-  const { data: giveAssetDetails } = useAssetDetails(giveAsset);
+  const { data: giveAssetDetails } = useAssetDetails(baseAsset);
   const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
-  const { data: getAssetDetails } = useAssetDetails(giveAsset);
+  const { data: getAssetDetails } = useAssetDetails(baseAsset);
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -120,11 +128,17 @@ export function OrderForm({
   const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
-  const tradingPairGive = isBuy ? quoteAsset : giveAsset;
-  const tradingPairGet = isBuy ? giveAsset : quoteAsset;
+  const tradingPairGive = isBuy ? quoteAsset : baseAsset;
+  const tradingPairGet = isBuy ? baseAsset : quoteAsset;
   const { data: tradingPairData } = useTradingPair(tradingPairGive, tradingPairGet);
   
   // Effects
+
+  useEffect(() => {
+    if (giveAsset) {
+      setBaseAsset(giveAsset);
+    }
+  }, [giveAsset]);
 
   // Focus amount input on mount
   useEffect(() => {
@@ -159,12 +173,24 @@ export function OrderForm({
     }
   };
 
+  const handleBaseAssetChange = (newBaseAsset: string) => {
+    if (newBaseAsset !== baseAsset) {
+      setBaseAsset(newBaseAsset);
+      setAmount("");
+      setPrice("");
+      setIsPairFlipped(false);
+      if (newBaseAsset === quoteAsset) {
+        setQuoteAsset(newBaseAsset === "XCP" ? "BTC" : "XCP");
+      }
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {activeAddress && giveAssetDetails && (
+      {activeAddress && baseAsset && giveAssetDetails ? (
         <BalanceHeader
           balance={{
-            asset: giveAsset,
+            asset: baseAsset,
             quantity_normalized: giveAssetDetails.availableBalance,
             asset_info: giveAssetDetails.assetInfo ? {
               asset_longname: giveAssetDetails.assetInfo.asset_longname,
@@ -177,7 +203,13 @@ export function OrderForm({
           }}
           className="mt-1 mb-5"
         />
-      )}
+      ) : activeAddress ? (
+        <AddressHeader
+          address={activeAddress.address}
+          walletName={activeWallet?.name ?? activeAddress.name}
+          className="mt-1 mb-5"
+        />
+      ) : null}
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
           <button
@@ -221,7 +253,7 @@ export function OrderForm({
           onExpirationChange={setCustomExpiration}
           customFeeRequired={customFeeRequired}
           onFeeRequiredChange={setCustomFeeRequired}
-          isBuyingBTC={previousTab === "buy" && giveAsset === "BTC"}
+          isBuyingBTC={previousTab === "buy" && baseAsset === "BTC"}
           showHelpText={showHelpText}
         />
       ) : (
@@ -266,6 +298,7 @@ export function OrderForm({
             
             formAction(formData);
           }}
+          submitDisabled={!baseAsset}
         >
           {validationError && (
             <div className="mb-4">
@@ -275,14 +308,24 @@ export function OrderForm({
               />
             </div>
           )}
-            <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : giveAsset} />
-            <input type="hidden" name="get_asset" value={isBuy ? giveAsset : quoteAsset} />
+            {!giveAsset && (
+              <AssetSelectInput
+                selectedAsset={baseAsset}
+                onChange={handleBaseAssetChange}
+                label="Asset"
+                description={`Select the asset to ${isBuy ? "buy" : "sell"}.`}
+                showHelpText={showHelpText}
+                required
+              />
+            )}
+            <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : baseAsset} />
+            <input type="hidden" name="get_asset" value={isBuy ? baseAsset : quoteAsset} />
             <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
-            {isBuy && giveAsset === "BTC" && (
+            {isBuy && baseAsset === "BTC" && (
               <input type="hidden" name="fee_required" value={customFeeRequired} />
             )}
             <AmountWithMaxInput
-              asset={giveAsset}
+              asset={baseAsset}
               availableBalance={isBuy ? "" : availableBalance}
               value={amount}
               onChange={setAmount}

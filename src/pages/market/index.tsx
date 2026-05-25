@@ -8,8 +8,7 @@ import { MarketDispenserCard } from "@/components/ui/cards/market-dispenser-card
 import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
 import { ManageDispenserCard } from "@/components/ui/cards/manage-dispenser-card";
 import { ManageOrderCard } from "@/components/ui/cards/manage-order-card";
-import { MarketSwapCard } from "@/components/ui/cards/market-swap-card";
-import { ManageSwapCard } from "@/components/ui/cards/manage-swap-card";
+import { PoolCard } from "@/components/ui/cards/pool-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TabButton } from "@/components/ui/tab-button";
 import { PriceTicker } from "@/components/domain/price/price-ticker";
@@ -22,21 +21,22 @@ import { useMarketData } from "@/hooks/useMarketData";
 import { formatAddress } from "@/utils/format";
 import { formatPrice } from "@/utils/price-format";
 import { getTradingPair } from "@/utils/trading-pair";
-import { getWalletService } from "@/services/walletService";
 import {
-  fetchSwapListings,
-  prepareCancel,
-  cancelListing,
-  type SwapListing,
-} from "@/utils/xcpdex-api";
-import type { DispenserDetails, OrderDetails } from "@/utils/blockchain/counterparty/api";
+  fetchAddressPools,
+  fetchPools,
+  type Pool,
+  type PoolPosition,
+  type DispenserDetails,
+  type OrderDetails,
+} from "@/utils/blockchain/counterparty/api";
 import type { ReactElement } from "react";
 
 // Constants
 const COPY_FEEDBACK_MS = 2000;
+const POOL_PAGE_SIZE = 20;
 
 /**
- * Market page displays the XCP DEX marketplace with Dispensers, Orders, and Swaps tabs.
+ * Market page displays the XCP DEX marketplace with Dispensers, Orders, and Pools tabs.
  */
 export default function MarketPage(): ReactElement {
   const navigate = useNavigate();
@@ -52,10 +52,10 @@ export default function MarketPage(): ReactElement {
   // Tab and view mode state from URL params
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam === "dispensers" ? 0 : tabParam === "swaps" ? 2 : 1;
   const viewMode = searchParams.get("mode") === "manage" ? "manage" : "explore";
+  const activeTab = tabParam === "dispensers" ? 0 : tabParam === "pools" || tabParam === "swaps" ? 2 : 1;
 
-  const TAB_NAMES = ["dispensers", "orders", "swaps"] as const;
+  const TAB_NAMES = ["dispensers", "orders", "pools"] as const;
   const setActiveTab = (tab: number) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -115,69 +115,145 @@ export default function MarketPage(): ReactElement {
     inView,
   });
 
-  // Swap listings state (explore = all listings, manage = user's listings)
-  const [exploreSwaps, setExploreSwaps] = useState<SwapListing[]>([]);
-  const [userSwaps, setUserSwaps] = useState<SwapListing[]>([]);
-  const [swapsLoading, setSwapsLoading] = useState(false);
-  const [swapsError, setSwapsError] = useState("");
-  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  // Pool state (explore = all pools, manage = user's LP positions)
+  const [pools, setPools] = useState<Pool[]>([]);
+  const [userPools, setUserPools] = useState<PoolPosition[]>([]);
+  const [poolsLoading, setPoolsLoading] = useState(false);
+  const [poolsFetchingMore, setPoolsFetchingMore] = useState(false);
+  const [poolsError, setPoolsError] = useState("");
+  const [poolsOffset, setPoolsOffset] = useState(0);
+  const [poolsHasMore, setPoolsHasMore] = useState(true);
+  const [poolsInitialLoaded, setPoolsInitialLoaded] = useState(false);
 
-  const loadSwapListings = useCallback(async () => {
-    setSwapsLoading(true);
-    setSwapsError("");
-    try {
-      if (viewMode === "manage") {
-        if (!activeAddress) return;
-        const data = await fetchSwapListings({ seller: activeAddress.address });
-        setUserSwaps(data);
-      } else {
-        const data = await fetchSwapListings();
-        setExploreSwaps(data);
-      }
-    } catch (err) {
-      setSwapsError(err instanceof Error ? err.message : "Failed to load listings");
-    } finally {
-      setSwapsLoading(false);
-    }
-  }, [activeAddress, viewMode]);
+  const appendPools = useCallback((newPools: Pool[]) => {
+    setPools((current) => {
+      const existing = new Set(current.map((pool) => pool.lp_asset));
+      const unique = newPools.filter((pool) => !existing.has(pool.lp_asset));
+      return [...current, ...unique];
+    });
+  }, []);
+
+  const appendUserPools = useCallback((newPools: PoolPosition[]) => {
+    setUserPools((current) => {
+      const existing = new Set(current.map((pool) => pool.lp_asset));
+      const unique = newPools.filter((pool) => !existing.has(pool.lp_asset));
+      return [...current, ...unique];
+    });
+  }, []);
 
   useEffect(() => {
-    if (activeTab === 2) {
-      loadSwapListings();
-    }
-  }, [activeTab, loadSwapListings]);
+    if (activeTab !== 2) return;
 
-  // Filter swaps by search query
-  const filterSwaps = (swaps: SwapListing[]) => {
+    let cancelled = false;
+    setPools([]);
+    setUserPools([]);
+    setPoolsOffset(0);
+    setPoolsHasMore(true);
+    setPoolsInitialLoaded(false);
+    setPoolsLoading(true);
+    setPoolsError("");
+
+    const loadPools = async () => {
+      try {
+        if (viewMode === "manage") {
+          if (!activeAddress?.address) {
+            setPoolsInitialLoaded(true);
+            return;
+          }
+          const response = await fetchAddressPools(activeAddress.address, { limit: POOL_PAGE_SIZE, offset: 0 });
+          if (cancelled) return;
+          setUserPools(response.result);
+          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && response.result.length < response.result_count);
+        } else {
+          const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: 0 });
+          if (cancelled) return;
+          setPools(response.result);
+          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && response.result.length < response.result_count);
+        }
+        setPoolsOffset(POOL_PAGE_SIZE);
+        setPoolsInitialLoaded(true);
+      } catch (err) {
+        if (!cancelled) {
+          setPoolsError(err instanceof Error ? err.message : "Failed to load pools");
+          setPoolsInitialLoaded(true);
+        }
+      } finally {
+        if (!cancelled) setPoolsLoading(false);
+      }
+    };
+
+    loadPools();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAddress?.address, activeTab, viewMode]);
+
+  useEffect(() => {
+    if (activeTab !== 2 || !inView || !poolsHasMore || poolsFetchingMore || poolsLoading || !poolsInitialLoaded) {
+      return;
+    }
+    if (viewMode === "manage" && !activeAddress?.address) return;
+
+    let cancelled = false;
+
+    const loadMorePools = async () => {
+      setPoolsFetchingMore(true);
+      setPoolsError("");
+
+      try {
+        if (viewMode === "manage") {
+          const response = await fetchAddressPools(activeAddress!.address, { limit: POOL_PAGE_SIZE, offset: poolsOffset });
+          if (cancelled) return;
+          appendUserPools(response.result);
+          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
+        } else {
+          const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: poolsOffset });
+          if (cancelled) return;
+          appendPools(response.result);
+          setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
+        }
+        setPoolsOffset((current) => current + POOL_PAGE_SIZE);
+      } catch (err) {
+        if (!cancelled) {
+          setPoolsError(err instanceof Error ? err.message : "Failed to load more pools");
+          setPoolsHasMore(false);
+        }
+      } finally {
+        if (!cancelled) setPoolsFetchingMore(false);
+      }
+    };
+
+    loadMorePools();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activeAddress,
+    activeTab,
+    appendPools,
+    appendUserPools,
+    inView,
+    poolsFetchingMore,
+    poolsHasMore,
+    poolsInitialLoaded,
+    poolsLoading,
+    poolsOffset,
+    viewMode,
+  ]);
+
+  const filterPools = <T extends Pool>(poolList: T[]): T[] => {
     const q = searchQuery.trim().toUpperCase();
-    if (!q) return swaps;
-    return swaps.filter(s =>
-      s.asset.toUpperCase().includes(q) ||
-      (s.asset_longname && s.asset_longname.toUpperCase().includes(q))
+    if (!q) return poolList;
+    return poolList.filter((pool) =>
+      pool.asset_a.toUpperCase().includes(q) ||
+      pool.asset_b.toUpperCase().includes(q) ||
+      pool.lp_asset.toUpperCase().includes(q)
     );
   };
-  const filteredExploreSwaps = filterSwaps(exploreSwaps);
-  const filteredUserSwaps = filterSwaps(userSwaps);
-
-  const handleCancelSwap = async (listing: SwapListing) => {
-    if (!activeAddress) return;
-    setCancellingId(listing.id);
-    setSwapsError("");
-    try {
-      const { challenge } = await prepareCancel(listing.id);
-      const walletService = getWalletService();
-      const { signature } = await walletService.signMessage(challenge, activeAddress.address);
-      await cancelListing(listing.id, activeAddress.address, challenge, signature);
-      setUserSwaps((prev) => prev.filter((l) => l.id !== listing.id));
-    } catch (err: unknown) {
-      console.error("Cancel failed:", err);
-      const apiErr = err as { response?: { data?: { error?: string } } };
-      const serverMsg = apiErr?.response?.data?.error;
-      setSwapsError(serverMsg || (err instanceof Error ? err.message : "Failed to cancel listing"));
-    } finally {
-      setCancellingId(null);
-    }
-  };
+  const filteredPools = filterPools(pools);
+  const filteredUserPools = filterPools(userPools);
 
   // Configure header
   useEffect(() => {
@@ -291,7 +367,7 @@ export default function MarketPage(): ReactElement {
           <div className="mb-2">
             <div className="flex items-center justify-between">
               <div className="flex space-x-4" role="tablist" aria-label="Market sections">
-                {(["Dispensers", "Orders", "Swaps"] as const).map((label, idx) => (
+                {(["Dispensers", "Orders", "Pools"] as const).map((label, idx) => (
                   <button
                     key={label}
                     role="tab"
@@ -557,70 +633,81 @@ export default function MarketPage(): ReactElement {
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Search asset swaps..."
-                    name="swap-filter"
+                    placeholder="Search pools..."
+                    name="pool-filter"
                     showClearButton
                     className="mt-0.5"
                   />
-                  {swapsLoading ? (
-                    <Spinner message="Loading swap listings…" />
-                  ) : swapsError ? (
-                    <EmptyState message={swapsError} />
-                  ) : filteredExploreSwaps.length > 0 ? (
-                    <div className="space-y-2">
-                      {filteredExploreSwaps.map((listing) => (
-                        <MarketSwapCard
-                          key={listing.id}
-                          listing={listing}
-                          onClick={() => navigate(`/market/swaps/${encodeURIComponent(listing.asset_longname || listing.asset)}`)}
-                        />
-                      ))}
-                    </div>
+                  {poolsLoading ? (
+                    <Spinner message="Loading pools…" />
+                  ) : poolsError ? (
+                    <EmptyState message={poolsError} />
+                  ) : filteredPools.length > 0 ? (
+                    <>
+                      <div className="space-y-2">
+                        {filteredPools.map((pool) => (
+                          <PoolCard
+                            key={pool.lp_asset}
+                            pool={pool}
+                            onClick={() => navigate(`/pools/${encodeURIComponent(pool.asset_a)}/${encodeURIComponent(pool.asset_b)}`)}
+                          />
+                        ))}
+                      </div>
+                      <div ref={loadMoreRef} className="flex justify-center py-2">
+                        {poolsFetchingMore && <Spinner />}
+                      </div>
+                    </>
                   ) : (
-                    <EmptyState message={searchQuery.trim() ? `No swap listings matching "${searchQuery}"` : "No active swap listings"} />
+                    <EmptyState message={searchQuery.trim() ? `No pools matching "${searchQuery}"` : "No pools found"} />
                   )}
+                  <button
+                    onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
+                    className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  >
+                    Enter Pool →
+                  </button>
                 </>
               ) : (
                 <>
                   <SearchInput
                     value={searchQuery}
                     onChange={setSearchQuery}
-                    placeholder="Search your swaps..."
-                    name="swap-manage-filter"
+                    placeholder="Search your pools..."
+                    name="pool-manage-filter"
                     showClearButton
                     className="mt-0.5"
                   />
-                  {swapsLoading ? (
-                    <Spinner message="Loading your swap listings…" />
-                  ) : swapsError ? (
-                    <EmptyState message={swapsError} />
+                  {poolsLoading ? (
+                    <Spinner message="Loading your pools…" />
+                  ) : poolsError ? (
+                    <EmptyState message={poolsError} />
                   ) : (
                     <>
-                      {filteredUserSwaps.length > 0 ? (
-                        <div className="space-y-2">
-                          {filteredUserSwaps.map((listing) => (
-                            <ManageSwapCard
-                              key={listing.id}
-                              listing={listing}
-                              isCancelling={cancellingId === listing.id}
-                              onCancel={() => handleCancelSwap(listing)}
-                              onClick={() => {
-                                const displayAsset = listing.asset_longname || listing.asset;
-                                window.open(`https://xcpdex.com/swap/${encodeURIComponent(displayAsset)}`, '_blank');
-                              }}
-                            />
-                          ))}
-                        </div>
+                      {filteredUserPools.length > 0 ? (
+                        <>
+                          <div className="space-y-2">
+                            {filteredUserPools.map((pool) => (
+                              <PoolCard
+                                key={pool.lp_asset}
+                                pool={pool}
+                                onClick={() => navigate(`/pools/${encodeURIComponent(pool.lp_asset)}`)}
+                              />
+                            ))}
+                          </div>
+                          <div ref={loadMoreRef} className="flex justify-center py-2">
+                            {poolsFetchingMore && <Spinner />}
+                          </div>
+                        </>
                       ) : searchQuery.trim() ? (
-                        <EmptyState message={`No swap listings matching "${searchQuery}"`} />
+                        <EmptyState message={`No pool positions matching "${searchQuery}"`} />
                       ) : (
-                        <EmptyState message="You don't have any active swap listings" />
+                        <EmptyState message="You don't have any LP positions" />
                       )}
                       <button
-                        onClick={() => navigate("/index?tab=UTXOs")}
+                        onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
-                        List a UTXO asset for sale →
+                        Enter Pool →
                       </button>
                     </>
                   )}

@@ -4,11 +4,13 @@ import { Field, Description } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
 import {
   applyPoolSlippage,
@@ -55,6 +57,7 @@ export function PoolDepositForm({
 
   const { data: assetADetails } = useAssetDetails(assetA);
   const { data: assetBDetails } = useAssetDetails(assetB);
+  const { data: pool } = usePool(assetA, assetB);
 
   const assetADetailsReady = assetADetails?.assetInfo?.asset === assetA;
   const assetBDetailsReady = assetB ? assetBDetails?.assetInfo?.asset === assetB : false;
@@ -147,7 +150,13 @@ export function PoolDepositForm({
   return (
     <ComposerForm
       formAction={handleFormAction}
-      header={assetABalanceHeader ? <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" /> : null}
+      header={
+        pool ? (
+          <PoolHeader pool={pool} className="mt-1 mb-5" />
+        ) : assetABalanceHeader ? (
+          <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
+        ) : null
+      }
       submitText="Review Deposit"
       submitDisabled={pending || submitDisabled}
     >

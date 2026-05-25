@@ -8,6 +8,7 @@ const {
   mockDispose,
   mockOn,
   mockGetFeatures,
+  mockPingDevice,
   mockGetAddress,
   mockGetPublicKey,
   mockGetAccountInfo,
@@ -18,6 +19,7 @@ const {
   mockDispose: vi.fn(),
   mockOn: vi.fn(),
   mockGetFeatures: vi.fn(),
+  mockPingDevice: vi.fn(),
   mockGetAddress: vi.fn(),
   mockGetPublicKey: vi.fn(),
   mockGetAccountInfo: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('@trezor/connect-webextension', () => ({
     on: mockOn,
     off: vi.fn(),
     getFeatures: mockGetFeatures,
+    pingDevice: mockPingDevice,
     getAddress: mockGetAddress,
     getPublicKey: mockGetPublicKey,
     getAccountInfo: mockGetAccountInfo,
@@ -206,6 +209,68 @@ describe('TrezorAdapter', () => {
         firmwareVersion: '2.5.3',
         connected: true,
       });
+    });
+  });
+
+  describe('pingDevice', () => {
+    beforeEach(async () => {
+      mockInit.mockResolvedValue(undefined);
+      await adapter.init();
+    });
+
+    it('should return true and mark connected when ping succeeds', async () => {
+      mockPingDevice.mockResolvedValue({
+        success: true,
+        payload: { message: 'XCP Wallet connection check' },
+      });
+
+      const result = await adapter.pingDevice();
+
+      expect(result).toBe(true);
+      expect(adapter.getConnectionStatus()).toBe('connected');
+      expect(mockPingDevice).toHaveBeenCalledWith({
+        message: 'XCP Wallet connection check',
+        button_protection: false,
+      });
+    });
+
+    it('should return false and mark disconnected when ping fails', async () => {
+      mockPingDevice.mockResolvedValue({
+        success: false,
+        payload: {
+          error: 'Device disconnected',
+          code: 'Device_Disconnected',
+        },
+      });
+
+      const result = await adapter.pingDevice();
+
+      expect(result).toBe(false);
+      expect(adapter.getConnectionStatus()).toBe('disconnected');
+    });
+
+    it('should verify a connected adapter before reconnect returns true', async () => {
+      mockGetFeatures.mockResolvedValue({
+        success: true,
+        payload: {
+          model: 'T',
+          label: 'My Trezor',
+          major_version: 2,
+          minor_version: 5,
+          patch_version: 3,
+        },
+      });
+      mockPingDevice.mockResolvedValue({
+        success: true,
+        payload: { message: 'XCP Wallet connection check' },
+      });
+
+      await adapter.getDeviceInfo();
+      const result = await adapter.reconnect();
+
+      expect(result).toBe(true);
+      expect(mockPingDevice).toHaveBeenCalledTimes(1);
+      expect(mockDispose).not.toHaveBeenCalled();
     });
   });
 

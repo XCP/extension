@@ -477,6 +477,32 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   }
 
   /**
+   * Check whether the connected Trezor is responsive without requiring user confirmation.
+   */
+  async pingDevice(): Promise<boolean> {
+    this.ensureInitialized();
+
+    const result = await TrezorConnect.pingDevice({
+      message: 'XCP Wallet connection check',
+      button_protection: false,
+    });
+
+    if (result.success) {
+      this.connectionStatus = 'connected';
+      if (this.deviceInfo) {
+        this.deviceInfo.connected = true;
+      }
+      return true;
+    }
+
+    this.connectionStatus = 'disconnected';
+    if (this.deviceInfo) {
+      this.deviceInfo.connected = false;
+    }
+    return false;
+  }
+
+  /**
    * Get a single address from Trezor
    */
   async getAddress(
@@ -1051,9 +1077,16 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    * @returns true if reconnection succeeded, false otherwise
    */
   async reconnect(): Promise<boolean> {
-    // If already connected, no need to reconnect
+    // If already connected, verify the in-memory status with the device.
     if (this.connectionStatus === 'connected') {
-      return true;
+      try {
+        return await this.pingDevice();
+      } catch {
+        this.connectionStatus = 'disconnected';
+        if (this.deviceInfo) {
+          this.deviceInfo.connected = false;
+        }
+      }
     }
 
     try {

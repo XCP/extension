@@ -2,8 +2,10 @@ import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/ui/headers/address-header";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -33,10 +35,14 @@ export const DispenserForm = memo(function DispenserForm({
   isRefill = false,
 }: DispenserFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, showHelpText, state, feeRate } = useComposer();
+  const { activeAddress, activeWallet, showHelpText, state, feeRate } = useComposer();
+
+  const [selectedAsset, setSelectedAsset] = useState<string>(
+    asset || initialFormData?.asset || ""
+  );
   
   // Data fetching hooks
-  const { error: assetError, data: assetDetails } = useAssetDetails(asset);
+  const { error: assetError, data: assetDetails } = useAssetDetails(selectedAsset);
   
   // Form status
   const { pending } = useFormStatus();
@@ -59,7 +65,7 @@ export const DispenserForm = memo(function DispenserForm({
   const [availableBalance, setAvailableBalance] = useState<string>("0");
 
   // Trading pair data from hook
-  const { data: tradingPairData } = useTradingPair(asset, 'BTC');
+  const { data: tradingPairData } = useTradingPair(selectedAsset, 'BTC');
 
   // Computed values
   const isDivisible = assetDetails?.assetInfo?.divisible ?? false;
@@ -80,8 +86,16 @@ export const DispenserForm = memo(function DispenserForm({
   
   // Check if trying to create dispenser for BTC
   useEffect(() => {
-    if (asset === "BTC") {
+    if (selectedAsset === "BTC") {
       setError({ message: "Cannot create a dispenser for BTC" });
+    } else if (error?.message === "Cannot create a dispenser for BTC") {
+      setError(null);
+    }
+  }, [selectedAsset, error?.message]);
+
+  useEffect(() => {
+    if (asset) {
+      setSelectedAsset(asset);
     }
   }, [asset]);
 
@@ -114,7 +128,12 @@ export const DispenserForm = memo(function DispenserForm({
 
   const handleFormAction = useCallback((formData: FormData) => {
     // Validate before submission
-    if (asset === "BTC") {
+    if (!selectedAsset) {
+      setError({ message: "Select an asset to dispense" });
+      return;
+    }
+
+    if (selectedAsset === "BTC") {
       setError({ message: "Cannot create a dispenser for BTC" });
       return;
     }
@@ -138,7 +157,7 @@ export const DispenserForm = memo(function DispenserForm({
     }
     
     // Add the asset parameter
-    processedFormData.append("asset", asset);
+    processedFormData.append("asset", selectedAsset);
 
     processedFormData.append("escrow_quantity", escrowQuantity);
     processedFormData.append("mainchainrate", mainchainRate);
@@ -146,22 +165,23 @@ export const DispenserForm = memo(function DispenserForm({
     
     // Call the original formAction with the processed data
     formAction(processedFormData);
-  }, [asset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
+  }, [selectedAsset, escrowQuantity, mainchainRate, giveQuantity, formAction]);
 
   // Validation for submit button - ensure all required fields have values
   const isFormValid = escrowQuantity.trim() !== "" &&
                       mainchainRate.trim() !== "" &&
-                      giveQuantity.trim() !== "";
+                      giveQuantity.trim() !== "" &&
+                      selectedAsset.trim() !== "";
 
   return (
     <ComposerForm
       formAction={handleFormAction}
       submitDisabled={!isFormValid || !!error}
       header={
-        asset && activeAddress && assetDetails ? (
+        selectedAsset && activeAddress && assetDetails ? (
           <BalanceHeader
             balance={{
-              asset: asset,
+              asset: selectedAsset,
               quantity_normalized: availableBalance,
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
@@ -181,11 +201,27 @@ export const DispenserForm = memo(function DispenserForm({
             }}
             className="mt-1 mb-5"
           />
+        ) : activeAddress ? (
+          <AddressHeader
+            address={activeAddress.address}
+            walletName={activeWallet?.name ?? activeAddress.name}
+            className="mt-1 mb-5"
+          />
         ) : null
       }
     >
+          {!asset && (
+            <AssetSelectInput
+              selectedAsset={selectedAsset}
+              onChange={setSelectedAsset}
+              label="Asset"
+              description="Select the asset to dispense."
+              showHelpText={showHelpText}
+              required
+            />
+          )}
           <AmountWithMaxInput
-            asset={asset}
+            asset={selectedAsset}
             availableBalance={availableBalance}
             value={escrowQuantity}
             onChange={setEscrowQuantity}
