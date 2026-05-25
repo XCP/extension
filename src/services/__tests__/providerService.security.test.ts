@@ -94,6 +94,7 @@ describe('ProviderService Security Tests', () => {
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
+        isTestOnly: false,
         addresses: []
       }]),
       getActiveWallet: vi.fn().mockResolvedValue({
@@ -101,11 +102,13 @@ describe('ProviderService Security Tests', () => {
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
+        isTestOnly: false,
         addresses: []
       }),
       getActiveAddress: vi.fn().mockResolvedValue({
         id: 'addr1',
         address: 'bc1qtest123',
+        pubKey: '038ca117a13f9d5671e5d98e7f4e522bce3ca6d207e771080e0b70ce0ba11e2ec4',
         label: 'Test Address',
         walletId: 'wallet1',
         walletName: 'Test Wallet',
@@ -493,7 +496,7 @@ describe('ProviderService Security Tests', () => {
       expect(accounts).toHaveLength(1);
       expect(accounts[0]).toBe('bc1qtest123');
     });
-    
+
     it('should hide accounts when wallet is locked', async () => {
       vi.mocked(walletManager.getSettings).mockReturnValue({
         ...DEFAULT_SETTINGS,

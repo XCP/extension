@@ -81,6 +81,15 @@ export type ProviderRequestParams = unknown[];
 export type ProviderMetadata = Record<string, unknown>;
 export type ProviderResponse = unknown;
 
+interface ProviderAccountInfo {
+  address: string;
+  publicKey: string | null;
+  xOnlyPublicKey: string | null;
+  addressType: string;
+  network: 'mainnet';
+  walletType: 'software' | 'hardware' | 'test';
+}
+
 export interface ProviderService {
   /**
    * Handle provider requests from dApps
@@ -183,10 +192,38 @@ export function createProviderService(): ProviderService {
     return isConnected ? [activeAddress.address] : [];
   }
 
+  async function getAccountInfo(accounts: string[]): Promise<ProviderAccountInfo | null> {
+    if (accounts.length === 0) return null;
+
+    const walletService = getWalletService();
+    const activeAddress = await walletService.getActiveAddress();
+    const activeWallet = await walletService.getActiveWallet();
+    if (!activeAddress || !activeWallet) return null;
+
+    const publicKey = activeAddress.pubKey || null;
+    const xOnlyPublicKey = publicKey ? toXOnlyPublicKey(publicKey) : null;
+
+    return {
+      address: activeAddress.address,
+      publicKey,
+      xOnlyPublicKey,
+      addressType: activeWallet.addressFormat,
+      network: 'mainnet',
+      walletType: activeWallet.isTestOnly ? 'test' : activeWallet.type === 'hardware' ? 'hardware' : 'software',
+    };
+  }
+
+  function toXOnlyPublicKey(publicKey: string): string | null {
+    if (/^[0-9a-fA-F]{64}$/.test(publicKey)) return publicKey.toLowerCase();
+    if (/^(02|03)[0-9a-fA-F]{64}$/.test(publicKey)) return publicKey.slice(2).toLowerCase();
+    return null;
+  }
+
   /** Build the standard response for xcp_requestAccounts with proof. */
   async function buildConnectResponse(origin: string, accounts: string[]) {
+    const account = await getAccountInfo(accounts);
     const proof = accounts.length > 0 ? await generateConnectionProof(origin) : null;
-    return { accounts, proof };
+    return { accounts, account, proof };
   }
 
   /**
