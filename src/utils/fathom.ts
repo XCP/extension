@@ -81,6 +81,7 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   // ═══════════════════════════════════════════════════════════════════════════
   { prefix: '/transactions/', sanitized: '/transactions' },
   { prefix: '/assets/utxos/', sanitized: '/assets/utxos' },
+  { prefix: '/pools/', sanitized: '/pools' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // ASSET VIEWING (asset names - must come after /assets/utxos/)
@@ -120,6 +121,9 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
   { prefix: '/compose/order/btcpay', sanitized: '/compose/order/btcpay' }, // static
   { prefix: '/compose/order/cancel/', sanitized: '/compose/order/cancel' },
   { prefix: '/compose/order/', sanitized: '/compose/order' },
+  { prefix: '/compose/pool/deposit/', sanitized: '/compose/pool/deposit' },
+  { prefix: '/compose/pool/deposit', sanitized: '/compose/pool/deposit' },
+  { prefix: '/compose/pool/withdraw/', sanitized: '/compose/pool/withdraw' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // COMPOSE - UTXO OPERATIONS (asset names, tx hashes)

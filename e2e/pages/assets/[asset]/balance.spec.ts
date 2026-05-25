@@ -11,6 +11,7 @@
  */
 
 import { walletTest, expect } from '@e2e/fixtures';
+import { enableValidationBypass } from '../../../compose-test-helpers';
 
 walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
   // Helper to navigate to balance page and wait for content to load
@@ -149,6 +150,17 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await dispenserAction.click();
 
     await expect(page).toHaveURL(/compose\/dispenser\/XCP/, { timeout: 5000 });
+  });
+
+  walletTest('LP asset shows Manage Pool action and navigates to pool page', async ({ page }) => {
+    await enableValidationBypass(page);
+    await navigateToBalance(page, 'A95428956661682177');
+
+    const managePoolAction = page.locator('button:has-text("Manage Pool"), div[role="button"]:has-text("Manage Pool")').first();
+    await expect(managePoolAction).toBeVisible({ timeout: 10000 });
+    await managePoolAction.click();
+
+    await expect(page).toHaveURL(/\/pools\/A95428956661682177/, { timeout: 5000 });
   });
 
   walletTest('Attach action navigates to compose/utxo/attach for XCP', async ({ page }) => {

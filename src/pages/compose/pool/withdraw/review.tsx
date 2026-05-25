@@ -1,0 +1,113 @@
+import { useEffect, useState } from "react";
+import { ReviewScreen } from "@/components/screens/review-screen";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { useSettings } from "@/contexts/settings-context";
+import { useAssetInfo } from "@/hooks/useAssetInfo";
+import { getPoolWithdrawEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
+import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
+import { formatAmount } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
+
+interface ReviewPoolWithdrawProps {
+  apiResponse: any;
+  onSign: () => void;
+  onBack: () => void;
+  error: string | null;
+  isSigning: boolean;
+}
+
+export function ReviewPoolWithdraw({
+  apiResponse,
+  onSign,
+  onBack,
+  error,
+  isSigning,
+}: ReviewPoolWithdrawProps) {
+  const { result } = apiResponse;
+  const params = result.params;
+  const { settings } = useSettings();
+  const { xcp: xcpPrice } = useMarketPrices(settings.fiat);
+  const { data: assetAInfo, isLoading: isLoadingAssetA } = useAssetInfo(params.asset_a || "");
+  const { data: assetBInfo, isLoading: isLoadingAssetB } = useAssetInfo(params.asset_b || "");
+  const [xcpFeeEstimate, setXcpFeeEstimate] = useState<number | null>(null);
+  const [feeLoading, setFeeLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchFeeEstimate = async () => {
+      try {
+        const sourceAddress = params.source;
+        if (sourceAddress) {
+          const fee = await getPoolWithdrawEstimateXcpFee(sourceAddress);
+          setXcpFeeEstimate(fee);
+        }
+      } catch (err) {
+        console.error("Failed to fetch pool withdraw XCP fee estimate:", err);
+      } finally {
+        setFeeLoading(false);
+      }
+    };
+
+    fetchFeeEstimate();
+  }, [params.source]);
+
+  const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
+  const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
+  const formatMinimum = (
+    normalized: string | undefined,
+    raw: string | number | undefined,
+    divisible: boolean | undefined,
+    isLoadingAsset: boolean
+  ) => {
+    if (normalized !== undefined) return normalized;
+    if (raw === undefined) return "0";
+    if (divisible === undefined && isLoadingAsset) return "Loading...";
+    return divisible ? fromSatoshis(raw, { removeTrailingZeros: true }) : raw.toString();
+  };
+  const minQuantityADisplay = formatMinimum(params.min_quantity_a_normalized, params.min_quantity_a, assetAInfo?.divisible, isLoadingAssetA);
+  const minQuantityBDisplay = formatMinimum(params.min_quantity_b_normalized, params.min_quantity_b, assetBInfo?.divisible, isLoadingAssetB);
+  const quantityDisplay = params.quantity_normalized
+    ?? fromSatoshis(params.quantity ?? 0, { removeTrailingZeros: true });
+
+  const customFields = [
+    {
+      label: "Pool",
+      value: params.asset_a && params.asset_b ? getCanonicalPoolPair(params.asset_a, params.asset_b) : params.lp_asset,
+    },
+    {
+      label: "Withdraw",
+      value: `${quantityDisplay} ${params.lp_asset ?? "LP"}`,
+    },
+    ...(params.min_quantity_a || params.min_quantity_b
+      ? [{
+          label: "Minimum Receive",
+          value: `${minQuantityADisplay} ${params.asset_a ?? ""}\n${minQuantityBDisplay} ${params.asset_b ?? ""}`,
+        }]
+      : []),
+    {
+      label: "XCP Fee",
+      value: feeLoading
+        ? "Loading..."
+        : xcpFeeEstimate !== null
+          ? `${formatAmount({
+              value: xcpFeeInXcp!,
+              minimumFractionDigits: 8,
+              maximumFractionDigits: 8,
+            })} XCP`
+          : "Unable to estimate",
+      rightElement: !feeLoading && xcpFeeInFiat !== null
+        ? <span className="text-gray-500">${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        : undefined,
+    },
+  ];
+
+  return (
+    <ReviewScreen
+      apiResponse={apiResponse}
+      onSign={onSign}
+      onBack={onBack}
+      customFields={customFields}
+      error={error}
+      isSigning={isSigning}
+    />
+  );
+}

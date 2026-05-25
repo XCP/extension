@@ -17,6 +17,18 @@ import { TEST_ADDRESSES } from './test-data';
 export async function enableValidationBypass(page: Page): Promise<void> {
   const context = page.context();
 
+  const mockPoolPosition = {
+    asset_a: 'XCP',
+    asset_b: 'PEPECASH',
+    lp_asset: 'A95428956661682177',
+    reserve_a: 500000000000,
+    reserve_b: 250000000000,
+    reserve_a_normalized: '5000',
+    reserve_b_normalized: '2500',
+    quantity: 100000000,
+    quantity_normalized: '1',
+  };
+
   // Mock compose response - provides data for review page display
   const mockComposeResponse = {
     result: {
@@ -56,6 +68,78 @@ export async function enableValidationBypass(page: Page): Promise<void> {
     const url = route.request().url();
     const method = route.request().method();
     console.log(`[E2E Debug] ${method} ${url}`);
+
+    if (url.match(/\/v2\/?(\?.*)?$/)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            server_ready: true,
+            network: 'mainnet',
+            version: '11.1.0',
+            backend_height: 952500,
+            counterparty_height: 952500,
+          },
+        }),
+      });
+      return;
+    }
+
+    if (url.includes('/estimatexcpfees')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ result: 10000 }),
+      });
+      return;
+    }
+
+    if (url.includes('/v2/addresses/') && url.includes('/pools')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: [mockPoolPosition],
+          result_count: 1,
+        }),
+      });
+      return;
+    }
+
+    if (url.includes('/v2/pools/') && url.includes('/quote/deposit')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            asset_a: 'XCP',
+            asset_b: 'PEPECASH',
+            pool_exists: true,
+            first_deposit: false,
+            quantity_a_required: 100000000,
+            quantity_b_required: 50000000,
+            quantity_minted_estimate: 2000000,
+          },
+        }),
+      });
+      return;
+    }
+
+    if (url.includes('/v2/pools/') && url.includes('/quote/withdraw')) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          result: {
+            pool_exists: true,
+            quantity_a_estimate: 50000000,
+            quantity_b_estimate: 25000000,
+          },
+        }),
+      });
+      return;
+    }
 
     // Handle compose endpoints - return mock transaction data
     if (url.includes('/compose/')) {
@@ -116,6 +200,36 @@ export async function enableValidationBypass(page: Page): Promise<void> {
         console.log(`[E2E Mock] Order: ${giveQuantity} ${giveAsset} for ${getQuantity} ${getAsset}`);
       }
 
+      if (composeType === 'pooldeposit') {
+        responseParams = {
+          source: mockComposeResponse.result.params.source,
+          asset_a: urlParams.get('asset_a') || 'XCP',
+          asset_b: urlParams.get('asset_b') || 'PEPECASH',
+          quantity_a: parseInt(urlParams.get('quantity_a') || '100000000', 10),
+          quantity_b: parseInt(urlParams.get('quantity_b') || '50000000', 10),
+          min_lp_quantity: parseInt(urlParams.get('min_lp_quantity') || '1900000', 10),
+          lp_asset: urlParams.get('lp_asset') || mockPoolPosition.lp_asset,
+          quantity_a_normalized: '1',
+          quantity_b_normalized: '0.5',
+          min_lp_quantity_normalized: '0.019',
+        };
+      }
+
+      if (composeType === 'poolwithdraw') {
+        responseParams = {
+          source: mockComposeResponse.result.params.source,
+          asset_a: urlParams.get('asset_a') || mockPoolPosition.asset_a,
+          asset_b: urlParams.get('asset_b') || mockPoolPosition.asset_b,
+          lp_asset: urlParams.get('lp_asset') || mockPoolPosition.lp_asset,
+          quantity: parseInt(urlParams.get('quantity') || '10000000', 10),
+          min_quantity_a: parseInt(urlParams.get('min_quantity_a') || '47500000', 10),
+          min_quantity_b: parseInt(urlParams.get('min_quantity_b') || '23750000', 10),
+          quantity_normalized: '0.1',
+          min_quantity_a_normalized: '0.475',
+          min_quantity_b_normalized: '0.2375',
+        };
+      }
+
       // Build dynamic response with params from request
       const dynamicResponse = {
         ...mockComposeResponse,
@@ -144,6 +258,7 @@ export async function enableValidationBypass(page: Page): Promise<void> {
         XCP: { divisible: true, supply: 2648755823622677, locked: true },
         BTC: { divisible: true, supply: 0, locked: true },
         PEPECASH: { divisible: true, supply: 1000000000000000, locked: true },
+        A95428956661682177: { divisible: true, supply: 10000000000, locked: true },
         // TESTUNLOCKED is an unlocked asset for testing issue-supply and lock-supply
         TESTUNLOCKED: { divisible: true, supply: 100000000000, locked: false },
       };

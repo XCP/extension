@@ -11,6 +11,12 @@ import {
   divideSatoshis,
   isLessThanSatoshis,
   isLessThanOrEqualToSatoshis,
+  isFiniteNumber,
+  isEqualTo,
+  isLessThan,
+  isGreaterThan,
+  isGreaterThanOrEqualTo,
+  isLessThanOrEqualTo,
   normalizeAssetSupply,
   calculateMaxDividendPerUnit,
 } from '../numeric';
@@ -247,6 +253,18 @@ describe('numeric utilities', () => {
 
     it('should maintain precision', () => {
       expect(fromSatoshis('12345678')).toBe('0.12345678');
+    });
+  });
+
+  describe('generic comparisons', () => {
+    it('compares mixed numeric inputs safely', () => {
+      expect(isFiniteNumber('1.25')).toBe(true);
+      expect(isFiniteNumber('Infinity')).toBe(false);
+      expect(isEqualTo('100', 100)).toBe(true);
+      expect(isLessThan('99.99999999', 100)).toBe(true);
+      expect(isLessThanOrEqualTo('100', 100)).toBe(true);
+      expect(isGreaterThan('100.00000001', 100)).toBe(true);
+      expect(isGreaterThanOrEqualTo('100', 100)).toBe(true);
     });
   });
 

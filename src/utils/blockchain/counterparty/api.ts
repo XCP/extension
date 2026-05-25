@@ -260,6 +260,11 @@ export interface Pool {
   [key: string]: unknown;
 }
 
+export interface PoolPosition extends Pool {
+  quantity: number;
+  quantity_normalized?: string;
+}
+
 export interface PoolQuote {
   estimated_output?: number;
   pool_output?: number;
@@ -858,6 +863,40 @@ export async function fetchPoolWithdrawQuote(
     { skipCache: true }
   );
   return data.result;
+}
+
+export async function fetchAddressPools(
+  address: string,
+  options: PaginationOptions = {}
+): Promise<PaginatedResponse<PoolPosition>> {
+  return cpApiGet<PaginatedResponse<PoolPosition>>(
+    `/v2/addresses/${encodePath(address)}/pools`,
+    {
+      verbose: options.verbose ?? true,
+      limit: options.limit ?? 100,
+      offset: options.offset ?? 0,
+    }
+  );
+}
+
+export async function fetchAddressPoolByLpAsset(
+  address: string,
+  lpAsset: string,
+  options: PaginationOptions = {}
+): Promise<PoolPosition | null> {
+  const limit = options.limit ?? 100;
+  let offset = options.offset ?? 0;
+
+  while (true) {
+    const page = await fetchAddressPools(address, { ...options, limit, offset });
+    const pool = page.result.find((position) => position.lp_asset === lpAsset);
+    if (pool) return pool;
+
+    offset += limit;
+    if (page.result.length < limit || offset >= page.result_count) {
+      return null;
+    }
+  }
 }
 
 // =============================================================================

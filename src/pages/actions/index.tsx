@@ -115,6 +115,12 @@ const getActionSections = (
           description: "Close a dispenser using its transaction hash",
           onClick: () => navigate("/compose/dispenser/close-by-hash"),
         },
+        {
+          id: "manage-pools",
+          title: "Manage Pools",
+          description: "View liquidity positions and enter pools",
+          onClick: () => navigate("/pools"),
+        },
       ],
     },
   ];

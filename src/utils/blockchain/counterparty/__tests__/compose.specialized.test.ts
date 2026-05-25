@@ -450,7 +450,11 @@ describe('Compose Specialized Operations', () => {
     });
 
     it('should compose pool withdraw with LP asset and slippage parameters', async () => {
-      await composePoolWithdraw({
+      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({
+        result: createMockComposeResult(),
+      }));
+
+      const result = await composePoolWithdraw({
         sourceAddress: mockAddress,
         sat_per_vbyte: mockSatPerVbyte,
         quantity: '1000000',
@@ -467,6 +471,7 @@ describe('Compose Specialized Operations', () => {
       expect(url).toContain('lp_asset=A77777777777777777');
       expect(url).not.toContain('asset_a=');
       expect(url).not.toContain('asset_b=');
+      expect(result.result.params.lp_asset).toBe('A77777777777777777');
     });
   });
 

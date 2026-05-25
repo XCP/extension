@@ -142,6 +142,14 @@ export const toSatoshis = (value: BigNumber | string | number): string => {
 };
 
 /**
+ * Converts a display quantity to the integer quantity expected by Counterparty APIs.
+ * Divisible assets use satoshi-style 1e8 precision; indivisible assets are whole units.
+ *
+ * @param value - The display quantity
+ * @param isDivisible - Whether the asset is divisible
+ * @returns Integer quantity as a string
+ */
+/**
  * Converts satoshis to BTC (divides by 1e8)
  *
  * @param satoshis - The value in satoshis
@@ -210,6 +218,86 @@ export const isLessThanSatoshis = (value: string | number, threshold: string | n
  * @returns Boolean indicating if value is less than or equal to threshold
  */
 export const isLessThanOrEqualToSatoshis = (value: string | number, threshold: string | number): boolean => {
+  return toBigNumber(value).isLessThanOrEqualTo(toBigNumber(threshold));
+};
+
+/**
+ * Checks if a numeric value is finite.
+ *
+ * @param value - The value to check
+ * @returns Boolean indicating if the value is finite
+ */
+export const isFiniteNumber = (value: string | number | BigNumber | null | undefined): boolean => {
+  return toBigNumber(value).isFinite();
+};
+
+/**
+ * Checks if a numeric value is equal to another.
+ *
+ * @param value - The value to compare
+ * @param threshold - The threshold to compare against
+ * @returns Boolean indicating if value is equal to threshold
+ */
+export const isEqualTo = (
+  value: string | number | BigNumber | null | undefined,
+  threshold: string | number | BigNumber | null | undefined
+): boolean => {
+  return toBigNumber(value).isEqualTo(toBigNumber(threshold));
+};
+
+/**
+ * Checks if a numeric value is less than another.
+ *
+ * @param value - The value to compare
+ * @param threshold - The threshold to compare against
+ * @returns Boolean indicating if value is less than threshold
+ */
+export const isLessThan = (
+  value: string | number | BigNumber | null | undefined,
+  threshold: string | number | BigNumber | null | undefined
+): boolean => {
+  return toBigNumber(value).isLessThan(toBigNumber(threshold));
+};
+
+/**
+ * Checks if a numeric value is greater than another.
+ *
+ * @param value - The value to compare
+ * @param threshold - The threshold to compare against
+ * @returns Boolean indicating if value is greater than threshold
+ */
+export const isGreaterThan = (
+  value: string | number | BigNumber | null | undefined,
+  threshold: string | number | BigNumber | null | undefined
+): boolean => {
+  return toBigNumber(value).isGreaterThan(toBigNumber(threshold));
+};
+
+/**
+ * Checks if a numeric value is greater than or equal to another.
+ *
+ * @param value - The value to compare
+ * @param threshold - The threshold to compare against
+ * @returns Boolean indicating if value is greater than or equal to threshold
+ */
+export const isGreaterThanOrEqualTo = (
+  value: string | number | BigNumber | null | undefined,
+  threshold: string | number | BigNumber | null | undefined
+): boolean => {
+  return toBigNumber(value).isGreaterThanOrEqualTo(toBigNumber(threshold));
+};
+
+/**
+ * Checks if a numeric value is less than or equal to another.
+ *
+ * @param value - The value to compare
+ * @param threshold - The threshold to compare against
+ * @returns Boolean indicating if value is less than or equal to threshold
+ */
+export const isLessThanOrEqualTo = (
+  value: string | number | BigNumber | null | undefined,
+  threshold: string | number | BigNumber | null | undefined
+): boolean => {
   return toBigNumber(value).isLessThanOrEqualTo(toBigNumber(threshold));
 };
 
