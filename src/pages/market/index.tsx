@@ -53,7 +53,7 @@ export default function MarketPage(): ReactElement {
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab");
   const viewMode = searchParams.get("mode") === "manage" ? "manage" : "explore";
-  const activeTab = tabParam === "dispensers" ? 0 : tabParam === "pools" || tabParam === "swaps" ? 2 : 1;
+  const activeTab = tabParam === "dispensers" ? 0 : tabParam === "pools" ? 2 : 1;
 
   const TAB_NAMES = ["dispensers", "orders", "pools"] as const;
   const setActiveTab = (tab: number) => {

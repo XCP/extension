@@ -468,60 +468,9 @@ export const market = {
   poolPositionsEmptyState: (page: Page) => page.getByText(/You don't have any LP positions|No pool positions matching/i).first(),
   enterPoolLink: (page: Page) => page.getByRole('button', { name: /Enter Pool/i }),
 
-  // Swaps routes
-  swapsTab: (page: Page) => page.getByRole('tab', { name: 'Swaps' }),
-  swapSearchInput: (page: Page) => page.getByPlaceholder(/Search.*swaps/i),
-  swapCard: (page: Page) => page.locator('[role="button"]').filter({ hasText: /BTC/ }),
-  swapEmptyState: (page: Page) => page.getByText(/No active swap listings|No swap listings/i).first(),
-  listUtxoLink: (page: Page) => page.getByText(/List a UTXO asset for sale/i),
-
   // View mode toggle (icon buttons)
   exploreToggle: (page: Page) => page.locator('button[aria-label="View mode"] button, [aria-label="View mode"] [role="tab"]').first(),
   manageToggle: (page: Page) => page.locator('button[aria-label="View mode"] button, [aria-label="View mode"] [role="tab"]').last(),
-};
-
-// ============================================================================
-// Swap List (List for Sale form)
-// ============================================================================
-
-export const swapList = {
-  // Form fields
-  utxoOutput: (page: Page) => page.locator('[role="button"]').filter({ hasText: /Balance/ }).first(),
-  priceInput: (page: Page) => page.locator('input[name="price-btc"]'),
-  priceSuggestButton: (page: Page) => page.locator('button').filter({ hasText: /Min/ }).first(),
-  expiryDropdown: (page: Page) => page.locator('[role="button"]').filter({ hasText: /No expiration|days|Custom/ }).first(),
-  continueButton: (page: Page) => page.getByRole('button', { name: /Continue/i }),
-  helpButton: (page: Page) => page.locator('button[aria-label="Toggle help text"]'),
-
-  // Review screen
-  reviewAsset: (page: Page) => page.getByText(/Asset/).first(),
-  reviewPrice: (page: Page) => page.getByText(/Price/).first(),
-  reviewExpiry: (page: Page) => page.getByText(/Listing Expires/).first(),
-  approveButton: (page: Page) => page.getByRole('button', { name: /Sign & List/i }),
-  backButton: (page: Page) => page.getByRole('button', { name: /Back/i }),
-
-  // Success
-  successMessage: (page: Page) => page.getByText(/Listing Created/i),
-  viewOnXcpdex: (page: Page) => page.getByRole('button', { name: /View on xcpdex/i }),
-
-  // Errors
-  noUtxoError: (page: Page) => page.getByText(/No UTXO specified/i),
-  noAssetsError: (page: Page) => page.getByText(/No assets found/i),
-};
-
-// ============================================================================
-// Swap Buy page
-// ============================================================================
-
-export const swapBuy = {
-  assetName: (page: Page) => page.getByText(/Asset/).first(),
-  priceDisplay: (page: Page) => page.getByText(/Price/).first(),
-  sellerDisplay: (page: Page) => page.getByText(/Seller/).first(),
-  buyButton: (page: Page) => page.getByRole('button', { name: /Sign & Buy/i }),
-  cancelButton: (page: Page) => page.getByRole('button', { name: /Cancel/ }),
-  successMessage: (page: Page) => page.getByText(/Swap Complete/i),
-  copyTxButton: (page: Page) => page.getByRole('button', { name: /Copy Transaction ID/i }),
-  mempoolLink: (page: Page) => page.getByText(/View on mempool/i),
 };
 
 // ============================================================================
@@ -531,7 +480,6 @@ export const swapBuy = {
 export const utxoDetail = {
   title: (page: Page) => page.getByText(/UTXO Details/i).first(),
   copyButton: (page: Page) => page.locator('button[aria-label="Copy UTXO"]'),
-  swapAction: (page: Page) => page.getByText(/Swap/).first(),
   moveAction: (page: Page) => page.getByText(/Move/).first(),
   detachAction: (page: Page) => page.getByText(/Detach/).first(),
 };

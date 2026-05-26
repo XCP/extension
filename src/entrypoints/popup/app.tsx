@@ -70,12 +70,6 @@ import PoolPage from '@/pages/pools/[assetA]/[assetB]';
 import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import TransactionPage from '@/pages/transactions/[txHash]';
 
-// Market - Swaps
-import SwapListPage from '@/pages/market/swaps/list';
-import SwapManagePage from '@/pages/market/swaps/manage';
-import AssetSwapsPage from '@/pages/market/swaps/[asset]';
-import SwapBuyPage from '@/pages/market/swaps/buy';
-
 // Compose
 import ComposeSendPage from '@/pages/compose/send';
 import ComposeMpmaPage from '@/pages/compose/send/mpma';
@@ -242,11 +236,6 @@ export default function App() {
             <Route path="/compose/pool/deposit" element={<ComposePoolDepositPage />} />
             <Route path="/compose/pool/deposit/:assetA/:assetB" element={<ComposePoolDepositPage />} />
             <Route path="/compose/pool/withdraw/:lpAsset" element={<ComposePoolWithdrawPage />} />
-            <Route path="/market/swaps/list" element={<SwapListPage />} />
-            <Route path="/market/swaps/manage" element={<SwapManagePage />} />
-            <Route path="/market/swaps/buy/:id" element={<SwapBuyPage />} />
-            <Route path="/market/swaps/:asset" element={<AssetSwapsPage />} />
-
             <Route path="/compose/utxo/attach/:asset" element={<ComposeUtxoAttachPage />} />
             <Route path="/compose/utxo/detach/:txId" element={<ComposeUtxoDetachPage />} />
             <Route path="/compose/utxo/move/:txId" element={<ComposeUtxoMovePage />} />

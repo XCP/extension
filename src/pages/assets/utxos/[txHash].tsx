@@ -114,12 +114,6 @@ export default function UtxoPage(): ReactElement {
       {
         items: [
           {
-            id: "swap",
-            title: "Swap",
-            description: "List this UTXO asset for sale on xcpdex.com",
-            onClick: () => navigate(`/market/swaps/list?utxo=${encodeURIComponent(txid)}`),
-          },
-          {
             id: "move",
             title: "Move",
             description: "Move this UTXO to another address",
