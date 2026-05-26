@@ -3,7 +3,7 @@
  */
 
 import { test, expect, createWallet as createWalletFlow, TEST_PASSWORD } from '@e2e/fixtures';
-import { onboarding, createWallet, index, header } from '@e2e/selectors';
+import { onboarding, createWallet, index } from '@e2e/selectors';
 import type { Page } from '@playwright/test';
 
 async function getMnemonicWords(page: Page): Promise<string[]> {
@@ -16,6 +16,14 @@ async function getMnemonicWords(page: Page): Promise<string[]> {
     result.push(word?.trim() || '');
   }
   return result;
+}
+
+async function navigateToWallets(page: Page): Promise<void> {
+  const currentUrl = page.url();
+  const hashIndex = currentUrl.indexOf('#');
+  const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : `${currentUrl}#`;
+  await page.goto(`${baseUrl}/keychain/wallets`);
+  await page.waitForURL(/keychain\/wallets/, { timeout: 5000 });
 }
 
 test.describe('Wallet Creation', () => {
@@ -64,8 +72,7 @@ test.describe('Wallet Creation', () => {
     await createWallet.continueButton(extensionPage).click();
     await extensionPage.waitForURL(/index/, { timeout: 15000 });
 
-    await header.walletSelector(extensionPage).click();
-    await extensionPage.waitForURL(/keychain\/wallets/, { timeout: 5000 });
+    await navigateToWallets(extensionPage);
     await extensionPage.getByRole('button', { name: 'Wallet options' }).click();
     await extensionPage.getByText('Show Passphrase', { exact: true }).click();
     await extensionPage.waitForURL(/keychain\/secrets\/show-passphrase/, { timeout: 5000 });
