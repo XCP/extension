@@ -3,7 +3,20 @@
  */
 
 import { test, expect, createWallet as createWalletFlow, TEST_PASSWORD } from '@e2e/fixtures';
-import { onboarding, createWallet, index } from '@e2e/selectors';
+import { onboarding, createWallet, index, header } from '@e2e/selectors';
+import type { Page } from '@playwright/test';
+
+async function getMnemonicWords(page: Page): Promise<string[]> {
+  const words = page.locator('ol li span.font-mono');
+  await expect(words).toHaveCount(12);
+
+  const result: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    const word = await words.nth(i).textContent();
+    result.push(word?.trim() || '');
+  }
+  return result;
+}
 
 test.describe('Wallet Creation', () => {
   test('shows create wallet button on first run', async ({ extensionPage }) => {
@@ -37,6 +50,31 @@ test.describe('Wallet Creation', () => {
 
     await expect(extensionPage).toHaveURL(/index/);
     await expect(index.assetsTab(extensionPage)).toBeVisible();
+  });
+
+  test('stores the exact recovery phrase shown during creation', async ({ extensionPage }) => {
+    await onboarding.createWalletButton(extensionPage).click();
+    await extensionPage.waitForURL(/keychain\/setup\/create-mnemonic/);
+
+    await createWallet.revealPhraseCard(extensionPage).click();
+    const displayedWords = await getMnemonicWords(extensionPage);
+
+    await createWallet.savedPhraseCheckbox(extensionPage).check();
+    await createWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await createWallet.continueButton(extensionPage).click();
+    await extensionPage.waitForURL(/index/, { timeout: 15000 });
+
+    await header.walletSelector(extensionPage).click();
+    await extensionPage.waitForURL(/keychain\/wallets/, { timeout: 5000 });
+    await extensionPage.getByRole('button', { name: 'Wallet options' }).click();
+    await extensionPage.getByText('Show Passphrase', { exact: true }).click();
+    await extensionPage.waitForURL(/keychain\/secrets\/show-passphrase/, { timeout: 5000 });
+
+    await createWallet.passwordInput(extensionPage).fill(TEST_PASSWORD);
+    await extensionPage.getByRole('button', { name: 'Show Recovery Phrase' }).click();
+
+    const storedWords = await getMnemonicWords(extensionPage);
+    expect(storedWords).toEqual(displayedWords);
   });
 
   test('validates password minimum length', async ({ extensionPage }) => {

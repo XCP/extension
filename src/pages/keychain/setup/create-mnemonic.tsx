@@ -17,7 +17,7 @@ function CreateMnemonicPage() {
   const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();
 
   const [mnemonic, setMnemonic] = useState(() => generateNewMnemonic());
-  const [mnemonicWords, setMnemonicWords] = useState(() => generateNewMnemonic().split(" "));
+  const mnemonicWords = mnemonic.split(" ");
   const [isRecoveryPhraseVisible, setIsRecoveryPhraseVisible] = useState(false);
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [passwordReady, setPasswordReady] = useState(false);
@@ -84,7 +84,6 @@ function CreateMnemonicPage() {
   function handleGenerateWallet() {
     const newMnemonic = generateNewMnemonic();
     setMnemonic(newMnemonic);
-    setMnemonicWords(newMnemonic.split(" "));
     setIsConfirmed(false);
     if (passwordInputRef.current) passwordInputRef.current.value = "";
     setPasswordReady(false);
