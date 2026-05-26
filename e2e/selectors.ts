@@ -459,7 +459,16 @@ export const market = {
   // Order/dispenser cards in list views
   orderCards: (page: Page) => page.getByRole('listitem').or(page.locator('[role="button"]').filter({ hasText: /BTC|XCP/ })).first(),
 
-  // Swaps tab
+  // Pools tab
+  poolsTab: (page: Page) => page.getByRole('tab', { name: 'Pools' }),
+  poolSearchInput: (page: Page) => page.getByPlaceholder(/Search pools/i),
+  poolManageSearchInput: (page: Page) => page.getByPlaceholder(/Search your pools/i),
+  poolCard: (page: Page) => page.locator('[role="button"]').filter({ hasText: /\/ XCP|XCP \// }),
+  poolEmptyState: (page: Page) => page.getByText(/No pools found|No pools matching/i).first(),
+  poolPositionsEmptyState: (page: Page) => page.getByText(/You don't have any LP positions|No pool positions matching/i).first(),
+  enterPoolLink: (page: Page) => page.getByRole('button', { name: /Enter Pool/i }),
+
+  // Swaps routes
   swapsTab: (page: Page) => page.getByRole('tab', { name: 'Swaps' }),
   swapSearchInput: (page: Page) => page.getByPlaceholder(/Search.*swaps/i),
   swapCard: (page: Page) => page.locator('[role="button"]').filter({ hasText: /BTC/ }),

@@ -31,8 +31,9 @@ export default function SwapListPage(): ReactElement {
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
   const utxoParam = searchParams.get('utxo') || '';
-  const [txid, voutStr] = utxoParam.split(':');
+  const [txid = '', voutStr = ''] = utxoParam.split(':');
   const vout = parseInt(voutStr, 10);
+  const hasValidUtxoParam = Boolean(utxoParam && txid && voutStr && Number.isInteger(vout) && vout >= 0);
 
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
   const [isLoadingUtxo, setIsLoadingUtxo] = useState(true);
@@ -81,7 +82,7 @@ export default function SwapListPage(): ReactElement {
 
   // Load UTXO balances
   useEffect(() => {
-    if (!utxoParam) {
+    if (!utxoParam || !hasValidUtxoParam) {
       setIsLoadingUtxo(false);
       return;
     }
@@ -90,7 +91,7 @@ export default function SwapListPage(): ReactElement {
       .then((res) => setBalances(res.result))
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load UTXO'))
       .finally(() => setIsLoadingUtxo(false));
-  }, [utxoParam]);
+  }, [hasValidUtxoParam, utxoParam]);
 
   const handleConfirm = async () => {
     if (!activeAddress || !priceValid || !asset) return;
@@ -155,7 +156,7 @@ export default function SwapListPage(): ReactElement {
     );
   }
 
-  if (!utxoParam || !txid) {
+  if (!utxoParam) {
     return (
       <div className="p-4">
         <ErrorAlert message="No UTXO specified. Navigate here from a UTXO details page." />
@@ -163,7 +164,23 @@ export default function SwapListPage(): ReactElement {
     );
   }
 
-  if (!isLoadingUtxo && balances.length === 0 && !error) {
+  if (!hasValidUtxoParam) {
+    return (
+      <div className="p-4">
+        <ErrorAlert message="Invalid UTXO specified. Navigate here from a UTXO details page." />
+      </div>
+    );
+  }
+
+  if (!isLoadingUtxo && error && balances.length === 0) {
+    return (
+      <div className="p-4">
+        <ErrorAlert message={error} />
+      </div>
+    );
+  }
+
+  if (!isLoadingUtxo && balances.length === 0) {
     return (
       <div className="p-4">
         <ErrorAlert message="No assets found on this UTXO. It may have been spent or detached." />

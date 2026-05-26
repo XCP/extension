@@ -1,8 +1,8 @@
 /**
- * Market Swaps Tab & Swap Listing Flow Tests
+ * Market Pools Tab & Swap Listing Flow Tests
  *
  * Tests for:
- * - Swaps tab on market page (explore + manage views)
+ * - Pools tab on market page (explore + manage views)
  * - List for Sale form (/market/swaps/list)
  * - Review screen and back navigation
  * - UTXO menu integration (Swap action)
@@ -26,77 +26,73 @@ function getBaseUrl(page: import('@playwright/test').Page): string {
 // Market Page — Swaps Tab
 // ============================================================================
 
-walletTest.describe('Market Swaps Tab', () => {
+walletTest.describe('Market Pools Tab', () => {
   walletTest.beforeEach(async ({ page }) => {
     await navigateTo(page, 'market');
     await page.waitForLoadState('networkidle');
   });
 
-  walletTest('swaps tab is visible alongside dispensers and orders', async ({ page }) => {
+  walletTest('pools tab is visible alongside dispensers and orders', async ({ page }) => {
     await expect(market.dispensersTab(page)).toBeVisible();
     await expect(market.ordersTab(page)).toBeVisible();
-    await expect(market.swapsTab(page)).toBeVisible();
+    await expect(market.poolsTab(page)).toBeVisible();
   });
 
-  walletTest('can switch to swaps tab', async ({ page }) => {
-    await market.swapsTab(page).click();
+  walletTest('can switch to pools tab', async ({ page }) => {
+    await market.poolsTab(page).click();
     await page.waitForLoadState('networkidle');
 
     // Should show search input or empty state
-    const searchInput = market.swapSearchInput(page);
-    const emptyState = market.swapEmptyState(page);
+    const searchInput = market.poolSearchInput(page);
+    const emptyState = market.poolEmptyState(page);
     await expect(searchInput.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('swaps tab has search input', async ({ page }) => {
-    await market.swapsTab(page).click();
+  walletTest('pools tab has search input', async ({ page }) => {
+    await market.poolsTab(page).click();
     await page.waitForLoadState('networkidle');
 
-    const searchInput = market.swapSearchInput(page);
+    const searchInput = market.poolSearchInput(page);
     await expect(searchInput).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('swaps explore view shows listings or empty state', async ({ page }) => {
-    await market.swapsTab(page).click();
+  walletTest('pools explore view shows pools or empty state', async ({ page }) => {
+    await market.poolsTab(page).click();
     await page.waitForLoadState('networkidle');
 
-    // Should show swap cards or empty state message
-    const swapCard = market.swapCard(page);
-    const emptyState = market.swapEmptyState(page);
-    await expect(swapCard.or(emptyState).first()).toBeVisible({ timeout: 10000 });
+    // Should show pool cards or empty state message
+    const poolCard = market.poolCard(page);
+    const emptyState = market.poolEmptyState(page);
+    await expect(poolCard.or(emptyState).first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('swaps manage view shows user listings or empty state', async ({ page }) => {
-    await market.swapsTab(page).click();
+  walletTest('pools manage view shows LP positions or empty state', async ({ page }) => {
+    await market.poolsTab(page).click();
     // Switch to manage (user icon)
     await market.manageToggle(page).click();
     await page.waitForLoadState('networkidle');
 
-    // Should show listings or empty with "List a UTXO" link
-    const emptyState = page.getByText(/You don't have any active swap listings/i);
-    const listLink = market.listUtxoLink(page);
-    const swapCard = market.swapCard(page);
+    // Should show LP positions or empty state with an enter-pool action.
+    const emptyState = market.poolPositionsEmptyState(page);
+    const enterPoolLink = market.enterPoolLink(page);
+    const poolCard = market.poolCard(page);
 
-    await expect(swapCard.or(emptyState).first()).toBeVisible({ timeout: 10000 });
-
-    // If empty, "List a UTXO" link should be visible
-    if (await emptyState.isVisible()) {
-      await expect(listLink).toBeVisible();
-    }
+    await expect(poolCard.or(emptyState).first()).toBeVisible({ timeout: 10000 });
+    await expect(enterPoolLink).toBeVisible();
   });
 
-  walletTest('search filters swap listings', async ({ page }) => {
-    await market.swapsTab(page).click();
+  walletTest('search filters pool listings', async ({ page }) => {
+    await market.poolsTab(page).click();
     await page.waitForLoadState('networkidle');
 
-    const searchInput = market.swapSearchInput(page);
+    const searchInput = market.poolSearchInput(page);
     await expect(searchInput).toBeVisible({ timeout: 10000 });
 
     // Type a search query
     await searchInput.fill('NONEXISTENTASSET999');
 
     // Should show no results
-    const noResults = page.getByText(/No swap listings matching/i);
+    const noResults = page.getByText(/No pools matching/i);
     await expect(noResults).toBeVisible({ timeout: 5000 });
   });
 });
@@ -256,19 +252,16 @@ walletTest.describe('UTXO Menu Swap Action', () => {
 // ============================================================================
 
 walletTest.describe('Swap Navigation Flows', () => {
-  walletTest('market swaps tab → manage → "List a UTXO" link navigates to UTXOs', async ({ page }) => {
+  walletTest('market pools tab -> manage -> "Enter Pool" link opens pool deposit', async ({ page }) => {
     await navigateTo(page, 'market');
     await page.waitForLoadState('networkidle');
 
-    await market.swapsTab(page).click();
+    await market.poolsTab(page).click();
     await market.manageToggle(page).click();
     await page.waitForLoadState('networkidle');
 
-    const listLink = market.listUtxoLink(page);
-    if (await listLink.isVisible()) {
-      await listLink.click();
-      await expect(page).toHaveURL(/index.*tab=UTXOs/i, { timeout: 5000 });
-    }
+    await market.enterPoolLink(page).click();
+    await expect(page).toHaveURL(/compose\/pool\/deposit/, { timeout: 5000 });
   });
 
   walletTest('view mode toggle persists across tabs', async ({ page }) => {
@@ -279,12 +272,11 @@ walletTest.describe('Swap Navigation Flows', () => {
     await market.manageToggle(page).click();
     await page.waitForLoadState('networkidle');
 
-    // Switch to swaps tab — manage mode should persist
-    await market.swapsTab(page).click();
+    // Switch to pools tab - manage mode should persist
+    await market.poolsTab(page).click();
     await page.waitForLoadState('networkidle');
 
-    // Should show manage view content (search your swaps)
-    const searchInput = page.getByPlaceholder(/Search your swaps/i);
+    const searchInput = market.poolManageSearchInput(page);
     await expect(searchInput).toBeVisible({ timeout: 10000 });
   });
 });
