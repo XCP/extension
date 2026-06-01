@@ -7,7 +7,7 @@
  * The page shows:
  * - Loading state: "Loading balance details…"
  * - Error state: "Failed to load balance information"
- * - Success state: BalanceHeader + ActionList with Send, DEX Order, etc.
+ * - Success state: BalanceHeader + ActionList with Send, Swap, etc.
  */
 
 import { walletTest, expect } from '@e2e/fixtures';
@@ -32,36 +32,29 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(sendAction).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows DEX Order action for XCP', async ({ page }) => {
+  walletTest('shows Swap action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    // XCP balance page should show DEX Order action
-    const dexOrderAction = page.locator('text="DEX Order"').first();
-    await expect(dexOrderAction).toBeVisible({ timeout: 10000 });
+    const swapAction = page.locator('text="Swap"').first();
+    await expect(swapAction).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows Dispenser action for XCP', async ({ page }) => {
+  walletTest('does not show Sell action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    // XCP balance page should show Dispenser action
-    const dispenserAction = page.locator('text="Dispenser"').first();
-    await expect(dispenserAction).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text="Sell"').first()).not.toBeVisible();
   });
 
-  walletTest('shows Attach action for XCP', async ({ page }) => {
+  walletTest('does not show Attach action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    // XCP balance page should show Attach action (with green border)
-    const attachAction = page.locator('text="Attach"').first();
-    await expect(attachAction).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text="Attach"').first()).not.toBeVisible();
   });
 
-  walletTest('shows Destroy action for XCP', async ({ page }) => {
+  walletTest('does not show Destroy action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    // XCP balance page should show Destroy action (with red border)
-    const destroyAction = page.locator('text="Destroy"').first();
-    await expect(destroyAction).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text="Destroy"').first()).not.toBeVisible();
   });
 
   walletTest('shows Send action for BTC', async ({ page }) => {
@@ -93,17 +86,17 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
   // BTC-Specific Actions
   // ============================================================================
 
-  walletTest('shows Fairmint action for BTC', async ({ page }) => {
+  walletTest('shows Mint action for BTC', async ({ page }) => {
     await navigateToBalance(page, 'BTC');
 
-    const fairmintAction = page.locator('text="Fairmint"').first();
-    await expect(fairmintAction).toBeVisible({ timeout: 10000 });
+    const mintAction = page.locator('text="Mint"').first();
+    await expect(mintAction).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('shows BTCPay action for BTC', async ({ page }) => {
+  walletTest('shows BTC Pay action for BTC', async ({ page }) => {
     await navigateToBalance(page, 'BTC');
 
-    const btcpayAction = page.locator('text="BTCPay"').first();
+    const btcpayAction = page.locator('text="BTC Pay"').first();
     await expect(btcpayAction).toBeVisible({ timeout: 10000 });
   });
 
@@ -111,11 +104,11 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
   // XCP-Specific Actions
   // ============================================================================
 
-  walletTest('shows Fairmint action for XCP', async ({ page }) => {
+  walletTest('shows Mint action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    const fairmintAction = page.locator('text="Fairmint"').first();
-    await expect(fairmintAction).toBeVisible({ timeout: 10000 });
+    const mintAction = page.locator('text="Mint"').first();
+    await expect(mintAction).toBeVisible({ timeout: 10000 });
   });
 
   // ============================================================================
@@ -132,24 +125,24 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(page).toHaveURL(/compose\/send\/XCP/, { timeout: 5000 });
   });
 
-  walletTest('DEX Order action navigates to compose/order for XCP', async ({ page }) => {
+  walletTest('Swap action navigates to compose/order for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    const dexAction = page.locator('button:has-text("DEX Order"), div[role="button"]:has-text("DEX Order")').first();
-    await expect(dexAction).toBeVisible({ timeout: 10000 });
-    await dexAction.click();
+    const swapAction = page.locator('button:has-text("Swap"), div[role="button"]:has-text("Swap")').first();
+    await expect(swapAction).toBeVisible({ timeout: 10000 });
+    await swapAction.click();
 
     await expect(page).toHaveURL(/compose\/order\/XCP/, { timeout: 5000 });
   });
 
-  walletTest('Dispenser action navigates to compose/dispenser for XCP', async ({ page }) => {
-    await navigateToBalance(page, 'XCP');
+  walletTest('Sell action navigates to compose/dispenser for other assets', async ({ page }) => {
+    await navigateToBalance(page, 'PEPECASH');
 
-    const dispenserAction = page.locator('button:has-text("Dispenser"), div[role="button"]:has-text("Dispenser")').first();
-    await expect(dispenserAction).toBeVisible({ timeout: 10000 });
-    await dispenserAction.click();
+    const sellAction = page.locator('button:has-text("Sell"), div[role="button"]:has-text("Sell")').first();
+    await expect(sellAction).toBeVisible({ timeout: 10000 });
+    await sellAction.click();
 
-    await expect(page).toHaveURL(/compose\/dispenser\/XCP/, { timeout: 5000 });
+    await expect(page).toHaveURL(/compose\/dispenser\/PEPECASH/, { timeout: 5000 });
   });
 
   walletTest('LP asset shows Manage Pool action and navigates to pool page', async ({ page }) => {
@@ -161,26 +154,6 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await managePoolAction.click();
 
     await expect(page).toHaveURL(/\/pools\/A95428956661682177/, { timeout: 5000 });
-  });
-
-  walletTest('Attach action navigates to compose/utxo/attach for XCP', async ({ page }) => {
-    await navigateToBalance(page, 'XCP');
-
-    const attachAction = page.locator('button:has-text("Attach"), div[role="button"]:has-text("Attach")').first();
-    await expect(attachAction).toBeVisible({ timeout: 10000 });
-    await attachAction.click();
-
-    await expect(page).toHaveURL(/compose\/utxo\/attach\/XCP/, { timeout: 5000 });
-  });
-
-  walletTest('Destroy action navigates to compose/issuance/destroy for XCP', async ({ page }) => {
-    await navigateToBalance(page, 'XCP');
-
-    const destroyAction = page.locator('button:has-text("Destroy"), div[role="button"]:has-text("Destroy")').first();
-    await expect(destroyAction).toBeVisible({ timeout: 10000 });
-    await destroyAction.click();
-
-    await expect(page).toHaveURL(/compose\/issuance\/destroy\/XCP/, { timeout: 5000 });
   });
 
   walletTest('Send action navigates to compose/send for BTC', async ({ page }) => {
@@ -213,34 +186,6 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     // Each action should have a description
     await expect(page.locator('text="Send this asset to another address"')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text="Create a new order on the DEX"')).toBeVisible({ timeout: 10000 });
-  });
-
-  walletTest('Attach action has green border styling', async ({ page }) => {
-    await navigateToBalance(page, 'XCP');
-
-    // Attach action should have green border class
-    const attachAction = page.locator('button:has-text("Attach"), div[role="button"]:has-text("Attach")').first();
-    await expect(attachAction).toBeVisible({ timeout: 10000 });
-
-    // Check if parent or self has the green border class
-    const hasGreenBorder = await attachAction.evaluate((el) => {
-      return el.className.includes('border-green') || el.closest('.border-green-500') !== null;
-    });
-    expect(hasGreenBorder).toBe(true);
-  });
-
-  walletTest('Destroy action has red border styling', async ({ page }) => {
-    await navigateToBalance(page, 'XCP');
-
-    // Destroy action should have red border class
-    const destroyAction = page.locator('button:has-text("Destroy"), div[role="button"]:has-text("Destroy")').first();
-    await expect(destroyAction).toBeVisible({ timeout: 10000 });
-
-    // Check if parent or self has the red border class
-    const hasRedBorder = await destroyAction.evaluate((el) => {
-      return el.className.includes('border-red') || el.closest('.border-red-500') !== null;
-    });
-    expect(hasRedBorder).toBe(true);
   });
 
   walletTest('back button navigates to index', async ({ page }) => {

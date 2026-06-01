@@ -20,7 +20,7 @@ import type { Wallet } from '@/types/wallet';
 function WalletsPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, activeWallet, selectWallet } = useWallet();
+  const { wallets, activeWallet, activeAddress, selectWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
 
   // Constants for paths
@@ -76,6 +76,7 @@ function WalletsPage() {
         <WalletList
           wallets={wallets}
           selectedWallet={activeWallet}
+          selectedAddress={activeAddress}
           onSelectWallet={handleSelectWalletInternal}
         />
       </div>

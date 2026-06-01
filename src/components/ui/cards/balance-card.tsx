@@ -11,7 +11,7 @@ import { formatAmount, formatAsset } from "@/utils/format";
 interface BalanceCardProps {
   /** The token balance data to display */
   token: TokenBalance;
-  /** Optional custom click handler - if not provided, defaults to navigation to send page */
+  /** Optional custom click handler - if not provided, defaults to navigation to balance page */
   onClick?: (asset: string) => void;
   /** Whether to show the balance menu - defaults to true */
   showMenu?: boolean;
@@ -26,7 +26,7 @@ interface BalanceCardProps {
  * - Asset icon and formatted name
  * - Formatted balance amount with proper decimal places
  * - Optional balance menu for actions
- * - Click navigation to send composition page
+ * - Click navigation to balance detail page
  * 
  * @param props - The component props
  * @returns A ReactElement representing the balance card
@@ -48,12 +48,12 @@ export function BalanceCard({
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
 
-  // Handle card click - use custom handler or default to send navigation
+  // Handle card click - use custom handler or default to balance navigation
   const handleClick = () => {
     if (onClick) {
       onClick(token.asset);
     } else {
-      navigate(`/compose/send/${encodeURIComponent(token.asset)}`);
+      navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
     }
   };
 

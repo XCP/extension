@@ -33,7 +33,7 @@ interface ComposerProps<T> {
 
   // Components
   FormComponent: (props: {
-    formAction: (formData: FormData) => void;
+    formAction: (formData: FormData) => void | Promise<void>;
     initialFormData: T | null;
     error?: string | null;
     showHelpText?: boolean;
@@ -166,7 +166,7 @@ function ComposerInner<T>({
   // Handle form submission - wrapped to prevent unmount
   const handleFormAction = useCallback((formData: FormData) => {
     // Call synchronously to prevent unmount
-    composeTransaction(formData);
+    return composeTransaction(formData);
   }, [composeTransaction]);
 
   // Render based on current step

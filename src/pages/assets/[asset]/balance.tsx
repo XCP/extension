@@ -54,28 +54,46 @@ export default function AssetBalancePage(): ReactElement {
 
   /**
    * Generates a list of available actions based on the asset type.
-   * Actions are determined by asset name (BTC, XCP, other) - no API data needed.
-   * @returns {ActionSection[]} The list of actionable options for the balance.
    */
   const getActionSections = (): ActionSection[] => {
     if (!asset) return [];
     const isBTC = asset === "BTC";
     const isXCP = asset === "XCP";
+    const encodedAsset = encodeURIComponent(asset);
+
+    const sendAction = {
+      id: "send",
+      title: "Send",
+      description: isBTC ? "Send bitcoin to another address" : "Send this asset to another address",
+      onClick: () => navigate(`${PATHS.COMPOSE}/send/${encodedAsset}`),
+    };
+
+    const swapAction = {
+      id: "swap",
+      title: "Swap",
+      description: "Create a new order on the DEX",
+      onClick: () => navigate(`${PATHS.COMPOSE}/order/${encodedAsset}`),
+    };
+
+    const mintAction = {
+      id: "mint",
+      title: "Mint",
+      description: "Trigger an open asset fairminter",
+      onClick: () => navigate(`${PATHS.COMPOSE}/fairmint/${encodedAsset}`),
+    };
+
+    const sellAction = {
+      id: "sell",
+      title: "Sell",
+      description: "Create a new dispenser for this asset",
+      onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${encodedAsset}`),
+    };
 
     const items = isBTC
       ? [
-          {
-            id: "send",
-            title: "Send",
-            description: "Send bitcoin to another address",
-            onClick: () => navigate(`${PATHS.COMPOSE}/send/BTC`),
-          },
-          {
-            id: "order",
-            title: "DEX Order",
-            description: "Create a new order on the DEX",
-            onClick: () => navigate(`${PATHS.COMPOSE}/order/BTC`),
-          },
+          sendAction,
+          swapAction,
+          mintAction,
           {
             id: "dispense",
             title: "Dispense",
@@ -83,93 +101,15 @@ export default function AssetBalancePage(): ReactElement {
             onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/dispense`),
           },
           {
-            id: "fairmint",
-            title: "Fairmint",
-            description: "Trigger an open asset fairminter",
-            onClick: () => navigate(`${PATHS.COMPOSE}/fairmint/BTC`),
-          },
-          {
             id: "btcpay",
-            title: "BTCPay",
+            title: "BTC Pay",
             description: "Pay for an order match with BTC",
             onClick: () => navigate(`${PATHS.COMPOSE}/order/btcpay`),
           },
         ]
       : isXCP
-      ? [
-          {
-            id: "send",
-            title: "Send",
-            description: "Send this asset to another address",
-            onClick: () => navigate(`${PATHS.COMPOSE}/send/${asset}`),
-          },
-          {
-            id: "order",
-            title: "DEX Order",
-            description: "Create a new order on the DEX",
-            onClick: () => navigate(`${PATHS.COMPOSE}/order/${asset}`),
-          },
-          {
-            id: "dispenser",
-            title: "Dispenser",
-            description: "Create a new dispenser for this asset",
-            onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${asset}`),
-          },
-          {
-            id: "fairmint",
-            title: "Fairmint",
-            description: "Trigger an open asset fairminter",
-            onClick: () => navigate(`${PATHS.COMPOSE}/fairmint/XCP`),
-          },
-          {
-            id: "attach",
-            title: "Attach",
-            description: "Attach this asset to a Bitcoin UTXO",
-            onClick: () => navigate(`${PATHS.COMPOSE}/utxo/attach/${asset}`),
-            className: "!border !border-green-500",
-          },
-          {
-            id: "destroy",
-            title: "Destroy",
-            description: "Permanently destroy token supply",
-            onClick: () => navigate(`${PATHS.COMPOSE}/issuance/destroy/${asset}`),
-            className: "!border !border-red-500",
-          },
-        ]
-      : [
-          {
-            id: "send",
-            title: "Send",
-            description: "Send this asset to another address",
-            onClick: () => navigate(`${PATHS.COMPOSE}/send/${asset}`),
-          },
-          {
-            id: "order",
-            title: "DEX Order",
-            description: "Create a new order on the DEX",
-            onClick: () => navigate(`${PATHS.COMPOSE}/order/${asset}`),
-          },
-          {
-            id: "dispenser",
-            title: "Dispenser",
-            description: "Create a new dispenser for this asset",
-            onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${asset}`),
-          },
-          {
-            id: "attach",
-            title: "Attach",
-            description: "Attach this asset to a Bitcoin UTXO",
-            onClick: () => navigate(`${PATHS.COMPOSE}/utxo/attach/${asset}`),
-            className: "!border !border-green-500",
-          },
-          {
-            id: "destroy",
-            title: "Destroy",
-            description: "Permanently destroy token supply",
-            onClick: () => navigate(`${PATHS.COMPOSE}/issuance/destroy/${asset}`),
-            className: "!border !border-red-500",
-          },
-        ];
+      ? [sendAction, swapAction, mintAction]
+      : [sendAction, sellAction, swapAction];
     if (lpPool) {
       return [
         {

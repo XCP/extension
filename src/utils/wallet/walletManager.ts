@@ -220,6 +220,46 @@ export class WalletManager {
     return this.wallets.find((w) => w.id === id);
   }
 
+  public async isAddressInAnyWallet(address: string): Promise<boolean> {
+    const normalizedAddress = address.toLowerCase();
+
+    for (const wallet of this.wallets) {
+      if (wallet.previewAddress?.toLowerCase() === normalizedAddress) {
+        return true;
+      }
+      if (wallet.addresses.some((addr) => addr.address.toLowerCase() === normalizedAddress)) {
+        return true;
+      }
+    }
+
+    if (!this.keychain) {
+      return false;
+    }
+
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) {
+      return false;
+    }
+
+    for (const record of this.keychain.wallets) {
+      const wallet = this.getWalletById(record.id);
+      if (wallet?.addresses.length) {
+        continue;
+      }
+
+      try {
+        const secret = await decryptWithKey(record.encryptedSecret, masterKey);
+        const addresses = this.deriveAddressesFromSecret(secret, record);
+        if (addresses.some((addr) => addr.address.toLowerCase() === normalizedAddress)) {
+          return true;
+        }
+      } catch {
+        // Ignore wallets that cannot be checked and continue with the rest.
+      }
+    }
+
+    return false;
+  }
 
   public async getUnencryptedMnemonic(walletId: string): Promise<string> {
     const secret = await sessionManager.getUnlockedSecret(walletId);

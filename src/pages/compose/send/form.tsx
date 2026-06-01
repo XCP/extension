@@ -8,15 +8,15 @@ import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { validateQuantity } from "@/utils/validation/amount";
-import { toSatoshis } from "@/utils/numeric";
+import { validateAmount, validateQuantity } from "@/utils/validation/amount";
+import { formatMoreOutputs } from "@/utils/format";
 import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
 import type { Destination } from "@/utils/validation/destinations";
 import type { ReactElement } from "react";
 import { ErrorAlert } from "@/components/ui/error-alert";
 
 interface SendFormProps {
-  formAction: (formData: FormData) => void;
+  formAction: (formData: FormData) => void | Promise<void>;
   initialAsset?: string;
   initialFormData: SendOptions | null;
 }
@@ -28,7 +28,7 @@ export function SendForm({
 }: SendFormProps): ReactElement {
   // Get everything from composer context
   const { activeAddress, settings, showHelpText, feeRate } = useComposer<SendOptions>();
-  const { activeWallet } = useWallet();
+  const { activeWallet, isAddressInAnyWallet } = useWallet();
   const enableMPMA = settings?.enableMPMA ?? false;
   const enableMoreOutputs = settings?.enableMoreOutputs ?? false;
 
@@ -101,7 +101,7 @@ export function SendForm({
     setValidationError(null);
   };
 
-  const handleFormAction = (formData: FormData) => {
+  const handleFormAction = async (formData: FormData) => {
     if (amount) {
       formData.set("quantity", amount);
     }
@@ -118,15 +118,18 @@ export function SendForm({
 
       // Prevent triggering dispensers when sending BTC to self,
       // or when attaching BTC via more_outputs (the extra BTC could trigger a dispenser)
-      const isOwnAddress = activeWallet?.addresses.some(a => a.address === destination);
-      const hasBtcOutput = showBtcOutput && btcAmount && Number(toSatoshis(btcAmount)) > 0;
-      if ((asset === "BTC" && isOwnAddress) || hasBtcOutput) {
+      let isOwnAddress = activeWallet?.addresses.some(a => a.address === destination) ?? false;
+      if (!isOwnAddress) {
+        isOwnAddress = await isAddressInAnyWallet(destination);
+      }
+      const moreOutputs = showBtcOutput ? formatMoreOutputs(btcAmount, destination) : undefined;
+      if ((asset === "BTC" && isOwnAddress) || moreOutputs) {
         formData.set("no_dispense", "true");
       }
 
       // Add more_outputs if BTC amount is set (format: <sats>:<address>)
-      if (hasBtcOutput) {
-        formData.set("more_outputs", `${toSatoshis(btcAmount)}:${destination}`);
+      if (moreOutputs) {
+        formData.set("more_outputs", moreOutputs);
       }
     }
 
@@ -135,7 +138,7 @@ export function SendForm({
       formData.set("memo", memo);
     }
 
-    formAction(formData);
+    return formAction(formData);
   };
 
   // Validation helpers
@@ -150,7 +153,7 @@ export function SendForm({
     return validation.isValid;
   };
 
-  const isBtcAmountValid = !showBtcOutput || (btcAmount !== '' && Number(toSatoshis(btcAmount)) > 0);
+  const isBtcAmountValid = !showBtcOutput || validateAmount(btcAmount).isValid;
 
   const isSubmitDisabled = !isAmountValid() || !destinationsValid || !memoValid || !isBtcAmountValid;
 

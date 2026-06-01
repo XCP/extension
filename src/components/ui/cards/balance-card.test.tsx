@@ -103,7 +103,7 @@ describe('BalanceCard', () => {
     expect(screen.getByText('5.00000000')).toBeInTheDocument();
   });
 
-  it('navigates to send page on click by default', () => {
+  it('navigates to balance page on click by default', () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} />
@@ -112,7 +112,7 @@ describe('BalanceCard', () => {
 
     fireEvent.click(screen.getByText('XCP'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/send/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP/balance');
   });
 
   it('calls custom onClick handler when provided', () => {
@@ -166,7 +166,7 @@ describe('BalanceCard', () => {
     // The text is shortened to "ASSET/W..." by formatAsset with shorten: true
     fireEvent.click(screen.getByText('ASSET/W...'));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/send/ASSET%2FWITH%2BSPECIAL%26CHARS');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/ASSET%2FWITH%2BSPECIAL%26CHARS/balance');
   });
 
   it('handles token without asset_info gracefully', () => {

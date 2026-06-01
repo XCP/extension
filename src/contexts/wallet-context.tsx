@@ -191,6 +191,8 @@ interface WalletContextType {
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   /** Preview what address would be generated for a format */
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  /** Check whether an address belongs to any wallet in the keychain */
+  isAddressInAnyWallet: (address: string) => Promise<boolean>;
   /** Remove a wallet from the extension */
   removeWallet: (walletId: string) => Promise<void>;
   /** Reset all wallets (factory reset) */
@@ -563,6 +565,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     verifyPassword: walletService.verifyPassword,
     updateWalletAddressFormat: withRefresh(walletService.updateWalletAddressFormat, refreshWalletState),
     getPreviewAddressForFormat: walletService.getPreviewAddressForFormat,
+    isAddressInAnyWallet: walletService.isAddressInAnyWallet,
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
     broadcastTransaction: walletService.broadcastTransaction,

@@ -122,6 +122,30 @@ describe('WalletCard', () => {
     expect(screen.getByText('No address')).toBeInTheDocument();
   });
 
+  it('uses displayAddress when provided', () => {
+    const activeAddress = {
+      name: 'Address 7',
+      address: 'bc1qaddress7thatshouldbeshowninsteadofaddress0123456789',
+      path: "m/84'/0'/0'/0/7",
+      pubKey: 'mockpublickey7'
+    };
+
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={true}
+          displayAddress={activeAddress}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('bc1qaddr...23456789')).toBeInTheDocument();
+    expect(screen.queryByText('bc1qw508...7kv8f3t4')).not.toBeInTheDocument();
+  });
+
   it('applies selected styles when checked', () => {
     const { container } = render(
       <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>

@@ -6,10 +6,11 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock WalletCard component
 vi.mock('@/components/ui/cards/wallet-card', () => ({
-  WalletCard: ({ wallet, selected, onSelect, isOnlyWallet }: any) => (
+  WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet }: any) => (
     <div
       data-testid={`wallet-card-${wallet.id}`}
       data-selected={selected}
+      data-display-address={displayAddress?.address || ''}
       data-only={isOnlyWallet}
       onClick={() => onSelect(wallet)}
       role="radio"
@@ -76,6 +77,28 @@ describe('WalletList', () => {
     const selectedCard = screen.getByTestId('wallet-card-wallet-2');
     expect(selectedCard).toHaveAttribute('data-selected', 'true');
     expect(selectedCard).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('should pass selected address only to selected wallet', () => {
+    const selectedAddress = {
+      name: 'Address 7',
+      address: 'bc1qselectedaddress7',
+      path: "m/84'/0'/0'/0/7",
+      pubKey: 'pubkey7'
+    };
+
+    render(
+      <WalletList
+        wallets={mockWallets}
+        selectedWallet={mockWallets[1]}
+        selectedAddress={selectedAddress}
+        onSelectWallet={mockOnSelectWallet}
+      />
+    );
+
+    expect(screen.getByTestId('wallet-card-wallet-1')).toHaveAttribute('data-display-address', '');
+    expect(screen.getByTestId('wallet-card-wallet-2')).toHaveAttribute('data-display-address', 'bc1qselectedaddress7');
+    expect(screen.getByTestId('wallet-card-wallet-3')).toHaveAttribute('data-display-address', '');
   });
 
   it('should call onSelectWallet when wallet is clicked', () => {

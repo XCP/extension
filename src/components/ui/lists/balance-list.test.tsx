@@ -291,7 +291,7 @@ describe('BalanceList', () => {
     expect(mockSetSearchQuery).toHaveBeenCalledWith('');
   });
 
-  it('should navigate when balance item clicked', async () => {
+  it('should navigate to balance details when balance item clicked', async () => {
     mockFetchTokenBalance.mockResolvedValueOnce(mockTokenBalances[0]);
     
     render(<BalanceList />);
@@ -305,7 +305,7 @@ describe('BalanceList', () => {
       fireEvent.click(balanceItem!);
     });
     
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/send/XCP');
+    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP/balance');
   });
 
   it('should render asset images with correct URLs', async () => {

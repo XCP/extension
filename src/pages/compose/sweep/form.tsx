@@ -12,8 +12,12 @@ import {
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { formatMoreOutputs } from "@/utils/format";
+import { validateAmount } from "@/utils/validation/amount";
 import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
@@ -29,7 +33,7 @@ const sweepTypeOptions = [
 ];
 
 interface SweepFormProps {
-  formAction: (formData: FormData) => void;
+  formAction: (formData: FormData) => void | Promise<void>;
   initialFormData: SweepOptions | null;
 }
 
@@ -38,7 +42,10 @@ export function SweepForm({
   initialFormData
 }: SweepFormProps): ReactElement {
   // Get everything from composer context
-  const { activeAddress, activeWallet, showHelpText } = useComposer<SweepOptions>();
+  const { activeAddress, activeWallet, settings, showHelpText, feeRate } = useComposer<SweepOptions>();
+  const enableMoreOutputs = settings?.enableMoreOutputs ?? false;
+  const { data: btcDetails } = useAssetDetails("BTC");
+  const btcBalance = btcDetails?.availableBalance || "0";
   
   // Use form status for pending state
   const { pending } = useFormStatus();
@@ -48,6 +55,8 @@ export function SweepForm({
   const [destinationValid, setDestinationValid] = useState(false);
   const [memo, setMemo] = useState(initialFormData?.memo || "");
   const [memoValid, setMemoValid] = useState(true);
+  const [showBtcOutput, setShowBtcOutput] = useState(false);
+  const [btcAmount, setBtcAmount] = useState("");
   const [selectedSweepType, setSelectedSweepType] = useState(
     sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]
   );
@@ -60,9 +69,23 @@ export function SweepForm({
     destinationRef.current?.focus();
   }, []);
 
+  const moreOutputs = showBtcOutput ? formatMoreOutputs(btcAmount, destination) : undefined;
+  const isBtcAmountValid = !showBtcOutput || validateAmount(btcAmount).isValid;
+  const isSubmitDisabled = !destinationValid || !memoValid || !isBtcAmountValid;
+
+  const handleFormAction = (formData: FormData) => {
+    if (moreOutputs) {
+      formData.set("more_outputs", moreOutputs);
+    } else {
+      formData.delete("more_outputs");
+    }
+
+    return formAction(formData);
+  };
+
   return (
     <ComposerForm
-      formAction={formAction}
+      formAction={handleFormAction}
       header={
         activeAddress && (
           <AddressHeader 
@@ -73,7 +96,7 @@ export function SweepForm({
         )
       }
       submitText="Sweep"
-      submitDisabled={!destinationValid || !memoValid}
+      submitDisabled={isSubmitDisabled}
     >
       <Field>
         <Label className="block text-sm font-medium text-gray-700">
@@ -122,6 +145,45 @@ export function SweepForm({
         name="destination_display"
         helpText="Enter the address to sweep all assets to."
       />
+
+      {enableMoreOutputs && (
+        <>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setShowBtcOutput(!showBtcOutput);
+                if (showBtcOutput) setBtcAmount("");
+              }}
+              className="text-xs font-normal text-blue-600 hover:text-blue-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+              disabled={pending}
+            >
+              {showBtcOutput ? "- BTC" : "+ BTC"}
+            </button>
+          </div>
+
+          {showBtcOutput && (
+            <AmountWithMaxInput
+              asset="BTC"
+              availableBalance={btcBalance}
+              value={btcAmount}
+              onChange={setBtcAmount}
+              feeRate={feeRate}
+              setError={() => {}}
+              sourceAddress={activeAddress}
+              maxAmount={btcBalance}
+              showHelpText={showHelpText}
+              label="Add BTC"
+              placeholder="0.00000000 BTC"
+              name="btc_output_display"
+              description="BTC to send alongside the sweep to the same destination."
+              disabled={pending}
+              isDivisible={true}
+              extraOutputCount={1}
+            />
+          )}
+        </>
+      )}
 
       <input type="hidden" name="memo" value={memo} />
       <MemoInput

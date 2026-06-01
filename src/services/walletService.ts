@@ -56,6 +56,7 @@ interface WalletService {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  isAddressInAnyWallet: (address: string) => Promise<boolean>;
   signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
   signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
@@ -174,6 +175,9 @@ function createWalletService(): WalletService {
     },
     getPreviewAddressForFormat: async (walletId, addressFormat) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
+    },
+    isAddressInAnyWallet: async (address) => {
+      return walletManager.isAddressInAnyWallet(address);
     },
     signTransaction: async (rawTxHex, sourceAddress, options) => {
       return walletManager.signTransaction(rawTxHex, sourceAddress, options);

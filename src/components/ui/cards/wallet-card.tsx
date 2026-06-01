@@ -1,6 +1,6 @@
 import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/types/wallet';
+import type { Address, Wallet } from '@/types/wallet';
 import { formatAddress } from '@/utils/format';
 import { WalletMenu } from '@/components/ui/menus/wallet-menu';
 import { FiShield } from '@/components/icons';
@@ -10,6 +10,7 @@ interface WalletCardProps {
   selected: boolean;
   onSelect: (wallet: Wallet) => void;
   isOnlyWallet: boolean;
+  displayAddress?: Address | null;
 }
 
 /**
@@ -18,12 +19,13 @@ interface WalletCardProps {
  * @param props - The component props
  * @returns A ReactElement representing the wallet card
  */
-export function WalletCard({ wallet, selected, onSelect, isOnlyWallet }: WalletCardProps): ReactElement {
-  // Use first address if unlocked, otherwise fall back to previewAddress
+export function WalletCard({ wallet, selected, onSelect, isOnlyWallet, displayAddress }: WalletCardProps): ReactElement {
+  // Use the active address for the selected wallet, otherwise fall back to address 0.
   const primaryAddress =
-    wallet.addresses.length > 0
+    displayAddress?.address ||
+    (wallet.addresses.length > 0
       ? wallet.addresses[0].address
-      : wallet.previewAddress || 'No address';
+      : wallet.previewAddress || 'No address');
 
   const handleClick = (e: React.MouseEvent) => {
     // Only select the wallet if the menu wasn't clicked

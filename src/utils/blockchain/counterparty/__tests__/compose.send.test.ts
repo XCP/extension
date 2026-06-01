@@ -325,6 +325,19 @@ describe('Compose Send Operations', () => {
         expect(actualUrl).toContain(`flags=${flags}`);
       }
     });
+
+    it('should include more_outputs when provided', async () => {
+      await composeSweep({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        more_outputs: `10000:${mockDestAddress}`,
+      });
+
+      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const url = new URL(actualUrl);
+      expect(url.searchParams.get('more_outputs')).toBe(`10000:${mockDestAddress}`);
+    });
   });
 
   describe('getSweepEstimateXcpFee', () => {

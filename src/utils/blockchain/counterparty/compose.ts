@@ -932,6 +932,7 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     destination,
     flags,
     memo = '',
+    more_outputs,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -940,9 +941,14 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
     destination,
     flags: flags.toString(),
     memo,
+    ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const response = await composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (more_outputs && response.result?.params) {
+    response.result.params.more_outputs = more_outputs;
+  }
+  return response;
 }
 
 export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {

@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { parseMoreOutputs } from "@/utils/format";
 
 /**
  * Props for the ReviewSweep component.
@@ -24,9 +25,13 @@ export function ReviewSweep({
   isSigning
 }: ReviewSweepProps) {
   const { result } = apiResponse;
+  const moreOutput = parseMoreOutputs(result.params.more_outputs);
 
   const customFields = [
     { label: "Destination", value: result.params.destination },
+    ...(moreOutput
+      ? [{ label: "Additional BTC Output", value: `${moreOutput.btc} BTC to ${moreOutput.destination}` }]
+      : []),
     ...(result.params.memo ? [{ label: "Memo", value: result.params.memo }] : []),
     ...(result.params.flag !== undefined
       ? [{ label: "Flag", value: result.params.flag.toString() }]

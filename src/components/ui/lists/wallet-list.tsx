@@ -1,11 +1,12 @@
 import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
-import type { Wallet } from '@/types/wallet';
+import type { Address, Wallet } from '@/types/wallet';
 import { WalletCard } from '@/components/ui/cards/wallet-card';
 
 interface WalletListProps {
   wallets: Wallet[];
   selectedWallet: Wallet | null;
+  selectedAddress?: Address | null;
   onSelectWallet: (wallet: Wallet) => void;
 }
 
@@ -15,7 +16,7 @@ interface WalletListProps {
  * @param props - The component props
  * @returns A ReactElement representing the wallet list
  */
-export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletListProps): ReactElement {
+export function WalletList({ wallets, selectedWallet, selectedAddress, onSelectWallet }: WalletListProps): ReactElement {
   const handleWalletChange = (wallet: Wallet | null) => {
     if (wallet) {
       onSelectWallet(wallet);
@@ -33,6 +34,7 @@ export function WalletList({ wallets, selectedWallet, onSelectWallet }: WalletLi
           key={wallet.id}
           wallet={wallet}
           selected={selectedWallet?.id === wallet.id}
+          displayAddress={selectedWallet?.id === wallet.id ? selectedAddress : null}
           onSelect={onSelectWallet}
           isOnlyWallet={wallets.length === 1}
         />

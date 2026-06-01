@@ -1,104 +1,78 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaTools } from '@/components/icons';
+import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaPaperPlane } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/ui/button';
 
-/**
- * Props for the BalanceMenu component
- */
 interface BalanceMenuProps {
-  /** The asset symbol for the balance */
   asset: string;
 }
 
 /**
- * BalanceMenu Component
- *
  * Provides quick actions for token balances based on asset type:
- * - BTC: Dispenser, Fairminter, More…
- * - XCP: DEX Order, Dispenser, Fairminter, More…
- * - Other: DEX Order, Dispenser, More…
- *
- * @param props - The component props
- * @returns A ReactElement representing the balance menu
+ * - BTC: Send, Swap, Mint
+ * - XCP: Send, Swap, Mint
+ * - Other assets: Send, Sell, Swap
  */
 export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   const navigate = useNavigate();
-  const isBTC = asset === "BTC";
-  const isXCP = asset === "XCP";
+  const isBTC = asset === 'BTC';
+  const isXCP = asset === 'XCP';
+  const encodedAsset = encodeURIComponent(asset);
 
-  const handleOrder = useCallback(() => {
-    navigate(`/compose/order/${encodeURIComponent(asset)}`);
-  }, [asset, navigate]);
+  const handleSend = useCallback(() => {
+    navigate(`/compose/send/${encodedAsset}`);
+  }, [encodedAsset, navigate]);
 
-  const handleDispense = useCallback(() => {
-    navigate('/compose/dispenser/dispense');
-  }, [navigate]);
+  const handleSwap = useCallback(() => {
+    navigate(`/compose/order/${encodedAsset}`);
+  }, [encodedAsset, navigate]);
 
-  const handleDispenser = useCallback(() => {
-    navigate(`/compose/dispenser/${encodeURIComponent(asset)}`);
-  }, [asset, navigate]);
+  const handleMint = useCallback(() => {
+    navigate(`/compose/fairmint/${encodedAsset}`);
+  }, [encodedAsset, navigate]);
 
-  const handleFairmint = useCallback(() => {
-    navigate(`/compose/fairmint/${encodeURIComponent(asset)}`);
-  }, [asset, navigate]);
-
-  const handleAllOptions = useCallback(() => {
-    navigate(`/assets/${encodeURIComponent(asset)}/balance`);
-  }, [asset, navigate]);
+  const handleSell = useCallback(() => {
+    navigate(`/compose/dispenser/${encodedAsset}`);
+  }, [encodedAsset, navigate]);
 
   return (
     <BaseMenu
       trigger={<BsThreeDots className="size-4" aria-hidden="true" />}
       ariaLabel="Balance actions"
     >
-      {isBTC ? (
-        <>
-          <MenuItem>
-            <Button variant="menu-item" fullWidth onClick={handleDispense}>
-              <FaBitcoin className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              Dispenser
-            </Button>
-          </MenuItem>
-          <MenuItem>
-            <Button variant="menu-item" fullWidth onClick={handleFairmint}>
-              <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              Fairminter
-            </Button>
-          </MenuItem>
-        </>
-      ) : (
-        <>
-          <MenuItem>
-            <Button variant="menu-item" fullWidth onClick={handleOrder}>
-              <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              DEX Order
-            </Button>
-          </MenuItem>
-          <MenuItem>
-            <Button variant="menu-item" fullWidth onClick={handleDispenser}>
-              <FaBitcoin className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-              Dispenser
-            </Button>
-          </MenuItem>
-          {isXCP && (
-            <MenuItem>
-              <Button variant="menu-item" fullWidth onClick={handleFairmint}>
-                <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-                Fairminter
-              </Button>
-            </MenuItem>
-          )}
-        </>
-      )}
       <MenuItem>
-        <Button variant="menu-item" fullWidth onClick={handleAllOptions}>
-          <FaTools className="mr-3 size-4 text-gray-600" aria-hidden="true" />
-          More…
+        <Button variant="menu-item" fullWidth onClick={handleSend}>
+          <FaPaperPlane className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+          Send
         </Button>
       </MenuItem>
+
+      {!isXCP && !isBTC && (
+        <MenuItem>
+          <Button variant="menu-item" fullWidth onClick={handleSell}>
+            <FaBitcoin className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+            Sell
+          </Button>
+        </MenuItem>
+      )}
+
+      <MenuItem>
+        <Button variant="menu-item" fullWidth onClick={handleSwap}>
+          <FaExchangeAlt className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+          Swap
+        </Button>
+      </MenuItem>
+
+      {(isBTC || isXCP) && (
+        <MenuItem>
+          <Button variant="menu-item" fullWidth onClick={handleMint}>
+            <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+            Mint
+          </Button>
+        </MenuItem>
+      )}
     </BaseMenu>
   );
 }

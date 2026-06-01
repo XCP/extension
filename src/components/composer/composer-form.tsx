@@ -10,7 +10,7 @@ import { useComposer } from "@/contexts/composer-context";
 export interface ComposerFormProps {
   // Required props
   children: ReactNode;
-  formAction: (formData: FormData) => void;
+  formAction: (formData: FormData) => void | Promise<void>;
 
   // Optional props
   header?: ReactNode;

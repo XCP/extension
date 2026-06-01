@@ -1,7 +1,7 @@
 /**
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
-import { fromSatoshis } from './numeric';
+import { fromSatoshis, toSatoshis } from './numeric';
 import { CURRENCY_INFO, type FiatCurrency } from '@/utils/blockchain/bitcoin/price';
 
 export interface AmountFormatterOptions {
@@ -215,6 +215,32 @@ export function formatFee(satoshis: number): string {
       maximumFractionDigits: 6
     })} BTC`;
   }
+}
+
+/**
+ * Formats a Counterparty more_outputs parameter as "<sats>:<address>".
+ */
+export function formatMoreOutputs(amount: string, destination: string): string | undefined {
+  if (!amount || !destination) return undefined;
+
+  const sats = toSatoshis(amount);
+  return Number(sats) > 0 ? `${sats}:${destination}` : undefined;
+}
+
+/**
+ * Parses a Counterparty more_outputs parameter for display.
+ */
+export function parseMoreOutputs(value?: string): { sats: string; btc: string; destination: string } | null {
+  if (!value) return null;
+
+  const [sats, destination] = value.split(":");
+  if (!sats || !destination) return null;
+
+  return {
+    sats,
+    btc: fromSatoshis(sats, { removeTrailingZeros: true }),
+    destination,
+  };
 }
 
 /**

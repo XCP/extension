@@ -17,6 +17,10 @@ describe('BalanceMenu', () => {
     vi.clearAllMocks();
   });
 
+  const openMenu = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Balance actions' }));
+  };
+
   it('should render menu button', () => {
     render(
       <MemoryRouter>
@@ -24,64 +28,92 @@ describe('BalanceMenu', () => {
       </MemoryRouter>
     );
 
-    const menuButton = screen.getByRole('button');
-    expect(menuButton).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Balance actions' })).toBeInTheDocument();
   });
 
-  it('should show More option when clicked', async () => {
+  it('should show BTC-specific quick actions', async () => {
     render(
       <MemoryRouter>
         <BalanceMenu asset="BTC" />
       </MemoryRouter>
     );
 
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
+    openMenu();
 
     await waitFor(() => {
-      expect(screen.getByText('More…')).toBeInTheDocument();
+      expect(screen.getByText('Send')).toBeInTheDocument();
+      expect(screen.getByText('Swap')).toBeInTheDocument();
+      expect(screen.getByText('Mint')).toBeInTheDocument();
+      expect(screen.queryByText('Dispense')).not.toBeInTheDocument();
+      expect(screen.queryByText('BTC Pay')).not.toBeInTheDocument();
     });
   });
 
-  it('should navigate to balance page when More is clicked', async () => {
+  it('should show XCP-specific actions', async () => {
+    render(
+      <MemoryRouter>
+        <BalanceMenu asset="XCP" />
+      </MemoryRouter>
+    );
+
+    openMenu();
+
+    await waitFor(() => {
+      expect(screen.getByText('Send')).toBeInTheDocument();
+      expect(screen.getByText('Swap')).toBeInTheDocument();
+      expect(screen.getByText('Mint')).toBeInTheDocument();
+      expect(screen.queryByText('Sell')).not.toBeInTheDocument();
+      expect(screen.queryByText('Dispense')).not.toBeInTheDocument();
+      expect(screen.queryByText('BTC Pay')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should show other asset actions', async () => {
     render(
       <MemoryRouter>
         <BalanceMenu asset="TESTASSET" />
       </MemoryRouter>
     );
 
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
+    openMenu();
 
     await waitFor(() => {
-      const moreButton = screen.getByText('More…');
-      fireEvent.click(moreButton);
+      expect(screen.getByText('Send')).toBeInTheDocument();
+      expect(screen.getByText('Sell')).toBeInTheDocument();
+      expect(screen.getByText('Swap')).toBeInTheDocument();
+      expect(screen.queryByText('Mint')).not.toBeInTheDocument();
     });
-
-    expect(mockNavigate).toHaveBeenCalledWith('/assets/TESTASSET/balance');
   });
 
-  it('should encode special characters in asset name', async () => {
+  it('should navigate to encoded send path', async () => {
     render(
       <MemoryRouter>
         <BalanceMenu asset="ASSET/NAME" />
       </MemoryRouter>
     );
 
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
+    openMenu();
+    fireEvent.click(await screen.findByText('Send'));
 
-    await waitFor(() => {
-      const moreButton = screen.getByText('More…');
-      fireEvent.click(moreButton);
-    });
+    expect(mockNavigate).toHaveBeenCalledWith('/compose/send/ASSET%2FNAME');
+  });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/assets/ASSET%2FNAME/balance');
+  it('should navigate to sell path for other assets', async () => {
+    render(
+      <MemoryRouter>
+        <BalanceMenu asset="TESTASSET" />
+      </MemoryRouter>
+    );
+
+    openMenu();
+    fireEvent.click(await screen.findByText('Sell'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('/compose/dispenser/TESTASSET');
   });
 
   it('should stop event propagation when menu is clicked', () => {
     const mockOnClick = vi.fn();
-    
+
     render(
       <div onClick={mockOnClick}>
         <MemoryRouter>
@@ -90,19 +122,17 @@ describe('BalanceMenu', () => {
       </div>
     );
 
-    // Find the menu container div instead of the button
-    const menuContainer = screen.getByRole('button').closest('div[class*="relative"]');
+    const menuContainer = screen.getByRole('button', { name: 'Balance actions' }).closest('div[class*="relative"]');
     if (menuContainer) {
       fireEvent.click(menuContainer);
     }
 
-    // Parent click should not be triggered
     expect(mockOnClick).not.toHaveBeenCalled();
   });
 
   it('should stop event propagation when menu item is clicked', async () => {
     const mockOnClick = vi.fn();
-    
+
     render(
       <div onClick={mockOnClick}>
         <MemoryRouter>
@@ -111,34 +141,10 @@ describe('BalanceMenu', () => {
       </div>
     );
 
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
-
-    // Reset the mock after the menu opens (since opening menu might trigger parent)
+    openMenu();
     mockOnClick.mockClear();
+    fireEvent.click(await screen.findByText('Send'));
 
-    await waitFor(() => {
-      const moreButton = screen.getByText('More…');
-      fireEvent.click(moreButton);
-    });
-
-    // Parent click should not be triggered by menu item click
     expect(mockOnClick).not.toHaveBeenCalled();
-  });
-
-  it('should apply active styles when menu item is hovered', async () => {
-    render(
-      <MemoryRouter>
-        <BalanceMenu asset="BTC" />
-      </MemoryRouter>
-    );
-
-    const menuButton = screen.getByRole('button');
-    fireEvent.click(menuButton);
-
-    await waitFor(() => {
-      const moreButton = screen.getByText('More…').closest('button');
-      expect(moreButton).toHaveClass('hover:bg-gray-50');
-    });
   });
 });
