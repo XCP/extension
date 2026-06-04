@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, ChangeEvent, useCallback } from "react";
+import { forwardRef, useEffect, ChangeEvent, useCallback, ReactNode } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
 import { shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
@@ -16,6 +16,7 @@ interface DestinationInputProps {
   name?: string;
   label?: string;
   helpText?: string;
+  labelRight?: ReactNode; // Optional content aligned right of the label
 }
 
 export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputProps>(
@@ -32,6 +33,7 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
       name = "destination",
       label = "Destination",
       helpText = "Enter recipient's address.",
+      labelRight,
     },
     ref
   ) => {
@@ -87,8 +89,9 @@ export const DestinationInput = forwardRef<HTMLInputElement, DestinationInputPro
 
     return (
       <Field>
-        <Label className="text-sm font-medium text-gray-700">
-          {label} {required && <span className="text-red-500">*</span>}
+        <Label className={`text-sm font-medium text-gray-700 ${labelRight ? "flex justify-between items-center" : ""}`}>
+          <span>{label} {required && <span className="text-red-500">*</span>}</span>
+          {labelRight}
         </Label>
         <div className="relative">
           <Input
