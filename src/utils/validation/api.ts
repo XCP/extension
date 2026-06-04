@@ -1,3 +1,5 @@
+import { isVersionAtLeast } from '@/utils/blockchain/counterparty/capabilities';
+
 /**
  * Interface for Counterparty API validation result
  */
@@ -11,6 +13,8 @@ export interface ApiValidationResult {
     counterpartyHeight: number;
   };
 }
+
+const MIN_COUNTERPARTY_API_VERSION = '11.1.0';
 
 /**
  * Validates a Counterparty API endpoint
@@ -60,6 +64,14 @@ export async function validateCounterpartyApi(url: string): Promise<ApiValidatio
 
     if (data.result.network !== "mainnet") {
       return { isValid: false, error: "API must be connected to mainnet" };
+    }
+
+    const version = String(data.result.version ?? '');
+    if (!isVersionAtLeast(version, MIN_COUNTERPARTY_API_VERSION)) {
+      return {
+        isValid: false,
+        error: `API must be Counterparty Core ${MIN_COUNTERPARTY_API_VERSION} or newer`,
+      };
     }
 
     // Success

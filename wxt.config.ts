@@ -16,7 +16,9 @@ export default defineConfig({
       web_accessible_resources: [
         {
           resources: ['injected.js'],
-          matches: ['<all_urls>'],
+          // Mirror the content-script matches so injected.js isn't probeable on
+          // pages where the provider is never injected (fingerprinting surface).
+          matches: ['https://*/*', 'http://localhost/*', 'http://127.0.0.1/*'],
         },
       ],
       permissions: [

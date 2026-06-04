@@ -8,6 +8,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEFAULT_SETTINGS,
+  DEFAULT_ORDER_EXPIRATION,
+  INDEFINITE_ORDER_EXPIRATION,
+  LEGACY_MAX_ORDER_EXPIRATION,
+  MAX_ORDER_EXPIRATION,
   SETTINGS_VERSION,
   AUTO_LOCK_TIMEOUT_MS,
   VALID_AUTO_LOCK_TIMERS,
@@ -18,6 +22,21 @@ import {
 describe('SETTINGS_VERSION', () => {
   it('is 2', () => {
     expect(SETTINGS_VERSION).toBe(2);
+  });
+});
+
+describe('order expiration constants', () => {
+  it('tracks zero as the never-expires value', () => {
+    expect(INDEFINITE_ORDER_EXPIRATION).toBe(0);
+  });
+
+  it('tracks legacy and v11.1 finite limits', () => {
+    expect(LEGACY_MAX_ORDER_EXPIRATION).toBe(8064);
+    expect(MAX_ORDER_EXPIRATION).toBe(65535);
+  });
+
+  it('uses the legacy-safe expiration default until activation is guaranteed', () => {
+    expect(DEFAULT_ORDER_EXPIRATION).toBe(LEGACY_MAX_ORDER_EXPIRATION);
   });
 });
 
@@ -121,7 +140,7 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.counterpartyApiBase).toBe('https://api.counterparty.io:4000');
   });
 
-  it('has default order expiration of 8064 blocks', () => {
+  it('has default order expiration set to the legacy-safe maximum', () => {
     expect(DEFAULT_SETTINGS.defaultOrderExpiration).toBe(8064);
   });
 

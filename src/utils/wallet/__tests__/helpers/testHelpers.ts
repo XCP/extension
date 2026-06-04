@@ -49,7 +49,6 @@ export const defaultMocks = {
       autoLockTimer: '5m',
     }),
     updateSettings: vi.fn().mockResolvedValue(undefined),
-    initializeSettingsMasterKey: vi.fn().mockResolvedValue(undefined),
     invalidateSettingsCache: vi.fn(),
   },
   walletStorage: {

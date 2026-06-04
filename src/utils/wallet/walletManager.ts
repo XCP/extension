@@ -1,6 +1,5 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import { HDKey } from '@scure/bip32';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as sessionManager from '@/utils/auth/sessionManager';
@@ -14,16 +13,22 @@ import {
   deriveKeyAsync,
   encryptWithKey,
   decryptWithKey,
-  encryptJsonWithKey,
-  decryptJsonWithKey,
   DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/encryption';
 import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat, getSeedFromMnemonic } from '@/utils/blockchain/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
-import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, type AppSettings } from '@/utils/settings';
+import {
+  generateWalletId,
+  generateWalletIdFromPrivateKey,
+  deriveMnemonicAddress,
+  deriveAddressFromPrivateKey,
+  deriveAddressesFromSecret,
+} from '@/utils/wallet/addressDeriver';
+import { KEYCHAIN_VERSION, encryptKeychainRecord, decryptKeychain } from '@/utils/wallet/keychainCrypto';
+import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider, type AppSettings } from '@/utils/settings';
 import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValues } from '@/utils/blockchain/bitcoin/psbt';
@@ -41,9 +46,6 @@ import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';
 
 // Re-export from constants to maintain backwards compatibility
 export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };
-
-/** Current keychain schema version */
-const KEYCHAIN_VERSION = 1;
 
 /**
  * WalletManager - Core wallet state management (ADR-015)
@@ -109,7 +111,7 @@ export class WalletManager {
     if (!keychainRecord) return;
 
     try {
-      const decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+      const decryptedKeychain = await decryptKeychain(keychainRecord, masterKey);
       this.keychain = decryptedKeychain;
       this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
       await this.refreshWalletAddresses();
@@ -157,49 +159,8 @@ export class WalletManager {
       const record = this.keychain.wallets.find(r => r.id === wallet.id);
       if (!record) continue;
 
-      wallet.addresses = this.deriveAddressesFromSecret(secret, record);
+      wallet.addresses = deriveAddressesFromSecret(secret, record);
     }
-  }
-
-  /** Derives addresses from a decrypted secret based on wallet type */
-  private deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
-    if (record.type === 'mnemonic') {
-      const count = record.addressCount || 1;
-      return Array.from({ length: count }, (_, i) =>
-        this.deriveMnemonicAddress(secret, record.addressFormat, i)
-      );
-    }
-
-    if (record.type === 'hardware') {
-      // Hardware wallet secret contains metadata, not private keys
-      // The address is stored in the secret, no derivation needed
-      try {
-        const hardwareData: HardwareWalletSecret = JSON.parse(secret);
-        // We need the address from the record's previewAddress since
-        // hardware secrets don't store the address directly
-        return [{
-          name: 'Address 1',
-          path: hardwareData.derivationPath,
-          address: record.previewAddress,
-          pubKey: hardwareData.publicKey,
-        }];
-      } catch {
-        return [];
-      }
-    }
-
-    if (record.isTestOnly) {
-      try {
-        const testData = JSON.parse(secret);
-        if (testData.isTestWallet && testData.address) {
-          return [{ name: "Test Address", path: "m/test", address: testData.address, pubKey: '' }];
-        }
-      } catch {
-        return [];
-      }
-    }
-
-    return [this.deriveAddressFromPrivateKey(secret, record.addressFormat)];
   }
 
   public getWallets(): Wallet[] {
@@ -249,7 +210,7 @@ export class WalletManager {
 
       try {
         const secret = await decryptWithKey(record.encryptedSecret, masterKey);
-        const addresses = this.deriveAddressesFromSecret(secret, record);
+        const addresses = deriveAddressesFromSecret(secret, record);
         if (addresses.some((addr) => addr.address.toLowerCase() === normalizedAddress)) {
           return true;
         }
@@ -287,7 +248,7 @@ export class WalletManager {
     }
 
     const walletName = name || `Wallet ${this.wallets.length + 1}`;
-    const id = await this.generateWalletId(mnemonic, addressFormat);
+    const id = await generateWalletId(mnemonic, addressFormat);
 
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
@@ -370,7 +331,7 @@ export class WalletManager {
       compressed
     });
 
-    const id = await this.generateWalletIdFromPrivateKey(privateKeyHex, addressFormat);
+    const id = await generateWalletIdFromPrivateKey(privateKeyHex, addressFormat);
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this private key already exists.');
     }
@@ -708,7 +669,7 @@ export class WalletManager {
     // Decrypt keychain
     let decryptedKeychain: Keychain;
     try {
-      decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+      decryptedKeychain = await decryptKeychain(keychainRecord, masterKey);
     } catch {
       throw new Error('Invalid password');
     }
@@ -788,7 +749,7 @@ export class WalletManager {
     // Decrypt and derive addresses
     const secret = await decryptWithKey(record.encryptedSecret, masterKey);
     sessionManager.storeUnlockedSecret(walletId, secret);
-    wallet.addresses = this.deriveAddressesFromSecret(secret, record);
+    wallet.addresses = deriveAddressesFromSecret(secret, record);
     wallet.addressCount = wallet.addresses.length;
     this.activeWalletId = walletId;
 
@@ -818,8 +779,10 @@ export class WalletManager {
     if (!this.keychain) {
       return { ...DEFAULT_SETTINGS };
     }
-    // Return a copy to prevent direct mutation
+    // DEFAULT_SETTINGS first backfills fields missing from keychains created
+    // under an older schema; stored values override. Copy to prevent mutation.
     return {
+      ...DEFAULT_SETTINGS,
       ...this.keychain.settings,
       connectedWebsites: [...(this.keychain.settings.connectedWebsites || [])],
       pinnedAssets: [...(this.keychain.settings.pinnedAssets || [])],
@@ -870,15 +833,12 @@ export class WalletManager {
       throw new Error('Cannot persist keychain: no existing record');
     }
 
-    // Re-encrypt keychain with master key
-    const encryptedKeychain = await encryptJsonWithKey(this.keychain, masterKey);
-
-    const updatedRecord: KeychainRecord = {
-      version: KEYCHAIN_VERSION,
-      kdf: existingRecord.kdf,
-      salt: existingRecord.salt,
-      encryptedKeychain,
-    };
+    const updatedRecord = await encryptKeychainRecord(
+      this.keychain,
+      masterKey,
+      existingRecord.salt,
+      existingRecord.kdf.iterations,
+    );
 
     await saveKeychainRecord(updatedRecord);
   }
@@ -897,13 +857,12 @@ export class WalletManager {
       settings: { ...DEFAULT_SETTINGS },
     };
 
-    const encryptedKeychain = await encryptJsonWithKey(newKeychain, masterKey);
-    const keychainRecord: KeychainRecord = {
-      version: KEYCHAIN_VERSION,
-      kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
-      salt: bufferToBase64(salt),
-      encryptedKeychain,
-    };
+    const keychainRecord = await encryptKeychainRecord(
+      newKeychain,
+      masterKey,
+      bufferToBase64(salt),
+      DEFAULT_PBKDF2_ITERATIONS,
+    );
 
     await saveKeychainRecord(keychainRecord);
     await sessionManager.storeKeychainMasterKey(masterKey);
@@ -969,7 +928,7 @@ export class WalletManager {
     }
 
     const index = wallet.addressCount;
-    const newAddr = this.deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
+    const newAddr = deriveMnemonicAddress(mnemonic, wallet.addressFormat, index);
     wallet.addresses.push(newAddr);
     wallet.addressCount++;
 
@@ -1029,7 +988,7 @@ export class WalletManager {
     try {
       const salt = base64ToBuffer(keychainRecord.salt);
       const masterKey = await deriveKey(password, salt, keychainRecord.kdf.iterations);
-      await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, masterKey);
+      await decryptKeychain(keychainRecord, masterKey);
       return true;
     } catch {
       return false;
@@ -1058,7 +1017,7 @@ export class WalletManager {
     // Decrypt keychain with current password
     const currentSalt = base64ToBuffer(keychainRecord.salt);
     const currentKey = await deriveKey(currentPassword, currentSalt, keychainRecord.kdf.iterations);
-    const decryptedKeychain = await decryptJsonWithKey<Keychain>(keychainRecord.encryptedKeychain, currentKey);
+    const decryptedKeychain = await decryptKeychain(keychainRecord, currentKey);
 
     // Re-encrypt each wallet's secret with new key
     const newSalt = generateRandomBytes(16);
@@ -1070,16 +1029,14 @@ export class WalletManager {
       walletRecord.encryptedSecret = await encryptWithKey(secret, newKey);
     }
 
-    // Re-encrypt keychain with new key
-    const encryptedKeychain = await encryptJsonWithKey(decryptedKeychain, newKey);
-
-    // Save updated keychain (settings are inside, so they're re-encrypted automatically)
-    const newKeychainRecord: KeychainRecord = {
-      version: KEYCHAIN_VERSION,
-      kdf: { iterations: DEFAULT_PBKDF2_ITERATIONS },
-      salt: bufferToBase64(newSalt),
-      encryptedKeychain,
-    };
+    // Re-encrypt the keychain with the new key (settings are inside, so they
+    // are re-encrypted automatically).
+    const newKeychainRecord = await encryptKeychainRecord(
+      decryptedKeychain,
+      newKey,
+      bufferToBase64(newSalt),
+      DEFAULT_PBKDF2_ITERATIONS,
+    );
     await saveKeychainRecord(newKeychainRecord);
 
     await this.lockKeychain();
@@ -1098,7 +1055,7 @@ export class WalletManager {
 
     wallet.addressFormat = newType;
     wallet.addressCount = 1;
-    wallet.addresses = [this.deriveMnemonicAddress(mnemonic, newType, 0)];
+    wallet.addresses = [deriveMnemonicAddress(mnemonic, newType, 0)];
     // Update preview address to match new format
     const derivationPath = `${getDerivationPathForAddressFormat(newType)}/0`;
     wallet.previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, newType);
@@ -1436,59 +1393,9 @@ export class WalletManager {
     }
   }
 
-  private async generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {
-    const seed = getSeedFromMnemonic(mnemonic, addressFormat);
-    const derivationPath = getDerivationPathForAddressFormat(addressFormat);
-    const pathParts = derivationPath.split('/').slice(0, -1).join('/');
-    const root = HDKey.fromMasterSeed(seed);
-    const accountNode = root.derive(pathParts);
-    if (!accountNode.publicKey) {
-      throw new Error('Unable to derive public key for ID creation.');
-    }
-    const xpub = accountNode.publicExtendedKey;
-    const xpubHash = sha256(utf8ToBytes(xpub));
-    const typeHash = sha256(utf8ToBytes(addressFormat));
-    const combined = new Uint8Array([...xpubHash, ...typeHash]);
-    const finalHash = sha256(combined);
-    return bytesToHex(finalHash);
-  }
-
-  private async generateWalletIdFromPrivateKey(privateKeyHex: string, addressFormat: AddressFormat): Promise<string> {
-    const pubkeyCompressed = getPublicKeyFromPrivateKey(privateKeyHex, true);
-    const combined = utf8ToBytes(pubkeyCompressed + addressFormat);
-    const hash = sha256(combined);
-    return bytesToHex(hash);
-  }
-
-  private deriveMnemonicAddress(mnemonic: string, addressFormat: AddressFormat, index: number): Address {
-    const path = `${getDerivationPathForAddressFormat(addressFormat)}/${index}`;
-    const address = getAddressFromMnemonic(mnemonic, path, addressFormat);
-    const seed = getSeedFromMnemonic(mnemonic, addressFormat);
-    const root = HDKey.fromMasterSeed(seed);
-    const child = root.derive(path);
-    if (!child.publicKey) {
-      throw new Error('Unable to derive public key');
-    }
-    const pubKeyHex = bytesToHex(child.publicKey);
-    return {
-      name: `Address ${index + 1}`,
-      path,
-      address,
-      pubKey: pubKeyHex,
-    };
-  }
-
-  private deriveAddressFromPrivateKey(privKeyData: string, addressFormat: AddressFormat): Address {
-    const parsed = JSON.parse(privKeyData);
-    const address = getAddressFromPrivateKey(parsed.hex, addressFormat, parsed.compressed);
-    const pubKey = getPublicKeyFromPrivateKey(parsed.hex, parsed.compressed);
-    return {
-      name: 'Address 1',
-      path: '',
-      address,
-      pubKey,
-    };
-  }
 }
 
 export const walletManager = new WalletManager();
+
+// Expose read-only settings to modules that must not import the wallet singleton.
+setSettingsProvider(() => walletManager.getSettings());
