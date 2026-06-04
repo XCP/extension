@@ -144,11 +144,8 @@ export function SweepForm({
         showHelpText={showHelpText}
         name="destination_display"
         helpText="Enter the address to sweep all assets to."
-      />
-
-      {enableMoreOutputs && (
-        <>
-          <div className="flex justify-end">
+        labelRight={
+          enableMoreOutputs ? (
             <button
               type="button"
               onClick={() => {
@@ -158,31 +155,31 @@ export function SweepForm({
               className="text-xs font-normal text-blue-600 hover:text-blue-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
               disabled={pending}
             >
-              {showBtcOutput ? "- BTC" : "+ BTC"}
+              {showBtcOutput ? "− BTC" : "+ BTC"}
             </button>
-          </div>
+          ) : undefined
+        }
+      />
 
-          {showBtcOutput && (
-            <AmountWithMaxInput
-              asset="BTC"
-              availableBalance={btcBalance}
-              value={btcAmount}
-              onChange={setBtcAmount}
-              feeRate={feeRate}
-              setError={() => {}}
-              sourceAddress={activeAddress}
-              maxAmount={btcBalance}
-              showHelpText={showHelpText}
-              label="Add BTC"
-              placeholder="0.00000000 BTC"
-              name="btc_output_display"
-              description="BTC to send alongside the sweep to the same destination."
-              disabled={pending}
-              isDivisible={true}
-              extraOutputCount={1}
-            />
-          )}
-        </>
+      {enableMoreOutputs && showBtcOutput && (
+        <AmountWithMaxInput
+          asset="BTC"
+          availableBalance={btcBalance}
+          value={btcAmount}
+          onChange={setBtcAmount}
+          feeRate={feeRate}
+          setError={() => {}}
+          sourceAddress={activeAddress}
+          maxAmount={btcBalance}
+          showHelpText={showHelpText}
+          label="Add BTC"
+          placeholder="0.00000000 BTC"
+          name="btc_output_display"
+          description="BTC to send alongside the sweep to the same destination."
+          disabled={pending}
+          isDivisible={true}
+          extraOutputCount={1}
+        />
       )}
 
       <input type="hidden" name="memo" value={memo} />
