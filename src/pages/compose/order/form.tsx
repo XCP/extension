@@ -12,6 +12,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";
+import { DEFAULT_ORDER_EXPIRATION } from "@/utils/settings";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
@@ -91,7 +92,7 @@ export function OrderForm({
   // Form state - priority: initialFormData > urlParams > empty
   const [price, setPrice] = useState<string>(initialFormData?.price || urlParams?.price || "");
   const [amount, setAmount] = useState<string>(initialFormData?.amount || urlParams?.amount || "");
-  const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration || undefined);
+  const [customExpiration, setCustomExpiration] = useState<number | undefined>(initialFormData?.expiration ?? undefined);
   const [customFeeRequired, setCustomFeeRequired] = useState<number>(initialFormData?.fee_required || 0);
   // Note: quoteAsset state is defined above the data fetching hooks for proper reactivity
   
@@ -320,7 +321,11 @@ export function OrderForm({
             )}
             <input type="hidden" name="give_asset" value={isBuy ? quoteAsset : baseAsset} />
             <input type="hidden" name="get_asset" value={isBuy ? baseAsset : quoteAsset} />
-            <input type="hidden" name="expiration" value={customExpiration || settings?.defaultOrderExpiration || 8064} />
+            <input
+              type="hidden"
+              name="expiration"
+              value={customExpiration ?? settings?.defaultOrderExpiration ?? DEFAULT_ORDER_EXPIRATION}
+            />
             {isBuy && baseAsset === "BTC" && (
               <input type="hidden" name="fee_required" value={customFeeRequired} />
             )}

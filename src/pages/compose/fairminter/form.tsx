@@ -82,6 +82,7 @@ export function FairminterForm({
 
   // Quantity field state (controlled for decimal enforcement)
   const [maxMintPerTx, setMaxMintPerTx] = useState(initialFormData?.max_mint_per_tx?.toString() || "");
+  const [maxMintPerAddress, setMaxMintPerAddress] = useState(initialFormData?.max_mint_per_address?.toString() || "");
   const [lotSize, setLotSize] = useState(initialFormData?.lot_size?.toString() || "");
   const [hardCap, setHardCap] = useState(initialFormData?.hard_cap?.toString() || "");
   const [premintQuantity, setPremintQuantity] = useState(initialFormData?.premint_quantity?.toString() || "0");
@@ -165,6 +166,7 @@ export function FairminterForm({
 
     // Set controlled quantity fields from state
     if (maxMintPerTx) processedFormData.set('max_mint_per_tx', maxMintPerTx);
+    if (maxMintPerAddress) processedFormData.set('max_mint_per_address', maxMintPerAddress);
     if (lotSize) processedFormData.set('lot_size', lotSize);
     if (hardCap) processedFormData.set('hard_cap', hardCap);
     if (premintQuantity) processedFormData.set('premint_quantity', premintQuantity);
@@ -289,6 +291,29 @@ export function FairminterForm({
               )}
             </Field>
           )}
+
+          <Field>
+            <Label htmlFor="max_mint_per_address" className="block text-sm font-medium text-gray-700">
+              Mint per Address
+            </Label>
+            <Input
+              id="max_mint_per_address"
+              name="max_mint_per_address"
+              type="text"
+              inputMode="decimal"
+              value={maxMintPerAddress}
+              onChange={handleQuantityChange(setMaxMintPerAddress)}
+              step={getInputStep()}
+              placeholder="No limit"
+              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              disabled={pending}
+            />
+            {showHelpText && (
+              <Description className="mt-2 text-sm text-gray-500">
+                Optional maximum amount each address can mint. Leave blank for no per-address limit.
+              </Description>
+            )}
+          </Field>
           {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <>
               <Field>

@@ -88,6 +88,17 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
     });
   }
 
+  if (params.max_mint_per_address_normalized !== undefined && Number(params.max_mint_per_address_normalized) > 0) {
+    fields.push({
+      label: "Max Mint per Address",
+      value: formatAmount({
+        value: Number(params.max_mint_per_address_normalized),
+        minimumFractionDigits: isDivisible ? 8 : 0,
+        maximumFractionDigits: isDivisible ? 8 : 0,
+      }),
+    });
+  }
+
   if (params.soft_cap_normalized !== undefined && Number(params.soft_cap_normalized) > 0) {
     fields.push({
       label: "Soft Cap",

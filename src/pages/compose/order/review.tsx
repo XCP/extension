@@ -2,6 +2,12 @@ import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio } from "@/utils/format";
+import { DEFAULT_ORDER_EXPIRATION } from "@/utils/settings";
+
+const formatExpiration = (expiration: unknown) => {
+  const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
+  return blocks === 0 ? "Never expires" : `${blocks.toLocaleString()} blocks`;
+};
 
 /**
  * Props for the ReviewOrder component.
@@ -72,9 +78,7 @@ export function ReviewOrder({
         </button>
       ),
     },
-    ...(result.params.expiration !== 8064
-      ? [{ label: "Expiration", value: `${result.params.expiration} blocks` }]
-      : []),
+    { label: "Expiration", value: formatExpiration(result.params.expiration) },
     ...(result.params.fee_required && Number(result.params.fee_required) > 0
       ? [{ label: "Fee Required", value: `${result.params.fee_required} satoshis` }]
       : []),

@@ -79,7 +79,7 @@ export default function AdvancedSettingsPage(): ReactElement {
         />
         {shouldShowHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            The Counterparty API endpoint URL. Must be a mainnet API server.
+            The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.1.0 or newer.
           </Description>
         )}
       </Field>

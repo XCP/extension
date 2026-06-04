@@ -29,6 +29,9 @@ export function ReviewFairminter({
     { label: "Asset", value: result.params.asset },
     { label: "Lot Price", value: result.params.lot_price },
     { label: "Lot Size", value: result.params.lot_size },
+    ...(Number(result.params.max_mint_per_address ?? 0) > 0
+      ? [{ label: "Mint per Address", value: result.params.max_mint_per_address }]
+      : []),
     { label: "Hard Cap", value: result.params.hard_cap },
     ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
   ];
