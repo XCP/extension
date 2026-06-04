@@ -13,6 +13,7 @@ Browser extension wallet for Counterparty on Bitcoin.
 - Multiple wallets and address types (SegWit, Taproot, Legacy)
 - Send/receive BTC and Counterparty assets
 - Create dispensers and DEX orders
+- Provide liquidity to AMM pools (deposit/withdraw)
 - UTXO consolidation
 - Issue and manage assets
 - Connect to dApps via [provider API](PROVIDER.md)

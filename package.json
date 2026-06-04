@@ -2,7 +2,7 @@
   "name": "xcp-wallet",
   "description": "Counterparty Web3 Wallet",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "type": "module",
   "engines": {
     "node": ">=24 <25",
