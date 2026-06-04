@@ -141,6 +141,54 @@ export const PROVIDER_ERROR_CODES = {
 // } as const;
 
 /**
+ * Error carrying a JSON-RPC / EIP-1193 code. Throwing this at a provider boundary
+ * is the author's signal that the message is dApp-safe and should be surfaced with
+ * the given code — no string matching required downstream.
+ */
+export class ProviderError extends Error {
+  readonly code: number;
+  constructor(code: number, message: string) {
+    super(message);
+    this.name = 'ProviderError';
+    this.code = code;
+  }
+}
+
+/**
+ * Map a thrown provider error to the code and message a dApp should receive.
+ * User-facing states (rejection, not-connected/locked/setup) are surfaced with a
+ * structured code so dApps can branch; everything else is masked to a generic
+ * message so internals don't leak. Used at every dApp-facing boundary so the
+ * classification can't drift out of sync with the messages the wallet throws.
+ */
+/**
+ * Codes whose accompanying message is safe to surface to a dApp. A carried code
+ * outside this set (an internal error, or an accidental numeric `.code` on an
+ * unexpected throw) is masked so internals never leak.
+ */
+const SURFACEABLE_CODES: ReadonlySet<number> = new Set([
+  PROVIDER_ERROR_CODES.USER_REJECTED,
+  PROVIDER_ERROR_CODES.UNAUTHORIZED,
+  PROVIDER_ERROR_CODES.UNSUPPORTED_METHOD,
+  PROVIDER_ERROR_CODES.DISCONNECTED,
+  PROVIDER_ERROR_CODES.CHAIN_DISCONNECTED,
+  PROVIDER_ERROR_CODES.CHAINS_NOT_ADDED,
+  JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND,
+  JSON_RPC_ERROR_CODES.INVALID_PARAMS,
+]);
+
+export function classifyProviderError(error: unknown): { code: number; message: string } {
+  // A recognized code carried from the throw site (a ProviderError) means the
+  // message is intentional and dApp-safe — surface both. Anything else is masked
+  // so internals never leak. dApp-facing errors must be thrown as ProviderError.
+  const carried = (error as { code?: unknown })?.code;
+  if (typeof carried === 'number' && SURFACEABLE_CODES.has(carried)) {
+    return { code: carried, message: error instanceof Error ? error.message : String(error) };
+  }
+  return { code: JSON_RPC_ERROR_CODES.INTERNAL_ERROR, message: 'Request failed' };
+}
+
+/**
  * Helper function to create a JSON-RPC error object
  */
 export function createJsonRpcError(

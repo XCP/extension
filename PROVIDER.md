@@ -178,16 +178,44 @@ await xcpwallet.request({ method: 'xcp_getNetwork' });
 ## Events
 
 ```js
-// Account changed (address switch or connect/disconnect)
+// Account changed: address switch, connect, lock/unlock
 xcpwallet.on('accountsChanged', (accounts) => {
-  // accounts: string[] — empty on disconnect
+  // accounts: string[]
+  // [address] — connected / unlocked
+  // []        — locked or no active account; the connection is RETAINED and a
+  //             later unlock re-emits [address] (no need to reconnect)
 });
 
-// Wallet disconnected this site
+// Wallet revoked this site's connection (explicit disconnect only)
 xcpwallet.on('disconnect', () => {
-  // Connection revoked
+  // Connection revoked — call xcp_requestAccounts to reconnect
 });
 ```
+
+A lock emits `accountsChanged []`, not `disconnect`. Treat an empty array as "temporarily unavailable," and only `disconnect` as "must reconnect."
+
+## Errors
+
+`request()` rejects with an `Error` carrying a numeric `code` (JSON-RPC / EIP-1193 style). Branch on the `code`, not the message — messages are for display and may change.
+
+```js
+try {
+  await xcpwallet.request({ method: 'xcp_signTransaction', params: [{ hex }] });
+} catch (err) {
+  if (err.code === 4001) return;  // user cancelled — not a failure to report
+  throw err;
+}
+```
+
+| Code | Meaning | What to do |
+|------|---------|------------|
+| `4001` | User rejected the request (declined or closed the popup) | Treat as a cancellation |
+| `4100` | Not connected, or the wallet is locked / not set up | Call `xcp_requestAccounts`, or prompt to unlock |
+| `4200` | Method not supported | Stop calling it |
+| `4900` | Wallet background was momentarily unavailable | Transient — retry (the SDK retries signing automatically) |
+| `-32603` | Internal error | Generic failure; internal details are intentionally masked |
+
+Only these codes carry a meaningful message; any other failure surfaces as `-32603` with `"Request failed"`.
 
 ## SDK
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { defineProxyService, isBackgroundScript, disconnectAllPorts } from '../proxy';
+import { ProviderError } from '../errors';
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API
@@ -97,6 +98,7 @@ describe('defineProxyService', () => {
     setValue: (value: number) => void;
     getAsync: () => Promise<string>;
     throwError: () => void;
+    throwCoded: () => void;
   }
 
   let testServiceInstance: TestService;
@@ -115,6 +117,7 @@ describe('defineProxyService', () => {
       setValue: vi.fn(),
       getAsync: vi.fn(() => Promise.resolve('async-result')),
       throwError: vi.fn(() => { throw new Error('Test error'); }),
+      throwCoded: vi.fn(() => { throw new ProviderError(4001, 'rejected'); }),
     };
 
     [register, getService] = defineProxyService(
@@ -176,7 +179,21 @@ describe('defineProxyService', () => {
       await new Promise(r => setTimeout(r, 0));
 
       expect(port.postMessage).toHaveBeenCalledWith({
-        id: 1, success: false, error: 'Test error',
+        id: 1, success: false, error: { message: 'Test error', code: undefined },
+      });
+    });
+
+    it('serializes the code only for deliberately-coded ProviderErrors', async () => {
+      register();
+
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      onConnectListeners.forEach(fn => fn(port));
+
+      port._fireMessage({ id: 1, methodName: 'throwCoded', args: [] });
+      await new Promise(r => setTimeout(r, 0));
+
+      expect(port.postMessage).toHaveBeenCalledWith({
+        id: 1, success: false, error: { message: 'rejected', code: 4001 },
       });
     });
 
@@ -190,7 +207,7 @@ describe('defineProxyService', () => {
       await new Promise(r => setTimeout(r, 0));
 
       expect(port.postMessage).toHaveBeenCalledWith({
-        id: 1, success: false, error: `Method nonExistent not found on ${currentServiceName}`,
+        id: 1, success: false, error: { message: `Method nonExistent not found on ${currentServiceName}` },
       });
     });
 
@@ -259,11 +276,14 @@ describe('defineProxyService', () => {
 
       clientPort.postMessage.mockImplementation((msg: any) => {
         setTimeout(() => clientPort._fireMessage({
-          id: msg.id, success: false, error: 'Service error',
+          id: msg.id, success: false, error: { message: 'Service error', code: 4001 },
         }), 0);
       });
 
-      await expect(service.getValue()).rejects.toThrow('Service error');
+      const rejection = service.getValue();
+      await expect(rejection).rejects.toThrow('Service error');
+      // The code carried over the port is reconstructed onto the error.
+      await expect(rejection).rejects.toMatchObject({ code: 4001 });
     });
 
     it('should reject pending calls on port disconnect', async () => {
@@ -285,7 +305,34 @@ describe('defineProxyService', () => {
         setTimeout(() => secondPort._fireDisconnect(), 0);
       });
 
-      await expect(service.getValue()).rejects.toThrow('Port disconnected');
+      const rejection = service.getValue();
+      await expect(rejection).rejects.toThrow('Port disconnected');
+      // Coded DISCONNECTED so the boundary surfaces it and the dApp SDK retries.
+      await expect(rejection).rejects.toMatchObject({ code: 4900 });
+    });
+
+    it('does not replay non-idempotent provider methods on disconnect', async () => {
+      const service = getService();
+
+      // A retry (if it happened) would connect a second time.
+      const secondPort = createMockPort(`proxy:${currentServiceName}`);
+      let callCount = 0;
+      mockChrome.runtime.connect.mockImplementation(() => {
+        callCount++;
+        return callCount === 1 ? clientPort : secondPort;
+      });
+      clientPort.postMessage.mockImplementation(() => {
+        setTimeout(() => clientPort._fireDisconnect(), 0);
+      });
+      secondPort.postMessage.mockImplementation(() => {
+        setTimeout(() => secondPort._fireDisconnect(), 0);
+      });
+
+      // A signing request must NOT auto-retry across a disconnect (no duplicate popup).
+      await expect(
+        (service as any).handleRequest('https://dapp.com', 'xcp_signTransaction', [])
+      ).rejects.toThrow('Port disconnected');
+      expect(callCount).toBe(1);
     });
 
     it('should reconnect and retry once after disconnect', async () => {

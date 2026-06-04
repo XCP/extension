@@ -7,7 +7,7 @@ import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
 import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
 import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
-import { JSON_RPC_ERROR_CODES, PROVIDER_ERROR_CODES, createJsonRpcError } from '@/utils/errors';
+import { JSON_RPC_ERROR_CODES, createJsonRpcError, classifyProviderError } from '@/utils/errors';
 import { broadcastToTabs } from '@/utils/browser';
 import { getUpdateService } from '@/services/updateService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
@@ -311,37 +311,8 @@ export default defineBackground(() => {
       };
     } catch (error: any) {
       console.error('[Background] Provider request failed:', error);
-
-      // Determine appropriate error code and message
-      // ISSUE 1 FIX: Use generic messages for internal errors, only pass through user-facing errors
-      let errorCode: number = JSON_RPC_ERROR_CODES.INTERNAL_ERROR;
-      let errorMessage: string = 'Request failed'; // Generic default
-
-      if (error.message?.includes('User denied') || error.message?.includes('User rejected')) {
-        errorCode = PROVIDER_ERROR_CODES.USER_REJECTED;
-        errorMessage = error.message; // User-facing, safe to pass through
-      } else if (error.message?.includes('not connected') || error.message?.includes('Unauthorized')) {
-        errorCode = PROVIDER_ERROR_CODES.UNAUTHORIZED;
-        errorMessage = error.message; // User-facing, safe to pass through
-      } else if (error.message?.includes('Wallet is locked')) {
-        errorCode = PROVIDER_ERROR_CODES.UNAUTHORIZED;
-        errorMessage = error.message; // User-facing, safe to pass through
-      } else if (error.message?.includes('not supported') || error.message?.includes('not found')) {
-        errorCode = JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND;
-        errorMessage = 'Method not supported'; // Generic
-      } else if (error.message?.includes('Invalid params')) {
-        errorCode = JSON_RPC_ERROR_CODES.INVALID_PARAMS;
-        errorMessage = 'Invalid parameters'; // Generic
-      }
-      // All other errors get the generic "Request failed" message
-
-      return {
-        success: false,
-        error: createJsonRpcError(
-          error.code || errorCode,
-          errorMessage
-        )
-      };
+      const { code, message } = classifyProviderError(error);
+      return { success: false, error: createJsonRpcError(code, message) };
     }
   });
 

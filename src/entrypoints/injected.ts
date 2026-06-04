@@ -116,7 +116,12 @@ export default defineUnlistedScript(() => {
     pendingRequests.delete(id);
 
     if (error) {
-      pending.reject(new Error(formatErrorMessage(error?.message || error)));
+      const rejection = new Error(formatErrorMessage(error?.message || error));
+      // Preserve the JSON-RPC error code so dApps can branch (e.g. 4001 = user rejected).
+      if (error && typeof error === 'object' && typeof error.code === 'number') {
+        (rejection as { code?: number }).code = error.code;
+      }
+      pending.reject(rejection);
       return;
     }
 

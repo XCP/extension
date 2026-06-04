@@ -8,10 +8,21 @@
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
 import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
+import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
+import { getSignFlow, recordSignOutcome } from '@/utils/provider/signFlow';
+
+type SignRequestKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
+
+/** Per-kind event prefix (for the cancel event) and request store. */
+const REQUEST_KINDS = {
+  'sign-message': { eventPrefix: 'sign-message', storage: signMessageRequestStorage },
+  'sign-psbt': { eventPrefix: 'sign-psbt', storage: signPsbtRequestStorage },
+  'sign-transaction': { eventPrefix: 'sign-tx', storage: signTransactionRequestStorage },
+} as const;
 
 class PopupMonitorService {
   private popupPort: chrome.runtime.Port | null = null;
-  private activeRequests = new Map<string, { type: 'sign-message' | 'sign-psbt', timestamp: number }>();
+  private activeRequests = new Map<string, { type: SignRequestKind, timestamp: number }>();
   private cleanupTimer: NodeJS.Timeout | null = null;
 
   /**
@@ -91,20 +102,18 @@ class PopupMonitorService {
     }
 
     for (const [requestId, info] of this.activeRequests) {
-      console.log(`[PopupMonitor] Cancelling abandoned request: ${requestId}`);
+      // Only cancel if the user never reached a decision (flow still pending).
+      const flow = await getSignFlow(requestId);
+      if (flow && flow.status !== 'pending') continue;
 
-      // Emit cancellation event
-      if (info.type === 'sign-message') {
-        eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
-          reason: 'Popup closed unexpectedly'
-        });
-        await signMessageRequestStorage.remove(requestId);
-      } else if (info.type === 'sign-psbt') {
-        eventEmitterService.emit(`sign-psbt-cancel-${requestId}`, {
-          reason: 'Popup closed unexpectedly'
-        });
-        await signPsbtRequestStorage.remove(requestId);
-      }
+      console.log(`[PopupMonitor] Cancelling abandoned request: ${requestId}`);
+      const { eventPrefix, storage } = REQUEST_KINDS[info.type];
+      // Persist the cancellation so a rejoin after a worker restart sees it too.
+      await recordSignOutcome(requestId, 'cancelled');
+      eventEmitterService.emit(`${eventPrefix}-cancel-${requestId}`, {
+        reason: 'Popup closed unexpectedly'
+      });
+      await storage.remove(requestId);
     }
 
     // Clear tracked requests
@@ -182,7 +191,7 @@ class PopupMonitorService {
   /**
    * Register a request as active
    */
-  registerActiveRequest(requestId: string, type: 'sign-message' | 'sign-psbt'): void {
+  registerActiveRequest(requestId: string, type: SignRequestKind): void {
     this.activeRequests.set(requestId, {
       type,
       timestamp: Date.now()

@@ -6,6 +6,8 @@ import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount, formatPriceRatio } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
+import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
@@ -219,6 +221,7 @@ export default function ApproveTransactionPage() {
     handleCancel,
     isProviderRequest
   } = useSignTransactionRequest(activeAddress?.address);
+  usePopupLifecycle(request?.id, 'sign-transaction');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
@@ -249,6 +252,12 @@ export default function ApproveTransactionPage() {
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress) return;
 
+    const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet?.id);
+    if (identityError) {
+      setError(identityError);
+      return;
+    }
+
     setIsSigning(true);
     setError('');
 
@@ -256,7 +265,7 @@ export default function ApproveTransactionPage() {
       const walletService = getWalletService();
       const signedTxHex = await walletService.signTransaction(
         request.rawTxHex,
-        activeAddress.address
+        request.address
       );
 
       await handleSuccess(signedTxHex);
@@ -417,11 +426,11 @@ export default function ApproveTransactionPage() {
                 </div>
 
                 {/* Expiration */}
-                {txAction.expiration > 0 && (
-                  <p className="text-xs text-gray-400 text-center mt-2">
-                    Expires in {txAction.expiration.toLocaleString()} blocks
-                  </p>
-                )}
+                <p className="text-xs text-gray-400 text-center mt-2">
+                  {txAction.expiration === 0
+                    ? 'Never expires'
+                    : `Expires in ${txAction.expiration.toLocaleString()} blocks`}
+                </p>
               </div>
             ) : (
               /* Fallback — flat label + description (all other types) */

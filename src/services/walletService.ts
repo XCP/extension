@@ -19,6 +19,9 @@ interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/utils/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/utils/settings').AppSettings>) => Promise<void>;
+  addConnectedWebsite: (origin: string) => Promise<void>;
+  removeConnectedWebsite: (origin: string) => Promise<void>;
+  clearConnectedWebsites: () => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
@@ -67,6 +70,22 @@ interface WalletService {
 }
 
 function createWalletService(): WalletService {
+  // Resolve the active address as a string (mirrors getActiveAddress's selection).
+  function resolveActiveAddressString(): string | undefined {
+    const activeWallet = walletManager.getActiveWallet();
+    if (!activeWallet) return undefined;
+    const lastActive = walletManager.getSettings()?.lastActiveAddress;
+    const match = activeWallet.addresses.find((a) => a.address === lastActive);
+    return (match ?? activeWallet.addresses[0])?.address;
+  }
+
+  // Emit accountsChanged to each connected dApp, per-origin (not a global broadcast).
+  function emitAccountsChangedToConnected(addresses: string[]) {
+    for (const origin of walletManager.getSettings().connectedWebsites) {
+      eventEmitterService.emit('emit-provider-event', { origin, event: 'accountsChanged', data: addresses });
+    }
+  }
+
   return {
     refreshWallets: async () => {
       await walletManager.refreshWallets();
@@ -74,6 +93,23 @@ function createWalletService(): WalletService {
     getSettings: async () => walletManager.getSettings(),
     updateSettings: async (updates) => {
       await walletManager.updateSettings(updates);
+    },
+    addConnectedWebsite: async (origin) => {
+      const settings = walletManager.getSettings();
+      if (!settings.connectedWebsites.includes(origin)) {
+        await walletManager.updateSettings({
+          connectedWebsites: [...settings.connectedWebsites, origin],
+        });
+      }
+    },
+    removeConnectedWebsite: async (origin) => {
+      const settings = walletManager.getSettings();
+      await walletManager.updateSettings({
+        connectedWebsites: settings.connectedWebsites.filter((site) => site !== origin),
+      });
+    },
+    clearConnectedWebsites: async () => {
+      await walletManager.updateSettings({ connectedWebsites: [] });
     },
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
@@ -101,6 +137,9 @@ function createWalletService(): WalletService {
       await walletManager.unlockKeychain(password);
       // Emit wallet-unlocked event for any pending connection requests
       eventEmitterService.emit('wallet-unlocked', {});
+      // Tell connected dApps the accounts are back (they were emptied on lock).
+      const activeAddress = resolveActiveAddressString();
+      if (activeAddress) emitAccountsChangedToConnected([activeAddress]);
     },
     selectWallet: async (walletId) => {
       await walletManager.selectWallet(walletId);
@@ -117,16 +156,9 @@ function createWalletService(): WalletService {
         // Popup might not be open, which is fine
         console.debug('[WalletService] Could not notify popup of keychain lock event:', error);
       }
-      // Emit disconnect event to connected dApps
-      // Broadcast to all tabs (no origin specified)
-      eventEmitterService.emit('emit-provider-event', {
-        event: 'accountsChanged',
-        data: []
-      });
-      eventEmitterService.emit('emit-provider-event', {
-        event: 'disconnect',
-        data: {}
-      });
+      // Tell connected dApps the accounts are gone — per-origin, and without a
+      // terminal disconnect, so unlock can restore them via accountsChanged.
+      emitAccountsChangedToConnected([]);
     },
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
       const wallet = await walletManager.createMnemonicWallet(mnemonic, password, name, addressFormat);

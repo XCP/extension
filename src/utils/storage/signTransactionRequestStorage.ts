@@ -5,12 +5,12 @@
  * here so the popup can retrieve them and show the approval UI.
  */
 
-import { RequestStorage, BaseRequest } from './requestStorage';
+import { RequestStorage, AuthorizedRequest } from './requestStorage';
 
 /**
  * Sign transaction request from a dApp.
  */
-export interface SignTransactionRequest extends BaseRequest {
+export interface SignTransactionRequest extends AuthorizedRequest {
   rawTxHex: string;
 }
 

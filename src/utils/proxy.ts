@@ -8,6 +8,8 @@
  * API is unchanged: defineProxyService(name, factory) => [register, getService]
  */
 
+import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
+
 type ServiceFactory<T> = () => T;
 
 interface PortRequest {
@@ -20,7 +22,7 @@ interface PortResponse {
   id: number;
   success: boolean;
   result?: any;
-  error?: string;
+  error?: { message: string; code?: number };
 }
 
 // Prevent duplicate onConnect listeners after service worker restarts
@@ -30,6 +32,23 @@ const registeredServices = new Set<string>();
 const activePorts = new Map<string, chrome.runtime.Port>();
 
 const PORT_PREFIX = 'proxy:';
+
+/**
+ * Provider methods whose effects must NOT be silently replayed across a service
+ * worker restart — they open a popup and/or sign. On a mid-call port disconnect
+ * these reject (the dApp can re-request) instead of spawning a duplicate popup.
+ */
+const NON_REPLAYABLE_PROVIDER_METHODS = new Set([
+  'xcp_requestAccounts',
+  'xcp_signMessage',
+  'xcp_signTransaction',
+  'xcp_signPsbt',
+]);
+
+/** A call is replay-safe unless it is a provider request for a non-idempotent method. */
+function isReplaySafe(methodName: string, args: any[]): boolean {
+  return !(methodName === 'handleRequest' && NON_REPLAYABLE_PROVIDER_METHODS.has(args?.[1]));
+}
 
 /**
  * Disconnect all cached proxy ports. Call this before BFCache freeze
@@ -83,7 +102,7 @@ export function defineProxyService<T extends Record<string, any>>(
 
         if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
           try {
-            port.postMessage({ id, success: false, error: `Method ${methodName} not found on ${serviceName}` } as PortResponse);
+            port.postMessage({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } } as PortResponse);
           } catch {}
           return;
         }
@@ -96,7 +115,11 @@ export function defineProxyService<T extends Record<string, any>>(
             port.postMessage({
               id,
               success: false,
-              error: error instanceof Error ? error.message : String(error),
+              error: {
+                message: error instanceof Error ? error.message : String(error),
+                // Only deliberately-coded errors carry a code across the wire.
+                code: error instanceof ProviderError ? error.code : undefined,
+              },
             } as PortResponse);
           } catch {}
         }
@@ -130,7 +153,12 @@ export function defineProxyService<T extends Record<string, any>>(
       if (msg.success) {
         pending.resolve(msg.result);
       } else {
-        pending.reject(new Error(msg.error || `${serviceName} call failed`));
+        const message = msg.error?.message || `${serviceName} call failed`;
+        pending.reject(
+          typeof msg.error?.code === 'number'
+            ? new ProviderError(msg.error.code, message)
+            : new Error(message),
+        );
       }
     });
 
@@ -138,9 +166,10 @@ export function defineProxyService<T extends Record<string, any>>(
       if (chrome.runtime?.lastError) { /* consumed */ }
       port = null;
       activePorts.delete(serviceName);
-      // Reject all in-flight calls — callers can retry
+      // Reject all in-flight calls — callers can retry. Coded DISCONNECTED so the
+      // boundary surfaces it (not masked) and the dApp SDK recognizes it as transient.
       for (const [, pending] of pendingCalls) {
-        pending.reject(new Error('Port disconnected'));
+        pending.reject(new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, 'Port disconnected'));
       }
       pendingCalls.clear();
     });
@@ -177,8 +206,8 @@ export function defineProxyService<T extends Record<string, any>>(
                 msg.includes('Attempting to use a disconnected port') ||
                 msg.includes('Extension context invalidated');
 
-              if (isDisconnect && attempt === 0) {
-                // Port died — null it out and retry once
+              if (isDisconnect && attempt === 0 && isReplaySafe(prop, args)) {
+                // Port died — null it out and retry once (idempotent calls only)
                 port = null;
                 activePorts.delete(serviceName);
                 await new Promise(r => setTimeout(r, 200));

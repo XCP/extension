@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { fakeBrowser } from 'wxt/testing';
+import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
 
 // Mock WXT injectScript function
 const mockInjectScript = vi.fn();
@@ -275,8 +276,9 @@ describe('Content Script', () => {
     });
 
     it('should pass through user-facing error messages', async () => {
-      // User rejection errors should be passed through
-      mockProviderService.handleRequest.mockRejectedValue(new Error('User denied the request'));
+      // A coded ProviderError is surfaced to the dApp with its code intact.
+      mockProviderService.handleRequest.mockRejectedValue(
+        new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'User denied the request'));
 
       const event = {
         source: window,
@@ -302,7 +304,40 @@ describe('Content Script', () => {
           id: '790',
           error: {
             message: 'User denied the request',
-            code: -32603
+            code: 4001 // USER_REJECTED — carried from the ProviderError
+          }
+        },
+        mockWindow.location.origin
+      );
+    });
+
+    it('surfaces a coded sign cancellation so dApps can branch', async () => {
+      // The wallet rejects a cancelled sign with a coded ProviderError; it must reach
+      // the dApp intact with code 4001, not masked to a generic 'Request failed'.
+      mockProviderService.handleRequest.mockRejectedValue(
+        new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'User cancelled transaction signing request'));
+
+      const event = {
+        source: window,
+        origin: mockWindow.location.origin,
+        data: {
+          target: 'xcp-wallet-content',
+          type: 'XCP_WALLET_REQUEST',
+          id: '791',
+          data: { method: 'xcp_signTransaction', params: ['00'] }
+        }
+      };
+
+      await messageListener(event);
+
+      expect(mockWindow.postMessage).toHaveBeenCalledWith(
+        {
+          target: 'xcp-wallet-injected',
+          type: 'XCP_WALLET_RESPONSE',
+          id: '791',
+          error: {
+            message: 'User cancelled transaction signing request',
+            code: 4001
           }
         },
         mockWindow.location.origin
