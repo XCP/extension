@@ -1,0 +1,32 @@
+name: Regen Lockfile
+
+# Temporary helper: regenerate package-lock.json in the exact CI environment
+# (Node from .nvmrc, Linux) so it matches what `npm ci` expects. Self-guards
+# against re-triggering on its own commit. Remove once the lockfile is settled.
+on:
+  push:
+    branches: [fix/trezor-downgrade-stable]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    if: "!contains(github.event.head_commit.message, 'regenerate package-lock')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+      - run: npm install --package-lock-only --ignore-scripts
+      - run: |
+          if git diff --quiet package-lock.json; then
+            echo "lockfile already in sync with CI"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git commit -am "chore: regenerate package-lock on CI (Node 24.11.1)"
+            git push
+          fi
