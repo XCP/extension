@@ -27,9 +27,11 @@ import {
   roundDown,
   toSatoshis,
 } from "@/utils/numeric";
+import { FaCog } from "@/components/icons";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
-import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
+import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
+import { PoolSlippageSettings } from "../pool-slippage-settings";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;
@@ -44,7 +46,7 @@ export function PoolDepositForm({
   initialAssetA,
   initialAssetB,
 }: PoolDepositFormProps): ReactElement {
-  const { activeAddress, showHelpText, feeRate } = useComposer<PoolDepositOptions>();
+  const { activeAddress, showHelpText, feeRate, settings } = useComposer<PoolDepositOptions>();
   const { pending } = useFormStatus();
   const [assetA, setAssetA] = useState(initialFormData?.asset_a || initialAssetA || "XCP");
   const [assetB, setAssetB] = useState(initialFormData?.asset_b || initialAssetB || "");
@@ -52,17 +54,21 @@ export function PoolDepositForm({
   const [quantityB, setQuantityB] = useState(initialFormData?.quantity_b?.toString() || "");
   const [lpAsset, setLpAsset] = useState(initialFormData?.lp_asset || "");
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
-  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
+  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || settings?.defaultPoolSlippage || DEFAULT_POOL_SLIPPAGE);
+  const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { data: assetADetails } = useAssetDetails(assetA);
   const { data: assetBDetails } = useAssetDetails(assetB);
-  const { data: pool } = usePool(assetA, assetB);
+  const { data: pool, isLoading: isPoolLoading } = usePool(assetA, assetB);
 
   const assetADetailsReady = assetADetails?.assetInfo?.asset === assetA;
   const assetBDetailsReady = assetB ? assetBDetails?.assetInfo?.asset === assetB : false;
   const isAssetADivisible = assetADetailsReady ? assetADetails.isDivisible : true;
   const isAssetBDivisible = assetBDetailsReady && assetBDetails ? assetBDetails.isDivisible : true;
+  const bothAssetsSelected = Boolean(assetA && assetB && assetA !== assetB);
+  // The pool doesn't exist yet — known as soon as both assets resolve, before any quote.
+  const isNewPool = bothAssetsSelected && !isPoolLoading && pool === null;
   const canQuote = assetA && assetB && assetA !== assetB && assetADetailsReady && isGreaterThan(quantityA || 0, 0);
   const needsQuote = canQuote && isGreaterThan(quantityB || 0, 0);
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolDepositQuote({
@@ -147,15 +153,38 @@ export function PoolDepositForm({
     formAction(formData);
   };
 
+  if (showSettings) {
+    return (
+      <PoolSlippageSettings
+        value={slippage}
+        onChange={setSlippage}
+        onBack={() => setShowSettings(false)}
+        showHelpText={showHelpText}
+      />
+    );
+  }
+
   return (
     <ComposerForm
       formAction={handleFormAction}
       header={
-        pool ? (
-          <PoolHeader pool={pool} className="mt-1 mb-5" />
-        ) : assetABalanceHeader ? (
-          <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
-        ) : null
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {pool ? (
+              <PoolHeader pool={pool} className="mt-1 mb-5" />
+            ) : assetABalanceHeader ? (
+              <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            aria-label="Pool settings"
+            className="mt-1 shrink-0 p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <FaCog className="size-4 text-gray-600" aria-hidden="true" />
+          </button>
+        </div>
       }
       submitText="Review Deposit"
       submitDisabled={pending || submitDisabled}
@@ -165,7 +194,7 @@ export function PoolDepositForm({
       <AssetSelectInput
         selectedAsset={assetA}
         onChange={setAssetA}
-        label="First Asset"
+        label="Asset A"
         required
         showHelpText={showHelpText}
       />
@@ -180,7 +209,7 @@ export function PoolDepositForm({
         showHelpText={showHelpText}
         sourceAddress={activeAddress}
         maxAmount={assetADetails?.availableBalance || "0"}
-        label={`${assetA || "Asset"} Amount`}
+        label="Amount"
         name="quantity_a_display"
         disabled={pending || !assetA}
         isDivisible={isAssetADivisible}
@@ -189,7 +218,7 @@ export function PoolDepositForm({
       <AssetSelectInput
         selectedAsset={assetB}
         onChange={setAssetB}
-        label="Second Asset"
+        label="Asset B"
         required
         showHelpText={showHelpText}
       />
@@ -204,7 +233,7 @@ export function PoolDepositForm({
         showHelpText={showHelpText}
         sourceAddress={activeAddress}
         maxAmount={assetBDetails?.availableBalance || "0"}
-        label={`${assetB || "Asset"} Amount`}
+        label="Amount"
         name="quantity_b_display"
         disabled={pending || !assetB}
         isDivisible={isAssetBDivisible}
@@ -257,27 +286,17 @@ export function PoolDepositForm({
         </div>
       )}
 
-      {(isFirstDeposit || isZeroSupplyRestart || (quote?.quantity_minted_estimate !== undefined && quote.quantity_minted_estimate !== null)) && (
-        <>
-          <SlippageInput
-            value={slippage}
-            onChange={setSlippage}
-            showHelpText={showHelpText}
-          />
-
-          {hasLpMinimum && (
-            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Minimum LP tokens:{" "}
-              <span className="font-medium text-gray-900">
-                {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
-              </span>{" "}
-              after {slippage || "0"}% slippage.
-            </div>
-          )}
-        </>
+      {hasLpMinimum && (
+        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+          Minimum LP tokens:{" "}
+          <span className="font-medium text-gray-900">
+            {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
+          </span>{" "}
+          after {slippage || "0"}% slippage.
+        </div>
       )}
 
-      {isFirstDeposit && (
+      {isNewPool && (
         <Field>
           <AssetNameInput
             value={lpAsset}

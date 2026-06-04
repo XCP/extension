@@ -1,35 +1,15 @@
-import { useEffect, useState } from "react";
-import {
-  Field,
-  Label,
-  Description,
-  Input,
-  Listbox,
-  ListboxButton,
-  ListboxOption,
-  ListboxOptions,
-} from "@headlessui/react";
-import { Button } from "@/components/ui/button";
-import {
-  isFiniteNumber,
-  isGreaterThanOrEqualTo,
-  isLessThan,
-} from "@/utils/numeric";
+import { Field, Label, Description, Input } from "@headlessui/react";
+import { isFiniteNumber, isGreaterThan, isLessThan } from "@/utils/numeric";
 import type { ReactElement } from "react";
 
-export const DEFAULT_POOL_SLIPPAGE = "2.5";
+export { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
 
-const PRESET_OPTIONS = [
-  { id: "tight", name: "Tight", value: "0.5" },
-  { id: "standard", name: "Standard", value: DEFAULT_POOL_SLIPPAGE },
-  { id: "loose", name: "Loose", value: "5" },
-] as const;
-
-type PresetId = typeof PRESET_OPTIONS[number]["id"];
-type OptionId = PresetId | "custom";
-
-const LOW_SLIPPAGE_THRESHOLD = "0.05";
-const HIGH_SLIPPAGE_THRESHOLD = "20";
+// Presets skew slightly above fast-chain DEXs: Counterparty's ~10-min blocks leave
+// more time for someone else to move the pool before a deposit/withdraw confirms.
+// 0% / very-high values are intentionally Custom-only.
+const PRESETS = ["0.5", "1", "3"] as const;
+const LOW_SLIPPAGE_THRESHOLD = "0.5";
+const HIGH_SLIPPAGE_THRESHOLD = "5";
 
 interface SlippageInputProps {
   value: string;
@@ -42,138 +22,76 @@ export function SlippageInput({
   onChange,
   showHelpText = false,
 }: SlippageInputProps): ReactElement {
-  const [selectedOption, setSelectedOption] = useState<OptionId>("standard");
-  const [customInput, setCustomInput] = useState(value);
+  const isPreset = (PRESETS as readonly string[]).includes(value);
 
-  useEffect(() => {
-    const matchingPreset = PRESET_OPTIONS.find((option) => option.value === value);
-    if (matchingPreset) {
-      setSelectedOption(matchingPreset.id);
-      setCustomInput(value);
-    } else {
-      setSelectedOption("custom");
-      setCustomInput(value);
-    }
-  }, [value]);
+  const showWarning = value.trim() !== "" && isFiniteNumber(value);
+  const isLow = showWarning && isLessThan(value, LOW_SLIPPAGE_THRESHOLD);
+  const isHigh = showWarning && isGreaterThan(value, HIGH_SLIPPAGE_THRESHOLD);
 
-  const options = [
-    ...PRESET_OPTIONS,
-    { id: "custom" as const, name: "Custom", value: customInput || DEFAULT_POOL_SLIPPAGE },
-  ];
-
-  const showSlippageWarning = value.trim() !== "" && isFiniteNumber(value);
-  const isLowSlippage = showSlippageWarning
-    && isGreaterThanOrEqualTo(value, 0)
-    && isLessThan(value, LOW_SLIPPAGE_THRESHOLD);
-  const isHighSlippage = showSlippageWarning
-    && isGreaterThanOrEqualTo(value, HIGH_SLIPPAGE_THRESHOLD);
-
-  const handleOptionSelect = (option: typeof options[number] | null) => {
-    if (!option) return;
-
-    setSelectedOption(option.id);
-    if (option.id !== "custom") {
-      setCustomInput(option.value);
-      onChange(option.value);
-    }
-  };
-
-  const handleCustomInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const nextValue = event.target.value.trim();
-    const parts = nextValue.split(".");
-    if (parts.length > 2) return;
-    if (nextValue !== "" && !isFiniteNumber(nextValue)) return;
-
-    setCustomInput(nextValue);
-    onChange(nextValue);
-  };
-
-  const handleCustomInputBlur = () => {
-    if (!customInput || isLessThan(customInput, 0)) {
-      setCustomInput(DEFAULT_POOL_SLIPPAGE);
-      onChange(DEFAULT_POOL_SLIPPAGE);
-    }
-  };
-
-  const handleEscClick = () => {
-    const standard = PRESET_OPTIONS.find((option) => option.id === "standard") ?? PRESET_OPTIONS[0];
-    setSelectedOption(standard.id);
-    setCustomInput(standard.value);
-    onChange(standard.value);
+  const handleCustomChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value.trim();
+    // Accept only a decimal number (or empty); rejects letters and extra dots.
+    if (next !== "" && !/^\d*\.?\d*$/.test(next)) return;
+    onChange(next);
   };
 
   return (
     <Field>
-      <Label className="block text-sm font-medium text-gray-700">
-        Slippage Tolerance <span className="text-red-500">*</span>
-      </Label>
-      <div className="mt-1">
-        {selectedOption === "custom" ? (
-          <div className="relative">
-            <Input
-              type="text"
-              inputMode="decimal"
-              value={customInput}
-              onChange={handleCustomInputChange}
-              onBlur={handleCustomInputBlur}
-              placeholder="Custom %"
-              className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 pr-16 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-            />
-            <Button type="button" variant="input" onClick={handleEscClick} aria-label="Reset to standard slippage">
-              Esc
-            </Button>
-          </div>
-        ) : (
-          <div className="relative">
-            <Listbox
-              value={options.find((option) => option.id === selectedOption) || options[1]}
-              onChange={handleOptionSelect}
-            >
-              <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer">
-                {({ value }) => (
-                  <div className="flex justify-between">
-                    <span>{value?.name}</span>
-                    {value?.id !== "custom" && <span className="text-gray-500">{value?.value}%</span>}
-                  </div>
-                )}
-              </ListboxButton>
-              <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                {options.map((option) => (
-                  <ListboxOption
-                    key={option.id}
-                    value={option}
-                    className={({ focus }) =>
-                      `p-2.5 cursor-pointer select-none ${focus ? "bg-blue-500 text-white" : "text-gray-900"}`
-                    }
-                  >
-                    {({ selected, focus }) => (
-                      <div className="flex justify-between">
-                        <span className={selected ? "font-medium" : ""}>{option.name}</span>
-                        {option.id !== "custom" && (
-                          <span className={focus ? "text-blue-100" : "text-gray-500"}>{option.value}%</span>
-                        )}
-                      </div>
-                    )}
-                  </ListboxOption>
-                ))}
-              </ListboxOptions>
-            </Listbox>
-          </div>
-        )}
+      <div className="flex justify-between items-center mb-1">
+        <Label className="text-sm font-medium text-gray-700">
+          Slippage Tolerance <span className="text-red-500">*</span>
+        </Label>
+        <span className="text-sm text-gray-500 tabular-nums">{value || "0"}%</span>
       </div>
+
+      {/* Preset buttons */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        {PRESETS.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onChange(preset)}
+            className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              value === preset
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+            }`}
+          >
+            {preset}%
+          </button>
+        ))}
+      </div>
+
+      {/* Custom input */}
+      <div className="relative">
+        <Input
+          type="text"
+          inputMode="decimal"
+          value={isPreset ? "" : value}
+          onChange={handleCustomChange}
+          placeholder="Custom %"
+          aria-label="Custom slippage percent"
+          className={`w-full px-3 py-2.5 pr-8 text-sm border rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            isPreset ? "border-gray-300" : "border-blue-500"
+          }`}
+        />
+        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">%</span>
+      </div>
+
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          Sets how far the pool quote may move before the transaction fails.
+          How far the pool ratio may move before the transaction fails. A higher
+          tolerance avoids failures if someone else trades the pool in the same block.
         </Description>
       )}
-      {isLowSlippage && (
+      {isLow && (
         <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-800">
-          Low slippage may fail if the pool changes before confirmation.
+          Very low — likely to fail if the pool changes before your transaction confirms.
         </div>
       )}
-      {isHighSlippage && (
+      {isHigh && (
         <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-800">
-          High slippage allows a worse result before failing.
+          Very high — you may receive noticeably less than quoted.
         </div>
       )}
     </Field>
