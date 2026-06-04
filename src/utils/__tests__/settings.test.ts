@@ -162,6 +162,7 @@ describe('DEFAULT_SETTINGS', () => {
       'connectedWebsites',
       'counterpartyApiBase',
       'defaultOrderExpiration',
+      'defaultPoolSlippage',
       'enableAdvancedBroadcasts',
       'enableMPMA',
       'enableMoreOutputs',

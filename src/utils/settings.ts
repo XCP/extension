@@ -50,6 +50,10 @@ export const LEGACY_MAX_ORDER_EXPIRATION = 8064;
 export const MAX_ORDER_EXPIRATION = 2 ** 16 - 1;
 export const DEFAULT_ORDER_EXPIRATION = LEGACY_MAX_ORDER_EXPIRATION;
 
+/** Default pool slippage tolerance, as a percent string. 1% sits one notch above
+ *  fast-chain DEX defaults to absorb pool drift over Counterparty's ~10-min blocks. */
+export const DEFAULT_POOL_SLIPPAGE = '1';
+
 /**
  * Application settings - stored encrypted inside the keychain.
  */
@@ -94,6 +98,8 @@ export interface AppSettings {
   counterpartyApiBase: string;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
+  /** Default pool slippage tolerance, percent (e.g. "2.5"); falls back to DEFAULT_POOL_SLIPPAGE */
+  defaultPoolSlippage?: string;
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
 
@@ -128,6 +134,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
+  defaultPoolSlippage: DEFAULT_POOL_SLIPPAGE,
   strictTransactionVerification: true,
   connectedWebsites: [],
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],

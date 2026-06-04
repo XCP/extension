@@ -11,8 +11,10 @@ import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
 import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
 import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/utils/numeric";
+import { FaCog } from "@/components/icons";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
-import { DEFAULT_POOL_SLIPPAGE, SlippageInput } from "../slippage-input";
+import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
+import { PoolSlippageSettings } from "../pool-slippage-settings";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;
@@ -25,13 +27,14 @@ export function PoolWithdrawForm({
   initialFormData,
   lpAsset,
 }: PoolWithdrawFormProps): ReactElement {
-  const { activeAddress, showHelpText, feeRate } = useComposer<PoolWithdrawOptions>();
+  const { activeAddress, showHelpText, feeRate, settings } = useComposer<PoolWithdrawOptions>();
   const { pending } = useFormStatus();
   const { data: pool, isLoading, error: poolError } = useLpAssetPool(lpAsset);
   const { data: assetADetails } = useAssetDetails(pool?.asset_a || "");
   const { data: assetBDetails } = useAssetDetails(pool?.asset_b || "");
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || DEFAULT_POOL_SLIPPAGE);
+  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || settings?.defaultPoolSlippage || DEFAULT_POOL_SLIPPAGE);
+  const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const canQuote = !!pool && isGreaterThan(quantity || 0, 0);
@@ -90,10 +93,35 @@ export function PoolWithdrawForm({
     return <div className="p-4 text-center text-gray-600">Pool position not found</div>;
   }
 
+  if (showSettings) {
+    return (
+      <PoolSlippageSettings
+        value={slippage}
+        onChange={setSlippage}
+        onBack={() => setShowSettings(false)}
+        showHelpText={showHelpText}
+      />
+    );
+  }
+
   return (
     <ComposerForm
       formAction={handleFormAction}
-      header={<PoolHeader pool={pool} className="mt-1 mb-5" />}
+      header={
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <PoolHeader pool={pool} className="mt-1 mb-5" />
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSettings(true)}
+            aria-label="Pool settings"
+            className="mt-1 shrink-0 p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <FaCog className="size-4 text-gray-600" aria-hidden="true" />
+          </button>
+        </div>
+      }
       submitText="Review Withdrawal"
       submitDisabled={pending || submitDisabled}
     >
@@ -135,26 +163,16 @@ export function PoolWithdrawForm({
         </div>
       )}
 
-      {quote?.pool_exists && (
-        <>
-          <SlippageInput
-            value={slippage}
-            onChange={setSlippage}
-            showHelpText={showHelpText}
-          />
-
-          {hasMinimums && (
-            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Minimum received after {slippage || "0"}% slippage:
-              <div className="mt-1 font-medium text-gray-900">
-                {formatReceived(minQuantityA, isAssetADivisible)} {pool.asset_a}
-              </div>
-              <div className="font-medium text-gray-900">
-                {formatReceived(minQuantityB, isAssetBDivisible)} {pool.asset_b}
-              </div>
-            </div>
-          )}
-        </>
+      {quote?.pool_exists && hasMinimums && (
+        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+          Minimum received after {slippage || "0"}% slippage:
+          <div className="mt-1 font-medium text-gray-900">
+            {formatReceived(minQuantityA, isAssetADivisible)} {pool.asset_a}
+          </div>
+          <div className="font-medium text-gray-900">
+            {formatReceived(minQuantityB, isAssetBDivisible)} {pool.asset_b}
+          </div>
+        </div>
       )}
 
       {quote?.message && (
