@@ -1,14 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { walletManager } from '@/utils/wallet/walletManager';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { DEFAULT_SETTINGS, getActiveSettings } from '@/utils/settings';
 
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn().mockReturnValue({
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/settings')>()),
+  getActiveSettings: vi.fn().mockReturnValue({
+    counterpartyApiBase: 'https://api.counterparty.io',
+  }),
 }));
 vi.mock('@/utils/apiClient', () => ({
   apiClient: {
@@ -28,7 +26,7 @@ vi.mock('@/utils/apiClient', () => ({
 // Import the mocked modules
 import { apiClient } from '@/utils/apiClient';
 const mockApiClient = apiClient as any;
-const mockGetSettings = vi.mocked(walletManager.getSettings);
+const mockGetSettings = vi.mocked(getActiveSettings);
 
 describe('Transaction Broadcaster Utilities', () => {
   const mockSignedTxHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
