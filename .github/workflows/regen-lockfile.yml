@@ -20,7 +20,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-      - run: npm install --package-lock-only --ignore-scripts
+      # Real install (reifies) so platform-optional @emnapi entries are recorded —
+      # --package-lock-only doesn't add them, but `npm ci` requires them.
+      - run: npm install --ignore-scripts --no-audit --no-fund
       - run: |
           if git diff --quiet package-lock.json; then
             echo "lockfile already in sync with CI"
