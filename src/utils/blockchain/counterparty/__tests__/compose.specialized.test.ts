@@ -15,7 +15,7 @@ import {
   composeTransaction
 } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import {
   mockAddress,
   mockApiBase,
@@ -32,11 +32,10 @@ vi.mock('@/utils/apiClient');
 vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
   requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn(),
-  },
-}));
+vi.mock('@/utils/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/settings')>();
+  return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
+});
 
 // Mock UTXO selection to prevent real API calls to mempool.space
 vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
@@ -49,7 +48,7 @@ vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
 }));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 
 describe('Compose Specialized Operations', () => {
   beforeEach(() => {
@@ -273,6 +272,7 @@ describe('Compose Specialized Operations', () => {
       lot_price: 100000,
       lot_size: 1000,
       max_mint_per_tx: 100,
+      max_mint_per_address: 1000,
       hard_cap: 1000000,
       start_block: 800000,
       end_block: 810000,

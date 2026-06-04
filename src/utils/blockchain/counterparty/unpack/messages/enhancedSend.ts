@@ -98,6 +98,11 @@ function unpackLegacy(payload: Uint8Array): EnhancedSendData {
     }
   }
 
+  // Core rejects asset_id 0 (BTC) for enhanced sends; reject it here too.
+  if (assetId === 0n) {
+    throw new Error('Invalid enhanced send: BTC (asset_id 0) is not allowed');
+  }
+
   // Convert asset ID to name
   const asset = assetIdToName(assetId);
 

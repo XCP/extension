@@ -94,11 +94,12 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity', 'lot_size', 'max_mint_per_tx', 'hard_cap', 'soft_cap'],
+    quantityFields: ['premint_quantity', 'lot_size', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap'],
     assetFields: {
       premint_quantity: 'asset',
       lot_size: 'asset',
       max_mint_per_tx: 'asset',
+      max_mint_per_address: 'asset',
       hard_cap: 'asset',
       soft_cap: 'asset'
     },

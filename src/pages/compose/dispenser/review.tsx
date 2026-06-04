@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
+import { formatAmount, formatAsset } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
@@ -33,6 +33,12 @@ export function ReviewDispenser({
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
+  // Asset label from the signed params, not the route prop (empty on the
+  // in-form asset-select path); fall back to the prop only if params omit it.
+  const displayAsset = formatAsset(result.params.asset ?? asset, {
+    assetInfo: { asset_longname: result.params.asset_longname ?? null },
+  });
+
   // Use normalized values from verbose API response
   const escrowQuantity = result.params.escrow_quantity_normalized;
   const giveQuantity = result.params.give_quantity_normalized;
@@ -53,11 +59,11 @@ export function ReviewDispenser({
   const customFields = [
     {
       label: "Escrow Amount",
-      value: `${escrowQuantity} ${asset}`,
+      value: `${escrowQuantity} ${displayAsset}`,
     },
     {
       label: "Amount per Dispense",
-      value: `${giveQuantity} ${asset}`,
+      value: `${giveQuantity} ${displayAsset}`,
     },
     {
       label: "Per Dispense",

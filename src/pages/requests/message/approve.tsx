@@ -3,6 +3,8 @@ import { FiGlobe, FiClock } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { useWallet } from '@/contexts/wallet-context';
+import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useHeader } from '@/contexts/header-context';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
@@ -19,6 +21,7 @@ export default function ApproveMessagePage() {
     handleCancel,
     isProviderRequest
   } = useSignMessageRequest();
+  usePopupLifecycle(request?.id, 'sign-message');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
@@ -46,6 +49,12 @@ export default function ApproveMessagePage() {
 
   const handleSign = async () => {
     if (!request || !activeWallet || !activeAddress) return;
+
+    const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet.id);
+    if (identityError) {
+      setError(identityError);
+      return;
+    }
 
     setIsSigning(true);
     setError('');

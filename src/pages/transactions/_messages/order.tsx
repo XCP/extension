@@ -168,7 +168,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     if (params.expiration === 0) {
       fields.push({
         label: "Expiration",
-        value: "Never",
+        value: "Never expires",
       });
     } else {
       const currentBlock = params.block_index || 0;

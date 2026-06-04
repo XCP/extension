@@ -28,7 +28,7 @@
  * - Aligns with cryptocurrency ecosystem privacy values
  */
 
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
 // Fathom configuration constants
 export const FATHOM_SITE_ID = 'PEMZGNDB';
@@ -230,7 +230,7 @@ async function isAnalyticsEnabled(): Promise<boolean> {
     }
 
     // Fall back to our settings (Chrome and older Firefox)
-    const settings = walletManager.getSettings();
+    const settings = getActiveSettings();
     return settings.analyticsAllowed;
   } catch (error) {
     // If we can't get settings, don't track

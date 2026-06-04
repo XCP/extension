@@ -441,6 +441,11 @@ function verifyFairminter(
     mismatches.push(`Hard cap: local=${local.hardCap}, API=${apiHardCap}`);
   }
 
+  const apiMaxMintPerAddress = getApiValue(api, 'max_mint_per_address', 'maxMintPerAddress');
+  if (apiMaxMintPerAddress !== undefined && !quantitiesEqual(local.maxMintPerAddress, apiMaxMintPerAddress)) {
+    mismatches.push(`Max mint per address: local=${local.maxMintPerAddress}, API=${apiMaxMintPerAddress}`);
+  }
+
   if (api.divisible !== undefined && local.divisible !== api.divisible) {
     mismatches.push(`Divisible: local=${local.divisible}, API=${api.divisible}`);
   }

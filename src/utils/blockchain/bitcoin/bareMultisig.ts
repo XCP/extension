@@ -2,7 +2,7 @@ import { Transaction } from '@scure/btc-signer';
 import { apiClient } from '@/utils/apiClient';
 import { hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import { toSatoshis } from '@/utils/numeric';
 import { 
   analyzeMultisigScript, 
@@ -566,7 +566,7 @@ async function fetchPreviousRawTransaction(txid: string): Promise<string | null>
 
   // Fallback to Counterparty API
   try {
-    const settings = walletManager.getSettings();
+    const settings = getActiveSettings();
     const response = await apiClient.get<{ result: { hex: string } }>(
       `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
     );

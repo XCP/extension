@@ -14,7 +14,8 @@ jobs:
   full-test-suite:
     name: Full Test Suite
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 120  # Hard backstop so a stalled setup can't burn the 6h job cap
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -47,10 +48,32 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
       
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
       - name: Install Playwright browsers
-        run: npx playwright install chromium
-      
-      - name: Install system dependencies
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 16
+        run: |
+          # The browser download can stall on the CDN; cap each attempt and retry
+          # so a stall fails in minutes instead of hanging to the job timeout.
+          for attempt in 1 2 3; do
+            echo "Installing Playwright Chromium (attempt $attempt)..."
+            if timeout 300 npx playwright install chromium; then
+              exit 0
+            fi
+            echo "Attempt $attempt stalled or failed; retrying."
+            sleep 5
+          done
+          echo "Playwright browser install failed after 3 attempts" >&2
+          exit 1
+
+      - name: Install Playwright system dependencies
+        timeout-minutes: 5
         run: npx playwright install-deps chromium
       
       - name: Run all E2E tests

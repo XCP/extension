@@ -38,6 +38,22 @@ vi.mock('@/services/walletService', () => ({
   getWalletService: vi.fn(() => ({
     isKeychainUnlocked: vi.fn().mockResolvedValue(true),
     getActiveAddress: vi.fn().mockResolvedValue({ address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' }),
+    // Connected-website access delegates to the walletManager mock so existing
+    // getSettings/updateSettings drivers and assertions keep working.
+    getSettings: () => walletManager.getSettings(),
+    addConnectedWebsite: async (origin: string) => {
+      const s = walletManager.getSettings();
+      if (!s.connectedWebsites.includes(origin)) {
+        await walletManager.updateSettings({ connectedWebsites: [...s.connectedWebsites, origin] });
+      }
+    },
+    removeConnectedWebsite: async (origin: string) => {
+      const s = walletManager.getSettings();
+      await walletManager.updateSettings({ connectedWebsites: s.connectedWebsites.filter((x: string) => x !== origin) });
+    },
+    clearConnectedWebsites: async () => {
+      await walletManager.updateSettings({ connectedWebsites: [] });
+    },
   })),
 }));
 

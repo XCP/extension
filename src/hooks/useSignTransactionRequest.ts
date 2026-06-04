@@ -12,6 +12,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signTransactionRequestStorage, type SignTransactionRequest } from '@/utils/storage/signTransactionRequestStorage';
+import { recordSignOutcome } from '@/utils/provider/signFlow';
 import {
   decodeRawTransaction,
   decodeCounterpartyMessage,
@@ -243,6 +244,8 @@ export function useSignTransactionRequest(signerAddress?: string) {
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedTxHex: string) => {
     if (requestId) {
+      // Persist the outcome so the dApp can recover it after a worker restart.
+      await recordSignOutcome(requestId, 'completed', { signedTxHex });
       // Notify the background that transaction signing is complete
       emitToBackground(`sign-tx-complete-${requestId}`, { signedTxHex });
 
@@ -254,6 +257,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
   // Handle cancellation
   const handleCancel = useCallback(async () => {
     if (requestId) {
+      await recordSignOutcome(requestId, 'cancelled');
       // Notify the background that transaction signing was cancelled
       emitToBackground(`sign-tx-cancel-${requestId}`, { reason: 'User cancelled' });
 

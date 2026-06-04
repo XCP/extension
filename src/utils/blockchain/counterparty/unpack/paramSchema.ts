@@ -122,7 +122,7 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
       },
       expiration: {
         criticality: 'dangerous',
-        riskDescription: 'Too short = expires before fill, too long = funds locked longer',
+        riskDescription: 'Wrong expiration = expires too soon or stays locked until cancelled',
       },
       fee_required: {
         criticality: 'dangerous',
@@ -296,6 +296,10 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
       max_mint_per_tx: {
         criticality: 'dangerous',
         riskDescription: 'Max per transaction - rate limiting',
+      },
+      max_mint_per_address: {
+        criticality: 'dangerous',
+        riskDescription: 'Max per address - rate limiting',
       },
       divisible: {
         criticality: 'dangerous',

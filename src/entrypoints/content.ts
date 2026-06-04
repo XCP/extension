@@ -1,6 +1,7 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
 import { disconnectAllPorts } from '@/utils/proxy';
+import { classifyProviderError } from '@/utils/errors';
 
 // Always include localhost for local dApp testing (safe - only accessible locally)
 // HTTPS for all other sites
@@ -120,20 +121,9 @@ export default defineContentScript({
             };
           } catch (error: any) {
             console.debug('Provider service request failed:', error);
-            // ISSUE 1 FIX: Use generic error messages to prevent information leakage
-            // Only pass through user-facing error messages, not internal details
-            const isUserFacingError = error?.message?.includes('User denied') ||
-                                       error?.message?.includes('User rejected') ||
-                                       error?.message?.includes('not connected') ||
-                                       error?.message?.includes('Wallet is locked') ||
-                                       error?.message?.includes('wallet setup');
-            response = {
-              success: false,
-              error: {
-                message: isUserFacingError ? error.message : 'Request failed',
-                code: error?.code || -32603
-              }
-            };
+            // The proxy delivers only the message, so the structured code a dApp
+            // branches on is derived from it here at the boundary.
+            response = { success: false, error: classifyProviderError(error) };
           }
           
           // Handle the response properly

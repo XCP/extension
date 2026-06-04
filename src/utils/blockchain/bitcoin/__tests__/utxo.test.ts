@@ -9,7 +9,7 @@ import {
   clearBitcoinCaches
 } from '@/utils/blockchain/bitcoin/utxo';
 import { apiClient } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
 vi.mock('@/utils/apiClient', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/utils/apiClient')>();
@@ -18,16 +18,15 @@ vi.mock('@/utils/apiClient', async (importOriginal) => {
     apiClient: { get: vi.fn(), post: vi.fn() },
   };
 });
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn().mockReturnValue({
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/settings')>()),
+  getActiveSettings: vi.fn().mockReturnValue({
+    counterpartyApiBase: 'https://api.counterparty.io',
+  }),
 }));
 
 const mockApiClient = vi.mocked(apiClient, true);
-const mockGetSettings = vi.mocked(walletManager.getSettings);
+const mockGetSettings = vi.mocked(getActiveSettings);
 
 /** Helper to create a mock apiClient response */
 function mockApiResponse<T>(data: T) {

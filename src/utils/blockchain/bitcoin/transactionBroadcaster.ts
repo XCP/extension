@@ -1,7 +1,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import { clearApiCache } from '@/utils/blockchain/counterparty/api';
 import { clearBitcoinCaches } from '@/utils/blockchain/bitcoin/utxo';
 import { clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
@@ -26,7 +26,7 @@ const broadcastEndpoints: BroadcastEndpoint[] = [
   {
     name: 'counterparty',
     getUrl: async (signedTxHex: string) => {
-      const settings = walletManager.getSettings();
+      const settings = getActiveSettings();
       const encoded = encodeURIComponent(signedTxHex);
       return `${settings.counterpartyApiBase}/v2/bitcoin/transactions?signedhex=${encoded}`;
     },
@@ -107,7 +107,7 @@ const generateMockTxid = (signedTxHex: string): string => {
 };
 
 export async function broadcastTransaction(signedTxHex: string): Promise<TransactionResponse> {
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
   
   if (settings.transactionDryRun) {
     await new Promise(resolve => setTimeout(resolve, 500));

@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signPsbtRequestStorage, type SignPsbtRequest } from '@/utils/storage/signPsbtRequestStorage';
+import { recordSignOutcome } from '@/utils/provider/signFlow';
 import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import {
   decodeRawTransaction,
@@ -198,6 +199,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedPsbtHex: string) => {
     if (requestId) {
+      // Persist the outcome so the dApp can recover it after a worker restart.
+      await recordSignOutcome(requestId, 'completed', { signedPsbtHex });
       // Notify the background that PSBT signing is complete
       emitToBackground(`sign-psbt-complete-${requestId}`, { signedPsbtHex });
 
@@ -209,6 +212,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
   // Handle cancellation
   const handleCancel = useCallback(async () => {
     if (requestId) {
+      await recordSignOutcome(requestId, 'cancelled');
       // Notify the background that PSBT signing was cancelled
       emitToBackground(`sign-psbt-cancel-${requestId}`, { reason: 'User cancelled' });
 

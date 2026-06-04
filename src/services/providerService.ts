@@ -20,6 +20,13 @@ import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestSto
 import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
 import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
 import { getUpdateService } from '@/services/updateService';
+import {
+  computeRequestKey,
+  beginSignFlow,
+  findActiveFlowByKey,
+  getSignFlow,
+  removeSignFlow,
+} from '@/utils/provider/signFlow';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
@@ -27,6 +34,7 @@ import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/mes
 import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
 import { keychainExists } from '@/utils/storage/walletStorage';
+import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -113,10 +121,124 @@ export interface ProviderService {
   destroy: () => Promise<void>;
 }
 
+/**
+ * Drives the popup approval lifecycle for a dApp signing request: registers the
+ * critical operation, resolves/rejects on the popup's complete/cancel events,
+ * times out after 10 minutes, and cleans up listeners (and any per-request
+ * state via onCleanup) on every exit path.
+ */
+function awaitSignApproval<T>(opts: {
+  requestId: string;
+  eventPrefix: string;
+  analyticsEvent: string;
+  cancelMessage: string;
+  timeoutMessage: string;
+  mapResult: (result: any) => T;
+  onCleanup?: () => void;
+}): Promise<T> {
+  const updateService = getUpdateService();
+  updateService.registerCriticalOperation(`${opts.eventPrefix}-${opts.requestId}`);
+
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    let poll: ReturnType<typeof setInterval>;
+
+    const cleanup = () => {
+      if (timeout) clearTimeout(timeout);
+      if (poll) clearInterval(poll);
+      updateService.unregisterCriticalOperation(`${opts.eventPrefix}-${opts.requestId}`);
+      eventEmitterService.off(`${opts.eventPrefix}-complete-${opts.requestId}`, handleComplete);
+      eventEmitterService.off(`${opts.eventPrefix}-cancel-${opts.requestId}`, handleCancel);
+      void removeSignFlow(opts.requestId);
+      opts.onCleanup?.();
+    };
+
+    const handleComplete = (result: any) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      analytics.track(opts.analyticsEvent);
+      resolve(opts.mapResult(result));
+    };
+
+    const handleCancel = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, opts.cancelMessage));
+    };
+
+    timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(opts.timeoutMessage));
+    }, 10 * 60 * 1000);
+
+    eventEmitterService.on(`${opts.eventPrefix}-complete-${opts.requestId}`, handleComplete);
+    eventEmitterService.on(`${opts.eventPrefix}-cancel-${opts.requestId}`, handleCancel);
+
+    // Recovery path: if this worker is a fresh rejoin after a restart, the popup's
+    // outcome is persisted in signFlow even though the original listener was lost.
+    poll = setInterval(() => {
+      if (settled) return;
+      void getSignFlow(opts.requestId).then((flow) => {
+        if (settled || !flow) return;
+        if (flow.status === 'completed') handleComplete(flow.result);
+        else if (flow.status === 'cancelled') handleCancel();
+      });
+    }, 1500);
+  });
+}
+
+/**
+ * Run a signing request through its durable flow: recover a completed result,
+ * rejoin a pending one (no new popup), or begin a fresh flow. createAndOpen
+ * stores the per-type request and opens the popup for the new-flow case.
+ */
+async function runSignFlow<T>(args: {
+  origin: string;
+  method: string;
+  params: unknown;
+  approval: {
+    eventPrefix: string;
+    analyticsEvent: string;
+    cancelMessage: string;
+    timeoutMessage: string;
+    mapResult: (result: any) => T;
+  };
+  cleanup?: (requestId: string) => void;
+  createAndOpen: (requestId: string) => Promise<void>;
+}): Promise<T> {
+  const requestKey = computeRequestKey(args.origin, args.method, args.params);
+  const existing = await findActiveFlowByKey(requestKey);
+
+  const awaitFor = (requestId: string) =>
+    awaitSignApproval({
+      ...args.approval,
+      requestId,
+      onCleanup: args.cleanup ? () => args.cleanup!(requestId) : undefined,
+    });
+
+  if (existing?.status === 'completed') {
+    await removeSignFlow(existing.id);
+    args.cleanup?.(existing.id);
+    analytics.track(args.approval.analyticsEvent);
+    return args.approval.mapResult(existing.result);
+  }
+  if (existing?.status === 'pending') {
+    // Rejoin the original flow rather than opening a duplicate popup.
+    return awaitFor(existing.id);
+  }
+
+  const requestId = generateRequestId(args.approval.eventPrefix);
+  await beginSignFlow(requestId, args.origin, requestKey);
+  await args.createAndOpen(requestId);
+  return awaitFor(requestId);
+}
+
 export function createProviderService(): ProviderService {
-  /**
-   * Get accounts for connected origin
-   */
   /**
    * Generate a connection proof: auto-sign a deterministic message proving
    * the user controls the address. No user prompt — they already approved connecting.
@@ -187,6 +309,32 @@ export function createProviderService(): ProviderService {
   async function buildConnectResponse(origin: string, accounts: string[]) {
     const proof = accounts.length > 0 ? await generateConnectionProof(origin) : null;
     return { accounts, proof };
+  }
+
+  /**
+   * Resolve a connection request: return existing accounts if already connected,
+   * otherwise connect and build the response. onBeforeConnect runs only for a
+   * new connection (after the already-connected check, before connect).
+   */
+  async function completeConnection(origin: string, onBeforeConnect?: () => Promise<void>) {
+    const walletService = getWalletService();
+    const connectionService = getConnectionService();
+
+    const activeAddress = await walletService.getActiveAddress();
+    const activeWallet = await walletService.getActiveWallet();
+    if (!activeAddress || !activeWallet) {
+      throw new Error('No active wallet or address');
+    }
+
+    if (await connectionService.hasPermission(origin)) {
+      return buildConnectResponse(origin, await getAccounts(origin));
+    }
+
+    await onBeforeConnect?.();
+
+    const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
+    await analytics.track('connection_established');
+    return buildConnectResponse(origin, accounts);
   }
 
   /**
@@ -278,24 +426,7 @@ export function createProviderService(): ProviderService {
 
                 // Continue with connection flow now that wallet exists
                 try {
-                  const activeAddress = await walletService.getActiveAddress();
-                  const activeWallet = await walletService.getActiveWallet();
-
-                  if (!activeAddress || !activeWallet) {
-                    reject(new Error('No active wallet or address after setup'));
-                    return;
-                  }
-
-                  // Check if already connected (unlikely after fresh setup)
-                  if (await connectionService.hasPermission(origin)) {
-                    resolve(await buildConnectResponse(origin, await getAccounts(origin)));
-                    return;
-                  }
-
-                  // Request connection
-                  const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-                  await analytics.track('connection_established');
-                  resolve(await buildConnectResponse(origin, accounts));
+                  resolve(await completeConnection(origin));
                 } catch (error) {
                   reject(error);
                 }
@@ -305,7 +436,7 @@ export function createProviderService(): ProviderService {
                 if (settled) return;
                 settled = true;
                 cleanup();
-                reject(new Error('Wallet setup timeout - please try again'));
+                reject(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Wallet setup timeout - please try again'));
               }, 10 * 60 * 1000); // 10 minute timeout for onboarding
 
               eventEmitterService.on('wallet-created', handleWalletCreated);
@@ -349,30 +480,13 @@ export function createProviderService(): ProviderService {
                 // Re-check wallet state after unlock
                 const nowUnlocked = await walletService.isKeychainUnlocked();
                 if (!nowUnlocked) {
-                  reject(new Error('Wallet still locked after unlock attempt'));
+                  reject(new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Wallet still locked after unlock attempt'));
                   return;
                 }
 
                 // Continue with connection flow
                 try {
-                  const activeAddress = await walletService.getActiveAddress();
-                  const activeWallet = await walletService.getActiveWallet();
-
-                  if (!activeAddress || !activeWallet) {
-                    reject(new Error('No active wallet or address after unlock'));
-                    return;
-                  }
-
-                  // Check if already connected
-                  if (await connectionService.hasPermission(origin)) {
-                    resolve(await buildConnectResponse(origin, await getAccounts(origin)));
-                    return;
-                  }
-
-                  // Request connection
-                  const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-                  await analytics.track('connection_established');
-                  resolve(await buildConnectResponse(origin, accounts));
+                  resolve(await completeConnection(origin));
                 } catch (error) {
                   reject(error);
                 }
@@ -389,52 +503,29 @@ export function createProviderService(): ProviderService {
             });
           }
 
-          // Get current wallet and address info
-          const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
-            throw new Error('No address selected');
-          }
+          // CSP analysis (warning mode only) runs just before a new connection.
+          return completeConnection(origin, async () => {
+            let cspHostname = origin;
+            try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
 
-          const activeWallet = await walletService.getActiveWallet();
-          if (!activeWallet) {
-            throw new Error('No wallet selected');
-          }
-
-          // Check if already connected
-          if (await connectionService.hasPermission(origin)) {
-            return buildConnectResponse(origin, await getAccounts(origin));
-          }
-          
-          // CSP Security Analysis (warning mode only)
-          // Safely extract hostname for logging
-          let cspHostname = origin;
-          try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
-
-          try {
-            const cspAnalysis = await analyzeCSP(origin);
-            if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-              console.warn('[ProviderService] Site has CSP security issues', {
+            try {
+              const cspAnalysis = await analyzeCSP(origin);
+              if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
+                console.warn('[ProviderService] Site has CSP security issues', {
+                  origin: cspHostname,
+                  hasCSP: cspAnalysis.hasCSP,
+                  isSecure: cspAnalysis.isSecure,
+                  warningCount: cspAnalysis.warnings.length,
+                  warnings: cspAnalysis.warnings.slice(0, 3)
+                });
+              }
+            } catch (error) {
+              console.warn('[ProviderService] CSP analysis failed', {
                 origin: cspHostname,
-                hasCSP: cspAnalysis.hasCSP,
-                isSecure: cspAnalysis.isSecure,
-                warningCount: cspAnalysis.warnings.length,
-                warnings: cspAnalysis.warnings.slice(0, 3)
+                error: (error as Error).message
               });
             }
-          } catch (error) {
-            console.warn('[ProviderService] CSP analysis failed', {
-              origin: cspHostname,
-              error: (error as Error).message
-            });
-          }
-          
-          // Request connection through ConnectionService
-          const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
-
-          // Track successful connection
-          await analytics.track('connection_established');
-
-          return buildConnectResponse(origin, accounts);
+          });
         }
         
         case 'xcp_accounts': {
@@ -475,12 +566,13 @@ export function createProviderService(): ProviderService {
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
-          // Get active address for the request
+          // Get active address/wallet for the request
           const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) {
             throw new Error('No active address');
           }
 
@@ -489,68 +581,37 @@ export function createProviderService(): ProviderService {
             throw new Error('Specified address does not match active address');
           }
 
-          // Store the sign message request for the popup to retrieve
-          const signMessageRequestId = generateRequestId('sign-message');
-          await signMessageRequestStorage.store({
-            id: signMessageRequestId,
+          return runSignFlow({
             origin,
-            message,
-            timestamp: Date.now()
-          });
-
-          // Send message to popup to navigate to sign message form
-          chrome.runtime.sendMessage({
-            type: 'NAVIGATE_TO_SIGN_MESSAGE',
-            signMessageRequestId
-          }).catch(() => {
-            // Popup might not be open yet
-          });
-
-          // Open popup at the sign message approval page
-          await openExtensionPopup(`#/requests/message/approve?requestId=${signMessageRequestId}`);
-
-          // Track as critical operation to prevent extension updates during sign message
-          const updateService = getUpdateService();
-          updateService.registerCriticalOperation(`sign-message-${signMessageRequestId}`);
-
-          // Return a promise that will resolve when the user completes the sign message flow
-          return new Promise((resolve, reject) => {
-            let settled = false;
-            let timeout: ReturnType<typeof setTimeout>;
-
-            // Centralized cleanup - called on any exit path
-            const cleanup = () => {
-              if (timeout) clearTimeout(timeout);
-              updateService.unregisterCriticalOperation(`sign-message-${signMessageRequestId}`);
-              eventEmitterService.off(`sign-message-complete-${signMessageRequestId}`, handleComplete);
-              eventEmitterService.off(`sign-message-cancel-${signMessageRequestId}`, handleCancel);
-            };
-
-            const handleComplete = (result: any) => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              analytics.track('message_signed');
-              resolve(result.signature); // Return just the signature for compatibility
-            };
-
-            const handleCancel = () => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('User cancelled sign message request'));
-            };
-
-            timeout = setTimeout(() => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('Sign message request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            // Listen for completion events
-            eventEmitterService.on(`sign-message-complete-${signMessageRequestId}`, handleComplete);
-            eventEmitterService.on(`sign-message-cancel-${signMessageRequestId}`, handleCancel);
+            method,
+            params,
+            approval: {
+              eventPrefix: 'sign-message',
+              analyticsEvent: 'message_signed',
+              cancelMessage: 'User cancelled sign message request',
+              timeoutMessage: 'Sign message request timeout',
+              mapResult: (result) => result.signature,
+            },
+            cleanup: (requestId) => {
+              void signMessageRequestStorage.remove(requestId);
+            },
+            createAndOpen: async (requestId) => {
+              // Binds the request to the authorized address/wallet so signing
+              // can't later use a different identity.
+              await signMessageRequestStorage.store({
+                id: requestId,
+                origin,
+                message,
+                address: activeAddress.address,
+                walletId: activeWallet.id,
+                timestamp: Date.now(),
+              });
+              chrome.runtime.sendMessage({
+                type: 'NAVIGATE_TO_SIGN_MESSAGE',
+                signMessageRequestId: requestId,
+              }).catch(() => { /* Popup might not be open yet */ });
+              await openExtensionPopup(`#/requests/message/approve?requestId=${requestId}`);
+            },
           });
         }
         
@@ -566,85 +627,50 @@ export function createProviderService(): ProviderService {
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
-          // Get active address for the request
+          // Get active address/wallet for the request
           const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) {
             throw new Error('No active address');
           }
 
-          // Store the sign transaction request
-          const signTxRequestId = generateRequestId('sign-tx');
-          const request = {
-            id: signTxRequestId,
+          return runSignFlow({
             origin,
-            rawTxHex,
-            timestamp: Date.now()
-          };
-
-          // Store in memory for fast access
-          activeSignTransactionRequests.set(signTxRequestId, request);
-
-          // Also store in chrome.storage as backup
-          await signTransactionRequestStorage.store(request);
-
-          // Send message to popup to navigate to approve transaction page
-          chrome.runtime.sendMessage({
-            type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
-            signTxRequestId
-          }).catch(() => {
-            // Popup might not be open yet
-          });
-
-          // Open popup at the approve transaction page
-          await openExtensionPopup(`#/requests/transaction/approve?requestId=${signTxRequestId}`);
-
-          // Track as critical operation to prevent extension updates during transaction signing
-          const updateService = getUpdateService();
-          updateService.registerCriticalOperation(`sign-tx-${signTxRequestId}`);
-
-          // Return a promise that will resolve when the user completes the sign transaction flow
-          return new Promise((resolve, reject) => {
-            let settled = false;
-            let timeout: ReturnType<typeof setTimeout>;
-
-            // Centralized cleanup - called on any exit path
-            const cleanup = () => {
-              if (timeout) clearTimeout(timeout);
-              activeSignTransactionRequests.delete(signTxRequestId);
-              signTransactionRequestStorage.remove(signTxRequestId);
-              updateService.unregisterCriticalOperation(`sign-tx-${signTxRequestId}`);
-              eventEmitterService.off(`sign-tx-complete-${signTxRequestId}`, handleComplete);
-              eventEmitterService.off(`sign-tx-cancel-${signTxRequestId}`, handleCancel);
-            };
-
-            const handleComplete = (result: any) => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              analytics.track('transaction_signed');
-              resolve({ hex: result.signedTxHex }); // Return signed transaction hex
-            };
-
-            const handleCancel = () => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('User cancelled transaction signing request'));
-            };
-
-            timeout = setTimeout(() => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('Transaction signing request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            // Listen for completion events
-            eventEmitterService.on(`sign-tx-complete-${signTxRequestId}`, handleComplete);
-            eventEmitterService.on(`sign-tx-cancel-${signTxRequestId}`, handleCancel);
+            method,
+            params,
+            approval: {
+              eventPrefix: 'sign-tx',
+              analyticsEvent: 'transaction_signed',
+              cancelMessage: 'User cancelled transaction signing request',
+              timeoutMessage: 'Transaction signing request timeout',
+              mapResult: (result) => ({ hex: result.signedTxHex }),
+            },
+            cleanup: (requestId) => {
+              activeSignTransactionRequests.delete(requestId);
+              void signTransactionRequestStorage.remove(requestId);
+            },
+            createAndOpen: async (requestId) => {
+              // Binds the request to the authorized address/wallet so signing
+              // can't later use a different identity.
+              const request = {
+                id: requestId,
+                origin,
+                rawTxHex,
+                address: activeAddress.address,
+                walletId: activeWallet.id,
+                timestamp: Date.now(),
+              };
+              activeSignTransactionRequests.set(requestId, request);
+              await signTransactionRequestStorage.store(request);
+              chrome.runtime.sendMessage({
+                type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
+                signTxRequestId: requestId,
+              }).catch(() => { /* Popup might not be open yet */ });
+              await openExtensionPopup(`#/requests/transaction/approve?requestId=${requestId}`);
+            },
           });
         }
 
@@ -667,87 +693,50 @@ export function createProviderService(): ProviderService {
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
-          // Get active address for the request
+          // Get active address/wallet for the request
           const activeAddress = await walletService.getActiveAddress();
-          if (!activeAddress) {
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) {
             throw new Error('No active address');
           }
 
-          // Store the sign PSBT request
-          const signPsbtRequestId = generateRequestId('sign-psbt');
-          const request = {
-            id: signPsbtRequestId,
+          return runSignFlow({
             origin,
-            psbtHex,
-            signInputs,
-            sighashTypes,
-            timestamp: Date.now()
-          };
-
-          // Store in memory for fast access
-          activeSignPsbtRequests.set(signPsbtRequestId, request);
-
-          // Also store in chrome.storage as backup
-          await signPsbtRequestStorage.store(request);
-
-          // Send message to popup to navigate to approve PSBT page
-          chrome.runtime.sendMessage({
-            type: 'NAVIGATE_TO_APPROVE_PSBT',
-            signPsbtRequestId
-          }).catch(() => {
-            // Popup might not be open yet
-          });
-
-          // Open popup at the approve PSBT page
-          await openExtensionPopup(`#/requests/psbt/approve?requestId=${signPsbtRequestId}`);
-
-          // Track as critical operation to prevent extension updates during PSBT signing
-          const updateService = getUpdateService();
-          updateService.registerCriticalOperation(`sign-psbt-${signPsbtRequestId}`);
-
-          // Return a promise that will resolve when the user completes the sign PSBT flow
-          return new Promise((resolve, reject) => {
-            let settled = false;
-            let timeout: ReturnType<typeof setTimeout>;
-
-            // Centralized cleanup - called on any exit path
-            const cleanup = () => {
-              if (timeout) clearTimeout(timeout);
-              activeSignPsbtRequests.delete(signPsbtRequestId);
-              signPsbtRequestStorage.remove(signPsbtRequestId);
-              updateService.unregisterCriticalOperation(`sign-psbt-${signPsbtRequestId}`);
-              eventEmitterService.off(`sign-psbt-complete-${signPsbtRequestId}`, handleComplete);
-              eventEmitterService.off(`sign-psbt-cancel-${signPsbtRequestId}`, handleCancel);
-            };
-
-            const handleComplete = (result: any) => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              analytics.track('psbt_signed');
-              resolve({ hex: result.signedPsbtHex }); // Return signed PSBT hex
-            };
-
-            const handleCancel = () => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('User cancelled PSBT signing request'));
-            };
-
-            timeout = setTimeout(() => {
-              if (settled) return;
-              settled = true;
-              cleanup();
-              reject(new Error('PSBT signing request timeout'));
-            }, 10 * 60 * 1000); // 10 minute timeout
-
-            // Listen for completion events
-            eventEmitterService.on(`sign-psbt-complete-${signPsbtRequestId}`, handleComplete);
-            eventEmitterService.on(`sign-psbt-cancel-${signPsbtRequestId}`, handleCancel);
+            method,
+            params,
+            approval: {
+              eventPrefix: 'sign-psbt',
+              analyticsEvent: 'psbt_signed',
+              cancelMessage: 'User cancelled PSBT signing request',
+              timeoutMessage: 'PSBT signing request timeout',
+              mapResult: (result) => ({ hex: result.signedPsbtHex }),
+            },
+            cleanup: (requestId) => {
+              activeSignPsbtRequests.delete(requestId);
+              void signPsbtRequestStorage.remove(requestId);
+            },
+            createAndOpen: async (requestId) => {
+              const request = {
+                id: requestId,
+                origin,
+                psbtHex,
+                signInputs,
+                sighashTypes,
+                address: activeAddress.address,
+                walletId: activeWallet.id,
+                timestamp: Date.now(),
+              };
+              activeSignPsbtRequests.set(requestId, request);
+              await signPsbtRequestStorage.store(request);
+              chrome.runtime.sendMessage({
+                type: 'NAVIGATE_TO_APPROVE_PSBT',
+                signPsbtRequestId: requestId,
+              }).catch(() => { /* Popup might not be open yet */ });
+              await openExtensionPopup(`#/requests/psbt/approve?requestId=${requestId}`);
+            },
           });
         }
 
@@ -756,7 +745,7 @@ export function createProviderService(): ProviderService {
         case 'xcp_getBalances': {
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
           
           const activeAddress = await walletService.getActiveAddress();
@@ -797,12 +786,12 @@ export function createProviderService(): ProviderService {
         
         case 'xcp_getAssets': {
           // Not supported - dApps should use Counterparty API directly
-          throw new Error('Method xcp_getAssets is not supported. Please use the Counterparty API directly with the connected address.');
+          throw new ProviderError(PROVIDER_ERROR_CODES.UNSUPPORTED_METHOD, 'Method xcp_getAssets is not supported. Please use the Counterparty API directly with the connected address.');
         }
         
         case 'xcp_getHistory': {
           // For privacy, we don't allow reading transaction history
-          throw new Error('Permission denied - transaction history not available through provider');
+          throw new ProviderError(PROVIDER_ERROR_CODES.UNSUPPORTED_METHOD, 'Permission denied - transaction history not available through provider');
         }
 
         // ==================== Transaction Broadcasting ====================
@@ -810,7 +799,7 @@ export function createProviderService(): ProviderService {
         case 'xcp_broadcastTransaction': {
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
-            throw new Error('Unauthorized - not connected to wallet');
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
           }
 
           const signedTx = params?.[0];
@@ -857,7 +846,7 @@ export function createProviderService(): ProviderService {
         }
         
         default:
-          throw new Error(`Unsupported method: ${method}`);
+          throw new ProviderError(PROVIDER_ERROR_CODES.UNSUPPORTED_METHOD, `Unsupported method: ${method}`);
       }
       
     } catch (error) {
@@ -929,22 +918,7 @@ export function createProviderService(): ProviderService {
     activeSignPsbtRequests.clear();
     activeSignTransactionRequests.clear();
   }
-  
-  // Register the pending request resolver with event emitter service
-  eventEmitterService.on('resolve-pending-request', ({ requestId, approved, updatedParams }: any) => {
-    const approvalService = getApprovalService();
-    
-    // Track the approval/rejection event
-    const eventName = approved ? 'request_approved' : 'request_rejected';
-    analytics.track(eventName);
-    
-    // Resolve the approval
-    approvalService.resolveApproval(requestId, {
-      approved,
-      updatedParams
-    });
-  });
-  
+
   return {
     handleRequest,
     isConnected,

@@ -1,17 +1,17 @@
 /**
  * Key-Based Encryption - Shared AES-GCM encryption utilities
  *
- * Provides key-based encryption/decryption for both settings and wallet vault.
+ * Provides key-based encryption/decryption for the keychain and wallet secrets.
  * Keys are derived once from password via PBKDF2, then stored in session.
  *
  * Used by:
- * - settings.ts: encrypts/decrypts application settings
- * - walletManager.ts: encrypts/decrypts wallet vault and secrets
+ * - walletManager.ts: encrypts/decrypts the keychain (incl. settings) and wallet secrets
+ * - sessionManager.ts: manages the cached master key
  */
 
 import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from './buffer';
 
-// Crypto constants (shared with settings.ts)
+// Crypto constants
 const IV_BYTES = 12;
 const KEY_BITS = 256;
 const GCM_TAG_BYTES = 16;

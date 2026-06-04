@@ -1,5 +1,5 @@
 import { apiClient, isCancel } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import { KeyedTTLCache, CacheTTL, cachedFetch } from '@/utils/cache';
 
 // UTXOs can change with each block but short cache prevents API spam
@@ -206,7 +206,7 @@ export async function fetchPreviousRawTransaction(txid: string): Promise<string 
     async () => {
       // Try Counterparty API first
       try {
-        const settings = walletManager.getSettings();
+        const settings = getActiveSettings();
         const response = await apiClient.get<{ result: BitcoinTransaction }>(
           `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
         );
@@ -251,7 +251,7 @@ export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTran
     txid,
     async () => {
       try {
-        const settings = walletManager.getSettings();
+        const settings = getActiveSettings();
 
         // Fetch from both Counterparty API and mempool.space in parallel
         const [counterpartyResponse, mempoolResponse] = await Promise.all([

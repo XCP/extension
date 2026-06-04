@@ -5,12 +5,12 @@
  * here so the popup can retrieve them and pre-populate the sign message form.
  */
 
-import { RequestStorage, BaseRequest } from './requestStorage';
+import { RequestStorage, AuthorizedRequest } from './requestStorage';
 
 /**
  * Sign message request from a dApp.
  */
-export interface SignMessageRequest extends BaseRequest {
+export interface SignMessageRequest extends AuthorizedRequest {
   message: string;
 }
 

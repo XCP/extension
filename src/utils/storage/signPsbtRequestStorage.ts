@@ -5,12 +5,12 @@
  * here so the popup can retrieve them and show the approval UI.
  */
 
-import { RequestStorage, BaseRequest } from './requestStorage';
+import { RequestStorage, AuthorizedRequest } from './requestStorage';
 
 /**
  * Sign PSBT request from a dApp.
  */
-export interface SignPsbtRequest extends BaseRequest {
+export interface SignPsbtRequest extends AuthorizedRequest {
   psbtHex: string;
   signInputs?: Record<string, number[]>;
   sighashTypes?: number[];

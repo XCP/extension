@@ -6,6 +6,8 @@ import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
+import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
@@ -93,6 +95,7 @@ export default function ApprovePsbtPage() {
     handleCancel,
     isProviderRequest
   } = useSignPsbtRequest(activeAddress?.address);
+  usePopupLifecycle(request?.id, 'sign-psbt');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
@@ -121,6 +124,12 @@ export default function ApprovePsbtPage() {
 
   const handleSign = async () => {
     if (!request || !decodedInfo) return;
+
+    const identityError = getIdentityMismatchError(request, activeAddress?.address, activeWallet?.id);
+    if (identityError) {
+      setError(identityError);
+      return;
+    }
 
     setIsSigning(true);
     setError('');

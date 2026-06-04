@@ -46,7 +46,6 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
-import { walletManager } from "@/utils/wallet/walletManager";
 import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
@@ -467,8 +466,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
 
       // Handle address switch - emit accountsChanged to all connected sites
       if (oldAddress && newAddress && oldAddress !== newAddress) {
-        // Get connected sites from settings
-        const settings = walletManager.getSettings();
+        // Get connected sites from settings (via the service seam, not the singleton)
+        const settings = await walletService.getSettings();
 
         // Emit accountsChanged event to each connected site with new address
         // The wallet service proxy will handle the communication to background

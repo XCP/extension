@@ -40,6 +40,15 @@ export interface BaseRequest {
 }
 
 /**
+ * A request authorized for a specific signing identity. Signing is bound to the
+ * address/wallet captured here when the request was created.
+ */
+export interface AuthorizedRequest extends BaseRequest {
+  address: string;
+  walletId: string;
+}
+
+/**
  * Validates that a value has the minimum BaseRequest shape.
  */
 function isValidBaseRequest(value: unknown): value is BaseRequest {

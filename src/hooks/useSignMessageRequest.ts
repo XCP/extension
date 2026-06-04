@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { signMessageRequestStorage, type SignMessageRequest } from '@/utils/storage/signMessageRequestStorage';
+import { recordSignOutcome } from '@/utils/provider/signFlow';
 
 /**
  * Send an event to the background script's EventEmitterService.
@@ -89,6 +90,8 @@ export function useSignMessageRequest() {
   // Handle completion for provider requests
   const handleSuccess = useCallback(async (result: { signature: string }) => {
     if (requestId) {
+      // Persist the outcome so the dApp can recover it after a worker restart.
+      await recordSignOutcome(requestId, 'completed', result);
       // Notify the background that the sign message is complete
       emitToBackground(`sign-message-complete-${requestId}`, result);
 
@@ -100,6 +103,7 @@ export function useSignMessageRequest() {
   // Handle cancellation for provider requests
   const handleCancel = useCallback(async () => {
     if (requestId) {
+      await recordSignOutcome(requestId, 'cancelled');
       // Notify the background that the sign message was cancelled
       emitToBackground(`sign-message-cancel-${requestId}`, { reason: 'User cancelled' });
 

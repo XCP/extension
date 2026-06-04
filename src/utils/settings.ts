@@ -45,6 +45,11 @@ export function getAutoLockTimeoutMs(timer: AutoLockTimer): number {
  */
 export const SETTINGS_VERSION = 2;
 
+export const INDEFINITE_ORDER_EXPIRATION = 0;
+export const LEGACY_MAX_ORDER_EXPIRATION = 8064;
+export const MAX_ORDER_EXPIRATION = 2 ** 16 - 1;
+export const DEFAULT_ORDER_EXPIRATION = LEGACY_MAX_ORDER_EXPIRATION;
+
 /**
  * Application settings - stored encrypted inside the keychain.
  */
@@ -122,9 +127,28 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableAdvancedBroadcasts: false,
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
-  defaultOrderExpiration: 8064,
+  defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   strictTransactionVerification: true,
   connectedWebsites: [],
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   hasVisitedRecoverBitcoin: false,
 };
+
+/**
+ * Live read-only settings access for modules that need config (e.g. the API
+ * base) without importing the wallet singleton. walletManager registers the
+ * provider on init; until then (or when locked) DEFAULT_SETTINGS is returned.
+ */
+let settingsProvider: (() => AppSettings) | null = null;
+
+export function setSettingsProvider(provider: () => AppSettings): void {
+  settingsProvider = provider;
+}
+
+export function getActiveSettings(): AppSettings {
+  return settingsProvider ? settingsProvider() : DEFAULT_SETTINGS;
+}
+
+export function getCounterpartyApiBase(): string {
+  return getActiveSettings().counterpartyApiBase;
+}

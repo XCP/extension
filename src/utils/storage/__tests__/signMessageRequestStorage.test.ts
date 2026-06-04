@@ -27,6 +27,8 @@ describe('signMessageRequestStorage', () => {
     id: 'test-id-' + Math.random().toString(36).slice(2),
     origin: 'https://example.com',
     message: 'Sign this message',
+    address: 'bc1qauthorized',
+    walletId: 'wallet-1',
     timestamp: Date.now(),
     ...overrides,
   });

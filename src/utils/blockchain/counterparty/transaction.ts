@@ -6,7 +6,7 @@
  */
 
 import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import { fromSatoshis } from '@/utils/numeric';
 import { fetchAssetDetails } from './api';
 import { arc4, hexToBytes, bytesToHex } from './unpack/binary';
@@ -66,7 +66,7 @@ export async function decodeRawTransaction(
   rawTxHex: string,
   verbose: boolean = true
 ): Promise<DecodedBitcoinTransaction> {
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
   const apiBase = settings.counterpartyApiBase || 'https://api.counterparty.io';
 
   const url = `${apiBase}/v2/bitcoin/transactions/decode`;
@@ -156,7 +156,7 @@ export async function unpackCounterpartyData(
   dataHex: string,
   verbose: boolean = true
 ): Promise<UnpackedCounterpartyData | null> {
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
   const apiBase = settings.counterpartyApiBase || 'https://api.counterparty.io';
 
   const url = `${apiBase}/v2/transactions/unpack`;

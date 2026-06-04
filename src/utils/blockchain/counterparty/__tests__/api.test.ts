@@ -35,7 +35,7 @@ import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
@@ -44,18 +44,17 @@ vi.mock('@/utils/blockchain/bitcoin/balance');
 vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
   requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn().mockReturnValue({
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/settings')>()),
+  getActiveSettings: vi.fn().mockReturnValue({
+    counterpartyApiBase: 'https://api.counterparty.io',
+  }),
 }));
 
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
 const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 
 // Test data
 const mockAddress = 'bc1qtest123address';

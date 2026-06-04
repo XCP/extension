@@ -96,13 +96,9 @@ export function unpackSweep(payload: Uint8Array): SweepData {
       // Binary memo - store as hex
       result.memo = Array.from(result.memoBytes).map(b => b.toString(16).padStart(2, '0')).join('');
     } else {
-      // Try to decode as UTF-8 text
-      try {
-        result.memo = new TextDecoder('utf-8', { fatal: true }).decode(result.memoBytes);
-      } catch {
-        // Not valid UTF-8, store as hex
-        result.memo = Array.from(result.memoBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-      }
+      // Non-binary memo: core decodes strict UTF-8 and aborts on invalid bytes;
+      // let it throw rather than masking with a hex fallback.
+      result.memo = new TextDecoder('utf-8', { fatal: true }).decode(result.memoBytes);
     }
   }
 

@@ -7,17 +7,16 @@ import {
 } from '../capabilities';
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn(),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/settings')>()),
+  getActiveSettings: vi.fn(),
 }));
 
 const mockedApiClient = vi.mocked(apiClient, true);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 const mockApiBase = 'https://api.counterparty.io:4000';
 
 function mockServerInfo(overrides: Record<string, unknown> = {}) {
@@ -28,7 +27,7 @@ function mockServerInfo(overrides: Record<string, unknown> = {}) {
         network: 'mainnet',
         version: '11.1.0',
         backend_height: 900000,
-        counterparty_height: 952500,
+        counterparty_height: 952800,
         ...overrides,
       },
     },
@@ -51,6 +50,8 @@ describe('counterparty capabilities', () => {
     expect(isVersionAtLeast('11.1.0-alpha.1', '11.1.0')).toBe(true);
     expect(isVersionAtLeast('11.2.0', '11.1.0')).toBe(true);
     expect(isVersionAtLeast('11.0.9', '11.1.0')).toBe(false);
+    expect(isVersionAtLeast('11.10.0', '11.2.0')).toBe(true);
+    expect(isVersionAtLeast('11.2.0', '11.10.0')).toBe(false);
   });
 
   it('reports AMM pools as supported when version and height are ready', async () => {
@@ -75,7 +76,24 @@ describe('counterparty capabilities', () => {
     const status = await getCounterpartyFeatureStatus('ammPools');
 
     expect(status.supported).toBe(false);
-    expect(status.reason).toContain('activate at block 952500');
+    expect(status.reason).toContain('activate at block 952800');
+  });
+
+  it('reports indefinite orders as supported when version and height are ready', async () => {
+    mockServerInfo();
+
+    const status = await getCounterpartyFeatureStatus('indefiniteOrders');
+
+    expect(status.supported).toBe(true);
+  });
+
+  it('rejects indefinite orders before activation height', async () => {
+    mockServerInfo({ counterparty_height: 952799 });
+
+    const status = await getCounterpartyFeatureStatus('indefiniteOrders');
+
+    expect(status.supported).toBe(false);
+    expect(status.reason).toContain('activate at block 952800');
   });
 
   it('allows AMM pools on regtest once the API version supports them', async () => {
