@@ -568,7 +568,7 @@ export default function ApprovePsbtPage() {
             disabled={isSigning || shouldBlockSigning}
             fullWidth
           >
-            {isSigning ? 'Signing…' : shouldBlockSigning ? 'Blocked' : 'Sign'}
+            {isSigning ? (activeWallet.type === 'hardware' ? 'Confirm on device…' : 'Signing…') : shouldBlockSigning ? 'Blocked' : 'Sign'}
           </Button>
         </div>
       </div>
