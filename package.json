@@ -40,35 +40,35 @@
     "@scure/bip32": "2.2.0",
     "@scure/bip39": "2.2.0",
     "@scure/btc-signer": "2.2.0",
-    "@trezor/connect-webextension": "10.0.0-alpha.1",
-    "bignumber.js": "11.1.1",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "react-router-dom": "7.15.0",
+    "@trezor/connect-webextension": "9.7.3",
+    "bignumber.js": "11.1.2",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "react-router-dom": "7.17.0",
     "webext-bridge": "6.0.1"
   },
   "overrides": {
     "protobufjs": "7.5.5"
   },
   "devDependencies": {
-    "@playwright/test": "1.59.1",
+    "@playwright/test": "1.60.0",
     "@tailwindcss/vite": "4.3.0",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.1",
     "@trezor/trezor-user-env-link": "1.0.0",
     "@types/chrome": "0.1.42",
-    "@types/react": "19.2.14",
+    "@types/react": "19.2.16",
     "@types/react-dom": "19.2.3",
-    "@vitest/coverage-v8": "4.1.5",
+    "@vitest/coverage-v8": "4.1.8",
     "@wxt-dev/module-react": "1.2.2",
     "archiver": "8.0.0",
-    "fast-check": "4.7.0",
-    "happy-dom": "20.9.0",
+    "fast-check": "4.8.0",
+    "happy-dom": "20.10.1",
     "tailwindcss": "4.3.0",
     "typescript": "6.0.3",
     "vite-plugin-remove-console": "2.2.0",
-    "vitest": "4.1.5",
-    "wxt": "0.20.25"
+    "vitest": "4.1.8",
+    "wxt": "0.20.26"
   }
 }
