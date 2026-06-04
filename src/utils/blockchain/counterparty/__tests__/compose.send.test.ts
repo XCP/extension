@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { composeSend, composeSendOrMPMA, composeMPMA, composeSweep, getSweepEstimateXcpFee, composeMove } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 import {
   mockAddress,
   mockDestAddress,
@@ -18,11 +18,10 @@ import {
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn(),
-  },
-}));
+vi.mock('@/utils/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/settings')>();
+  return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
+});
 
 // Mock UTXO selection to prevent real API calls to mempool.space
 vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
@@ -35,7 +34,7 @@ vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
 }));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 
 describe('Compose Send Operations', () => {
   beforeEach(() => {

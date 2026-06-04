@@ -1,7 +1,7 @@
 import { apiClient } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
 import { requireCounterpartyFeature } from '@/utils/blockchain/counterparty/capabilities';
+import { LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION, getActiveSettings } from '@/utils/settings';
 import { selectUtxosForTransaction } from '@/utils/blockchain/counterparty/utxo-selection';
 
 /**
@@ -217,6 +217,7 @@ export interface FairminterOptions extends BaseComposeOptions {
   lot_price?: number;
   lot_size?: number;
   max_mint_per_tx?: number;
+  max_mint_per_address?: number;
   hard_cap?: number;
   premint_quantity?: number;
   start_block?: number;
@@ -275,7 +276,7 @@ export interface MoveOptions extends BaseComposeOptions {
 }
 
 async function getApiBase() {
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
   return settings.counterpartyApiBase;
 }
 
@@ -442,7 +443,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
@@ -484,7 +485,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
@@ -537,7 +538,7 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
 
   // Get user's unconfirmed transaction preference
-  const settings = walletManager.getSettings();
+  const settings = getActiveSettings();
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -839,6 +840,15 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     max_fee,
     encoding,
   } = options;
+  if (expiration < 0 || expiration > MAX_ORDER_EXPIRATION) {
+    throw new Error(`Order expiration must be between 0 and ${MAX_ORDER_EXPIRATION} blocks.`);
+  }
+  // The v11.1 indefinite_orders gate covers both never-expiring orders and
+  // finite expirations above the old 8064-block policy cap.
+  if (expiration === 0 || expiration > LEGACY_MAX_ORDER_EXPIRATION) {
+    await requireCounterpartyFeature('indefiniteOrders');
+  }
+
   const paramsObj = {
     give_asset,
     give_quantity: give_quantity.toString(),
@@ -965,6 +975,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     lot_price = 0,
     lot_size = 1,
     max_mint_per_tx = 0,
+    max_mint_per_address = 0,
     hard_cap = 0,
     premint_quantity = 0,
     start_block = 0,
@@ -990,6 +1001,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     lot_price: lot_price.toString(),
     lot_size: lot_size.toString(),
     max_mint_per_tx: max_mint_per_tx.toString(),
+    max_mint_per_address: max_mint_per_address.toString(),
     hard_cap: hard_cap.toString(),
     premint_quantity: premint_quantity.toString(),
     start_block: start_block.toString(),

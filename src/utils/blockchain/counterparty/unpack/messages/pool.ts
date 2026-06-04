@@ -1,6 +1,11 @@
 import { BinaryReader } from '../binary';
 import { assetIdToName } from '../assetId';
 
+// Exact payload lengths, matching counterparty-core (pooldeposit.py ">QQQQQQ",
+// poolwithdraw.py ">QQQQQ"). Core rejects any other length, so the verifier must too.
+const POOL_DEPOSIT_LENGTH = 48;
+const POOL_WITHDRAW_LENGTH = 40;
+
 export interface PoolDepositData {
   assetA: string;
   assetAId: bigint;
@@ -24,6 +29,10 @@ export interface PoolWithdrawData {
 }
 
 export function unpackPoolDeposit(payload: Uint8Array): PoolDepositData {
+  if (payload.length !== POOL_DEPOSIT_LENGTH) {
+    throw new Error(`Invalid pool deposit payload length: ${payload.length} (expected ${POOL_DEPOSIT_LENGTH})`);
+  }
+
   const reader = new BinaryReader(payload);
 
   const assetAId = reader.readUint64BE();
@@ -47,6 +56,10 @@ export function unpackPoolDeposit(payload: Uint8Array): PoolDepositData {
 }
 
 export function unpackPoolWithdraw(payload: Uint8Array): PoolWithdrawData {
+  if (payload.length !== POOL_WITHDRAW_LENGTH) {
+    throw new Error(`Invalid pool withdraw payload length: ${payload.length} (expected ${POOL_WITHDRAW_LENGTH})`);
+  }
+
   const reader = new BinaryReader(payload);
 
   const assetAId = reader.readUint64BE();

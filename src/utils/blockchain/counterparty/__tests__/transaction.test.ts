@@ -17,16 +17,15 @@ import {
   type UnpackedCounterpartyData,
 } from '../transaction';
 import { apiClient } from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn().mockReturnValue({
-      counterpartyApiBase: 'https://api.counterparty.io',
-    }),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/settings')>()),
+  getActiveSettings: vi.fn().mockReturnValue({
+    counterpartyApiBase: 'https://api.counterparty.io',
+  }),
 }));
 vi.mock('../api', () => ({
   fetchAssetDetails: vi.fn().mockImplementation(async (asset: string) => {
@@ -37,7 +36,7 @@ vi.mock('../api', () => ({
 }));
 
 const mockedApiClient = vi.mocked(apiClient, true);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 
 const mockApiBase = 'https://api.counterparty.io';
 

@@ -2,16 +2,16 @@
  * Dispenser Message Unpacker
  *
  * Message ID: 12
- * Format: ">QQQB" (25 bytes minimum) + optional fields
+ * Format: ">QQQQB" (33 bytes fixed, matching counterparty-core dispenser.py) + optional fields
  *   - asset_id (Q): 8 bytes - Asset to dispense
  *   - give_quantity (Q): 8 bytes - Units given per dispense
  *   - escrow_quantity (Q): 8 bytes - Total quantity in escrow
+ *   - mainchainrate (Q): 8 bytes - Satoshis required per give_quantity (BEFORE status)
  *   - status (B): 1 byte - Status code
  *
- * Optional fields (appended):
- *   - mainchainrate (Q): 8 bytes - Satoshis required per give_quantity
- *   - action_address: 21 bytes (if status = 1 or closing with different source)
- *   - oracle_address: 21 bytes (if oracle dispenser)
+ * Optional fields (appended, 21 bytes each):
+ *   - action_address: present for OPEN_EMPTY_ADDRESS, or CLOSED when extra bytes exist
+ *   - oracle_address: present for oracle dispensers
  *
  * Status values:
  *   0 = OPEN
@@ -25,8 +25,8 @@ import { assetIdToName } from '../assetId';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
 import { DispenserStatus } from '../messageTypes';
 
-/** Base length of dispenser message (without optional fields) */
-const DISPENSER_BASE_LENGTH = 25; // 3 x Q (8 bytes) + 1 x B (1 byte)
+/** Fixed length of the dispenser struct (">QQQQB"), matching core's LENGTH=33. */
+const DISPENSER_LENGTH = 33; // 4 x Q (8 bytes) + 1 x B (1 byte)
 
 /**
  * Unpacked dispenser data
@@ -78,15 +78,17 @@ function getStatusName(status: number): string {
  * @throws Error if payload is invalid
  */
 export function unpackDispenser(payload: Uint8Array): DispenserData {
-  if (payload.length < DISPENSER_BASE_LENGTH) {
-    throw new Error(`Invalid dispenser payload length: ${payload.length} (minimum ${DISPENSER_BASE_LENGTH})`);
+  if (payload.length < DISPENSER_LENGTH) {
+    throw new Error(`Invalid dispenser payload length: ${payload.length} (minimum ${DISPENSER_LENGTH})`);
   }
 
   const reader = new BinaryReader(payload);
 
+  // Fixed-layout ">QQQQB": mainchainrate precedes status and is mandatory.
   const assetId = reader.readUint64BE();
   const giveQuantity = reader.readUint64BE();
   const escrowQuantity = reader.readUint64BE();
+  const mainchainrate = reader.readUint64BE();
   const status = reader.readUint8();
 
   // Convert asset ID to name
@@ -97,31 +99,24 @@ export function unpackDispenser(payload: Uint8Array): DispenserData {
     assetId,
     giveQuantity,
     escrowQuantity,
-    mainchainrate: 0n, // Default, may be updated below
+    mainchainrate,
     status,
     statusName: getStatusName(status),
   };
 
-  // Read optional mainchainrate (8 bytes)
-  if (reader.remaining >= 8) {
-    result.mainchainrate = reader.readUint64BE();
+  // Optional action_address (21 bytes): read for OPEN_EMPTY_ADDRESS, or CLOSED
+  // when a full address follows. Never for OPEN/CLOSING. (Core additionally gates
+  // the CLOSED case on a protocol fork, which needs a block height unavailable here.)
+  if (
+    reader.remaining >= PACKED_ADDRESS_LENGTH &&
+    (status === DispenserStatus.OPEN_EMPTY_ADDRESS || status === DispenserStatus.CLOSED)
+  ) {
+    result.openAddress = unpackAddress(reader.readBytes(PACKED_ADDRESS_LENGTH));
   }
 
-  // Check for optional action address
-  // Present if status = OPEN_EMPTY_ADDRESS or (CLOSING with remaining bytes)
+  // Optional oracle_address (21 bytes) — any remaining full address.
   if (reader.remaining >= PACKED_ADDRESS_LENGTH) {
-    if (status === DispenserStatus.OPEN_EMPTY_ADDRESS ||
-        status === DispenserStatus.CLOSED ||
-        status === DispenserStatus.CLOSING) {
-      const packedAddress = reader.readBytes(PACKED_ADDRESS_LENGTH);
-      result.openAddress = unpackAddress(packedAddress);
-    }
-  }
-
-  // Check for optional oracle address
-  if (reader.remaining >= PACKED_ADDRESS_LENGTH) {
-    const packedOracle = reader.readBytes(PACKED_ADDRESS_LENGTH);
-    result.oracleAddress = unpackAddress(packedOracle);
+    result.oracleAddress = unpackAddress(reader.readBytes(PACKED_ADDRESS_LENGTH));
   }
 
   return result;

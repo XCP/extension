@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { composeOrder, composeCancel, composeDispenser, composeDispense } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
+import { requireCounterpartyFeature } from '@/utils/blockchain/counterparty/capabilities';
 import {
   mockAddress,
   mockApiBase,
@@ -16,10 +17,13 @@ import {
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
-vi.mock('@/utils/wallet/walletManager', () => ({
-  walletManager: {
-    getSettings: vi.fn(),
-  },
+vi.mock('@/utils/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/utils/settings')>();
+  return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
+});
+
+vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Mock UTXO selection to prevent real API calls to mempool.space
@@ -33,7 +37,8 @@ vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
 }));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
-const mockedGetSettings = vi.mocked(walletManager.getSettings);
+const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedRequireCounterpartyFeature = vi.mocked(requireCounterpartyFeature);
 
 describe('Compose Trading Operations', () => {
   beforeEach(() => {
@@ -137,8 +142,8 @@ describe('Compose Trading Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'order', assetTradeParams);
     });
 
-    it('should handle zero expiration (fill or kill)', async () => {
-      const fillOrKillParams = {
+    it('should handle zero expiration as an indefinite order', async () => {
+      const indefiniteParams = {
         ...defaultParams,
         expiration: 0,
       };
@@ -146,13 +151,47 @@ describe('Compose Trading Operations', () => {
       await composeOrder({
         sourceAddress: mockAddress,
         sat_per_vbyte: mockSatPerVbyte,
-        ...fillOrKillParams,
+        ...indefiniteParams,
       });
       
       // Check if apiClient.get was called with query parameters
       const actualUrl = mockedApiClient.get.mock.calls[0][0];
       const url = new URL(actualUrl);
       expect(url.searchParams.get('expiration')).toBe('0');
+      expect(mockedRequireCounterpartyFeature).toHaveBeenCalledWith('indefiniteOrders');
+    });
+
+    it('requires indefinite order support for expirations above the legacy max', async () => {
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 65535,
+      });
+
+      expect(mockedRequireCounterpartyFeature).toHaveBeenCalledWith('indefiniteOrders');
+    });
+
+    it('does not require indefinite order support for legacy expirations', async () => {
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 8064,
+      });
+
+      expect(mockedRequireCounterpartyFeature).not.toHaveBeenCalled();
+    });
+
+    it('rejects expirations above the uint16 protocol limit', async () => {
+      await expect(composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 65536,
+      })).rejects.toThrow('Order expiration must be between 0 and 65535 blocks.');
+
+      expect(mockedRequireCounterpartyFeature).not.toHaveBeenCalled();
     });
   });
 

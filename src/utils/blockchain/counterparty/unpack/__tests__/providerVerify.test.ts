@@ -495,7 +495,7 @@ describe('verifyProviderTransaction', () => {
   });
 
   describe('dispenser verification', () => {
-    // Dispenser binary: asset_id(8) + give_quantity(8) + escrow_quantity(8) + status(1) + [mainchainrate(8)]
+    // Dispenser binary (core ">QQQQB"): asset_id(8) + give_quantity(8) + escrow_quantity(8) + mainchainrate(8) + status(1)
     function makeDispenser(
       assetId: bigint, giveQty: bigint, escrowQty: bigint, rate: bigint
     ): string {
@@ -503,7 +503,7 @@ describe('verifyProviderTransaction', () => {
       return buildMessage(
         MessageTypeId.DISPENSER,
         bigintHex(assetId) + bigintHex(giveQty) + bigintHex(escrowQty) +
-        status + bigintHex(rate)
+        bigintHex(rate) + status
       );
     }
 

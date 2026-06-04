@@ -2,7 +2,7 @@
  * Order Message Unpacker
  *
  * Message ID: 10
- * Format: ">QQQQHQ" (34 bytes)
+ * Format: ">QQQQHQ" (42 bytes)
  *   - give_id (Q): 8 bytes - Asset ID to give
  *   - give_quantity (Q): 8 bytes - Quantity to give
  *   - get_id (Q): 8 bytes - Asset ID to get

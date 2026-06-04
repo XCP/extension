@@ -1,8 +1,8 @@
 import { apiClient } from '@/utils/apiClient';
 import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { getActiveSettings } from '@/utils/settings';
 
-export type CounterpartyFeature = 'ammPools';
+export type CounterpartyFeature = 'ammPools' | 'indefiniteOrders';
 
 interface ServerInfo {
   server_ready: boolean;
@@ -24,21 +24,33 @@ const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {
     minVersion: '11.1.0',
     activationHeights: {
-      mainnet: 952500,
-      testnet: 4961000,
-      testnet3: 4961000,
-      testnet4: 136000,
-      signet: 310000,
+      mainnet: 952800,
+      testnet: 4961300,
+      testnet3: 4961300,
+      testnet4: 136300,
+      signet: 310300,
       regtest: 0,
     },
     label: 'AMM pools',
+  },
+  indefiniteOrders: {
+    minVersion: '11.1.0',
+    activationHeights: {
+      mainnet: 952800,
+      testnet: 4961300,
+      testnet3: 4961300,
+      testnet4: 136300,
+      signet: 310300,
+      regtest: 0,
+    },
+    label: 'Never-expiring orders',
   },
 };
 
 let cachedServerInfo: { apiBase: string; serverInfo: ServerInfo; timestamp: number } | null = null;
 
 function getApiBase(): string {
-  return walletManager.getSettings().counterpartyApiBase;
+  return getActiveSettings().counterpartyApiBase;
 }
 
 function parseVersion(version: string): [number, number, number] {

@@ -206,32 +206,56 @@ describe('Counterparty-Core Compatibility', () => {
   describe('Dispenser', () => {
     /**
      * From dispenser.py:
-     * FORMAT = ">QQQB"
-     * - asset (Q): 8 bytes
+     * FORMAT = ">QQQQB", LENGTH = 33  (mainchainrate is BEFORE status, and mandatory)
+     * - asset_id (Q): 8 bytes
      * - give_quantity (Q): 8 bytes
      * - escrow_quantity (Q): 8 bytes
+     * - mainchainrate (Q): 8 bytes
      * - status (B): 1 byte
-     * + optional: mainchainrate (Q): 8 bytes
-     * + optional: open_address bytes
+     * + optional action_address (21 bytes) and oracle_address (21 bytes)
      */
 
-    it('should unpack basic dispenser', () => {
-      // This tests the minimum dispenser format
-      const assetId = '0000000000000001'; // XCP
-      const giveQty = '0000000000000064'; // 100 per dispense
-      const escrowQty = '00000000000003e8'; // 1000 total
-      const status = '00'; // open
-      const mainchainrate = '00000000000f4240'; // 1000000 sats = 0.01 BTC
+    // Core byte order (mainchainrate before status), built via bigintToHex8.
+    const baseHex =
+      bigintToHex8(1n) + // asset_id = XCP
+      bigintToHex8(100n) + // give_quantity
+      bigintToHex8(1000n) + // escrow_quantity
+      bigintToHex8(1000000n); // mainchainrate = 1,000,000 sats = 0.01 BTC
 
-      const payload = hexToBytes(assetId + giveQty + escrowQty + status + mainchainrate);
-
-      const result = unpackDispenser(payload);
+    it('should unpack a basic (33-byte) dispenser', () => {
+      const result = unpackDispenser(hexToBytes(baseHex + '00')); // status = OPEN
 
       expect(result.asset).toBe('XCP');
       expect(result.giveQuantity).toBe(100n);
       expect(result.escrowQuantity).toBe(1000n);
-      expect(result.status).toBe(0);
       expect(result.mainchainrate).toBe(1000000n);
+      expect(result.status).toBe(0);
+      expect(result.statusName).toBe('open');
+      expect(result.openAddress).toBeUndefined();
+      expect(result.oracleAddress).toBeUndefined();
+    });
+
+    it('should read action_address for OPEN_EMPTY_ADDRESS (status 1)', () => {
+      const payload = baseHex + '01' + '6f' + TEST_ADDRESSES.addr1_hash; // 33 + 21 bytes
+      const result = unpackDispenser(hexToBytes(payload));
+
+      expect(result.status).toBe(1);
+      expect(result.statusName).toBe('open_empty_address');
+      expect(result.openAddress).toBe(TEST_ADDRESSES.addr1);
+      expect(result.oracleAddress).toBeUndefined();
+    });
+
+    it('should read oracle_address for an OPEN oracle dispenser', () => {
+      const payload = baseHex + '00' + '6f' + TEST_ADDRESSES.addr0_hash; // 33 + 21, status OPEN
+      const result = unpackDispenser(hexToBytes(payload));
+
+      expect(result.status).toBe(0);
+      expect(result.openAddress).toBeUndefined(); // not read for OPEN
+      expect(result.oracleAddress).toBe(TEST_ADDRESSES.addr0);
+    });
+
+    it('should reject a payload shorter than the 33-byte struct (matches core)', () => {
+      expect(() => unpackDispenser(hexToBytes(baseHex))).toThrow(); // 32 bytes, no status
     });
   });
 
@@ -434,6 +458,7 @@ import { unpackDividend } from '../messages/dividend';
 import { unpackFairmint } from '../messages/fairmint';
 import { unpackFairminter } from '../messages/fairminter';
 import { unpackAttach } from '../messages/attach';
+import { unpackPoolDeposit, unpackPoolWithdraw } from '../messages/pool';
 
 describe('BTCPay', () => {
   /**
@@ -629,5 +654,91 @@ describe('Attach', () => {
     expect(result.asset).toBe('PEPECASH');
     expect(result.quantity).toBe(50000000n);
     expect(result.destinationVout).toBe(2);
+  });
+});
+
+describe('Pool Deposit', () => {
+  /**
+   * From pooldeposit.py:
+   * FORMAT = ">QQQQQQ", LENGTH = 48
+   * - asset_a_id (Q): 8 bytes
+   * - asset_b_id (Q): 8 bytes
+   * - quantity_a (Q): 8 bytes
+   * - quantity_b (Q): 8 bytes
+   * - min_lp_quantity (Q): 8 bytes
+   * - lp_asset_id (Q): 8 bytes
+   * Core rejects any message whose length != 48 (UnpackError).
+   */
+
+  const lpAssetId = 26n ** 12n + 2000n; // numeric LP asset
+  const assetBId = 26n ** 12n + 1000n; // numeric paired asset
+  // Build every 8-byte field via bigintToHex8 so hex can't drift from the asserts.
+  const depositHex =
+    bigintToHex8(1n) + // asset_a_id = XCP
+    bigintToHex8(assetBId) + // asset_b_id (numeric)
+    bigintToHex8(100000000n) + // quantity_a
+    bigintToHex8(200000000n) + // quantity_b
+    bigintToHex8(141421264n) + // min_lp_quantity
+    bigintToHex8(lpAssetId); // lp_asset_id (numeric)
+
+  it('should unpack a pool deposit (48 bytes)', () => {
+    const result = unpackPoolDeposit(hexToBytes(depositHex));
+
+    expect(result.assetA).toBe('XCP');
+    expect(result.assetBId).toBe(assetBId);
+    expect(result.assetB).toBe(`A${assetBId.toString()}`);
+    expect(result.quantityA).toBe(100000000n);
+    expect(result.quantityB).toBe(200000000n);
+    expect(result.minLpQuantity).toBe(141421264n);
+    expect(result.lpAssetId).toBe(lpAssetId);
+    expect(result.lpAsset).toBe(`A${lpAssetId.toString()}`);
+  });
+
+  it('should reject a deposit payload with trailing bytes (matches core length check)', () => {
+    expect(() => unpackPoolDeposit(hexToBytes(depositHex + '00'))).toThrow();
+  });
+
+  it('should reject a truncated deposit payload', () => {
+    expect(() => unpackPoolDeposit(hexToBytes(depositHex.slice(0, -2)))).toThrow();
+  });
+});
+
+describe('Pool Withdraw', () => {
+  /**
+   * From poolwithdraw.py:
+   * FORMAT = ">QQQQQ", LENGTH = 40
+   * - asset_a_id (Q): 8 bytes
+   * - asset_b_id (Q): 8 bytes
+   * - quantity (Q): 8 bytes
+   * - min_quantity_a (Q): 8 bytes
+   * - min_quantity_b (Q): 8 bytes
+   * Core rejects any message whose length != 40 (UnpackError).
+   */
+
+  const assetBId = 26n ** 12n + 1000n;
+  const withdrawHex =
+    bigintToHex8(1n) + // asset_a_id = XCP
+    bigintToHex8(assetBId) + // asset_b_id (numeric)
+    bigintToHex8(70710528n) + // quantity (LP burned)
+    bigintToHex8(99000000n) + // min_quantity_a
+    bigintToHex8(198000000n); // min_quantity_b
+
+  it('should unpack a pool withdraw (40 bytes)', () => {
+    const result = unpackPoolWithdraw(hexToBytes(withdrawHex));
+
+    expect(result.assetA).toBe('XCP');
+    expect(result.assetBId).toBe(assetBId);
+    expect(result.assetB).toBe(`A${assetBId.toString()}`);
+    expect(result.quantity).toBe(70710528n);
+    expect(result.minQuantityA).toBe(99000000n);
+    expect(result.minQuantityB).toBe(198000000n);
+  });
+
+  it('should reject a withdraw payload with trailing bytes (matches core length check)', () => {
+    expect(() => unpackPoolWithdraw(hexToBytes(withdrawHex + '00'))).toThrow();
+  });
+
+  it('should reject a truncated withdraw payload', () => {
+    expect(() => unpackPoolWithdraw(hexToBytes(withdrawHex.slice(0, -2)))).toThrow();
   });
 });
