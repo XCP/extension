@@ -530,8 +530,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get address: ${result.payload.error}`,
-        result.payload.code ?? 'GET_ADDRESS_FAILED',
+        `Failed to get address: ${result.payload?.error}`,
+        result.payload?.code ?? 'GET_ADDRESS_FAILED',
         'trezor',
         'Failed to get address from Trezor. Please check your device and try again.'
       );
@@ -581,8 +581,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get addresses: ${result.payload.error}`,
-        result.payload.code ?? 'GET_ADDRESSES_FAILED',
+        `Failed to get addresses: ${result.payload?.error}`,
+        result.payload?.code ?? 'GET_ADDRESSES_FAILED',
         'trezor',
         'Failed to get addresses from Trezor. Please check your device and try again.'
       );
@@ -620,8 +620,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get xpub: ${result.payload.error}`,
-        result.payload.code ?? 'GET_XPUB_FAILED',
+        `Failed to get xpub: ${result.payload?.error}`,
+        result.payload?.code ?? 'GET_XPUB_FAILED',
         'trezor',
         'Failed to get extended public key from Trezor.'
       );
@@ -667,9 +667,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     console.log('[TrezorAdapter] getAccountInfo result:', JSON.stringify(result, null, 2));
 
     if (!result.success) {
-      const errorMsg = result.payload.error?.toLowerCase() || '';
+      const errorMsg = result.payload?.error?.toLowerCase() || '';
       console.error('[TrezorAdapter] Discovery failed:', result.payload);
-      const errorCode = result.payload.code ?? 'DISCOVERY_FAILED';
+      const errorCode = result.payload?.code ?? 'DISCOVERY_FAILED';
 
       // Provide specific error messages for common failure modes
       if (errorMsg.includes('cancelled') || errorMsg.includes('cancel')) {
@@ -710,7 +710,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       // Default error
       throw new HardwareWalletError(
-        `Account discovery failed: ${result.payload.error}`,
+        `Account discovery failed: ${result.payload?.error}`,
         errorCode,
         'trezor',
         'Failed to discover accounts. Please check your device and try again.'
@@ -718,6 +718,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     }
 
     const account = result.payload;
+    if (!account?.path) {
+      throw new HardwareWalletError(
+        'Device returned incomplete account information (missing path)',
+        'INVALID_RESPONSE',
+        'trezor',
+        'The device returned incomplete account information. Please try again.'
+      );
+    }
 
     // Validate and parse the account path using the utility
     const parsedPath = DerivationPaths.parseAccountPath(account.path);
@@ -823,8 +831,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to sign transaction: ${result.payload.error}`,
-        result.payload.code ?? 'SIGN_TX_FAILED',
+        `Failed to sign transaction: ${result.payload?.error}`,
+        result.payload?.code ?? 'SIGN_TX_FAILED',
         'trezor',
         'Failed to sign transaction. Please check your Trezor and try again.'
       );
@@ -861,19 +869,19 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       // Provide better error message for script type errors
-      const errorMsg = result.payload.error?.toLowerCase() || '';
+      const errorMsg = result.payload?.error?.toLowerCase() || '';
       if (errorMsg.includes('script type') || errorMsg.includes('unsupported')) {
         throw new HardwareWalletError(
-          `Failed to sign message: ${result.payload.error}`,
-          result.payload.code ?? 'SIGN_MESSAGE_FAILED',
+          `Failed to sign message: ${result.payload?.error}`,
+          result.payload?.code ?? 'SIGN_MESSAGE_FAILED',
           'trezor',
           'This address type is not supported for message signing on Trezor. Try using a Native SegWit (bc1q...) address.'
         );
       }
 
       throw new HardwareWalletError(
-        `Failed to sign message: ${result.payload.error}`,
-        result.payload.code ?? 'SIGN_MESSAGE_FAILED',
+        `Failed to sign message: ${result.payload?.error}`,
+        result.payload?.code ?? 'SIGN_MESSAGE_FAILED',
         'trezor',
         'Failed to sign message. Please check your Trezor and try again.'
       );
@@ -1020,8 +1028,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to sign PSBT: ${result.payload.error}`,
-        result.payload.code ?? 'SIGN_PSBT_FAILED',
+        `Failed to sign PSBT: ${result.payload?.error}`,
+        result.payload?.code ?? 'SIGN_PSBT_FAILED',
         'trezor',
         'Failed to sign transaction. Please check your Trezor and try again.'
       );
