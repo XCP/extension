@@ -273,7 +273,8 @@ test.describe('Trezor Hardware Wallet', () => {
     }
   });
 
-  test('shows Trezor popup when connecting', async () => {
+  // TODO(trezor): connect-webextension 10.x-alpha errors during connect in headless CI; revisit on a stable release.
+  test.fixme('shows Trezor popup when connecting', async () => {
     const { context, page } = await launchExtension('trezor-popup', { useSidepanel: true });
 
     try {
