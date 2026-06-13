@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { WalletList } from './wallet-list';
 import type { Wallet } from '@/types/wallet';
@@ -6,15 +6,18 @@ import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock WalletCard component
 vi.mock('@/components/ui/cards/wallet-card', () => ({
-  WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet }: any) => (
+  WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet, disabled, disabledMessage }: any) => (
     <div
       data-testid={`wallet-card-${wallet.id}`}
       data-selected={selected}
       data-display-address={displayAddress?.address || ''}
       data-only={isOnlyWallet}
-      onClick={() => onSelect(wallet)}
+      data-disabled={disabled}
+      data-disabled-message={disabledMessage || ''}
+      onClick={() => !disabled && onSelect(wallet)}
       role="radio"
       aria-checked={selected}
+      aria-disabled={disabled}
     >
       {wallet.name}
     </div>
@@ -46,10 +49,22 @@ describe('WalletList', () => {
       addressFormat: AddressFormat.P2WPKH,
       addressCount: 1,
       addresses: []
+    },
+    {
+      id: 'wallet-4',
+      name: 'Trezor Wallet',
+      type: 'hardware' as const,
+      addressFormat: AddressFormat.P2WPKH,
+      addressCount: 1,
+      addresses: []
     }
   ];
 
   const mockOnSelectWallet = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   it('should render all wallets', () => {
     render(
@@ -63,6 +78,7 @@ describe('WalletList', () => {
     expect(screen.getByTestId('wallet-card-wallet-1')).toBeInTheDocument();
     expect(screen.getByTestId('wallet-card-wallet-2')).toBeInTheDocument();
     expect(screen.getByTestId('wallet-card-wallet-3')).toBeInTheDocument();
+    expect(screen.getByTestId('wallet-card-wallet-4')).toBeInTheDocument();
   });
 
   it('should show selected wallet', () => {
@@ -99,6 +115,7 @@ describe('WalletList', () => {
     expect(screen.getByTestId('wallet-card-wallet-1')).toHaveAttribute('data-display-address', '');
     expect(screen.getByTestId('wallet-card-wallet-2')).toHaveAttribute('data-display-address', 'bc1qselectedaddress7');
     expect(screen.getByTestId('wallet-card-wallet-3')).toHaveAttribute('data-display-address', '');
+    expect(screen.getByTestId('wallet-card-wallet-4')).toHaveAttribute('data-display-address', '');
   });
 
   it('should call onSelectWallet when wallet is clicked', () => {
@@ -173,5 +190,24 @@ describe('WalletList', () => {
     fireEvent.click(walletCard3);
 
     expect(mockOnSelectWallet).toHaveBeenCalledWith(mockWallets[2]);
+  });
+
+  it('should disable hardware wallet selection when requested', () => {
+    render(
+      <WalletList
+        wallets={mockWallets}
+        selectedWallet={mockWallets[0]}
+        onSelectWallet={mockOnSelectWallet}
+        disableHardwareWallets
+        hardwareWalletDisabledMessage="Open in sidepanel"
+      />
+    );
+
+    const hardwareCard = screen.getByTestId('wallet-card-wallet-4');
+    expect(hardwareCard).toHaveAttribute('data-disabled', 'true');
+    expect(hardwareCard).toHaveAttribute('data-disabled-message', 'Open in sidepanel');
+
+    fireEvent.click(hardwareCard);
+    expect(mockOnSelectWallet).not.toHaveBeenCalled();
   });
 });

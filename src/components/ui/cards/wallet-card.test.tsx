@@ -68,6 +68,20 @@ describe('WalletCard', () => {
     addresses: []
   };
 
+  const mockHardwareWallet: Wallet = {
+    id: 'wallet-4',
+    name: 'Trezor Safe 7',
+    type: 'hardware',
+    addressFormat: 'p2wpkh',
+    addressCount: 1,
+    addresses: [{
+      name: 'Trezor Address',
+      address: 'bc1qhardwarewalletaddress000000000000000000000',
+      path: "m/84'/0'/0'/0/0",
+      pubKey: 'mockhardwarepublickey'
+    }]
+  };
+
   const mockOnSelect = vi.fn();
 
   beforeEach(() => {
@@ -229,6 +243,28 @@ describe('WalletCard', () => {
     const walletName = screen.getByText('Main Wallet');
     fireEvent.click(walletName);
     expect(mockOnSelect).toHaveBeenCalledWith(mockMnemonicWallet);
+  });
+
+  it('shows disabled message and does not select disabled hardware wallet', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockHardwareWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+          disabled
+          disabledMessage="Open in sidepanel"
+        />
+      </TestWrapper>
+    );
+
+    expect(screen.getByText('Trezor Safe 7')).toBeInTheDocument();
+    expect(screen.getByText('Open in sidepanel')).toBeInTheDocument();
+    expect(screen.getByText('Hardware')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Trezor Safe 7'));
+    expect(mockOnSelect).not.toHaveBeenCalled();
   });
 
   it('does not call onSelect when menu is clicked', () => {
