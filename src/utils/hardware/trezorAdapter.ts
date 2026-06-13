@@ -791,11 +791,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           script_type: output.scriptType,
         };
       } else {
-        // External output - use address
+        // External address outputs must use PAYTOADDRESS. Trezor infers the
+        // actual script from the address; SegWit/Taproot PAYTO* types are for
+        // change outputs that use address_n.
         return {
           address: output.address,
           amount: output.amount,
-          script_type: output.scriptType,
+          script_type: 'PAYTOADDRESS',
         };
       }
     });
@@ -989,29 +991,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           );
         }
 
-        // Determine output script type based on PSBT output type
-        let outputScriptType: OutputScriptType;
-        switch (output.type) {
-          case 'p2pkh':
-            outputScriptType = 'PAYTOADDRESS';
-            break;
-          case 'p2wpkh':
-            outputScriptType = 'PAYTOWITNESS';
-            break;
-          case 'p2sh':
-            outputScriptType = 'PAYTOP2SHWITNESS';
-            break;
-          case 'p2tr':
-            outputScriptType = 'PAYTOTAPROOT';
-            break;
-          default:
-            outputScriptType = 'PAYTOADDRESS';
-        }
-
+        // PSBT outputs are passed as external address outputs here. Trezor
+        // requires PAYTOADDRESS for any output with an address and infers the
+        // concrete script from that address.
         outputs.push({
           address,
           amount: String(output.value),
-          script_type: outputScriptType,
+          script_type: 'PAYTOADDRESS',
         });
       }
     }

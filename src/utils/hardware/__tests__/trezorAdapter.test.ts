@@ -497,6 +497,60 @@ describe('TrezorAdapter', () => {
         signedTxHex: '02000000...',
         txid: 'abc123...',
       });
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputs: [
+            expect.objectContaining({
+              address: 'bc1qrecipient...',
+              amount: '90000',
+              script_type: 'PAYTOADDRESS',
+            }),
+          ],
+        })
+      );
+    });
+
+    it('should keep concrete script type for change outputs with address_n', async () => {
+      mockSignTransaction.mockResolvedValue({
+        success: true,
+        payload: {
+          serializedTx: '02000000...',
+          txid: 'abc123...',
+        },
+      });
+
+      const changePath = [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 1, 0];
+
+      await adapter.signTransaction({
+        inputs: [
+          {
+            addressPath: [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0],
+            prevTxHash: 'def456...',
+            prevIndex: 0,
+            amount: '100000',
+            scriptType: 'SPENDWITNESS',
+          },
+        ],
+        outputs: [
+          {
+            addressPath: changePath,
+            amount: '90000',
+            scriptType: 'PAYTOWITNESS',
+          },
+        ],
+      });
+
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputs: [
+            expect.objectContaining({
+              address_n: changePath,
+              amount: '90000',
+              script_type: 'PAYTOWITNESS',
+            }),
+          ],
+        })
+      );
     });
 
     it('should handle OP_RETURN outputs for Counterparty', async () => {
@@ -698,9 +752,50 @@ describe('TrezorAdapter', () => {
           ]),
           outputs: expect.arrayContaining([
             expect.objectContaining({
-              script_type: 'PAYTOWITNESS',
+              script_type: 'PAYTOADDRESS',
             }),
           ]),
+        })
+      );
+    });
+
+    it('should use PAYTOADDRESS for SegWit PSBT address outputs', async () => {
+      const segwitPsbtDetails = {
+        ...mockPsbtDetails,
+        outputs: [
+          {
+            index: 0,
+            value: 90000,
+            type: 'p2wpkh' as const,
+            script: '00142299626fa0236be4d0ba93cbbfccd0bc44ff5a63',
+          },
+        ],
+      };
+      mockExtractPsbtDetails.mockReturnValue(segwitPsbtDetails);
+
+      mockSignTransaction.mockResolvedValue({
+        success: true,
+        payload: {
+          serializedTx: '02000000...',
+          txid: 'segwit_tx_id...',
+        },
+      });
+
+      const inputPaths = new Map<number, number[]>();
+      inputPaths.set(0, [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0]);
+
+      await adapter.signPsbt({
+        psbtHex: 'any_psbt_hex',
+        inputPaths,
+      });
+
+      expect(mockSignTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          outputs: [
+            expect.objectContaining({
+              script_type: 'PAYTOADDRESS',
+            }),
+          ],
         })
       );
     });
