@@ -9,6 +9,9 @@ import { ErrorAlert } from '@/components/ui/error-alert';
 import { MAX_WALLETS } from '@/utils/wallet/constants';
 import type { Wallet } from '@/types/wallet';
 
+/** Check if we're running in the sidepanel (vs popup) */
+const isSidepanel = () => document.body.dataset.context === 'sidepanel';
+
 /**
  * SelectWallet component allows users to choose an active wallet or add a new one.
  *
@@ -22,6 +25,7 @@ function WalletsPage() {
   const { setHeaderProps } = useHeader();
   const { wallets, activeWallet, activeAddress, selectWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
+  const canUseHardwareWallet = isSidepanel();
 
   // Constants for paths
   const PATHS = {
@@ -52,6 +56,10 @@ function WalletsPage() {
   }, [setHeaderProps, navigate, handleAddWallet]);
 
   const handleSelectWalletInternal = async (wallet: Wallet) => {
+    if (wallet.type === 'hardware' && !canUseHardwareWallet) {
+      return;
+    }
+
     try {
       // Load wallet (decrypts secret and derives addresses)
       await selectWallet(wallet.id);
@@ -78,6 +86,8 @@ function WalletsPage() {
           selectedWallet={activeWallet}
           selectedAddress={activeAddress}
           onSelectWallet={handleSelectWalletInternal}
+          disableHardwareWallets={!canUseHardwareWallet}
+          hardwareWalletDisabledMessage="Open in sidepanel"
         />
       </div>
       <div className="p-4">
