@@ -8,8 +8,6 @@ interface WalletListProps {
   selectedWallet: Wallet | null;
   selectedAddress?: Address | null;
   onSelectWallet: (wallet: Wallet) => void;
-  disableHardwareWallets?: boolean;
-  hardwareWalletDisabledMessage?: string;
 }
 
 /**
@@ -18,16 +16,9 @@ interface WalletListProps {
  * @param props - The component props
  * @returns A ReactElement representing the wallet list
  */
-export function WalletList({
-  wallets,
-  selectedWallet,
-  selectedAddress,
-  onSelectWallet,
-  disableHardwareWallets = false,
-  hardwareWalletDisabledMessage = 'Open in sidepanel',
-}: WalletListProps): ReactElement {
+export function WalletList({ wallets, selectedWallet, selectedAddress, onSelectWallet }: WalletListProps): ReactElement {
   const handleWalletChange = (wallet: Wallet | null) => {
-    if (wallet && !(disableHardwareWallets && wallet.type === 'hardware')) {
+    if (wallet) {
       onSelectWallet(wallet);
     }
   };
@@ -38,22 +29,16 @@ export function WalletList({
       onChange={handleWalletChange}
       className="space-y-2"
     >
-      {wallets.map((wallet) => {
-        const isHardwareDisabled = disableHardwareWallets && wallet.type === 'hardware';
-
-        return (
-          <WalletCard
-            key={wallet.id}
-            wallet={wallet}
-            selected={selectedWallet?.id === wallet.id}
-            displayAddress={selectedWallet?.id === wallet.id ? selectedAddress : null}
-            onSelect={isHardwareDisabled ? () => undefined : onSelectWallet}
-            isOnlyWallet={wallets.length === 1}
-            disabled={isHardwareDisabled}
-            disabledMessage={isHardwareDisabled ? hardwareWalletDisabledMessage : undefined}
-          />
-        );
-      })}
+      {wallets.map((wallet) => (
+        <WalletCard
+          key={wallet.id}
+          wallet={wallet}
+          selected={selectedWallet?.id === wallet.id}
+          displayAddress={selectedWallet?.id === wallet.id ? selectedAddress : null}
+          onSelect={onSelectWallet}
+          isOnlyWallet={wallets.length === 1}
+        />
+      ))}
     </RadioGroup>
   );
 }
