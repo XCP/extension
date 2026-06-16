@@ -76,7 +76,7 @@ jobs:
         timeout-minutes: 2
         run: |
           echo "Installing ws for WebSocket communication..."
-          npm install ws
+          npm install ws@8.21.0
           echo "Starting emulator and bridge via WebSocket API..."
           node e2e/hardware/init-trezor-emulator.js
 
