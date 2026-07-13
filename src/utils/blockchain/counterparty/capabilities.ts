@@ -23,7 +23,7 @@ export const MIN_COUNTERPARTY_API_VERSION = '11.2.0';
 
 const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {
-    minVersion: MIN_COUNTERPARTY_API_VERSION,
+    minVersion: '11.1.0',
     activationHeights: {
       mainnet: 952800,
       testnet: 4961300,
@@ -35,7 +35,7 @@ const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
     label: 'AMM pools',
   },
   indefiniteOrders: {
-    minVersion: MIN_COUNTERPARTY_API_VERSION,
+    minVersion: '11.1.0',
     activationHeights: {
       mainnet: 952800,
       testnet: 4961300,
