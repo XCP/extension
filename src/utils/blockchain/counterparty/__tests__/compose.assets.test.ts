@@ -3,7 +3,6 @@ import {
   composeIssuance,
   composeDestroy,
   composeDividend,
-  getDividendEstimateXcpFee,
   composeBurn
 } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
@@ -323,29 +322,6 @@ describe('Compose Asset Management Operations', () => {
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity_per_unit=${quantity_per_unit}`);
       }
-    });
-  });
-
-  describe('getDividendEstimateXcpFee', () => {
-    it('should get dividend fee estimate', async () => {
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: 50000000 }));
-
-      const result = await getDividendEstimateXcpFee(mockAddress, 'SHARETOKEN');
-
-      expect(result).toBe(50000000);
-
-      const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/dividend/estimatexcpfees`;
-      const actualCall = mockedApiClient.get.mock.calls[0];
-      expect(actualCall[0]).toContain(expectedUrl);
-      expect(actualCall[0]).toContain('asset=SHARETOKEN');
-    });
-
-    it('should handle fee estimation errors', async () => {
-      mockedApiClient.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
-
-      await expect(
-        getDividendEstimateXcpFee(mockAddress, 'SHARETOKEN')
-      ).rejects.toThrow('Fee estimation failed');
     });
   });
 

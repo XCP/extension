@@ -178,6 +178,7 @@ export interface Order {
   get_remaining_normalized: string;
   status: string;
   expire_index: number;
+  market_price_normalized?: string;
 }
 
 export interface OrderDetails extends Order {
@@ -236,6 +237,7 @@ export interface OrderMatch {
   fee_paid_normalized: string;
   status: string;
   confirmed?: boolean;
+  market_price_normalized?: string;
 }
 
 // =============================================================================
@@ -342,7 +344,7 @@ export interface DispenserDetails extends Dispenser {
 export interface Dispense {
   tx_hash: string;
   tx_index: number;
-  block_index: number;
+  block_index: number | null;
   block_time: number;
   source: string;
   destination: string;
@@ -624,13 +626,12 @@ export async function fetchAssetDetails(
  */
 export async function fetchUtxoBalances(
   utxo: string,
-  options: PaginationOptions & { showUnconfirmed?: boolean } = {}
+  options: PaginationOptions = {}
 ): Promise<PaginatedResponse<UtxoBalance>> {
   return cpApiGet<PaginatedResponse<UtxoBalance>>(`/v2/utxos/${encodePath(utxo)}/balances`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
-    show_unconfirmed: options.showUnconfirmed ?? false,
   });
 }
 
@@ -685,11 +686,10 @@ export async function fetchOrders(
  */
 export async function fetchOrder(
   orderHash: string,
-  options: { verbose?: boolean; showUnconfirmed?: boolean } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<OrderDetails | null> {
   const data = await cpApiGet<{ result: OrderDetails | null }>(`/v2/orders/${encodePath(orderHash)}`, {
     verbose: options.verbose ?? true,
-    show_unconfirmed: options.showUnconfirmed ?? false,
   });
   return data.result ?? null;
 }
@@ -945,14 +945,23 @@ export async function fetchDispenserByHash(
  */
 export async function fetchDispenserDispenses(
   dispenserHash: string,
-  options: PaginationOptions & { showUnconfirmed?: boolean } = {}
+  options: PaginationOptions = {}
 ): Promise<PaginatedResponse<Dispense>> {
   return cpApiGet<PaginatedResponse<Dispense>>(`/v2/dispensers/${encodePath(dispenserHash)}/dispenses`, {
     verbose: options.verbose ?? true,
     limit: options.limit ?? DEFAULT_LIMIT,
     offset: options.offset ?? 0,
-    show_unconfirmed: options.showUnconfirmed ?? false,
   });
+}
+
+export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
+  const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
+    verbose: true,
+    limit: 100,
+  }, { skipCache: true });
+  return (data.result ?? [])
+    .map((event) => event.params)
+    .filter((dispense) => dispense.source === dispenserAddress);
 }
 
 /**
@@ -1034,11 +1043,10 @@ export async function fetchAssetDispensers(
  */
 export async function fetchTransaction(
   txHash: string,
-  options: { verbose?: boolean; showUnconfirmed?: boolean } = {}
+  options: { verbose?: boolean } = {}
 ): Promise<Transaction | null> {
   const data = await cpApiGet<{ result: Transaction | null }>(`/v2/transactions/${encodePath(txHash)}`, {
     verbose: options.verbose ?? true,
-    show_unconfirmed: options.showUnconfirmed ?? false,
   });
   return data.result ?? null;
 }

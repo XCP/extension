@@ -67,8 +67,10 @@ export interface ComposeAssetInfo {
 }
 
 export interface ComposeParams {
-  source: string;
-  destination: string;
+  source?: string;
+  destination?: string;
+  address?: string;
+  dispenser?: string;
   asset: string;
   quantity: number;
   memo: string | null;
@@ -88,6 +90,7 @@ export interface ComposeResult {
   btc_out: number;
   btc_change: number;
   btc_fee: number;
+  xcp_fee?: number;
   data: string;
   lock_scripts: string[];
   inputs_values: number[];
@@ -102,37 +105,6 @@ export interface ComposeResult {
 
 export interface ApiResponse {
   result: ComposeResult;
-}
-
-/**
- * Normalize public API parameter names to the extension's canonical compose shape.
- * Counterparty Core 11.2 intentionally exposes dispense params as `address` and
- * `dispenser`; the shared review UI expects `source` and `destination`.
- */
-export function normalizeComposeResponse(
-  response: ApiResponse,
-  endpoint: string,
-  sourceAddress: string,
-): ApiResponse {
-  const result = response?.result;
-  const upstreamParams = result?.params as unknown as Record<string, unknown> | undefined;
-  if (!result || !upstreamParams) return response;
-
-  const source = upstreamParams.source ?? upstreamParams.address ?? sourceAddress;
-  const destination =
-    upstreamParams.destination ?? (endpoint === 'dispense' ? upstreamParams.dispenser : undefined);
-
-  return {
-    ...response,
-    result: {
-      ...result,
-      params: {
-        ...upstreamParams,
-        source,
-        ...(destination !== undefined ? { destination } : {}),
-      } as unknown as ComposeResult['params'],
-    },
-  };
 }
 
 // Base options shared across all transaction types
@@ -264,6 +236,8 @@ export interface FairminterOptions extends BaseComposeOptions {
   pubkeys?: string;
   inscription?: string;  // Base64 encoded inscription data
   mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
+  pool_quantity?: number;
+  lp_asset?: string;
 }
 
 export interface FairmintOptions extends BaseComposeOptions {
@@ -496,7 +470,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     if ('error' in response.data) {
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
-    return normalizeComposeResponse(response.data as ApiResponse, endpoint, sourceAddress);
+    return response.data as ApiResponse;
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
@@ -775,14 +749,6 @@ export async function composeDividend(options: DividendOptions): Promise<ApiResp
   return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
-export async function getDividendEstimateXcpFee(sourceAddress: string, asset: string): Promise<number> {
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/dividend/estimatexcpfees`;
-  const params = new URLSearchParams({ asset });
-  const response = await apiClient.get<{ result: number }>(`${apiUrl}?${params.toString()}`);
-  return response.data.result;
-}
-
 export async function composeIssuance(options: IssuanceOptions): Promise<ApiResponse> {
   const {
     sourceAddress,
@@ -992,13 +958,6 @@ export async function composeSweep(options: SweepOptions): Promise<ApiResponse> 
   return response;
 }
 
-export async function getSweepEstimateXcpFee(sourceAddress: string): Promise<number> {
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/sweep/estimatexcpfees`;
-  const response = await apiClient.get<{ result: number }>(apiUrl);
-  return response.data.result;
-}
-
 export async function composeFairminter(options: FairminterOptions): Promise<ApiResponse> {
   const {
     sourceAddress,
@@ -1025,6 +984,8 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     pubkeys,
     inscription,
     mime_type,
+    pool_quantity = 0,
+    lp_asset,
   } = options;
   // Boolean values are normalized upstream - convert to API string format
   const paramsObj = {
@@ -1044,6 +1005,8 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
     lock_description: lock_description ? 'true' : 'false',
     lock_quantity: lock_quantity ? 'true' : 'false',
     divisible: divisible ? 'true' : 'false',
+    ...(pool_quantity > 0 && { pool_quantity: pool_quantity.toString() }),
+    ...(lp_asset && { lp_asset }),
     ...(description && { description }),
     ...(pubkeys && { pubkeys }),
     ...(inscription && { inscription }),
@@ -1097,15 +1060,6 @@ export async function composePoolDeposit(options: PoolDepositOptions): Promise<A
   return composeTransaction('pooldeposit', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
-export async function getPoolDepositEstimateXcpFee(sourceAddress: string): Promise<number> {
-  await requireCounterpartyFeature('ammPools');
-
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/pooldeposit/estimatexcpfees`;
-  const response = await apiClient.get<{ result: number }>(apiUrl);
-  return response.data.result;
-}
-
 export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise<ApiResponse> {
   await requireCounterpartyFeature('ammPools');
 
@@ -1137,15 +1091,6 @@ export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise
   return response;
 }
 
-export async function getPoolWithdrawEstimateXcpFee(sourceAddress: string): Promise<number> {
-  await requireCounterpartyFeature('ammPools');
-
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/poolwithdraw/estimatexcpfees`;
-  const response = await apiClient.get<{ result: number }>(apiUrl);
-  return response.data.result;
-}
-
 export async function composeAttach(options: AttachOptions): Promise<ApiResponse> {
   const {
     sourceAddress,
@@ -1165,13 +1110,6 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
-}
-
-export async function getAttachEstimateXcpFee(sourceAddress: string): Promise<number> {
-  const base = await getApiBase();
-  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/attach/estimatexcpfees`;
-  const response = await apiClient.get<{ result: number }>(apiUrl);
-  return response.data.result;
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {

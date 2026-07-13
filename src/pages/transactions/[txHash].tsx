@@ -37,7 +37,7 @@ export default function TransactionPage(): ReactElement {
       }
 
       try {
-        const tx = await fetchTransaction(txHash, { verbose: true, showUnconfirmed: true });
+        const tx = await fetchTransaction(txHash, { verbose: true });
         if (tx) {
           setTransaction(tx);
         } else {

@@ -1,4 +1,7 @@
-import { isVersionAtLeast } from '@/utils/blockchain/counterparty/capabilities';
+import {
+  isVersionAtLeast,
+  MIN_COUNTERPARTY_API_VERSION,
+} from '@/utils/blockchain/counterparty/capabilities';
 
 /**
  * Interface for Counterparty API validation result
@@ -13,8 +16,6 @@ export interface ApiValidationResult {
     counterpartyHeight: number;
   };
 }
-
-const MIN_COUNTERPARTY_API_VERSION = '11.1.0';
 
 /**
  * Validates a Counterparty API endpoint

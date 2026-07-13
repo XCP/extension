@@ -446,6 +446,16 @@ function verifyFairminter(
     mismatches.push(`Max mint per address: local=${local.maxMintPerAddress}, API=${apiMaxMintPerAddress}`);
   }
 
+  const apiPoolQuantity = getApiValue(api, 'pool_quantity', 'poolQuantity');
+  if (apiPoolQuantity !== undefined && !quantitiesEqual(local.poolQuantity, apiPoolQuantity)) {
+    mismatches.push(`Pool quantity: local=${local.poolQuantity}, API=${apiPoolQuantity}`);
+  }
+
+  const apiLpAsset = getApiValue(api, 'lp_asset', 'lpAsset') as string | null | undefined;
+  if (apiLpAsset !== undefined && local.lpAsset !== apiLpAsset) {
+    mismatches.push(`LP asset: local=${local.lpAsset}, API=${apiLpAsset}`);
+  }
+
   if (api.divisible !== undefined && local.divisible !== api.divisible) {
     mismatches.push(`Divisible: local=${local.divisible}, API=${api.divisible}`);
   }

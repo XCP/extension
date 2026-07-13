@@ -19,10 +19,11 @@ interface FeatureRequirement {
 }
 
 const CAPABILITY_CACHE_TTL_MS = 60_000;
+export const MIN_COUNTERPARTY_API_VERSION = '11.2.0';
 
 const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {
-    minVersion: '11.1.0',
+    minVersion: MIN_COUNTERPARTY_API_VERSION,
     activationHeights: {
       mainnet: 952800,
       testnet: 4961300,
@@ -34,7 +35,7 @@ const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
     label: 'AMM pools',
   },
   indefiniteOrders: {
-    minVersion: '11.1.0',
+    minVersion: MIN_COUNTERPARTY_API_VERSION,
     activationHeights: {
       mainnet: 952800,
       testnet: 4961300,

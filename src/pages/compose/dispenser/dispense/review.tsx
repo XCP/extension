@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { fetchAddressDispensers, fetchDispenserDispenses } from "@/utils/blockchain/counterparty/api";
+import { fetchAddressDispensers, fetchMempoolDispenses } from "@/utils/blockchain/counterparty/api";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
 import type { ReactElement } from "react";
@@ -63,8 +63,7 @@ export function ReviewDispense({
   const [isLoadingInfo, setIsLoadingInfo] = useState(true);
   const [mempoolDispenses, setMempoolDispenses] = useState<MempoolDispense[]>([]);
   
-  // Extract dispenser address from the transaction outputs
-  const dispenserAddress = result?.params?.destination;
+  const dispenserAddress = result?.params?.dispenser;
   const btcQuantity = result?.params?.quantity || 0;
   const [allTriggeredDispensers, setAllTriggeredDispensers] = useState<VerboseDispenser[]>([]);
   
@@ -95,33 +94,15 @@ export function ReviewDispense({
           
           setAllTriggeredDispensers(sorted);
           
-          // Set the first triggered dispenser for backward compatibility
-          const triggeredDispenser = sorted[0];
-          
-          if (triggeredDispenser) {
-            // Check for mempool dispenses from the same dispenser
-            try {
-              const dispensesResponse = await fetchDispenserDispenses(
-                triggeredDispenser.tx_hash,
-                { showUnconfirmed: true, verbose: true }
-              );
-
-              // Filter for unconfirmed (mempool) transactions
-              const mempoolTxs = dispensesResponse.result?.filter((d: any) => 
-                d.block_index === null || d.confirmed === false
-              ) || [];
-              
-              const mempoolInfo: MempoolDispense[] = mempoolTxs.map((tx: any) => ({
-                source: tx.destination || tx.source,  // destination is the one receiving from dispenser
-                btc_amount: tx.btc_amount || 0,
-                fee_rate: tx.fee_rate,
-                tx_hash: tx.tx_hash
-              }));
-              
-              setMempoolDispenses(mempoolInfo);
-            } catch (err) {
-              console.error("Failed to fetch mempool dispenses:", err);
-            }
+          try {
+            const pending = await fetchMempoolDispenses(dispenserAddress);
+            setMempoolDispenses(pending.map((tx) => ({
+              source: tx.destination || tx.source,
+              btc_amount: tx.btc_amount || 0,
+              tx_hash: tx.tx_hash,
+            })));
+          } catch (err) {
+            console.error("Failed to fetch mempool dispenses:", err);
           }
         }
       } catch (err) {

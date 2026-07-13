@@ -251,7 +251,12 @@ describe('BaseService', () => {
       const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
 
       // Simulate alarm event for this service
-      const alarm = { name: 'TestService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
+      const alarm = {
+        name: 'TestService-keepalive',
+        scheduledTime: Date.now(),
+        periodInMinutes: 0.4,
+        persistAcrossSessions: false,
+      };
       alarmListener(alarm);
 
       // Should trigger keep-alive activity (accessing storage)
@@ -269,7 +274,12 @@ describe('BaseService', () => {
       const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
 
       // Simulate alarm event for different service
-      const alarm = { name: 'OtherService-keepalive', scheduledTime: Date.now(), periodInMinutes: 0.4 };
+      const alarm = {
+        name: 'OtherService-keepalive',
+        scheduledTime: Date.now(),
+        periodInMinutes: 0.4,
+        persistAcrossSessions: false,
+      };
       alarmListener(alarm);
 
       // Should not trigger additional storage calls

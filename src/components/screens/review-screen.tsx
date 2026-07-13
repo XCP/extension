@@ -11,11 +11,15 @@ import { useSettings } from "@/contexts/settings-context";
  */
 interface TransactionResult {
   params: {
-    source: string;
+    source?: string;
     destination?: string;
+    address?: string;
+    dispenser?: string;
     [key: string]: any;
   };
+  name?: string;
   btc_fee: number;
+  xcp_fee?: number;
   [key: string]: any;
 }
 
@@ -88,11 +92,15 @@ export function ReviewScreen({
 }: ReviewScreenProps): ReactElement {
   const { result } = apiResponse;
   const { settings } = useSettings();
-  const { btc: btcPrice } = useMarketPrices(settings.fiat);
+  const { btc: btcPrice, xcp: xcpPrice } = useMarketPrices(settings.fiat);
+  const sourceAddress = result.name === "dispense" ? result.params.address : result.params.source;
+  const destinationAddress = result.name === "dispense" ? result.params.dispenser : result.params.destination;
 
   // Calculate fee in fiat
   const feeInBtc = fromSatoshis(result.btc_fee, true);
   const feeInFiat = btcPrice ? feeInBtc * btcPrice : null;
+  const xcpFee = result.xcp_fee === undefined ? null : fromSatoshis(result.xcp_fee, true);
+  const xcpFeeInFiat = xcpFee !== null && xcpPrice ? xcpFee * xcpPrice : null;
 
   return (
     <div className="p-4 bg-white rounded-lg shadow-lg space-y-4">
@@ -110,16 +118,16 @@ export function ReviewScreen({
         <div className="space-y-1">
           <label className="font-semibold text-gray-700">From:</label>
           <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-            {formatAddress(result.params.source, true)}
+            {formatAddress(sourceAddress, true)}
           </div>
         </div>
         
         {/* Destination Address (if present) - show full address */}
-        {result.params.destination && (
+        {destinationAddress && (
           <div className="space-y-1">
             <label className="font-semibold text-gray-700">To:</label>
             <div className="bg-gray-50 p-2 rounded break-all text-gray-900">
-              {formatAddress(result.params.destination, false)}
+              {formatAddress(destinationAddress, false)}
             </div>
           </div>
         )}
@@ -142,6 +150,29 @@ export function ReviewScreen({
             </div>
           </div>
         ))}
+
+        {xcpFee !== null && (
+          <div className="space-y-1">
+            <label className="font-semibold text-gray-700">XCP Fee:</label>
+            <div className="bg-gray-50 p-2 rounded text-gray-900">
+              <div className="flex justify-between items-center">
+                <span>
+                  {formatAmount({
+                    value: xcpFee,
+                    minimumFractionDigits: 8,
+                    maximumFractionDigits: 8,
+                  })}{" "}
+                  XCP
+                </span>
+                {xcpFeeInFiat !== null && (
+                  <span className="text-gray-500">
+                    ${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* Transaction Fee */}
         <div className="space-y-1">

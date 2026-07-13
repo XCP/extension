@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { composeSend, composeSendOrMPMA, composeMPMA, composeSweep, getSweepEstimateXcpFee, composeMove } from '../compose';
+import { composeSend, composeSendOrMPMA, composeMPMA, composeSweep, composeMove } from '../compose';
 import * as apiClientUtils from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 import {
@@ -336,38 +336,6 @@ describe('Compose Send Operations', () => {
       const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
       const url = new URL(actualUrl);
       expect(url.searchParams.get('more_outputs')).toBe(`10000:${mockDestAddress}`);
-    });
-  });
-
-  describe('getSweepEstimateXcpFee', () => {
-    it('should get sweep fee estimate', async () => {
-      const mockFeeEstimate = 10000000;
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
-
-      const result = await getSweepEstimateXcpFee(mockAddress);
-
-      expect(result).toEqual(mockFeeEstimate);
-
-      const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/sweep/estimatexcpfees`;
-      expect(mockedApiClient.get).toHaveBeenCalledWith(expectedUrl);
-    });
-
-    it('should handle error in fee estimation', async () => {
-      mockedApiClient.get.mockRejectedValueOnce(new Error('Fee estimation failed'));
-
-      await expect(
-        getSweepEstimateXcpFee(mockAddress)
-      ).rejects.toThrow('Fee estimation failed');
-    });
-
-    it('should use correct API endpoint', async () => {
-      const mockFeeEstimate = 10000000;
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
-
-      await getSweepEstimateXcpFee(mockAddress);
-
-      const actualUrl = mockedApiClient.get.mock.calls[0][0];
-      expect(actualUrl).toContain('/compose/sweep/estimatexcpfees');
     });
   });
 

@@ -11,6 +11,7 @@ import {
   fetchTransactions,
   fetchAddressDispensers,
   fetchDispenserByHash,
+  fetchMempoolDispenses,
   fetchOwnedAssets,
   fetchOrdersByPair,
   fetchOrderMatches,
@@ -464,10 +465,10 @@ describe('counterparty/api.ts', () => {
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: true,
-            show_unconfirmed: false,
           }),
         })
       );
+      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should handle custom options', async () => {
@@ -483,7 +484,6 @@ describe('counterparty/api.ts', () => {
       await fetchUtxoBalances('abc123:0', {
         limit: 50,
         offset: 10,
-        showUnconfirmed: true,
       });
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
@@ -493,10 +493,10 @@ describe('counterparty/api.ts', () => {
             limit: 50,
             offset: 10,
             verbose: true,
-            show_unconfirmed: true,
           }),
         })
       );
+      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should throw CounterpartyApiError on network error', async () => {
@@ -602,10 +602,10 @@ describe('counterparty/api.ts', () => {
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: true,
-            show_unconfirmed: false,
           }),
         })
       );
+      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should return null for non-existent order', async () => {
@@ -633,18 +633,17 @@ describe('counterparty/api.ts', () => {
 
       await fetchOrder('abc123', {
         verbose: false,
-        showUnconfirmed: true,
-      } as any);
+      });
 
       expect(mockedApiClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           params: expect.objectContaining({
             verbose: false,
-            show_unconfirmed: true,
           }),
         })
       );
+      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should throw CounterpartyApiError on network error', async () => {
@@ -671,11 +670,11 @@ describe('counterparty/api.ts', () => {
         `${mockApiBase}/v2/transactions/abc123`,
         expect.objectContaining({
           params: expect.objectContaining({
-            show_unconfirmed: false,
             verbose: true,
           }),
         })
       );
+      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should return null for non-existent transaction', async () => {
@@ -889,6 +888,59 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchDispenserByHash('abc123')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchMempoolDispenses', () => {
+    it('returns pending purchases for the requested dispenser address', async () => {
+      const buyerAddress = 'bc1qbuyer';
+      mockedApiClient.get.mockResolvedValue({
+        data: {
+          result: [
+            {
+              event: 'DISPENSE',
+              params: {
+                tx_hash: 'matching-tx',
+                source: mockAddress,
+                destination: buyerAddress,
+                btc_amount: 1000,
+              },
+            },
+            {
+              event: 'DISPENSE',
+              params: {
+                tx_hash: 'other-tx',
+                source: 'bc1qotherdispenser',
+                destination: buyerAddress,
+                btc_amount: 2000,
+              },
+            },
+          ],
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {},
+      } as any);
+
+      const result = await fetchMempoolDispenses(mockAddress);
+
+      expect(result).toEqual([
+        expect.objectContaining({
+          tx_hash: 'matching-tx',
+          source: mockAddress,
+          destination: buyerAddress,
+        }),
+      ]);
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/mempool/events/DISPENSE`,
+        {
+          params: {
+            verbose: true,
+            limit: 100,
+          },
+        }
+      );
     });
   });
 

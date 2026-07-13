@@ -580,51 +580,59 @@ describe('Fairmint (Legacy Format)', () => {
   });
 });
 
-describe('Fairminter (Legacy Format)', () => {
-  /**
-   * From fairminter.py:
-   * Legacy format: pipe-delimited string with 17+ fields
-   */
+function cborInteger(value: bigint): number[] {
+  if (value < 24n) return [Number(value)];
+  if (value <= 0xffn) return [0x18, Number(value)];
+  if (value <= 0xffffn) return [0x19, Number(value >> 8n), Number(value & 0xffn)];
+  if (value <= 0xffffffffn) {
+    return [0x1a, 24, 16, 8, 0].map((shift, index) => index === 0 ? shift : Number((value >> BigInt(shift)) & 0xffn));
+  }
+  return [0x1b, ...Array.from({ length: 8 }, (_, index) => Number((value >> BigInt(56 - index * 8)) & 0xffn))];
+}
 
-  it('should unpack legacy fairminter', () => {
-    // Format: asset|asset_parent|price|quantity_by_price|max_mint_per_tx|hard_cap|
-    //         premint_quantity|start_block|end_block|soft_cap|soft_cap_deadline_block|
-    //         minted_asset_commission_int|burn_payment|lock_description|lock_quantity|
-    //         divisible|description
+function cborContent(majorType: number, value: string): number[] {
+  const bytes = [...new TextEncoder().encode(value)];
+  return [(majorType << 5) | bytes.length, ...bytes];
+}
+
+describe('Fairminter', () => {
+  it('unpacks a pool-seeding fairminter', () => {
+    const assetId = 26n ** 12n + 1000n;
+    const lpAssetId = 26n ** 12n + 2000n;
     const fields = [
-      'MYTOKEN',    // asset
-      '',           // asset_parent
-      '100000000',  // price (1 XCP)
-      '1',          // quantity_by_price
-      '1000',       // max_mint_per_tx
-      '1000000',    // hard_cap
-      '0',          // premint_quantity
-      '800000',     // start_block
-      '900000',     // end_block
-      '0',          // soft_cap
-      '0',          // soft_cap_deadline_block
-      '5000000',    // minted_asset_commission_int (0.05)
-      '0',          // burn_payment
-      '1',          // lock_description
-      '0',          // lock_quantity
-      '1',          // divisible
-      'My awesome token',  // description
+      cborInteger(assetId),
+      cborInteger(0n),
+      cborInteger(100000000n),
+      cborInteger(1n),
+      cborInteger(1000n),
+      cborInteger(5000n),
+      cborInteger(1000000n),
+      cborInteger(10000n),
+      cborInteger(960000n),
+      cborInteger(961000n),
+      cborInteger(500000n),
+      cborInteger(960900n),
+      cborInteger(5000000n),
+      [0xf4],
+      [0xf5],
+      [0xf4],
+      [0xf5],
+      cborInteger(400000000n),
+      cborInteger(lpAssetId),
+      cborContent(3, 'text/plain'),
+      cborContent(2, 'Pool-backed token'),
     ];
-    const text = fields.join('|');
-    const payload = new TextEncoder().encode(text);
+    const result = unpackFairminter(new Uint8Array([0x95, ...fields.flat()]));
 
-    const result = unpackFairminter(new Uint8Array(payload));
-
-    expect(result.asset).toBe('MYTOKEN');
+    expect(result.asset).toBe(`A${assetId}`);
     expect(result.price).toBe(100000000n);
-    expect(result.quantityByPrice).toBe(1n);
-    expect(result.maxMintPerTx).toBe(1000n);
-    expect(result.hardCap).toBe(1000000n);
-    expect(result.startBlock).toBe(800000);
-    expect(result.endBlock).toBe(900000);
+    expect(result.maxMintPerAddress).toBe(5000n);
     expect(result.lockDescription).toBe(true);
     expect(result.divisible).toBe(true);
-    expect(result.description).toBe('My awesome token');
+    expect(result.poolQuantity).toBe(400000000n);
+    expect(result.lpAsset).toBe(`A${lpAssetId}`);
+    expect(result.mimeType).toBe('text/plain');
+    expect(result.description).toBe('Pool-backed token');
   });
 });
 

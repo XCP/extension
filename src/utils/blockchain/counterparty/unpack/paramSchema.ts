@@ -301,6 +301,14 @@ export const MESSAGE_SCHEMAS: Record<string, MessageSchema> = {
         criticality: 'dangerous',
         riskDescription: 'Max per address - rate limiting',
       },
+      pool_quantity: {
+        criticality: 'critical',
+        riskDescription: 'Tokens reserved as initial pool liquidity',
+      },
+      lp_asset: {
+        criticality: 'critical',
+        riskDescription: 'LP token created for the seeded pool',
+      },
       divisible: {
         criticality: 'dangerous',
         riskDescription: 'PERMANENT: Cannot change after creation',

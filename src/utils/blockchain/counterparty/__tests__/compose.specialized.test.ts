@@ -7,10 +7,7 @@ import {
   composeFairmint,
   composePoolDeposit,
   composePoolWithdraw,
-  getPoolDepositEstimateXcpFee,
-  getPoolWithdrawEstimateXcpFee,
   composeAttach,
-  getAttachEstimateXcpFee,
   composeDetach,
   composeTransaction
 } from '../compose';
@@ -316,6 +313,20 @@ describe('Compose Specialized Operations', () => {
       expect(url).toContain('divisible=true');
       expect(url).toContain('description=Fair+mint+asset');
     });
+
+    it('should include pool seeding parameters', async () => {
+      await composeFairminter({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        pool_quantity: 400000000,
+        lp_asset: 'A95428956661682178',
+      });
+
+      const url = mockedApiClient.get.mock.calls[0][0] as string;
+      expect(url).toContain('pool_quantity=400000000');
+      expect(url).toContain('lp_asset=A95428956661682178');
+    });
   });
 
   describe('composeFairmint', () => {
@@ -413,20 +424,6 @@ describe('Compose Specialized Operations', () => {
     });
   });
 
-  describe('getPoolDepositEstimateXcpFee', () => {
-    it('should get pool deposit fee estimate', async () => {
-      const mockFeeEstimate = 10000;
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
-
-      const result = await getPoolDepositEstimateXcpFee(mockAddress);
-
-      expect(result).toBe(mockFeeEstimate);
-      expect(mockedApiClient.get.mock.calls[0][0]).toBe(
-        `${mockApiBase}/v2/addresses/${mockAddress}/compose/pooldeposit/estimatexcpfees`
-      );
-    });
-  });
-
   describe('composePoolWithdraw', () => {
     const defaultParams = {
       asset_a: 'XCP',
@@ -475,20 +472,6 @@ describe('Compose Specialized Operations', () => {
     });
   });
 
-  describe('getPoolWithdrawEstimateXcpFee', () => {
-    it('should get pool withdraw fee estimate', async () => {
-      const mockFeeEstimate = 11000;
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
-
-      const result = await getPoolWithdrawEstimateXcpFee(mockAddress);
-
-      expect(result).toBe(mockFeeEstimate);
-      expect(mockedApiClient.get.mock.calls[0][0]).toBe(
-        `${mockApiBase}/v2/addresses/${mockAddress}/compose/poolwithdraw/estimatexcpfees`
-      );
-    });
-  });
-
   describe('composeAttach', () => {
     const defaultParams = {
       asset: 'UTXOASSET',
@@ -523,21 +506,6 @@ describe('Compose Specialized Operations', () => {
       const url = actualCall[0] as string;
       expect(url).toContain('utxo_value=10000');
       expect(url).toContain('destination_vout=1');
-    });
-  });
-
-  describe('getAttachEstimateXcpFee', () => {
-    it('should get attach fee estimate', async () => {
-      const mockFeeEstimate = 25000000;
-      mockedApiClient.get.mockResolvedValueOnce(createMockApiResponse({ result: mockFeeEstimate }));
-
-      const result = await getAttachEstimateXcpFee(mockAddress);
-
-      expect(result).toBe(mockFeeEstimate);
-
-      const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/attach/estimatexcpfees`;
-      const actualCall = mockedApiClient.get.mock.calls[0];
-      expect(actualCall[0]).toBe(expectedUrl);
     });
   });
 

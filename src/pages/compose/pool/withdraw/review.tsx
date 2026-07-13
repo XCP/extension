@@ -1,11 +1,6 @@
-import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useSettings } from "@/contexts/settings-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { getPoolWithdrawEstimateXcpFee } from "@/utils/blockchain/counterparty/compose";
 import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
-import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 
 interface ReviewPoolWithdrawProps {
@@ -25,33 +20,8 @@ export function ReviewPoolWithdraw({
 }: ReviewPoolWithdrawProps) {
   const { result } = apiResponse;
   const params = result.params;
-  const { settings } = useSettings();
-  const { xcp: xcpPrice } = useMarketPrices(settings.fiat);
   const { data: assetAInfo, isLoading: isLoadingAssetA } = useAssetInfo(params.asset_a || "");
   const { data: assetBInfo, isLoading: isLoadingAssetB } = useAssetInfo(params.asset_b || "");
-  const [xcpFeeEstimate, setXcpFeeEstimate] = useState<number | null>(null);
-  const [feeLoading, setFeeLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchFeeEstimate = async () => {
-      try {
-        const sourceAddress = params.source;
-        if (sourceAddress) {
-          const fee = await getPoolWithdrawEstimateXcpFee(sourceAddress);
-          setXcpFeeEstimate(fee);
-        }
-      } catch (err) {
-        console.error("Failed to fetch pool withdraw XCP fee estimate:", err);
-      } finally {
-        setFeeLoading(false);
-      }
-    };
-
-    fetchFeeEstimate();
-  }, [params.source]);
-
-  const xcpFeeInXcp = xcpFeeEstimate !== null ? fromSatoshis(xcpFeeEstimate, true) : null;
-  const xcpFeeInFiat = xcpFeeInXcp !== null && xcpPrice ? xcpFeeInXcp * xcpPrice : null;
   const formatMinimum = (
     normalized: string | undefined,
     raw: string | number | undefined,
@@ -83,21 +53,6 @@ export function ReviewPoolWithdraw({
           value: `${minQuantityADisplay} ${params.asset_a ?? ""}\n${minQuantityBDisplay} ${params.asset_b ?? ""}`,
         }]
       : []),
-    {
-      label: "XCP Fee",
-      value: feeLoading
-        ? "Loading..."
-        : xcpFeeEstimate !== null
-          ? `${formatAmount({
-              value: xcpFeeInXcp!,
-              minimumFractionDigits: 8,
-              maximumFractionDigits: 8,
-            })} XCP`
-          : "Unable to estimate",
-      rightElement: !feeLoading && xcpFeeInFiat !== null
-        ? <span className="text-gray-500">${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-        : undefined,
-    },
   ];
 
   return (

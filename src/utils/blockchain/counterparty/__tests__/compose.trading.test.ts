@@ -371,7 +371,7 @@ describe('Compose Trading Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'dispense', defaultParams);
     });
 
-    it('normalizes Counterparty Core 11.2 dispense parameter names for review', async () => {
+    it('preserves the dispense response descriptors', async () => {
       const upstream = createMockComposeResult({
         name: 'dispense',
         params: {
@@ -389,8 +389,10 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(response.result.params.source).toBe(mockAddress);
-      expect(response.result.params.destination).toBe(defaultParams.dispenser);
+      expect(response.result.params.address).toBe(mockAddress);
+      expect(response.result.params.dispenser).toBe(defaultParams.dispenser);
+      expect(response.result.params.source).toBeUndefined();
+      expect(response.result.params.destination).toBeUndefined();
     });
 
     it('should include optional parameters', async () => {

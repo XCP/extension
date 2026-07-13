@@ -1,160 +1,86 @@
-/**
- * Fairminter Message Unpacker
- *
- * Message ID: 90
- *
- * Modern format (fairminter_v2): CBOR encoded array:
- *   [asset_id, asset_parent_id, price, quantity_by_price, max_mint_per_tx,
- *    max_mint_per_address, hard_cap, premint_quantity, start_block, end_block,
- *    soft_cap, soft_cap_deadline_block, minted_asset_commission_int,
- *    burn_payment, lock_description, lock_quantity, divisible, mime_type, description]
- *
- * Legacy format: Pipe-delimited string
- *   asset|asset_parent|price|quantity_by_price|max_mint_per_tx|hard_cap|
- *   premint_quantity|start_block|end_block|soft_cap|soft_cap_deadline_block|
- *   minted_asset_commission_int|burn_payment|lock_description|lock_quantity|
- *   divisible|description
- */
-
 import { assetIdToName } from '../assetId';
+import { decodeCbor, type CborValue } from '../cbor';
 
-/**
- * Unpacked Fairminter data
- */
 export interface FairminterData {
-  /** Asset name being fairminted */
   asset: string;
-  /** Parent asset name (for subassets) */
   assetParent: string;
-  /** Price in XCP per quantity_by_price units */
   price: bigint;
-  /** Number of asset units given per price */
   quantityByPrice: bigint;
-  /** Maximum units that can be minted per transaction */
   maxMintPerTx: bigint;
-  /** Maximum units that can be minted per address */
   maxMintPerAddress: bigint;
-  /** Total supply cap */
   hardCap: bigint;
-  /** Amount pre-minted to issuer */
   premintQuantity: bigint;
-  /** Block when fairminter opens */
   startBlock: number;
-  /** Block when fairminter closes */
   endBlock: number;
-  /** Minimum total to mint before distribution */
   softCap: bigint;
-  /** Deadline block for reaching soft cap */
   softCapDeadlineBlock: number;
-  /** Commission rate (as integer, divide by 1e8 for fraction) */
   mintedAssetCommissionInt: bigint;
-  /** Whether payments are burned */
   burnPayment: boolean;
-  /** Whether description is locked */
   lockDescription: boolean;
-  /** Whether quantity is locked */
   lockQuantity: boolean;
-  /** Whether asset is divisible */
   divisible: boolean;
-  /** Description or MIME type */
+  poolQuantity: bigint;
+  lpAsset: string | null;
+  mimeType: string;
   description: string;
-  /** MIME type (for modern format) */
-  mimeType?: string;
 }
 
-/**
- * Try to decode CBOR array (basic implementation for fairminter)
- */
-function tryDecodeCBORFairminter(payload: Uint8Array): FairminterData | null {
-  try {
-    // Check for CBOR array marker (0x93 = 19-element array)
-    if (payload[0] !== 0x93) {
-      return null;
-    }
-
-    // Full CBOR parsing would require a CBOR library
-    // For now, return null to fall back to legacy parsing
-    return null;
-  } catch {
-    return null;
-  }
+function integer(value: CborValue, field: string): bigint {
+  if (typeof value !== 'bigint') throw new Error(`Invalid fairminter ${field}`);
+  return value;
 }
 
-/**
- * Unpack a Fairminter message.
- *
- * @param payload - Message payload (after prefix and type ID)
- * @returns Unpacked Fairminter data
- * @throws Error if payload is invalid
- */
+function flag(value: CborValue, field: string): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === 0n || value === 1n) return value === 1n;
+  throw new Error(`Invalid fairminter ${field}`);
+}
+
+function text(value: CborValue, field: string): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof Uint8Array) return new TextDecoder('utf-8', { fatal: true }).decode(value);
+  throw new Error(`Invalid fairminter ${field}`);
+}
+
+function block(value: CborValue, field: string): number {
+  const parsed = integer(value, field);
+  if (parsed > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(`Invalid fairminter ${field}`);
+  return Number(parsed);
+}
+
 export function unpackFairminter(payload: Uint8Array): FairminterData {
-  if (payload.length === 0) {
-    throw new Error('Empty fairminter payload');
+  const fields = decodeCbor(payload);
+  if (!Array.isArray(fields) || (fields.length !== 19 && fields.length !== 21)) {
+    throw new Error('Invalid fairminter field count');
   }
 
-  // Try CBOR first (modern format)
-  const cborResult = tryDecodeCBORFairminter(payload);
-  if (cborResult) {
-    return cborResult;
-  }
+  const hasPool = fields.length === 21;
+  const poolQuantity = hasPool ? integer(fields[17], 'pool quantity') : 0n;
+  const lpAssetId = hasPool ? integer(fields[18], 'LP asset') : 0n;
+  const mimeTypeIndex = hasPool ? 19 : 17;
+  const descriptionIndex = hasPool ? 20 : 18;
 
-  // Legacy format: pipe-delimited string
-  try {
-    const text = new TextDecoder('utf-8').decode(payload);
-    const parts = text.split('|');
-
-    if (parts.length < 17) {
-      throw new Error(`Invalid fairminter format: expected at least 17 fields, got ${parts.length}`);
-    }
-
-    // Parse fields in order
-    const [
-      asset,
-      assetParent,
-      priceStr,
-      quantityByPriceStr,
-      maxMintPerTxStr,
-      hardCapStr,
-      premintQuantityStr,
-      startBlockStr,
-      endBlockStr,
-      softCapStr,
-      softCapDeadlineBlockStr,
-      mintedAssetCommissionIntStr,
-      burnPaymentStr,
-      lockDescriptionStr,
-      lockQuantityStr,
-      divisibleStr,
-      ...descriptionParts
-    ] = parts;
-
-    // Description may contain | so rejoin
-    const description = descriptionParts.join('|');
-
-    return {
-      asset: asset || '',
-      assetParent: assetParent || '',
-      price: BigInt(priceStr || '0'),
-      quantityByPrice: BigInt(quantityByPriceStr || '1'),
-      maxMintPerTx: BigInt(maxMintPerTxStr || '0'),
-      maxMintPerAddress: 0n, // Not in legacy format
-      hardCap: BigInt(hardCapStr || '0'),
-      premintQuantity: BigInt(premintQuantityStr || '0'),
-      startBlock: parseInt(startBlockStr || '0', 10),
-      endBlock: parseInt(endBlockStr || '0', 10),
-      softCap: BigInt(softCapStr || '0'),
-      softCapDeadlineBlock: parseInt(softCapDeadlineBlockStr || '0', 10),
-      mintedAssetCommissionInt: BigInt(mintedAssetCommissionIntStr || '0'),
-      burnPayment: burnPaymentStr === '1',
-      lockDescription: lockDescriptionStr === '1',
-      lockQuantity: lockQuantityStr === '1',
-      divisible: divisibleStr === '1',
-      description,
-    };
-  } catch (e) {
-    if (e instanceof Error && e.message.startsWith('Invalid fairminter')) {
-      throw e;
-    }
-    throw new Error(`Failed to parse fairminter payload: ${e}`);
-  }
+  return {
+    asset: assetIdToName(integer(fields[0], 'asset')),
+    assetParent: integer(fields[1], 'asset parent') === 0n ? '' : assetIdToName(integer(fields[1], 'asset parent')),
+    price: integer(fields[2], 'price'),
+    quantityByPrice: integer(fields[3], 'quantity by price'),
+    maxMintPerTx: integer(fields[4], 'max mint per transaction'),
+    maxMintPerAddress: integer(fields[5], 'max mint per address'),
+    hardCap: integer(fields[6], 'hard cap'),
+    premintQuantity: integer(fields[7], 'premint quantity'),
+    startBlock: block(fields[8], 'start block'),
+    endBlock: block(fields[9], 'end block'),
+    softCap: integer(fields[10], 'soft cap'),
+    softCapDeadlineBlock: block(fields[11], 'soft cap deadline block'),
+    mintedAssetCommissionInt: integer(fields[12], 'commission'),
+    burnPayment: flag(fields[13], 'burn payment'),
+    lockDescription: flag(fields[14], 'lock description'),
+    lockQuantity: flag(fields[15], 'lock quantity'),
+    divisible: flag(fields[16], 'divisible'),
+    poolQuantity,
+    lpAsset: lpAssetId === 0n ? null : assetIdToName(lpAssetId),
+    mimeType: text(fields[mimeTypeIndex], 'MIME type') || 'text/plain',
+    description: text(fields[descriptionIndex], 'description'),
+  };
 }

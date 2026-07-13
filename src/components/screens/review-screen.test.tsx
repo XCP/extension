@@ -90,6 +90,33 @@ describe('ReviewScreen', () => {
     expect(screen.getByText(/0.00010000.*BTC/)).toBeInTheDocument();
   });
 
+  it('renders dispense descriptors and the composed XCP fee', () => {
+    render(
+      <ReviewScreen
+        apiResponse={{
+          result: {
+            name: 'dispense',
+            params: {
+              address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
+              dispenser: 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh',
+            },
+            btc_fee: 10000,
+            xcp_fee: 100000000,
+          },
+        }}
+        onSign={mockOnSign}
+        onBack={mockOnBack}
+        error={null}
+        isSigning={false}
+      />
+    );
+
+    expect(screen.getByText(/bc1qar0s.*5mdq/)).toBeInTheDocument();
+    expect(screen.getByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBeInTheDocument();
+    expect(screen.getByText('XCP Fee:')).toBeInTheDocument();
+    expect(screen.getByText(/1.00000000.*XCP/)).toBeInTheDocument();
+  });
+
   it('renders multi-line custom field correctly', () => {
     render(
       <ReviewScreen
