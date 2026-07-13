@@ -212,15 +212,6 @@ walletTest.describe('Consolidation Form', () => {
     await expect(destInput.first()).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('consolidate page has Include Stamps checkbox', async ({ page }) => {
-    await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
-    await page.waitForLoadState('networkidle');
-
-    // Should have stamps checkbox
-    const stampsCheckbox = page.locator('input[type="checkbox"]').or(page.locator('text=/stamps/i'));
-    await expect(stampsCheckbox.first()).toBeVisible({ timeout: 10000 });
-  });
-
   walletTest('consolidate page has submit button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate'));
     await page.waitForLoadState('networkidle');

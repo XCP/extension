@@ -79,10 +79,6 @@ export async function consolidateBareMultisigBatch(
     
     // Determine which pubkey to use based on position
     // If uncompressed pubkey is not available, use compressed for both positions
-    const pubkeyToUse = utxo.position === 0
-      ? (batchData.pubkey_uncompressed || batchData.pubkey_compressed) // Uncompressed for position 0, fall back to compressed
-      : batchData.pubkey_compressed; // Compressed for position 1
-
     // Check sign_type from API to detect invalid pubkeys
     let hasInvalidPubkeys = utxo.sign_type === 'invalid-pubkeys';
 
@@ -105,7 +101,7 @@ export async function consolidateBareMultisigBatch(
       amount: BigInt(utxo.amount),
       script: scriptBytes,
       prevTxHex: utxo.prev_tx_hex,
-      pubkeyHex: pubkeyToUse,
+      pubkeyHex: '',
       position: utxo.position,
       hasInvalidPubkeys
     };
@@ -137,6 +133,9 @@ export async function consolidateBareMultisigBatch(
   let serviceFeeAddress: string | undefined;
   
   if (batchData.fee_config && batchData.fee_config.fee_percent > 0) {
+    if (!batchData.fee_config.fee_address) {
+      throw new Error('Recovery fee configuration is unavailable. Please try again later.');
+    }
     const afterNetworkFee = totalInputSats - networkFeeSats;
     
     // Apply exemption threshold
@@ -199,7 +198,7 @@ export async function consolidateBareMultisigBatch(
     // Use the API validation flag to determine sign type
     const signType = input.hasInvalidPubkeys
       ? 'invalid-pubkeys' as const
-      : input.pubkeyHex.length === 130
+      : scriptAnalysis.ourKeyIsUncompressed
         ? 'uncompressed' as const
         : 'compressed' as const;
 
@@ -264,7 +263,9 @@ export async function consolidateBareMultisigBatch(
     return {
       signedTxHex: signedTx,
       totalInput: Number(totalInputSats),
-      networkFee: actualNetworkFee,
+      // The outputs were constructed with the estimated fee. Report that exact
+      // transaction fee; actualNetworkFee is only a post-signing size estimate.
+      networkFee: Number(networkFeeSats),
       serviceFee: Number(serviceFeeSats),
       outputAmount: Number(outputSats),
       txSize: actualTxSize

@@ -33,7 +33,6 @@ export function useMultiBatchConsolidation() {
     allBatches: ConsolidationData[],
     feeRateSatPerVByte: number,
     destinationAddress?: string,
-    includeStamps: boolean = false
   ) => {
     if (!activeWallet || !activeAddress) {
       throw new Error('Wallet not properly initialized');
@@ -92,10 +91,7 @@ export function useMultiBatchConsolidation() {
 
           // Report to API for tracking with actual fees
           const report: ConsolidationReport = {
-            txid: txid || '',
-            batch_number: i + 1,
-            utxo_count: batch.summary.batch_utxos,
-            total_input: consolidationResult.totalInput,
+            raw_transaction_hex: consolidationResult.signedTxHex,
             network_fee: consolidationResult.networkFee,
             service_fee: consolidationResult.serviceFee,
             output_amount: consolidationResult.outputAmount,

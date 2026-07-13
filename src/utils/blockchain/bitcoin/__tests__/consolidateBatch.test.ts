@@ -96,8 +96,6 @@ const createMockBatchData = (options: {
 
   return {
     address: TEST_ADDRESS,
-    pubkey_compressed: bytesToHex(compressedPubkey),
-    pubkey_uncompressed: bytesToHex(uncompressedPubkey),
     summary: {
       total_utxos: utxoCount,
       total_btc: (utxoCount * amountPerUtxo) / 100000000,

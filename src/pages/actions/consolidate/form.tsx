@@ -14,7 +14,6 @@ import {
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
-  includeStamps: boolean;
   consolidationData: ConsolidationData | null;
   allBatches: ConsolidationData[];
 }
@@ -22,7 +21,6 @@ export interface ConsolidationFormData {
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
   feeRateSatPerVByte: 1,
   destinationAddress: "",
-  includeStamps: false,
   consolidationData: null,
   allBatches: [],
 };
@@ -41,7 +39,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
   const { settings } = useSettings();
   const shouldShowHelpText = settings?.showHelpText;
 
-  // Fetch consolidation data when address or stamps option changes
+  // Fetch recovery data for the active address.
   useEffect(() => {
     async function fetchData() {
       if (!activeAddress) return;
@@ -54,10 +52,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
       
       try {
         // Fetch all batches to show complete overview
-        const batches = await consolidationApi.fetchAllBatches(
-          activeAddress.address,
-          formData.includeStamps
-        );
+        const batches = await consolidationApi.fetchAllBatches(activeAddress.address);
         
         setFormData((prev) => ({
           ...prev,
@@ -78,7 +73,7 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
     }
     
     fetchData();
-  }, [activeAddress, formData.includeStamps, isInitialLoad]);
+  }, [activeAddress, isInitialLoad]);
 
 
   const handleFeeRateChange = (value: number) => {
@@ -87,10 +82,6 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
 
   const handleDestinationChange = (value: string) => {
     setFormData((prev) => ({ ...prev, destinationAddress: value.trim() }));
-  };
-
-  const handleIncludeStampsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, includeStamps: e.target.checked }));
   };
 
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
@@ -172,25 +163,6 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
             </p>
           </div>
         )}
-
-        {/* Include Stamps toggle */}
-        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-          <div className="flex flex-col">
-            <label htmlFor="includeStamps" className="text-sm font-medium text-gray-700">
-              Allow STAMPS to be spent
-            </label>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              id="includeStamps"
-              type="checkbox"
-              className="sr-only peer"
-              checked={formData.includeStamps}
-              onChange={handleIncludeStampsChange}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-transform peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
 
         <DestinationInput
           value={formData.destinationAddress}

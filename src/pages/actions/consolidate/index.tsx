@@ -97,8 +97,7 @@ function ConsolidatePage() {
       await consolidateAllBatches(
         formData.allBatches,
         formData.feeRateSatPerVByte,
-        formData.destinationAddress || undefined,
-        formData.includeStamps
+        formData.destinationAddress || undefined
       );
       // Navigation to success is handled by the hook
     } catch (err) {

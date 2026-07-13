@@ -1,73 +1,93 @@
-/**
- * Consolidation API Service
- * Handles communication with the Laravel consolidation API for batched UTXO recovery
- */
-
 import { apiClient } from '@/utils/apiClient';
 
-/* ══════════════════════════════════════════════════════════════════════════
- * TYPE DEFINITIONS
- * ══════════════════════════════════════════════════════════════════════════ */
+const API_BASE_URL = 'https://api.xcp.io';
+const SATOSHIS_PER_BTC = 100_000_000;
+const MAX_OUTPUTS_PER_RECOVERY = 420;
+
+interface RecoveryOutput {
+  txid: string;
+  vout: number;
+  value_sats: number;
+  script_pubkey_hex: string;
+  layout: string;
+  recovery_key_position: number;
+}
+
+interface RecoveryPageResponse {
+  address: string;
+  summary: {
+    total_outputs: number;
+    total_value_sats: number;
+    pages: number;
+    current_page: number;
+    outputs_on_page: number;
+  };
+  fee: { address: string | null; percent: number; exemption_sats: number };
+  pending_attempts: number;
+  outputs: RecoveryOutput[];
+  transactions: Record<string, string | null>;
+  missing_transactions: string[];
+}
+
+interface RecoveryAttempt {
+  txid: string;
+  status: 'pending' | 'confirmed' | 'replaced';
+  replacement_txid: string | null;
+  network_fee_sats: number;
+  service_fee_sats: number;
+  output_value_sats: number;
+  confirmations: number;
+  block_time: number | null;
+  reported_at: number;
+  input_count: number;
+}
+
+interface RecoveryAttemptsResponse {
+  address: string;
+  recoveries: RecoveryAttempt[];
+}
 
 export interface ConsolidationUTXO {
   txid: string;
   vout: number;
-  amount: number; // in satoshis
+  amount: number;
   prev_tx_hex: string;
   script: string;
-  position: number; // position in multisig (0 or 1)
+  position: number;
   script_type: string;
-  sign_type?: 'compressed' | 'uncompressed' | 'valid-mixed' | 'invalid-pubkeys'; // From API when available
-}
-
-export interface ConsolidationSummary {
-  total_utxos: number;
-  total_btc: number;
-  batches_required: number;
-  current_batch: number;
-  batch_utxos: number;
-}
-
-export interface ConsolidationFeeConfig {
-  fee_address: string;
-  fee_percent: number;
-  exemption_threshold: number; // in satoshis
-}
-
-export interface MempoolStatus {
-  pending_consolidations: number;
-  pending_utxo_count: number;
-  can_broadcast_more: boolean;
+  sign_type?: 'compressed' | 'uncompressed' | 'valid-mixed' | 'invalid-pubkeys';
 }
 
 export interface ConsolidationData {
   address: string;
-  pubkey_uncompressed: string; // Uncompressed pubkey
-  pubkey_compressed: string; // Compressed pubkey
-  summary: ConsolidationSummary;
-  fee_config: ConsolidationFeeConfig;
-  utxos: ConsolidationUTXO[];
-  mempool_status: MempoolStatus;
-  validation_summary?: {
-    utxos_with_invalid_pubkeys: number;
-    requires_special_handling: boolean;
+  summary: {
+    total_utxos: number;
+    total_btc: number;
+    batches_required: number;
+    current_batch: number;
+    batch_utxos: number;
   };
+  fee_config: { fee_address: string; fee_percent: number; exemption_threshold: number };
+  utxos: ConsolidationUTXO[];
+  mempool_status: {
+    pending_consolidations: number;
+    pending_utxo_count: number;
+    can_broadcast_more: boolean;
+  };
+  validation_summary?: { utxos_with_invalid_pubkeys: number; requires_special_handling: boolean };
 }
 
 export interface ConsolidationReport {
-  txid: string;
-  batch_number: number;
-  utxo_count: number;
-  total_input: number; // sats
-  network_fee: number; // sats
-  service_fee: number; // sats
-  output_amount: number; // sats
+  raw_transaction_hex: string;
+  network_fee: number;
+  service_fee: number;
+  output_amount: number;
 }
 
 export interface ConsolidationReportResponse {
-  status: 'recorded';
-  report_id: string;
-  next_batch: number;
+  status: 'pending';
+  txid: string;
+  inputs: number;
 }
 
 export interface ConsolidationStatusResponse {
@@ -86,159 +106,109 @@ export interface ConsolidationStatusResponse {
     utxos_consolidated: number;
     amount_recovered: number;
     replaced_by?: string;
-    replaced_at?: string;
   }>;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
- * API SERVICE CLASS
- * ══════════════════════════════════════════════════════════════════════════ */
+function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
+  if (page.missing_transactions.length > 0) {
+    throw new Error('Recovery transaction data is still being indexed. Please try again later.');
+  }
+  return {
+    address: page.address,
+    summary: {
+      total_utxos: page.summary.total_outputs,
+      total_btc: page.summary.total_value_sats / SATOSHIS_PER_BTC,
+      batches_required: page.summary.pages,
+      current_batch: page.summary.current_page,
+      batch_utxos: page.summary.outputs_on_page,
+    },
+    fee_config: {
+      fee_address: page.fee.address ?? '',
+      fee_percent: page.fee.percent,
+      exemption_threshold: page.fee.exemption_sats,
+    },
+    utxos: page.outputs.map((output) => ({
+      txid: output.txid,
+      vout: output.vout,
+      amount: output.value_sats,
+      prev_tx_hex: page.transactions[output.txid]!,
+      script: output.script_pubkey_hex,
+      position: output.recovery_key_position,
+      script_type: output.layout,
+    })),
+    mempool_status: {
+      pending_consolidations: page.pending_attempts,
+      pending_utxo_count: 0,
+      can_broadcast_more: page.pending_attempts === 0,
+    },
+  };
+}
 
 class ConsolidationApiService {
-  private baseUrl: string;
-
-  constructor() {
-    // For browser extensions, hardcode the production URL
-    // Environment variables can be configured at build time if needed
-    this.baseUrl = 'https://api.xcp.io';
+  async fetchConsolidationBatch(address: string, batch = 1, maxUtxos = MAX_OUTPUTS_PER_RECOVERY): Promise<ConsolidationData> {
+    const response = await apiClient.get<RecoveryPageResponse>(
+      `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recovery`,
+      { params: { page: batch, limit: maxUtxos } },
+    );
+    return toConsolidationData(response.data);
   }
 
-  /**
-   * Fetch consolidation data for a specific batch
-   * @param address - Bitcoin address to consolidate
-   * @param batch - Batch number (1-based)
-   * @param includeStamps - Whether to include Stamps UTXOs
-   * @param maxUtxos - Maximum UTXOs per batch (default 420)
-   * @returns Consolidation data including UTXOs and fee config
-   */
-  async fetchConsolidationBatch(
-    address: string,
-    batch: number = 1,
-    includeStamps: boolean = false,
-    maxUtxos: number = 420
-  ): Promise<ConsolidationData> {
-    try {
-      const params = new URLSearchParams({
-        batch: batch.toString(),
-        include_stamps: includeStamps.toString(),
-        include_prev_tx: 'true', // Always include for signing
-        max_utxos: maxUtxos.toString()
-      });
-
-      const response = await apiClient.get<ConsolidationData>(
-        `${this.baseUrl}/api/v1/address/${address}/consolidation?${params.toString()}`
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch consolidation batch:', error);
-      throw new Error('Failed to fetch consolidation data. Please try again.');
-    }
+  async fetchAllBatches(address: string): Promise<ConsolidationData[]> {
+    const firstBatch = await this.fetchConsolidationBatch(address);
+    const rest = await Promise.all(
+      Array.from({ length: firstBatch.summary.batches_required - 1 }, (_, index) =>
+        this.fetchConsolidationBatch(address, index + 2),
+      ),
+    );
+    return [firstBatch, ...rest];
   }
 
-  /**
-   * Fetch all batches for an address to get complete overview
-   * @param address - Bitcoin address to consolidate
-   * @param includeStamps - Whether to include Stamps UTXOs
-   * @returns Array of consolidation data for all batches
-   */
-  async fetchAllBatches(
-    address: string,
-    includeStamps: boolean = false
-  ): Promise<ConsolidationData[]> {
-    const batches: ConsolidationData[] = [];
-    
-    try {
-      // Fetch first batch to get total batch count
-      const firstBatch = await this.fetchConsolidationBatch(address, 1, includeStamps);
-      batches.push(firstBatch);
-      
-      const totalBatches = firstBatch.summary.batches_required;
-      
-      // Fetch remaining batches if any
-      if (totalBatches > 1) {
-        const remainingBatches = await Promise.all(
-          Array.from({ length: totalBatches - 1 }, (_, i) => 
-            this.fetchConsolidationBatch(address, i + 2, includeStamps)
-          )
-        );
-        batches.push(...remainingBatches);
-      }
-      
-      return batches;
-    } catch (error) {
-      console.error('Failed to fetch all batches:', error);
-      throw error;
-    }
+  async reportConsolidation(address: string, report: ConsolidationReport): Promise<ConsolidationReportResponse> {
+    const response = await apiClient.post<ConsolidationReportResponse>(
+      `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recoveries`,
+      {
+        raw_transaction_hex: report.raw_transaction_hex,
+        network_fee_sats: report.network_fee,
+        service_fee_sats: report.service_fee,
+        output_value_sats: report.output_amount,
+      },
+    );
+    return response.data;
   }
 
-  /**
-   * Report a consolidation transaction that was broadcast
-   * @param address - Bitcoin address that was consolidated
-   * @param report - Consolidation report details
-   * @returns Report response with next batch info
-   */
-  async reportConsolidation(
-    address: string,
-    report: ConsolidationReport
-  ): Promise<ConsolidationReportResponse> {
-    try {
-      const response = await apiClient.post<ConsolidationReportResponse>(
-        `${this.baseUrl}/api/v1/address/${address}/consolidation/report`,
-        report
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error('Failed to report consolidation:', error);
-      // Don't throw - reporting is optional for tracking
-      return {
-        status: 'recorded',
-        report_id: 'local-' + Date.now(),
-        next_batch: report.batch_number + 1
-      };
-    }
+  async getConsolidationStatus(address: string): Promise<ConsolidationStatusResponse> {
+    const [recovery, attempts] = await Promise.all([
+      this.fetchConsolidationBatch(address, 1, 1),
+      apiClient.get<RecoveryAttemptsResponse>(
+        `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recoveries`,
+      ),
+    ]);
+    const rows = attempts.data.recoveries;
+    return {
+      address,
+      status: {
+        available_utxos: recovery.summary.total_utxos,
+        pending_utxos: rows.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.input_count, 0),
+        confirmed_consolidations: rows.filter((row) => row.status === 'confirmed').length,
+        total_recovered_btc: rows.filter((row) => row.status === 'confirmed').reduce((sum, row) => sum + row.output_value_sats, 0) / SATOSHIS_PER_BTC,
+      },
+      recent_consolidations: rows.map((row) => ({
+        txid: row.txid,
+        timestamp: new Date((row.block_time ?? row.reported_at) * 1000).toISOString(),
+        status: row.status,
+        confirmations: row.confirmations,
+        utxos_consolidated: row.input_count,
+        amount_recovered: row.output_value_sats / SATOSHIS_PER_BTC,
+        replaced_by: row.replacement_txid ?? undefined,
+      })),
+    };
   }
 
-  /**
-   * Get consolidation status and history for an address
-   * @param address - Bitcoin address to check
-   * @returns Consolidation status and recent history
-   */
-  async getConsolidationStatus(
-    address: string
-  ): Promise<ConsolidationStatusResponse> {
-    try {
-      const response = await apiClient.get<ConsolidationStatusResponse>(
-        `${this.baseUrl}/api/v1/address/${address}/consolidation/status`
-      );
-
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch consolidation status:', error);
-      throw new Error('Failed to fetch consolidation status.');
-    }
-  }
-
-  /**
-   * Check if more batches can be broadcast based on mempool status
-   * @param address - Bitcoin address to check
-   * @returns Whether more batches can be broadcast
-   */
   async canBroadcastMore(address: string): Promise<boolean> {
-    try {
-      const batch = await this.fetchConsolidationBatch(address, 1, false, 1);
-      return batch.mempool_status.can_broadcast_more;
-    } catch (error) {
-      console.error('Failed to check broadcast status:', error);
-      // Default to true if we can't check
-      return true;
-    }
+    const batch = await this.fetchConsolidationBatch(address, 1, 1);
+    return batch.mempool_status.can_broadcast_more;
   }
 }
 
-// Export singleton instance
 export const consolidationApi = new ConsolidationApiService();
-
-// Export for testing
 export { ConsolidationApiService };
