@@ -13,14 +13,10 @@ import { useConsolidationHistory } from "@/hooks/useConsolidationHistory";
 function ConsolidatePage() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
-  const { hasHistory } = useConsolidationHistory(activeAddress?.address || '');
-  const { 
-    consolidateAllBatches, 
-    isProcessing,
-    currentBatch,
-    results
-  } = useMultiBatchConsolidation();
-  const [step, setStep] = useState<'form' | 'review'>('form');
+  const { hasHistory } = useConsolidationHistory(activeAddress?.address || "");
+  const { consolidateAllBatches, isProcessing, currentBatch, results } =
+    useMultiBatchConsolidation();
+  const [step, setStep] = useState<"form" | "review">("form");
   const [error, setError] = useState<string | null>(null);
   // Use the form data type that includes utxoData
   const [formData, setFormData] = useState<ConsolidationFormData | null>(null);
@@ -38,9 +34,9 @@ function ConsolidatePage() {
       updateSettings({ hasVisitedRecoverBitcoin: true });
     }
   }, []); // Only run once on mount
-  
+
   useEffect(() => {
-    if (step === 'form') {
+    if (step === "form") {
       setHeaderProps({
         title: "Recovery Tool",
         onBack: () => navigate(-1),
@@ -50,10 +46,10 @@ function ConsolidatePage() {
           ariaLabel: "Toggle help text",
         },
       });
-    } else if (step === 'review') {
+    } else if (step === "review") {
       setHeaderProps({
         title: "Review",
-        onBack: () => setStep('form'),
+        onBack: () => setStep("form"),
       });
     }
     return () => setHeaderProps(null);
@@ -66,7 +62,7 @@ function ConsolidatePage() {
       setError(null);
       // Store form data
       setFormData(data);
-      
+
       // Pass consolidation data to the review screen
       setTxDetails({
         params: {
@@ -78,26 +74,27 @@ function ConsolidatePage() {
         allBatches: data.allBatches,
       });
 
-      setStep('review');
+      setStep("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
   };
 
   const handleBack = () => {
-    setStep('form');
+    setStep("form");
     setTxDetails(null);
   };
 
   const handleSign = async () => {
     if (!formData || !formData.allBatches.length) return;
-    
+
     try {
       setError(null);
       await consolidateAllBatches(
         formData.allBatches,
         formData.feeRateSatPerVByte,
-        formData.destinationAddress || undefined
+        formData.destinationAddress || undefined,
+        formData.includeProtectedStamps,
       );
       // Navigation to success is handled by the hook
     } catch (err) {
@@ -113,14 +110,17 @@ function ConsolidatePage() {
         </div>
       )}
 
-      {step === 'form' && (
+      {step === "form" && (
         <>
-          <ConsolidationForm onSubmit={handleFormSubmit} hasHistory={hasHistory} />
+          <ConsolidationForm
+            onSubmit={handleFormSubmit}
+            hasHistory={hasHistory}
+          />
           <ConsolidationHistory address={activeAddress.address} />
         </>
       )}
 
-      {step === 'review' && txDetails && (
+      {step === "review" && txDetails && (
         <ConsolidationReview
           apiResponse={txDetails}
           onSign={handleSign}

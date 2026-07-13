@@ -1,6 +1,6 @@
-import { apiClient } from '@/utils/apiClient';
+import { apiClient } from "@/utils/apiClient";
 
-const API_BASE_URL = 'https://api.xcp.io';
+const API_BASE_URL = "https://api.xcp.io";
 const SATOSHIS_PER_BTC = 100_000_000;
 const MAX_OUTPUTS_PER_RECOVERY = 420;
 
@@ -27,11 +27,16 @@ interface RecoveryPageResponse {
   outputs: RecoveryOutput[];
   transactions: Record<string, string | null>;
   missing_transactions: string[];
+  protection: {
+    protected_stamp_outputs: number;
+    protected_stamp_value_sats: number;
+    included: boolean;
+  };
 }
 
 interface RecoveryAttempt {
   txid: string;
-  status: 'pending' | 'confirmed' | 'replaced';
+  status: "pending" | "confirmed" | "replaced";
   replacement_txid: string | null;
   network_fee_sats: number;
   service_fee_sats: number;
@@ -55,7 +60,7 @@ export interface ConsolidationUTXO {
   script: string;
   position: number;
   script_type: string;
-  sign_type?: 'compressed' | 'uncompressed' | 'valid-mixed' | 'invalid-pubkeys';
+  sign_type?: "compressed" | "uncompressed" | "valid-mixed" | "invalid-pubkeys";
 }
 
 export interface ConsolidationData {
@@ -67,14 +72,26 @@ export interface ConsolidationData {
     current_batch: number;
     batch_utxos: number;
   };
-  fee_config: { fee_address: string; fee_percent: number; exemption_threshold: number };
+  fee_config: {
+    fee_address: string;
+    fee_percent: number;
+    exemption_threshold: number;
+  };
   utxos: ConsolidationUTXO[];
   mempool_status: {
     pending_consolidations: number;
     pending_utxo_count: number;
     can_broadcast_more: boolean;
   };
-  validation_summary?: { utxos_with_invalid_pubkeys: number; requires_special_handling: boolean };
+  validation_summary?: {
+    utxos_with_invalid_pubkeys: number;
+    requires_special_handling: boolean;
+  };
+  stamp_protection: {
+    protected_utxos: number;
+    protected_btc: number;
+    included: boolean;
+  };
 }
 
 export interface ConsolidationReport {
@@ -82,10 +99,11 @@ export interface ConsolidationReport {
   network_fee: number;
   service_fee: number;
   output_amount: number;
+  include_protected_stamps: boolean;
 }
 
 export interface ConsolidationReportResponse {
-  status: 'pending';
+  status: "pending";
   txid: string;
   inputs: number;
 }
@@ -101,7 +119,7 @@ export interface ConsolidationStatusResponse {
   recent_consolidations: Array<{
     txid: string;
     timestamp: string;
-    status: 'pending' | 'confirmed' | 'replaced';
+    status: "pending" | "confirmed" | "replaced";
     confirmations: number;
     utxos_consolidated: number;
     amount_recovered: number;
@@ -111,7 +129,9 @@ export interface ConsolidationStatusResponse {
 
 function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
   if (page.missing_transactions.length > 0) {
-    throw new Error('Recovery transaction data is still being indexed. Please try again later.');
+    throw new Error(
+      "Recovery transaction data is still being indexed. Please try again later.",
+    );
   }
   return {
     address: page.address,
@@ -123,7 +143,7 @@ function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
       batch_utxos: page.summary.outputs_on_page,
     },
     fee_config: {
-      fee_address: page.fee.address ?? '',
+      fee_address: page.fee.address ?? "",
       fee_percent: page.fee.percent,
       exemption_threshold: page.fee.exemption_sats,
     },
@@ -141,29 +161,64 @@ function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
       pending_utxo_count: 0,
       can_broadcast_more: page.pending_attempts === 0,
     },
+    stamp_protection: {
+      protected_utxos: page.protection.protected_stamp_outputs,
+      protected_btc:
+        page.protection.protected_stamp_value_sats / SATOSHIS_PER_BTC,
+      included: page.protection.included,
+    },
   };
 }
 
 class ConsolidationApiService {
-  async fetchConsolidationBatch(address: string, batch = 1, maxUtxos = MAX_OUTPUTS_PER_RECOVERY): Promise<ConsolidationData> {
+  async fetchConsolidationBatch(
+    address: string,
+    batch = 1,
+    maxUtxos = MAX_OUTPUTS_PER_RECOVERY,
+    includeProtectedStamps = false,
+  ): Promise<ConsolidationData> {
     const response = await apiClient.get<RecoveryPageResponse>(
       `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recovery`,
-      { params: { page: batch, limit: maxUtxos } },
+      {
+        params: {
+          page: batch,
+          limit: maxUtxos,
+          ...(includeProtectedStamps ? { include_protected_stamps: true } : {}),
+        },
+      },
     );
     return toConsolidationData(response.data);
   }
 
-  async fetchAllBatches(address: string): Promise<ConsolidationData[]> {
-    const firstBatch = await this.fetchConsolidationBatch(address);
+  async fetchAllBatches(
+    address: string,
+    includeProtectedStamps = false,
+  ): Promise<ConsolidationData[]> {
+    const firstBatch = await this.fetchConsolidationBatch(
+      address,
+      1,
+      MAX_OUTPUTS_PER_RECOVERY,
+      includeProtectedStamps,
+    );
     const rest = await Promise.all(
-      Array.from({ length: firstBatch.summary.batches_required - 1 }, (_, index) =>
-        this.fetchConsolidationBatch(address, index + 2),
+      Array.from(
+        { length: firstBatch.summary.batches_required - 1 },
+        (_, index) =>
+          this.fetchConsolidationBatch(
+            address,
+            index + 2,
+            MAX_OUTPUTS_PER_RECOVERY,
+            includeProtectedStamps,
+          ),
       ),
     );
     return [firstBatch, ...rest];
   }
 
-  async reportConsolidation(address: string, report: ConsolidationReport): Promise<ConsolidationReportResponse> {
+  async reportConsolidation(
+    address: string,
+    report: ConsolidationReport,
+  ): Promise<ConsolidationReportResponse> {
     const response = await apiClient.post<ConsolidationReportResponse>(
       `${API_BASE_URL}/addresses/${encodeURIComponent(address)}/recoveries`,
       {
@@ -171,12 +226,17 @@ class ConsolidationApiService {
         network_fee_sats: report.network_fee,
         service_fee_sats: report.service_fee,
         output_value_sats: report.output_amount,
+        ...(report.include_protected_stamps
+          ? { include_protected_stamps: true }
+          : {}),
       },
     );
     return response.data;
   }
 
-  async getConsolidationStatus(address: string): Promise<ConsolidationStatusResponse> {
+  async getConsolidationStatus(
+    address: string,
+  ): Promise<ConsolidationStatusResponse> {
     const [recovery, attempts] = await Promise.all([
       this.fetchConsolidationBatch(address, 1, 1),
       apiClient.get<RecoveryAttemptsResponse>(
@@ -188,13 +248,23 @@ class ConsolidationApiService {
       address,
       status: {
         available_utxos: recovery.summary.total_utxos,
-        pending_utxos: rows.filter((row) => row.status === 'pending').reduce((sum, row) => sum + row.input_count, 0),
-        confirmed_consolidations: rows.filter((row) => row.status === 'confirmed').length,
-        total_recovered_btc: rows.filter((row) => row.status === 'confirmed').reduce((sum, row) => sum + row.output_value_sats, 0) / SATOSHIS_PER_BTC,
+        pending_utxos: rows
+          .filter((row) => row.status === "pending")
+          .reduce((sum, row) => sum + row.input_count, 0),
+        confirmed_consolidations: rows.filter(
+          (row) => row.status === "confirmed",
+        ).length,
+        total_recovered_btc:
+          rows
+            .filter((row) => row.status === "confirmed")
+            .reduce((sum, row) => sum + row.output_value_sats, 0) /
+          SATOSHIS_PER_BTC,
       },
       recent_consolidations: rows.map((row) => ({
         txid: row.txid,
-        timestamp: new Date((row.block_time ?? row.reported_at) * 1000).toISOString(),
+        timestamp: new Date(
+          (row.block_time ?? row.reported_at) * 1000,
+        ).toISOString(),
         status: row.status,
         confirmations: row.confirmations,
         utxos_consolidated: row.input_count,

@@ -8,7 +8,7 @@ import { formatAmount } from "@/utils/format";
 import { useSettings } from "@/contexts/settings-context";
 import {
   consolidationApi,
-  type ConsolidationData
+  type ConsolidationData,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
 
 export interface ConsolidationFormData {
@@ -16,6 +16,7 @@ export interface ConsolidationFormData {
   destinationAddress: string;
   consolidationData: ConsolidationData | null;
   allBatches: ConsolidationData[];
+  includeProtectedStamps: boolean;
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
@@ -23,6 +24,7 @@ const DEFAULT_FORM_DATA: ConsolidationFormData = {
   destinationAddress: "",
   consolidationData: null,
   allBatches: [],
+  includeProtectedStamps: false,
 };
 
 interface ConsolidationFormProps {
@@ -30,9 +32,13 @@ interface ConsolidationFormProps {
   hasHistory?: boolean;
 }
 
-export function ConsolidationForm({ onSubmit, hasHistory = false }: ConsolidationFormProps) {
+export function ConsolidationForm({
+  onSubmit,
+  hasHistory = false,
+}: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
-  const [formData, setFormData] = useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] =
+    useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,38 +49,44 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
   useEffect(() => {
     async function fetchData() {
       if (!activeAddress) return;
-      
+
       // Only show loading state on initial load, not on stamp toggle
       if (isInitialLoad) {
         setIsLoading(true);
       }
       setError(null);
-      
+
       try {
         // Fetch all batches to show complete overview
-        const batches = await consolidationApi.fetchAllBatches(activeAddress.address);
-        
+        const batches = await consolidationApi.fetchAllBatches(
+          activeAddress.address,
+          formData.includeProtectedStamps,
+        );
+
         setFormData((prev) => ({
           ...prev,
           consolidationData: batches[0], // First batch for initial display
-          allBatches: batches
+          allBatches: batches,
         }));
-        
+
         // Mark initial load as complete
         if (isInitialLoad) {
           setIsInitialLoad(false);
         }
       } catch (err) {
         console.error("Error fetching consolidation data:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch consolidation data");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to fetch consolidation data",
+        );
       } finally {
         setIsLoading(false);
       }
     }
-    
-    fetchData();
-  }, [activeAddress, isInitialLoad]);
 
+    fetchData();
+  }, [activeAddress, formData.includeProtectedStamps, isInitialLoad]);
 
   const handleFeeRateChange = (value: number) => {
     setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
@@ -84,8 +96,28 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
     setFormData((prev) => ({ ...prev, destinationAddress: value.trim() }));
   };
 
+  const handleProtectedStampsChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setIsLoading(true);
+    setFormData((prev) => ({
+      ...prev,
+      includeProtectedStamps: event.target.checked,
+      consolidationData: null,
+      allBatches: [],
+    }));
+  };
+
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (
+      !formData.consolidationData ||
+      formData.consolidationData.stamp_protection.included !==
+        formData.includeProtectedStamps
+    ) {
+      setError("Stamp protection status is still updating. Please try again.");
+      return;
+    }
     onSubmit(formData);
   };
 
@@ -98,23 +130,38 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
           className="mb-6"
         />
       )}
-      <form onSubmit={handleSubmitInternal} className="bg-white rounded-lg shadow-lg p-4 space-y-6">
+      <form
+        onSubmit={handleSubmitInternal}
+        className="bg-white rounded-lg shadow-lg p-4 space-y-6"
+      >
         {error && (
           <div className="p-3 bg-red-100 text-red-700 rounded-md" role="alert">
             {error}
           </div>
         )}
-        
+
         {/* Mempool warning */}
-        {!isLoading && formData.consolidationData?.mempool_status && 
-         formData.consolidationData.mempool_status.pending_consolidations > 0 && (
-          <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
-            <strong>Warning:</strong> You have {formData.consolidationData.mempool_status.pending_consolidations} pending recovery 
-            transaction{formData.consolidationData.mempool_status.pending_consolidations > 1 ? 's' : ''}. 
-            Please wait for {formData.consolidationData.mempool_status.pending_consolidations > 1 ? 'them' : 'it'} to confirm before starting new ones.
-          </div>
-        )}
-        
+        {!isLoading &&
+          formData.consolidationData?.mempool_status &&
+          formData.consolidationData.mempool_status.pending_consolidations >
+            0 && (
+            <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
+              <strong>Warning:</strong> You have{" "}
+              {formData.consolidationData.mempool_status.pending_consolidations}{" "}
+              pending recovery transaction
+              {formData.consolidationData.mempool_status
+                .pending_consolidations > 1
+                ? "s"
+                : ""}
+              . Please wait for{" "}
+              {formData.consolidationData.mempool_status
+                .pending_consolidations > 1
+                ? "them"
+                : "it"}{" "}
+              to confirm before starting new ones.
+            </div>
+          )}
+
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">
           <h2 className="font-semibold">Recoverable</h2>
@@ -146,23 +193,66 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
               )}
             </span>
           </div>
-          {!isLoading && formData.consolidationData && formData.consolidationData.summary.batches_required > 1 && (
-            <div className="flex justify-between">
-              <span className="text-gray-600"># of Batches</span>
-              <span className="font-medium">
-                {formData.consolidationData.summary.batches_required} txs
-              </span>
+          {!isLoading &&
+            formData.consolidationData &&
+            formData.consolidationData.summary.batches_required > 1 && (
+              <div className="flex justify-between">
+                <span className="text-gray-600"># of Batches</span>
+                <span className="font-medium">
+                  {formData.consolidationData.summary.batches_required} txs
+                </span>
+              </div>
+            )}
+        </div>
+
+        {!isLoading &&
+          formData.consolidationData &&
+          formData.consolidationData.validation_summary
+            ?.requires_special_handling && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+              <p className="text-sm text-amber-900">
+                <strong>Note:</strong> Some UTXOs require special handling. This
+                is normal for older Counterparty transactions and will be
+                handled automatically.
+              </p>
             </div>
           )}
-        </div>
-        
-        {!isLoading && formData.consolidationData && formData.consolidationData.validation_summary?.requires_special_handling && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
-            <p className="text-sm text-amber-900">
-              <strong>Note:</strong> Some UTXOs require special handling. This is normal for older Counterparty transactions and will be handled automatically.
-            </p>
+
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <label
+                htmlFor="includeProtectedStamps"
+                className="text-sm font-semibold text-amber-950"
+              >
+                Allow protected Stamp transactions to be spent
+              </label>
+              <p className="mt-1 text-sm text-amber-900">
+                Keep this off unless you knowingly intend to destroy the
+                associated Bitcoin Stamp. This protection is enabled by default.
+              </p>
+              {!formData.includeProtectedStamps &&
+              formData.consolidationData?.stamp_protection.protected_utxos ? (
+                <p className="mt-1 text-sm font-medium text-amber-950">
+                  {formData.consolidationData.stamp_protection.protected_utxos}{" "}
+                  protected UTXO
+                  {formData.consolidationData.stamp_protection
+                    .protected_utxos === 1
+                    ? " is"
+                    : "s are"}{" "}
+                  excluded.
+                </p>
+              ) : null}
+            </div>
+            <input
+              id="includeProtectedStamps"
+              type="checkbox"
+              checked={formData.includeProtectedStamps}
+              onChange={handleProtectedStampsChange}
+              className="mt-1 size-5 shrink-0 accent-red-600"
+            />
           </div>
-        )}
+        </div>
 
         <DestinationInput
           value={formData.destinationAddress}
@@ -183,7 +273,12 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
           type="submit"
           color="blue"
           fullWidth
-          disabled={!formData.consolidationData || formData.consolidationData.summary.total_utxos === 0 || formData.feeRateSatPerVByte <= 0 || isLoading}
+          disabled={
+            !formData.consolidationData ||
+            formData.consolidationData.summary.total_utxos === 0 ||
+            formData.feeRateSatPerVByte <= 0 ||
+            isLoading
+          }
         >
           {isLoading ? "Loading…" : "Continue to Review"}
         </Button>
@@ -193,13 +288,25 @@ export function ConsolidationForm({ onSubmit, hasHistory = false }: Consolidatio
       {!hasHistory && (
         <div className="mt-4 bg-white rounded-lg shadow-lg p-4">
           <button
-            onClick={() => window.open('https://www.youtube.com/watch?v=YOUR_VIDEO_ID', '_blank')}
+            onClick={() =>
+              window.open(
+                "https://www.youtube.com/watch?v=YOUR_VIDEO_ID",
+                "_blank",
+              )
+            }
             className="w-full flex items-center justify-center gap-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            <svg className="size-5 text-red-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            <svg
+              className="size-5 text-red-600"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
             </svg>
-            <span className="text-sm font-medium text-gray-700">Watch: How to Recover Bitcoin</span>
+            <span className="text-sm font-medium text-gray-700">
+              Watch: How to Recover Bitcoin
+            </span>
           </button>
         </div>
       )}

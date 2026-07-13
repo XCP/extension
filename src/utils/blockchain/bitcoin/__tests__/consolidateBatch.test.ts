@@ -113,6 +113,11 @@ const createMockBatchData = (options: {
       pending_consolidations: 0,
       pending_utxo_count: 0,
       can_broadcast_more: true
+    },
+    stamp_protection: {
+      protected_utxos: 0,
+      protected_btc: 0,
+      included: false
     }
   };
 };

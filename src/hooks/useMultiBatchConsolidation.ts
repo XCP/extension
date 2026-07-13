@@ -1,30 +1,26 @@
-import { useState } from 'react';
-import { useWallet } from '@/contexts/wallet-context';
-import { useNavigate } from 'react-router-dom';
+import { useState } from "react";
+import { useWallet } from "@/contexts/wallet-context";
+import { useNavigate } from "react-router-dom";
 import {
   consolidationApi,
   type ConsolidationData,
-  type ConsolidationReport
-} from '@/utils/blockchain/bitcoin/consolidationApi';
-import { consolidateBareMultisigBatch } from '@/utils/blockchain/bitcoin/consolidateBatch';
-import { analytics, getBtcBucket } from '@/utils/fathom';
+  type ConsolidationReport,
+} from "@/utils/blockchain/bitcoin/consolidationApi";
+import { consolidateBareMultisigBatch } from "@/utils/blockchain/bitcoin/consolidateBatch";
+import { analytics, getBtcBucket } from "@/utils/fathom";
 
 export interface ConsolidationResult {
   batchNumber: number;
   txid: string;
   utxosConsolidated: number;
-  status: 'success' | 'error';
+  status: "success" | "error";
   error?: string;
 }
 
 export function useMultiBatchConsolidation() {
   const navigate = useNavigate();
-  const { 
-    activeWallet, 
-    activeAddress, 
-    broadcastTransaction, 
-    getPrivateKey 
-  } = useWallet();
+  const { activeWallet, activeAddress, broadcastTransaction, getPrivateKey } =
+    useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [results, setResults] = useState<ConsolidationResult[]>([]);
@@ -33,9 +29,10 @@ export function useMultiBatchConsolidation() {
     allBatches: ConsolidationData[],
     feeRateSatPerVByte: number,
     destinationAddress?: string,
+    includeProtectedStamps = false,
   ) => {
     if (!activeWallet || !activeAddress) {
-      throw new Error('Wallet not properly initialized');
+      throw new Error("Wallet not properly initialized");
     }
 
     setIsProcessing(true);
@@ -47,11 +44,11 @@ export function useMultiBatchConsolidation() {
       // Get the private key once for all batches
       const privateKeyResult = await getPrivateKey(
         activeWallet.id,
-        activeAddress.path
+        activeAddress.path,
       );
 
       if (!privateKeyResult || !privateKeyResult.hex) {
-        throw new Error('Failed to retrieve private key for consolidation');
+        throw new Error("Failed to retrieve private key for consolidation");
       }
 
       const privateKey = privateKeyResult.hex; // Use hex format for consolidation
@@ -60,15 +57,19 @@ export function useMultiBatchConsolidation() {
       for (let i = 0; i < allBatches.length; i++) {
         const batch = allBatches[i];
         setCurrentBatch(i + 1);
-        
+
         try {
           console.log(`Processing batch ${i + 1} of ${allBatches.length}`);
-          
+
           // Check if we can still broadcast
           if (i > 0) {
-            const canBroadcast = await consolidationApi.canBroadcastMore(activeAddress.address);
+            const canBroadcast = await consolidationApi.canBroadcastMore(
+              activeAddress.address,
+            );
             if (!canBroadcast) {
-              throw new Error('Mempool limit reached. Please wait for confirmations before continuing.');
+              throw new Error(
+                "Mempool limit reached. Please wait for confirmations before continuing.",
+              );
             }
           }
 
@@ -78,15 +79,18 @@ export function useMultiBatchConsolidation() {
             activeAddress.address,
             batch,
             feeRateSatPerVByte,
-            destinationAddress
+            destinationAddress,
           );
 
           // Broadcast the transaction
-          const broadcastResult = await broadcastTransaction(consolidationResult.signedTxHex);
-          const txid = typeof broadcastResult === 'string' 
-            ? broadcastResult 
-            : broadcastResult.txid;
-          
+          const broadcastResult = await broadcastTransaction(
+            consolidationResult.signedTxHex,
+          );
+          const txid =
+            typeof broadcastResult === "string"
+              ? broadcastResult
+              : broadcastResult.txid;
+
           console.log(`Batch ${i + 1} broadcast successfully: ${txid}`);
 
           // Report to API for tracking with actual fees
@@ -95,9 +99,13 @@ export function useMultiBatchConsolidation() {
             network_fee: consolidationResult.networkFee,
             service_fee: consolidationResult.serviceFee,
             output_amount: consolidationResult.outputAmount,
+            include_protected_stamps: includeProtectedStamps,
           };
-          
-          await consolidationApi.reportConsolidation(activeAddress.address, report);
+
+          await consolidationApi.reportConsolidation(
+            activeAddress.address,
+            report,
+          );
 
           // Accumulate output for analytics
           totalOutputSats += consolidationResult.outputAmount;
@@ -105,28 +113,30 @@ export function useMultiBatchConsolidation() {
           // Add to results
           const result: ConsolidationResult = {
             batchNumber: i + 1,
-            txid: txid || '',
+            txid: txid || "",
             utxosConsolidated: batch.summary.batch_utxos,
-            status: 'success'
+            status: "success",
           };
-          
+
           batchResults.push(result);
           setResults([...batchResults]);
-          
         } catch (batchError) {
           console.error(`Error processing batch ${i + 1}:`, batchError);
-          
+
           const result: ConsolidationResult = {
             batchNumber: i + 1,
-            txid: '',
+            txid: "",
             utxosConsolidated: batch.summary.batch_utxos,
-            status: 'error',
-            error: batchError instanceof Error ? batchError.message : String(batchError)
+            status: "error",
+            error:
+              batchError instanceof Error
+                ? batchError.message
+                : String(batchError),
           };
-          
+
           batchResults.push(result);
           setResults([...batchResults]);
-          
+
           // Stop processing on error
           throw new Error(`Batch ${i + 1} failed: ${result.error}`);
         }
@@ -134,21 +144,20 @@ export function useMultiBatchConsolidation() {
 
       // Track successful consolidation with bucketed BTC amount
       const totalBtc = totalOutputSats / 100000000;
-      analytics.track('consolidate', getBtcBucket(totalBtc));
+      analytics.track("consolidate", getBtcBucket(totalBtc));
 
       // All batches successful - navigate to success with results
-      navigate('/actions/consolidate/success', {
+      navigate("/actions/consolidate/success", {
         state: {
           results: batchResults,
           totalBatches: allBatches.length,
-          address: activeAddress.address
-        }
+          address: activeAddress.address,
+        },
       });
-      
+
       return batchResults;
-      
     } catch (error) {
-      console.error('Consolidation failed:', error);
+      console.error("Consolidation failed:", error);
       throw error;
     } finally {
       setIsProcessing(false);
@@ -160,6 +169,6 @@ export function useMultiBatchConsolidation() {
     consolidateAllBatches,
     isProcessing,
     currentBatch,
-    results
+    results,
   };
 }
