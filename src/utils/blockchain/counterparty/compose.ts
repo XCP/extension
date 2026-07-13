@@ -104,6 +104,37 @@ export interface ApiResponse {
   result: ComposeResult;
 }
 
+/**
+ * Normalize public API parameter names to the extension's canonical compose shape.
+ * Counterparty Core 11.2 intentionally exposes dispense params as `address` and
+ * `dispenser`; the shared review UI expects `source` and `destination`.
+ */
+export function normalizeComposeResponse(
+  response: ApiResponse,
+  endpoint: string,
+  sourceAddress: string,
+): ApiResponse {
+  const result = response?.result;
+  const upstreamParams = result?.params as unknown as Record<string, unknown> | undefined;
+  if (!result || !upstreamParams) return response;
+
+  const source = upstreamParams.source ?? upstreamParams.address ?? sourceAddress;
+  const destination =
+    upstreamParams.destination ?? (endpoint === 'dispense' ? upstreamParams.dispenser : undefined);
+
+  return {
+    ...response,
+    result: {
+      ...result,
+      params: {
+        ...upstreamParams,
+        source,
+        ...(destination !== undefined ? { destination } : {}),
+      } as unknown as ComposeResult['params'],
+    },
+  };
+}
+
 // Base options shared across all transaction types
 export interface BaseComposeOptions {
   sourceAddress: string;
@@ -465,7 +496,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     if ('error' in response.data) {
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
-    return response.data as ApiResponse;
+    return normalizeComposeResponse(response.data as ApiResponse, endpoint, sourceAddress);
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);

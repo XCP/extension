@@ -67,7 +67,8 @@ export function formatAmount({
  * @example
  * formatAddress("1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa") // "1A1zP1...DivfNa"
  */
-export function formatAddress(address: string, shorten: boolean = true): string {
+export function formatAddress(address: string | null | undefined, shorten: boolean = true): string {
+  if (address == null) return "Unknown";
   if (!shorten) return address;
   return `${address.slice(0, 6)}...${address.slice(-6)}`;
 }

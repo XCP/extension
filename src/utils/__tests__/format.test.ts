@@ -141,6 +141,11 @@ describe('format utilities', () => {
       expect(formatAddress('')).toBe('...');
     });
 
+    it('should not crash when an upstream response omits an address', () => {
+      expect(formatAddress(undefined)).toBe('Unknown');
+      expect(formatAddress(null)).toBe('Unknown');
+    });
+
     it('should handle addresses shorter than 12 characters', () => {
       const veryShort = '12345';
       expect(formatAddress(veryShort)).toBe('12345...12345');

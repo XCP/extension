@@ -371,6 +371,28 @@ describe('Compose Trading Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'dispense', defaultParams);
     });
 
+    it('normalizes Counterparty Core 11.2 dispense parameter names for review', async () => {
+      const upstream = createMockComposeResult({
+        name: 'dispense',
+        params: {
+          address: mockAddress,
+          dispenser: defaultParams.dispenser,
+          quantity: defaultParams.quantity,
+          quantity_normalized: '0.01000000',
+        } as any,
+      });
+      mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: upstream }));
+
+      const response = await composeDispense({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(response.result.params.source).toBe(mockAddress);
+      expect(response.result.params.destination).toBe(defaultParams.dispenser);
+    });
+
     it('should include optional parameters', async () => {
       const optionalParams = {
         skip_validation: true,
