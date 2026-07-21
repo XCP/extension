@@ -50,12 +50,14 @@ export function AssetSelectInput({
     const searchAssets = async () => {
       if (query.length < 2) {
         if (isInitialLoad && settings?.pinnedAssets) {
-          const pinnedAssetsList = settings.pinnedAssets.map((asset: string) => ({
-            asset,
-            symbol: asset,
-            description: `${asset} Token`,
-            supply: 0,
-          }));
+          const pinnedAssetsList = settings.pinnedAssets.map(
+            (asset: string) => ({
+              asset,
+              symbol: asset,
+              description: `${asset} Token`,
+              supply: 0,
+            }),
+          );
           setAssets(pinnedAssetsList);
         } else {
           setAssets([]);
@@ -66,10 +68,24 @@ export function AssetSelectInput({
       setIsLoading(true);
       try {
         const response = await fetch(
-          `https://app.xcp.io/api/v1/search?type=assets&query=${query}`
+          `https://api.xcp.io/v2/assets?query=${encodeURIComponent(query)}&limit=20`,
         );
         const data = await response.json();
-        setAssets(data.assets);
+        const rows = Array.isArray(data.result) ? data.result : [];
+        setAssets(
+          rows.map(
+            (row: {
+              asset: string;
+              description?: string | null;
+              supply_normalized?: string | null;
+            }) => ({
+              asset: row.asset,
+              symbol: row.asset,
+              description: row.description ?? "",
+              supply: row.supply_normalized ?? 0,
+            }),
+          ),
+        );
       } catch (error) {
         console.error("Failed to fetch assets:", error);
         setAssets([]);
@@ -97,7 +113,7 @@ export function AssetSelectInput({
   function AssetIcon({ asset }: { asset: string }) {
     return (
       <img
-        src={`https://app.xcp.io/img/icon/${asset}`}
+        src={`https://cdn.xcp.io/img/icon/${asset}`}
         alt={`${asset} icon`}
         className="size-5 rounded-full"
         onError={(e) => {
@@ -175,7 +191,9 @@ export function AssetSelectInput({
                         <span className="absolute inset-y-0 left-0 flex items-center pl-3">
                           <AssetIcon asset={asset.asset} />
                         </span>
-                        <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                        <span
+                          className={`block truncate ${selected ? "font-medium" : "font-normal"}`}
+                        >
                           {asset.asset}
                         </span>
                         {selected && (

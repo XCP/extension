@@ -1,42 +1,45 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { BalanceCard } from './balance-card';
-import type { TokenBalance } from '@/utils/blockchain/counterparty/api';
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
+import { BalanceCard } from "./balance-card";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 
 // Mock the BalanceMenu component
-vi.mock('@/components/ui/menus/balance-menu', () => ({
+vi.mock("@/components/ui/menus/balance-menu", () => ({
   BalanceMenu: ({ asset }: { asset: string }) => (
     <button data-testid={`balance-menu-${asset}`}>Menu</button>
-  )
+  ),
 }));
 
 // Mock the AssetIcon component
-vi.mock('@/components/domain/asset/asset-icon', () => ({
+vi.mock("@/components/domain/asset/asset-icon", () => ({
   AssetIcon: ({ asset, size, className }: any) => (
-    <img 
-      src={`https://app.xcp.io/img/icon/${asset}`}
+    <img
+      src={`https://cdn.xcp.io/img/icon/${asset}`}
       alt={asset}
       className={className}
       data-size={size}
     />
-  )
+  ),
 }));
 
 // Mock the format utils
-vi.mock('@/utils/format', () => ({
+vi.mock("@/utils/format", () => ({
   formatAmount: ({ value }: { value: number }) => value.toFixed(8),
-  formatAsset: (asset: string, options?: { assetInfo?: any; shorten?: boolean }) => {
+  formatAsset: (
+    asset: string,
+    options?: { assetInfo?: any; shorten?: boolean },
+  ) => {
     if (options?.shorten && asset.length > 10) {
       return `${asset.substring(0, 7)}...`;
     }
     return asset;
-  }
+  },
 }));
 
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+vi.mock("react-router-dom", async () => {
+  const actual = await vi.importActual("react-router-dom");
   return {
     ...actual,
     useNavigate: () => mockNavigate,
@@ -48,166 +51,168 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
   <BrowserRouter>{children}</BrowserRouter>
 );
 
-describe('BalanceCard', () => {
+describe("BalanceCard", () => {
   const mockDivisibleToken: TokenBalance = {
-    asset: 'XCP',
+    asset: "XCP",
     asset_info: {
       asset_longname: null,
-      description: 'Counterparty',
+      description: "Counterparty",
       divisible: true,
-      issuer: 'bc1qissuer',
+      issuer: "bc1qissuer",
       locked: false,
-      supply: '1000000'
+      supply: "1000000",
     },
-    quantity_normalized: '100.50000000'
+    quantity_normalized: "100.50000000",
   };
 
   const mockIndivisibleToken: TokenBalance = {
-    asset: 'RAREPEPE',
+    asset: "RAREPEPE",
     asset_info: {
       asset_longname: null,
-      description: 'Rare Pepe',
+      description: "Rare Pepe",
       divisible: false,
-      issuer: 'bc1qissuer',
+      issuer: "bc1qissuer",
       locked: false,
-      supply: '1000'
+      supply: "1000",
     },
-    quantity_normalized: '5'
+    quantity_normalized: "5",
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('renders divisible token correctly', () => {
+  it("renders divisible token correctly", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    expect(screen.getByText('XCP')).toBeInTheDocument();
-    expect(screen.getByText('100.50000000')).toBeInTheDocument();
-    expect(screen.getByAltText('XCP')).toBeInTheDocument();
-    expect(screen.getByTestId('balance-menu-XCP')).toBeInTheDocument();
+    expect(screen.getByText("XCP")).toBeInTheDocument();
+    expect(screen.getByText("100.50000000")).toBeInTheDocument();
+    expect(screen.getByAltText("XCP")).toBeInTheDocument();
+    expect(screen.getByTestId("balance-menu-XCP")).toBeInTheDocument();
   });
 
-  it('renders indivisible token with correct decimal places', () => {
+  it("renders indivisible token with correct decimal places", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockIndivisibleToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    expect(screen.getByText('RAREPEPE')).toBeInTheDocument();
-    expect(screen.getByText('5.00000000')).toBeInTheDocument();
+    expect(screen.getByText("RAREPEPE")).toBeInTheDocument();
+    expect(screen.getByText("5.00000000")).toBeInTheDocument();
   });
 
-  it('navigates to balance page on click by default', () => {
+  it("navigates to balance page on click by default", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('XCP'));
+    fireEvent.click(screen.getByText("XCP"));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/assets/XCP/balance');
+    expect(mockNavigate).toHaveBeenCalledWith("/assets/XCP/balance");
   });
 
-  it('calls custom onClick handler when provided', () => {
+  it("calls custom onClick handler when provided", () => {
     const mockOnClick = vi.fn();
 
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} onClick={mockOnClick} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    fireEvent.click(screen.getByText('XCP'));
+    fireEvent.click(screen.getByText("XCP"));
 
-    expect(mockOnClick).toHaveBeenCalledWith('XCP');
+    expect(mockOnClick).toHaveBeenCalledWith("XCP");
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('hides balance menu when showMenu is false', () => {
+  it("hides balance menu when showMenu is false", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} showMenu={false} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    expect(screen.queryByTestId('balance-menu-XCP')).not.toBeInTheDocument();
+    expect(screen.queryByTestId("balance-menu-XCP")).not.toBeInTheDocument();
   });
 
-  it('applies custom className', () => {
+  it("applies custom className", () => {
     const { container } = render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} className="custom-class" />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     const cardElement = container.firstChild as HTMLElement;
-    expect(cardElement).toHaveClass('custom-class');
+    expect(cardElement).toHaveClass("custom-class");
   });
 
-  it('handles asset with special characters in URL encoding', () => {
+  it("handles asset with special characters in URL encoding", () => {
     const specialToken: TokenBalance = {
       ...mockDivisibleToken,
-      asset: 'ASSET/WITH+SPECIAL&CHARS'
+      asset: "ASSET/WITH+SPECIAL&CHARS",
     };
 
     render(
       <TestWrapper>
         <BalanceCard token={specialToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
     // The text is shortened to "ASSET/W..." by formatAsset with shorten: true
-    fireEvent.click(screen.getByText('ASSET/W...'));
+    fireEvent.click(screen.getByText("ASSET/W..."));
 
-    expect(mockNavigate).toHaveBeenCalledWith('/assets/ASSET%2FWITH%2BSPECIAL%26CHARS/balance');
+    expect(mockNavigate).toHaveBeenCalledWith(
+      "/assets/ASSET%2FWITH%2BSPECIAL%26CHARS/balance",
+    );
   });
 
-  it('handles token without asset_info gracefully', () => {
+  it("handles token without asset_info gracefully", () => {
     const tokenWithoutInfo: TokenBalance = {
-      asset: 'UNKNOWN',
-      quantity_normalized: '1.00000000'
+      asset: "UNKNOWN",
+      quantity_normalized: "1.00000000",
     };
 
     render(
       <TestWrapper>
         <BalanceCard token={tokenWithoutInfo} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    expect(screen.getByText('UNKNOWN')).toBeInTheDocument();
-    expect(screen.getByText('1.00000000')).toBeInTheDocument();
+    expect(screen.getByText("UNKNOWN")).toBeInTheDocument();
+    expect(screen.getByText("1.00000000")).toBeInTheDocument();
   });
 
-  it('generates correct asset icon URL', () => {
+  it("generates correct asset icon URL", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    const img = screen.getByAltText('XCP') as HTMLImageElement;
-    expect(img.src).toBe('https://app.xcp.io/img/icon/XCP');
+    const img = screen.getByAltText("XCP") as HTMLImageElement;
+    expect(img.src).toBe("https://cdn.xcp.io/img/icon/XCP");
   });
 
-  it('has proper accessibility attributes', () => {
+  it("has proper accessibility attributes", () => {
     render(
       <TestWrapper>
         <BalanceCard token={mockDivisibleToken} />
-      </TestWrapper>
+      </TestWrapper>,
     );
 
-    const img = screen.getByAltText('XCP');
-    expect(img).toHaveAttribute('alt', 'XCP');
-    
+    const img = screen.getByAltText("XCP");
+    expect(img).toHaveAttribute("alt", "XCP");
+
     // Find the card container by looking for the element with cursor-pointer class
-    const cardElement = screen.getByText('XCP').closest('.cursor-pointer');
-    expect(cardElement).toHaveClass('cursor-pointer');
+    const cardElement = screen.getByText("XCP").closest(".cursor-pointer");
+    expect(cardElement).toHaveClass("cursor-pointer");
   });
 });

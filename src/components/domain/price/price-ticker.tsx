@@ -1,7 +1,10 @@
 import { type ReactElement, type KeyboardEvent } from "react";
 import { FaBitcoin } from "@/components/icons";
 import { formatAmount } from "@/utils/format";
-import { CURRENCY_INFO, type FiatCurrency } from "@/utils/blockchain/bitcoin/price";
+import {
+  CURRENCY_INFO,
+  type FiatCurrency,
+} from "@/utils/blockchain/bitcoin/price";
 
 interface PriceTickerProps {
   btc: number | null;
@@ -19,7 +22,7 @@ interface PriceTickerProps {
 export function PriceTicker({
   btc,
   xcp,
-  currency = 'usd',
+  currency = "usd",
   onBtcClick,
   onXcpClick,
   className = "",
@@ -59,7 +62,8 @@ export function PriceTicker({
           <div className="flex items-center">
             {btc ? (
               <span className="font-semibold text-gray-900 text-sm">
-                {currencySymbol}{formatAmount({ value: btc, maximumFractionDigits: 0 })}
+                {currencySymbol}
+                {formatAmount({ value: btc, maximumFractionDigits: 0 })}
               </span>
             ) : (
               <span className="text-gray-400">—</span>
@@ -76,13 +80,19 @@ export function PriceTicker({
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="https://app.xcp.io/img/icon/XCP" alt="" className="size-4 rounded-full" aria-hidden="true" />
+            <img
+              src="https://cdn.xcp.io/img/icon/XCP"
+              alt=""
+              className="size-4 rounded-full"
+              aria-hidden="true"
+            />
             <span className="font-medium text-gray-900 text-sm">XCP</span>
           </div>
           <div className="flex items-center">
             {xcp ? (
               <span className="font-semibold text-gray-900 text-sm">
-                {currencySymbol}{formatAmount({ value: xcp, maximumFractionDigits: decimals })}
+                {currencySymbol}
+                {formatAmount({ value: xcp, maximumFractionDigits: decimals })}
               </span>
             ) : (
               <span className="text-gray-400">—</span>

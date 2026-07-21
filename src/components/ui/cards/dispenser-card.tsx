@@ -34,29 +34,34 @@ interface DispenserCardProps {
 /**
  * Calculate remaining dispenses for a dispenser
  */
-function calculateRemainingDispenses(dispenser: DispenserOption['dispenser']): number {
+function calculateRemainingDispenses(
+  dispenser: DispenserOption["dispenser"],
+): number {
   return toNumber(
     roundDown(
-      divide(dispenser.give_remaining_normalized, dispenser.give_quantity_normalized)
-    )
+      divide(
+        dispenser.give_remaining_normalized,
+        dispenser.give_quantity_normalized,
+      ),
+    ),
   );
 }
 
 /**
  * DispenserCard Component
- * 
+ *
  * A specialized card component for displaying dispenser options
  * with radio selection functionality.
- * 
+ *
  * Features:
  * - Displays dispenser asset information
  * - Shows BTC price and remaining dispenses
  * - Radio button selection
  * - Visual feedback for selected state
- * 
+ *
  * @param props - The component props
  * @returns A ReactElement representing the dispenser card
- * 
+ *
  * @example
  * ```tsx
  * <DispenserCard
@@ -67,11 +72,11 @@ function calculateRemainingDispenses(dispenser: DispenserOption['dispenser']): n
  * />
  * ```
  */
-export function DispenserCard({ 
-  option, 
-  isSelected, 
-  onSelect, 
-  disabled = false 
+export function DispenserCard({
+  option,
+  isSelected,
+  onSelect,
+  disabled = false,
 }: DispenserCardProps): ReactElement {
   const remainingDispenses = calculateRemainingDispenses(option.dispenser);
 
@@ -95,34 +100,37 @@ export function DispenserCard({
         disabled={disabled}
         aria-label={`Select dispenser for ${option.dispenser.asset}`}
       />
-      
+
       <div className="w-full">
         <div className="flex items-start gap-3">
           <img
-            src={`https://app.xcp.io/img/icon/${option.dispenser.asset}`}
+            src={`https://cdn.xcp.io/img/icon/${option.dispenser.asset}`}
             alt={option.dispenser.asset}
             className="size-10 flex-shrink-0 rounded-full"
             onError={(e) => {
               // Fallback for missing icons
               const target = e.target as HTMLImageElement;
-              target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='system-ui' font-size='14'%3E%3F%3C/text%3E%3C/svg%3E";
+              target.src =
+                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23e5e7eb'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%239ca3af' font-family='system-ui' font-size='14'%3E%3F%3C/text%3E%3C/svg%3E";
             }}
           />
-          
+
           <div className="flex-1">
             <div className="text-sm font-semibold text-gray-900">
-              {option.dispenser.asset_info?.asset_longname ?? option.dispenser.asset}
+              {option.dispenser.asset_info?.asset_longname ??
+                option.dispenser.asset}
             </div>
             <div className="text-sm text-gray-600">
               {formatAmount({
                 value: option.btcAmount,
                 maximumFractionDigits: 8,
-                minimumFractionDigits: 8
-              })} BTC
+                minimumFractionDigits: 8,
+              })}{" "}
+              BTC
             </div>
           </div>
         </div>
-        
+
         <div className="flex justify-between items-center mt-2">
           <div className="flex gap-2 text-xs text-gray-600">
             <span>
@@ -130,11 +138,10 @@ export function DispenserCard({
                 value: Number(option.dispenser.give_quantity_normalized),
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 8,
-              })} Per Dispense
+              })}{" "}
+              Per Dispense
             </span>
-            <span>
-              {remainingDispenses} Remaining
-            </span>
+            <span>{remainingDispenses} Remaining</span>
           </div>
           <span className="text-xs text-green-600">Open</span>
         </div>
@@ -142,4 +149,3 @@ export function DispenserCard({
     </label>
   );
 }
-

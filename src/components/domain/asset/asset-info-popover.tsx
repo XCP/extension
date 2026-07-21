@@ -18,7 +18,7 @@ interface AssetInfoPopoverProps {
 export function AssetInfoPopover({
   assetInfo,
   userBalance,
-  className = ""
+  className = "",
 }: AssetInfoPopoverProps): ReactElement | null {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,10 @@ export function AssetInfoPopover({
     if (!isOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -53,7 +56,9 @@ export function AssetInfoPopover({
       {isOpen && (
         <div className="absolute right-0 top-10 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-3 min-w-[200px]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-700">Asset Details</span>
+            <span className="text-xs font-medium text-gray-700">
+              Asset Details
+            </span>
             <button
               onClick={() => setIsOpen(false)}
               className="p-0.5 text-gray-400 hover:text-gray-600 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
@@ -65,12 +70,16 @@ export function AssetInfoPopover({
           {assetInfo.asset && (
             <div className="mb-3">
               <img
-                src={`https://app.xcp.io/img/full/${assetInfo.asset}`}
+                src={`https://cdn.xcp.io/img/full/${assetInfo.asset}`}
                 alt={assetInfo.asset}
                 className="w-full max-h-[300px] rounded object-contain"
-                style={isNumericAsset(assetInfo.asset) ? { imageRendering: 'pixelated' } : undefined}
+                style={
+                  isNumericAsset(assetInfo.asset)
+                    ? { imageRendering: "pixelated" }
+                    : undefined
+                }
                 onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).style.display = "none";
                 }}
               />
             </div>
@@ -79,18 +88,24 @@ export function AssetInfoPopover({
             {(assetInfo.owner || assetInfo.issuer) && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Owner</span>
-                <span className="text-gray-900 font-mono">{formatAddress(assetInfo.owner || assetInfo.issuer!)}</span>
+                <span className="text-gray-900 font-mono">
+                  {formatAddress(assetInfo.owner || assetInfo.issuer!)}
+                </span>
               </div>
             )}
             {assetInfo.first_issuance_block_time && (
               <div className="flex justify-between">
                 <span className="text-gray-500">Issued</span>
-                <span className="text-gray-900">{formatTimeAgo(assetInfo.first_issuance_block_time)}</span>
+                <span className="text-gray-900">
+                  {formatTimeAgo(assetInfo.first_issuance_block_time)}
+                </span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-gray-500">Locked</span>
-              <span className="text-gray-900">{assetInfo.locked ? "Yes" : "No"}</span>
+              <span className="text-gray-900">
+                {assetInfo.locked ? "Yes" : "No"}
+              </span>
             </div>
             {assetInfo.description_locked && (
               <div className="flex justify-between">
@@ -100,7 +115,9 @@ export function AssetInfoPopover({
             )}
             <div className="flex justify-between">
               <span className="text-gray-500">Divisible</span>
-              <span className="text-gray-900">{assetInfo.divisible ? "Yes" : "No"}</span>
+              <span className="text-gray-900">
+                {assetInfo.divisible ? "Yes" : "No"}
+              </span>
             </div>
             {userBalance !== undefined && (
               <div className="flex justify-between">

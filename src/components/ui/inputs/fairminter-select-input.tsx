@@ -6,9 +6,9 @@ import {
   ComboboxOptions,
   ComboboxOption,
 } from "@headlessui/react";
-import { FaCheck, FiChevronDown } from '@/components/icons';
-import { useSettings } from '@/contexts/settings-context';
-import { formatAmount } from '@/utils/format';
+import { FaCheck, FiChevronDown } from "@/components/icons";
+import { useSettings } from "@/contexts/settings-context";
+import { formatAmount } from "@/utils/format";
 
 export interface Fairminter {
   tx_hash: string;
@@ -58,29 +58,33 @@ export function FairminterSelectInput({
     const fetchFairminters = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Fetch fairminters with status "open"
-        const response = await fetch(`${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`);
-        
+        const response = await fetch(
+          `${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`,
+        );
+
         if (!response.ok) {
           // Use generic error to prevent leaking HTTP status details
           throw new Error("Failed to fetch fairminters");
         }
-        
+
         const data = await response.json();
-        
+
         if (data.result && Array.isArray(data.result)) {
           // Filter out fairminters with null asset
           const validFairminters = data.result.filter(
-            (fairminter: Fairminter) => fairminter.asset !== null
+            (fairminter: Fairminter) => fairminter.asset !== null,
           );
           setFairminters(validFairminters);
-          
+
           // If we have an initially selected asset, notify parent with its fairminter data
           // This handles the case when returning from review
           if (selectedAsset) {
-            const matchingFairminter = validFairminters.find((f: any) => f.asset === selectedAsset);
+            const matchingFairminter = validFairminters.find(
+              (f: any) => f.asset === selectedAsset,
+            );
             if (matchingFairminter) {
               // Use setTimeout to avoid state update during render
               setTimeout(() => onChange(selectedAsset, matchingFairminter), 0);
@@ -103,7 +107,7 @@ export function FairminterSelectInput({
 
   // Filter fairminters based on query and currency type
   let filteredFairminters = fairminters;
-  
+
   // Apply currency filter if specified
   if (currencyFilter) {
     filteredFairminters = filteredFairminters.filter((fairminter) => {
@@ -118,18 +122,20 @@ export function FairminterSelectInput({
       return true;
     });
   }
-  
+
   // Apply text search filter
   if (query !== "") {
-    filteredFairminters = filteredFairminters.filter((fairminter) =>
-      fairminter.asset.toLowerCase().includes(query.toLowerCase()) ||
-      (fairminter.description && fairminter.description.toLowerCase().includes(query.toLowerCase()))
+    filteredFairminters = filteredFairminters.filter(
+      (fairminter) =>
+        fairminter.asset.toLowerCase().includes(query.toLowerCase()) ||
+        (fairminter.description &&
+          fairminter.description.toLowerCase().includes(query.toLowerCase())),
     );
   }
 
   const handleAssetChange = (asset: string | null) => {
     if (asset) {
-      const fairminter = fairminters.find(f => f.asset === asset);
+      const fairminter = fairminters.find((f) => f.asset === asset);
       onChange(asset, fairminter);
     }
   };
@@ -141,7 +147,7 @@ export function FairminterSelectInput({
   function AssetIcon({ asset }: { asset: string }) {
     return (
       <img
-        src={`https://app.xcp.io/img/icon/${asset}`}
+        src={`https://cdn.xcp.io/img/icon/${asset}`}
         alt={`${asset} icon`}
         className="size-5 rounded-full"
         onError={(e) => {
@@ -176,18 +182,18 @@ export function FairminterSelectInput({
                   aria-label={label}
                 />
               </div>
-              <ComboboxButton
-                className="absolute inset-y-0 right-0 flex items-center justify-center px-1 m-1 w-11"
-              >
+              <ComboboxButton className="absolute inset-y-0 right-0 flex items-center justify-center px-1 m-1 w-11">
                 <FiChevronDown
                   className="size-4 text-gray-400"
                   aria-hidden="true"
                 />
               </ComboboxButton>
             </div>
-            
+
             {isLoading ? (
-              <div className="mt-2 text-sm text-gray-500">Loading fairminters…</div>
+              <div className="mt-2 text-sm text-gray-500">
+                Loading fairminters…
+              </div>
             ) : error ? (
               <div className="mt-2 text-sm text-red-500">{error}</div>
             ) : filteredFairminters.length > 0 ? (
@@ -208,12 +214,16 @@ export function FairminterSelectInput({
                           <AssetIcon asset={fairminter.asset} />
                         </span>
                         <div className="flex flex-col">
-                          <span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+                          <span
+                            className={`block truncate ${selected ? "font-medium" : "font-normal"}`}
+                          >
                             {fairminter.asset}
                           </span>
-                          <span className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}>
-                            {parseFloat(fairminter.price_normalized) === 0 
-                              ? "Free mint (BTC fees only)" 
+                          <span
+                            className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}
+                          >
+                            {parseFloat(fairminter.price_normalized) === 0
+                              ? "Free mint (BTC fees only)"
                               : `Price: ${formatAmount({ value: parseFloat(fairminter.price_normalized), maximumFractionDigits: 8 })} XCP`}
                           </span>
                         </div>
@@ -242,4 +252,4 @@ export function FairminterSelectInput({
       )}
     </div>
   );
-} 
+}

@@ -23,7 +23,7 @@ interface Asset {
  * Constants for asset selection configuration and navigation paths.
  */
 const MAX_PINNED_ASSETS = 10;
-const SEARCH_API_URL = "https://app.xcp.io/api/v1/simple-search";
+const SEARCH_API_URL = "https://api.xcp.io/v2/assets";
 const PATHS = {
   INDEX: "/index",
   BALANCE: "/balance",
@@ -99,7 +99,7 @@ export default function AssetsPage(): ReactElement {
     const debounceTimeout = setTimeout(async () => {
       try {
         const response = await fetch(
-          `${SEARCH_API_URL}?query=${encodeURIComponent(searchQuery)}`
+          `${SEARCH_API_URL}?query=${encodeURIComponent(searchQuery)}`,
         );
         const data = await response.json();
         setSearchResults(data.assets || []);
@@ -209,31 +209,49 @@ export default function AssetsPage(): ReactElement {
     onReorder: handleReorder,
   });
 
-  const shouldShowHelpText = isHelpTextOverride ? !localHelpText : localHelpText;
+  const shouldShowHelpText = isHelpTextOverride
+    ? !localHelpText
+    : localHelpText;
 
   /**
    * Sub-component to display an asset with its icon.
    */
-  const AssetWithIcon = ({ symbol, description }: { symbol: string; description?: string }) => {
-    const imageUrl = `https://app.xcp.io/img/icon/${symbol}`;
+  const AssetWithIcon = ({
+    symbol,
+    description,
+  }: {
+    symbol: string;
+    description?: string;
+  }) => {
+    const imageUrl = `https://cdn.xcp.io/img/icon/${symbol}`;
     return (
       <Link
         to={`${PATHS.BALANCE}/${symbol}`}
         className="flex items-center flex-1 cursor-pointer hover:bg-gray-50"
       >
         <div className="size-8 flex-shrink-0 mr-3">
-          <img src={imageUrl} alt={symbol} className="w-full h-full object-cover" />
+          <img
+            src={imageUrl}
+            alt={symbol}
+            className="w-full h-full object-cover"
+          />
         </div>
         <div>
           <div>{symbol}</div>
-          {description && <div className="text-sm text-gray-500">{description}</div>}
+          {description && (
+            <div className="text-sm text-gray-500">{description}</div>
+          )}
         </div>
       </Link>
     );
   };
 
   return (
-    <div className="h-full flex flex-col" role="main" aria-labelledby="select-assets-title">
+    <div
+      className="h-full flex flex-col"
+      role="main"
+      aria-labelledby="select-assets-title"
+    >
       <div className="flex-shrink-0 p-4">
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <div className="relative mb-4">
@@ -246,7 +264,10 @@ export default function AssetsPage(): ReactElement {
             onChange={handleSearchChange}
             aria-label="Search assets"
           />
-          <FaSearch className="absolute left-3 top-3 text-gray-400" aria-hidden="true" />
+          <FaSearch
+            className="absolute left-3 top-3 text-gray-400"
+            aria-hidden="true"
+          />
         </div>
       </div>
       <div className="flex-1 px-4">
@@ -257,7 +278,8 @@ export default function AssetsPage(): ReactElement {
             </h2>
             {shouldShowHelpText && (
               <p className="text-sm text-gray-500 mb-4">
-                Pin up to {MAX_PINNED_ASSETS} assets to the top of your main screen.
+                Pin up to {MAX_PINNED_ASSETS} assets to the top of your main
+                screen.
               </p>
             )}
             <div className="flex-1 overflow-y-auto mb-4">
@@ -278,9 +300,7 @@ export default function AssetsPage(): ReactElement {
                       onDragLeave={handleDragLeave}
                       className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm cursor-move transition-[box-shadow,opacity] ${
                         isDragging ? "shadow-lg opacity-50" : ""
-                      } ${
-                        isDragOver ? "border-t-2 border-blue-500" : ""
-                      }`}
+                      } ${isDragOver ? "border-t-2 border-blue-500" : ""}`}
                     >
                       <AssetWithIcon symbol={asset} />
                       <Button

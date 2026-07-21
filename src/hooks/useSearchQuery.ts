@@ -9,7 +9,7 @@ interface Asset {
 interface UseSearchQueryOptions {
   /**
    * The API endpoint to use for searching.
-   * @default "https://app.xcp.io/api/v1/simple-search"
+   * @default "https://api.xcp.io/v2/assets"
    */
   apiEndpoint?: string;
   /**
@@ -31,17 +31,17 @@ interface UseSearchQueryOptions {
 
 /**
  * Hook for searching assets with debouncing, cancellation, and retry logic.
- * 
+ *
  * @param initialQuery - The initial search query
  * @param options - Configuration options for the search behavior
  * @returns Object containing search state and controls
  */
 export const useSearchQuery = (
   initialQuery: string = "",
-  options?: UseSearchQueryOptions
+  options?: UseSearchQueryOptions,
 ) => {
   const {
-    apiEndpoint = "https://app.xcp.io/api/v1/simple-search",
+    apiEndpoint = "https://api.xcp.io/v2/assets",
     debounceMs = 500,
     maxRetries = 2,
     retryDelayMs = 1000,
@@ -51,54 +51,65 @@ export const useSearchQuery = (
   const [searchResults, setSearchResults] = useState<Asset[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Use AbortController for proper request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Extract search function to avoid recreation on every render
-  const performSearch = useRef(async (
-    query: string,
-    controller: AbortController,
-    endpoint: string,
-    retries: number,
-    retryDelay: number
-  ) => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const response = await fetch(
-          `${endpoint}?query=${encodeURIComponent(query)}`,
-          {
-            signal: controller.signal,
-            headers: { 'Accept': 'application/json' },
+  const performSearch = useRef(
+    async (
+      query: string,
+      controller: AbortController,
+      endpoint: string,
+      retries: number,
+      retryDelay: number,
+    ) => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const response = await fetch(
+            `${endpoint}?query=${encodeURIComponent(query)}`,
+            {
+              signal: controller.signal,
+              headers: { Accept: "application/json" },
+            },
+          );
+
+          if (!response.ok) {
+            throw new Error(`Search failed with status: ${response.status}`);
           }
-        );
 
-        if (!response.ok) {
-          throw new Error(`Search failed with status: ${response.status}`);
+          const data = await response.json();
+          if (Array.isArray(data.result)) {
+            return data.result.map(
+              (row: { asset: string; supply_normalized?: string | null }) => ({
+                symbol: row.asset,
+                supply: row.supply_normalized ?? undefined,
+              }),
+            );
+          }
+          // Preserve custom-endpoint injection for downstream builds; the maintained default uses `result`.
+          return Array.isArray(data.assets) ? data.assets : [];
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") {
+            throw err; // Don't retry aborted requests
+          }
+
+          if (attempt === retries) {
+            throw err; // Last attempt failed, throw error
+          }
+
+          // Wait before retry
+          await new Promise((resolve) => setTimeout(resolve, retryDelay));
         }
-
-        const data = await response.json();
-        return data.assets || [];
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') {
-          throw err; // Don't retry aborted requests
-        }
-
-        if (attempt === retries) {
-          throw err; // Last attempt failed, throw error
-        }
-
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
       }
-    }
-    return [];
-  });
+      return [];
+    },
+  );
 
   useEffect(() => {
     // Clear results if query is empty
-    if (!searchQuery || searchQuery.trim() === '') {
+    if (!searchQuery || searchQuery.trim() === "") {
       setSearchResults([]);
       setIsSearching(false);
       setError(null);
@@ -130,7 +141,7 @@ export const useSearchQuery = (
           currentAbortController,
           apiEndpoint,
           maxRetries,
-          retryDelayMs
+          retryDelayMs,
         );
 
         // Only update state if request wasn't aborted
@@ -138,7 +149,7 @@ export const useSearchQuery = (
           setSearchResults(results);
           setIsSearching(false);
           if (results.length > 0) {
-            analytics.track('asset_searched');
+            analytics.track("asset_searched");
           }
         }
       } catch (err) {
@@ -146,10 +157,11 @@ export const useSearchQuery = (
         if (!currentAbortController.signal.aborted) {
           setSearchResults([]);
           setIsSearching(false);
-          
-          const errorMessage = err instanceof Error && err.message.includes('status:')
-            ? `Search failed. Please try again.`
-            : `Failed to load search results: ${err instanceof Error ? err.message : String(err)}`;
+
+          const errorMessage =
+            err instanceof Error && err.message.includes("status:")
+              ? `Search failed. Please try again.`
+              : `Failed to load search results: ${err instanceof Error ? err.message : String(err)}`;
           setError(errorMessage);
           console.error("Asset search error:", err);
         }
@@ -169,12 +181,12 @@ export const useSearchQuery = (
     };
   }, [searchQuery, apiEndpoint, debounceMs, maxRetries, retryDelayMs]);
 
-  return { 
-    searchQuery, 
-    setSearchQuery, 
-    searchResults, 
-    isSearching, 
-    error, 
-    setError 
+  return {
+    searchQuery,
+    setSearchQuery,
+    searchResults,
+    isSearching,
+    error,
+    setError,
   };
 };

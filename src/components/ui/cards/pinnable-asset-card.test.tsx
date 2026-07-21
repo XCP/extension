@@ -1,14 +1,14 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { PinnableAssetCard } from './pinnable-asset-card';
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { PinnableAssetCard } from "./pinnable-asset-card";
 
 // Mock the AssetIcon component
-vi.mock('@/components/domain/asset/asset-icon', () => ({
+vi.mock("@/components/domain/asset/asset-icon", () => ({
   AssetIcon: ({ asset, size, className }: any) => {
     // Mock img element with error handling like the real AssetIcon
     return (
-      <img 
-        src={`https://app.xcp.io/img/icon/${asset}`}
+      <img
+        src={`https://cdn.xcp.io/img/icon/${asset}`}
         alt={asset}
         className={className}
         data-size={size}
@@ -19,10 +19,10 @@ vi.mock('@/components/domain/asset/asset-icon', () => ({
         }}
       />
     );
-  }
+  },
 }));
 
-describe('PinnableAssetCard', () => {
+describe("PinnableAssetCard", () => {
   const mockOnPinToggle = vi.fn();
   const mockOnClick = vi.fn();
   const mockOnMoveUp = vi.fn();
@@ -32,108 +32,108 @@ describe('PinnableAssetCard', () => {
     vi.clearAllMocks();
   });
 
-  it('renders with symbol', () => {
+  it("renders with symbol", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    expect(screen.getByText('XCP')).toBeInTheDocument();
+
+    expect(screen.getByText("XCP")).toBeInTheDocument();
   });
 
-  it('displays asset icon with correct URL', () => {
+  it("displays asset icon with correct URL", () => {
     render(
       <PinnableAssetCard
         symbol="PEPECASH"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const img = screen.getByAltText('PEPECASH') as HTMLImageElement;
-    expect(img.src).toBe('https://app.xcp.io/img/icon/PEPECASH');
+
+    const img = screen.getByAltText("PEPECASH") as HTMLImageElement;
+    expect(img.src).toBe("https://cdn.xcp.io/img/icon/PEPECASH");
   });
 
-  it('shows unpinned state correctly', () => {
+  it("shows unpinned state correctly", () => {
     render(
       <PinnableAssetCard
         symbol="TEST"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const button = screen.getByRole('button', { name: /pin test/i });
+
+    const button = screen.getByRole("button", { name: /pin test/i });
     expect(button).toBeInTheDocument();
-    expect(button.className).toContain('bg-gray-100');
+    expect(button.className).toContain("bg-gray-100");
   });
 
-  it('shows pinned state correctly', () => {
+  it("shows pinned state correctly", () => {
     render(
       <PinnableAssetCard
         symbol="TEST"
         isPinned={true}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const button = screen.getByRole('button', { name: /unpin test/i });
+
+    const button = screen.getByRole("button", { name: /unpin test/i });
     expect(button).toBeInTheDocument();
-    expect(button.className).toContain('bg-blue-500');
+    expect(button.className).toContain("bg-blue-500");
   });
 
-  it('calls onPinToggle when pin button is clicked', () => {
+  it("calls onPinToggle when pin button is clicked", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const button = screen.getByRole('button', { name: /pin xcp/i });
+
+    const button = screen.getByRole("button", { name: /pin xcp/i });
     fireEvent.click(button);
-    
-    expect(mockOnPinToggle).toHaveBeenCalledWith('XCP');
+
+    expect(mockOnPinToggle).toHaveBeenCalledWith("XCP");
   });
 
-  it('prevents event propagation when pin button is clicked', () => {
+  it("prevents event propagation when pin button is clicked", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
         onClick={mockOnClick}
-      />
+      />,
     );
-    
-    const button = screen.getByRole('button', { name: /pin xcp/i });
+
+    const button = screen.getByRole("button", { name: /pin xcp/i });
     fireEvent.click(button);
-    
-    expect(mockOnPinToggle).toHaveBeenCalledWith('XCP');
+
+    expect(mockOnPinToggle).toHaveBeenCalledWith("XCP");
     expect(mockOnClick).not.toHaveBeenCalled();
   });
 
-  it('calls onClick when card is clicked (not pin button)', () => {
+  it("calls onClick when card is clicked (not pin button)", () => {
     const { container } = render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
         onClick={mockOnClick}
-      />
+      />,
     );
-    
+
     const card = container.firstChild as HTMLElement;
     fireEvent.click(card);
-    
-    expect(mockOnClick).toHaveBeenCalledWith('XCP');
+
+    expect(mockOnClick).toHaveBeenCalledWith("XCP");
   });
 
-  it('shows arrow buttons when showArrows is true', () => {
+  it("shows arrow buttons when showArrows is true", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
@@ -142,14 +142,14 @@ describe('PinnableAssetCard', () => {
         showArrows={true}
         onMoveUp={mockOnMoveUp}
         onMoveDown={mockOnMoveDown}
-      />
+      />,
     );
 
-    expect(screen.getByLabelText('Move XCP up')).toBeInTheDocument();
-    expect(screen.getByLabelText('Move XCP down')).toBeInTheDocument();
+    expect(screen.getByLabelText("Move XCP up")).toBeInTheDocument();
+    expect(screen.getByLabelText("Move XCP down")).toBeInTheDocument();
   });
 
-  it('disables up arrow when onMoveUp is not provided', () => {
+  it("disables up arrow when onMoveUp is not provided", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
@@ -157,14 +157,14 @@ describe('PinnableAssetCard', () => {
         onPinToggle={mockOnPinToggle}
         showArrows={true}
         onMoveDown={mockOnMoveDown}
-      />
+      />,
     );
 
-    const upButton = screen.getByLabelText('Move XCP up');
+    const upButton = screen.getByLabelText("Move XCP up");
     expect(upButton).toBeDisabled();
   });
 
-  it('calls onMoveUp when up arrow is clicked', () => {
+  it("calls onMoveUp when up arrow is clicked", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
@@ -173,16 +173,16 @@ describe('PinnableAssetCard', () => {
         showArrows={true}
         onMoveUp={mockOnMoveUp}
         onMoveDown={mockOnMoveDown}
-      />
+      />,
     );
 
-    const upButton = screen.getByLabelText('Move XCP up');
+    const upButton = screen.getByLabelText("Move XCP up");
     fireEvent.click(upButton);
 
     expect(mockOnMoveUp).toHaveBeenCalled();
   });
 
-  it('calls onMoveDown when down arrow is clicked', () => {
+  it("calls onMoveDown when down arrow is clicked", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
@@ -191,99 +191,99 @@ describe('PinnableAssetCard', () => {
         showArrows={true}
         onMoveUp={mockOnMoveUp}
         onMoveDown={mockOnMoveDown}
-      />
+      />,
     );
 
-    const downButton = screen.getByLabelText('Move XCP down');
+    const downButton = screen.getByLabelText("Move XCP down");
     fireEvent.click(downButton);
 
     expect(mockOnMoveDown).toHaveBeenCalled();
   });
 
-  it('does not show arrows when showArrows is false', () => {
+  it("does not show arrows when showArrows is false", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={true}
         onPinToggle={mockOnPinToggle}
         showArrows={false}
-      />
+      />,
     );
 
-    expect(screen.queryByLabelText('Move XCP up')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Move XCP down')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Move XCP up")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Move XCP down")).not.toBeInTheDocument();
   });
 
-  it('applies custom className', () => {
+  it("applies custom className", () => {
     const { container } = render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
         className="custom-class"
-      />
+      />,
     );
-    
+
     const card = container.firstChild as HTMLElement;
-    expect(card.className).toContain('custom-class');
+    expect(card.className).toContain("custom-class");
   });
 
-  it('handles image error with fallback', () => {
+  it("handles image error with fallback", () => {
     render(
       <PinnableAssetCard
         symbol="INVALID"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const img = screen.getByAltText('INVALID') as HTMLImageElement;
+
+    const img = screen.getByAltText("INVALID") as HTMLImageElement;
     fireEvent.error(img);
-    
+
     // Check that fallback SVG is set
-    expect(img.src).toContain('data:image/svg+xml');
+    expect(img.src).toContain("data:image/svg+xml");
   });
 
-  it('has hover effect on pin button', () => {
+  it("has hover effect on pin button", () => {
     render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
-    const button = screen.getByRole('button', { name: /pin xcp/i });
-    expect(button.className).toContain('hover:scale-110');
+
+    const button = screen.getByRole("button", { name: /pin xcp/i });
+    expect(button.className).toContain("hover:scale-110");
   });
 
-  it('does not make card clickable when onClick is not provided', () => {
+  it("does not make card clickable when onClick is not provided", () => {
     const { container } = render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
-      />
+      />,
     );
-    
+
     const card = container.firstChild as HTMLElement;
-    expect(card).not.toHaveAttribute('role', 'button');
-    expect(card).not.toHaveAttribute('tabIndex');
+    expect(card).not.toHaveAttribute("role", "button");
+    expect(card).not.toHaveAttribute("tabIndex");
   });
 
-  it('handles keyboard navigation when onClick is provided', () => {
+  it("handles keyboard navigation when onClick is provided", () => {
     const { container } = render(
       <PinnableAssetCard
         symbol="XCP"
         isPinned={false}
         onPinToggle={mockOnPinToggle}
         onClick={mockOnClick}
-      />
+      />,
     );
-    
+
     const card = container.firstChild as HTMLElement;
-    fireEvent.keyDown(card, { key: 'Enter' });
-    
-    expect(mockOnClick).toHaveBeenCalledWith('XCP');
+    fireEvent.keyDown(card, { key: "Enter" });
+
+    expect(mockOnClick).toHaveBeenCalledWith("XCP");
   });
 });

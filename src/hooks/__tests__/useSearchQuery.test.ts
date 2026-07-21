@@ -1,46 +1,46 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useSearchQuery } from '../useSearchQuery';
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useSearchQuery } from "../useSearchQuery";
 
 // Mock fetch
 global.fetch = vi.fn();
 
-describe('useSearchQuery', () => {
+describe("useSearchQuery", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     (global.fetch as any).mockClear();
   });
-  
+
   afterEach(() => {
     vi.useRealTimers();
   });
 
-  it('should return empty results when no search query', () => {
+  it("should return empty results when no search query", () => {
     const { result } = renderHook(() => useSearchQuery());
 
-    expect(result.current.searchQuery).toBe('');
+    expect(result.current.searchQuery).toBe("");
     expect(result.current.searchResults).toEqual([]);
     expect(result.current.isSearching).toBe(false);
   });
 
-  it('should search when query is set', async () => {
+  it("should search when query is set", async () => {
     const mockResults = {
       assets: [
-        { symbol: 'XCP', supply: 2600000 },
-        { symbol: 'PEPECASH', supply: 700000000 }
-      ]
+        { symbol: "XCP", supply: 2600000 },
+        { symbol: "PEPECASH", supply: 700000000 },
+      ],
     };
 
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => mockResults
+      json: async () => mockResults,
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     act(() => {
-      result.current.setSearchQuery('test');
+      result.current.setSearchQuery("test");
     });
 
     // Advance timers to trigger the debounced search
@@ -54,33 +54,33 @@ describe('useSearchQuery', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=test',
+      "https://api.xcp.io/v2/assets?query=test",
       expect.objectContaining({
-        headers: { 'Accept': 'application/json' },
-        signal: expect.any(AbortSignal)
-      })
+        headers: { Accept: "application/json" },
+        signal: expect.any(AbortSignal),
+      }),
     );
     expect(result.current.searchResults).toEqual(mockResults.assets);
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should debounce search requests', async () => {
+  it("should debounce search requests", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({ assets: [] })
+      json: async () => ({ assets: [] }),
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     // Make rapid changes
     act(() => {
-      result.current.setSearchQuery('a');
+      result.current.setSearchQuery("a");
     });
     act(() => {
-      result.current.setSearchQuery('ab');
+      result.current.setSearchQuery("ab");
     });
     act(() => {
-      result.current.setSearchQuery('abc');
+      result.current.setSearchQuery("abc");
     });
 
     // Advance timers to trigger debounced search
@@ -96,22 +96,22 @@ describe('useSearchQuery', () => {
     // Should only call once with final value
     expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=abc',
+      "https://api.xcp.io/v2/assets?query=abc",
       expect.objectContaining({
-        headers: { 'Accept': 'application/json' },
-        signal: expect.any(AbortSignal)
-      })
+        headers: { Accept: "application/json" },
+        signal: expect.any(AbortSignal),
+      }),
     );
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should handle search error', async () => {
-    (global.fetch as any).mockRejectedValue(new Error('Network error'));
+  it("should handle search error", async () => {
+    (global.fetch as any).mockRejectedValue(new Error("Network error"));
 
     const { result } = renderHook(() => useSearchQuery());
 
     act(() => {
-      result.current.setSearchQuery('error');
+      result.current.setSearchQuery("error");
     });
 
     // Advance timers to trigger search
@@ -125,20 +125,22 @@ describe('useSearchQuery', () => {
     });
 
     expect(result.current.searchResults).toEqual([]);
-    expect(result.current.error).toBe('Failed to load search results: Network error');
+    expect(result.current.error).toBe(
+      "Failed to load search results: Network error",
+    );
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should handle non-ok response', async () => {
+  it("should handle non-ok response", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: false,
-      status: 500
+      status: 500,
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     act(() => {
-      result.current.setSearchQuery('bad');
+      result.current.setSearchQuery("bad");
     });
 
     // Advance timers to trigger search
@@ -152,25 +154,25 @@ describe('useSearchQuery', () => {
     });
 
     expect(result.current.searchResults).toEqual([]);
-    expect(result.current.error).toBe('Search failed. Please try again.');
+    expect(result.current.error).toBe("Search failed. Please try again.");
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should clear results when query is cleared', async () => {
+  it("should clear results when query is cleared", async () => {
     const mockResults = {
-      assets: [{ symbol: 'XCP', supply: 2600000 }]
+      assets: [{ symbol: "XCP", supply: 2600000 }],
     };
 
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => mockResults
+      json: async () => mockResults,
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     // Set query and wait for results
     act(() => {
-      result.current.setSearchQuery('test');
+      result.current.setSearchQuery("test");
     });
 
     // Advance timers and run promises
@@ -186,16 +188,16 @@ describe('useSearchQuery', () => {
 
     // Clear query
     act(() => {
-      result.current.setSearchQuery('');
+      result.current.setSearchQuery("");
     });
 
     expect(result.current.searchResults).toEqual([]);
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should cancel previous search when new query is set', async () => {
+  it("should cancel previous search when new query is set", async () => {
     let resolveFunctions: Array<(value: any) => void> = [];
-    
+
     (global.fetch as any).mockImplementation(() => {
       return new Promise((resolve) => {
         resolveFunctions.push(resolve);
@@ -206,7 +208,7 @@ describe('useSearchQuery', () => {
 
     // Start first search
     act(() => {
-      result.current.setSearchQuery('first');
+      result.current.setSearchQuery("first");
     });
 
     // Advance time to start the debounced search
@@ -216,7 +218,7 @@ describe('useSearchQuery', () => {
 
     // Start second search before first completes
     act(() => {
-      result.current.setSearchQuery('second');
+      result.current.setSearchQuery("second");
     });
 
     // Advance time to start the second debounced search
@@ -230,7 +232,7 @@ describe('useSearchQuery', () => {
     // Resolve the second search first (this should be the one that sets results)
     resolveFunctions[1]({
       ok: true,
-      json: async () => ({ assets: [{ symbol: 'SECOND' }] })
+      json: async () => ({ assets: [{ symbol: "SECOND" }] }),
     });
 
     await act(async () => {
@@ -240,7 +242,7 @@ describe('useSearchQuery', () => {
     // Now resolve the first search (this should be ignored due to cancellation)
     resolveFunctions[0]({
       ok: true,
-      json: async () => ({ assets: [{ symbol: 'FIRST' }] })
+      json: async () => ({ assets: [{ symbol: "FIRST" }] }),
     });
 
     await act(async () => {
@@ -248,16 +250,16 @@ describe('useSearchQuery', () => {
     });
 
     // Should only have results from second search
-    expect(result.current.searchResults).toEqual([{ symbol: 'SECOND' }]);
+    expect(result.current.searchResults).toEqual([{ symbol: "SECOND" }]);
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should handle empty assets array in response', async () => {
+  it("should handle empty assets array in response", async () => {
     // Clear any previous mock implementations and set fresh one
     vi.clearAllMocks();
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({ assets: [] })
+      json: async () => ({ assets: [] }),
     });
 
     const { result } = renderHook(() => useSearchQuery());
@@ -266,7 +268,7 @@ describe('useSearchQuery', () => {
     expect(result.current.searchResults).toEqual([]);
 
     act(() => {
-      result.current.setSearchQuery('empty');
+      result.current.setSearchQuery("empty");
     });
 
     act(() => {
@@ -282,16 +284,16 @@ describe('useSearchQuery', () => {
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should handle missing assets field in response', async () => {
+  it("should handle missing assets field in response", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({})
+      json: async () => ({}),
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     act(() => {
-      result.current.setSearchQuery('missing');
+      result.current.setSearchQuery("missing");
     });
 
     act(() => {
@@ -306,16 +308,16 @@ describe('useSearchQuery', () => {
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should encode search query properly', async () => {
+  it("should encode search query properly", async () => {
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({ assets: [] })
+      json: async () => ({ assets: [] }),
     });
 
     const { result } = renderHook(() => useSearchQuery());
 
     act(() => {
-      result.current.setSearchQuery('test & special=chars');
+      result.current.setSearchQuery("test & special=chars");
     });
 
     act(() => {
@@ -327,34 +329,34 @@ describe('useSearchQuery', () => {
     });
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://app.xcp.io/api/v1/simple-search?query=test%20%26%20special%3Dchars',
+      "https://api.xcp.io/v2/assets?query=test%20%26%20special%3Dchars",
       expect.objectContaining({
-        headers: { 'Accept': 'application/json' },
-        signal: expect.any(AbortSignal)
-      })
+        headers: { Accept: "application/json" },
+        signal: expect.any(AbortSignal),
+      }),
     );
     expect(result.current.isSearching).toBe(false);
   }, 10000);
 
-  it('should clear error when new search starts', async () => {
-    const { result } = renderHook(() => useSearchQuery('', { maxRetries: 0 }));
+  it("should clear error when new search starts", async () => {
+    const { result } = renderHook(() => useSearchQuery("", { maxRetries: 0 }));
 
     // Setup mock to fail first, then succeed
     let callCount = 0;
     (global.fetch as any).mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        return Promise.reject(new Error('Network error'));
+        return Promise.reject(new Error("Network error"));
       }
       return Promise.resolve({
         ok: true,
-        json: async () => ({ assets: [{ symbol: 'TEST' }] })
+        json: async () => ({ assets: [{ symbol: "TEST" }] }),
       });
     });
 
     // First search fails
     act(() => {
-      result.current.setSearchQuery('error');
+      result.current.setSearchQuery("error");
     });
 
     act(() => {
@@ -366,16 +368,16 @@ describe('useSearchQuery', () => {
     });
 
     // Verify error is set
-    expect(result.current.error).toContain('Failed to load search results');
+    expect(result.current.error).toContain("Failed to load search results");
     expect(result.current.isSearching).toBe(false);
 
     // Second search succeeds
     act(() => {
-      result.current.setSearchQuery('success');
+      result.current.setSearchQuery("success");
     });
 
     // Error should still be present before debounce timeout
-    expect(result.current.error).toContain('Failed to load search results');
+    expect(result.current.error).toContain("Failed to load search results");
 
     // Advance time to trigger second search
     act(() => {
