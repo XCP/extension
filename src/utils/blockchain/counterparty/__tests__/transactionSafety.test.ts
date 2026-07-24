@@ -202,13 +202,24 @@ describe('suspicious output detection', () => {
     expect(result.warnings[0].message).toContain('2 addresses');
   });
 
-  it('should be case-insensitive when comparing signer address', () => {
+  it('should be case-insensitive when comparing Bech32 signer addresses', () => {
+    const signer = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+    const outputs = makeOutputs(
+      { value: 0, type: 'op_return' },
+      { value: 50000, address: signer.toUpperCase() },
+    );
+    const result = analyzeTransactionSafety('enhanced_send', outputs, signer);
+    expect(result.warnings).toHaveLength(0);
+  });
+
+  it('should preserve Base58 case sensitivity when comparing signer addresses', () => {
     const outputs = makeOutputs(
       { value: 0, type: 'op_return' },
       { value: 50000, address: SIGNER.toUpperCase() },
     );
-    const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER.toLowerCase());
-    expect(result.warnings).toHaveLength(0);
+    const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].title).toContain('External Address');
   });
 
   it('should combine message type and output warnings', () => {

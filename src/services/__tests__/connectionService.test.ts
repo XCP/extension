@@ -41,6 +41,7 @@ vi.mock('@/services/walletService', () => ({
     // Connected-website access delegates to the walletManager mock so existing
     // getSettings/updateSettings drivers and assertions keep working.
     getSettings: () => walletManager.getSettings(),
+    updateSettings: (updates: any) => walletManager.updateSettings(updates),
     addConnectedWebsite: async (origin: string) => {
       const s = walletManager.getSettings();
       if (!s.connectedWebsites.includes(origin)) {
@@ -287,6 +288,60 @@ describe('ConnectionService', () => {
       });
     });
 
+    it('stores paired access only when explicitly requested and approved', async () => {
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+
+      await connectionService.connect(
+        'https://paired.com',
+        'bc1qactive',
+        'wallet-123',
+        true
+      );
+
+      expect(mockApprovalService.requestApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: [{
+            capabilities: { pairedAddresses: true },
+            address: 'bc1qactive',
+            walletId: 'wallet-123',
+          }],
+        })
+      );
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
+        providerCapabilities: {
+          'https://paired.com': {
+            pairedAddresses: true,
+            walletId: 'wallet-123',
+            address: 'bc1qactive',
+          },
+        },
+      });
+    });
+
+    it('clears an orphaned paired grant during an ordinary reconnect', async () => {
+      mockGetSettings.mockReturnValue({
+        connectedWebsites: [],
+        providerCapabilities: {
+          'https://reconnect.com': {
+            pairedAddresses: true,
+            walletId: 'wallet-123',
+            address: 'bc1qactive',
+          },
+        },
+      });
+
+      await connectionService.connect(
+        'https://reconnect.com',
+        'bc1qactive',
+        'wallet-123'
+      );
+
+      expect(mockUpdateSettings).toHaveBeenCalledWith({ providerCapabilities: {} });
+    });
+
     it('should return existing connection if already connected', async () => {
       // Setup existing connection
       mockGetSettings.mockReturnValue({
@@ -345,6 +400,50 @@ describe('ConnectionService', () => {
       // Connection should succeed since there's no address validation
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
     }, 10000); // Increase timeout
+  });
+
+  describe('requestPairedAddressPermission', () => {
+    it('does not persist elevation if the base connection was revoked during approval', async () => {
+      mockGetSettings.mockReturnValue({ connectedWebsites: ['https://paired.com'] });
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+      vi.spyOn(connectionService, 'hasPermission').mockResolvedValue(false);
+
+      await expect(connectionService.requestPairedAddressPermission(
+        'https://paired.com',
+        'bc1qactive',
+        'wallet-123'
+      )).rejects.toThrow('Site disconnected before paired address access was granted');
+
+      expect(mockUpdateSettings).not.toHaveBeenCalledWith(
+        expect.objectContaining({ providerCapabilities: expect.anything() })
+      );
+    });
+
+    it('removes elevation if the base connection is revoked immediately after persistence', async () => {
+      let settings: any = { connectedWebsites: ['https://paired.com'] };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => {
+        settings = { ...settings, ...updates };
+      });
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+      vi.spyOn(connectionService, 'hasPermission')
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false);
+
+      await expect(connectionService.requestPairedAddressPermission(
+        'https://paired.com',
+        'bc1qactive',
+        'wallet-123'
+      )).rejects.toThrow('Site disconnected before paired address access was granted');
+
+      expect(settings.providerCapabilities).toEqual({});
+    });
   });
 
   describe('disconnect', () => {

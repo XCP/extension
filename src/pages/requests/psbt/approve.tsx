@@ -6,17 +6,29 @@ import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
-import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { getIdentityMismatchError, getPsbtPermissionError } from '@/utils/provider/requestIdentity';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
+import { getConnectionService } from '@/services/connectionService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
   return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+}
+
+function formatSighashType(sighashType: number): string {
+  switch (sighashType) {
+    case 0x01: return 'ALL';
+    case 0x81: return 'ALL | ANYONECANPAY';
+    case 0x83: return 'SINGLE | ANYONECANPAY';
+    default: return `0x${sighashType.toString(16)}`;
+  }
 }
 
 /**
@@ -135,6 +147,13 @@ export default function ApprovePsbtPage() {
     setError('');
 
     try {
+      const permissionError = await getPsbtPermissionError(
+        request,
+        activeAddress!.address,
+        getConnectionService()
+      );
+      if (permissionError) throw new Error(permissionError);
+
       const walletService = getWalletService();
       const signedPsbtHex = await walletService.signPsbt(
         request.psbtHex,
@@ -211,7 +230,7 @@ export default function ApprovePsbtPage() {
   // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)
   // - Buyer: the PSBT contains an ANYONECANPAY input (seller's signature) but
   //   the user is signing with SIGHASH_ALL — they are completing the swap
-  const userSignsWithAnyoneCanPay = request.sighashTypes?.some(t => (t & 0x80) !== 0) ?? false;
+
 
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
@@ -220,6 +239,47 @@ export default function ApprovePsbtPage() {
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
   const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
+    ([address, indices]) => ({
+      address,
+      indices,
+      value: indices.reduce(
+        (sum, index) => sum + (psbtDetails.inputs[index]?.value ?? 0),
+        0
+      ),
+    })
+  );
+  const requestedInputIndices = request.signInputs
+    ? Object.values(request.signInputs).flat()
+    : psbtDetails.inputs
+        .filter(input => input.address && normalizeAddressForComparison(input.address)
+          === normalizeAddressForComparison(activeAddress.address))
+        .map(input => input.index);
+  const effectiveSighashes = requestedInputIndices.map(index => ({
+    index,
+    type: resolvePsbtSighashType(
+      request.sighashTypes?.[index],
+      psbtDetails.inputs[index]?.sighashType
+    ),
+  }));
+  const anyoneCanPaySighashes = effectiveSighashes.filter(({ type }) => (type & 0x80) !== 0);
+  const userSignsWithAnyoneCanPay = anyoneCanPaySighashes.length > 0;
+  const usesPairedAddress = requestedAddressSpends.some(
+    ({ address }) => normalizeAddressForComparison(address)
+      !== normalizeAddressForComparison(activeAddress.address)
+  );
+  const requestedSignerSet = new Set(
+    requestedAddressSpends.map(({ address }) => normalizeAddressForComparison(address))
+  );
+  const spendableOutputs = psbtDetails.outputs.filter(output => output.type !== 'op_return');
+  const externalOutputValue = spendableOutputs.every(output => Boolean(output.address))
+    ? spendableOutputs.reduce(
+        (sum, output) => requestedSignerSet.has(normalizeAddressForComparison(output.address!))
+          ? sum
+          : sum + output.value,
+        0
+      )
+    : null;
 
   // Detect swap buy PSBT fee breakdown (buyer completing a swap):
   // The PSBT has the seller's ANYONECANPAY input, but the USER is not signing
@@ -272,6 +332,34 @@ export default function ApprovePsbtPage() {
               <div className="size-2.5 bg-green-500 rounded-full"></div>
             </div>
           </div>
+
+          {usesPairedAddress && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-900">Uses a paired wallet address</p>
+              <p className="mt-1 text-xs text-blue-800">
+                This request signs explicitly selected inputs from your paired Legacy and SegWit addresses.
+              </p>
+              <div className="mt-3 space-y-2">
+                {requestedAddressSpends.map(({ address, indices, value }) => (
+                  <div key={address} className="flex items-start justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-mono text-blue-900">{formatAddress(address, true)}</p>
+                      <p className="text-blue-700">Inputs {indices.map(index => `#${index}`).join(', ')}</p>
+                    </div>
+                    <p className="font-medium text-blue-900">{value.toLocaleString()} sats</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex justify-between text-xs font-medium text-blue-900">
+                <span>Network fee: {psbtDetails.fee.toLocaleString()} sats</span>
+                <span>
+                  External BTC: {externalOutputValue === null
+                    ? 'unknown'
+                    : `${externalOutputValue.toLocaleString()} sats`}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Site info - slim bar since user is already connected */}
           <div className="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3">
@@ -523,14 +611,23 @@ export default function ApprovePsbtPage() {
             </div>
           )}
 
-          {/* ANYONECANPAY Info (PSBT-specific) */}
+          {/* ANYONECANPAY warning (PSBT-specific) */}
           {userSignsWithAnyoneCanPay && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start">
-                <FaCheckCircle className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-green-800">
-                  <p className="font-medium">Atomic Swap</p>
-                  <p className="text-xs mt-1">Your signature only authorizes this specific UTXO and payment amount. The buyer will add their inputs to complete the trade.</p>
+                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium">Flexible signature rules</p>
+                  <p className="text-xs mt-1">
+                    ANYONECANPAY allows other inputs to be added or removed after you sign.
+                    SINGLE commits only to the output at the same input index. Review the paired
+                    inputs and outputs carefully.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {anyoneCanPaySighashes.map(({ index, type }) => (
+                      <li key={index}>Input #{index}: {formatSighashType(type)}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>

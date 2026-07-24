@@ -11,6 +11,7 @@ import {
   extractPsbtDetails,
   validateSignInputs,
   signPSBT,
+  resolvePsbtSighashType,
   finalizePSBT,
   completePsbtWithInputValues,
 } from '../psbt';
@@ -261,6 +262,14 @@ describe('validateSignInputs', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('keeps Base58 address comparison case-sensitive', () => {
+    const result = validateSignInputs(
+      { '1legacycase': [0] },
+      ['1LegacyCase']
+    );
+    expect(result.valid).toBe(false);
+  });
+
   it('should reject unknown addresses', () => {
     const signInputs = {
       'bc1qunknownaddress': [0],
@@ -278,7 +287,7 @@ describe('validateSignInputs', () => {
 
     const result = validateSignInputs(signInputs, walletAddresses);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('Invalid input indices');
+    expect(result.error).toContain('Invalid input index');
   });
 
   it('should reject non-integer indices', () => {
@@ -299,11 +308,45 @@ describe('validateSignInputs', () => {
     expect(result.valid).toBe(false);
   });
 
-  it('should handle empty signInputs', () => {
-    const result = validateSignInputs({}, walletAddresses);
-    expect(result.valid).toBe(true);
+  it('should reject empty index arrays', () => {
+    const result = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [],
+    }, walletAddresses, 1);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('No input indices');
   });
 
+  it('should reject out-of-range and duplicate indices', () => {
+    const outOfRange = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [2],
+    }, walletAddresses, 2);
+    expect(outOfRange.valid).toBe(false);
+    expect(outOfRange.error).toContain('Invalid input index');
+
+    const duplicate = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0],
+      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3': [0],
+    }, walletAddresses, 1);
+    expect(duplicate.valid).toBe(false);
+    expect(duplicate.error).toContain('more than once');
+  });
+
+  it('should reject an explicitly empty signInputs map', () => {
+    const result = validateSignInputs({}, walletAddresses);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('at least one input');
+  });
+
+  it('should reject an input assigned to the wrong signer address', () => {
+    const result = validateSignInputs(
+      { 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0] },
+      walletAddresses,
+      1,
+      ['bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3']
+    );
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('does not belong');
+  });
   it('should handle multiple addresses', () => {
     const signInputs = {
       'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0],
@@ -316,6 +359,11 @@ describe('validateSignInputs', () => {
 });
 
 describe('signPSBT', () => {
+  it('resolves explicit, embedded, and default sighash values in signer order', () => {
+    expect(resolvePsbtSighashType(0x81, 0x83)).toBe(0x81);
+    expect(resolvePsbtSighashType(undefined, 0x83)).toBe(0x83);
+    expect(resolvePsbtSighashType()).toBe(0x01);
+  });
   it('should sign a PSBT input', () => {
     const psbtHex = createTestPsbt();
 
@@ -349,6 +397,48 @@ describe('signPSBT', () => {
     const tx = parsePSBT(signedPsbtHex);
     const input = tx.getInput(0);
     expect(input.partialSig).toBeDefined();
+  });
+
+  it('signs the real cross-format move fixture with both owned keys', () => {
+    const fixture = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+    const legacyKey = '07'.repeat(32);
+    const segwitKey = '09'.repeat(32);
+
+    const details = extractPsbtDetails(fixture);
+    expect(details.inputs.map(input => input.value)).toEqual([546, 5000]);
+    expect(details.inputs.map(input => input.address)).toEqual([
+      '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+      'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
+    ]);
+    expect(details.fee).toBe(300);
+
+    const legacySigned = signPSBT(fixture, legacyKey, [0], AddressFormat.P2PKH);
+    const fullySigned = signPSBT(legacySigned, segwitKey, [1], AddressFormat.P2WPKH);
+    const tx = parsePSBT(fullySigned);
+
+    expect(tx.getInput(0).partialSig).toHaveLength(1);
+    expect(tx.getInput(1).partialSig).toHaveLength(1);
+  });
+
+  it('signs one legacy and two SegWit inputs in the widest move fixture', () => {
+    const fixture = '70736274ff0100c30200000003c3b06ae77edf2257a11304daa647b7ce6b90067ab7f826b56b4bdefbee80efd70000000000ffffffff617293be2b6167deb093829b9baac25555216b354542cc09e8b6898102bc49480000000000ffffffff7da32ac879b629c42dd63c60d330b4aa464ed7c0e1b59219dd38d3afe0a00b500000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e76009000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000104040404040404040404040404040404040404040404040404040404040404040000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011fb004000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70001011fdc05000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+    const legacySigned = signPSBT(fixture, '07'.repeat(32), [0], AddressFormat.P2PKH);
+    const fullySigned = signPSBT(legacySigned, '09'.repeat(32), [1, 2], AddressFormat.P2WPKH);
+    const tx = parsePSBT(fullySigned);
+
+    expect(tx.getInput(0).partialSig).toHaveLength(1);
+    expect(tx.getInput(1).partialSig).toHaveLength(1);
+    expect(tx.getInput(2).partialSig).toHaveLength(1);
+  });
+
+  it('sets SIGHASH_SINGLE|ANYONECANPAY on the listing fixture', () => {
+    const fixture = '70736274ff010055020000000186eeddc08bc258a9dd8bdce62058d76b0355c2173ba744ce5c971d94ed1c43af0000000000ffffffff0190d00300000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac0000000000010055020000000103030303030303030303030303030303030303030303030303030303030303030000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000000';
+    const signed = signPSBT(fixture, '07'.repeat(32), [0], AddressFormat.P2PKH, [0x83]);
+    const input = parsePSBT(signed).getInput(0);
+
+    expect(input.sighashType).toBe(0x83);
+    expect(input.partialSig).toHaveLength(1);
+    expect(input.partialSig?.[0][1].at(-1)).toBe(0x83);
   });
 
   it('should throw on invalid private key', () => {

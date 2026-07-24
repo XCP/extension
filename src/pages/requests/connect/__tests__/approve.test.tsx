@@ -7,9 +7,14 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import '@testing-library/jest-dom/vitest';
+
+const approvalMocks = vi.hoisted(() => ({
+  getCurrentApproval: vi.fn(),
+  getPairedAddresses: vi.fn(),
+}));
 
 // Mock webext-bridge before any imports that might use it
 vi.mock('webext-bridge/popup', () => ({
@@ -29,11 +34,19 @@ vi.mock('@/contexts/header-context', () => ({
   }),
 }));
 
+// Mock wallet service imported by the optional paired-address consent path.
+vi.mock('@/services/walletService', () => ({
+  getWalletService: () => ({
+    getPairedAddresses: approvalMocks.getPairedAddresses,
+  }),
+}));
+
 // Mock the approval service
 vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => ({
     resolveApproval: vi.fn(),
     rejectApproval: vi.fn(),
+    getCurrentApproval: approvalMocks.getCurrentApproval,
   }),
 }));
 
@@ -65,6 +78,8 @@ describe('ApproveConnection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    approvalMocks.getCurrentApproval.mockReturnValue(null);
+    approvalMocks.getPairedAddresses.mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -187,6 +202,61 @@ describe('ApproveConnection', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
+    it('shows requested paired addresses behind an unchecked opt-in', async () => {
+      setupWalletContext({
+        activeWallet: {
+          id: 'test-wallet',
+          type: 'mnemonic',
+          addressFormat: 'p2wpkh',
+        } as any,
+        activeAddress: { address: 'bc1qtest123' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
+      });
+      approvalMocks.getPairedAddresses.mockResolvedValue({
+        legacy: { address: '1legacy', pubKey: '02aa', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
+        segwit: { address: 'bc1qsegwit', pubKey: '02bb', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
+      });
+
+      renderWithRouter();
+
+      const checkbox = await screen.findByRole('checkbox');
+      expect(checkbox).not.toBeChecked();
+      await waitFor(() => {
+        expect(screen.getByText(/Legacy: 1legacy/)).toBeInTheDocument();
+        expect(screen.getByText(/SegWit: bc1qsegwit/)).toBeInTheDocument();
+        expect(checkbox).toBeEnabled();
+      });
+    });
+
+    it('blocks approval if the active wallet identity changed', async () => {
+      setupWalletContext({
+        activeWallet: { id: 'different-wallet' },
+        activeAddress: { address: 'bc1qdifferent' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
+      });
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/active address changed/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect/i })).toBeDisabled();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
     it('should display the origin domain in approval UI', () => {
       setupWalletContext({
         activeWallet: { id: 'test-wallet' },

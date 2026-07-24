@@ -116,8 +116,9 @@ export class ConnectionService extends BaseService {
   async requestPermission(
     origin: string,
     address: string,
-    walletId: string
-  ): Promise<boolean> {
+    walletId: string,
+    pairedAddresses = false
+  ): Promise<ApprovalResult> {
     // Prevent duplicate requests for the same origin
     const dedupeKey = `${origin}-pending`;
     if (this.state.pendingPermissionRequests.has(dedupeKey)) {
@@ -154,7 +155,7 @@ export class ConnectionService extends BaseService {
         id: requestId,
         origin,
         method: 'xcp_requestAccounts',
-        params: [],
+        params: [{ capabilities: { pairedAddresses }, address, walletId }],
         type: 'connection',
         metadata: {
           domain,
@@ -165,11 +166,59 @@ export class ConnectionService extends BaseService {
 
       this.state.pendingPermissionRequests.delete(dedupeKey);
       this.state.pendingPermissionRequests.delete(requestId);
-      return result.approved;
+      return result;
     } catch (error) {
       this.state.pendingPermissionRequests.delete(dedupeKey);
       this.state.pendingPermissionRequests.delete(requestId);
       throw error;
+    }
+  }
+
+  async hasPairedAddressPermission(origin: string, walletId: string, address: string): Promise<boolean> {
+    const capability = (await getWalletService().getSettings()).providerCapabilities?.[origin];
+    return capability?.pairedAddresses === true
+      && capability.walletId === walletId
+      && capability.address === address;
+  }
+
+  private async storePairedAddressPermission(
+    origin: string,
+    walletId: string,
+    address: string
+  ): Promise<void> {
+    const walletService = getWalletService();
+    const settings = await walletService.getSettings();
+    const capabilities = { ...(settings.providerCapabilities ?? {}) };
+    capabilities[origin] = { pairedAddresses: true, walletId, address };
+    await walletService.updateSettings({ providerCapabilities: capabilities });
+  }
+
+  private async clearPairedAddressPermission(origin: string): Promise<void> {
+    const walletService = getWalletService();
+    const settings = await walletService.getSettings();
+    if (!settings.providerCapabilities?.[origin]) return;
+    const capabilities = { ...settings.providerCapabilities };
+    delete capabilities[origin];
+    await walletService.updateSettings({ providerCapabilities: capabilities });
+  }
+
+  async requestPairedAddressPermission(
+    origin: string,
+    address: string,
+    walletId: string
+  ): Promise<void> {
+    if (await this.hasPairedAddressPermission(origin, walletId, address)) return;
+    const result = await this.requestPermission(origin, address, walletId, true);
+    if (!result.approved || result.updatedParams?.pairedAddresses !== true) {
+      throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'Paired address access was not granted');
+    }
+    if (!await this.hasPermission(origin)) {
+      throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Site disconnected before paired address access was granted');
+    }
+    await this.storePairedAddressPermission(origin, walletId, address);
+    if (!await this.hasPermission(origin)) {
+      await this.clearPairedAddressPermission(origin);
+      throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Site disconnected before paired address access was granted');
     }
   }
 
@@ -212,7 +261,8 @@ export class ConnectionService extends BaseService {
   async connect(
     origin: string,
     address: string,
-    walletId: string
+    walletId: string,
+    pairedAddresses = false
   ): Promise<string[]> {
     console.debug('[ConnectionService] Connecting dApp:', { origin, address, walletId });
 
@@ -229,14 +279,19 @@ export class ConnectionService extends BaseService {
     }
 
     // Request user permission
-    const approved = await this.requestPermission(origin, address, walletId);
+    const approval = await this.requestPermission(origin, address, walletId, pairedAddresses);
 
-    if (approved) {
+    if (approval.approved) {
       // Track successful connection
       await analytics.track('connection_established');
 
       // Add to connected websites
       await getWalletService().addConnectedWebsite(origin);
+      if (pairedAddresses && approval.updatedParams?.pairedAddresses === true) {
+        await this.storePairedAddressPermission(origin, walletId, address);
+      } else {
+        await this.clearPairedAddressPermission(origin);
+      }
 
       // Update cache
       this.state.connectionCache.set(origin, {
@@ -264,8 +319,9 @@ export class ConnectionService extends BaseService {
   async disconnect(origin: string): Promise<void> {
     console.debug('[ConnectionService] Disconnecting dApp:', origin);
 
-    // Remove from connected websites
-    await getWalletService().removeConnectedWebsite(origin);
+    // Remove from connected websites and all associated capabilities.
+    const walletService = getWalletService();
+    await walletService.removeConnectedWebsite(origin);
 
     // Update cache
     this.state.connectionCache.delete(origin);

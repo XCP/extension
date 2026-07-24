@@ -6,6 +6,8 @@
  * that could indicate a malicious site trying to drain the wallet.
  */
 
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
@@ -91,7 +93,7 @@ const DUST_THRESHOLD = 546;
 export function analyzeTransactionSafety(
   messageType: string | undefined,
   outputs: AnalyzableOutput[],
-  signerAddress: string
+  signerAddress: string | string[]
 ): SafetyAnalysis {
   const warnings: SecurityWarning[] = [];
   let blocked = false;
@@ -127,7 +129,10 @@ export function analyzeTransactionSafety(
 
   // ── Check for suspicious outputs ──
 
-  const normalizedSigner = signerAddress.toLowerCase();
+  const normalizedSigners = new Set(
+    (Array.isArray(signerAddress) ? signerAddress : [signerAddress])
+      .map(normalizeAddressForComparison)
+  );
   const suspiciousOutputs: Array<{ address: string; value: number }> = [];
 
   for (const output of outputs) {
@@ -135,7 +140,7 @@ export function analyzeTransactionSafety(
     if (output.type === 'op_return') continue;
 
     // Skip outputs back to the signer (change)
-    if (output.address && output.address.toLowerCase() === normalizedSigner) continue;
+    if (output.address && normalizedSigners.has(normalizeAddressForComparison(output.address))) continue;
 
     // Skip dust outputs — normal for Counterparty (multisig encoding, dispenser triggers)
     if (output.value <= DUST_THRESHOLD) continue;

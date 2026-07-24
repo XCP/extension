@@ -28,6 +28,7 @@ import {
   removeSignFlow,
 } from '@/utils/provider/signFlow';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { extractPsbtDetails, validateSignInputs } from '@/utils/blockchain/bitcoin/psbt';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
@@ -35,6 +36,8 @@ import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
 import { keychainExists } from '@/utils/storage/walletStorage';
 import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
+import { getPairedAddressFormats } from '@/utils/wallet/addressDeriver';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -312,11 +315,28 @@ export function createProviderService(): ProviderService {
   }
 
   /**
+   * ADR-018: Paired-address provider capability
+   *
+   * A connection authorizes only its active address. A dApp may opt in to the
+   * active derivation index's Legacy/SegWit sibling pair through explicit,
+   * unchecked-by-default consent. The grant is bound to origin, wallet ID, and
+   * active address, and is removed on disconnect.
+   *
+   * Signing fails closed before approval storage: requested signer addresses
+   * must be the active address or its exact sibling pair, input indices must be
+   * unique and in range, each input prevout must match its claimed signer,
+   * and paired signing requires the bound capability.
+   * This deliberately does not authorize other HD derivation indices.
+   *
    * Resolve a connection request: return existing accounts if already connected,
    * otherwise connect and build the response. onBeforeConnect runs only for a
    * new connection (after the already-connected check, before connect).
    */
-  async function completeConnection(origin: string, onBeforeConnect?: () => Promise<void>) {
+  async function completeConnection(
+    origin: string,
+    pairedAddresses = false,
+    onBeforeConnect?: () => Promise<void>
+  ) {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
 
@@ -327,12 +347,24 @@ export function createProviderService(): ProviderService {
     }
 
     if (await connectionService.hasPermission(origin)) {
+      if (pairedAddresses) {
+        await connectionService.requestPairedAddressPermission(
+          origin,
+          activeAddress.address,
+          activeWallet.id
+        );
+      }
       return buildConnectResponse(origin, await getAccounts(origin));
     }
 
     await onBeforeConnect?.();
 
-    const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
+    const accounts = await connectionService.connect(
+      origin,
+      activeAddress.address,
+      activeWallet.id,
+      pairedAddresses
+    );
     await analytics.track('connection_established');
     return buildConnectResponse(origin, accounts);
   }
@@ -403,6 +435,11 @@ export function createProviderService(): ProviderService {
         // ==================== Connection Methods ====================
         
         case 'xcp_requestAccounts': {
+          const accountOptions = params?.[0] as {
+            capabilities?: { pairedAddresses?: boolean }
+          } | undefined;
+          const pairedAddresses = accountOptions?.capabilities?.pairedAddresses === true;
+
           // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
             // Open popup for wallet setup and wait for onboarding to complete
@@ -426,7 +463,7 @@ export function createProviderService(): ProviderService {
 
                 // Continue with connection flow now that wallet exists
                 try {
-                  resolve(await completeConnection(origin));
+                  resolve(await completeConnection(origin, pairedAddresses));
                 } catch (error) {
                   reject(error);
                 }
@@ -486,7 +523,7 @@ export function createProviderService(): ProviderService {
 
                 // Continue with connection flow
                 try {
-                  resolve(await completeConnection(origin));
+                  resolve(await completeConnection(origin, pairedAddresses));
                 } catch (error) {
                   reject(error);
                 }
@@ -504,7 +541,7 @@ export function createProviderService(): ProviderService {
           }
 
           // CSP analysis (warning mode only) runs just before a new connection.
-          return completeConnection(origin, async () => {
+          return completeConnection(origin, pairedAddresses, async () => {
             let cspHostname = origin;
             try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
 
@@ -532,6 +569,40 @@ export function createProviderService(): ProviderService {
           return getAccounts(origin);
         }
         
+        case 'xcp_getAddresses': {
+          if (!await connectionService.hasPermission(origin)) {
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
+          }
+          const activeAddress = await walletService.getActiveAddress();
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) throw new Error('No active address');
+          const paired = await connectionService.hasPairedAddressPermission(
+            origin,
+            activeWallet.id,
+            activeAddress.address
+          );
+          const active = {
+            address: activeAddress.address,
+            publicKey: activeAddress.pubKey,
+            type: activeWallet.addressFormat,
+          };
+          if (!paired) return { active };
+          const addresses = await walletService.getPairedAddresses();
+          return {
+            active,
+            legacy: {
+              address: addresses.legacy.address,
+              publicKey: addresses.legacy.pubKey,
+              type: addresses.legacy.type,
+            },
+            segwit: {
+              address: addresses.segwit.address,
+              publicKey: addresses.segwit.pubKey,
+              type: addresses.segwit.type,
+            },
+          };
+        }
+
         case 'xcp_chainId': {
           return '0x0'; // Bitcoin mainnet
         }
@@ -690,6 +761,18 @@ export function createProviderService(): ProviderService {
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
           }
+          if (signInputs !== undefined && (
+            signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
+          )) {
+            throw new Error('signInputs must be an address-to-input-indices object');
+          }
+          if (sighashTypes !== undefined) {
+            if (!Array.isArray(sighashTypes) || sighashTypes.some(
+              value => ![0x01, 0x81, 0x83].includes(value)
+            )) {
+              throw new Error('Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
+            }
+          }
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
@@ -703,6 +786,70 @@ export function createProviderService(): ProviderService {
             throw new Error('No active address');
           }
 
+          const psbtDetails = extractPsbtDetails(psbtHex);
+          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
+            throw new Error('sighashTypes contains more entries than the PSBT has inputs');
+          }
+          if (sighashTypes?.some(
+            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
+          )) {
+            throw new Error('SIGHASH_SINGLE requires an output at the same index');
+          }
+
+          if (signInputs !== undefined) {
+            const supportsPairedAddresses = Boolean(
+              getPairedAddressFormats(activeWallet.addressFormat)
+            );
+            const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
+              ? await walletService.getPairedAddresses()
+              : null;
+            const allowedAddresses = [
+              activeAddress.address,
+              ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
+            ];
+            const validation = validateSignInputs(
+              signInputs,
+              allowedAddresses,
+              psbtDetails.inputs.length,
+              psbtDetails.inputs.map(input => input.address)
+            );
+            if (!validation.valid) throw new Error(validation.error);
+
+            const pairedAddressSet = new Set(
+              paired
+                ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
+                : []
+            );
+            const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+            const usesPairedAddress = Object.keys(signInputs).some(address => {
+              const normalizedAddress = normalizeAddressForComparison(address);
+              return normalizedAddress !== normalizedActiveAddress
+                && pairedAddressSet.has(normalizedAddress);
+            });
+            if (usesPairedAddress && !await connectionService.hasPairedAddressPermission(
+              origin,
+              activeWallet.id,
+              activeAddress.address
+            )) {
+              throw new ProviderError(
+                PROVIDER_ERROR_CODES.UNAUTHORIZED,
+                'Paired Legacy/SegWit address access has not been granted'
+              );
+            }
+          }
+          if (sighashTypes !== undefined) {
+            const requestedInputIndices = signInputs === undefined
+              ? Array.from({ length: psbtDetails.inputs.length }, (_, index) => index)
+              : Object.values(signInputs).flat();
+            const missingInputIndices = requestedInputIndices.filter(
+              index => sighashTypes[index] === undefined
+            );
+            if (missingInputIndices.length > 0) {
+              throw new Error(
+                `sighashTypes is indexed by absolute PSBT input index and is missing entries for inputs: ${missingInputIndices.join(', ')}`
+              );
+            }
+          }
           return runSignFlow({
             origin,
             method,

@@ -65,6 +65,25 @@ const result = await xcpwallet.request({ method: 'xcp_requestAccounts' });
 
 The proof is auto-signed during connection — no additional user prompt beyond the connect approval.
 
+Sites may optionally request access to the paired Legacy and native SegWit addresses:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_requestAccounts',
+  params: [{ capabilities: { pairedAddresses: true } }]
+});
+```
+
+The additional checkbox is opt-in and remains scoped to the connected site, wallet, and
+address index until disconnect. It only permits address disclosure and signing requests;
+every transaction still requires approval. Connection and paired-address grants are rechecked
+immediately before signing, so disconnecting the site invalidates an open request.
+
+This capability has a privacy cost: the site can associate the Legacy and SegWit addresses as
+belonging to the same wallet. It can request signatures for explicitly identified inputs from
+either address, but cannot access other derivation indices. The approval screen shows the value
+attributed to each signer, external outputs, the network fee, and any flexible sighash rules.
+
 #### `xcp_accounts`
 
 Get currently connected accounts. No popup — returns empty array if not connected or wallet is locked.
@@ -130,11 +149,21 @@ const result = await xcpwallet.request({
   params: [{
     hex: '<PSBT hex>',
     signInputs: { 'bc1q...': [0, 1] },  // optional: which inputs to sign
-    sighashTypes: [0x01]                  // optional: sighash types
+    sighashTypes: [0x01, 0x01]            // optional: one entry per signed PSBT input index
   }]
 });
 // { hex: '<signed PSBT hex>' }
 ```
+
+When `signInputs` is supplied, it must contain at least one input. Every index must be
+unique, in range, and assigned to the address found in that input's embedded prevout.
+The provider rejects mismatches before opening the approval popup. Omitting `signInputs`
+preserves the legacy best-effort behavior for the active address only.
+
+`sighashTypes` is indexed by absolute PSBT input index, not by `signInputs` entry
+or subset order. When supplied, it must cover every input the wallet is asked to
+sign; missing entries are rejected rather than silently defaulted. Prefer setting
+the standard `sighashType` field on each PSBT input and omitting this override.
 
 ### Broadcasting
 
@@ -159,6 +188,16 @@ Get BTC and token balances for the connected address.
 ```js
 const result = await xcpwallet.request({ method: 'xcp_getBalances' });
 // { address: 'bc1q...', btc: { ... }, xcp: { ... }, tokens: [...] }
+```
+
+#### `xcp_getAddresses`
+
+Returns the active address for ordinary connections. When paired-address access was granted,
+it returns the corresponding P2PKH and P2WPKH addresses and public keys.
+
+```js
+const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
+// { active: {...}, legacy: {...}, segwit: {...} }
 ```
 
 #### `xcp_chainId`

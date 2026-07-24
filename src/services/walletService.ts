@@ -13,7 +13,7 @@ import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager } from '@/utils/wallet/walletManager';
-import type { Wallet, Address, SignTransactionOptions } from '@/types/wallet';
+import type { Wallet, Address, PairedAddresses, SignTransactionOptions } from '@/types/wallet';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
@@ -59,6 +59,7 @@ interface WalletService {
   getPrivateKey: (walletId: string, derivationPath?: string) => Promise<{ wif: string; hex: string; compressed: boolean }>;
   removeWallet: (walletId: string) => Promise<void>;
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
+  getPairedAddresses: () => Promise<PairedAddresses>;
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
   signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
@@ -104,12 +105,15 @@ function createWalletService(): WalletService {
     },
     removeConnectedWebsite: async (origin) => {
       const settings = walletManager.getSettings();
+      const providerCapabilities = { ...(settings.providerCapabilities ?? {}) };
+      delete providerCapabilities[origin];
       await walletManager.updateSettings({
         connectedWebsites: settings.connectedWebsites.filter((site) => site !== origin),
+        providerCapabilities,
       });
     },
     clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [] });
+      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
     },
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
@@ -208,6 +212,7 @@ function createWalletService(): WalletService {
     getPreviewAddressForFormat: async (walletId, addressFormat) => {
       return await walletManager.getPreviewAddressForFormat(walletId, addressFormat);
     },
+    getPairedAddresses: async () => walletManager.getPairedAddresses(),
     isAddressInAnyWallet: async (address) => {
       return walletManager.isAddressInAnyWallet(address);
     },

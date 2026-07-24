@@ -69,7 +69,10 @@ export function useSignPsbtRequest(signerAddress?: string) {
   const requestId = searchParams.get('requestId');
 
   // Decode PSBT and enrich with API data
-  const decodePsbt = useCallback(async (psbtHex: string, signerAddress?: string): Promise<DecodedPsbtInfo> => {
+  const decodePsbt = useCallback(async (
+    psbtHex: string,
+    signerAddresses?: string[]
+  ): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
 
@@ -126,7 +129,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     // Analyze for security risks (dangerous types, suspicious outputs)
     const messageType = counterpartyMessage?.messageType
       ?? verification.localUnpack?.messageType;
-    const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddress || '');
+    const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddresses ?? []);
 
     return {
       psbtDetails,
@@ -160,7 +163,11 @@ export function useSignPsbtRequest(signerAddress?: string) {
         setRequest(req);
 
         // Decode the PSBT
-        const decoded = await decodePsbt(req.psbtHex, signerAddress);
+        const requestedSigners = Object.keys(req.signInputs ?? {});
+        const decoded = await decodePsbt(
+          req.psbtHex,
+          requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : []
+        );
         setDecodedInfo(decoded);
       } catch (err) {
         console.error('Failed to load PSBT request:', err);
@@ -171,7 +178,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     };
 
     loadRequest();
-  }, [requestId, decodePsbt]);
+  }, [requestId, decodePsbt, signerAddress]);
 
   // Listen for navigation messages from background
   useEffect(() => {
@@ -182,7 +189,11 @@ export function useSignPsbtRequest(signerAddress?: string) {
           const req = await signPsbtRequestStorage.get(message.signPsbtRequestId);
           if (req) {
             setRequest(req);
-            const decoded = await decodePsbt(req.psbtHex, signerAddress);
+            const requestedSigners = Object.keys(req.signInputs ?? {});
+            const decoded = await decodePsbt(
+              req.psbtHex,
+              requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : []
+            );
             setDecodedInfo(decoded);
           }
         };
@@ -194,7 +205,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     return () => {
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
-  }, [decodePsbt]);
+  }, [decodePsbt, signerAddress]);
 
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedPsbtHex: string) => {

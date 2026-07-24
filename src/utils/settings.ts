@@ -84,6 +84,13 @@ export interface AppSettings {
   /** Connected dApp websites */
   connectedWebsites: string[];
 
+  /** Optional provider capabilities, scoped to the connected wallet identity. */
+  providerCapabilities?: Record<string, {
+    pairedAddresses?: boolean;
+    walletId?: string;
+    address?: string;
+  }>;
+
   /** Allow unconfirmed transaction inputs */
   allowUnconfirmedTxs: boolean;
   /** Enable multi-peer multi-asset sends */
@@ -137,6 +144,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultPoolSlippage: DEFAULT_POOL_SLIPPAGE,
   strictTransactionVerification: true,
   connectedWebsites: [],
+  providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
   hasVisitedRecoverBitcoin: false,
 };

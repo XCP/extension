@@ -2,11 +2,29 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FiGlobe, FaCheck } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
 import { getApprovalService } from "@/services/approvalService";
+import { getWalletService } from "@/services/walletService";
+import { getPairedAddressFormats } from "@/utils/wallet/addressDeriver";
+import type { PairedAddresses } from "@/types/wallet";
+import type { ApprovalRequest } from "@/types/provider";
 import type { ReactElement } from "react";
 
+function getApprovalIdentityError(
+  approval: ApprovalRequest | null,
+  requestId: string,
+  activeAddress: string | undefined,
+  activeWalletId: string | undefined
+): string | null {
+  if (!approval || approval.id !== requestId) return 'This connection request is no longer available.';
+  const request = approval.params?.[0];
+  if (request?.address !== activeAddress || request?.walletId !== activeWalletId) {
+    return 'The active address changed after this request was made. Switch back to the requested address and try again.';
+  }
+  return null;
+}
 /**
  * Connection approval page for dApp requests
  * Shows when a website requests access to the wallet
@@ -18,6 +36,11 @@ export default function ApproveConnectionPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const [isProcessing, setIsProcessing] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
+  const [pairedAddressesRequested, setPairedAddressesRequested] = useState(false);
+  const [grantPairedAddresses, setGrantPairedAddresses] = useState(false);
+  const [pairedAddresses, setPairedAddresses] = useState<PairedAddresses | null>(null);
+  const [approvalError, setApprovalError] = useState<string | null>(null);
+  const [pairedAddressError, setPairedAddressError] = useState(false);
 
   const origin = searchParams.get("origin") || "";
   const requestId = searchParams.get("requestId") || "";
@@ -34,6 +57,45 @@ export default function ApproveConnectionPage(): ReactElement {
 
   const domain = getDomain(origin);
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+  useEffect(() => {
+    if (!requestId || !activeAddress || !activeWallet) return;
+    const approvalService = getApprovalService();
+    Promise.resolve(approvalService.getCurrentApproval()).then((approval) => {
+      const identityError = getApprovalIdentityError(
+        approval,
+        requestId,
+        activeAddress.address,
+        activeWallet.id
+      );
+      setApprovalError(identityError);
+      setPairedAddressesRequested(
+        !identityError && approval?.params?.[0]?.capabilities?.pairedAddresses === true
+      );
+    }).catch(() => {
+      setApprovalError('Unable to load this connection request.');
+      setPairedAddressesRequested(false);
+    });
+  }, [requestId, activeAddress, activeWallet]);
+
+  useEffect(() => {
+    if (
+      !pairedAddressesRequested ||
+      activeWallet?.type !== 'mnemonic' ||
+      !getPairedAddressFormats(activeWallet.addressFormat)
+    ) {
+      setPairedAddresses(null);
+      setPairedAddressError(false);
+      return;
+    }
+    setPairedAddressError(false);
+    getWalletService().getPairedAddresses()
+      .then(setPairedAddresses)
+      .catch(() => {
+        setPairedAddresses(null);
+        setPairedAddressError(true);
+      });
+  }, [pairedAddressesRequested, activeWallet]);
 
   // Configure header
   useEffect(() => {
@@ -57,7 +119,24 @@ export default function ApproveConnectionPage(): ReactElement {
     try {
       // Resolve approval via ApprovalService proxy
       const approvalService = getApprovalService();
-      await approvalService.resolveApproval(requestId, { approved: true });
+      const approval = await Promise.resolve(approvalService.getCurrentApproval());
+      const identityError = getApprovalIdentityError(
+        approval,
+        requestId,
+        activeAddress?.address,
+        activeWallet?.id
+      );
+      if (identityError) {
+        setApprovalError(identityError);
+        setIsProcessing(false);
+        return;
+      }
+      await approvalService.resolveApproval(requestId, {
+        approved: true,
+        updatedParams: {
+          pairedAddresses: pairedAddressesRequested && grantPairedAddresses && Boolean(pairedAddresses),
+        },
+      });
       // Close the popup
       window.close();
     } catch (error) {
@@ -163,6 +242,45 @@ export default function ApproveConnectionPage(): ReactElement {
               </li>
             </ul>
           </div>
+
+          {approvalError && <ErrorAlert message={approvalError} />}
+
+          {pairedAddressesRequested && activeWallet.type === 'mnemonic' &&
+            getPairedAddressFormats(activeWallet.addressFormat) && (
+            <label className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={grantPairedAddresses}
+                disabled={!pairedAddresses || Boolean(approvalError)}
+                onChange={(event) => setGrantPairedAddresses(event.target.checked)}
+                className="mt-1 size-4"
+              />
+              <span>
+                <span className="block text-sm font-medium text-blue-900">
+                  Share paired Legacy and SegWit addresses
+                </span>
+                <span className="mt-1 block text-xs text-blue-800">
+                  This lets the site associate both addresses and request signatures that spend
+                  inputs belonging to either address. Each request still shows the inputs, outputs,
+                  fees, and signature rules for your approval. Access lasts until you disconnect the site.
+                </span>
+                {pairedAddressError && (
+                  <span className="mt-2 block text-xs font-medium text-red-700">
+                    Paired addresses are unavailable. This additional permission cannot be granted.
+                  </span>
+                )}
+                {!pairedAddresses && !pairedAddressError && (
+                  <span className="mt-2 block text-xs text-blue-700">Loading paired addresses…</span>
+                )}
+                {pairedAddresses && (
+                  <span className="mt-2 block space-y-1 text-xs text-blue-900">
+                    <span className="block break-all font-mono">Legacy: {pairedAddresses.legacy.address}</span>
+                    <span className="block break-all font-mono">SegWit: {pairedAddresses.segwit.address}</span>
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -180,7 +298,7 @@ export default function ApproveConnectionPage(): ReactElement {
           <Button
             color="blue"
             onClick={handleApprove}
-            disabled={isProcessing}
+            disabled={isProcessing || Boolean(approvalError)}
             fullWidth
           >
             {isProcessing ? "Processing…" : "Connect"}

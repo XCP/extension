@@ -23,6 +23,16 @@ export interface Address {
   pubKey: string;
 }
 
+export interface PairedAddress extends Address {
+  format: AddressFormat;
+  type: 'p2pkh' | 'p2wpkh';
+}
+
+export interface PairedAddresses {
+  legacy: PairedAddress;
+  segwit: PairedAddress;
+}
+
 /**
  * Represents a wallet containing one or more addresses.
  * This is the runtime representation with derived addresses.

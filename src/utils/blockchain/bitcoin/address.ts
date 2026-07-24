@@ -38,6 +38,11 @@ export const AddressFormat = {
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
+/** Normalize only Bech32 addresses; Base58 addresses remain case-sensitive. */
+export function normalizeAddressForComparison(address: string): string {
+  return address.toLowerCase().startsWith('bc1') ? address.toLowerCase() : address;
+}
+
 /**
  * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, CounterwalletSegwit, or P2TR).
  */

@@ -16,7 +16,7 @@ import {
   DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/encryption';
 import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
@@ -26,6 +26,7 @@ import {
   deriveMnemonicAddress,
   deriveAddressFromPrivateKey,
   deriveAddressesFromSecret,
+  getPairedAddressFormats,
 } from '@/utils/wallet/addressDeriver';
 import { KEYCHAIN_VERSION, encryptKeychainRecord, decryptKeychain } from '@/utils/wallet/keychainCrypto';
 import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider, type AppSettings } from '@/utils/settings';
@@ -36,7 +37,7 @@ import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValue
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
+import type { Address, PairedAddresses, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -777,7 +778,10 @@ export class WalletManager {
    */
   public getSettings(): AppSettings {
     if (!this.keychain) {
-      return { ...DEFAULT_SETTINGS };
+      return {
+        ...DEFAULT_SETTINGS,
+        providerCapabilities: { ...(DEFAULT_SETTINGS.providerCapabilities ?? {}) },
+      };
     }
     // DEFAULT_SETTINGS first backfills fields missing from keychains created
     // under an older schema; stored values override. Copy to prevent mutation.
@@ -785,6 +789,11 @@ export class WalletManager {
       ...DEFAULT_SETTINGS,
       ...this.keychain.settings,
       connectedWebsites: [...(this.keychain.settings.connectedWebsites || [])],
+      providerCapabilities: Object.fromEntries(
+        Object.entries(this.keychain.settings.providerCapabilities ?? {}).map(
+          ([origin, capability]) => [origin, { ...capability }]
+        )
+      ),
       pinnedAssets: [...(this.keychain.settings.pinnedAssets || [])],
     };
   }
@@ -1139,6 +1148,28 @@ export class WalletManager {
     }
   }
 
+  public async getPairedAddresses(): Promise<PairedAddresses> {
+    if (!this.activeWalletId) throw new Error('No active wallet set');
+    const wallet = this.getWalletById(this.activeWalletId);
+    if (!wallet || wallet.type !== 'mnemonic') {
+      throw new Error('Paired addresses are available only for mnemonic wallets');
+    }
+    const formats = getPairedAddressFormats(wallet.addressFormat);
+    if (!formats) throw new Error('The active address format has no paired Legacy/SegWit format');
+    const activeAddress = wallet.addresses.find(
+      address => address.address === this.getSettings().lastActiveAddress
+    ) ?? wallet.addresses[0];
+    if (!activeAddress) throw new Error('No active address');
+    const index = Number(activeAddress.path.split('/').at(-1));
+    if (!Number.isSafeInteger(index) || index < 0) throw new Error('Invalid active derivation index');
+    const secret = await sessionManager.getUnlockedSecret(wallet.id);
+    if (!secret) throw new Error('Wallet is locked');
+    return {
+      legacy: { ...deriveMnemonicAddress(secret, formats.legacy, index), format: formats.legacy, type: 'p2pkh' },
+      segwit: { ...deriveMnemonicAddress(secret, formats.segwit, index), format: formats.segwit, type: 'p2wpkh' },
+    };
+  }
+
   /**
    * Get an initialized Trezor adapter for a hardware wallet.
    *
@@ -1357,32 +1388,49 @@ export class WalletManager {
     if (signInputs && Object.keys(signInputs).length > 0) {
       let signedPsbtHex = psbtHex;
 
+      const paired = wallet.type === 'mnemonic' && getPairedAddressFormats(wallet.addressFormat)
+        ? await this.getPairedAddresses()
+        : null;
       for (const [address, inputIndices] of Object.entries(signInputs)) {
-        const targetAddress = wallet.addresses.find(addr => addr.address === address);
+        const normalizedAddress = normalizeAddressForComparison(address);
+        const pairedTarget = paired
+          ? [paired.legacy, paired.segwit].find(
+              addr => normalizeAddressForComparison(addr.address) === normalizedAddress
+            )
+          : undefined;
+        const targetAddress = wallet.addresses.find(
+          addr => normalizeAddressForComparison(addr.address) === normalizedAddress
+        ) ?? pairedTarget;
         if (!targetAddress) {
           throw new Error(`Address ${address} not found in wallet`);
         }
 
-        const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
+        const targetFormat = pairedTarget?.format ?? wallet.addressFormat;
+        const secret = await sessionManager.getUnlockedSecret(wallet.id);
+        if (!secret) throw new Error('Wallet is locked');
+        const privateKeyHex = targetFormat === wallet.addressFormat
+          ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
+          : getPrivateKeyFromMnemonic(secret, targetAddress.path, targetFormat);
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,
-          privateKeyResult.hex,
+          privateKeyHex,
           inputIndices,
-          wallet.addressFormat,
+          targetFormat,
           sighashTypes
         );
       }
 
       return signedPsbtHex;
     } else {
-      // Sign all inputs using the first address in the wallet
-      // When no signInputs specified, try to sign all inputs with available keys
-      const firstAddress = wallet.addresses[0];
-      if (!firstAddress) {
+      // Preserve legacy best-effort signing, but only with the connected active address.
+      const activeAddress = wallet.addresses.find(
+        address => address.address === this.getSettings().lastActiveAddress
+      ) ?? wallet.addresses[0];
+      if (!activeAddress) {
         throw new Error("No addresses in wallet");
       }
 
-      const privateKeyResult = await this.getPrivateKey(wallet.id, firstAddress.path);
+      const privateKeyResult = await this.getPrivateKey(wallet.id, activeAddress.path);
       return btcSignPSBT(
         psbtHex,
         privateKeyResult.hex,

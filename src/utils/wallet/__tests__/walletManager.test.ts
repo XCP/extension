@@ -32,6 +32,11 @@ vi.mock('@/utils/blockchain/bitcoin/privateKey');
 vi.mock('@/utils/blockchain/bitcoin/messageSigner');
 vi.mock('@/utils/blockchain/bitcoin/transactionSigner');
 vi.mock('@/utils/blockchain/bitcoin/transactionBroadcaster');
+vi.mock('@/utils/blockchain/bitcoin/psbt', () => ({
+  signPSBT: vi.fn().mockReturnValue('signed-psbt'),
+  extractPsbtDetails: vi.fn(),
+  completePsbtWithInputValues: vi.fn(),
+}));
 vi.mock('@/utils/blockchain/counterwallet');
 vi.mock('@noble/hashes/sha2.js');
 vi.mock('@noble/hashes/utils.js');
@@ -47,6 +52,7 @@ import { base64ToBuffer } from '@/utils/encryption/buffer';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { signPSBT } from '@/utils/blockchain/bitcoin/psbt';
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;
@@ -357,6 +363,36 @@ describe('WalletManager', () => {
     });
   });
 
+  describe('PSBT Signing', () => {
+    it('uses the active address for fallback signing when signInputs is omitted', async () => {
+      const wallet = createTestWallet({
+        addresses: [
+          { name: 'Address 1', address: 'bc1qfirst', path: "m/84'/0'/0'/0/0", pubKey: '02aa' },
+          { name: 'Address 2', address: 'bc1qactive', path: "m/84'/0'/0'/0/1", pubKey: '02bb' },
+        ],
+      });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      vi.spyOn(walletManager, 'getSettings').mockReturnValue({ lastActiveAddress: 'bc1qactive' } as any);
+      const privateKeySpy = vi.spyOn(walletManager, 'getPrivateKey').mockResolvedValue({
+        hex: '11'.repeat(32),
+        wif: 'test-wif',
+        compressed: true,
+      });
+
+      const result = await walletManager.signPsbt('test-psbt');
+
+      expect(result).toBe('signed-psbt');
+      expect(privateKeySpy).toHaveBeenCalledWith(wallet.id, "m/84'/0'/0'/0/1");
+      expect(signPSBT).toHaveBeenCalledWith(
+        'test-psbt',
+        '11'.repeat(32),
+        [],
+        AddressFormat.P2WPKH,
+        undefined
+      );
+    });
+  });
   describe('Mnemonic Access', () => {
     it('should get unencrypted mnemonic for unlocked wallet', async () => {
       const wallet = createTestWallet({ type: 'mnemonic' });

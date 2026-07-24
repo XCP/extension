@@ -41,6 +41,8 @@ import * as signPsbtRequestStorage from '@/utils/storage/signPsbtRequestStorage'
 import * as updateService from '@/services/updateService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
+const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+
 // Mock the imports
 vi.mock('../walletService');
 vi.mock('../connectionService');
@@ -173,14 +175,14 @@ describe('ProviderService', () => {
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
-        addresses: []
+        addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }]),
       getActiveWallet: vi.fn().mockResolvedValue({
         id: 'wallet1',
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
-        addresses: []
+        addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }),
       setActiveWallet: vi.fn().mockResolvedValue(undefined),
       unlockKeychain: vi.fn().mockResolvedValue(undefined),
@@ -197,6 +199,10 @@ describe('ProviderService', () => {
       getPrivateKey: vi.fn().mockResolvedValue({ hex: 'deadbeef'.repeat(8), wif: 'test-wif', compressed: true }),
       removeWallet: vi.fn(),
       getPreviewAddressForFormat: vi.fn(),
+      getPairedAddresses: vi.fn().mockResolvedValue({
+        legacy: { address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', pubKey: '02bb', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
+        segwit: { address: 'bc1qtest123', pubKey: '02aa', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
+      }),
       signTransaction: vi.fn(),
       broadcastTransaction: vi.fn(),
       getLastActiveAddress: vi.fn().mockResolvedValue('bc1qtest123'),
@@ -211,7 +217,8 @@ describe('ProviderService', () => {
         label: 'Test Address',
         walletId: 'wallet1',
         walletName: 'Test Wallet',
-        index: 0
+        index: 0,
+        pubKey: '02aa'
       })
     };
     
@@ -220,6 +227,8 @@ describe('ProviderService', () => {
     // Mock connection service
     const mockConnectionService = {
       hasPermission: vi.fn().mockResolvedValue(false),
+      hasPairedAddressPermission: vi.fn().mockResolvedValue(false),
+      requestPairedAddressPermission: vi.fn().mockResolvedValue(undefined),
       requestPermission: vi.fn().mockResolvedValue(true),
       revokePermission: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
@@ -336,7 +345,8 @@ describe('ProviderService', () => {
         expect(mockConnectionService.connect).toHaveBeenCalledWith(
           'https://newsite.com',
           'bc1qtest123',  // activeAddress from mock
-          'wallet1'       // activeWallet.id from mock (no hyphen)
+          'wallet1',      // activeWallet.id from mock (no hyphen)
+          false            // paired addresses are opt-in
         );
 
         // Should return accounts with proof
@@ -395,6 +405,50 @@ describe('ProviderService', () => {
       });
     });
     
+    describe('xcp_getAddresses', () => {
+      it('returns a stable active-only shape without paired permission', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+
+        const result = await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_getAddresses',
+          []
+        ) as any;
+
+        expect(result).toEqual({
+          active: {
+            address: 'bc1qtest123',
+            publicKey: '02aa',
+            type: 'p2wpkh',
+          },
+        });
+        expect(vi.mocked(walletService.getWalletService)().getPairedAddresses).not.toHaveBeenCalled();
+      });
+
+      it('returns both formats only with identity-bound paired permission', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        const result = await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_getAddresses',
+          []
+        ) as any;
+
+        expect(result.active.address).toBe('bc1qtest123');
+        expect(result.legacy.address).toBe('1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7');
+        expect(result.segwit.address).toBe('bc1qtest123');
+        expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
+          'https://connected.com',
+          'wallet1',
+          'bc1qtest123'
+        );
+      });
+    });
+
     describe('xcp_chainId', () => {
       it('should return 0x0 for Bitcoin mainnet', async () => {
         const result = await providerService.handleRequest(
@@ -443,7 +497,7 @@ describe('ProviderService', () => {
           providerService.handleRequest(
             'https://notconnected.com',
             'xcp_signPsbt',
-            [{ hex: '70736274ff0100' }]
+            [{ hex: VALID_PSBT_HEX }]
           )
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
@@ -489,7 +543,7 @@ describe('ProviderService', () => {
           providerService.handleRequest(
             'https://notconnected.com',
             'xcp_signPsbt',
-            [{ hex: '70736274ff0100' }]
+            [{ hex: VALID_PSBT_HEX }]
           )
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
@@ -663,6 +717,104 @@ describe('ProviderService', () => {
     });
 
     describe('Sign PSBT Request', () => {
+      it('rejects an explicitly empty signer map before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs: {} }]
+        )).rejects.toThrow('at least one input');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+      it.each([null, []])('rejects a malformed signer map (%j) before opening approval', async (signInputs) => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs }]
+        )).rejects.toThrow('signInputs must be an address-to-input-indices object');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+      it('rejects unknown signer addresses before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs: { '1attacker': [0] } }]
+        )).rejects.toThrow('not in this wallet');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+
+      it('rejects a different HD derivation index even when it belongs to the wallet', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Test Wallet',
+          type: 'mnemonic',
+          addressFormat: 'p2wpkh',
+          addresses: [
+            { address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' },
+            { address: 'bc1qotherindex', path: "m/84'/0'/0'/0/1", pubKey: '02cc', name: 'Address 2' },
+          ],
+        });
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs: { bc1qotherindex: [0] } }]
+        )).rejects.toThrow('not in this wallet');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+      it('requires paired permission before accepting a sibling-format signer', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] } }]
+        )).rejects.toThrow('Paired Legacy/SegWit address access has not been granted');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+
+      it('rejects sighash entries beyond the PSBT input count', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, sighashTypes: [0x01, 0x01, 0x01] }]
+        )).rejects.toThrow('more entries than the PSBT has inputs');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
+      it('rejects a short sighash override instead of silently falling back', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, sighashTypes: [0x01] }]
+        )).rejects.toThrow('indexed by absolute PSBT input index and is missing entries for inputs: 1');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
       it('should handle xcp_signPsbt with proper storage', async () => {
         // Mock connection service to return true
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -671,7 +823,7 @@ describe('ProviderService', () => {
         // Mock storage
         const mockStorage = vi.mocked(signPsbtRequestStorage).signPsbtRequestStorage;
 
-        const psbtHex = '70736274ff0100';
+        const psbtHex = VALID_PSBT_HEX;
 
         // Start the request - it will return a promise that waits for events
         providerService.handleRequest(
@@ -703,7 +855,7 @@ describe('ProviderService', () => {
         providerService.handleRequest(
           'https://test.com',
           'xcp_signPsbt',
-          [{ hex: '70736274ff0100' }]
+          [{ hex: VALID_PSBT_HEX }]
         ).catch(() => {});
 
         // Wait for async operations
@@ -754,7 +906,7 @@ describe('ProviderService', () => {
           providerService.handleRequest(
             'https://test.com',
             'xcp_signPsbt',
-            [{ hex: '70736274ff0100' }]
+            [{ hex: VALID_PSBT_HEX }]
           )
         ).rejects.toThrow('No active address');
       });

@@ -8,8 +8,16 @@
 import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
+
+/** Resolve the exact sighash the signer will use for one PSBT input. */
+export function resolvePsbtSighashType(
+  explicitSighashType?: number,
+  embeddedSighashType?: number
+): number {
+  return explicitSighashType ?? embeddedSighashType ?? SigHash.ALL;
+}
 
 /**
  * Normalize PSBT string to hex format.
@@ -111,7 +119,7 @@ export interface PsbtDetails {
   rawTxHex: string;
   inputs: DecodedInput[];
   outputs: DecodedOutput[];
-  /** Total input value (from witnessUtxo data in PSBT) */
+  /** Total input value from embedded witness or non-witness prevout data */
   totalInputValue: number;
   /** Total output value */
   totalOutputValue: number;
@@ -254,7 +262,12 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     const input = tx.getInput(i);
     if (input?.txid) {
       const txidHex = bytesToHex(input.txid);
-      const value = input.witnessUtxo?.amount ? Number(input.witnessUtxo.amount) : undefined;
+      const prevout = input.witnessUtxo
+        ?? (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined);
+      const value = prevout?.amount !== undefined ? Number(prevout.amount) : undefined;
+      const address = prevout?.script
+        ? decodeAddressFromScript(bytesToHex(prevout.script)) ?? undefined
+        : undefined;
 
       if (value !== undefined) {
         totalInputValue += value;
@@ -264,6 +277,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         index: i,
         txid: txidHex,
         vout: input.index ?? 0,
+        address,
         value,
         sighashType: input.sighashType,
       });
@@ -377,9 +391,11 @@ export function signPSBT(
       // Determine sighash: use the explicit sighashTypes param if provided,
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
-      const sighashType = sighashTypes?.[inputIdx]
-        ?? input.sighashType
-        ?? SigHash.ALL;
+      const requestedSighashType = sighashTypes?.[inputIdx];
+      const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType);
+      if (requestedSighashType !== undefined) {
+        tx.updateInput(inputIdx, { sighashType: requestedSighashType });
+      }
 
       try {
         tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
@@ -488,16 +504,23 @@ export function completePsbtWithInputValues(
 }
 
 /**
- * Validate signInputs parameter - ensure addresses belong to wallet
+ * Validate signInputs and bind each requested index to its actual prevout address
  */
 export function validateSignInputs(
   signInputs: Record<string, number[]>,
-  walletAddresses: string[]
+  walletAddresses: string[],
+  inputCount?: number,
+  inputAddresses?: Array<string | undefined>
 ): { valid: boolean; error?: string } {
-  const walletAddressSet = new Set(walletAddresses.map(a => a.toLowerCase()));
+  if (Object.keys(signInputs).length === 0) {
+    return { valid: false, error: 'signInputs must identify at least one input' };
+  }
+
+  const walletAddressSet = new Set(walletAddresses.map(normalizeAddressForComparison));
+  const seenIndices = new Set<number>();
 
   for (const address of Object.keys(signInputs)) {
-    if (!walletAddressSet.has(address.toLowerCase())) {
+    if (!walletAddressSet.has(normalizeAddressForComparison(address))) {
       return {
         valid: false,
         error: `Address ${address} is not in this wallet`,
@@ -505,11 +528,23 @@ export function validateSignInputs(
     }
 
     const indices = signInputs[address];
-    if (!Array.isArray(indices) || indices.some(i => !Number.isInteger(i) || i < 0)) {
-      return {
-        valid: false,
-        error: `Invalid input indices for address ${address}`,
-      };
+    if (!Array.isArray(indices) || indices.length === 0) {
+      return { valid: false, error: `No input indices provided for address ${address}` };
+    }
+    for (const index of indices) {
+      if (!Number.isSafeInteger(index) || index < 0 || (inputCount !== undefined && index >= inputCount)) {
+        return { valid: false, error: `Invalid input index ${index} for address ${address}` };
+      }
+      if (seenIndices.has(index)) {
+        return { valid: false, error: `Input index ${index} was requested more than once` };
+      }
+      if (inputAddresses) {
+        const inputAddress = inputAddresses[index];
+        if (!inputAddress || normalizeAddressForComparison(inputAddress) !== normalizeAddressForComparison(address)) {
+          return { valid: false, error: `Input index ${index} does not belong to address ${address}` };
+        }
+      }
+      seenIndices.add(index);
     }
   }
 
