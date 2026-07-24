@@ -303,7 +303,11 @@ describe('ConnectionService', () => {
 
       expect(mockApprovalService.requestApproval).toHaveBeenCalledWith(
         expect.objectContaining({
-          params: [{ capabilities: { pairedAddresses: true } }],
+          params: [{
+            capabilities: { pairedAddresses: true },
+            address: 'bc1qactive',
+            walletId: 'wallet-123',
+          }],
         })
       );
       expect(mockUpdateSettings).toHaveBeenCalledWith({

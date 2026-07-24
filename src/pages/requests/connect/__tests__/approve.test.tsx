@@ -213,7 +213,12 @@ describe('ApproveConnection', () => {
         isLoading: false,
       });
       approvalMocks.getCurrentApproval.mockReturnValue({
-        params: [{ capabilities: { pairedAddresses: true } }],
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
       });
       approvalMocks.getPairedAddresses.mockResolvedValue({
         legacy: { address: '1legacy', pubKey: '02aa', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
@@ -227,9 +232,31 @@ describe('ApproveConnection', () => {
       await waitFor(() => {
         expect(screen.getByText(/Legacy: 1legacy/)).toBeInTheDocument();
         expect(screen.getByText(/SegWit: bc1qsegwit/)).toBeInTheDocument();
+        expect(checkbox).toBeEnabled();
       });
     });
 
+    it('blocks approval if the active wallet identity changed', async () => {
+      setupWalletContext({
+        activeWallet: { id: 'different-wallet' },
+        activeAddress: { address: 'bc1qdifferent' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
+      });
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/active address changed/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect/i })).toBeDisabled();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    });
     it('should display the origin domain in approval UI', () => {
       setupWalletContext({
         activeWallet: { id: 'test-wallet' },

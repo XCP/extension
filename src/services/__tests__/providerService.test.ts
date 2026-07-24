@@ -200,7 +200,7 @@ describe('ProviderService', () => {
       removeWallet: vi.fn(),
       getPreviewAddressForFormat: vi.fn(),
       getPairedAddresses: vi.fn().mockResolvedValue({
-        legacy: { address: '1legacy', pubKey: '02bb', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
+        legacy: { address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', pubKey: '02bb', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
         segwit: { address: 'bc1qtest123', pubKey: '02aa', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
       }),
       signTransaction: vi.fn(),
@@ -439,7 +439,7 @@ describe('ProviderService', () => {
         ) as any;
 
         expect(result.active.address).toBe('bc1qtest123');
-        expect(result.legacy.address).toBe('1legacy');
+        expect(result.legacy.address).toBe('1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7');
         expect(result.segwit.address).toBe('bc1qtest123');
         expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
           'https://connected.com',
@@ -717,6 +717,18 @@ describe('ProviderService', () => {
     });
 
     describe('Sign PSBT Request', () => {
+      it('rejects an explicitly empty signer map before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs: {} }]
+        )).rejects.toThrow('at least one input');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
       it('rejects unknown signer addresses before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);
@@ -761,7 +773,7 @@ describe('ProviderService', () => {
         await expect(providerService.handleRequest(
           'https://test.com',
           'xcp_signPsbt',
-          [{ hex: VALID_PSBT_HEX, signInputs: { '1legacy': [0] } }]
+          [{ hex: VALID_PSBT_HEX, signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] } }]
         )).rejects.toThrow('Paired Legacy/SegWit address access has not been granted');
 
         expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();

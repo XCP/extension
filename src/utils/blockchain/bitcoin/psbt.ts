@@ -8,7 +8,7 @@
 import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { AddressFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 
 /**
@@ -111,7 +111,7 @@ export interface PsbtDetails {
   rawTxHex: string;
   inputs: DecodedInput[];
   outputs: DecodedOutput[];
-  /** Total input value (from witnessUtxo data in PSBT) */
+  /** Total input value from embedded witness or non-witness prevout data */
   totalInputValue: number;
   /** Total output value */
   totalOutputValue: number;
@@ -254,7 +254,12 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     const input = tx.getInput(i);
     if (input?.txid) {
       const txidHex = bytesToHex(input.txid);
-      const value = input.witnessUtxo?.amount ? Number(input.witnessUtxo.amount) : undefined;
+      const prevout = input.witnessUtxo
+        ?? (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined);
+      const value = prevout?.amount !== undefined ? Number(prevout.amount) : undefined;
+      const address = prevout?.script
+        ? decodeAddressFromScript(bytesToHex(prevout.script)) ?? undefined
+        : undefined;
 
       if (value !== undefined) {
         totalInputValue += value;
@@ -264,6 +269,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         index: i,
         txid: txidHex,
         vout: input.index ?? 0,
+        address,
         value,
         sighashType: input.sighashType,
       });
@@ -492,13 +498,18 @@ export function completePsbtWithInputValues(
 }
 
 /**
- * Validate signInputs parameter - ensure addresses belong to wallet
+ * Validate signInputs and bind each requested index to its actual prevout address
  */
 export function validateSignInputs(
   signInputs: Record<string, number[]>,
   walletAddresses: string[],
-  inputCount?: number
+  inputCount?: number,
+  inputAddresses?: Array<string | undefined>
 ): { valid: boolean; error?: string } {
+  if (Object.keys(signInputs).length === 0) {
+    return { valid: false, error: 'signInputs must identify at least one input' };
+  }
+
   const walletAddressSet = new Set(walletAddresses.map(normalizeAddressForComparison));
   const seenIndices = new Set<number>();
 
@@ -520,6 +531,12 @@ export function validateSignInputs(
       }
       if (seenIndices.has(index)) {
         return { valid: false, error: `Input index ${index} was requested more than once` };
+      }
+      if (inputAddresses) {
+        const inputAddress = inputAddresses[index];
+        if (!inputAddress || normalizeAddressForComparison(inputAddress) !== normalizeAddressForComparison(address)) {
+          return { valid: false, error: `Input index ${index} does not belong to address ${address}` };
+        }
       }
       seenIndices.add(index);
     }

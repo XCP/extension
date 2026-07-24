@@ -330,11 +330,22 @@ describe('validateSignInputs', () => {
     expect(duplicate.error).toContain('more than once');
   });
 
-  it('should handle empty signInputs', () => {
+  it('should reject an explicitly empty signInputs map', () => {
     const result = validateSignInputs({}, walletAddresses);
-    expect(result.valid).toBe(true);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('at least one input');
   });
 
+  it('should reject an input assigned to the wrong signer address', () => {
+    const result = validateSignInputs(
+      { 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0] },
+      walletAddresses,
+      1,
+      ['bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3']
+    );
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('does not belong');
+  });
   it('should handle multiple addresses', () => {
     const signInputs = {
       'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0],
@@ -386,6 +397,14 @@ describe('signPSBT', () => {
     const fixture = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
     const legacyKey = '07'.repeat(32);
     const segwitKey = '09'.repeat(32);
+
+    const details = extractPsbtDetails(fixture);
+    expect(details.inputs.map(input => input.value)).toEqual([546, 5000]);
+    expect(details.inputs.map(input => input.address)).toEqual([
+      '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+      'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
+    ]);
+    expect(details.fee).toBe(300);
 
     const legacySigned = signPSBT(fixture, legacyKey, [0], AddressFormat.P2PKH);
     const fullySigned = signPSBT(legacySigned, segwitKey, [1], AddressFormat.P2WPKH);

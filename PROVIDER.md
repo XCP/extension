@@ -149,6 +149,11 @@ const result = await xcpwallet.request({
 // { hex: '<signed PSBT hex>' }
 ```
 
+When `signInputs` is supplied, it must contain at least one input. Every index must be
+unique, in range, and assigned to the address found in that input's embedded prevout.
+The provider rejects mismatches before opening the approval popup. Omitting `signInputs`
+preserves the legacy best-effort behavior for the active address only.
+
 ### Broadcasting
 
 #### `xcp_broadcastTransaction`

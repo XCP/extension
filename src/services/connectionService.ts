@@ -155,7 +155,7 @@ export class ConnectionService extends BaseService {
         id: requestId,
         origin,
         method: 'xcp_requestAccounts',
-        params: [{ capabilities: { pairedAddresses } }],
+        params: [{ capabilities: { pairedAddresses }, address, walletId }],
         type: 'connection',
         metadata: {
           domain,
@@ -184,17 +184,12 @@ export class ConnectionService extends BaseService {
   private async storePairedAddressPermission(
     origin: string,
     walletId: string,
-    address: string,
-    granted: boolean
+    address: string
   ): Promise<void> {
     const walletService = getWalletService();
     const settings = await walletService.getSettings();
     const capabilities = { ...(settings.providerCapabilities ?? {}) };
-    if (granted) {
-      capabilities[origin] = { pairedAddresses: true, walletId, address };
-    } else {
-      delete capabilities[origin];
-    }
+    capabilities[origin] = { pairedAddresses: true, walletId, address };
     await walletService.updateSettings({ providerCapabilities: capabilities });
   }
 
@@ -208,7 +203,7 @@ export class ConnectionService extends BaseService {
     if (!result.approved || result.updatedParams?.pairedAddresses !== true) {
       throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'Paired address access was not granted');
     }
-    await this.storePairedAddressPermission(origin, walletId, address, true);
+    await this.storePairedAddressPermission(origin, walletId, address);
   }
 
   /**
@@ -277,7 +272,7 @@ export class ConnectionService extends BaseService {
       // Add to connected websites
       await getWalletService().addConnectedWebsite(origin);
       if (pairedAddresses && approval.updatedParams?.pairedAddresses === true) {
-        await this.storePairedAddressPermission(origin, walletId, address, true);
+        await this.storePairedAddressPermission(origin, walletId, address);
       }
 
       // Update cache

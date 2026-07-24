@@ -324,7 +324,8 @@ export function createProviderService(): ProviderService {
    *
    * Signing fails closed before approval storage: requested signer addresses
    * must be the active address or its exact sibling pair, input indices must be
-   * unique and in range, and paired signing requires the bound capability.
+   * unique and in range, each input prevout must match its claimed signer,
+   * and paired signing requires the bound capability.
    * This deliberately does not authorize other HD derivation indices.
    *
    * Resolve a connection request: return existing accounts if already connected,
@@ -804,7 +805,8 @@ export function createProviderService(): ProviderService {
             const validation = validateSignInputs(
               signInputs,
               allowedAddresses,
-              psbtDetails.inputs.length
+              psbtDetails.inputs.length,
+              psbtDetails.inputs.map(input => input.address)
             );
             if (!validation.valid) throw new Error(validation.error);
 

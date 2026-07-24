@@ -778,7 +778,10 @@ export class WalletManager {
    */
   public getSettings(): AppSettings {
     if (!this.keychain) {
-      return { ...DEFAULT_SETTINGS };
+      return {
+        ...DEFAULT_SETTINGS,
+        providerCapabilities: { ...(DEFAULT_SETTINGS.providerCapabilities ?? {}) },
+      };
     }
     // DEFAULT_SETTINGS first backfills fields missing from keychains created
     // under an older schema; stored values override. Copy to prevent mutation.
@@ -786,6 +789,11 @@ export class WalletManager {
       ...DEFAULT_SETTINGS,
       ...this.keychain.settings,
       connectedWebsites: [...(this.keychain.settings.connectedWebsites || [])],
+      providerCapabilities: Object.fromEntries(
+        Object.entries(this.keychain.settings.providerCapabilities ?? {}).map(
+          ([origin, capability]) => [origin, { ...capability }]
+        )
+      ),
       pinnedAssets: [...(this.keychain.settings.pinnedAssets || [])],
     };
   }

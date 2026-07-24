@@ -178,7 +178,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     };
 
     loadRequest();
-  }, [requestId, decodePsbt]);
+  }, [requestId, decodePsbt, signerAddress]);
 
   // Listen for navigation messages from background
   useEffect(() => {
@@ -205,7 +205,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     return () => {
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
-  }, [decodePsbt]);
+  }, [decodePsbt, signerAddress]);
 
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedPsbtHex: string) => {
