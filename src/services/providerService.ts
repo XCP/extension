@@ -28,6 +28,7 @@ import {
   removeSignFlow,
 } from '@/utils/provider/signFlow';
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { extractPsbtDetails, validateSignInputs } from '@/utils/blockchain/bitcoin/psbt';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
 import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
@@ -35,6 +36,8 @@ import { openExtensionPopup } from '@/utils/popup';
 import { generateRequestId } from '@/utils/id';
 import { keychainExists } from '@/utils/storage/walletStorage';
 import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
+import { getPairedAddressFormats } from '@/utils/wallet/addressDeriver';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -312,6 +315,18 @@ export function createProviderService(): ProviderService {
   }
 
   /**
+   * ADR-018: Paired-address provider capability
+   *
+   * A connection authorizes only its active address. A dApp may opt in to the
+   * active derivation index's Legacy/SegWit sibling pair through explicit,
+   * unchecked-by-default consent. The grant is bound to origin, wallet ID, and
+   * active address, and is removed on disconnect.
+   *
+   * Signing fails closed before approval storage: requested signer addresses
+   * must be the active address or its exact sibling pair, input indices must be
+   * unique and in range, and paired signing requires the bound capability.
+   * This deliberately does not authorize other HD derivation indices.
+   *
    * Resolve a connection request: return existing accounts if already connected,
    * otherwise connect and build the response. onBeforeConnect runs only for a
    * new connection (after the already-connected check, before connect).
@@ -565,18 +580,15 @@ export function createProviderService(): ProviderService {
             activeWallet.id,
             activeAddress.address
           );
-          if (!paired) {
-            return {
-              active: {
-                address: activeAddress.address,
-                publicKey: activeAddress.pubKey,
-                type: activeWallet.addressFormat,
-              },
-            };
-          }
+          const active = {
+            address: activeAddress.address,
+            publicKey: activeAddress.pubKey,
+            type: activeWallet.addressFormat,
+          };
+          if (!paired) return { active };
           const addresses = await walletService.getPairedAddresses();
           return {
-            active: activeAddress.address === addresses.legacy.address ? 'legacy' : 'segwit',
+            active,
             legacy: {
               address: addresses.legacy.address,
               publicKey: addresses.legacy.pubKey,
@@ -768,46 +780,56 @@ export function createProviderService(): ProviderService {
             throw new Error('No active address');
           }
 
-          if (signInputs) {
-            const seenInputs = new Set<number>();
-            for (const indices of Object.values(signInputs)) {
-              if (!Array.isArray(indices) || indices.length === 0) {
-                throw new Error('Each signInputs entry must contain input indices');
-              }
-              for (const index of indices) {
-                if (!Number.isSafeInteger(index) || index < 0 || seenInputs.has(index)) {
-                  throw new Error('signInputs contains an invalid or duplicate input index');
-                }
-                seenInputs.add(index);
-              }
-            }
-            const supportsPairedAddresses = [
-              'counterwallet',
-              'counterwallet-segwit',
-              'freewallet-bip39',
-              'freewallet-bip39-segwit',
-              'p2pkh',
-              'p2wpkh',
-            ].includes(activeWallet.addressFormat);
-            if (activeWallet.type === 'mnemonic' && supportsPairedAddresses) {
-              const paired = await walletService.getPairedAddresses();
-              const pairedAddresses = new Set([paired.legacy.address, paired.segwit.address]);
-              const usesPairedAddress = Object.keys(signInputs).some(
-                address => address !== activeAddress.address && pairedAddresses.has(address)
-              );
-              if (usesPairedAddress && !await connectionService.hasPairedAddressPermission(
-                origin,
-                activeWallet.id,
-                activeAddress.address
-              )) {
-                throw new ProviderError(
-                  PROVIDER_ERROR_CODES.UNAUTHORIZED,
-                  'Paired Legacy/SegWit address access has not been granted'
-                );
-              }
-            }
+          const psbtDetails = extractPsbtDetails(psbtHex);
+          if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
+            throw new Error('sighashTypes contains more entries than the PSBT has inputs');
+          }
+          if (sighashTypes?.some(
+            (value, index) => value === 0x83 && index >= psbtDetails.outputs.length
+          )) {
+            throw new Error('SIGHASH_SINGLE requires an output at the same index');
           }
 
+          if (signInputs) {
+            const supportsPairedAddresses = Boolean(
+              getPairedAddressFormats(activeWallet.addressFormat)
+            );
+            const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
+              ? await walletService.getPairedAddresses()
+              : null;
+            const allowedAddresses = [
+              activeAddress.address,
+              ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
+            ];
+            const validation = validateSignInputs(
+              signInputs,
+              allowedAddresses,
+              psbtDetails.inputs.length
+            );
+            if (!validation.valid) throw new Error(validation.error);
+
+            const pairedAddressSet = new Set(
+              paired
+                ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
+                : []
+            );
+            const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+            const usesPairedAddress = Object.keys(signInputs).some(address => {
+              const normalizedAddress = normalizeAddressForComparison(address);
+              return normalizedAddress !== normalizedActiveAddress
+                && pairedAddressSet.has(normalizedAddress);
+            });
+            if (usesPairedAddress && !await connectionService.hasPairedAddressPermission(
+              origin,
+              activeWallet.id,
+              activeAddress.address
+            )) {
+              throw new ProviderError(
+                PROVIDER_ERROR_CODES.UNAUTHORIZED,
+                'Paired Legacy/SegWit address access has not been granted'
+              );
+            }
+          }
           return runSignFlow({
             origin,
             method,

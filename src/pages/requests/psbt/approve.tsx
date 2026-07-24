@@ -13,6 +13,7 @@ import { useHeader } from '@/contexts/header-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
@@ -231,8 +232,21 @@ export default function ApprovePsbtPage() {
     })
   );
   const usesPairedAddress = requestedAddressSpends.some(
-    ({ address }) => address !== activeAddress.address
+    ({ address }) => normalizeAddressForComparison(address)
+      !== normalizeAddressForComparison(activeAddress.address)
   );
+  const requestedSignerSet = new Set(
+    requestedAddressSpends.map(({ address }) => normalizeAddressForComparison(address))
+  );
+  const spendableOutputs = psbtDetails.outputs.filter(output => output.type !== 'op_return');
+  const externalOutputValue = spendableOutputs.every(output => Boolean(output.address))
+    ? spendableOutputs.reduce(
+        (sum, output) => requestedSignerSet.has(normalizeAddressForComparison(output.address!))
+          ? sum
+          : sum + output.value,
+        0
+      )
+    : null;
 
   // Detect swap buy PSBT fee breakdown (buyer completing a swap):
   // The PSBT has the seller's ANYONECANPAY input, but the USER is not signing
@@ -303,9 +317,14 @@ export default function ApprovePsbtPage() {
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs font-medium text-blue-900">
-                Network fee: {psbtDetails.fee.toLocaleString()} sats
-              </p>
+              <div className="mt-3 flex justify-between text-xs font-medium text-blue-900">
+                <span>Network fee: {psbtDetails.fee.toLocaleString()} sats</span>
+                <span>
+                  External BTC: {externalOutputValue === null
+                    ? 'unknown'
+                    : `${externalOutputValue.toLocaleString()} sats`}
+                </span>
+              </div>
             </div>
           )}
 

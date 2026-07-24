@@ -181,7 +181,7 @@ it returns the corresponding P2PKH and P2WPKH addresses and public keys.
 
 ```js
 const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
-// { active: 'segwit', legacy: {...}, segwit: {...} }
+// { active: {...}, legacy: {...}, segwit: {...} }
 ```
 
 #### `xcp_chainId`

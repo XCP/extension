@@ -261,6 +261,14 @@ describe('validateSignInputs', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('keeps Base58 address comparison case-sensitive', () => {
+    const result = validateSignInputs(
+      { '1legacycase': [0] },
+      ['1LegacyCase']
+    );
+    expect(result.valid).toBe(false);
+  });
+
   it('should reject unknown addresses', () => {
     const signInputs = {
       'bc1qunknownaddress': [0],
@@ -278,7 +286,7 @@ describe('validateSignInputs', () => {
 
     const result = validateSignInputs(signInputs, walletAddresses);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain('Invalid input indices');
+    expect(result.error).toContain('Invalid input index');
   });
 
   it('should reject non-integer indices', () => {
@@ -297,6 +305,29 @@ describe('validateSignInputs', () => {
 
     const result = validateSignInputs(signInputs, walletAddresses);
     expect(result.valid).toBe(false);
+  });
+
+  it('should reject empty index arrays', () => {
+    const result = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [],
+    }, walletAddresses, 1);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('No input indices');
+  });
+
+  it('should reject out-of-range and duplicate indices', () => {
+    const outOfRange = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [2],
+    }, walletAddresses, 2);
+    expect(outOfRange.valid).toBe(false);
+    expect(outOfRange.error).toContain('Invalid input index');
+
+    const duplicate = validateSignInputs({
+      'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4': [0],
+      'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3': [0],
+    }, walletAddresses, 1);
+    expect(duplicate.valid).toBe(false);
+    expect(duplicate.error).toContain('more than once');
   });
 
   it('should handle empty signInputs', () => {

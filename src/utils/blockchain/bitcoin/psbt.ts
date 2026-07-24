@@ -8,7 +8,7 @@
 import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 
 /**
@@ -496,12 +496,14 @@ export function completePsbtWithInputValues(
  */
 export function validateSignInputs(
   signInputs: Record<string, number[]>,
-  walletAddresses: string[]
+  walletAddresses: string[],
+  inputCount?: number
 ): { valid: boolean; error?: string } {
-  const walletAddressSet = new Set(walletAddresses.map(a => a.toLowerCase()));
+  const walletAddressSet = new Set(walletAddresses.map(normalizeAddressForComparison));
+  const seenIndices = new Set<number>();
 
   for (const address of Object.keys(signInputs)) {
-    if (!walletAddressSet.has(address.toLowerCase())) {
+    if (!walletAddressSet.has(normalizeAddressForComparison(address))) {
       return {
         valid: false,
         error: `Address ${address} is not in this wallet`,
@@ -509,11 +511,17 @@ export function validateSignInputs(
     }
 
     const indices = signInputs[address];
-    if (!Array.isArray(indices) || indices.some(i => !Number.isInteger(i) || i < 0)) {
-      return {
-        valid: false,
-        error: `Invalid input indices for address ${address}`,
-      };
+    if (!Array.isArray(indices) || indices.length === 0) {
+      return { valid: false, error: `No input indices provided for address ${address}` };
+    }
+    for (const index of indices) {
+      if (!Number.isSafeInteger(index) || index < 0 || (inputCount !== undefined && index >= inputCount)) {
+        return { valid: false, error: `Invalid input index ${index} for address ${address}` };
+      }
+      if (seenIndices.has(index)) {
+        return { valid: false, error: `Input index ${index} was requested more than once` };
+      }
+      seenIndices.add(index);
     }
   }
 

@@ -16,7 +16,7 @@ import {
   DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/encryption';
 import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
 import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
@@ -1384,10 +1384,15 @@ export class WalletManager {
         ? await this.getPairedAddresses()
         : null;
       for (const [address, inputIndices] of Object.entries(signInputs)) {
+        const normalizedAddress = normalizeAddressForComparison(address);
         const pairedTarget = paired
-          ? [paired.legacy, paired.segwit].find(addr => addr.address === address)
+          ? [paired.legacy, paired.segwit].find(
+              addr => normalizeAddressForComparison(addr.address) === normalizedAddress
+            )
           : undefined;
-        const targetAddress = wallet.addresses.find(addr => addr.address === address) ?? pairedTarget;
+        const targetAddress = wallet.addresses.find(
+          addr => normalizeAddressForComparison(addr.address) === normalizedAddress
+        ) ?? pairedTarget;
         if (!targetAddress) {
           throw new Error(`Address ${address} not found in wallet`);
         }

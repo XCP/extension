@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
 import { getApprovalService } from "@/services/approvalService";
+import { getWalletService } from "@/services/walletService";
+import { getPairedAddressFormats } from "@/utils/wallet/addressDeriver";
+import type { PairedAddresses } from "@/types/wallet";
 import type { ReactElement } from "react";
 
 /**
@@ -20,6 +23,7 @@ export default function ApproveConnectionPage(): ReactElement {
   const [faviconError, setFaviconError] = useState(false);
   const [pairedAddressesRequested, setPairedAddressesRequested] = useState(false);
   const [grantPairedAddresses, setGrantPairedAddresses] = useState(false);
+  const [pairedAddresses, setPairedAddresses] = useState<PairedAddresses | null>(null);
 
   const origin = searchParams.get("origin") || "";
   const requestId = searchParams.get("requestId") || "";
@@ -45,6 +49,20 @@ export default function ApproveConnectionPage(): ReactElement {
       setPairedAddressesRequested(requested);
     }).catch(() => setPairedAddressesRequested(false));
   }, [requestId]);
+
+  useEffect(() => {
+    if (
+      !pairedAddressesRequested ||
+      activeWallet?.type !== 'mnemonic' ||
+      !getPairedAddressFormats(activeWallet.addressFormat)
+    ) {
+      setPairedAddresses(null);
+      return;
+    }
+    getWalletService().getPairedAddresses()
+      .then(setPairedAddresses)
+      .catch(() => setPairedAddresses(null));
+  }, [pairedAddressesRequested, activeWallet]);
 
   // Configure header
   useEffect(() => {
@@ -178,14 +196,8 @@ export default function ApproveConnectionPage(): ReactElement {
             </ul>
           </div>
 
-          {pairedAddressesRequested && activeWallet.type === 'mnemonic' && [
-            'counterwallet',
-            'counterwallet-segwit',
-            'freewallet-bip39',
-            'freewallet-bip39-segwit',
-            'p2pkh',
-            'p2wpkh',
-          ].includes(activeWallet.addressFormat) && (
+          {pairedAddressesRequested && activeWallet.type === 'mnemonic' &&
+            getPairedAddressFormats(activeWallet.addressFormat) && (
             <label className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer">
               <input
                 type="checkbox"
@@ -201,6 +213,12 @@ export default function ApproveConnectionPage(): ReactElement {
                   This lets the site associate both addresses and request transactions using them.
                   Every transaction still requires approval. Access lasts until you disconnect the site.
                 </span>
+                {pairedAddresses && (
+                  <span className="mt-2 block space-y-1 text-xs text-blue-900">
+                    <span className="block break-all font-mono">Legacy: {pairedAddresses.legacy.address}</span>
+                    <span className="block break-all font-mono">SegWit: {pairedAddresses.segwit.address}</span>
+                  </span>
+                )}
               </span>
             </label>
           )}

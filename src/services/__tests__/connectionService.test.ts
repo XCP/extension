@@ -41,6 +41,7 @@ vi.mock('@/services/walletService', () => ({
     // Connected-website access delegates to the walletManager mock so existing
     // getSettings/updateSettings drivers and assertions keep working.
     getSettings: () => walletManager.getSettings(),
+    updateSettings: (updates: any) => walletManager.updateSettings(updates),
     addConnectedWebsite: async (origin: string) => {
       const s = walletManager.getSettings();
       if (!s.connectedWebsites.includes(origin)) {
@@ -284,6 +285,35 @@ describe('ConnectionService', () => {
       // Should save to storage
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://newsite.com'],
+      });
+    });
+
+    it('stores paired access only when explicitly requested and approved', async () => {
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+
+      await connectionService.connect(
+        'https://paired.com',
+        'bc1qactive',
+        'wallet-123',
+        true
+      );
+
+      expect(mockApprovalService.requestApproval).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: [{ capabilities: { pairedAddresses: true } }],
+        })
+      );
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
+        providerCapabilities: {
+          'https://paired.com': {
+            pairedAddresses: true,
+            walletId: 'wallet-123',
+            address: 'bc1qactive',
+          },
+        },
       });
     });
 

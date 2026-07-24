@@ -160,6 +160,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Rate limiting per origin | Tiered: 5 connections, 10 transactions, 100 API calls/min |
 | ✅ | Global rate limit | 500 requests/min backstop |
 | ✅ | Queue size limits | Max 100 pending requests, 10 per origin |
+| ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
+| ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address |
+| ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded |
 
 ## Transaction Security
 
@@ -308,6 +311,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-015 | Unified keychain architecture | [walletManager.ts](src/utils/wallet/walletManager.ts) |
 | ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/utils/fathom.ts) |
 | ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/utils/hardware/trezorAdapter.ts) |
+| ADR-018 | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
 
 ---
 
@@ -319,7 +323,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
 | Extension | 10 | 1 | 0 | 2 |
-| Provider API | 8 | 0 | 0 | 0 |
+| Provider API | 11 | 0 | 0 | 0 |
 | Transaction | 5 | 0 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
@@ -327,6 +331,6 @@ This is not true constant-time code. For higher-security applications, constant-
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **79** | **5** | **2** | **11** |
+| **Total** | **82** | **5** | **2** | **11** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
