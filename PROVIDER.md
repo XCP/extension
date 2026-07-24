@@ -144,7 +144,7 @@ const result = await xcpwallet.request({
   params: [{
     hex: '<PSBT hex>',
     signInputs: { 'bc1q...': [0, 1] },  // optional: which inputs to sign
-    sighashTypes: [0x01]                  // optional: sighash types
+    sighashTypes: [0x01, 0x01]            // optional: one entry per signed PSBT input index
   }]
 });
 // { hex: '<signed PSBT hex>' }
@@ -154,6 +154,11 @@ When `signInputs` is supplied, it must contain at least one input. Every index m
 unique, in range, and assigned to the address found in that input's embedded prevout.
 The provider rejects mismatches before opening the approval popup. Omitting `signInputs`
 preserves the legacy best-effort behavior for the active address only.
+
+`sighashTypes` is indexed by absolute PSBT input index, not by `signInputs` entry
+or subset order. When supplied, it must cover every input the wallet is asked to
+sign; missing entries are rejected rather than silently defaulted. Prefer setting
+the standard `sighashType` field on each PSBT input and omitting this override.
 
 ### Broadcasting
 

@@ -803,6 +803,18 @@ describe('ProviderService', () => {
 
         expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
       });
+      it('rejects a short sighash override instead of silently falling back', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, sighashTypes: [0x01] }]
+        )).rejects.toThrow('indexed by absolute PSBT input index and is missing entries for inputs: 1');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
       it('should handle xcp_signPsbt with proper storage', async () => {
         // Mock connection service to return true
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();

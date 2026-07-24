@@ -837,6 +837,19 @@ export function createProviderService(): ProviderService {
               );
             }
           }
+          if (sighashTypes !== undefined) {
+            const requestedInputIndices = signInputs === undefined
+              ? Array.from({ length: psbtDetails.inputs.length }, (_, index) => index)
+              : Object.values(signInputs).flat();
+            const missingInputIndices = requestedInputIndices.filter(
+              index => sighashTypes[index] === undefined
+            );
+            if (missingInputIndices.length > 0) {
+              throw new Error(
+                `sighashTypes is indexed by absolute PSBT input index and is missing entries for inputs: ${missingInputIndices.join(', ')}`
+              );
+            }
+          }
           return runSignFlow({
             origin,
             method,
