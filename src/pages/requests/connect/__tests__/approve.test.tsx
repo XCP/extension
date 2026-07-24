@@ -34,6 +34,7 @@ vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => ({
     resolveApproval: vi.fn(),
     rejectApproval: vi.fn(),
+    getCurrentApproval: vi.fn().mockReturnValue(null),
   }),
 }));
 

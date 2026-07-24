@@ -26,6 +26,7 @@ import {
   deriveMnemonicAddress,
   deriveAddressFromPrivateKey,
   deriveAddressesFromSecret,
+  getPairedAddressFormats,
 } from '@/utils/wallet/addressDeriver';
 import { KEYCHAIN_VERSION, encryptKeychainRecord, decryptKeychain } from '@/utils/wallet/keychainCrypto';
 import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider, type AppSettings } from '@/utils/settings';
@@ -36,7 +37,7 @@ import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValue
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
+import type { Address, PairedAddresses, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
@@ -1139,6 +1140,28 @@ export class WalletManager {
     }
   }
 
+  public async getPairedAddresses(): Promise<PairedAddresses> {
+    if (!this.activeWalletId) throw new Error('No active wallet set');
+    const wallet = this.getWalletById(this.activeWalletId);
+    if (!wallet || wallet.type !== 'mnemonic') {
+      throw new Error('Paired addresses are available only for mnemonic wallets');
+    }
+    const formats = getPairedAddressFormats(wallet.addressFormat);
+    if (!formats) throw new Error('The active address format has no paired Legacy/SegWit format');
+    const activeAddress = wallet.addresses.find(
+      address => address.address === this.getSettings().lastActiveAddress
+    ) ?? wallet.addresses[0];
+    if (!activeAddress) throw new Error('No active address');
+    const index = Number(activeAddress.path.split('/').at(-1));
+    if (!Number.isSafeInteger(index) || index < 0) throw new Error('Invalid active derivation index');
+    const secret = await sessionManager.getUnlockedSecret(wallet.id);
+    if (!secret) throw new Error('Wallet is locked');
+    return {
+      legacy: { ...deriveMnemonicAddress(secret, formats.legacy, index), format: formats.legacy, type: 'p2pkh' },
+      segwit: { ...deriveMnemonicAddress(secret, formats.segwit, index), format: formats.segwit, type: 'p2wpkh' },
+    };
+  }
+
   /**
    * Get an initialized Trezor adapter for a hardware wallet.
    *
@@ -1357,18 +1380,29 @@ export class WalletManager {
     if (signInputs && Object.keys(signInputs).length > 0) {
       let signedPsbtHex = psbtHex;
 
+      const paired = wallet.type === 'mnemonic' && getPairedAddressFormats(wallet.addressFormat)
+        ? await this.getPairedAddresses()
+        : null;
       for (const [address, inputIndices] of Object.entries(signInputs)) {
-        const targetAddress = wallet.addresses.find(addr => addr.address === address);
+        const pairedTarget = paired
+          ? [paired.legacy, paired.segwit].find(addr => addr.address === address)
+          : undefined;
+        const targetAddress = wallet.addresses.find(addr => addr.address === address) ?? pairedTarget;
         if (!targetAddress) {
           throw new Error(`Address ${address} not found in wallet`);
         }
 
-        const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
+        const targetFormat = pairedTarget?.format ?? wallet.addressFormat;
+        const secret = await sessionManager.getUnlockedSecret(wallet.id);
+        if (!secret) throw new Error('Wallet is locked');
+        const privateKeyHex = targetFormat === wallet.addressFormat
+          ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
+          : getPrivateKeyFromMnemonic(secret, targetAddress.path, targetFormat);
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,
-          privateKeyResult.hex,
+          privateKeyHex,
           inputIndices,
-          wallet.addressFormat,
+          targetFormat,
           sighashTypes
         );
       }

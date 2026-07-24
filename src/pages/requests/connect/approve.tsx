@@ -18,6 +18,8 @@ export default function ApproveConnectionPage(): ReactElement {
   const { setHeaderProps } = useHeader();
   const [isProcessing, setIsProcessing] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
+  const [pairedAddressesRequested, setPairedAddressesRequested] = useState(false);
+  const [grantPairedAddresses, setGrantPairedAddresses] = useState(false);
 
   const origin = searchParams.get("origin") || "";
   const requestId = searchParams.get("requestId") || "";
@@ -34,6 +36,15 @@ export default function ApproveConnectionPage(): ReactElement {
 
   const domain = getDomain(origin);
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+  useEffect(() => {
+    if (!requestId) return;
+    const approvalService = getApprovalService();
+    Promise.resolve(approvalService.getCurrentApproval()).then((approval) => {
+      const requested = approval?.params?.[0]?.capabilities?.pairedAddresses === true;
+      setPairedAddressesRequested(requested);
+    }).catch(() => setPairedAddressesRequested(false));
+  }, [requestId]);
 
   // Configure header
   useEffect(() => {
@@ -57,7 +68,10 @@ export default function ApproveConnectionPage(): ReactElement {
     try {
       // Resolve approval via ApprovalService proxy
       const approvalService = getApprovalService();
-      await approvalService.resolveApproval(requestId, { approved: true });
+      await approvalService.resolveApproval(requestId, {
+        approved: true,
+        updatedParams: { pairedAddresses: pairedAddressesRequested && grantPairedAddresses },
+      });
       // Close the popup
       window.close();
     } catch (error) {
@@ -163,6 +177,33 @@ export default function ApproveConnectionPage(): ReactElement {
               </li>
             </ul>
           </div>
+
+          {pairedAddressesRequested && activeWallet.type === 'mnemonic' && [
+            'counterwallet',
+            'counterwallet-segwit',
+            'freewallet-bip39',
+            'freewallet-bip39-segwit',
+            'p2pkh',
+            'p2wpkh',
+          ].includes(activeWallet.addressFormat) && (
+            <label className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={grantPairedAddresses}
+                onChange={(event) => setGrantPairedAddresses(event.target.checked)}
+                className="mt-1 size-4"
+              />
+              <span>
+                <span className="block text-sm font-medium text-blue-900">
+                  Share paired Legacy and SegWit addresses
+                </span>
+                <span className="mt-1 block text-xs text-blue-800">
+                  This lets the site associate both addresses and request transactions using them.
+                  Every transaction still requires approval. Access lasts until you disconnect the site.
+                </span>
+              </span>
+            </label>
+          )}
         </div>
       </div>
 

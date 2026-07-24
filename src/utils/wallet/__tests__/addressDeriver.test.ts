@@ -5,6 +5,7 @@ import {
   deriveMnemonicAddress,
   deriveAddressFromPrivateKey,
   deriveAddressesFromSecret,
+  getPairedAddressFormats,
 } from '../addressDeriver';
 import {
   getAddressFromMnemonic,
@@ -21,6 +22,21 @@ const MNEMONIC =
 const PRIV_HEX = '0000000000000000000000000000000000000000000000000000000000000001';
 
 describe('addressDeriver', () => {
+  describe('getPairedAddressFormats', () => {
+    it('pairs only supported Legacy and native SegWit formats', () => {
+      expect(getPairedAddressFormats(AddressFormat.Counterwallet)).toEqual({
+        legacy: AddressFormat.Counterwallet,
+        segwit: AddressFormat.CounterwalletSegwit,
+      });
+      expect(getPairedAddressFormats(AddressFormat.P2WPKH)).toEqual({
+        legacy: AddressFormat.P2PKH,
+        segwit: AddressFormat.P2WPKH,
+      });
+      expect(getPairedAddressFormats(AddressFormat.P2TR)).toBeNull();
+      expect(getPairedAddressFormats(AddressFormat.P2SH_P2WPKH)).toBeNull();
+    });
+  });
+
   describe('deriveMnemonicAddress', () => {
     it('derives the same address as getAddressFromMnemonic at the indexed path', () => {
       for (const format of [AddressFormat.P2WPKH, AddressFormat.P2PKH, AddressFormat.P2TR]) {

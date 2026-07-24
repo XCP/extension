@@ -316,7 +316,11 @@ export function createProviderService(): ProviderService {
    * otherwise connect and build the response. onBeforeConnect runs only for a
    * new connection (after the already-connected check, before connect).
    */
-  async function completeConnection(origin: string, onBeforeConnect?: () => Promise<void>) {
+  async function completeConnection(
+    origin: string,
+    pairedAddresses = false,
+    onBeforeConnect?: () => Promise<void>
+  ) {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
 
@@ -327,12 +331,24 @@ export function createProviderService(): ProviderService {
     }
 
     if (await connectionService.hasPermission(origin)) {
+      if (pairedAddresses) {
+        await connectionService.requestPairedAddressPermission(
+          origin,
+          activeAddress.address,
+          activeWallet.id
+        );
+      }
       return buildConnectResponse(origin, await getAccounts(origin));
     }
 
     await onBeforeConnect?.();
 
-    const accounts = await connectionService.connect(origin, activeAddress.address, activeWallet.id);
+    const accounts = await connectionService.connect(
+      origin,
+      activeAddress.address,
+      activeWallet.id,
+      pairedAddresses
+    );
     await analytics.track('connection_established');
     return buildConnectResponse(origin, accounts);
   }
@@ -403,6 +419,11 @@ export function createProviderService(): ProviderService {
         // ==================== Connection Methods ====================
         
         case 'xcp_requestAccounts': {
+          const accountOptions = params?.[0] as {
+            capabilities?: { pairedAddresses?: boolean }
+          } | undefined;
+          const pairedAddresses = accountOptions?.capabilities?.pairedAddresses === true;
+
           // Check if keychain exists in storage (works even when locked)
           if (!await keychainExists()) {
             // Open popup for wallet setup and wait for onboarding to complete
@@ -426,7 +447,7 @@ export function createProviderService(): ProviderService {
 
                 // Continue with connection flow now that wallet exists
                 try {
-                  resolve(await completeConnection(origin));
+                  resolve(await completeConnection(origin, pairedAddresses));
                 } catch (error) {
                   reject(error);
                 }
@@ -486,7 +507,7 @@ export function createProviderService(): ProviderService {
 
                 // Continue with connection flow
                 try {
-                  resolve(await completeConnection(origin));
+                  resolve(await completeConnection(origin, pairedAddresses));
                 } catch (error) {
                   reject(error);
                 }
@@ -504,7 +525,7 @@ export function createProviderService(): ProviderService {
           }
 
           // CSP analysis (warning mode only) runs just before a new connection.
-          return completeConnection(origin, async () => {
+          return completeConnection(origin, pairedAddresses, async () => {
             let cspHostname = origin;
             try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
 
@@ -532,6 +553,43 @@ export function createProviderService(): ProviderService {
           return getAccounts(origin);
         }
         
+        case 'xcp_getAddresses': {
+          if (!await connectionService.hasPermission(origin)) {
+            throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Unauthorized - not connected to wallet');
+          }
+          const activeAddress = await walletService.getActiveAddress();
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) throw new Error('No active address');
+          const paired = await connectionService.hasPairedAddressPermission(
+            origin,
+            activeWallet.id,
+            activeAddress.address
+          );
+          if (!paired) {
+            return {
+              active: {
+                address: activeAddress.address,
+                publicKey: activeAddress.pubKey,
+                type: activeWallet.addressFormat,
+              },
+            };
+          }
+          const addresses = await walletService.getPairedAddresses();
+          return {
+            active: activeAddress.address === addresses.legacy.address ? 'legacy' : 'segwit',
+            legacy: {
+              address: addresses.legacy.address,
+              publicKey: addresses.legacy.pubKey,
+              type: addresses.legacy.type,
+            },
+            segwit: {
+              address: addresses.segwit.address,
+              publicKey: addresses.segwit.pubKey,
+              type: addresses.segwit.type,
+            },
+          };
+        }
+
         case 'xcp_chainId': {
           return '0x0'; // Bitcoin mainnet
         }
@@ -690,6 +748,13 @@ export function createProviderService(): ProviderService {
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
           }
+          if (sighashTypes !== undefined) {
+            if (!Array.isArray(sighashTypes) || sighashTypes.some(
+              value => ![0x01, 0x81, 0x83].includes(value)
+            )) {
+              throw new Error('Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
+            }
+          }
 
           // Check if connected
           if (!await connectionService.hasPermission(origin)) {
@@ -701,6 +766,46 @@ export function createProviderService(): ProviderService {
           const activeWallet = await walletService.getActiveWallet();
           if (!activeAddress || !activeWallet) {
             throw new Error('No active address');
+          }
+
+          if (signInputs) {
+            const seenInputs = new Set<number>();
+            for (const indices of Object.values(signInputs)) {
+              if (!Array.isArray(indices) || indices.length === 0) {
+                throw new Error('Each signInputs entry must contain input indices');
+              }
+              for (const index of indices) {
+                if (!Number.isSafeInteger(index) || index < 0 || seenInputs.has(index)) {
+                  throw new Error('signInputs contains an invalid or duplicate input index');
+                }
+                seenInputs.add(index);
+              }
+            }
+            const supportsPairedAddresses = [
+              'counterwallet',
+              'counterwallet-segwit',
+              'freewallet-bip39',
+              'freewallet-bip39-segwit',
+              'p2pkh',
+              'p2wpkh',
+            ].includes(activeWallet.addressFormat);
+            if (activeWallet.type === 'mnemonic' && supportsPairedAddresses) {
+              const paired = await walletService.getPairedAddresses();
+              const pairedAddresses = new Set([paired.legacy.address, paired.segwit.address]);
+              const usesPairedAddress = Object.keys(signInputs).some(
+                address => address !== activeAddress.address && pairedAddresses.has(address)
+              );
+              if (usesPairedAddress && !await connectionService.hasPairedAddressPermission(
+                origin,
+                activeWallet.id,
+                activeAddress.address
+              )) {
+                throw new ProviderError(
+                  PROVIDER_ERROR_CODES.UNAUTHORIZED,
+                  'Paired Legacy/SegWit address access has not been granted'
+                );
+              }
+            }
           }
 
           return runSignFlow({

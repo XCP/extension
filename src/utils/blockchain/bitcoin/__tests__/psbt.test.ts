@@ -351,6 +351,40 @@ describe('signPSBT', () => {
     expect(input.partialSig).toBeDefined();
   });
 
+  it('signs the real cross-format move fixture with both owned keys', () => {
+    const fixture = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+    const legacyKey = '07'.repeat(32);
+    const segwitKey = '09'.repeat(32);
+
+    const legacySigned = signPSBT(fixture, legacyKey, [0], AddressFormat.P2PKH);
+    const fullySigned = signPSBT(legacySigned, segwitKey, [1], AddressFormat.P2WPKH);
+    const tx = parsePSBT(fullySigned);
+
+    expect(tx.getInput(0).partialSig).toHaveLength(1);
+    expect(tx.getInput(1).partialSig).toHaveLength(1);
+  });
+
+  it('signs one legacy and two SegWit inputs in the widest move fixture', () => {
+    const fixture = '70736274ff0100c30200000003c3b06ae77edf2257a11304daa647b7ce6b90067ab7f826b56b4bdefbee80efd70000000000ffffffff617293be2b6167deb093829b9baac25555216b354542cc09e8b6898102bc49480000000000ffffffff7da32ac879b629c42dd63c60d330b4aa464ed7c0e1b59219dd38d3afe0a00b500000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e76009000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000104040404040404040404040404040404040404040404040404040404040404040000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011fb004000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70001011fdc05000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+    const legacySigned = signPSBT(fixture, '07'.repeat(32), [0], AddressFormat.P2PKH);
+    const fullySigned = signPSBT(legacySigned, '09'.repeat(32), [1, 2], AddressFormat.P2WPKH);
+    const tx = parsePSBT(fullySigned);
+
+    expect(tx.getInput(0).partialSig).toHaveLength(1);
+    expect(tx.getInput(1).partialSig).toHaveLength(1);
+    expect(tx.getInput(2).partialSig).toHaveLength(1);
+  });
+
+  it('sets SIGHASH_SINGLE|ANYONECANPAY on the listing fixture', () => {
+    const fixture = '70736274ff010055020000000186eeddc08bc258a9dd8bdce62058d76b0355c2173ba744ce5c971d94ed1c43af0000000000ffffffff0190d00300000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac0000000000010055020000000103030303030303030303030303030303030303030303030303030303030303030000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000000';
+    const signed = signPSBT(fixture, '07'.repeat(32), [0], AddressFormat.P2PKH, [0x83]);
+    const input = parsePSBT(signed).getInput(0);
+
+    expect(input.sighashType).toBe(0x83);
+    expect(input.partialSig).toHaveLength(1);
+    expect(input.partialSig?.[0][1].at(-1)).toBe(0x83);
+  });
+
   it('should throw on invalid private key', () => {
     const psbtHex = createTestPsbt();
 

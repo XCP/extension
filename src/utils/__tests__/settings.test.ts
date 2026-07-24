@@ -172,6 +172,7 @@ describe('DEFAULT_SETTINGS', () => {
       'lastActiveWalletId',
       'pinnedAssets',
       'priceUnit',
+      'providerCapabilities',
       'showHelpText',
       'strictTransactionVerification',
       'transactionDryRun',

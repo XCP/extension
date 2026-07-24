@@ -15,6 +15,25 @@ import {
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/utils/blockchain/bitcoin/privateKey';
 import type { Address, WalletRecord, HardwareWalletSecret } from '@/types/wallet';
 
+export function getPairedAddressFormats(addressFormat: AddressFormat): {
+  legacy: AddressFormat;
+  segwit: AddressFormat;
+} | null {
+  switch (addressFormat) {
+    case 'counterwallet':
+    case 'counterwallet-segwit':
+      return { legacy: 'counterwallet', segwit: 'counterwallet-segwit' };
+    case 'freewallet-bip39':
+    case 'freewallet-bip39-segwit':
+      return { legacy: 'freewallet-bip39', segwit: 'freewallet-bip39-segwit' };
+    case 'p2pkh':
+    case 'p2wpkh':
+      return { legacy: 'p2pkh', segwit: 'p2wpkh' };
+    default:
+      return null;
+  }
+}
+
 export async function generateWalletId(mnemonic: string, addressFormat: AddressFormat): Promise<string> {
   const seed = getSeedFromMnemonic(mnemonic, addressFormat);
   const derivationPath = getDerivationPathForAddressFormat(addressFormat);

@@ -220,6 +220,19 @@ export default function ApprovePsbtPage() {
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
   const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
+    ([address, indices]) => ({
+      address,
+      indices,
+      value: indices.reduce(
+        (sum, index) => sum + (psbtDetails.inputs[index]?.value ?? 0),
+        0
+      ),
+    })
+  );
+  const usesPairedAddress = requestedAddressSpends.some(
+    ({ address }) => address !== activeAddress.address
+  );
 
   // Detect swap buy PSBT fee breakdown (buyer completing a swap):
   // The PSBT has the seller's ANYONECANPAY input, but the USER is not signing
@@ -272,6 +285,29 @@ export default function ApprovePsbtPage() {
               <div className="size-2.5 bg-green-500 rounded-full"></div>
             </div>
           </div>
+
+          {usesPairedAddress && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <p className="text-sm font-medium text-blue-900">Uses a paired wallet address</p>
+              <p className="mt-1 text-xs text-blue-800">
+                This request signs explicitly selected inputs from your paired Legacy and SegWit addresses.
+              </p>
+              <div className="mt-3 space-y-2">
+                {requestedAddressSpends.map(({ address, indices, value }) => (
+                  <div key={address} className="flex items-start justify-between gap-3 text-xs">
+                    <div>
+                      <p className="font-mono text-blue-900">{formatAddress(address, true)}</p>
+                      <p className="text-blue-700">Inputs {indices.map(index => `#${index}`).join(', ')}</p>
+                    </div>
+                    <p className="font-medium text-blue-900">{value.toLocaleString()} sats</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-xs font-medium text-blue-900">
+                Network fee: {psbtDetails.fee.toLocaleString()} sats
+              </p>
+            </div>
+          )}
 
           {/* Site info - slim bar since user is already connected */}
           <div className="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3">

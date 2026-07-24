@@ -377,9 +377,13 @@ export function signPSBT(
       // Determine sighash: use the explicit sighashTypes param if provided,
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
-      const sighashType = sighashTypes?.[inputIdx]
+      const requestedSighashType = sighashTypes?.[inputIdx];
+      const sighashType = requestedSighashType
         ?? input.sighashType
         ?? SigHash.ALL;
+      if (requestedSighashType !== undefined) {
+        tx.updateInput(inputIdx, { sighashType: requestedSighashType });
+      }
 
       try {
         tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);

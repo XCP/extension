@@ -65,6 +65,19 @@ const result = await xcpwallet.request({ method: 'xcp_requestAccounts' });
 
 The proof is auto-signed during connection — no additional user prompt beyond the connect approval.
 
+Sites may optionally request access to the paired Legacy and native SegWit addresses:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_requestAccounts',
+  params: [{ capabilities: { pairedAddresses: true } }]
+});
+```
+
+The additional checkbox is opt-in and remains scoped to the connected site, wallet, and
+address index until disconnect. It only permits address disclosure and signing requests;
+every transaction still requires approval.
+
 #### `xcp_accounts`
 
 Get currently connected accounts. No popup — returns empty array if not connected or wallet is locked.
@@ -159,6 +172,16 @@ Get BTC and token balances for the connected address.
 ```js
 const result = await xcpwallet.request({ method: 'xcp_getBalances' });
 // { address: 'bc1q...', btc: { ... }, xcp: { ... }, tokens: [...] }
+```
+
+#### `xcp_getAddresses`
+
+Returns the active address for ordinary connections. When paired-address access was granted,
+it returns the corresponding P2PKH and P2WPKH addresses and public keys.
+
+```js
+const addresses = await xcpwallet.request({ method: 'xcp_getAddresses' });
+// { active: 'segwit', legacy: {...}, segwit: {...} }
 ```
 
 #### `xcp_chainId`
