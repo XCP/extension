@@ -24,14 +24,16 @@ const PRIV_HEX = '00000000000000000000000000000000000000000000000000000000000000
 describe('addressDeriver', () => {
   describe('getPairedAddressFormats', () => {
     it('pairs only supported Legacy and native SegWit formats', () => {
-      expect(getPairedAddressFormats(AddressFormat.Counterwallet)).toEqual({
-        legacy: AddressFormat.Counterwallet,
-        segwit: AddressFormat.CounterwalletSegwit,
-      });
-      expect(getPairedAddressFormats(AddressFormat.P2WPKH)).toEqual({
-        legacy: AddressFormat.P2PKH,
-        segwit: AddressFormat.P2WPKH,
-      });
+      const supportedPairs = [
+        [AddressFormat.Counterwallet, AddressFormat.CounterwalletSegwit],
+        [AddressFormat.FreewalletBIP39, AddressFormat.FreewalletBIP39Segwit],
+        [AddressFormat.P2PKH, AddressFormat.P2WPKH],
+      ] as const;
+
+      for (const [legacy, segwit] of supportedPairs) {
+        expect(getPairedAddressFormats(legacy)).toEqual({ legacy, segwit });
+        expect(getPairedAddressFormats(segwit)).toEqual({ legacy, segwit });
+      }
       expect(getPairedAddressFormats(AddressFormat.P2TR)).toBeNull();
       expect(getPairedAddressFormats(AddressFormat.P2SH_P2WPKH)).toBeNull();
     });

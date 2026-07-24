@@ -729,6 +729,18 @@ describe('ProviderService', () => {
 
         expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
       });
+      it.each([null, []])('rejects a malformed signer map (%j) before opening approval', async (signInputs) => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signPsbt',
+          [{ hex: VALID_PSBT_HEX, signInputs }]
+        )).rejects.toThrow('signInputs must be an address-to-input-indices object');
+
+        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+      });
       it('rejects unknown signer addresses before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);

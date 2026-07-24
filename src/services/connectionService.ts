@@ -193,6 +193,15 @@ export class ConnectionService extends BaseService {
     await walletService.updateSettings({ providerCapabilities: capabilities });
   }
 
+  private async clearPairedAddressPermission(origin: string): Promise<void> {
+    const walletService = getWalletService();
+    const settings = await walletService.getSettings();
+    if (!settings.providerCapabilities?.[origin]) return;
+    const capabilities = { ...settings.providerCapabilities };
+    delete capabilities[origin];
+    await walletService.updateSettings({ providerCapabilities: capabilities });
+  }
+
   async requestPairedAddressPermission(
     origin: string,
     address: string,
@@ -203,7 +212,14 @@ export class ConnectionService extends BaseService {
     if (!result.approved || result.updatedParams?.pairedAddresses !== true) {
       throw new ProviderError(PROVIDER_ERROR_CODES.USER_REJECTED, 'Paired address access was not granted');
     }
+    if (!await this.hasPermission(origin)) {
+      throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Site disconnected before paired address access was granted');
+    }
     await this.storePairedAddressPermission(origin, walletId, address);
+    if (!await this.hasPermission(origin)) {
+      await this.clearPairedAddressPermission(origin);
+      throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Site disconnected before paired address access was granted');
+    }
   }
 
   /**
@@ -273,6 +289,8 @@ export class ConnectionService extends BaseService {
       await getWalletService().addConnectedWebsite(origin);
       if (pairedAddresses && approval.updatedParams?.pairedAddresses === true) {
         await this.storePairedAddressPermission(origin, walletId, address);
+      } else {
+        await this.clearPairedAddressPermission(origin);
       }
 
       // Update cache

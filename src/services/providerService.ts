@@ -761,6 +761,11 @@ export function createProviderService(): ProviderService {
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
           }
+          if (signInputs !== undefined && (
+            signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
+          )) {
+            throw new Error('signInputs must be an address-to-input-indices object');
+          }
           if (sighashTypes !== undefined) {
             if (!Array.isArray(sighashTypes) || sighashTypes.some(
               value => ![0x01, 0x81, 0x83].includes(value)
@@ -791,7 +796,7 @@ export function createProviderService(): ProviderService {
             throw new Error('SIGHASH_SINGLE requires an output at the same index');
           }
 
-          if (signInputs) {
+          if (signInputs !== undefined) {
             const supportsPairedAddresses = Boolean(
               getPairedAddressFormats(activeWallet.addressFormat)
             );
