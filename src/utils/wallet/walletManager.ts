@@ -1422,14 +1422,15 @@ export class WalletManager {
 
       return signedPsbtHex;
     } else {
-      // Sign all inputs using the first address in the wallet
-      // When no signInputs specified, try to sign all inputs with available keys
-      const firstAddress = wallet.addresses[0];
-      if (!firstAddress) {
+      // Preserve legacy best-effort signing, but only with the connected active address.
+      const activeAddress = wallet.addresses.find(
+        address => address.address === this.getSettings().lastActiveAddress
+      ) ?? wallet.addresses[0];
+      if (!activeAddress) {
         throw new Error("No addresses in wallet");
       }
 
-      const privateKeyResult = await this.getPrivateKey(wallet.id, firstAddress.path);
+      const privateKeyResult = await this.getPrivateKey(wallet.id, activeAddress.path);
       return btcSignPSBT(
         psbtHex,
         privateKeyResult.hex,

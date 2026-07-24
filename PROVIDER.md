@@ -76,7 +76,8 @@ await xcpwallet.request({
 
 The additional checkbox is opt-in and remains scoped to the connected site, wallet, and
 address index until disconnect. It only permits address disclosure and signing requests;
-every transaction still requires approval.
+every transaction still requires approval. Connection and paired-address grants are rechecked
+immediately before signing, so disconnecting the site invalidates an open request.
 
 #### `xcp_accounts`
 

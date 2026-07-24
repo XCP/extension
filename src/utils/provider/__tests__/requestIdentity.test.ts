@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getIdentityMismatchError } from '../requestIdentity';
+import { getIdentityMismatchError, getPsbtPermissionError } from '../requestIdentity';
 import type { AuthorizedRequest } from '@/utils/storage/requestStorage';
 
 const req = (over?: Partial<AuthorizedRequest>): AuthorizedRequest => ({
@@ -30,5 +30,43 @@ describe('getIdentityMismatchError', () => {
 
   it('ignores walletId when the request has none (back-compat)', () => {
     expect(getIdentityMismatchError(req({ walletId: '' }), 'bc1qauthorized', 'any-wallet')).toBeNull();
+  });
+});
+describe('getPsbtPermissionError', () => {
+  const permissions = (connected: boolean, paired: boolean) => ({
+    hasPermission: async () => connected,
+    hasPairedAddressPermission: async () => paired,
+  });
+
+  it('rejects a request after the site disconnects', async () => {
+    await expect(getPsbtPermissionError(
+      req(),
+      'bc1qauthorized',
+      permissions(false, true)
+    )).resolves.toMatch(/no longer connected/);
+  });
+
+  it('allows an active-address-only request without the paired grant', async () => {
+    await expect(getPsbtPermissionError(
+      { ...req(), signInputs: { bc1qauthorized: [0] } },
+      'bc1qauthorized',
+      permissions(true, false)
+    )).resolves.toBeNull();
+  });
+
+  it('rejects a paired request after its additional grant is revoked', async () => {
+    await expect(getPsbtPermissionError(
+      { ...req(), signInputs: { bc1qauthorized: [0], '1paired': [1] } },
+      'bc1qauthorized',
+      permissions(true, false)
+    )).resolves.toMatch(/Paired address access was revoked/);
+  });
+
+  it('allows a paired request while both grants remain active', async () => {
+    await expect(getPsbtPermissionError(
+      { ...req(), signInputs: { bc1qauthorized: [0], '1paired': [1] } },
+      'bc1qauthorized',
+      permissions(true, true)
+    )).resolves.toBeNull();
   });
 });

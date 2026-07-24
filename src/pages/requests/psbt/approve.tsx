@@ -6,12 +6,13 @@ import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
-import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { getIdentityMismatchError, getPsbtPermissionError } from '@/utils/provider/requestIdentity';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
+import { getConnectionService } from '@/services/connectionService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 
@@ -136,6 +137,13 @@ export default function ApprovePsbtPage() {
     setError('');
 
     try {
+      const permissionError = await getPsbtPermissionError(
+        request,
+        activeAddress!.address,
+        getConnectionService()
+      );
+      if (permissionError) throw new Error(permissionError);
+
       const walletService = getWalletService();
       const signedPsbtHex = await walletService.signPsbt(
         request.psbtHex,

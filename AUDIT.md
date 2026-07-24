@@ -161,7 +161,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Global rate limit | 500 requests/min backstop |
 | ✅ | Queue size limits | Max 100 pending requests, 10 per origin |
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
-| ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address |
+| ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
 
 ## Transaction Security
