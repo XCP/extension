@@ -11,6 +11,7 @@ import {
   extractPsbtDetails,
   validateSignInputs,
   signPSBT,
+  resolvePsbtSighashType,
   finalizePSBT,
   completePsbtWithInputValues,
 } from '../psbt';
@@ -358,6 +359,11 @@ describe('validateSignInputs', () => {
 });
 
 describe('signPSBT', () => {
+  it('resolves explicit, embedded, and default sighash values in signer order', () => {
+    expect(resolvePsbtSighashType(0x81, 0x83)).toBe(0x81);
+    expect(resolvePsbtSighashType(undefined, 0x83)).toBe(0x83);
+    expect(resolvePsbtSighashType()).toBe(0x01);
+  });
   it('should sign a PSBT input', () => {
     const psbtHex = createTestPsbt();
 

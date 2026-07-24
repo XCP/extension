@@ -79,6 +79,11 @@ address index until disconnect. It only permits address disclosure and signing r
 every transaction still requires approval. Connection and paired-address grants are rechecked
 immediately before signing, so disconnecting the site invalidates an open request.
 
+This capability has a privacy cost: the site can associate the Legacy and SegWit addresses as
+belonging to the same wallet. It can request signatures for explicitly identified inputs from
+either address, but cannot access other derivation indices. The approval screen shows the value
+attributed to each signer, external outputs, the network fee, and any flexible sighash rules.
+
 #### `xcp_accounts`
 
 Get currently connected accounts. No popup — returns empty array if not connected or wallet is locked.

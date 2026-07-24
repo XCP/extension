@@ -163,6 +163,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
 | ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
+| ✅ | Effective sighash disclosure | Override arrays use absolute PSBT input indices and require coverage; approval warnings use the effective override, embedded value, or SIGHASH_ALL default |
 
 ## Transaction Security
 

@@ -11,6 +11,14 @@ import { getPublicKey } from '@noble/secp256k1';
 import { AddressFormat, decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 
+/** Resolve the exact sighash the signer will use for one PSBT input. */
+export function resolvePsbtSighashType(
+  explicitSighashType?: number,
+  embeddedSighashType?: number
+): number {
+  return explicitSighashType ?? embeddedSighashType ?? SigHash.ALL;
+}
+
 /**
  * Normalize PSBT string to hex format.
  *
@@ -384,9 +392,7 @@ export function signPSBT(
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
       const requestedSighashType = sighashTypes?.[inputIdx];
-      const sighashType = requestedSighashType
-        ?? input.sighashType
-        ?? SigHash.ALL;
+      const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType);
       if (requestedSighashType !== undefined) {
         tx.updateInput(inputIdx, { sighashType: requestedSighashType });
       }

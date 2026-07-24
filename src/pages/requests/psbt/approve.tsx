@@ -15,10 +15,20 @@ import { getWalletService } from '@/services/walletService';
 import { getConnectionService } from '@/services/connectionService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
   return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+}
+
+function formatSighashType(sighashType: number): string {
+  switch (sighashType) {
+    case 0x01: return 'ALL';
+    case 0x81: return 'ALL | ANYONECANPAY';
+    case 0x83: return 'SINGLE | ANYONECANPAY';
+    default: return `0x${sighashType.toString(16)}`;
+  }
 }
 
 /**
@@ -220,7 +230,7 @@ export default function ApprovePsbtPage() {
   // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)
   // - Buyer: the PSBT contains an ANYONECANPAY input (seller's signature) but
   //   the user is signing with SIGHASH_ALL — they are completing the swap
-  const userSignsWithAnyoneCanPay = request.sighashTypes?.some(t => (t & 0x80) !== 0) ?? false;
+
 
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
@@ -239,6 +249,21 @@ export default function ApprovePsbtPage() {
       ),
     })
   );
+  const requestedInputIndices = request.signInputs
+    ? Object.values(request.signInputs).flat()
+    : psbtDetails.inputs
+        .filter(input => input.address && normalizeAddressForComparison(input.address)
+          === normalizeAddressForComparison(activeAddress.address))
+        .map(input => input.index);
+  const effectiveSighashes = requestedInputIndices.map(index => ({
+    index,
+    type: resolvePsbtSighashType(
+      request.sighashTypes?.[index],
+      psbtDetails.inputs[index]?.sighashType
+    ),
+  }));
+  const anyoneCanPaySighashes = effectiveSighashes.filter(({ type }) => (type & 0x80) !== 0);
+  const userSignsWithAnyoneCanPay = anyoneCanPaySighashes.length > 0;
   const usesPairedAddress = requestedAddressSpends.some(
     ({ address }) => normalizeAddressForComparison(address)
       !== normalizeAddressForComparison(activeAddress.address)
@@ -586,14 +611,23 @@ export default function ApprovePsbtPage() {
             </div>
           )}
 
-          {/* ANYONECANPAY Info (PSBT-specific) */}
+          {/* ANYONECANPAY warning (PSBT-specific) */}
           {userSignsWithAnyoneCanPay && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
               <div className="flex items-start">
-                <FaCheckCircle className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-green-800">
-                  <p className="font-medium">Atomic Swap</p>
-                  <p className="text-xs mt-1">Your signature only authorizes this specific UTXO and payment amount. The buyer will add their inputs to complete the trade.</p>
+                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium">Flexible signature rules</p>
+                  <p className="text-xs mt-1">
+                    ANYONECANPAY allows other inputs to be added or removed after you sign.
+                    SINGLE commits only to the output at the same input index. Review the paired
+                    inputs and outputs carefully.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {anyoneCanPaySighashes.map(({ index, type }) => (
+                      <li key={index}>Input #{index}: {formatSighashType(type)}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>
