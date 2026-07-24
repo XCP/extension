@@ -253,15 +253,14 @@ type NavTarget = 'wallet' | 'market' | 'actions' | 'settings';
 
 async function navigateTo(page: Page, target: NavTarget): Promise<void> {
   const paths = { wallet: '/index', market: '/market', actions: '/actions', settings: '/settings' };
-  const pattern = { wallet: /index/, market: /market/, actions: /actions/, settings: /settings/ };
+  const path = paths[target];
 
-  // Direct navigation is more reliable than clicking footer buttons
-  // (some pages don't show footer, or React re-renders cause stability issues)
-  const currentUrl = page.url();
-  const hashIndex = currentUrl.indexOf('#');
-  const baseUrl = hashIndex !== -1 ? currentUrl.substring(0, hashIndex + 1) : currentUrl + '#';
-  await page.goto(`${baseUrl}${paths[target]}`);
-  await page.waitForURL(pattern[target], { timeout: 5000 });
+  // Change only the HashRouter route. A full page.goto() reload can race
+  // keychain/session restoration immediately after unlock.
+  await page.evaluate((nextPath) => {
+    window.location.hash = nextPath;
+  }, path);
+  await expect(page).toHaveURL(new RegExp(`#${path}(?:\\?.*)?$`), { timeout: 5000 });
 }
 
 // ============================================================================

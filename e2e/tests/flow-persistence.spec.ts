@@ -59,26 +59,24 @@ test.describe('State Persistence - Lock/Unlock Cycle', () => {
     await settings.advancedOption(extensionPage).click();
     await expect(extensionPage).toHaveURL(/advanced/);
 
-    const switches = extensionPage.locator('[role="switch"]');
-    await expect(switches.first()).toBeVisible();
-    const firstSwitch = switches.first();
-    const initialState = await firstSwitch.getAttribute('aria-checked');
-    await firstSwitch.click();
-    const changedState = await firstSwitch.getAttribute('aria-checked');
-    expect(changedState).not.toBe(initialState);
+    const unconfirmedTxSwitch = extensionPage.getByRole('switch', { name: 'Use Unconfirmed TXs' });
+    await expect(unconfirmedTxSwitch).toBeVisible();
+    const initialState = await unconfirmedTxSwitch.getAttribute('aria-checked');
+    const changedState = initialState === 'true' ? 'false' : 'true';
+    await unconfirmedTxSwitch.click();
+    await expect(unconfirmedTxSwitch).toHaveAttribute('aria-checked', changedState);
 
     await navigateTo(extensionPage, 'wallet');
     await lockWallet(extensionPage);
     await unlockWallet(extensionPage, TEST_PASSWORD);
 
     await navigateTo(extensionPage, 'settings');
+    await expect(settings.advancedOption(extensionPage)).toBeVisible();
     await settings.advancedOption(extensionPage).click();
     await expect(extensionPage).toHaveURL(/advanced/);
 
-    const switchesAfter = extensionPage.locator('[role="switch"]');
-    await expect(switchesAfter.first()).toBeVisible();
-    const stateAfter = await switchesAfter.first().getAttribute('aria-checked');
-    expect(stateAfter).toBe(changedState);
+    const unconfirmedTxSwitchAfter = extensionPage.getByRole('switch', { name: 'Use Unconfirmed TXs' });
+    await expect(unconfirmedTxSwitchAfter).toHaveAttribute('aria-checked', changedState);
   });
 
   test('address type selection persists after lock/unlock', async ({ extensionPage }) => {
