@@ -23,7 +23,6 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
-    "dist": "node dist/build.js",
     "test": "node -e \"if(!process.env.CI){console.error('Full suite runs in CI only. Run specific tests with:\\n  npx vitest path/to/test.ts\\n  npx playwright test path/to/test.ts');process.exit(1)}\" && wxt build && vitest run src && playwright test",
     "test:unit": "node -e \"if(!process.env.CI){console.error('Full suite runs in CI only. Run specific tests with:\\n  npx vitest path/to/test.ts');process.exit(1)}\" && wxt build && vitest run src",
     "test:e2e": "node -e \"if(!process.env.CI){console.error('Full suite runs in CI only. Run specific tests with:\\n  npx playwright test path/to/test.ts');process.exit(1)}\" && wxt build && playwright test",
@@ -33,7 +32,6 @@
   },
   "dependencies": {
     "@headlessui/react": "2.2.10",
-    "@noble/curves": "2.2.0",
     "@noble/hashes": "2.2.0",
     "@noble/secp256k1": "3.1.0",
     "@scure/base": "2.2.0",
@@ -44,20 +42,18 @@
     "bignumber.js": "11.1.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-router-dom": "7.18.1",
+    "react-router-dom": "7.18.2",
     "webext-bridge": "6.0.1"
   },
   "overrides": {
-    "esbuild": "0.28.1",
     "fx-runner": "1.5.0",
     "protobufjs": "7.6.4",
     "tmp": "0.2.7",
-    "uuid": "11.1.1",
     "ws": "8.21.0",
     "axios": "1.18.1"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1",
+    "@playwright/test": "1.62.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.2",
@@ -68,13 +64,11 @@
     "@types/react-dom": "19.2.3",
     "@vitest/coverage-v8": "4.1.10",
     "@wxt-dev/module-react": "1.2.2",
-    "archiver": "8.0.0",
     "fast-check": "4.9.0",
     "happy-dom": "20.11.1",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vite": "7.3.6",
-    "vite-plugin-remove-console": "2.2.0",
     "vitest": "4.1.10",
     "web-ext": "10.5.0",
     "wxt": "0.21.2"

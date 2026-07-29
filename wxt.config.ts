@@ -1,6 +1,5 @@
 import { defineConfig } from 'wxt';
 import tailwindcss from '@tailwindcss/vite';
-import removeConsole from 'vite-plugin-remove-console';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -57,10 +56,9 @@ export default defineConfig({
     return baseManifest;
   },
   vite: (configEnv) => ({
-    plugins: [
-      ...(configEnv.mode === 'production' ? [removeConsole({ includes: ['log', 'warn', 'error'] })] : []),
-      tailwindcss(),
-    ],
+    plugins: [tailwindcss()],
+    // Strip all console.* calls from production bundles (esbuild built-in)
+    esbuild: configEnv.mode === 'production' ? { drop: ['console' as const] } : undefined,
     define: {
       // Enable Trezor test mode when TREZOR_TEST_MODE env var is set
       // This is used in CI to allow the extension to connect to the emulator via BridgeTransport
