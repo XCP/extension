@@ -134,7 +134,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Minimal permissions | `storage`, `alarms`, `sidePanel`, `scripting` only; no `tabs` — tab access derives solely from content-script host matches |
+| ✅ | Minimal permissions | `storage`, `alarms`, `sidePanel`, `scripting` only |
 | ✅ | Message origin validation | Background validates sender context |
 | ✅ | CSP enforced | MV3 strict default, no unsafe-eval |
 | ✅ | No hardcoded secrets | Scanned with gitleaks patterns |
