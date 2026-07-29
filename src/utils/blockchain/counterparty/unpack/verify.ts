@@ -17,9 +17,11 @@ import type { CancelData } from './messages/cancel';
 import type { DestroyData } from './messages/destroy';
 import type { SweepData } from './messages/sweep';
 import type { SendData } from './messages/send';
+import type { MPMAData } from './messages/mpma';
 import type { IssuanceData } from './messages/issuance';
 import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 import { addressesEqual } from './address';
+import { extractCounterpartyPayload } from './opReturn';
 import { getMessageSchema, type Criticality } from './paramSchema';
 
 // Import compose types directly
@@ -237,6 +239,55 @@ function verifySend(
     if (!valuesEqual(data.memo, params.memo)) {
       addMismatch(result, 'memo', params.memo, data.memo, 'informational',
         'Just metadata, no direct financial impact');
+    }
+  }
+}
+
+/**
+ * Verify a multi-destination send (composed as an MPMA message).
+ *
+ * The send form fans one asset+quantity out to a comma-separated destination
+ * list, so every MPMA send must carry that same asset and quantity, the
+ * recipient count must match exactly (no dropped or injected recipients), and
+ * each destination must be one of the intended addresses.
+ */
+export function verifyMultiSend(
+  data: MPMAData,
+  params: Record<string, unknown>,
+  result: VerificationResult
+): void {
+  const intended = typeof params.destinations === 'string'
+    ? params.destinations.split(',').map((d) => d.trim()).filter(Boolean)
+    : [];
+
+  if (intended.length === 0) {
+    result.errors.push('[CRITICAL] Multi-send has no intended destinations to verify against');
+    return;
+  }
+
+  if (data.sends.length !== intended.length) {
+    addMismatch(result, 'recipient_count', intended.length, data.sends.length, 'critical',
+      'Extra or missing recipients = funds sent to unintended parties');
+    return;
+  }
+
+  // Consume each intended destination once so duplicates or substitutions are caught.
+  const remaining = [...intended];
+  for (const send of data.sends) {
+    if (!valuesEqual(send.asset, params.asset)) {
+      addMismatch(result, 'asset', params.asset, send.asset, 'critical',
+        'Wrong asset = lose wrong tokens');
+    }
+    if (!valuesEqual(send.quantity, params.quantity)) {
+      addMismatch(result, 'quantity', params.quantity, send.quantity, 'critical',
+        'Wrong amount = lose more than intended');
+    }
+    const matchIdx = remaining.findIndex((address) => addressesEqual(address, send.destination));
+    if (matchIdx === -1) {
+      addMismatch(result, 'destination', intended, send.destination, 'critical',
+        'Recipient not in the intended destination list');
+    } else {
+      remaining.splice(matchIdx, 1);
     }
   }
 }
@@ -610,7 +661,11 @@ export function verifyTransaction(
   switch (composeType) {
     case 'send':
     case 'enhanced_send':
-      // Check message type matches
+      // A multi-destination send composes to an MPMA message; verify it as one.
+      if (unpacked.messageTypeId === MessageTypeId.MPMA_SEND) {
+        verifyMultiSend(unpacked.data as MPMAData, actualParams, result);
+        break;
+      }
       if (unpacked.messageTypeId !== MessageTypeId.ENHANCED_SEND &&
           unpacked.messageTypeId !== MessageTypeId.SEND) {
         result.errors.push(`Message type mismatch: expected send, got ${unpacked.messageType}`);
@@ -719,51 +774,17 @@ export function verifyTransactionLegacy(
 }
 
 /**
- * Extract OP_RETURN data from a raw transaction hex.
- * This looks for OP_RETURN outputs and extracts the data.
+ * Extract the Counterparty OP_RETURN payload from a raw transaction hex.
+ *
+ * Parses the transaction structurally and resolves the payload as plaintext
+ * or ARC4-obfuscated (keyed on the first input txid). Returns the datahex with
+ * the CNTRPRTY prefix, or null if the transaction carries no Counterparty
+ * OP_RETURN — so verifyTransaction runs on real composed transactions, whose
+ * OP_RETURN is obfuscated, rather than being skipped.
  *
  * @param rawTxHex - Raw transaction hex
- * @returns OP_RETURN data as hex string, or null if not found
+ * @returns Counterparty datahex with the CNTRPRTY prefix, or null
  */
 export function extractOpReturnData(rawTxHex: string): string | null {
-  // OP_RETURN is 0x6a, followed by push opcode and data
-  // Common patterns:
-  //   6a4c XX ... = OP_RETURN OP_PUSHDATA1 <len> <data>
-  //   6a XX ...   = OP_RETURN OP_PUSH_N <data> (for small data)
-
-  const tx = rawTxHex.toLowerCase();
-
-  // Find OP_RETURN in outputs
-  // This is a simplified search - a full parser would be better
-  let idx = tx.indexOf('6a');
-  while (idx !== -1) {
-    // Check if this looks like an OP_RETURN output
-    const nextByte = parseInt(tx.slice(idx + 2, idx + 4), 16);
-
-    if (nextByte === 0x4c) {
-      // OP_PUSHDATA1 - next byte is length
-      const len = parseInt(tx.slice(idx + 4, idx + 6), 16);
-      if (len > 0 && idx + 6 + len * 2 <= tx.length) {
-        const data = tx.slice(idx + 6, idx + 6 + len * 2);
-        // Check for CNTRPRTY prefix
-        if (data.startsWith('434e545250525459')) {
-          return data;
-        }
-      }
-    } else if (nextByte >= 1 && nextByte <= 75) {
-      // Direct push (1-75 bytes)
-      const len = nextByte;
-      if (idx + 4 + len * 2 <= tx.length) {
-        const data = tx.slice(idx + 4, idx + 4 + len * 2);
-        // Check for CNTRPRTY prefix
-        if (data.startsWith('434e545250525459')) {
-          return data;
-        }
-      }
-    }
-
-    idx = tx.indexOf('6a', idx + 2);
-  }
-
-  return null;
+  return extractCounterpartyPayload(rawTxHex);
 }

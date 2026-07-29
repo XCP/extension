@@ -18,9 +18,9 @@ import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin
 import {
   decodeRawTransaction,
   decodeCounterpartyMessage,
-  decryptOpReturnData,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
+import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult

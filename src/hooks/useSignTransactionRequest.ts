@@ -16,10 +16,10 @@ import { recordSignOutcome } from '@/utils/provider/signFlow';
 import {
   decodeRawTransaction,
   decodeCounterpartyMessage,
-  decryptOpReturnData,
   fetchInputValues,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
+import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult

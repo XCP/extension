@@ -13,7 +13,7 @@ import { arc4, hexToBytes, bytesToHex, BinaryReader } from '../unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { packAddress } from '../unpack/address';
 import { unpackCounterpartyMessage, isCounterpartyData } from '../unpack/index';
-import { extractOpReturnPayload, decryptOpReturnData } from '../transaction';
+import { extractOpReturnPayload, decryptOpReturnData, extractCounterpartyPayload } from '../unpack/opReturn';
 
 // Fake txid used as ARC4 key
 const FAKE_TXID = 'b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8';
@@ -284,6 +284,33 @@ describe('real compose API vector', () => {
     const opReturnScript = '6a33' + '80ada95da1b59fdc5a4ed690798435687c8f9060f0318d3f63009c00fe09da18780b4b57f245152a77e0b5ed88b3511ad1c5cf';
     const wrongTxid = 'ff'.repeat(32);
     expect(decryptOpReturnData(opReturnScript, wrongTxid)).toBeNull();
+  });
+
+  it('extractCounterpartyPayload recovers the payload from the whole raw tx (ARC4)', () => {
+    // This is the path the composer's verification uses. The old string-scan
+    // extractor returned null here (obfuscated data has no plaintext prefix),
+    // silently disabling verification.
+    expect(extractCounterpartyPayload(REAL_RAW_TX)).toBe(REAL_DATA_HEX);
+  });
+
+  it('extractCounterpartyPayload reads a plaintext OP_RETURN (future protocol)', () => {
+    // Same transaction structure but with an unobfuscated CNTRPRTY payload.
+    // REAL_DATA_HEX is 51 bytes, so the OP_RETURN push opcode is 0x33.
+    const plaintextScript = '6a33' + REAL_DATA_HEX;
+    const scriptLen = (plaintextScript.length / 2).toString(16).padStart(2, '0');
+    const plaintextTx =
+      '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01' +
+      '0000000000000000' + scriptLen + plaintextScript +
+      '00000000';
+    expect(extractCounterpartyPayload(plaintextTx)).toBe(REAL_DATA_HEX);
+  });
+
+  it('extractCounterpartyPayload returns null for a BTC-only transaction', () => {
+    const btcOnlyTx =
+      '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01' +
+      'bf60000000000000' + '19' + '76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac' +
+      '00000000';
+    expect(extractCounterpartyPayload(btcOnlyTx)).toBeNull();
   });
 });
 

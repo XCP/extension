@@ -3,9 +3,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { extractOpReturnPayload, decryptOpReturnData } from '../unpack/opReturn';
 import {
-  extractOpReturnPayload,
-  decryptOpReturnData,
   hasCounterpartyPrefix,
   COUNTERPARTY_PREFIX_HEX,
 } from '../transaction';

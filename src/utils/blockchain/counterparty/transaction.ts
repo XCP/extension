@@ -9,7 +9,6 @@ import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 import { fromSatoshis } from '@/utils/numeric';
 import { fetchAssetDetails } from './api';
-import { arc4, hexToBytes, bytesToHex } from './unpack/binary';
 
 /**
  * Counterparty message decoded from OP_RETURN
@@ -361,78 +360,3 @@ export async function decodeCounterpartyMessage(
   }
 }
 
-/**
- * Extract the data payload from an OP_RETURN scriptPubKey hex.
- * Strips the OP_RETURN opcode (0x6a) and push-data length prefix.
- *
- * @param scriptPubKeyHex - Full scriptPubKey hex (e.g., "6a2e...")
- * @returns Data payload hex, or null if not a valid OP_RETURN
- */
-export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
-  try {
-    const bytes = hexToBytes(scriptPubKeyHex);
-    if (bytes.length < 2 || bytes[0] !== 0x6a) return null;
-
-    let offset = 1;
-    let dataLength: number;
-
-    const pushByte = bytes[offset]!;
-    if (pushByte <= 0x4b) {
-      // Direct push (1-75 bytes)
-      dataLength = pushByte;
-      offset += 1;
-    } else if (pushByte === 0x4c) {
-      // OP_PUSHDATA1
-      if (bytes.length < 3) return null;
-      dataLength = bytes[offset + 1]!;
-      offset += 2;
-    } else if (pushByte === 0x4d) {
-      // OP_PUSHDATA2
-      if (bytes.length < 4) return null;
-      dataLength = bytes[offset + 1]! | (bytes[offset + 2]! << 8);
-      offset += 3;
-    } else {
-      return null;
-    }
-
-    if (offset + dataLength > bytes.length) return null;
-
-    const data = bytes.slice(offset, offset + dataLength);
-    return bytesToHex(data);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Decrypt ARC4-encrypted OP_RETURN data using the first input's txid as key.
- * Returns the decrypted datahex (including CNTRPRTY prefix) if valid, or null.
- *
- * @param scriptPubKeyHex - Full OP_RETURN scriptPubKey hex from decoded transaction
- * @param firstInputTxid - Txid of the first input (used as ARC4 key)
- * @returns Decrypted Counterparty datahex with CNTRPRTY prefix, or null
- */
-export function decryptOpReturnData(
-  scriptPubKeyHex: string,
-  firstInputTxid: string
-): string | null {
-  const payload = extractOpReturnPayload(scriptPubKeyHex);
-  if (!payload) return null;
-
-  try {
-    const payloadBytes = hexToBytes(payload);
-    const keyBytes = hexToBytes(firstInputTxid);
-
-    const decrypted = arc4(keyBytes, payloadBytes);
-    const decryptedHex = bytesToHex(decrypted);
-
-    // Check for CNTRPRTY prefix in decrypted data
-    if (decryptedHex.startsWith(COUNTERPARTY_PREFIX_HEX)) {
-      return decryptedHex;
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
