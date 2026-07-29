@@ -10,6 +10,7 @@ import {
   consolidationApi,
   type ConsolidationData,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
+import { analytics } from "@/utils/fathom";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
@@ -72,9 +73,19 @@ export function ConsolidationForm({
         // Mark initial load as complete
         if (isInitialLoad) {
           setIsInitialLoad(false);
+          // Funnel: distinguish visitors with nothing to consolidate from
+          // real prospects who saw a quote and walked away
+          analytics.track(
+            batches[0]!.summary.total_utxos > 0
+              ? 'consolidate_eligible'
+              : 'consolidate_ineligible'
+          );
         }
       } catch (err) {
         console.error("Error fetching consolidation data:", err);
+        if (isInitialLoad) {
+          analytics.track('consolidate_fetch_error');
+        }
         setError(
           err instanceof Error
             ? err.message

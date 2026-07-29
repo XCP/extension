@@ -55,7 +55,7 @@ import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterpar
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
-import { analytics, getBtcBucket } from "@/utils/fathom";
+import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -364,7 +364,6 @@ export function ComposerProvider<T>({
       }
 
       console.error("Compose error:", error);
-      analytics.track('compose_error');
 
       let errorMessage = "An error occurred while composing the transaction.";
       if (isApiError(error) && error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
@@ -372,6 +371,8 @@ export function ComposerProvider<T>({
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
+
+      analytics.track(`compose_error_${classifyTransactionError(errorMessage)}`);
 
       // Don't update state if aborted
       if (signal.aborted) return;
@@ -520,10 +521,9 @@ export function ComposerProvider<T>({
       let errorMessage = "Failed to sign and broadcast transaction";
       if (error instanceof Error) {
         errorMessage = error.message;
-
       }
 
-      analytics.track('broadcast_error');
+      analytics.track(`broadcast_error_${classifyTransactionError(errorMessage)}`);
 
       // Don't update state if aborted
       if (signal.aborted) return;

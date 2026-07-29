@@ -115,7 +115,11 @@ export default function App() {
   const location = useLocation();
 
   useEffect(() => {
-    analytics.page(sanitizePath(location.pathname));
+    // "/" is a pure redirect stub; tracking it would log a phantom pageview
+    // on every popup open and mask the real entry-page distribution
+    if (location.pathname !== '/') {
+      analytics.page(sanitizePath(location.pathname));
+    }
   }, [location.pathname]);
 
   if (isLoading) return <FullscreenLoading />;

@@ -157,6 +157,21 @@ const SENSITIVE_PATH_PATTERNS: Array<{ prefix: string; sanitized: string }> = [
  * sanitizePath('/compose/issuance/issue-supply/MYTOKEN') → '/compose/issuance/issue-supply'
  * sanitizePath('/settings/advanced') → '/settings/advanced' (no sensitive data)
  */
+/**
+ * Backstop for routes missing from SENSITIVE_PATH_PATTERNS: static route
+ * segments are lowercase kebab-case, so a segment shaped like data — hex
+ * hashes, bitcoin addresses, asset names (uppercase or subasset dots),
+ * bare numbers — marks the truncation point. This makes tracking fail
+ * closed when a new dynamic route is added without updating the list.
+ */
+const DYNAMIC_SEGMENT_PATTERNS = [
+  /^[0-9a-f]{32,}$/i,            // tx hashes and other long hex ids
+  /^(bc1|tb1)[a-z0-9]{6,}$/i,    // bech32 addresses
+  /^[13mn2][a-zA-Z0-9]{20,}$/,   // base58 addresses
+  /[A-Z.]/,                      // asset names / subassets
+  /^\d+$/,                       // bare numeric ids
+];
+
 export const sanitizePath = (path: string): string => {
   // Check against ordered patterns (more specific first)
   for (const { prefix, sanitized } of SENSITIVE_PATH_PATTERNS) {
@@ -165,9 +180,34 @@ export const sanitizePath = (path: string): string => {
     }
   }
 
-  // Pass through paths without dynamic segments
+  // Truncate at the first segment that looks like dynamic data
+  const segments = path.split('/');
+  for (let i = 1; i < segments.length; i++) {
+    if (segments[i] !== '' && DYNAMIC_SEGMENT_PATTERNS.some((pattern) => pattern.test(segments[i]!))) {
+      const safe = segments.slice(0, i).join('/');
+      return safe === '' ? '/' : safe;
+    }
+  }
+
   return path;
 };
+
+/**
+ * Bucket a compose/broadcast error message into a coarse category so error
+ * events are diagnosable in aggregate. Categories only — never the message
+ * itself, which can contain addresses or amounts.
+ */
+export function classifyTransactionError(message: string): string {
+  const msg = message.toLowerCase();
+  if (/missingorspent|txn-mempool-conflict|double.?spend|already.*(mempool|block|spent)/.test(msg)) return 'inputs_spent';
+  if (/too-long-mempool-chain|mempool.*(full|limit)/.test(msg)) return 'mempool';
+  if (/min.?relay|feerate|fee.*(low|below|insufficient)|insufficient.*fee|dust/.test(msg)) return 'fee';
+  if (/script-verify|signature|no inputs signed|sighash/.test(msg)) return 'signature';
+  if (/insufficient|balance|funds|not enough/.test(msg)) return 'insufficient_funds';
+  if (/invalid|malformed|bad address|checksum|\bexpected\b/.test(msg)) return 'invalid_params';
+  if (/network|fetch|timeout|timed out|unavailable|50\d|429|rate.?limit/.test(msg)) return 'network';
+  return 'other';
+}
 
 /**
  * Check if we're in an extension context with browser APIs available.

@@ -7,7 +7,7 @@ import {
   type ConsolidationReport,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
 import { consolidateBareMultisigBatch } from "@/utils/blockchain/bitcoin/consolidateBatch";
-import { analytics, getBtcBucket } from "@/utils/fathom";
+import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 export interface ConsolidationResult {
   batchNumber: number;
@@ -122,6 +122,11 @@ export function useMultiBatchConsolidation() {
           setResults([...batchResults]);
         } catch (batchError) {
           console.error(`Error processing batch ${i + 1}:`, batchError);
+          analytics.track(
+            `consolidate_error_${classifyTransactionError(
+              batchError instanceof Error ? batchError.message : String(batchError)
+            )}`
+          );
 
           const result: ConsolidationResult = {
             batchNumber: i + 1,

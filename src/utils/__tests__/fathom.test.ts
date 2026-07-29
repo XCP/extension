@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sanitizePath, getBtcBucket } from '../fathom';
+import { sanitizePath, getBtcBucket, classifyTransactionError } from '../fathom';
 
 describe('fathom sanitizePath', () => {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -294,5 +294,80 @@ describe('fathom getBtcBucket', () => {
   it('returns 1000000 for mega amounts (> 10 BTC)', () => {
     expect(getBtcBucket(10)).toBe(1000000);
     expect(getBtcBucket(100)).toBe(1000000);
+  });
+});
+
+describe('fathom sanitizePath fail-closed backstop', () => {
+  // Routes NOT in the prefix list must still never leak dynamic data
+  it('truncates an unlisted route at a tx hash segment', () => {
+    expect(sanitizePath('/transaction/bf7e7a96a7fa3724edab784f4bda2c180ddb7733979416b6a9593eb6836d4c84'))
+      .toBe('/transaction');
+  });
+
+  it('truncates an unlisted route at a bech32 address segment', () => {
+    expect(sanitizePath('/future-route/bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty')).toBe('/future-route');
+  });
+
+  it('truncates an unlisted route at a base58 address segment', () => {
+    expect(sanitizePath('/future-route/1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7')).toBe('/future-route');
+  });
+
+  it('truncates an unlisted route at an asset name segment', () => {
+    expect(sanitizePath('/future-route/RAREPEPE')).toBe('/future-route');
+    expect(sanitizePath('/future-route/A95428956661682177')).toBe('/future-route');
+    expect(sanitizePath('/future-route/PEPE.SUBASSET')).toBe('/future-route');
+  });
+
+  it('truncates at a numeric id segment', () => {
+    expect(sanitizePath('/future-route/12345')).toBe('/future-route');
+  });
+
+  it('returns / when the first segment is dynamic', () => {
+    expect(sanitizePath('/BF7E7A96A7FA3724EDAB784F4BDA2C18')).toBe('/');
+  });
+
+  it('passes through static lowercase kebab-case routes', () => {
+    expect(sanitizePath('/settings/address-types')).toBe('/settings/address-types');
+    expect(sanitizePath('/keychain/setup/import-mnemonic')).toBe('/keychain/setup/import-mnemonic');
+    expect(sanitizePath('/actions/consolidate/success')).toBe('/actions/consolidate/success');
+  });
+});
+
+describe('classifyTransactionError', () => {
+  it('classifies spent-input errors', () => {
+    expect(classifyTransactionError('bad-txns-inputs-missingorspent')).toBe('inputs_spent');
+    expect(classifyTransactionError('txn-mempool-conflict')).toBe('inputs_spent');
+  });
+
+  it('classifies fee errors', () => {
+    expect(classifyTransactionError('min relay fee not met, 100 < 141')).toBe('fee');
+    expect(classifyTransactionError('Fee rate is below minimum')).toBe('fee');
+    expect(classifyTransactionError('dust output')).toBe('fee');
+  });
+
+  it('classifies mempool-limit errors', () => {
+    expect(classifyTransactionError('too-long-mempool-chain')).toBe('mempool');
+  });
+
+  it('classifies signature errors', () => {
+    expect(classifyTransactionError('No inputs signed')).toBe('signature');
+    expect(classifyTransactionError('mandatory-script-verify-flag-failed')).toBe('signature');
+  });
+
+  it('classifies insufficient funds', () => {
+    expect(classifyTransactionError('Insufficient BTC at address')).toBe('insufficient_funds');
+  });
+
+  it('classifies validation errors', () => {
+    expect(classifyTransactionError('invalid base58 address checksum')).toBe('invalid_params');
+  });
+
+  it('classifies network errors', () => {
+    expect(classifyTransactionError('Request timed out')).toBe('network');
+    expect(classifyTransactionError('HTTP 503 Service Unavailable')).toBe('network');
+  });
+
+  it('falls back to other', () => {
+    expect(classifyTransactionError('something unexpected happened')).toBe('other');
   });
 });
