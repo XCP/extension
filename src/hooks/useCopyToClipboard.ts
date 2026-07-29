@@ -30,7 +30,9 @@ export function useCopyToClipboard(
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup timeouts on unmount
+  // Cleanup timeouts on unmount. A pending security auto-clear fires
+  // immediately instead of being cancelled, so navigating away never
+  // leaves the copied value on the clipboard past the timeout.
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
@@ -38,6 +40,9 @@ export function useCopyToClipboard(
       }
       if (autoClearRef.current) {
         clearTimeout(autoClearRef.current);
+        navigator.clipboard?.writeText("").catch(() => {
+          // Silently fail - clipboard may not be accessible
+        });
       }
     };
   }, []);

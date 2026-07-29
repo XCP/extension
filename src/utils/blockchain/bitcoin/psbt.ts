@@ -420,6 +420,10 @@ export function signPSBT(
         cause: err instanceof Error ? err : undefined,
       }
     );
+  } finally {
+    // Zero out private key bytes after use (defense in depth)
+    // See ADR-001 in sessionManager.ts for JS memory limitation context
+    privateKeyBytes.fill(0);
   }
 }
 

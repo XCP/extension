@@ -18,7 +18,7 @@ export default function ShowPassphrasePage(): ReactElement {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { selectWallet, getUnencryptedMnemonic } = useWallet();
+  const { selectWallet, getUnencryptedMnemonic, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [passphrase, setPassphrase] = useState("");
@@ -51,6 +51,16 @@ export default function ShowPassphrasePage(): ReactElement {
     }
     if (password.length < MIN_PASSWORD_LENGTH) {
       setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      return;
+    }
+    let passwordValid = false;
+    try {
+      passwordValid = await verifyPassword(password);
+    } catch {
+      passwordValid = false;
+    }
+    if (!passwordValid) {
+      setSubmissionError("Incorrect password.");
       return;
     }
     try {

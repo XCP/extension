@@ -7,10 +7,10 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
 import type { ReactElement } from "react";
 
-const COPY_FEEDBACK_DURATION = 2000;
 const PATHS = {
   BACK: -1,
 } as const;
@@ -26,7 +26,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [submissionError, setSubmissionError] = useState("");
   const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | "hardware" | null>(null);
-  const [copiedToClipboard, setCopiedToClipboard] = useState(false);
+  const { copy, isCopied } = useCopyToClipboard();
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,12 +51,6 @@ export default function ShowPrivateKeyPage(): ReactElement {
     passwordInputRef.current?.focus();
   }, []);
 
-  useEffect(() => {
-    if (copiedToClipboard) {
-      const timer = setTimeout(() => setCopiedToClipboard(false), COPY_FEEDBACK_DURATION);
-      return () => clearTimeout(timer);
-    }
-  }, [copiedToClipboard]);
 
   async function handleFormAction(formData: FormData) {
     setSubmissionError("");
@@ -74,9 +68,13 @@ export default function ShowPrivateKeyPage(): ReactElement {
       setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
+    let passwordValid = false;
     try {
-      await verifyPassword(password);
+      passwordValid = await verifyPassword(password);
     } catch {
+      passwordValid = false;
+    }
+    if (!passwordValid) {
       setSubmissionError("Incorrect password.");
       return;
     }
@@ -105,12 +103,8 @@ export default function ShowPrivateKeyPage(): ReactElement {
   }
 
   const handleCopyPrivateKey = async () => {
-    try {
-      await navigator.clipboard.writeText(privateKey);
-      setCopiedToClipboard(true);
-    } catch (err) {
-      console.error("Failed to copy private key:", err);
-    }
+    // useCopyToClipboard auto-clears the clipboard after 30 seconds
+    await copy(privateKey);
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -173,7 +167,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
               className="max-w-sm"
               aria-label="Copy Private Key"
             >
-              {copiedToClipboard ? "Copied!" : "Copy Private Key"}
+              {isCopied(privateKey) ? "Copied!" : "Copy Private Key"}
             </Button>
             <div className="bg-red-50 border border-red-200 rounded-xl p-4">
               <div className="flex items-center space-x-2 mb-2">
