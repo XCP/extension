@@ -55,6 +55,7 @@ import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterpar
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
+import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 /**
@@ -340,6 +341,19 @@ export function ComposerProvider<T>({
       }
       // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
       // which is allowed through (e.g., BTC-only transactions)
+
+      // Independently bound the fee — covers every transaction type, including
+      // BTC-only sends that carry no OP_RETURN — so a drain-to-fee response or
+      // a buggy fee estimate is rejected before the review screen.
+      const feeCheck = checkTransactionFee({
+        rawTransaction: response.result.rawtransaction,
+        inputsValues: response.result.inputs_values,
+        declaredFee: response.result.btc_fee ?? 0,
+        userFeeRate: typeof dataForApi.sat_per_vbyte === 'number' ? dataForApi.sat_per_vbyte : null,
+      });
+      if (!feeCheck.ok) {
+        throw new Error(feeCheck.error || 'Transaction fee verification failed');
+      }
 
       // Final abort check before state update
       if (signal.aborted) return;

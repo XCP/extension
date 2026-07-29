@@ -4,6 +4,14 @@ import { MemoryRouter } from 'react-router';
 import { ComposerProvider, useComposer } from '../composer-context';
 import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
 
+// A real, parseable BTC-only transaction (1 input, one 95000-sat P2PKH output,
+// no OP_RETURN) so the composer's fee verification can decode it. Paired with
+// inputs_values so the implied fee is small and sane.
+const VALID_BTC_ONLY_TX =
+  '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01' +
+  'b873010000000000' + '19' + '76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac' +
+  '00000000';
+
 // Mock wallet context to avoid webext-bridge dependency in tests
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
@@ -99,7 +107,7 @@ describe('ComposerContext', () => {
 
       const apiResponse: ApiResponse = {
         result: {
-          rawtransaction: '0x123abc',
+          rawtransaction: VALID_BTC_ONLY_TX,
           btc_in: 100000,
           btc_out: 90000,
           btc_change: 5000,
@@ -297,14 +305,14 @@ describe('ComposerContext', () => {
       const formData = new FormData();
       const apiResponse: ApiResponse = {
         result: {
-          rawtransaction: '0x123',
+          rawtransaction: VALID_BTC_ONLY_TX,
           btc_in: 50000,
           btc_out: 49000,
           btc_change: 0,
           btc_fee: 1000,
           data: '',
           lock_scripts: [],
-          inputs_values: [50000],
+          inputs_values: [96000],
           signed_tx_estimated_size: {
             vsize: 150,
             adjusted_vsize: 150,
@@ -412,14 +420,14 @@ describe('ComposerContext', () => {
       const formData = new FormData();
       const apiResponse: ApiResponse = {
         result: {
-          rawtransaction: '0x123',
+          rawtransaction: VALID_BTC_ONLY_TX,
           btc_in: 50000,
           btc_out: 49000,
           btc_change: 0,
           btc_fee: 1000,
           data: '',
           lock_scripts: [],
-          inputs_values: [50000],
+          inputs_values: [96000],
           signed_tx_estimated_size: {
             vsize: 150,
             adjusted_vsize: 150,
@@ -497,14 +505,14 @@ describe('ComposerContext', () => {
       const formData = new FormData();
       const apiResponse: ApiResponse = {
         result: {
-          rawtransaction: '0x123',
+          rawtransaction: VALID_BTC_ONLY_TX,
           btc_in: 50000,
           btc_out: 49000,
           btc_change: 0,
           btc_fee: 1000,
           data: '',
           lock_scripts: [],
-          inputs_values: [50000],
+          inputs_values: [96000],
           signed_tx_estimated_size: {
             vsize: 150,
             adjusted_vsize: 150,
