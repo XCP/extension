@@ -2,7 +2,7 @@
  * Tests for PSBT utilities
  */
 import { describe, it, expect } from 'vitest';
-import { Transaction, p2wpkh } from '@scure/btc-signer';
+import { Transaction, p2wpkh, p2pkh } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import {
@@ -474,6 +474,24 @@ describe('signPSBT', () => {
     const psbtHex = createTestPsbt();
     expect(() => signPSBT(psbtHex, TEST_PRIVATE_KEY, [0], AddressFormat.P2WPKH, [0x03]))
       .toThrow(/unsupported sighash/i);
+  });
+
+  it('refuses a legacy input backed only by a bare witnessUtxo', () => {
+    // A P2PKH input with a witnessUtxo declaring an arbitrary amount but no
+    // previous transaction — the forged-amount vector.
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const pubkey = getPublicKey(privateKeyBytes, true);
+    const p2pkhScript = p2pkh(pubkey).script;
+    const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: { script: p2pkhScript, amount: BigInt(1000) },
+    });
+    tx.addOutputAddress('1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', BigInt(500));
+    const psbtHex = bytesToHex(tx.toPSBT());
+
+    expect(() => signPSBT(psbtHex, TEST_PRIVATE_KEY, [0], AddressFormat.P2PKH)).toThrow();
   });
 });
 

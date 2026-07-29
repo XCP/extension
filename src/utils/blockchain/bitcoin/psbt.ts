@@ -275,8 +275,10 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     const input = tx.getInput(i);
     if (input?.txid) {
       const txidHex = bytesToHex(input.txid);
-      const prevout = input.witnessUtxo
-        ?? (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined);
+      // Prefer the full prev tx (authoritative for legacy); fall back to
+      // witnessUtxo for SegWit.
+      const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+        ?? input.witnessUtxo;
       const value = prevout?.amount !== undefined ? Number(prevout.amount) : undefined;
       const address = prevout?.script
         ? decodeAddressFromScript(bytesToHex(prevout.script)) ?? undefined
@@ -370,7 +372,9 @@ export function signPSBT(
   const tx = Transaction.fromPSBT(psbtBytes, {
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
-    allowLegacyWitnessUtxo: true,
+    // Require the full prev tx for legacy inputs: a bare witnessUtxo lets a
+    // dApp declare a false amount and drain the real UTXO to fees.
+    allowLegacyWitnessUtxo: false,
     disableScriptCheck: true,
   });
 
