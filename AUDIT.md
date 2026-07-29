@@ -165,23 +165,28 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
 | ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
-| ✅ | Effective sighash disclosure | Override arrays use absolute PSBT input indices and require coverage; approval warnings use the effective override, embedded value, or SIGHASH_ALL default |
+| ✅ | Effective sighash enforcement | The resolved sighash (explicit override, else embedded, else ALL) is enforced against an allowlist — DEFAULT, ALL, ALL\|ANYONECANPAY, SINGLE\|ANYONECANPAY — so an embedded SIGHASH_NONE or bare SINGLE cannot obtain a signature the approval screen didn't reflect |
+| ✅ | Legacy input amount integrity | Legacy (P2PKH) inputs must carry the full previous transaction; a bare witnessUtxo is rejected, so a declared amount can't be forged into a drain-to-fee |
+| ✅ | Sign-flow origin binding | Rejoin/recovery of a signing flow matches the requesting origin, not just the request key, so a hash collision can't cross origins |
 
 ## Transaction Security
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Local message verification | Counterparty messages unpacked and compared |
+| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and compared to the user's intent; multi-destination (MPMA) sends verified per recipient |
+| ✅ | Fee bounding | Miner fee recomputed locally (inputs − outputs) and rejected before signing if it exceeds the user's selected rate or an absolute ceiling, or if outputs exceed inputs |
+| ✅ | Broadcast txid integrity | Reported txid computed locally from the signed bytes, not the broadcast endpoint's echo |
 | ✅ | Replay prevention | Nonce tracking, txid deduplication |
 | ✅ | Race condition prevention | Mutex locks, `isComposing`/`isSigning` guards |
 | ✅ | Stale transaction detection | 5-minute timeout on composed transactions |
-| ✅ | Address checksum validation | Base58/Bech32 checksum verified |
+| ✅ | Address checksum validation | Base58check (double-SHA256) and Bech32 checksums verified client-side |
+| ⚠️ | Bitcoin output verification | Fee/value bounded; per-address destination-output matching for plain BTC sends is not yet enforced client-side |
 
 ## Input Validation
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Bitcoin address validation | Checksum, network, format validation |
+| ✅ | Bitcoin address validation | Base58check and Bech32 checksum + format validation (network detected; wallet is mainnet-only) |
 | ✅ | QR code sanitization | XSS, protocol, path traversal protection |
 | ✅ | Private key format validation | WIF, hex format with injection protection |
 | ✅ | Fuzz testing | Property-based tests with fast-check |
@@ -330,14 +335,14 @@ This is not true constant-time code. For higher-security applications, constant-
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
 | Extension | 10 | 1 | 0 | 2 |
-| Provider API | 11 | 0 | 0 | 0 |
-| Transaction | 5 | 0 | 0 | 0 |
+| Provider API | 13 | 0 | 0 | 0 |
+| Transaction | 7 | 1 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **81** | **5** | **2** | **12** |
+| **Total** | **85** | **6** | **2** | **12** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
