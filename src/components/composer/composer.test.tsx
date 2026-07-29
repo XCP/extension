@@ -106,7 +106,8 @@ vi.mock('react', async () => {
 describe('Composer', () => {
   const mockApiResponse = {
     result: {
-      rawtransaction: '0x123abc',
+      // A real, parseable BTC-only transaction so fee verification can decode it.
+      rawtransaction: '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01b8730100000000001976a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac00000000',
       tx_hash: 'hash123',
       data: 'data123'
     },
