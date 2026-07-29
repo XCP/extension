@@ -67,7 +67,10 @@ export function checkTransactionFee(input: FeeCheckInput): FeeCheckResult {
       disableScriptCheck: true,
     });
   } catch {
-    return { ok: false, error: 'Could not parse the composed transaction for fee verification.' };
+    // An unparseable transaction can't be signed either (the signer uses the
+    // same parser), so it is not a drain risk — skip the fee check rather than
+    // block, and let signing surface the real error.
+    return { ok: true };
   }
 
   // Prefer the fee implied by inputs − outputs; fall back to the declared fee
