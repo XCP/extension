@@ -20,6 +20,19 @@ export function resolvePsbtSighashType(
 }
 
 /**
+ * Sighash flags a dApp PSBT signing request may use. Excludes SIGHASH_NONE
+ * (commits to no outputs) and bare SIGHASH_SINGLE without ANYONECANPAY, so a
+ * PSBT-embedded sighash cannot obtain a signature over outputs the approval
+ * screen did not reflect.
+ */
+export const ALLOWED_PSBT_SIGHASH_TYPES: ReadonlySet<number> = new Set([
+  SigHash.DEFAULT,               // 0x00 — taproot key-path
+  SigHash.ALL,                   // 0x01
+  SigHash.ALL_ANYONECANPAY,      // 0x81
+  SigHash.SINGLE_ANYONECANPAY,   // 0x83 — marketplace listings
+]);
+
+/**
  * Normalize PSBT string to hex format.
  *
  * PSBTs can be provided in either hex or base64 format:
@@ -393,6 +406,14 @@ export function signPSBT(
       const input = tx.getInput(inputIdx);
       const requestedSighashType = sighashTypes?.[inputIdx];
       const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType);
+      // Enforce the allowlist on the EFFECTIVE sighash, so an embedded
+      // SIGHASH_NONE/SINGLE can't bypass the explicit-parameter check.
+      if (!ALLOWED_PSBT_SIGHASH_TYPES.has(sighashType)) {
+        throw new ValidationError(
+          'INVALID_PSBT',
+          `Refusing to sign input ${inputIdx} with unsupported sighash type 0x${sighashType.toString(16)}`
+        );
+      }
       if (requestedSighashType !== undefined) {
         tx.updateInput(inputIdx, { sighashType: requestedSighashType });
       }

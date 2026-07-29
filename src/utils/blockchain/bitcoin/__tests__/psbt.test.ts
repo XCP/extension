@@ -451,6 +451,30 @@ describe('signPSBT', () => {
       AddressFormat.P2WPKH
     )).toThrow();
   });
+
+  it('rejects a PSBT-embedded SIGHASH_NONE with no explicit sighash', () => {
+    // The bypass: no sighashTypes parameter, but the input embeds NONE (0x02)
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const payment = p2wpkh(getPublicKey(privateKeyBytes, true));
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: { script: payment.script, amount: BigInt(100000) },
+      sighashType: 0x02,
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(90000));
+    const psbtHex = bytesToHex(tx.toPSBT());
+
+    expect(() => signPSBT(psbtHex, TEST_PRIVATE_KEY, [0], AddressFormat.P2WPKH))
+      .toThrow(/unsupported sighash/i);
+  });
+
+  it('rejects an explicit bare SIGHASH_SINGLE (no ANYONECANPAY)', () => {
+    const psbtHex = createTestPsbt();
+    expect(() => signPSBT(psbtHex, TEST_PRIVATE_KEY, [0], AddressFormat.P2WPKH, [0x03]))
+      .toThrow(/unsupported sighash/i);
+  });
 });
 
 describe('finalizePSBT', () => {
