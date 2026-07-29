@@ -528,12 +528,12 @@ export default function ApprovePsbtPage() {
                 <div>
                   <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({psbtDetails.inputs.length})</h4>
                   <div className="space-y-2">
-                    {psbtDetails.inputs.map((input, idx) => {
+                    {psbtDetails.inputs.map((input) => {
                       const inputAssets = attachedByInput.get(input.index);
                       return (
-                      <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                      <div key={input.index} className="bg-gray-50 p-2 rounded text-xs">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">#{idx}</span>
+                          <span className="text-gray-600">#{input.index}</span>
                           {input.value !== undefined && (
                             <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(input.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
                           )}
