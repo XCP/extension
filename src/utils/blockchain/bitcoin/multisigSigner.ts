@@ -1,267 +1,137 @@
 /**
- * Specialized signer for bare multisig transactions.
- * 
- * Handles all bare multisig cases:
- * - Standard compressed keys
- * - Uncompressed keys
- * - Non-standard "pubkeys" (Counterparty data encoding)
- * 
- * Similar to uncompressedSigner, but with both custom sign AND finalize methods
- * to handle the special requirements of bare multisig, especially Counterparty's
- * use of invalid "pubkeys" for data encoding.
+ * Specialized signer for Counterparty bare multisig outputs.
+ *
+ * These inputs cannot go through @scure/btc-signer's standard sign/finalize
+ * path: OutScript.decode validates every multisig pubkey as a curve point,
+ * and Counterparty data-encoding "pubkeys" are usually not valid points.
+ * Instead we parse the script ourselves, compute the legacy sighash via the
+ * library's preimageLegacy, sign directly, and construct the 1-of-N scriptSig
+ * (OP_0 <sig>) by hand. The scriptSig of a bare multisig spend contains only
+ * signatures, so this single construction covers every Counterparty layout
+ * regardless of which key slot is ours or whether the data slots decode as
+ * valid pubkeys.
  */
 
-import { Transaction, SigHash, OutScript } from '@scure/btc-signer';
+import { Transaction, SigHash } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
-/**
- * Input classification for signing strategy.
- */
-export interface MultisigInputInfo {
-  signType: 'compressed' | 'uncompressed' | 'invalid-pubkeys';
-  scriptPubKey: Uint8Array;
-  ourKeyIsCompressed?: boolean;
-  ourKeyIsUncompressed?: boolean;
+export interface ParsedBareMultisig {
+  requiredSignatures: number;
+  pubkeys: Uint8Array[];
 }
 
 /**
- * Analyzes a bare multisig script to determine how to sign it.
- * 
- * @param scriptPubKey - The script to analyze
- * @param compressedPubkey - Our compressed public key
- * @param uncompressedPubkey - Our uncompressed public key
- * @returns Input info or null if not a valid multisig for us
+ * Parse a bare multisig script without validating pubkeys as curve points.
+ * Mirrors the recovery API's classifier: OP_m, then only 33- or 65-byte
+ * pushes, then OP_n OP_CHECKMULTISIG with n matching the push count.
+ *
+ * @returns Parsed script, or null if the script is not that exact shape
  */
-export function analyzeMultisigScript(
-  scriptPubKey: Uint8Array,
-  compressedPubkey: Uint8Array,
-  uncompressedPubkey: Uint8Array
-): MultisigInputInfo | null {
-  const compressedHex = bytesToHex(compressedPubkey);
-  const uncompressedHex = bytesToHex(uncompressedPubkey);
-  
-  try {
-    // Try standard decoding first
-    const decoded = OutScript.decode(scriptPubKey);
-    
-    if (decoded.type !== 'ms') {
-      return null; // Not a multisig
-    }
-    
-    // Check if we have our key
-    const hasCompressed = decoded.pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === compressedHex);
-    const hasUncompressed = decoded.pubkeys.some((pk: Uint8Array) => bytesToHex(pk) === uncompressedHex);
-    
-    if (!hasCompressed && !hasUncompressed) {
-      return null; // Doesn't contain our key
-    }
-    
-    return {
-      signType: hasUncompressed ? 'uncompressed' : 'compressed',
-      scriptPubKey,
-      ourKeyIsCompressed: hasCompressed,
-      ourKeyIsUncompressed: hasUncompressed
-    };
-    
-  } catch (decodeError) {
-    // OutScript.decode failed - likely has invalid "pubkeys" (Counterparty data)
-    // Do a manual check to see if our key is present
-    const scriptHex = bytesToHex(scriptPubKey);
-    
-    // Check if our keys appear in the script
-    const hasCompressed = scriptHex.includes(compressedHex.toLowerCase());
-    const hasUncompressed = scriptHex.includes(uncompressedHex.toLowerCase());
-    
-    if (!hasCompressed && !hasUncompressed) {
-      return null; // Doesn't contain our key
-    }
-    
-    return {
-      signType: 'invalid-pubkeys',
-      scriptPubKey,
-      ourKeyIsCompressed: hasCompressed,
-      ourKeyIsUncompressed: hasUncompressed
-    };
+export function parseBareMultisig(script: Uint8Array): ParsedBareMultisig | null {
+  if (script.length < 4) return null;
+
+  let offset = 0;
+  const requiredOpcode = script[offset++];
+  if (requiredOpcode < 0x51 || requiredOpcode > 0x60) return null;
+
+  const pubkeys: Uint8Array[] = [];
+  while (offset < script.length - 2) {
+    const length = script[offset++];
+    if (length !== 33 && length !== 65) return null;
+    if (offset + length > script.length - 2) return null;
+    pubkeys.push(script.slice(offset, offset + length));
+    offset += length;
   }
+
+  if (offset + 2 !== script.length) return null;
+  const countOpcode = script[offset++];
+  if (countOpcode < 0x51 || countOpcode > 0x60 || script[offset] !== 0xae) return null;
+
+  const requiredSignatures = requiredOpcode - 0x50;
+  if (countOpcode - 0x50 !== pubkeys.length || requiredSignatures > pubkeys.length) return null;
+
+  return { requiredSignatures, pubkeys };
 }
 
 /**
- * Signs a bare multisig input using the appropriate method.
- * 
- * @param tx - The transaction
- * @param inputIdx - Index of the input to sign
- * @param privateKey - Private key bytes
- * @param inputInfo - Information about this input
+ * Assert that a script is a bare multisig we can fully sign on our own:
+ * 1-of-N with one of our keys in a key slot. The recovery API only serves
+ * such outputs; this guards against malformed or unexpected data reaching
+ * the signer, where an unsignable input would otherwise surface as an
+ * invalid transaction at broadcast time.
+ *
+ * @param script - The scriptPubKey to check
+ * @param ourPubkeys - Acceptable encodings of our key (compressed and uncompressed)
+ * @returns The parsed script
+ * @throws If the script is not a 1-of-N bare multisig containing one of our keys
  */
-function signMultisigInput(
+export function assertSignableBareMultisig(
+  script: Uint8Array,
+  ourPubkeys: Uint8Array[]
+): ParsedBareMultisig {
+  const parsed = parseBareMultisig(script);
+  if (!parsed) {
+    throw new Error('not a bare multisig script');
+  }
+  if (parsed.requiredSignatures !== 1) {
+    throw new Error(
+      `unsupported ${parsed.requiredSignatures}-of-${parsed.pubkeys.length} multisig: only 1-of-N can be signed with a single key`
+    );
+  }
+  const ourKeyHexes = ourPubkeys.map(bytesToHex);
+  const hasOurKey = parsed.pubkeys.some((key) => ourKeyHexes.includes(bytesToHex(key)));
+  if (!hasOurKey) {
+    throw new Error('script does not contain our public key');
+  }
+  return parsed;
+}
+
+/**
+ * Sign and finalize every input of a bare multisig consolidation transaction.
+ * All inputs must be 1-of-N bare multisig locked by the corresponding entry
+ * in `scripts` (see assertSignableBareMultisig).
+ *
+ * Yields to the event loop periodically: preimageLegacy re-serializes the
+ * whole transaction per input, so large batches take seconds of CPU and
+ * would otherwise freeze the extension popup.
+ *
+ * @param tx - Transaction with all inputs and outputs already added
+ * @param privateKey - Private key bytes
+ * @param scripts - scriptPubKey of the output each input spends, by input index
+ */
+export async function signAndFinalizeBareMultisig(
   tx: Transaction,
-  inputIdx: number,
   privateKey: Uint8Array,
-  compressedPubkey: Uint8Array,
-  uncompressedPubkey: Uint8Array,
-  inputInfo: MultisigInputInfo
-): void {
-  // Get the preimage hash for signing
+  scripts: Uint8Array[]
+): Promise<void> {
+  if (tx.inputsLength !== scripts.length) {
+    throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${scripts.length} scripts`);
+  }
+
+  // preimageLegacy is private API: the public sign()/finalize() path refuses
+  // inputs whose multisig pubkeys are not valid curve points. The pinned
+  // dependency plus the real-signature tests in multisigSigner.test.ts guard
+  // this access across library upgrades.
   const preimageLegacy = (tx as any).preimageLegacy;
   if (typeof preimageLegacy !== 'function') {
     throw new Error('preimageLegacy method not accessible');
   }
-  
-  const hash = preimageLegacy.call(tx, inputIdx, inputInfo.scriptPubKey, SigHash.ALL);
-  const sig = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
-  
-  // Append sighash byte
-  const sigWithHash = new Uint8Array(sig.length + 1);
-  sigWithHash.set(sig);
-  sigWithHash[sig.length] = SigHash.ALL;
-  
-  // Determine which pubkey to use based on the input type
-  let pubkeyToUse: Uint8Array;
-  if (inputInfo.signType === 'uncompressed' ||
-      (inputInfo.signType === 'invalid-pubkeys' && inputInfo.ourKeyIsUncompressed && !inputInfo.ourKeyIsCompressed)) {
-    pubkeyToUse = uncompressedPubkey;
-  } else {
-    pubkeyToUse = compressedPubkey;
-  }
 
-  // Log signature details for debugging
-  if (inputInfo.signType === 'invalid-pubkeys' || inputIdx === 0) {
-    console.log(`Signing input ${inputIdx}:
-      - Sign type: ${inputInfo.signType}
-      - Using ${pubkeyToUse === uncompressedPubkey ? 'uncompressed' : 'compressed'} pubkey
-      - Signature length: ${sig.length}
-      - SigWithHash length: ${sigWithHash.length}
-      - Our key is compressed: ${inputInfo.ourKeyIsCompressed}
-      - Our key is uncompressed: ${inputInfo.ourKeyIsUncompressed}`);
-  }
-
-  // Set partialSig for inputs that btc-signer can finalize
-  if (inputInfo.signType !== 'invalid-pubkeys') {
-    tx.updateInput(inputIdx, { partialSig: [[pubkeyToUse, sigWithHash]] }, true);
-  } else {
-    // For invalid-pubkeys, set finalScriptSig directly to bypass validation
-    // Construct the scriptSig: OP_0 <signature>
-    const scriptSig = new Uint8Array(1 + 1 + sigWithHash.length);
-    scriptSig[0] = 0x00; // OP_0
-    scriptSig[1] = sigWithHash.length;
-    scriptSig.set(sigWithHash, 2);
-
-    console.log(`Invalid-pubkeys input ${inputIdx} scriptSig:
-      - Length: ${scriptSig.length}
-      - Hex: ${bytesToHex(scriptSig)}
-      - Structure: OP_0 (0x00) | LEN (${sigWithHash.length}) | SIG`);
-
-    tx.updateInput(inputIdx, { finalScriptSig: scriptSig }, true);
-  }
-}
-
-/**
- * Signs all bare multisig inputs in a transaction.
- * 
- * @param tx - The transaction to sign
- * @param privateKey - Private key bytes
- * @param compressedPubkey - Compressed public key
- * @param uncompressedPubkey - Uncompressed public key
- * @param inputInfos - Information about each input
- */
-export function signBareMultisigTransaction(
-  tx: Transaction,
-  privateKey: Uint8Array,
-  compressedPubkey: Uint8Array,
-  uncompressedPubkey: Uint8Array,
-  inputInfos: MultisigInputInfo[]
-): void {
-  if (tx.inputsLength !== inputInfos.length) {
-    throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${inputInfos.length} infos`);
-  }
-  
-  // Sign each input based on its type
-  for (let i = 0; i < tx.inputsLength; i++) {
-    signMultisigInput(tx, i, privateKey, compressedPubkey, uncompressedPubkey, inputInfos[i]);
-  }
-}
-
-/**
- * Finalizes all bare multisig inputs in a transaction.
- * Handles compressed, uncompressed, and invalid-pubkey inputs.
- * 
- * @param tx - The transaction to finalize
- * @param inputInfos - Information about each input
- */
-export function finalizeBareMultisigTransaction(
-  tx: Transaction,
-  inputInfos: MultisigInputInfo[]
-): void {
-  if (tx.inputsLength !== inputInfos.length) {
-    throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${inputInfos.length} infos`);
-  }
-
-  for (let i = 0; i < tx.inputsLength; i++) {
-    const input = tx.getInput(i);
-    const info = inputInfos[i];
-
-    // Check if input exists
-    if (!input) {
-      throw new Error(`Failed to get input ${i} from transaction`);
+  for (let i = 0; i < scripts.length; i++) {
+    if (i > 0 && i % 25 === 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
+    const hash = preimageLegacy.call(tx, i, scripts[i], SigHash.ALL);
+    const signature = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
 
-    // Skip if already finalized (invalid-pubkeys are finalized during signing)
-    if (input.finalScriptSig && input.finalScriptSig.length > 0) {
-      console.log(`Input ${i} already finalized, skipping. Length: ${input.finalScriptSig.length}`);
-      continue;
-    }
+    // scriptSig: OP_0 <sig||sighash> (OP_0 feeds CHECKMULTISIG's extra pop)
+    const scriptSig = new Uint8Array(2 + signature.length + 1);
+    scriptSig[0] = 0x00;
+    scriptSig[1] = signature.length + 1;
+    scriptSig.set(signature, 2);
+    scriptSig[2 + signature.length] = SigHash.ALL;
 
-    if (info.signType === 'invalid-pubkeys') {
-      // This should have been handled during signing
-      throw new Error(`Input ${i} with invalid pubkeys was not finalized during signing`);
-    }
-
-    // For compressed and uncompressed, use btc-signer's finalize
-    // It should work since we used partialSig
-    try {
-      tx.finalizeIdx(i);
-      console.log(`Input ${i} finalized via btc-signer`);
-    } catch (e) {
-      console.log(`Input ${i} btc-signer finalize failed, using manual construction:`, e);
-      // If btc-signer's finalize fails, manually construct the scriptSig
-      if (input.partialSig && input.partialSig.length > 0 && input.partialSig[0] && input.partialSig[0][1]) {
-        const sig = input.partialSig[0][1];
-        const scriptSig = new Uint8Array(1 + 1 + sig.length);
-        scriptSig[0] = 0x00; // OP_0
-        scriptSig[1] = sig.length;
-        scriptSig.set(sig, 2);
-
-        tx.updateInput(i, { finalScriptSig: scriptSig }, true);
-        console.log(`Input ${i} manually finalized with scriptSig length: ${scriptSig.length}`);
-      } else {
-        console.error(`Input ${i} partialSig structure:`, input.partialSig);
-        throw new Error(`Failed to finalize input ${i}: missing or invalid partialSig. Error: ${e}`);
-      }
-    }
+    tx.updateInput(i, { finalScriptSig: scriptSig }, true);
   }
-}
-
-/**
- * Complete signing and finalization for bare multisig transactions.
- * This is the main entry point that handles everything.
- * 
- * @param tx - The transaction to sign and finalize
- * @param privateKey - Private key bytes
- * @param compressedPubkey - Compressed public key
- * @param uncompressedPubkey - Uncompressed public key
- * @param inputInfos - Information about each input
- */
-export function signAndFinalizeBareMultisig(
-  tx: Transaction,
-  privateKey: Uint8Array,
-  compressedPubkey: Uint8Array,
-  uncompressedPubkey: Uint8Array,
-  inputInfos: MultisigInputInfo[]
-): void {
-  // Sign all inputs
-  signBareMultisigTransaction(tx, privateKey, compressedPubkey, uncompressedPubkey, inputInfos);
-  
-  // Finalize all inputs
-  finalizeBareMultisigTransaction(tx, inputInfos);
 }

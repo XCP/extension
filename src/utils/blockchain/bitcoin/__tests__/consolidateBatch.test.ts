@@ -1,142 +1,105 @@
 /**
  * Tests for consolidateBatch.ts - Batch Consolidation for Bare Multisig UTXOs
  *
- * Tests the consolidateBareMultisigBatch function which handles:
- * - Fee calculation (network fee + service fee)
- * - Dust threshold validation
- * - Output construction from batch data
- * - Error cases (empty UTXOs, insufficient funds)
- *
- * Note: Core signing logic is tested in multisigSigner.test.ts
+ * Runs the real signer end-to-end against fixture previous transactions:
+ * fee calculation, prev-tx cross-checks, signability guards, and
+ * cryptographic verification of the produced signatures.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import * as secp from '@noble/secp256k1';
 import { getPublicKey } from '@noble/secp256k1';
-import { OutScript } from '@scure/btc-signer';
-import {
-  consolidateBareMultisigBatch,
-  type ConsolidationResult
-} from '../consolidateBatch';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { base58check } from '@scure/base';
+import { consolidateBareMultisigBatch } from '../consolidateBatch';
 import type { ConsolidationData, ConsolidationUTXO } from '../consolidationApi';
+import {
+  bareMultisigScript,
+  buildPrevTx,
+  counterpartyDataKey,
+  derToCompact,
+  legacySighashAll,
+  offCurveFakeKey,
+  parseWireTx,
+  txidOf,
+  type WireOutput,
+} from './helpers/bareMultisigFixtures';
 
-// Mock the signing functions to isolate fee calculation tests
-vi.mock('../multisigSigner', () => ({
-  analyzeMultisigScript: vi.fn((script, compressed, uncompressed) => {
-    // Return valid analysis for any script containing our keys
-    const scriptHex = bytesToHex(script);
-    const compressedHex = bytesToHex(compressed);
-    const uncompressedHex = bytesToHex(uncompressed);
-
-    if (scriptHex.includes(compressedHex) || scriptHex.includes(uncompressedHex)) {
-      return {
-        signType: 'compressed' as const,
-        scriptPubKey: script,
-        ourKeyIsCompressed: true,
-        ourKeyIsUncompressed: false
-      };
-    }
-    return null;
-  }),
-  signAndFinalizeBareMultisig: vi.fn()
-}));
-
-// Test private key (DO NOT USE IN PRODUCTION)
+// Test key (DO NOT USE IN PRODUCTION)
 const TEST_PRIVATE_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const TEST_ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+const FEE_ADDRESS = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
 
-// Create test pubkeys
 const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
 const compressedPubkey = getPublicKey(privateKeyBytes, true);
 const uncompressedPubkey = getPublicKey(privateKeyBytes, false);
+const otherKey = getPublicKey(hexToBytes('11'.repeat(32)), true);
 
-// Create a valid multisig script with our compressed pubkey
-const createMultisigScript = (pubkey: Uint8Array): string => {
-  const script = OutScript.encode({
-    type: 'ms',
-    m: 1,
-    pubkeys: [pubkey]
-  });
-  return bytesToHex(script);
-};
+const historicalScript = bareMultisigScript(1, [compressedPubkey, counterpartyDataKey()]);
+const currentScript = bareMultisigScript(1, [offCurveFakeKey(0x02), offCurveFakeKey(0x03), uncompressedPubkey]);
 
-// Create mock batch data
-const createMockBatchData = (options: {
+const p2pkhScriptHex = (address: string): string =>
+  '76a914' + bytesToHex(base58check(sha256).decode(address).slice(1)) + '88ac';
+
+function makeUtxo(script: Uint8Array, amount: number, seed: number): ConsolidationUTXO {
+  const prevTxBytes = buildPrevTx([{ amount: BigInt(amount), script }], seed);
+  return {
+    txid: txidOf(prevTxBytes),
+    vout: 0,
+    amount,
+    prev_tx_hex: bytesToHex(prevTxBytes),
+    script: bytesToHex(script),
+    position: 0,
+    script_type: 'bare_multisig',
+  };
+}
+
+function createBatchData(options: {
   utxoCount?: number;
   amountPerUtxo?: number;
   feePercent?: number;
   exemptionThreshold?: number;
   feeAddress?: string;
-  signType?: 'compressed' | 'uncompressed' | 'invalid-pubkeys';
-}): ConsolidationData => {
+  script?: Uint8Array;
+  utxos?: ConsolidationUTXO[];
+} = {}): ConsolidationData {
   const {
     utxoCount = 1,
-    amountPerUtxo = 100000, // 100,000 sats = 0.001 BTC
+    amountPerUtxo = 100_000,
     feePercent = 0,
     exemptionThreshold = 0,
-    // Use a real valid Bitcoin address for service fee
-    feeAddress = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2',
-    signType = 'compressed'
+    feeAddress = FEE_ADDRESS,
+    script = historicalScript,
   } = options;
 
-  const pubkeyToUse = signType === 'uncompressed' ? uncompressedPubkey : compressedPubkey;
-  const scriptHex = createMultisigScript(pubkeyToUse);
-
-  const utxos: ConsolidationUTXO[] = Array.from({ length: utxoCount }, (_, i) => ({
-    // Ensure txid is always 64 hex characters
-    txid: i.toString(16).padStart(64, '0'),
-    vout: 0,
-    amount: amountPerUtxo,
-    prev_tx_hex: '0'.repeat(200), // Dummy prev tx
-    script: scriptHex,
-    position: 0,
-    script_type: 'bare_multisig',
-    sign_type: signType
-  }));
+  const utxos = options.utxos
+    ?? Array.from({ length: utxoCount }, (_, i) => makeUtxo(script, amountPerUtxo, i + 1));
 
   return {
     address: TEST_ADDRESS,
     summary: {
-      total_utxos: utxoCount,
-      total_btc: (utxoCount * amountPerUtxo) / 100000000,
+      total_utxos: utxos.length,
+      total_btc: utxos.reduce((sum, u) => sum + u.amount, 0) / 100_000_000,
       batches_required: 1,
       current_batch: 1,
-      batch_utxos: utxoCount
+      batch_utxos: utxos.length,
     },
     fee_config: {
       fee_address: feeAddress,
       fee_percent: feePercent,
-      exemption_threshold: exemptionThreshold
+      exemption_threshold: exemptionThreshold,
     },
     utxos,
-    mempool_status: {
-      pending_consolidations: 0,
-      pending_utxo_count: 0,
-      can_broadcast_more: true
-    },
-    stamp_protection: {
-      protected_utxos: 0,
-      protected_btc: 0,
-      included: false
-    }
+    mempool_status: { pending_consolidations: 0, pending_utxo_count: 0, can_broadcast_more: true },
+    stamp_protection: { protected_utxos: 0, protected_btc: 0, included: false },
   };
-};
+}
 
 describe('consolidateBareMultisigBatch', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Mock console.log/warn to reduce test noise
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
   describe('Error handling', () => {
     it('should throw error when batch has no UTXOs', async () => {
-      const batchData = createMockBatchData({ utxoCount: 0 });
+      const batchData = createBatchData();
       batchData.utxos = [];
 
       await expect(
@@ -145,317 +108,271 @@ describe('consolidateBareMultisigBatch', () => {
     });
 
     it('should throw error when output amount is below dust threshold', async () => {
-      // Create batch with small amounts that will result in dust output after fees
-      const batchData = createMockBatchData({
-        utxoCount: 1,
-        amountPerUtxo: 1000 // 1000 sats total, will be < 546 after fees
-      });
+      const batchData = createBatchData({ utxoCount: 1, amountPerUtxo: 1000 });
 
       await expect(
-        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 100) // High fee rate
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 100)
       ).rejects.toThrow(/Output amount.*is below dust threshold/);
     });
 
     it('should include fee details in dust threshold error', async () => {
-      const batchData = createMockBatchData({
+      const batchData = createBatchData({ utxoCount: 1, amountPerUtxo: 1000 });
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 100)
+      ).rejects.toThrow(/Total input: 1000 sats, Total fees: 16000 sats/);
+    });
+
+    it('should throw when service fee applies but no fee address is configured', async () => {
+      const batchData = createBatchData({
         utxoCount: 1,
-        amountPerUtxo: 1000
+        amountPerUtxo: 1_000_000,
+        feePercent: 10,
+        feeAddress: '',
       });
 
-      try {
-        await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 100);
-        expect.fail('Should have thrown');
-      } catch (error: any) {
-        expect(error.message).toContain('sats');
-        expect(error.message).toContain('Total input');
-        expect(error.message).toContain('Total fees');
-      }
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow('Recovery fee configuration is unavailable');
+    });
+  });
+
+  describe('Previous transaction cross-checks', () => {
+    it('should reject a UTXO whose amount disagrees with its previous transaction', async () => {
+      const batchData = createBatchData();
+      batchData.utxos[0].amount += 1;
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/Value mismatch for UTXO/);
+    });
+
+    it('should reject a UTXO whose script disagrees with its previous transaction', async () => {
+      const batchData = createBatchData();
+      batchData.utxos[0].script = bytesToHex(currentScript);
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/Script mismatch for UTXO/);
+    });
+
+    it('should reject prev_tx_hex that does not hash to the txid', async () => {
+      const batchData = createBatchData();
+      const tampered = hexToBytes(batchData.utxos[0].prev_tx_hex);
+      tampered[tampered.length - 1] ^= 0x01; // flip a locktime bit
+      batchData.utxos[0].prev_tx_hex = bytesToHex(tampered);
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/does not match its txid/);
+    });
+
+    it('should reject a vout the previous transaction does not have', async () => {
+      const batchData = createBatchData();
+      batchData.utxos[0].vout = 5;
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/Output 5 not found in previous transaction/);
+    });
+
+    it('should consolidate two outputs of the same previous transaction', async () => {
+      const outputs: WireOutput[] = [
+        { amount: 60_000n, script: historicalScript },
+        { amount: 40_000n, script: currentScript },
+      ];
+      const prevTxBytes = buildPrevTx(outputs, 7);
+      const shared = {
+        txid: txidOf(prevTxBytes),
+        prev_tx_hex: bytesToHex(prevTxBytes),
+        position: 0,
+        script_type: 'bare_multisig',
+      };
+      const batchData = createBatchData({
+        utxos: [
+          { ...shared, vout: 0, amount: 60_000, script: bytesToHex(historicalScript) },
+          { ...shared, vout: 1, amount: 40_000, script: bytesToHex(currentScript) },
+        ],
+      });
+
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
+
+      expect(result.totalInput).toBe(100_000);
+      expect(parseWireTx(hexToBytes(result.signedTxHex)).inputs).toHaveLength(2);
+    });
+  });
+
+  describe('Signability guards', () => {
+    it('should reject a 2-of-2 script even when our key is present', async () => {
+      const script = bareMultisigScript(2, [compressedPubkey, otherKey]);
+      const batchData = createBatchData({ script });
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/Cannot sign UTXO .*: unsupported 2-of-2 multisig/);
+    });
+
+    it('should reject a script that does not contain our key', async () => {
+      const script = bareMultisigScript(1, [otherKey, counterpartyDataKey()]);
+      const batchData = createBatchData({ script });
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/Cannot sign UTXO .*: script does not contain our public key/);
     });
   });
 
   describe('Fee calculations', () => {
-    it('should calculate network fee correctly for single input', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 1,
-        amountPerUtxo: 1000000 // 1M sats
-      });
+    it('should charge the estimated network fee exactly', async () => {
+      const batchData = createBatchData({ utxoCount: 1, amountPerUtxo: 1_000_000 });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10 // 10 sat/vbyte
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
-      // Formula: (inputs * 115 + base 10 + varint 1 + outputs * 34) * feeRate
-      // = (1 * 115 + 10 + 1 + 1 * 34) * 10 = 160 * 10 = 1600 sats estimated
-      // Actual may vary based on signed tx size
-      expect(result.networkFee).toBeGreaterThan(0);
-      expect(result.totalInput).toBe(1000000);
-      // Output should be less than input (fees deducted)
-      expect(result.outputAmount).toBeLessThan(result.totalInput);
-      expect(result.outputAmount).toBeGreaterThan(0);
+      // (1 input * 115 + 10 base + 1 varint + 1 output * 34) * 10 sat/vB
+      expect(result.networkFee).toBe(1600);
+      expect(result.totalInput).toBe(1_000_000);
+      expect(result.outputAmount).toBe(1_000_000 - 1600);
+      expect(result.serviceFee).toBe(0);
     });
 
-    it('should calculate network fee correctly for multiple inputs', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 10,
-        amountPerUtxo: 100000 // 100K sats each = 1M total
-      });
+    it('should scale the network fee with input count', async () => {
+      const batchData = createBatchData({ utxoCount: 10, amountPerUtxo: 100_000 });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
-      // More inputs = higher fee
-      // Formula: (10 * 115 + 10 + 1 + 1 * 34) * 10 = 1195 * 10 = 11950 sats estimated
-      expect(result.networkFee).toBeGreaterThan(1000);
-      expect(result.totalInput).toBe(1000000);
+      // (10 * 115 + 10 + 1 + 34) * 10
+      expect(result.networkFee).toBe(11_950);
+      expect(result.outputAmount).toBe(1_000_000 - 11_950);
     });
 
     it('should apply service fee when above exemption threshold', async () => {
-      const batchData = createMockBatchData({
+      const batchData = createBatchData({
         utxoCount: 5,
-        amountPerUtxo: 200000, // 1M sats total
-        feePercent: 5, // 5% service fee
-        exemptionThreshold: 100000 // 100K sats threshold
+        amountPerUtxo: 200_000,
+        feePercent: 5,
+        exemptionThreshold: 100_000,
       });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
-      // Service fee = 5% of (total - network fee)
-      // Should be non-zero since we're above threshold
-      expect(result.serviceFee).toBeGreaterThan(0);
-      expect(result.totalInput).toBe(1000000);
+      // Two outputs: (5 * 115 + 10 + 1 + 2 * 34) * 10 = 6540 network fee,
+      // then 5% of the remainder goes to the service address.
+      expect(result.networkFee).toBe(6540);
+      expect(result.serviceFee).toBe(49_673);
+      expect(result.outputAmount).toBe(1_000_000 - 6540 - 49_673);
+
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(wire.outputs).toHaveLength(2);
+      expect(wire.outputs[0].amount).toBe(BigInt(result.outputAmount));
+      expect(bytesToHex(wire.outputs[1].script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
+      expect(wire.outputs[1].amount).toBe(BigInt(result.serviceFee));
+    });
+
+    it('should return a sub-dust service fee to the user instead of burning it', async () => {
+      const batchData = createBatchData({
+        utxoCount: 1,
+        amountPerUtxo: 12_000,
+        feePercent: 5,
+        exemptionThreshold: 10_000,
+      });
+
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
+
+      // Candidate service fee is 5% of (12000 - 1940) = 503 sats: below dust,
+      // so no service output and the user output absorbs it entirely.
+      expect(result.serviceFee).toBe(0);
+      expect(result.networkFee).toBe(1600);
+      expect(result.outputAmount).toBe(12_000 - 1600);
+      expect(parseWireTx(hexToBytes(result.signedTxHex)).outputs).toHaveLength(1);
     });
 
     it('should not apply service fee when below exemption threshold', async () => {
-      const batchData = createMockBatchData({
+      const batchData = createBatchData({
         utxoCount: 1,
-        amountPerUtxo: 50000, // 50K sats - below threshold
+        amountPerUtxo: 50_000,
         feePercent: 5,
-        exemptionThreshold: 100000 // 100K sats threshold
+        exemptionThreshold: 100_000,
       });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
       expect(result.serviceFee).toBe(0);
     });
 
     it('should not apply service fee when fee_percent is 0', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 5,
-        amountPerUtxo: 200000,
-        feePercent: 0,
-        exemptionThreshold: 0
-      });
+      const batchData = createBatchData({ utxoCount: 5, amountPerUtxo: 200_000, feePercent: 0 });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
       expect(result.serviceFee).toBe(0);
     });
   });
 
-  describe('Result structure', () => {
-    it('should return complete ConsolidationResult', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 3,
-        amountPerUtxo: 100000
+  describe('Signed transaction', () => {
+    it('should sign a mixed batch of Counterparty layouts with valid signatures', async () => {
+      const specs = [
+        { script: historicalScript, amount: 40_000, signer: compressedPubkey },
+        { script: currentScript, amount: 35_000, signer: uncompressedPubkey },
+        { script: bareMultisigScript(1, [compressedPubkey, otherKey]), amount: 25_000, signer: compressedPubkey },
+      ];
+      const batchData = createBatchData({
+        utxos: specs.map((spec, i) => makeUtxo(spec.script, spec.amount, i + 1)),
       });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
 
-      expect(result).toHaveProperty('signedTxHex');
-      expect(result).toHaveProperty('totalInput');
-      expect(result).toHaveProperty('networkFee');
-      expect(result).toHaveProperty('serviceFee');
-      expect(result).toHaveProperty('outputAmount');
-      expect(result).toHaveProperty('txSize');
+      expect(result.totalInput).toBe(100_000);
+      expect(result.totalInput).toBe(result.outputAmount + result.serviceFee + result.networkFee);
+      expect(result.txSize).toBe(result.signedTxHex.length / 2);
 
-      expect(typeof result.signedTxHex).toBe('string');
-      expect(result.signedTxHex).toMatch(/^[0-9a-f]+$/i);
-      expect(result.totalInput).toBe(300000);
-      expect(result.txSize).toBeGreaterThan(0);
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(wire.outputs).toHaveLength(1);
+      expect(bytesToHex(wire.outputs[0].script)).toBe(p2pkhScriptHex(TEST_ADDRESS));
+      expect(wire.outputs[0].amount).toBe(BigInt(result.outputAmount));
+
+      for (const [index, spec] of specs.entries()) {
+        const scriptSig = wire.inputs[index].script;
+        expect(scriptSig[0]).toBe(0x00);
+        expect(scriptSig[scriptSig.length - 1]).toBe(0x01);
+        const sighash = legacySighashAll(wire, index, spec.script);
+        expect(
+          secp.verify(derToCompact(scriptSig.slice(2, -1)), sighash, spec.signer, { prehash: false })
+        ).toBe(true);
+      }
     });
 
-    it('should return consistent result values', async () => {
-      // Test without service fee to verify basic structure
-      const batchData = createMockBatchData({
-        utxoCount: 5,
-        amountPerUtxo: 100000,
-        feePercent: 0, // No service fee for simpler verification
-        exemptionThreshold: 0
-      });
+    it('should send to a custom destination address when provided', async () => {
+      const batchData = createBatchData({ utxoCount: 1, amountPerUtxo: 100_000 });
 
       const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
+        TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10, FEE_ADDRESS
       );
 
-      // Total input is the sum of all UTXO amounts
-      expect(result.totalInput).toBe(500000);
-
-      // networkFee is the actual fee calculated from tx size (post-signing)
-      // outputAmount is calculated using estimated fee (pre-signing)
-      // These won't perfectly balance due to fee estimation vs actual
-      expect(result.networkFee).toBeGreaterThan(0);
-      expect(result.outputAmount).toBeGreaterThan(0);
-      expect(result.outputAmount).toBeLessThan(result.totalInput);
-
-      // Service fee should be 0 when feePercent is 0
-      expect(result.serviceFee).toBe(0);
-
-      // Tx size should be positive
-      expect(result.txSize).toBeGreaterThan(0);
-    });
-  });
-
-  describe('Destination address', () => {
-    it('should use source address when no destination provided', async () => {
-      const batchData = createMockBatchData({ utxoCount: 1, amountPerUtxo: 100000 });
-
-      // This test verifies the function doesn't throw when destination is undefined
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-        // No destination address
-      );
-
-      expect(result.signedTxHex).toBeDefined();
-    });
-
-    it('should use custom destination address when provided', async () => {
-      const batchData = createMockBatchData({ utxoCount: 1, amountPerUtxo: 100000 });
-      const customDestination = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
-
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10,
-        customDestination
-      );
-
-      expect(result.signedTxHex).toBeDefined();
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(bytesToHex(wire.outputs[0].script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
     });
   });
 
   describe('Large batch handling', () => {
-    it('should handle varint encoding for large input counts (< 253)', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 100,
-        amountPerUtxo: 10000 // 10K sats each
-      });
+    it('should handle input counts past the varint boundary', async () => {
+      const batchData = createBatchData({ utxoCount: 253, amountPerUtxo: 10_000 });
 
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        1 // Low fee rate to not exhaust funds
-      );
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 1);
 
-      expect(result.totalInput).toBe(1000000); // 100 * 10K
-      expect(result.txSize).toBeGreaterThan(0);
-    });
+      // (253 * 115 + 10 + 3-byte varint + 34) * 1
+      expect(result.networkFee).toBe(29_142);
+      expect(result.totalInput).toBe(2_530_000);
+      expect(result.outputAmount).toBe(2_530_000 - 29_142);
 
-    it('should handle varint encoding for large input counts (>= 253)', async () => {
-      // Create batch with 260 inputs
-      const batchData = createMockBatchData({
-        utxoCount: 260,
-        amountPerUtxo: 10000
-      });
-
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        1
-      );
-
-      expect(result.totalInput).toBe(2600000); // 260 * 10K
-    });
-  });
-
-  describe('Sign type handling', () => {
-    it('should process compressed key UTXOs', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 1,
-        amountPerUtxo: 100000,
-        signType: 'compressed'
-      });
-
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
-
-      expect(result.signedTxHex).toBeDefined();
-    });
-
-    it('should process uncompressed key UTXOs', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 1,
-        amountPerUtxo: 100000,
-        signType: 'uncompressed'
-      });
-
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
-
-      expect(result.signedTxHex).toBeDefined();
-    });
-
-    it('should handle invalid-pubkeys sign type', async () => {
-      const batchData = createMockBatchData({
-        utxoCount: 1,
-        amountPerUtxo: 100000,
-        signType: 'invalid-pubkeys'
-      });
-
-      // Update the UTXO to have invalid-pubkeys sign_type
-      batchData.utxos[0].sign_type = 'invalid-pubkeys';
-
-      const result = await consolidateBareMultisigBatch(
-        TEST_PRIVATE_KEY,
-        TEST_ADDRESS,
-        batchData,
-        10
-      );
-
-      expect(result.signedTxHex).toBeDefined();
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(wire.inputs).toHaveLength(253);
+      // Spot-check first and last signatures
+      for (const index of [0, 252]) {
+        const sighash = legacySighashAll(wire, index, historicalScript);
+        expect(
+          secp.verify(derToCompact(wire.inputs[index].script.slice(2, -1)), sighash, compressedPubkey, { prehash: false })
+        ).toBe(true);
+      }
     });
   });
 });

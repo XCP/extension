@@ -60,7 +60,6 @@ export interface ConsolidationUTXO {
   script: string;
   position: number;
   script_type: string;
-  sign_type?: "compressed" | "uncompressed" | "valid-mixed" | "invalid-pubkeys";
 }
 
 export interface ConsolidationData {
