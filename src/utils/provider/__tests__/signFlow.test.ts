@@ -34,7 +34,7 @@ describe('signFlow', () => {
       const key = computeRequestKey('https://x.com', 'xcp_signTransaction', ['00']);
       await beginSignFlow('id-1', 'https://x.com', key);
 
-      let flow = await findActiveFlowByKey(key);
+      let flow = await findActiveFlowByKey(key, 'https://x.com');
       expect(flow?.id).toBe('id-1');
       expect(flow?.status).toBe('pending');
 
@@ -45,7 +45,16 @@ describe('signFlow', () => {
 
       await removeSignFlow('id-1');
       expect(await getSignFlow('id-1')).toBeNull();
-      expect(await findActiveFlowByKey(key)).toBeNull();
+      expect(await findActiveFlowByKey(key, 'https://x.com')).toBeNull();
+    });
+
+    it('does not return a flow to a different origin (djb2 collision guard)', async () => {
+      const key = computeRequestKey('https://victim.com', 'xcp_signPsbt', ['00']);
+      await beginSignFlow('id-2', 'https://victim.com', key);
+
+      // Even given the victim's exact requestKey, another origin gets nothing.
+      expect(await findActiveFlowByKey(key, 'https://attacker.com')).toBeNull();
+      expect((await findActiveFlowByKey(key, 'https://victim.com'))?.id).toBe('id-2');
     });
 
     it('recordSignOutcome is a no-op for an unknown id', async () => {

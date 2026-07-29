@@ -51,12 +51,21 @@ export async function recordSignOutcome(id: string, status: SignFlowStatus, resu
   await signFlowStorage.store({ ...entry, status, result });
 }
 
-/** Find a non-stale flow for a request key (for dedup/rejoin/recovery). */
-export async function findActiveFlowByKey(requestKey: string): Promise<SignFlowEntry | null> {
+/**
+ * Find a non-stale flow for a request key (for dedup/rejoin/recovery).
+ * Origin is matched explicitly so a djb2 requestKey collision from another
+ * origin can never rejoin or recover this origin's flow.
+ */
+export async function findActiveFlowByKey(
+  requestKey: string,
+  origin: string
+): Promise<SignFlowEntry | null> {
   const now = Date.now();
   const all = await signFlowStorage.getAll();
   return (
-    all.find((e) => e.requestKey === requestKey && now - e.timestamp < SIGN_FLOW_TTL_MS) ?? null
+    all.find(
+      (e) => e.requestKey === requestKey && e.origin === origin && now - e.timestamp < SIGN_FLOW_TTL_MS
+    ) ?? null
   );
 }
 

@@ -215,7 +215,7 @@ async function runSignFlow<T>(args: {
   createAndOpen: (requestId: string) => Promise<void>;
 }): Promise<T> {
   const requestKey = computeRequestKey(args.origin, args.method, args.params);
-  const existing = await findActiveFlowByKey(requestKey);
+  const existing = await findActiveFlowByKey(requestKey, args.origin);
 
   const awaitFor = (requestId: string) =>
     awaitSignApproval({
