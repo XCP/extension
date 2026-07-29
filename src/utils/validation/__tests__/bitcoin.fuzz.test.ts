@@ -71,6 +71,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1', // Ethereum address
       '1shortaddress', // Invalid base58 checksum
       '3shortaddress', // Invalid base58 checksum
+      '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNb', // Genesis address, last char corrupted (bad checksum)
       'bc1qtoolong' + 'a'.repeat(50), // Invalid bech32 format
     ];
 

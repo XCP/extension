@@ -3,7 +3,10 @@
  * Uses @scure/base for proper base58 and bech32 validation
  */
 
-import { base58, bech32, bech32m } from '@scure/base';
+import { createBase58check, bech32, bech32m } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2.js';
+
+const base58check = createBase58check(sha256);
 
 export interface AddressValidationResult {
   isValid: boolean;
@@ -17,14 +20,14 @@ export interface AddressValidationResult {
  */
 function validateBase58Address(address: string): AddressValidationResult {
   try {
-    // Decode base58 with checksum validation
-    const decoded = base58.decode(address);
-    
-    // Must be at least 25 bytes (1 version + 20 hash + 4 checksum)
-    if (decoded.length !== 25) {
+    // Decodes and verifies the 4-byte double-SHA256 checksum, throwing on a
+    // corrupted address; the returned payload is version (1) + hash (20).
+    const decoded = base58check.decode(address);
+
+    if (decoded.length !== 21) {
       return { isValid: false, error: 'Invalid address length' };
     }
-    
+
     const version = decoded[0];
     
     // Mainnet P2PKH (version 0x00)
