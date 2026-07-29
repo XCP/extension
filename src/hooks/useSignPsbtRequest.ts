@@ -29,6 +29,69 @@ import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
 } from '@/utils/blockchain/counterparty/transactionSafety';
+import { fetchUtxoBalances } from '@/utils/blockchain/counterparty/api';
+
+/**
+ * Counterparty assets attached to a single PSBT input's UTXO.
+ * Spending such an input moves the assets, which the BTC value alone hides.
+ */
+export interface InputAttachedAssets {
+  inputIndex: number;
+  /** UTXO identifier (txid:vout). */
+  utxo: string;
+  assets: Array<{
+    asset: string;
+    quantity_normalized: string;
+    asset_longname?: string | null;
+  }>;
+}
+
+/**
+ * Cap on per-input asset lookups so a pathological PSBT can't fan out into
+ * unbounded API calls. Real asset-bearing PSBTs have a handful of inputs;
+ * truncation past this is surfaced (console.warn), not silent.
+ */
+export const MAX_ASSET_LOOKUP_INPUTS = 30;
+
+/**
+ * Look up the Counterparty assets attached to each input's UTXO. Returns only
+ * the inputs that carry assets. A failed lookup (indexer/network) yields no
+ * assets for that input rather than blocking — this enriches the display; it
+ * is not a signing gate.
+ */
+export async function fetchInputsAttachedAssets(
+  inputs: Array<{ index: number; txid: string; vout: number }>
+): Promise<InputAttachedAssets[]> {
+  const checked = inputs.slice(0, MAX_ASSET_LOOKUP_INPUTS);
+  if (inputs.length > MAX_ASSET_LOOKUP_INPUTS) {
+    console.warn(
+      `PSBT has ${inputs.length} inputs; only the first ${MAX_ASSET_LOOKUP_INPUTS} were checked for attached Counterparty assets.`
+    );
+  }
+
+  const results = await Promise.all(
+    checked.map(async (input): Promise<InputAttachedAssets | null> => {
+      const utxo = `${input.txid}:${input.vout}`;
+      try {
+        const res = await fetchUtxoBalances(utxo);
+        const assets = (res.result ?? [])
+          .filter((b) => b.asset && b.quantity_normalized)
+          .map((b) => ({
+            asset: b.asset,
+            quantity_normalized: b.quantity_normalized,
+            asset_longname: b.asset_info?.asset_longname ?? null,
+          }));
+        if (assets.length === 0) return null;
+        return { inputIndex: input.index, utxo, assets };
+      } catch (err) {
+        console.warn(`Failed to fetch attached assets for ${utxo}:`, err);
+        return null;
+      }
+    })
+  );
+
+  return results.filter((r): r is InputAttachedAssets => r !== null);
+}
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message
@@ -42,6 +105,8 @@ export interface DecodedPsbtInfo {
   verification: ProviderVerificationResult;
   /** Security analysis (dangerous types, suspicious outputs) */
   safety: SafetyAnalysis;
+  /** Inputs whose UTXOs carry Counterparty assets (empty if none). */
+  attachedAssets: InputAttachedAssets[];
 }
 
 /**
@@ -75,6 +140,10 @@ export function useSignPsbtRequest(signerAddress?: string) {
   ): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
+
+    // Kick off per-input attached-asset lookups now so they overlap with the
+    // OP_RETURN/txid API decodes below rather than adding a serial round-trip.
+    const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs);
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
@@ -131,12 +200,15 @@ export function useSignPsbtRequest(signerAddress?: string) {
       ?? verification.localUnpack?.messageType;
     const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddresses ?? []);
 
+    const attachedAssets = await attachedAssetsPromise;
+
     return {
       psbtDetails,
       counterpartyMessage,
       txid,
       verification,
       safety,
+      attachedAssets,
     };
   }, []);
 

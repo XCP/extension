@@ -165,6 +165,23 @@ or subset order. When supplied, it must cover every input the wallet is asked to
 sign; missing entries are rejected rather than silently defaulted. Prefer setting
 the standard `sighashType` field on each PSBT input and omitting this override.
 
+**Input prevout requirements.** Every input the wallet signs must carry its
+prevout so the amount is authenticated:
+
+- **Legacy inputs (P2PKH)** must include the **full previous transaction**
+  (`nonWitnessUtxo` / `PSBT_IN_NON_WITNESS_UTXO`). A bare `witnessUtxo` on a
+  legacy input is **rejected at signing** — a legacy sighash does not commit to
+  the input amount, so a declared-but-unverified amount could otherwise be used
+  to drain the real UTXO to fees. If your library populates only `witnessUtxo`
+  for legacy inputs, switch it to attach the whole prior transaction.
+- **SegWit inputs (P2WPKH, P2WSH, P2TR)** may use `witnessUtxo` as usual; BIP143
+  commits to the amount in the signature.
+
+**Accepted sighash flags.** Signable inputs must resolve to one of `SIGHASH_DEFAULT`
+(0x00), `SIGHASH_ALL` (0x01), `ALL | ANYONECANPAY` (0x81), or
+`SINGLE | ANYONECANPAY` (0x83). `SIGHASH_NONE` and bare `SIGHASH_SINGLE` are
+rejected, since neither is reflected on the approval screen the user sees.
+
 ### Broadcasting
 
 #### `xcp_broadcastTransaction`

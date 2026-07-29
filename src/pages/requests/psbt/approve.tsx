@@ -222,8 +222,9 @@ export default function ApprovePsbtPage() {
     );
   }
 
-  const { psbtDetails, counterpartyMessage, txid, verification, safety } = decodedInfo;
+  const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
   const txAction = getTxActionInfo(decodedInfo);
+  const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
   const hasHighFee = psbtDetails.fee > 10000000; // > 0.1 BTC fee
 
   // Distinguish seller vs buyer in atomic swap PSBTs:
@@ -255,6 +256,11 @@ export default function ApprovePsbtPage() {
         .filter(input => input.address && normalizeAddressForComparison(input.address)
           === normalizeAddressForComparison(activeAddress.address))
         .map(input => input.index);
+  // Inputs the user is being asked to sign that carry Counterparty assets —
+  // signing moves those assets, not just BTC, so surface it prominently.
+  const signedInputsWithAssets = requestedInputIndices
+    .map(index => attachedByInput.get(index))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
   const effectiveSighashes = requestedInputIndices.map(index => ({
     index,
     type: resolvePsbtSighashType(
@@ -522,7 +528,9 @@ export default function ApprovePsbtPage() {
                 <div>
                   <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({psbtDetails.inputs.length})</h4>
                   <div className="space-y-2">
-                    {psbtDetails.inputs.map((input, idx) => (
+                    {psbtDetails.inputs.map((input, idx) => {
+                      const inputAssets = attachedByInput.get(input.index);
+                      return (
                       <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
                         <div className="flex justify-between">
                           <span className="text-gray-600">#{idx}</span>
@@ -538,8 +546,17 @@ export default function ApprovePsbtPage() {
                         <div className="text-gray-400 truncate" title={input.txid}>
                           {input.txid.slice(0, 8)}...:{input.vout}
                         </div>
+                        {inputAssets && inputAssets.assets.map((asset) => (
+                          <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
+                            <span className="truncate" title={asset.asset_longname ?? asset.asset}>
+                              {asset.asset_longname ?? asset.asset}
+                            </span>
+                            <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -590,6 +607,30 @@ export default function ApprovePsbtPage() {
               </div>
             );
           })}
+
+          {/* Attached-asset warning: a signed input's UTXO holds Counterparty assets */}
+          {signedInputsWithAssets.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium">Spends UTXOs holding Counterparty assets</p>
+                  <p className="text-xs mt-1">
+                    Inputs you are signing carry attached assets. Signing moves them, not just BTC.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {signedInputsWithAssets.flatMap(entry =>
+                      entry.assets.map(asset => (
+                        <li key={`${entry.inputIndex}-${asset.asset}`}>
+                          Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Verification Status */}
           <VerificationStatus
