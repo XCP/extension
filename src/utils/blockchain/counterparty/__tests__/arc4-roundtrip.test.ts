@@ -14,6 +14,7 @@ import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { packAddress } from '../unpack/address';
 import { unpackCounterpartyMessage, isCounterpartyData } from '../unpack/index';
 import { extractOpReturnPayload, decryptOpReturnData, extractCounterpartyPayload } from '../unpack/opReturn';
+import { verifyTransaction } from '../unpack/verify';
 
 // Fake txid used as ARC4 key
 const FAKE_TXID = 'b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8b5a2c3d4e5f6a7b8';
@@ -303,6 +304,32 @@ describe('real compose API vector', () => {
       '0000000000000000' + scriptLen + plaintextScript +
       '00000000';
     expect(extractCounterpartyPayload(plaintextTx)).toBe(REAL_DATA_HEX);
+  });
+
+  it('verifyTransaction accepts the real order against its true intent', () => {
+    // End-to-end proof that activating verification does not reject a genuine
+    // compose: the real decrypted order verifies valid against the params that
+    // produced it (give 1 XCP, get 0.0005 BTC, expiration 5000).
+    const verification = verifyTransaction(REAL_DATA_HEX, 'order', {
+      give_asset: 'XCP',
+      give_quantity: 100000000,
+      get_asset: 'BTC',
+      get_quantity: 50000,
+      expiration: 5000,
+    });
+    expect(verification.errors).toHaveLength(0);
+    expect(verification.valid).toBe(true);
+  });
+
+  it('verifyTransaction rejects the real order when the give amount is tampered', () => {
+    const verification = verifyTransaction(REAL_DATA_HEX, 'order', {
+      give_asset: 'XCP',
+      give_quantity: 999999999, // wrong
+      get_asset: 'BTC',
+      get_quantity: 50000,
+      expiration: 5000,
+    });
+    expect(verification.valid).toBe(false);
   });
 
   it('extractCounterpartyPayload returns null for a BTC-only transaction', () => {
