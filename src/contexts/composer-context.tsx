@@ -349,7 +349,8 @@ export function ComposerProvider<T>({
         rawTransaction: response.result.rawtransaction,
         inputsValues: response.result.inputs_values,
         declaredFee: response.result.btc_fee ?? 0,
-        userFeeRate: typeof dataForApi.sat_per_vbyte === 'number' ? dataForApi.sat_per_vbyte : null,
+        // sat_per_vbyte arrives as a form string; checkTransactionFee coerces it.
+        userFeeRate: dataForApi.sat_per_vbyte ?? null,
       });
       if (!feeCheck.ok) {
         throw new Error(feeCheck.error || 'Transaction fee verification failed');

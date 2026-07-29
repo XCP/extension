@@ -147,9 +147,12 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 
   // Handle strings (addresses, assets, etc.)
   if (typeof a === 'string' && typeof b === 'string') {
-    // Check if it looks like an address
-    if (a.startsWith('bc1') || a.startsWith('1') || a.startsWith('3') ||
-        b.startsWith('bc1') || b.startsWith('1') || b.startsWith('3')) {
+    // A 64-char hex string is a hash (txid/offer_hash), not an address, even
+    // when it happens to start with a base58-like character.
+    const isHash = (s: string) => /^[0-9a-f]{64}$/i.test(s);
+    if (!isHash(a) && !isHash(b) &&
+        (a.startsWith('bc1') || a.startsWith('1') || a.startsWith('3') ||
+         b.startsWith('bc1') || b.startsWith('1') || b.startsWith('3'))) {
       return addressesEqual(a, b);
     }
     // Case-insensitive comparison for assets/hashes

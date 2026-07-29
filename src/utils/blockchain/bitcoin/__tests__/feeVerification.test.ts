@@ -31,6 +31,19 @@ describe('checkTransactionFee', () => {
     expect(result.error).toMatch(/abnormally high|far exceeds/i);
   });
 
+  it('coerces a string user rate (the form value) and still bounds the fee', () => {
+    // Regression: the composer passes sat_per_vbyte as a form string. A numeric
+    // typeof guard would silently disable this bound.
+    const result = checkTransactionFee({
+      rawTransaction: RAW_TX,
+      inputsValues: [OUTPUT_TOTAL + 150_000],
+      declaredFee: 150_000,
+      userFeeRate: '10',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/exceeds your selected rate/i);
+  });
+
   it('rejects a fee far above the user-selected rate', () => {
     // ~150k sat fee on a ~185 vbyte tx is ~800 sat/vB — under the absolute cap
     // but ~80x the user's 10 sat/vB selection.

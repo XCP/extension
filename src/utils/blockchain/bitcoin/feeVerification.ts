@@ -27,8 +27,12 @@ export interface FeeCheckInput {
   inputsValues?: number[];
   /** Fee the API claims, in sats. */
   declaredFee: number;
-  /** User-selected fee rate in sat/vByte, or null for network default. */
-  userFeeRate: number | null;
+  /**
+   * User-selected fee rate in sat/vByte, or null for network default. Accepts
+   * a string because it arrives from a form field; coerced internally so a
+   * caller passing the raw value can't silently disable the bound.
+   */
+  userFeeRate: number | string | null;
 }
 
 export interface FeeCheckResult {
@@ -39,12 +43,13 @@ export interface FeeCheckResult {
 }
 
 /**
- * Rough signed vsize: the (unsigned) serialized size plus a witness/signature
- * allowance per input. Deliberately not an underestimate, so the fee bound
- * never falsely rejects a legitimate transaction.
+ * Rough signed vsize: the (unsigned) serialized size plus a signature
+ * allowance per input large enough to cover a legacy P2PKH scriptSig (~107 B),
+ * so the estimate is never below the real signed size and the fee bound never
+ * falsely rejects a legitimate transaction.
  */
 function estimateVsize(tx: Transaction, rawBytesLength: number): number {
-  const perInputSignatureAllowance = 75;
+  const perInputSignatureAllowance = 110;
   return rawBytesLength + tx.inputsLength * perInputSignatureAllowance;
 }
 
@@ -94,12 +99,13 @@ export function checkTransactionFee(input: FeeCheckInput): FeeCheckResult {
     };
   }
 
-  if (userFeeRate && userFeeRate > 0) {
-    const bound = Math.max(MIN_BOUND_SATS, Math.ceil(userFeeRate * vsize * USER_FEE_RATE_TOLERANCE));
+  const rate = typeof userFeeRate === 'string' ? Number(userFeeRate) : userFeeRate;
+  if (rate && Number.isFinite(rate) && rate > 0) {
+    const bound = Math.max(MIN_BOUND_SATS, Math.ceil(rate * vsize * USER_FEE_RATE_TOLERANCE));
     if (effectiveFee > bound) {
       return {
         ok: false,
-        error: `Transaction fee (${effectiveFee} sats) far exceeds your selected rate of ${userFeeRate} sat/vB.`,
+        error: `Transaction fee (${effectiveFee} sats) far exceeds your selected rate of ${rate} sat/vB.`,
         computedFee,
       };
     }
