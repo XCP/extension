@@ -43,9 +43,11 @@ interface ConnectionServiceState {
 }
 
 interface SerializedConnectionState {
-  connections: Array<{ origin: string; status: ConnectionStatus }>;
+  /** Legacy field — no longer restored (see hydrateState) */
+  connections?: Array<{ origin: string; status: ConnectionStatus }>;
   securityChecks: Array<{ origin: string; timestamp: number }>;
-  pendingRequests: string[];
+  /** Legacy field — no longer restored (see hydrateState) */
+  pendingRequests?: string[];
 }
 
 export class ConnectionService extends BaseService {
@@ -459,45 +461,32 @@ export class ConnectionService extends BaseService {
   }
 
   protected getSerializableState(): SerializedConnectionState | null {
-    if (
-      this.state.connectionCache.size === 0 &&
-      this.state.lastSecurityCheck.size === 0 &&
-      this.state.pendingPermissionRequests.size === 0
-    ) {
+    if (this.state.lastSecurityCheck.size === 0) {
       return null;
     }
 
+    // Only security-check timestamps are persisted. The connection cache is
+    // NOT: a snapshot taken before a disconnect would fail open for a revoked
+    // origin after a service worker crash; a cache miss just costs one
+    // keychain-settings read. Pending permission requests are NOT persisted
+    // either: their resolver promises die with the worker, and restoring the
+    // dedupe keys would block that origin from ever connecting again.
     return {
-      connections: Array.from(this.state.connectionCache.entries()).map(
-        ([origin, status]) => ({ origin, status })
-      ),
       securityChecks: Array.from(this.state.lastSecurityCheck.entries()).map(
         ([origin, timestamp]) => ({ origin, timestamp })
       ),
-      pendingRequests: Array.from(this.state.pendingPermissionRequests),
     };
   }
 
   protected hydrateState(state: SerializedConnectionState): void {
-    // Restore connection cache
-    for (const { origin, status } of state.connections) {
-      this.state.connectionCache.set(origin, status);
-    }
-
-    // Restore security check timestamps
-    for (const { origin, timestamp } of state.securityChecks) {
+    // Restore security check timestamps (connections and pendingRequests are
+    // deliberately not restored — see getSerializableState)
+    for (const { origin, timestamp } of state.securityChecks ?? []) {
       this.state.lastSecurityCheck.set(origin, timestamp);
     }
 
-    // Restore pending requests
-    for (const requestId of state.pendingRequests) {
-      this.state.pendingPermissionRequests.add(requestId);
-    }
-
     console.log('[ConnectionService] State restored', {
-      connections: this.state.connectionCache.size,
       securityChecks: this.state.lastSecurityCheck.size,
-      pendingRequests: this.state.pendingPermissionRequests.size,
     });
   }
 

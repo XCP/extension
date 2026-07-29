@@ -6,7 +6,7 @@ import {
   type ConsolidationData,
   type ConsolidationReport,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
-import { consolidateBareMultisigBatch } from "@/utils/blockchain/bitcoin/consolidateBatch";
+import { getWalletService } from "@/services/walletService";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 export interface ConsolidationResult {
@@ -19,8 +19,7 @@ export interface ConsolidationResult {
 
 export function useMultiBatchConsolidation() {
   const navigate = useNavigate();
-  const { activeWallet, activeAddress, broadcastTransaction, getPrivateKey } =
-    useWallet();
+  const { activeWallet, activeAddress, broadcastTransaction } = useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [results, setResults] = useState<ConsolidationResult[]>([]);
@@ -41,17 +40,9 @@ export function useMultiBatchConsolidation() {
     let totalOutputSats = 0;
 
     try {
-      // Get the private key once for all batches
-      const privateKeyResult = await getPrivateKey(
-        activeWallet.id,
-        activeAddress.path,
-      );
-
-      if (!privateKeyResult || !privateKeyResult.hex) {
-        throw new Error("Failed to retrieve private key for consolidation");
-      }
-
-      const privateKey = privateKeyResult.hex; // Use hex format for consolidation
+      // Signing happens in the background service worker; the private key
+      // never enters this popup context.
+      const walletService = getWalletService();
 
       // Process each batch sequentially
       for (let i = 0; i < allBatches.length; i++) {
@@ -73,9 +64,8 @@ export function useMultiBatchConsolidation() {
             }
           }
 
-          // Build and sign the transaction for this batch
-          const consolidationResult = await consolidateBareMultisigBatch(
-            privateKey,
+          // Build and sign the transaction for this batch (in the background)
+          const consolidationResult = await walletService.consolidateBareMultisig(
             activeAddress.address,
             batch,
             feeRateSatPerVByte,

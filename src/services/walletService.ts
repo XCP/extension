@@ -13,6 +13,12 @@ import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { walletManager } from '@/utils/wallet/walletManager';
+import { registerSessionExpiredHandler } from '@/utils/auth/sessionManager';
+import {
+  consolidateBareMultisigBatch,
+  type ConsolidationResult as BatchConsolidationResult,
+} from '@/utils/blockchain/bitcoin/consolidateBatch';
+import type { ConsolidationData } from '@/utils/blockchain/bitcoin/consolidationApi';
 import type { Wallet, Address, PairedAddresses, SignTransactionOptions } from '@/types/wallet';
 
 interface WalletService {
@@ -68,6 +74,12 @@ interface WalletService {
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
+  consolidateBareMultisig: (
+    sourceAddress: string,
+    batchData: ConsolidationData,
+    feeRateSatPerVByte: number,
+    destinationAddress?: string
+  ) => Promise<BatchConsolidationResult>;
 }
 
 function createWalletService(): WalletService {
@@ -87,7 +99,7 @@ function createWalletService(): WalletService {
     }
   }
 
-  return {
+  const service: WalletService = {
     refreshWallets: async () => {
       await walletManager.refreshWallets();
     },
@@ -246,7 +258,33 @@ function createWalletService(): WalletService {
         data
       });
     },
+    consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) => {
+      // Signing stays in the background: the popup never receives the
+      // private key, and each batch call fetches it transiently here.
+      const activeWallet = walletManager.getActiveWallet();
+      const address = activeWallet?.addresses.find((a) => a.address === sourceAddress);
+      if (!activeWallet || !address) {
+        throw new Error('Source address is not part of the active wallet');
+      }
+      const privateKey = activeWallet.type === 'privateKey'
+        ? await walletManager.getPrivateKey(activeWallet.id)
+        : await walletManager.getPrivateKey(activeWallet.id, address.path);
+      return consolidateBareMultisigBatch(
+        privateKey.hex,
+        sourceAddress,
+        batchData,
+        feeRateSatPerVByte,
+        destinationAddress
+      );
+    },
   };
+
+  // Lazy expiry detection (getUnlockedSecret finding the session expired)
+  // performs a full lock — walletManager state cleared and UI notified —
+  // instead of only wiping secrets.
+  registerSessionExpiredHandler(() => service.lockKeychain());
+
+  return service;
 }
 
 // Create the proxy service

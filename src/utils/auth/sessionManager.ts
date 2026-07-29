@@ -75,6 +75,19 @@ let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
 
 /**
+ * Handler invoked when lazy expiry detection fires (getUnlockedSecret finds
+ * the session expired). Registered by the wallet service so expiry performs a
+ * FULL lock — clearing walletManager state and notifying open UI surfaces —
+ * not just a secret wipe.
+ */
+let sessionExpiredHandler: (() => Promise<void>) | null = null;
+let sessionExpiredHandlerRunning = false;
+
+export function registerSessionExpiredHandler(handler: () => Promise<void>): void {
+  sessionExpiredHandler = handler;
+}
+
+/**
  * Maximum session duration (absolute timeout) regardless of activity.
  * Per OWASP Session Management Cheat Sheet: "All sessions should implement
  * an absolute timeout... closing and invalidating the session upon the
@@ -182,8 +195,17 @@ export async function getUnlockedSecret(walletId: string): Promise<string | null
   
   // Check if session has expired
   if (await isSessionExpired()) {
-    // Session expired - clear all secrets
-    await clearAllUnlockedSecrets();
+    // Session expired - perform a full lock (or at minimum clear secrets)
+    if (sessionExpiredHandler && !sessionExpiredHandlerRunning) {
+      sessionExpiredHandlerRunning = true;
+      try {
+        await sessionExpiredHandler();
+      } finally {
+        sessionExpiredHandlerRunning = false;
+      }
+    } else {
+      await clearAllUnlockedSecrets();
+    }
     return null;
   }
   
@@ -317,13 +339,28 @@ export async function scheduleSessionExpiry(timeout: number): Promise<void> {
     return; // Silently skip if alarms not available (e.g., in tests)
   }
 
-  // Clear existing alarm
-  await chrome.alarms.clear(SESSION_EXPIRY_ALARM);
-
-  // Create new alarm with fresh timeout from current moment
+  // Creating an alarm with an existing name replaces it atomically — no
+  // separate clear step, so there is no window with no alarm armed.
   await chrome.alarms.create(SESSION_EXPIRY_ALARM, {
     when: Date.now() + timeout
   });
+}
+
+/**
+ * Re-arms the session expiry alarm from persisted metadata after a service
+ * worker restart. Covers alarms lost to extension updates or a crash between
+ * scheduling calls; a no-op when no valid session exists.
+ */
+export async function rearmSessionExpiry(): Promise<void> {
+  const metadata = await getSessionMetadata();
+  if (!metadata || await isSessionExpired()) {
+    return;
+  }
+  const now = Date.now();
+  const idleRemaining = metadata.timeout - (now - metadata.lastActiveTime);
+  const absoluteRemaining = MAX_SESSION_DURATION_MS - (now - metadata.unlockedAt);
+  const remaining = Math.max(1000, Math.min(idleRemaining, absoluteRemaining));
+  await scheduleSessionExpiry(remaining);
 }
 
 /**
@@ -390,8 +427,11 @@ export async function checkSessionRecovery(): Promise<SessionRecoveryState> {
     // Everything is fine
     return SessionRecoveryState.VALID;
   } else {
-    // Session valid but secrets lost (service worker restarted)
-    // This is where the auth modal should appear
+    // Session valid but in-memory secrets were lost (service worker
+    // restarted). By design this does NOT force re-authentication: the
+    // master key survives in memory-backed chrome.storage.session and
+    // refreshWallets() re-decrypts silently. See the Security Trade-off
+    // note in walletManager.ts.
     return SessionRecoveryState.NEEDS_REAUTH;
   }
 }

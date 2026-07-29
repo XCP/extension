@@ -374,8 +374,9 @@ describe('sessionManager', () => {
     it('should reschedule alarm when activity is detected', async () => {
       await setLastActiveTime();
 
-      // Should clear and create new alarm
-      expect(global.chrome.alarms.clear).toHaveBeenCalledWith('session-expiry');
+      // Creating with the same name replaces the alarm atomically — no
+      // separate clear call, so there is never a window with no alarm armed
+      expect(global.chrome.alarms.clear).not.toHaveBeenCalled();
       expect(global.chrome.alarms.create).toHaveBeenCalledWith(
         'session-expiry',
         expect.objectContaining({

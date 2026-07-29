@@ -314,16 +314,18 @@ export async function deriveKeyAsync(
 
       if (e.data.success && e.data.keyBase64) {
         try {
-          const key = await importKey(e.data.keyBase64);
-          // Re-import as extractable for session storage
-          const exported = await crypto.subtle.exportKey('raw', key);
+          // Import the raw key bytes directly as extractable (for session
+          // storage). Importing non-extractable first and calling exportKey
+          // on it would throw InvalidAccessError.
+          const keyBytes = base64ToBuffer(e.data.keyBase64);
           const extractableKey = await crypto.subtle.importKey(
             'raw',
-            exported,
+            keyBytes,
             { name: 'AES-GCM', length: KEY_BITS },
             true, // extractable
             ['encrypt', 'decrypt']
           );
+          keyBytes.fill(0);
           resolve(extractableKey);
         } catch (err) {
           reject(new Error('Failed to import derived key'));

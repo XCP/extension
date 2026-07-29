@@ -4,6 +4,11 @@ import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import {
+  assertUnlockAllowed,
+  recordFailedUnlockAttempt,
+  clearUnlockAttempts,
+} from '@/utils/auth/unlockRateLimiter';
+import {
   getKeychainRecord,
   saveKeychainRecord,
   deleteKeychain,
@@ -658,6 +663,9 @@ export class WalletManager {
    * @param password - User's keychain password
    */
   public async unlockKeychain(password: string): Promise<void> {
+    // Throttle password guessing across service worker restarts
+    await assertUnlockAllowed();
+
     const keychainRecord = await getKeychainRecord();
     if (!keychainRecord) {
       throw new Error('No keychain found. Create a wallet first.');
@@ -672,8 +680,10 @@ export class WalletManager {
     try {
       decryptedKeychain = await decryptKeychain(keychainRecord, masterKey);
     } catch {
+      await recordFailedUnlockAttempt();
       throw new Error('Invalid password');
     }
+    await clearUnlockAttempts();
 
     // Validate keychain version
     if (decryptedKeychain.version !== KEYCHAIN_VERSION) {
@@ -990,6 +1000,9 @@ export class WalletManager {
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
+    // Shares the unlock failure window: verifyPassword is the same oracle
+    await assertUnlockAllowed();
+
     const keychainRecord = await getKeychainRecord();
     if (!keychainRecord) return false;
 
@@ -998,8 +1011,10 @@ export class WalletManager {
       const salt = base64ToBuffer(keychainRecord.salt);
       const masterKey = await deriveKey(password, salt, keychainRecord.kdf.iterations);
       await decryptKeychain(keychainRecord, masterKey);
+      await clearUnlockAttempts();
       return true;
     } catch {
+      await recordFailedUnlockAttempt();
       return false;
     }
   }

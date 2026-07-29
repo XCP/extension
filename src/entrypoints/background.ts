@@ -5,7 +5,7 @@ import { registerApprovalService } from '@/services/approvalService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
-import { checkSessionRecovery, SessionRecoveryState } from '@/utils/auth/sessionManager';
+import { checkSessionRecovery, SessionRecoveryState, rearmSessionExpiry } from '@/utils/auth/sessionManager';
 import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
 import { JSON_RPC_ERROR_CODES, createJsonRpcError, classifyProviderError } from '@/utils/errors';
 import { broadcastToTabs } from '@/utils/browser';
@@ -202,7 +202,12 @@ export default defineBackground(() => {
         await walletService.lockKeychain();
         console.log('[Background] Wallets locked due to session recovery state');
       } else if (recoveryState === SessionRecoveryState.NEEDS_REAUTH) {
-        console.log('[Background] Session needs re-authentication');
+        console.log('[Background] Session valid; wallet secrets will be re-derived from the session master key');
+      }
+      if (recoveryState !== SessionRecoveryState.LOCKED) {
+        // Re-arm the auto-lock alarm in case it was lost (extension update,
+        // or a crash between alarm scheduling calls). No-op when expired.
+        await rearmSessionExpiry();
       }
 
       servicesReady = true;
