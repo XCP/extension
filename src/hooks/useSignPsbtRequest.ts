@@ -29,70 +29,10 @@ import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
 } from '@/utils/blockchain/counterparty/transactionSafety';
-import { fetchUtxoBalances } from '@/utils/blockchain/counterparty/api';
-
-/**
- * Counterparty assets attached to a single PSBT input's UTXO.
- * Spending such an input moves the assets, which the BTC value alone hides.
- */
-export interface InputAttachedAssets {
-  inputIndex: number;
-  /** UTXO identifier (txid:vout). */
-  utxo: string;
-  /**
-   * True when the balance lookup itself failed, so the asset status is unknown
-   * rather than a confirmed empty. Surfaced separately in the UI so a network
-   * or rate-limit failure is not shown as "no assets."
-   */
-  lookupFailed?: boolean;
-  assets: Array<{
-    asset: string;
-    quantity_normalized: string;
-    asset_longname?: string | null;
-  }>;
-}
-
-/** Cap on per-input asset lookups; truncation past this is logged, not silent. */
-export const MAX_ASSET_LOOKUP_INPUTS = 30;
-
-/**
- * Look up the Counterparty assets attached to each input's UTXO. Returns an
- * entry for every input that carries assets or whose lookup failed; inputs
- * confirmed empty are omitted. A failed lookup is reported (lookupFailed) rather
- * than silently treated as empty, and never blocks signing.
- */
-export async function fetchInputsAttachedAssets(
-  inputs: Array<{ index: number; txid: string; vout: number }>
-): Promise<InputAttachedAssets[]> {
-  const checked = inputs.slice(0, MAX_ASSET_LOOKUP_INPUTS);
-  if (inputs.length > MAX_ASSET_LOOKUP_INPUTS) {
-    console.warn(
-      `PSBT has ${inputs.length} inputs; only the first ${MAX_ASSET_LOOKUP_INPUTS} were checked for attached Counterparty assets.`
-    );
-  }
-
-  const results = await Promise.all(
-    checked.map(async (input): Promise<InputAttachedAssets | null> => {
-      const utxo = `${input.txid}:${input.vout}`;
-      try {
-        const res = await fetchUtxoBalances(utxo);
-        const assets = (res.result ?? [])
-          .filter((b) => b.asset && b.quantity_normalized)
-          .map((b) => ({
-            asset: b.asset,
-            quantity_normalized: b.quantity_normalized,
-            asset_longname: b.asset_info?.asset_longname ?? null,
-          }));
-        return assets.length > 0 ? { inputIndex: input.index, utxo, assets } : null;
-      } catch (err) {
-        console.warn(`Failed to fetch attached assets for ${utxo}:`, err);
-        return { inputIndex: input.index, utxo, assets: [], lookupFailed: true };
-      }
-    })
-  );
-
-  return results.filter((r): r is InputAttachedAssets => r !== null);
-}
+import {
+  fetchInputsAttachedAssets,
+  type InputAttachedAssets,
+} from '@/utils/blockchain/counterparty/inputAssets';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message

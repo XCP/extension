@@ -28,6 +28,10 @@ import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
 } from '@/utils/blockchain/counterparty/transactionSafety';
+import {
+  fetchInputsAttachedAssets,
+  type InputAttachedAssets,
+} from '@/utils/blockchain/counterparty/inputAssets';
 
 /**
  * Decoded transaction details
@@ -58,6 +62,8 @@ export interface DecodedTransactionInfo {
   verification: ProviderVerificationResult;
   /** Security analysis (dangerous types, suspicious outputs) */
   safety: SafetyAnalysis;
+  /** Inputs whose UTXOs carry Counterparty assets, or whose lookup failed. */
+  attachedAssets: InputAttachedAssets[];
 }
 
 /**
@@ -95,6 +101,13 @@ export function useSignTransactionRequest(signerAddress?: string) {
       value: vin.prevout?.value,
       address: vin.prevout?.scriptPubKey?.address
     }));
+
+    // Kick off per-input attached-asset lookups now so they overlap with the
+    // decodes below rather than adding a serial round-trip. Inputs have no index
+    // field here, so the array position is the index.
+    const attachedAssetsPromise = fetchInputsAttachedAssets(
+      inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout }))
+    );
 
     const outputs: DecodedTransactionInfo['outputs'] = decoded.vout.map((vout: any) => {
       const isOpReturn = vout.scriptPubKey.type === 'nulldata';
@@ -167,6 +180,8 @@ export function useSignTransactionRequest(signerAddress?: string) {
       ?? verification.localUnpack?.messageType;
     const safety = analyzeTransactionSafety(messageType, outputs, signerAddress || '');
 
+    const attachedAssets = await attachedAssetsPromise;
+
     return {
       txid: decoded.txid,
       inputs,
@@ -179,6 +194,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       counterpartyMessage,
       verification,
       safety,
+      attachedAssets,
     };
   }, []);
 

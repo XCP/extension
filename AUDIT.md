@@ -168,7 +168,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Effective sighash enforcement | The resolved sighash (explicit override, else embedded, else ALL) is enforced against an allowlist — DEFAULT, ALL, ALL\|ANYONECANPAY, SINGLE\|ANYONECANPAY — so an embedded SIGHASH_NONE or bare SINGLE cannot obtain a signature the approval screen didn't reflect |
 | ✅ | Legacy input amount integrity | Legacy (P2PKH) inputs must carry the full previous transaction; a bare witnessUtxo is rejected, so a declared amount can't be forged into a drain-to-fee |
 | ✅ | Sign-flow origin binding | Rejoin/recovery of a signing flow matches the requesting origin, not just the request key, so a hash collision can't cross origins |
-| ✅ | Attached-asset disclosure | On PSBT approval, each input's UTXO is checked for attached Counterparty assets; assets are shown per input and a warning is raised when a signed input carries them, so an asset-bearing UTXO can't be spent as if it were only BTC |
+| ✅ | Attached-asset disclosure | On both PSBT and raw-transaction approval, each input's UTXO is checked for attached Counterparty assets; assets are shown per input and a warning is raised when a signed input carries them (with a distinct caution when the lookup failed), so an asset-bearing UTXO can't be spent as if it were only BTC |
 
 ## Transaction Security
 

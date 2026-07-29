@@ -12,6 +12,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 
 /**
@@ -339,6 +340,21 @@ export default function ApproveTransactionPage() {
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
   const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
 
+  // Attached-asset status per input. Inputs are dense, so array position is the index.
+  const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
+  // The wallet signs inputs it controls, i.e. those belonging to the active address.
+  const signerInputIndices = decodedInfo.inputs
+    .map((input, index) => ({ input, index }))
+    .filter(({ input }) => input.address &&
+      normalizeAddressForComparison(input.address) === normalizeAddressForComparison(activeAddress.address))
+    .map(({ index }) => index);
+  const signedInputsWithAssets = signerInputIndices
+    .map(index => attachedByInput.get(index))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && entry.assets.length > 0);
+  const signedInputsUnknownStatus = signerInputIndices
+    .map(index => attachedByInput.get(index))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && !!entry.lookupFailed);
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Content */}
@@ -514,7 +530,9 @@ export default function ApproveTransactionPage() {
                   <div>
                     <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({decodedInfo.inputs.length})</h4>
                     <div className="space-y-2">
-                      {decodedInfo.inputs.map((input, idx) => (
+                      {decodedInfo.inputs.map((input, idx) => {
+                        const inputAssets = attachedByInput.get(idx);
+                        return (
                         <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
                           <span className="text-gray-600">#{idx}</span>
                           {input.address && (
@@ -525,8 +543,20 @@ export default function ApproveTransactionPage() {
                           <div className="text-gray-400 truncate" title={input.txid}>
                             {input.txid.slice(0, 8)}...:{input.vout}
                           </div>
+                          {inputAssets?.assets.map((asset) => (
+                            <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
+                              <span className="truncate" title={asset.asset_longname ?? asset.asset}>
+                                {asset.asset_longname ?? asset.asset}
+                              </span>
+                              <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
+                            </div>
+                          ))}
+                          {inputAssets?.lookupFailed && (
+                            <div className="mt-1 text-amber-600">Asset status unavailable</div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -577,6 +607,52 @@ export default function ApproveTransactionPage() {
               </div>
             );
           })}
+
+          {/* Attached-asset warning: a signed input's UTXO holds Counterparty assets */}
+          {signedInputsWithAssets.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-orange-800">
+                  <p className="font-medium">Spends UTXOs holding Counterparty assets</p>
+                  <p className="text-xs mt-1">
+                    Inputs you are signing carry attached assets. Signing moves them, not just BTC.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {signedInputsWithAssets.flatMap(entry =>
+                      entry.assets.map(asset => (
+                        <li key={`${entry.inputIndex}-${asset.asset}`}>
+                          Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Asset status unknown: a signed input's balance lookup failed */}
+          {signedInputsUnknownStatus.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <FiAlertTriangle className="size-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Couldn't verify asset status</p>
+                  <p className="text-xs mt-1">
+                    The balance lookup failed for {signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you
+                    are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust
+                    this transaction.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {signedInputsUnknownStatus.map(entry => (
+                      <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Verification Status */}
           <VerificationStatus

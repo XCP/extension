@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fetchInputsAttachedAssets, MAX_ASSET_LOOKUP_INPUTS } from '../useSignPsbtRequest';
+import { fetchInputsAttachedAssets, MAX_ASSET_LOOKUP_INPUTS } from '../inputAssets';
 import { fetchUtxoBalances } from '@/utils/blockchain/counterparty/api';
 
 vi.mock('@/utils/blockchain/counterparty/api');
