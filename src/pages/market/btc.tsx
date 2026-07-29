@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FiRefreshCw, FaBitcoin, FiChevronDown } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { PriceChart } from "@/components/ui/charts/price-chart";

@@ -10,7 +10,7 @@ vi.mock('webext-bridge/popup', () => ({
 }));
 
 // Mock React Router
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   Outlet: () => <div data-testid="outlet">Page Content</div>
 }));
 

@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { signMessageRequestStorage, type SignMessageRequest } from '@/utils/storage/signMessageRequestStorage';
 import { recordSignOutcome } from '@/utils/provider/signFlow';
 

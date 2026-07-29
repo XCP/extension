@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { PinnableAssetCard } from "@/components/ui/cards/pinnable-asset-card";

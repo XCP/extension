@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FaExclamationTriangle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";

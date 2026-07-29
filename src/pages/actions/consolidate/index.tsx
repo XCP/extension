@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { ConsolidationForm, type ConsolidationFormData } from "./form";
 import { ConsolidationReview } from "./review";

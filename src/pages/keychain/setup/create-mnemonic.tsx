@@ -1,5 +1,5 @@
 import { useActionState, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { FaEyeSlash, FiRefreshCw } from "@/components/icons";

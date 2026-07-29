@@ -1,5 +1,5 @@
 import { useCallback, type ReactElement } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { FaCopy, GiBroom, VscKey, HiDotsHorizontal } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';

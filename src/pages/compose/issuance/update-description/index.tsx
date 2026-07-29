@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { UpdateDescriptionForm } from "./form";
 import { ReviewIssuanceUpdateDescription } from "./review";
 import { Composer } from "@/components/composer/composer";

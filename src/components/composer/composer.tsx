@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useCallback, type ReactElement } from "react";
 import { FiHelpCircle, FiX, FiRefreshCw } from "@/components/icons";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { Spinner } from "@/components/ui/spinner";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";

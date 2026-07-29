@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/inputs/password-input";

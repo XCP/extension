@@ -6,7 +6,7 @@ import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
 
 // Mock dependencies
 const mockNavigate = vi.fn();
-vi.mock("react-router-dom", () => ({
+vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 

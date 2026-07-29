@@ -8,7 +8,7 @@ const mockCreateMnemonicWallet = vi.fn();
 const mockVerifyPassword = vi.fn();
 const mockGenerateNewMnemonic = vi.fn();
 
-vi.mock("react-router-dom", () => ({
+vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 

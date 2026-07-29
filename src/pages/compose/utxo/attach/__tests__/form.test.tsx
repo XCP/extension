@@ -4,7 +4,7 @@ import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { useSettings } from '@/contexts/settings-context';
 import { DEFAULT_SETTINGS } from '@/utils/settings';
 import { UtxoAttachForm } from '../form';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { ComposerProvider } from '@/contexts/composer-context';
 
 // CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies

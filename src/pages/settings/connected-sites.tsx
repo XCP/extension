@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
 import { Spinner } from "@/components/ui/spinner";

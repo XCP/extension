@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { ComposerProvider, useComposer } from '../composer-context';
 import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
 

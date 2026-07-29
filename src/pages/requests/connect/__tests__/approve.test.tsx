@@ -8,7 +8,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router';
 import '@testing-library/jest-dom/vitest';
 
 const approvalMocks = vi.hoisted(() => ({
@@ -53,9 +53,9 @@ vi.mock('@/services/approvalService', () => ({
 // Create mock navigate function
 const mockNavigate = vi.fn();
 
-// Mock react-router-dom's useNavigate
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
+// Mock react-router's useNavigate
+vi.mock('react-router', async () => {
+  const actual = await vi.importActual('react-router');
   return {
     ...(actual as object),
     useNavigate: () => mockNavigate,

@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { FaCopy, FaCheck, FaLock, FaCheckCircle, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";

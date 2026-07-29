@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   consolidationApi,
   type ConsolidationData,

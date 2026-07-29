@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { signTransactionRequestStorage, type SignTransactionRequest } from '@/utils/storage/signTransactionRequestStorage';
 import { recordSignOutcome } from '@/utils/provider/signFlow';
 import {

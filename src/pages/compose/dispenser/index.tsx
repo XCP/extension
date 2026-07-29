@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router";
 import { DispenserForm } from "./form";
 import { ReviewDispenser } from "./review";
 import { Composer } from "@/components/composer/composer";

@@ -47,7 +47,7 @@ We intentionally minimized runtime dependencies—most wallets ship dozens, we s
 |---------|---------|
 | [@noble/curves](https://github.com/paulmillr/noble-curves), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Audited cryptography |
 | [bignumber.js](https://github.com/MikeMcl/bignumber.js) | Arbitrary precision arithmetic |
-| [react](https://react.dev/), [react-router-dom](https://reactrouter.com/) | UI framework |
+| [react](https://react.dev/), [react-router](https://reactrouter.com/) | UI framework |
 | [@headlessui/react](https://headlessui.com/) | Accessible components |
 | [webext-bridge](https://github.com/nickytonline/webext-bridge) | Extension messaging |
 

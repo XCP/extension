@@ -306,7 +306,7 @@ describe('Content Script', () => {
           id: '790',
           error: {
             message: 'User denied the request',
-            code: 4001 // USER_REJECTED â€” carried from the ProviderError
+            code: 4001 // USER_REJECTED — carried from the ProviderError
           }
         },
         mockWindow.location.origin
@@ -467,7 +467,7 @@ describe('Content Script', () => {
       // Window message listener stays alive (bridge must survive extension updates)
       expect(windowRemoveEventListenerSpy).not.toHaveBeenCalledWith('message', expect.any(Function));
 
-      // Runtime listener is removed (backgroundâ†’content channel is dead)
+      // Runtime listener is removed (background→content channel is dead)
       expect(runtimeRemoveListenerSpy).toHaveBeenCalledWith(expect.any(Function));
 
       windowRemoveEventListenerSpy.mockRestore();

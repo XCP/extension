@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { FairminterForm } from "./form";
 import { ReviewFairminter } from "./review";
 import { Composer } from "@/components/composer/composer";

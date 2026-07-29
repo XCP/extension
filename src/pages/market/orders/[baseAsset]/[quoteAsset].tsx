@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";

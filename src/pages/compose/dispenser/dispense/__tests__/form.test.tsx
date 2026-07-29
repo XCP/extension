@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { DispenseForm } from '../form';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';

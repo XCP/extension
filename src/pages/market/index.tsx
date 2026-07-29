@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { Radio, RadioGroup } from "@headlessui/react";
 import { FaChevronRight, FaClipboard, FaCheck, FaLock, FiGlobe, FiUser } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";

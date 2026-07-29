@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { ActionList } from "@/components/ui/lists/action-list";

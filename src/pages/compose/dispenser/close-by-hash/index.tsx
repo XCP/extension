@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { DispenserCloseByHashForm } from "./form";
 import { ReviewDispenserCloseByHash } from "./review";
 import { Composer } from "@/components/composer/composer";

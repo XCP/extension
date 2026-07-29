@@ -273,40 +273,25 @@ jobs:
 
       - name: Check for known vulnerabilities
         run: |
-          # Count high/critical advisories EXCLUDING the @trezor/* Node-SDK subtree and its
-          # protobufjs crypto dep. @trezor/connect-webextension loads that SDK remotely from
-          # connect.trezor.io — none of it is bundled into the shipped extension (verified by
-          # unpacking the published artifact), and the advisories have no fix available.
-          # React Router 7.18.1 is also affected by GHSA-qwww-vcr4-c8h2 only in
-          # RSC server-action mode. This extension is client-only (HashRouter)
-          # and has no RSC/server runtime. Keep this exception advisory-specific
-          # so any other React Router high/critical finding still blocks CI.
-          # Anything OUTSIDE these accepted cases must still be clean at high/critical.
-          ACCEPTED='^@trezor/|^protobufjs$'
+          # Count high/critical advisories EXCLUDING the @trezor/* Node-SDK subtree.
+          # @trezor/connect-webextension loads that SDK remotely from connect.trezor.io —
+          # none of it is bundled into the shipped extension (verified by unpacking the
+          # published artifact), and its remaining advisories (the elliptic chain,
+          # GHSA-848j-6mx2-7j84) have no fixed release upstream.
+          # Anything OUTSIDE the @trezor/* subtree must be clean at high/critical.
+          ACCEPTED='^@trezor/'
           audit_output=$(npm audit --omit=dev --json 2>/dev/null || true)
           real=$(echo "$audit_output" | jq --arg re "$ACCEPTED" '
-            def accepted:
-              (.key | test($re)) or
-              (.key == "react-router" and
-                ([.value.via[] | select(type == "object") | .url] ==
-                  ["https://github.com/advisories/GHSA-qwww-vcr4-c8h2"])) or
-              (.key == "react-router-dom" and .value.via == ["react-router"]);
             [.vulnerabilities | to_entries[]
              | select(.value.severity == "high" or .value.severity == "critical")
-             | select(accepted | not)] | length')
+             | select(.key | test($re) | not)] | length')
 
           if [ "$real" -gt 0 ]; then
             echo "Found $real unaccepted high/critical vulnerabilities:"
             echo "$audit_output" | jq -r --arg re "$ACCEPTED" '
-              def accepted:
-                (.key | test($re)) or
-                (.key == "react-router" and
-                  ([.value.via[] | select(type == "object") | .url] ==
-                    ["https://github.com/advisories/GHSA-qwww-vcr4-c8h2"])) or
-                (.key == "react-router-dom" and .value.via == ["react-router"]);
               .vulnerabilities | to_entries[]
               | select(.value.severity == "high" or .value.severity == "critical")
-              | select(accepted | not)
+              | select(.key | test($re) | not)
               | "\(.key): \(.value.severity)"'
             exit 1
           fi

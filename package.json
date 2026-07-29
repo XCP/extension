@@ -42,7 +42,7 @@
     "bignumber.js": "11.1.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-router-dom": "7.18.2",
+    "react-router": "8.3.0",
     "webext-bridge": "6.0.1"
   },
   "overrides": {

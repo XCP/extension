@@ -10,7 +10,7 @@ vi.mock('@/contexts/wallet-context', () => ({
   }))
 }));
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   useNavigate: vi.fn(() => vi.fn()),
   useLocation: vi.fn(() => ({ pathname: '/dashboard' }))
 }));
@@ -26,7 +26,7 @@ describe('useAuthGuard', () => {
 
   it('should return protection status when wallet is unlocked', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     vi.mocked(useWallet).mockReturnValue({
@@ -44,7 +44,7 @@ describe('useAuthGuard', () => {
 
   it('should return protection status when wallet is locked but no navigation needed', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     vi.mocked(useWallet).mockReturnValue({
@@ -62,7 +62,7 @@ describe('useAuthGuard', () => {
 
   it('should navigate to unlock screen when transitioning from UNLOCKED to LOCKED with wallets', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate, useLocation } = await import('react-router-dom');
+    const { useNavigate, useLocation } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with UNLOCKED state
@@ -95,7 +95,7 @@ describe('useAuthGuard', () => {
 
   it('should NOT navigate when starting with LOCKED state (no transition)', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with LOCKED state (no previous state)
@@ -113,7 +113,7 @@ describe('useAuthGuard', () => {
 
   it('should NOT navigate when no wallets exist even on UNLOCKED -> LOCKED transition', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with UNLOCKED state but no wallets
@@ -141,7 +141,7 @@ describe('useAuthGuard', () => {
 
   it('should NOT navigate when transitioning from ONBOARDING_NEEDED to LOCKED', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with ONBOARDING_NEEDED state
@@ -169,7 +169,7 @@ describe('useAuthGuard', () => {
 
   it('should NOT navigate when transitioning from LOCKED to UNLOCKED (unlock event)', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with LOCKED state
@@ -197,7 +197,7 @@ describe('useAuthGuard', () => {
 
   it('should preserve location path in navigation state', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate, useLocation } = await import('react-router-dom');
+    const { useNavigate, useLocation } = await import('react-router');
     const mockNavigate = vi.fn();
     
     const customLocation = { pathname: '/send-transaction/btc' };
@@ -230,7 +230,7 @@ describe('useAuthGuard', () => {
 
   it('should handle rapid auth state changes correctly', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with UNLOCKED state
@@ -276,7 +276,7 @@ describe('useAuthGuard', () => {
 
   it('should handle wallet array changes without triggering navigation', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     
     // Start with UNLOCKED state and one wallet
@@ -305,7 +305,7 @@ describe('useAuthGuard', () => {
 
   it('should return correct protection status for all auth states', async () => {
     const { useWallet } = await import('@/contexts/wallet-context');
-    const { useNavigate } = await import('react-router-dom');
+    const { useNavigate } = await import('react-router');
     const mockNavigate = vi.fn();
     vi.mocked(useNavigate).mockReturnValue(mockNavigate);
 

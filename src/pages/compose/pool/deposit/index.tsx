@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { composePoolDeposit, type PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 import { PoolDepositForm } from "./form";

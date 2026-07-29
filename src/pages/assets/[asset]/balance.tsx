@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router";
 import { Spinner } from "@/components/ui/spinner";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { ActionList } from "@/components/ui/lists/action-list";

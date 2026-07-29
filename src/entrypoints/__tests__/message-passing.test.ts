@@ -38,7 +38,7 @@ describe('Message Passing Between Contexts', () => {
     vi.clearAllMocks();
   });
   
-  describe('Injected Script â†’ Content Script', () => {
+  describe('Injected Script → Content Script', () => {
     it('should send provider request via postMessage', () => {
       // Simulate injected script sending a request
       const requestData = {
@@ -77,7 +77,7 @@ describe('Message Passing Between Contexts', () => {
     });
   });
   
-  describe('Content Script â†’ Background', () => {
+  describe('Content Script → Background', () => {
     it('should forward provider request to background', async () => {
       (fakeBrowser.runtime.sendMessage as any).mockResolvedValue({
         success: true,
@@ -117,7 +117,7 @@ describe('Message Passing Between Contexts', () => {
     });
   });
   
-  describe('Background â†’ Content Script', () => {
+  describe('Background → Content Script', () => {
     it('should emit provider events to all tabs', async () => {
       vi.mocked(fakeBrowser.tabs.query).mockResolvedValue([
         { id: 1, url: 'https://dapp1.com' },
@@ -147,7 +147,7 @@ describe('Message Passing Between Contexts', () => {
     });
   });
   
-  describe('Content Script â†’ Injected Script', () => {
+  describe('Content Script → Injected Script', () => {
     it('should send response back via postMessage', () => {
       const responseData = {
         target: 'xcp-wallet-injected',

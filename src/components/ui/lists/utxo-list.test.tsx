@@ -5,7 +5,7 @@ import { UtxoList } from './utxo-list';
 import type { UtxoBalance } from '@/utils/blockchain/counterparty/api';
 
 const mockNavigate = vi.fn();
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate
 }));
 

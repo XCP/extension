@@ -1,5 +1,5 @@
 import { type ReactElement } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/ui/menus/balance-menu";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";

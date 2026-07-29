@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router";
 import { FaSearch } from "@/components/icons";
 import { FiHelpCircle } from "@/components/icons";
 import { TbPinned, TbPinnedFilled } from "@/components/icons";

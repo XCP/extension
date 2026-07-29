@@ -30,7 +30,7 @@ vi.mock('webext-bridge/popup', () => ({
 const mockNavigate = vi.fn();
 const mockLocation = { pathname: '/index' };
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
   useLocation: () => mockLocation
 }));

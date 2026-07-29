@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { signPsbtRequestStorage, type SignPsbtRequest } from '@/utils/storage/signPsbtRequestStorage';
 import { recordSignOutcome } from '@/utils/provider/signFlow';
 import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
