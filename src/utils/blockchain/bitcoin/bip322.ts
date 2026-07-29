@@ -785,13 +785,15 @@ function parseDERSignature(der: Uint8Array): Uint8Array | null {
 
     // Parse r
     if (der[offset] !== 0x02) return null;
-    const rLen = der[offset + 1]!;
+    const rLen = der[offset + 1];
+    if (rLen === undefined || offset + 2 + rLen > der.length) return null;
     const r = der.slice(offset + 2, offset + 2 + rLen);
     offset += 2 + rLen;
 
     // Parse s
     if (der[offset] !== 0x02) return null;
-    const sLen = der[offset + 1]!;
+    const sLen = der[offset + 1];
+    if (sLen === undefined || offset + 2 + sLen > der.length) return null;
     const s = der.slice(offset + 2, offset + 2 + sLen);
 
     // Remove padding and ensure 32 bytes

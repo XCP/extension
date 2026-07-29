@@ -93,6 +93,12 @@ describe('CSV Parser Fuzz Tests', () => {
       });
     });
 
+    it('should not flag empty or whitespace-only values', () => {
+      expect(detectCSVInjection('')).toBe(false);
+      expect(detectCSVInjection('   ')).toBe(false);
+      expect(detectCSVInjection('\t\n')).toBe(false);
+    });
+
     it('should not flag legitimate values', () => {
       const legitimateValues = [
         '1234',

@@ -25,6 +25,12 @@ function ComposeMpmaPage() {
     const memos = data.memos ? data.memos.split(',') : undefined;
     const memosAreHex = data.memos_are_hex ? data.memos_are_hex.split(',').map(v => v === 'true') : undefined;
 
+    // The three lists are parallel by construction in the MPMA form; a
+    // mismatch means corrupted form state and must not reach compose
+    if (destinations.length !== assets.length || quantities.length !== assets.length) {
+      throw new Error('Mismatched MPMA form data: assets, destinations, and quantities must align');
+    }
+
     // Build divisibility cache: fetch unique assets in parallel
     const knownDivisible: Record<string, boolean> = { BTC: true, XCP: true };
     const uniqueAssets = [...new Set(assets)].filter(a => !(a in knownDivisible));

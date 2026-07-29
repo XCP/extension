@@ -590,6 +590,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     // Bundle response is an array
     const addressResults = result.payload as Array<{ address: string; publicKey?: string; path: number[]; serializedPath: string }>;
+    if (addressResults.length !== pathStrings.length) {
+      throw new HardwareWalletError(
+        `Trezor returned ${addressResults.length} addresses for ${pathStrings.length} requested paths`,
+        'GET_ADDRESSES_FAILED',
+        'trezor',
+        'Trezor returned an unexpected response. Please reconnect your device and try again.'
+      );
+    }
     for (let i = 0; i < addressResults.length; i++) {
       const addr = addressResults[i]!;
       addresses.push({
@@ -853,7 +861,16 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     // Check for Taproot path (purpose 86') - Trezor doesn't support Taproot message signing
-    const purpose = request.path[0]! & ~DerivationPaths.HARDENED;
+    const purposeSegment = request.path[0];
+    if (purposeSegment === undefined) {
+      throw new HardwareWalletError(
+        'Empty derivation path in message signing request',
+        'INVALID_PATH',
+        'trezor',
+        'Invalid derivation path. Please try again.'
+      );
+    }
+    const purpose = purposeSegment & ~DerivationPaths.HARDENED;
     if (purpose === 86) {
       throw new HardwareWalletError(
         'Trezor does not support message signing for Taproot (P2TR) addresses',

@@ -150,6 +150,22 @@ describe('Bitcoin Price Utilities', () => {
       await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
     });
 
+    it('should throw error when the c array is empty', async () => {
+      mockedGet.mockResolvedValue(
+        mockApiResponse({ result: { XXBTZUSD: { c: [] } } })
+      );
+
+      await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
+    });
+
+    it('should throw error when the price is not numeric', async () => {
+      mockedGet.mockResolvedValue(
+        mockApiResponse({ result: { XXBTZUSD: { c: ['not-a-number'] } } })
+      );
+
+      await expect(fetchFromKraken()).rejects.toThrow('Invalid response data');
+    });
+
     it('should throw error when c field is missing', async () => {
       mockedGet.mockResolvedValue(
         mockApiResponse({
@@ -166,21 +182,6 @@ describe('Bitcoin Price Utilities', () => {
       mockedGet.mockRejectedValue(new Error('Kraken API error'));
 
       await expect(fetchFromKraken()).rejects.toThrow('Kraken API error');
-    });
-
-    it('should handle empty c array', async () => {
-      mockedGet.mockResolvedValue(
-        mockApiResponse({
-          result: {
-            XXBTZUSD: {
-              c: []
-            }
-          }
-        })
-      );
-
-      const data = await fetchFromKraken();
-      expect(data.bitcoin.usd).toBeNaN(); // parseFloat of undefined returns NaN
     });
 
     it('should handle very precise decimal values', async () => {

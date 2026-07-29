@@ -203,6 +203,10 @@ export function bytesToHex(bytes: Uint8Array): string {
  * Used by Counterparty to encrypt OP_RETURN data with the first input's txid.
  */
 export function arc4(key: Uint8Array, data: Uint8Array): Uint8Array {
+  // An empty key would poison the keystream with NaN indexing; every caller
+  // keys with a 32-byte txid, so reaching this indicates corrupted input.
+  if (key.length === 0) throw new Error('arc4: key must not be empty');
+
   // Key-scheduling algorithm (KSA)
   const S = new Uint8Array(256);
   for (let i = 0; i < 256; i++) S[i] = i;

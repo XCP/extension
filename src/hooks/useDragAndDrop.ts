@@ -67,7 +67,9 @@ export function useDragAndDrop<T>({
 
     const dragIndex = draggedIndexRef.current;
 
-    if (dragIndex === null || dragIndex === dropIndex) {
+    // A stale index (items changed mid-drag) would splice undefined into the
+    // list; bail out and reset instead of corrupting it
+    if (dragIndex === null || dragIndex === dropIndex || dragIndex >= items.length) {
       setDraggedIndex(null);
       setDragOverIndex(null);
       setIsDragging(false);

@@ -111,7 +111,10 @@ function decodeBech32(address: string): { version: number; program: Uint8Array }
       if (decoded.prefix !== 'bc' && decoded.prefix !== 'tb') {
         throw new AddressPackError('Invalid bech32 prefix');
       }
-      const version = decoded.words[0]!;
+      const version = decoded.words[0];
+      if (version === undefined) {
+        throw new AddressPackError('Missing bech32 witness version');
+      }
       const program = bech32.fromWords(decoded.words.slice(1));
       return { version, program: new Uint8Array(program) };
     } catch {
@@ -120,7 +123,10 @@ function decodeBech32(address: string): { version: number; program: Uint8Array }
       if (decoded.prefix !== 'bc' && decoded.prefix !== 'tb') {
         throw new AddressPackError('Invalid bech32m prefix');
       }
-      const version = decoded.words[0]!;
+      const version = decoded.words[0];
+      if (version === undefined) {
+        throw new AddressPackError('Missing bech32m witness version');
+      }
       const program = bech32m.fromWords(decoded.words.slice(1));
       return { version, program: new Uint8Array(program) };
     }

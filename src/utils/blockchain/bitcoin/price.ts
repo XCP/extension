@@ -83,7 +83,13 @@ export async function fetchFromKraken(): Promise<PriceData> {
       endpoint: "/0/public/Ticker",
     });
   }
-  return { bitcoin: { usd: parseFloat(data.result.XXBTZUSD.c[0]!) } };
+  const price = parseFloat(data.result.XXBTZUSD.c[0] ?? '');
+  if (!Number.isFinite(price)) {
+    throw new DataFetchError("Invalid response data", "kraken.com", {
+      endpoint: "/0/public/Ticker",
+    });
+  }
+  return { bitcoin: { usd: price } };
 }
 
 /**
@@ -378,10 +384,15 @@ export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<Bt
         });
       }
 
-      const stats: BtcStats = {
-        price: data.bitcoin[currency]!,
-        change24h: data.bitcoin[`${currency}_24h_change`]!,
-      };
+      const price = data.bitcoin[currency];
+      const change24h = data.bitcoin[`${currency}_24h_change`];
+      if (typeof price !== 'number' || typeof change24h !== 'number') {
+        // Fall through to the CoinCap fallback instead of caching undefineds
+        throw new DataFetchError("Invalid response data", "coingecko.com", {
+          endpoint: "/api/v3/simple/price",
+        });
+      }
+      const stats: BtcStats = { price, change24h };
 
       statsCache.set(cacheKey, stats);
       return stats;

@@ -222,6 +222,12 @@ describe('sweep round-trip', () => {
 
 // ── Wrong txid fails decryption ──────────────────────────────────────
 
+describe('empty key', () => {
+  it('should throw instead of producing a NaN-poisoned keystream', () => {
+    expect(() => arc4(new Uint8Array(0), hexToBytes('deadbeef'))).toThrow('arc4: key must not be empty');
+  });
+});
+
 describe('wrong key', () => {
   it('should return null when txid is wrong', () => {
     const datahex = buildCpMessage(2, uint64hex(1n) + uint64hex(100n) + bytesToHex(packAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')));

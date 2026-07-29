@@ -129,10 +129,11 @@ export function validateCSVQuantity(quantity: string): { valid: boolean; value?:
  */
 export function detectCSVInjection(value: string): boolean {
   if (!value) return false;
-  
-  // Check for formula injection
-  const firstChar = value.trim()[0];
-  if ('=@+-'.includes(firstChar!)) {
+
+  // Check for formula injection (whitespace-only values cannot inject)
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if ('=@+-'.includes(trimmed[0]!)) {
     return true;
   }
   

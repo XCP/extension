@@ -130,6 +130,7 @@ export function DestinationsInput({
       
       // Update current input with first resolved address
       const currentIndex = destinations.findIndex(d => d.id === id);
+      if (currentIndex === -1) return;
       const updatedDestinations = [...destinations];
       updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex]!, address: resolvedLines[0]! };
       
