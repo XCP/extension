@@ -24,13 +24,13 @@ import {
   fetchAddressPoolByLpAsset,
   fetchServerInfo,
   clearApiCache,
-  AssetInfo,
-  TokenBalance,
-  Order,
-  OrderDetails,
-  Transaction,
-  Dispenser,
-  OwnedAsset,
+  type AssetInfo,
+  type TokenBalance,
+  type Order,
+  type OrderDetails,
+  type Transaction,
+  type Dispenser,
+  type OwnedAsset,
 } from '../api';
 import * as formatUtils from '@/utils/format';
 import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';

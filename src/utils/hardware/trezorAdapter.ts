@@ -64,20 +64,20 @@
 
 import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
-import { IHardwareWalletAdapter } from './interface';
+import type { IHardwareWalletAdapter } from './interface';
 import {
-  HardwareDeviceInfo,
-  HardwareAddress,
-  HardwareSignRequest,
-  HardwareSignResult,
-  HardwareMessageSignRequest,
-  HardwareMessageSignResult,
-  HardwareConnectionStatus,
+  type HardwareDeviceInfo,
+  type HardwareAddress,
+  type HardwareSignRequest,
+  type HardwareSignResult,
+  type HardwareMessageSignRequest,
+  type HardwareMessageSignResult,
+  type HardwareConnectionStatus,
   HardwareWalletError,
   DerivationPaths,
-  HardwarePsbtSignRequest,
-  InputScriptType,
-  OutputScriptType,
+  type HardwarePsbtSignRequest,
+  type InputScriptType,
+  type OutputScriptType,
 } from './types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import { getActiveSettings } from '@/utils/settings';

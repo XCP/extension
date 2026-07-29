@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, beforeAll, vi, afterEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 // Mock webext-bridge completely before any imports that use it
 vi.mock('webext-bridge/background', () => ({

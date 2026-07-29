@@ -1,4 +1,4 @@
-import { useState, useRef, DragEvent, useEffect } from "react";
+import { useState, useRef, type DragEvent, useEffect } from "react";
 
 export interface UseDragAndDropOptions<T> {
   items: T[];

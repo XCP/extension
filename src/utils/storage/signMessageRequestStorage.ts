@@ -5,7 +5,7 @@
  * here so the popup can retrieve them and pre-populate the sign message form.
  */
 
-import { RequestStorage, AuthorizedRequest } from './requestStorage';
+import { RequestStorage, type AuthorizedRequest } from './requestStorage';
 
 /**
  * Sign message request from a dApp.

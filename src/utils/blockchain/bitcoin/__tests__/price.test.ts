@@ -4,7 +4,7 @@ import {
   fetchFromKraken,
   fetchFromMempool,
   getBtcPrice,
-  PriceData
+  type PriceData
 } from '@/utils/blockchain/bitcoin/price';
 import { apiClient } from '@/utils/apiClient';
 import type { ApiResponse } from '@/utils/apiClient';

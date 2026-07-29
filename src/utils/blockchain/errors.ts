@@ -39,7 +39,7 @@ export type BlockchainErrorCode =
 export class BlockchainError extends Error {
   readonly code: BlockchainErrorCode;
   readonly userMessage: string;
-  readonly cause?: Error;
+  override readonly cause?: Error;
 
   constructor(
     code: BlockchainErrorCode,

@@ -10,7 +10,7 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
-import { useFeeRates, FeeRateOption } from "@/hooks/useFeeRates";
+import { useFeeRates, type FeeRateOption } from "@/hooks/useFeeRates";
 import { formatAmount } from "@/utils/format";
 import { validateFeeRate } from "@/utils/validation/fee";
 

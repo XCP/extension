@@ -10,7 +10,7 @@
  *   3. Stop emulator: docker-compose -f docker-compose.trezor.yml down
  */
 import { defineConfig } from 'vitest/config';
-import { WxtVitest } from 'wxt/testing';
+import { WxtVitest } from 'wxt/testing/vitest-plugin';
 
 export default defineConfig({
   plugins: [WxtVitest()],

@@ -1,4 +1,4 @@
-import { Component, ComponentType, ReactNode, ErrorInfo } from 'react';
+import { Component, type ComponentType, type ReactNode, type ErrorInfo } from 'react';
 import { BiError, FiRefreshCw } from '@/components/icons';
 
 interface Props {
@@ -33,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error details for debugging
     console.error('ErrorBoundary caught error:', error, errorInfo);
 
@@ -48,7 +48,7 @@ export class ErrorBoundary extends Component<Props, State> {
     });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       // Use custom fallback if provided
       if (this.props.fallback) {

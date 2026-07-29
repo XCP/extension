@@ -1,12 +1,14 @@
 import { vi } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 // Setup fake browser before any imports that use browser APIs
-fakeBrowser.runtime.onConnect = {
-  addListener: vi.fn(),
-  removeListener: vi.fn(),
-  hasListener: vi.fn()
-} as any;
+Object.assign(fakeBrowser.runtime, {
+  onConnect: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn()
+  } as any,
+});
 
 fakeBrowser.runtime.onMessage = {
   addListener: vi.fn(),

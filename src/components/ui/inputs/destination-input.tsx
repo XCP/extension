@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, ChangeEvent, useCallback, ReactNode } from "react";
+import { forwardRef, useEffect, type ChangeEvent, useCallback, type ReactNode } from "react";
 import { Field, Label, Description, Input } from "@headlessui/react";
 import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
 import { shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";

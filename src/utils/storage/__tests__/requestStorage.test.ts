@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
-import { RequestStorage, BaseRequest } from '../requestStorage';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { RequestStorage, type BaseRequest } from '../requestStorage';
 
 // Test request type
 interface TestRequest extends BaseRequest {

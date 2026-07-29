@@ -1,6 +1,6 @@
 import './setup'; // Must be first to setup browser mocks
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
@@ -59,11 +59,13 @@ describe('Provider Service Lifecycle Tests', () => {
     } as any;
     fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test/${path}`);
     fakeBrowser.runtime.getManifest = vi.fn(() => ({ version: '1.0.0' } as any));
-    fakeBrowser.runtime.onConnect = {
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      hasListener: vi.fn()
-    } as any;
+    Object.assign(fakeBrowser.runtime, {
+      onConnect: {
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        hasListener: vi.fn()
+      } as any,
+    });
     fakeBrowser.action.setBadgeText = vi.fn().mockResolvedValue(undefined);
     fakeBrowser.action.setBadgeBackgroundColor = vi.fn().mockResolvedValue(undefined);
     

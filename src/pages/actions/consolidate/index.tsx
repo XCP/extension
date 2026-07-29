@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiHelpCircle } from "@/components/icons";
-import { ConsolidationForm, ConsolidationFormData } from "./form";
+import { ConsolidationForm, type ConsolidationFormData } from "./form";
 import { ConsolidationReview } from "./review";
 import { ConsolidationHistory } from "./history";
 import { useHeader } from "@/contexts/header-context";

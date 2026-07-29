@@ -9,7 +9,7 @@
  * Verifies against response.result.params from the API.
  */
 
-import { unpackCounterpartyMessage, UnpackedMessageData, MessageTypeId } from './index';
+import { unpackCounterpartyMessage, type UnpackedMessageData, MessageTypeId } from './index';
 import type { EnhancedSendData } from './messages/enhancedSend';
 import type { OrderData } from './messages/order';
 import type { DispenserData } from './messages/dispenser';

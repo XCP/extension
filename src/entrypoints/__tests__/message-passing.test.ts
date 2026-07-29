@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 describe('Message Passing Between Contexts', () => {
   let mockWindow: any;
@@ -38,7 +38,7 @@ describe('Message Passing Between Contexts', () => {
     vi.clearAllMocks();
   });
   
-  describe('Injected Script → Content Script', () => {
+  describe('Injected Script â†’ Content Script', () => {
     it('should send provider request via postMessage', () => {
       // Simulate injected script sending a request
       const requestData = {
@@ -77,7 +77,7 @@ describe('Message Passing Between Contexts', () => {
     });
   });
   
-  describe('Content Script → Background', () => {
+  describe('Content Script â†’ Background', () => {
     it('should forward provider request to background', async () => {
       (fakeBrowser.runtime.sendMessage as any).mockResolvedValue({
         success: true,
@@ -113,11 +113,11 @@ describe('Message Passing Between Contexts', () => {
       await fakeBrowser.runtime.sendMessage(message);
       
       const call = vi.mocked(fakeBrowser.runtime.sendMessage).mock.calls[0];
-      expect(call[0].origin).toBe('https://malicious-site.com');
+      expect(call?.[0]).toMatchObject({ origin: 'https://malicious-site.com' });
     });
   });
   
-  describe('Background → Content Script', () => {
+  describe('Background â†’ Content Script', () => {
     it('should emit provider events to all tabs', async () => {
       vi.mocked(fakeBrowser.tabs.query).mockResolvedValue([
         { id: 1, url: 'https://dapp1.com' },
@@ -147,7 +147,7 @@ describe('Message Passing Between Contexts', () => {
     });
   });
   
-  describe('Content Script → Injected Script', () => {
+  describe('Content Script â†’ Injected Script', () => {
     it('should send response back via postMessage', () => {
       const responseData = {
         target: 'xcp-wallet-injected',

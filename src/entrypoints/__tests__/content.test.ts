@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { fakeBrowser } from 'wxt/testing';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
 
 // Mock WXT injectScript function
@@ -35,12 +35,14 @@ vi.mock('@/services/providerService', () => ({
 fakeBrowser.runtime.sendMessage = vi.fn();
 fakeBrowser.runtime.onMessage.addListener = vi.fn();
 fakeBrowser.runtime.onMessage.removeListener = vi.fn();
-fakeBrowser.runtime.onConnect = {
-  addListener: vi.fn(),
-  removeListener: vi.fn(),
-  hasListener: vi.fn(),
-  hasListeners: vi.fn(),
-};
+Object.assign(fakeBrowser.runtime, {
+  onConnect: {
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    hasListener: vi.fn(),
+    hasListeners: vi.fn(),
+  },
+});
 fakeBrowser.runtime.connect = vi.fn();
 fakeBrowser.runtime.id = 'test-extension-id';
 fakeBrowser.runtime.getURL = vi.fn((path: string) => `chrome-extension://test-id${path}`);
@@ -304,7 +306,7 @@ describe('Content Script', () => {
           id: '790',
           error: {
             message: 'User denied the request',
-            code: 4001 // USER_REJECTED — carried from the ProviderError
+            code: 4001 // USER_REJECTED â€” carried from the ProviderError
           }
         },
         mockWindow.location.origin
@@ -465,7 +467,7 @@ describe('Content Script', () => {
       // Window message listener stays alive (bridge must survive extension updates)
       expect(windowRemoveEventListenerSpy).not.toHaveBeenCalledWith('message', expect.any(Function));
 
-      // Runtime listener is removed (background→content channel is dead)
+      // Runtime listener is removed (backgroundâ†’content channel is dead)
       expect(runtimeRemoveListenerSpy).toHaveBeenCalledWith(expect.any(Function));
 
       windowRemoveEventListenerSpy.mockRestore();

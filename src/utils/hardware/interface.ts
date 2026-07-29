@@ -6,7 +6,7 @@
  */
 
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import {
+import type {
   HardwareDeviceInfo,
   HardwareAddress,
   HardwareSignRequest,

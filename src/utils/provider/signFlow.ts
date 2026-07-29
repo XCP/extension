@@ -6,7 +6,7 @@
  * flow instead of opening a duplicate popup.
  */
 
-import { RequestStorage, BaseRequest } from '@/utils/storage/requestStorage';
+import { RequestStorage, type BaseRequest } from '@/utils/storage/requestStorage';
 
 export type SignFlowStatus = 'pending' | 'completed' | 'cancelled';
 

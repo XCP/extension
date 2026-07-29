@@ -8,7 +8,7 @@ import {
   sanitizeQRCodeText,
   estimateQRCodeMemory,
   checkQRCodePerformance,
-  QRCodeValidationResult
+  type QRCodeValidationResult
 } from '../qrCode';
 
 describe('QR Code Validation Security Tests', () => {

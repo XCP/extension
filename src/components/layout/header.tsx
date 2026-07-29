@@ -1,5 +1,5 @@
 import { type ReactNode, type MouseEvent, type ReactElement, useCallback } from 'react';
-import { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
+import type { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
 
