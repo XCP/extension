@@ -83,16 +83,13 @@ walletTest.describe('DestinationsInput Component', () => {
       await expect(input).toHaveClass(/border-red-500/, { timeout: 5000 });
     });
 
-    walletTest('accepts address with invalid checksum (validation deferred)', async ({ page }) => {
+    walletTest('rejects address with invalid checksum', async ({ page }) => {
       const input = compose.send.recipientInput(page);
       await expect(input).toBeVisible({ timeout: 5000 });
       await input.fill(INVALID_ADDRESSES[1]); // Bad checksum address
       await input.blur();
 
-      // Client-side validation doesn't check checksum, so no error styling appears
-      // Full checksum validation happens server-side during transaction broadcast
-      await expect(input).not.toHaveClass(/border-red-500/);
-      await expect(input).toHaveValue(INVALID_ADDRESSES[1]);
+      await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
     });
 
     walletTest('trims whitespace from input', async ({ page }) => {

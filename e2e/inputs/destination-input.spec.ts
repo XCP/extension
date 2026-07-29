@@ -128,16 +128,13 @@ walletTest.describe('DestinationInput Component', () => {
       await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
     });
 
-    walletTest('accepts address with invalid checksum (validation deferred)', async ({ page }) => {
+    walletTest('rejects address with invalid checksum', async ({ page }) => {
       const input = compose.send.recipientInput(page);
-      // Address with bad checksum - checksum validation is deferred to transaction time
+      // Address with a corrupted checksum — flagged by client-side validation.
       await input.fill(INVALID_ADDRESSES[1]); // '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN3'
       await input.blur();
 
-      // Client-side validation doesn't check checksum, so no error styling appears
-      // Full checksum validation happens server-side during transaction broadcast
-      await expect(input).not.toHaveClass(/border-red-500/);
-      await expect(input).toHaveValue(INVALID_ADDRESSES[1]);
+      await expect(input).toHaveClass(/border-red-500/, { timeout: 3000 });
     });
 
     walletTest('shows error for invalid bech32', async ({ page }) => {
