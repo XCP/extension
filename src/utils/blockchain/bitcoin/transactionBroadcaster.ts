@@ -79,6 +79,24 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): Tra
  * Used to record spent UTXOs after broadcast. Fails gracefully — returns
  * empty array if parsing fails so broadcast is never blocked.
  */
+/**
+ * Compute a signed transaction's txid locally, so the value we report is the
+ * real transaction id rather than whatever a broadcast endpoint echoes back.
+ * Returns null if the hex can't be parsed.
+ */
+export function computeTxid(signedTxHex: string): string | null {
+  try {
+    const tx = Transaction.fromRaw(hexToBytes(signedTxHex), {
+      allowUnknownInputs: true,
+      allowUnknownOutputs: true,
+      disableScriptCheck: true,
+    });
+    return tx.id;
+  } catch {
+    return null;
+  }
+}
+
 export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vout: number }[] {
   try {
     const tx = Transaction.fromRaw(hexToBytes(signedTxHex), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
@@ -151,7 +169,8 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
           clearBitcoinCaches();
           clearBalanceCache();
           recordSpentUtxos(extractInputsFromRawTx(signedTxHex));
-          return formatted;
+          // Report the locally-derived txid, not the endpoint's echo.
+          return { ...formatted, txid: computeTxid(signedTxHex) ?? formatted.txid };
         }
       }
     } catch (error) {

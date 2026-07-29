@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { broadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
+import { broadcastTransaction, computeTxid } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { DEFAULT_SETTINGS, getActiveSettings } from '@/utils/settings';
 
 vi.mock('@/utils/settings', async (importOriginal) => ({
@@ -29,7 +29,10 @@ const mockApiClient = apiClient as any;
 const mockGetSettings = vi.mocked(getActiveSettings);
 
 describe('Transaction Broadcaster Utilities', () => {
-  const mockSignedTxHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff08044c86041b020602ffffffff0100f2052a010000004341041b0e8c2567c12536aa13357b79a073dc4444acb83c4ec7a0e2f99dd7457516c5817242da796924ca4e99947d087fedf9ce467cb9f7c6287078f801df276fdf84424ac00000000';
+  // A real, parseable transaction (the genesis coinbase) so the broadcaster's
+  // locally-computed txid is well-defined. Endpoints echo a different mockTxid,
+  // which the broadcaster must ignore in favor of the computed value.
+  const mockSignedTxHex = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000';
   const mockTxid = 'abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab';
 
   beforeEach(() => {
@@ -40,6 +43,20 @@ describe('Transaction Broadcaster Utilities', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('computeTxid', () => {
+    it('computes the canonical txid of the genesis coinbase', () => {
+      const genesisCoinbase =
+        '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000';
+      expect(computeTxid(genesisCoinbase)).toBe(
+        '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b'
+      );
+    });
+
+    it('returns null for unparseable hex', () => {
+      expect(computeTxid('not-a-transaction')).toBeNull();
+    });
   });
 
   describe('broadcastTransaction in dry run mode', () => {
@@ -101,7 +118,7 @@ describe('Transaction Broadcaster Utilities', () => {
 
       const result = await broadcastTransaction(mockSignedTxHex);
       
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(mockApiClient.post).toHaveBeenCalledWith(
         expect.stringContaining('api.counterparty.io'),
         null,
@@ -124,7 +141,7 @@ describe('Transaction Broadcaster Utilities', () => {
 
       const result = await broadcastTransaction(mockSignedTxHex);
       
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(result.fees).toBe(2500);
       expect(mockApiClient.post).toHaveBeenCalledWith(
         'https://api.blockcypher.com/v1/btc/main/txs/push',
@@ -144,7 +161,7 @@ describe('Transaction Broadcaster Utilities', () => {
 
       const result = await broadcastTransaction(mockSignedTxHex);
       
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(mockApiClient.post).toHaveBeenCalledWith(
         'https://blockstream.info/api/tx',
         mockSignedTxHex,
@@ -164,7 +181,7 @@ describe('Transaction Broadcaster Utilities', () => {
 
       const result = await broadcastTransaction(mockSignedTxHex);
       
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(mockApiClient.post).toHaveBeenCalledWith(
         'https://mempool.space/api/tx',
         mockSignedTxHex,
@@ -192,7 +209,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
     });
 
     it('should handle responses without valid txid', async () => {
@@ -207,7 +224,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
     });
 
     it('should handle empty response data', async () => {
@@ -222,7 +239,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
     });
 
     it('should properly encode URL parameters for counterparty', async () => {
@@ -251,7 +268,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
     });
 
     it('should handle malformed JSON responses', async () => {
@@ -263,7 +280,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
     });
 
     it('should handle response format differences correctly', async () => {
@@ -274,7 +291,7 @@ describe('Transaction Broadcaster Utilities', () => {
       });
 
       let result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(result.fees).toBeUndefined();
 
       // Reset and test blockcypher format
@@ -292,7 +309,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
       expect(result.fees).toBe(1500);
     });
 
@@ -326,6 +343,7 @@ describe('Transaction Broadcaster Utilities', () => {
       });
 
       const result = await broadcastTransaction(longHex);
+      // Unparseable hex: no local txid computable, so fall back to the endpoint's.
       expect(result.txid).toBe(mockTxid);
     });
 
@@ -337,7 +355,7 @@ describe('Transaction Broadcaster Utilities', () => {
       });
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
 
       // Test status 202 (Accepted)
       vi.clearAllMocks();
@@ -353,7 +371,7 @@ describe('Transaction Broadcaster Utilities', () => {
         });
 
       const result2 = await broadcastTransaction(mockSignedTxHex);
-      expect(result2.txid).toBe(mockTxid);
+      expect(result2.txid).toBe(computeTxid(mockSignedTxHex));
     });
   });
 
@@ -381,7 +399,7 @@ describe('Transaction Broadcaster Utilities', () => {
       console.error = vi.fn();
 
       const result = await broadcastTransaction(mockSignedTxHex);
-      expect(result.txid).toBe(mockTxid);
+      expect(result.txid).toBe(computeTxid(mockSignedTxHex));
 
       console.error = originalConsoleError;
     });
