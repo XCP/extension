@@ -26,10 +26,6 @@ export default defineConfig({
         'alarms',
         'scripting', // Required for Trezor Connect to inject content scripts
       ],
-      // No 'tabs' permission: tabs.query/sendMessage and tab.url reads only
-      // touch origins the content-script matches already grant host access to,
-      // and onUpdated reads only changeInfo.status. Omitting it drops the
-      // "Read your browsing history" install warning.
       host_permissions: [
         '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
         'http://localhost:21325/*', // Trezor Bridge for emulator testing
