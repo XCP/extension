@@ -64,8 +64,11 @@ function UnlockPage() {
       navigate(PATHS.SUCCESS);
     } catch (err) {
       console.error("Error unlocking wallet:", err);
+      // Surface rate-limit errors: showing "Invalid password" would mislead
+      // the user into burning more attempts
       setError(
-        err instanceof Error && err.message.includes("No wallet")
+        err instanceof Error &&
+          (err.message.includes("No wallet") || err.message.includes("Too many password attempts"))
           ? err.message
           : "Invalid password. Please try again."
       );

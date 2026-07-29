@@ -133,11 +133,11 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     // Page shows password form - fill and submit to trigger error
     // The walletId is present in URL but doesn't exist in storage
     await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
-    await unlock.passwordInput(page).fill('testpassword123');
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
     await secrets.revealButton(page).click();
 
-    // When wallet doesn't exist in storage, selectWallet/getUnencryptedMnemonic fails
-    // and catches error at line 67-70, showing this message
+    // The password gate passes, then selectWallet/getUnencryptedMnemonic
+    // fails for the unknown wallet ID
     await expect(common.errorAlert(page)).toBeVisible({ timeout: 5000 });
     await expect(common.errorAlert(page)).toContainText(/Incorrect password or failed to reveal recovery phrase/i);
   });

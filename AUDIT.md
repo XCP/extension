@@ -87,7 +87,7 @@ Self-reported security assessment based on industry checklists.
 | ✅ | Use CSPRNG for all randomness | `crypto.getRandomValues()` for salts, IVs, keys |
 | ✅ | High iteration key derivation | PBKDF2 with 600,000 iterations |
 | ✅ | Use audited crypto libraries | Noble/Scure family (Cure53 audited) |
-| ⚪ | HKDF domain separation | Superseded by the unified keychain (ADR-015): one PBKDF2 master key; each wallet secret individually encrypted, then the keychain blob encrypted again |
+| ⚪ | HKDF domain separation | Superseded by the unified keychain (ADR-015): one master key, doubly-encrypted wallet secrets |
 | ✅ | Random salt per password | 16-byte random salt at keychain creation and password change |
 | ✅ | Random IV per encryption | 12-byte random IV for each operation |
 | ✅ | Timing attack mitigation | Random delays (0-10ms) on decryption |

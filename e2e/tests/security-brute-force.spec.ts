@@ -8,12 +8,12 @@ import { walletTest, expect, lockWallet, unlockWallet, TEST_PASSWORD } from '../
 import { unlock } from '../selectors';
 
 walletTest.describe('Brute Force Protection', () => {
-  walletTest('resists brute force attempts on unlock screen', async ({ page }) => {
+  walletTest('rate-limits brute force attempts on unlock screen', async ({ page }) => {
     await lockWallet(page);
     await expect(page).toHaveURL(/unlock/);
     await expect(unlock.passwordInput(page)).toBeVisible();
 
-    // Reduced set for CI performance - 5 attempts is sufficient to verify protection
+    // Five failures fill the rate-limit window (5 per minute)
     // All passwords must be >= 8 chars (MIN_PASSWORD_LENGTH) to enable the unlock button
     const commonPasswords = [
       '12345678', 'password', 'qwerty12', 'administrator', 'testtest'
@@ -29,18 +29,20 @@ walletTest.describe('Brute Force Protection', () => {
       await unlock.passwordInput(page).clear();
     }
 
-    await expect(unlock.passwordInput(page)).toBeVisible();
-    await expect(page).toHaveURL(/unlock/);
+    // Even the correct password is rejected while the window is full
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
+    await unlock.unlockButton(page).click();
 
-    await unlockWallet(page, TEST_PASSWORD);
-    await expect(page).toHaveURL(/index/);
+    await expect(page).toHaveURL(/unlock/);
+    await expect(unlock.errorMessage(page)).toContainText(/Too many password attempts/i);
   });
 
   walletTest('handles rapid-fire unlock attempts', async ({ page }) => {
     await lockWallet(page);
 
-    // Reduced from 10 for CI performance
-    const rapidAttempts = 5;
+    // Three attempts stays under the 5-per-minute rate limit so the final
+    // unlock with the correct password is not throttled
+    const rapidAttempts = 3;
     const promises = [];
 
     for (let i = 0; i < rapidAttempts; i++) {
@@ -60,10 +62,9 @@ walletTest.describe('Brute Force Protection', () => {
     await expect(page).toHaveURL(/index/);
   });
 
-  walletTest('maintains security after multiple failed attempts across reload', async ({ page }) => {
+  walletTest('rate-limit window persists across reload', async ({ page }) => {
     await lockWallet(page);
 
-    // Reduced from 5 for CI performance
     for (let i = 0; i < 3; i++) {
       await unlock.passwordInput(page).fill(`wrongpwd${i}`);
       await unlock.unlockButton(page).click();
@@ -76,15 +77,19 @@ walletTest.describe('Brute Force Protection', () => {
     await expect(page).toHaveURL(/unlock/);
     await expect(unlock.passwordInput(page)).toBeVisible();
 
-    // Reduced from 5 for CI performance
-    for (let i = 3; i < 6; i++) {
+    // Two more failures reach the limit only if the window survived the
+    // reload (the counter lives in session storage, not worker memory)
+    for (let i = 3; i < 5; i++) {
       await unlock.passwordInput(page).fill(`wrongpwd${i}`);
       await unlock.unlockButton(page).click();
       await unlock.passwordInput(page).clear();
     }
 
-    await unlockWallet(page, TEST_PASSWORD);
-    await expect(page).toHaveURL(/index/);
+    await unlock.passwordInput(page).fill(TEST_PASSWORD);
+    await unlock.unlockButton(page).click();
+
+    await expect(page).toHaveURL(/unlock/);
+    await expect(unlock.errorMessage(page)).toContainText(/Too many password attempts/i);
   });
 
   walletTest('protects against SQL injection and special characters', async ({ page }) => {
