@@ -75,15 +75,14 @@ let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
 
 /**
- * Handler invoked when lazy expiry detection fires (getUnlockedSecret finds
- * the session expired). Registered by the wallet service so expiry performs a
- * FULL lock — clearing walletManager state and notifying open UI surfaces —
- * not just a secret wipe.
+ * Invoked when getUnlockedSecret finds the session expired, so expiry
+ * performs a full lock (wallet state cleared, UI notified) rather than a
+ * bare secret wipe. Registered by the wallet service.
  */
 let sessionExpiredHandler: (() => Promise<void>) | null = null;
 let sessionExpiredHandlerRunning = false;
 
-export function registerSessionExpiredHandler(handler: () => Promise<void>): void {
+export function registerSessionExpiredHandler(handler: (() => Promise<void>) | null): void {
   sessionExpiredHandler = handler;
 }
 
@@ -427,11 +426,10 @@ export async function checkSessionRecovery(): Promise<SessionRecoveryState> {
     // Everything is fine
     return SessionRecoveryState.VALID;
   } else {
-    // Session valid but in-memory secrets were lost (service worker
-    // restarted). By design this does NOT force re-authentication: the
-    // master key survives in memory-backed chrome.storage.session and
-    // refreshWallets() re-decrypts silently. See the Security Trade-off
-    // note in walletManager.ts.
+    // In-memory secrets lost to a service worker restart. By design this
+    // does not force re-authentication: the master key survives in session
+    // storage and refreshWallets() re-decrypts silently (see the Security
+    // Trade-off note in walletManager.ts).
     return SessionRecoveryState.NEEDS_REAUTH;
   }
 }

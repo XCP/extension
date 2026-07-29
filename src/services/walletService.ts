@@ -259,8 +259,7 @@ function createWalletService(): WalletService {
       });
     },
     consolidateBareMultisig: async (sourceAddress, batchData, feeRateSatPerVByte, destinationAddress) => {
-      // Signing stays in the background: the popup never receives the
-      // private key, and each batch call fetches it transiently here.
+      // Sign in the background so the private key never reaches the popup
       const activeWallet = walletManager.getActiveWallet();
       const address = activeWallet?.addresses.find((a) => a.address === sourceAddress);
       if (!activeWallet || !address) {
@@ -279,9 +278,7 @@ function createWalletService(): WalletService {
     },
   };
 
-  // Lazy expiry detection (getUnlockedSecret finding the session expired)
-  // performs a full lock — walletManager state cleared and UI notified —
-  // instead of only wiping secrets.
+  // Lazy expiry detection performs a full lock instead of a bare secret wipe
   registerSessionExpiredHandler(() => service.lockKeychain());
 
   return service;

@@ -2,13 +2,9 @@
  * Rate limiter for password attempts (unlock and verifyPassword).
  *
  * Backed by chrome.storage.session so the failure window survives service
- * worker restarts — an in-memory limiter would reset every time the worker
- * is torn down, making it trivially bypassable. Session storage is
- * memory-backed and cleared when the browser closes.
- *
- * Storage read failures fail OPEN (attempt allowed): the limiter is
- * defense-in-depth on top of the ~1s PBKDF2 cost per guess, and failing
- * closed would brick unlock on a transient storage error.
+ * worker restarts, which reset any in-memory counter. Storage read failures
+ * fail open: the limiter is defense in depth on top of the ~1s PBKDF2 cost
+ * per guess, and failing closed would block unlock on a storage error.
  */
 
 import { storage } from '#imports';

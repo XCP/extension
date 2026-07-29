@@ -420,11 +420,9 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
     const unsubscribe = onMessage('keychainLocked', handleLockMessage);
 
-    // Defense in depth: the keychainLocked message is routed to a single
-    // webext-bridge 'popup' endpoint, and the popup and side panel share that
-    // endpoint name — whichever connected last wins. Watching the session
-    // master key covers every open UI surface (popup, side panel, approval
-    // windows): its removal IS the lock, whoever initiated it.
+    // The keychainLocked message reaches only one webext-bridge 'popup'
+    // endpoint, and the popup and side panel share that name. Master key
+    // removal from session storage signals the lock to every UI surface.
     const handleSessionStorageChange = (
       changes: Record<string, chrome.storage.StorageChange>
     ) => {

@@ -575,4 +575,80 @@ describe('sessionManager', () => {
       expect(global.chrome.storage.session.remove).toHaveBeenCalledWith('sessionMetadata');
     });
   });
+
+  describe('rearmSessionExpiry', () => {
+    it('should re-arm the alarm from valid session metadata', async () => {
+      const { rearmSessionExpiry } = await import('../sessionManager');
+
+      await rearmSessionExpiry();
+
+      expect(global.chrome.alarms.create).toHaveBeenCalledWith(
+        'session-expiry',
+        expect.objectContaining({ when: expect.any(Number) })
+      );
+    });
+
+    it('should do nothing when the session is expired', async () => {
+      const { rearmSessionExpiry } = await import('../sessionManager');
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - MAX_SESSION_DURATION_MS - 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        }
+      });
+
+      await rearmSessionExpiry();
+
+      expect(global.chrome.alarms.create).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when no session metadata exists', async () => {
+      const { rearmSessionExpiry } = await import('../sessionManager');
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({});
+
+      await rearmSessionExpiry();
+
+      expect(global.chrome.alarms.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('session expired handler', () => {
+    it('should invoke the registered handler on lazy expiry detection', async () => {
+      const { registerSessionExpiredHandler } = await import('../sessionManager');
+      const handler = vi.fn().mockResolvedValue(undefined);
+      registerSessionExpiredHandler(handler);
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - MAX_SESSION_DURATION_MS - 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        }
+      });
+
+      try {
+        const secret = await getUnlockedSecret(VALID_WALLET_ID_1);
+
+        expect(secret).toBeNull();
+        expect(handler).toHaveBeenCalledTimes(1);
+      } finally {
+        registerSessionExpiredHandler(null);
+      }
+    });
+
+    it('should fall back to clearing secrets when no handler is registered', async () => {
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - MAX_SESSION_DURATION_MS - 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        }
+      });
+
+      const secret = await getUnlockedSecret(VALID_WALLET_ID_1);
+
+      expect(secret).toBeNull();
+      expect(global.chrome.storage.session.remove).toHaveBeenCalledWith('sessionMetadata');
+    });
+  });
 });

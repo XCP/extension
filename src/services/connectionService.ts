@@ -465,12 +465,10 @@ export class ConnectionService extends BaseService {
       return null;
     }
 
-    // Only security-check timestamps are persisted. The connection cache is
-    // NOT: a snapshot taken before a disconnect would fail open for a revoked
-    // origin after a service worker crash; a cache miss just costs one
-    // keychain-settings read. Pending permission requests are NOT persisted
-    // either: their resolver promises die with the worker, and restoring the
-    // dedupe keys would block that origin from ever connecting again.
+    // Only security-check timestamps survive restarts. A persisted
+    // connection cache could fail open for a just-revoked origin, and
+    // restored pending-request keys would outlive their resolvers and
+    // block the origin from reconnecting.
     return {
       securityChecks: Array.from(this.state.lastSecurityCheck.entries()).map(
         ([origin, timestamp]) => ({ origin, timestamp })
@@ -479,8 +477,8 @@ export class ConnectionService extends BaseService {
   }
 
   protected hydrateState(state: SerializedConnectionState): void {
-    // Restore security check timestamps (connections and pendingRequests are
-    // deliberately not restored — see getSerializableState)
+    // connections and pendingRequests are deliberately not restored;
+    // see getSerializableState
     for (const { origin, timestamp } of state.securityChecks ?? []) {
       this.state.lastSecurityCheck.set(origin, timestamp);
     }

@@ -563,6 +563,22 @@ describe('ConnectionService', () => {
       const hasPermission = await connectionService.hasPermission('https://persistent.com');
       expect(hasPermission).toBe(true);
     });
+
+    it('should ignore connections and pending keys from a persisted snapshot', async () => {
+      // A stale snapshot taken before a disconnect must not fail open
+      (connectionService as any).hydrateState({
+        connections: [{
+          origin: 'https://revoked.com',
+          status: { origin: 'https://revoked.com', isConnected: true, lastActive: Date.now() },
+        }],
+        securityChecks: [],
+        pendingRequests: ['https://revoked.com-pending'],
+      });
+
+      // Keychain settings (no connected sites) stay authoritative
+      expect(await connectionService.hasPermission('https://revoked.com')).toBe(false);
+      expect((connectionService as any).state.pendingPermissionRequests.size).toBe(0);
+    });
   });
 
 

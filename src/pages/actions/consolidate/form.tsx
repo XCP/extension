@@ -73,8 +73,7 @@ export function ConsolidationForm({
         // Mark initial load as complete
         if (isInitialLoad) {
           setIsInitialLoad(false);
-          // Funnel: distinguish visitors with nothing to consolidate from
-          // real prospects who saw a quote and walked away
+          // Funnel: separate ineligible visitors from prospects who saw a quote
           analytics.track(
             batches[0]!.summary.total_utxos > 0
               ? 'consolidate_eligible'

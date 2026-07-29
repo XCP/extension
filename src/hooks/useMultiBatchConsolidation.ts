@@ -40,8 +40,7 @@ export function useMultiBatchConsolidation() {
     let totalOutputSats = 0;
 
     try {
-      // Signing happens in the background service worker; the private key
-      // never enters this popup context.
+      // Signing happens in the background; the key never enters the popup
       const walletService = getWalletService();
 
       // Process each batch sequentially

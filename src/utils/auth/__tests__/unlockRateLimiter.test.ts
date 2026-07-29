@@ -38,10 +38,10 @@ describe('unlockRateLimiter', () => {
     }
   });
 
-  it('persists the failure window in session storage (survives in-memory reset)', async () => {
+  it('persists the failure window in session storage', async () => {
     for (let i = 0; i < 5; i++) await recordFailedUnlockAttempt();
-    // The limiter holds no module state; a fresh read must still see the
-    // failures (this is what defeats the SW-restart reset bypass)
+    // No module state: every check reads storage, so a service worker
+    // restart cannot reset the window
     await expect(assertUnlockAllowed()).rejects.toThrow(/Too many password attempts/);
   });
 });
