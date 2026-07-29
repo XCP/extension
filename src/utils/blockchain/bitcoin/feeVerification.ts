@@ -2,10 +2,10 @@
  * Independent fee sanity check for composed transactions.
  *
  * The compose API returns the raw transaction plus its own fee figure. This
- * recomputes the real miner fee locally — sum(input values) − sum(decoded
- * outputs) — and bounds it against the fee rate the user actually chose (which
- * the API cannot influence) and an absolute ceiling. A transaction that drains
- * the balance to fees, or a buggy fee estimate, is rejected before signing.
+ * recomputes the real miner fee locally (inputs minus outputs) and bounds it
+ * against the fee rate the user actually chose (which the API cannot influence)
+ * and an absolute ceiling. A transaction that drains the balance to fees, or a
+ * buggy fee estimate, is rejected before signing.
  *
  * SegWit input amounts are committed to by the signature (BIP143), so a lying
  * API cannot both understate an input value here and produce a valid signature.
@@ -38,7 +38,7 @@ export interface FeeCheckInput {
 export interface FeeCheckResult {
   ok: boolean;
   error?: string;
-  /** The miner fee actually implied by inputs − outputs, when computable. */
+  /** The miner fee actually implied by inputs minus outputs, when computable. */
   computedFee?: number;
 }
 
@@ -73,7 +73,7 @@ export function checkTransactionFee(input: FeeCheckInput): FeeCheckResult {
     return { ok: true };
   }
 
-  // Prefer the fee implied by inputs − outputs; fall back to the declared fee
+  // Prefer the fee implied by inputs minus outputs; fall back to the declared fee
   // when input values are unavailable.
   let effectiveFee = declaredFee;
   let computedFee: number | undefined;

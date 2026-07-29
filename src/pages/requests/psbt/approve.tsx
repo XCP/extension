@@ -256,8 +256,7 @@ export default function ApprovePsbtPage() {
         .filter(input => input.address && normalizeAddressForComparison(input.address)
           === normalizeAddressForComparison(activeAddress.address))
         .map(input => input.index);
-  // Inputs the user is being asked to sign that carry Counterparty assets —
-  // signing moves those assets, not just BTC, so surface it prominently.
+  // Signed inputs that carry Counterparty assets: signing moves the assets, not just BTC.
   const signedInputsWithAssets = requestedInputIndices
     .map(index => attachedByInput.get(index))
     .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);

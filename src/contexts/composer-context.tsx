@@ -342,9 +342,9 @@ export function ComposerProvider<T>({
       // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
       // which is allowed through (e.g., BTC-only transactions)
 
-      // Independently bound the fee — covers every transaction type, including
-      // BTC-only sends that carry no OP_RETURN — so a drain-to-fee response or
-      // a buggy fee estimate is rejected before the review screen.
+      // Independently bound the fee for every transaction type (including
+      // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
+      // buggy fee estimate is rejected before the review screen.
       const feeCheck = checkTransactionFee({
         rawTransaction: response.result.rawtransaction,
         inputsValues: response.result.inputs_values,

@@ -26,10 +26,10 @@ export function resolvePsbtSighashType(
  * screen did not reflect.
  */
 export const ALLOWED_PSBT_SIGHASH_TYPES: ReadonlySet<number> = new Set([
-  SigHash.DEFAULT,               // 0x00 — taproot key-path
+  SigHash.DEFAULT,               // 0x00 (taproot key-path)
   SigHash.ALL,                   // 0x01
   SigHash.ALL_ANYONECANPAY,      // 0x81
-  SigHash.SINGLE_ANYONECANPAY,   // 0x83 — marketplace listings
+  SigHash.SINGLE_ANYONECANPAY,   // 0x83 (marketplace listings)
 ]);
 
 /**

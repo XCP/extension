@@ -46,18 +46,13 @@ export interface InputAttachedAssets {
   }>;
 }
 
-/**
- * Cap on per-input asset lookups so a pathological PSBT can't fan out into
- * unbounded API calls. Real asset-bearing PSBTs have a handful of inputs;
- * truncation past this is surfaced (console.warn), not silent.
- */
+/** Cap on per-input asset lookups; truncation past this is logged, not silent. */
 export const MAX_ASSET_LOOKUP_INPUTS = 30;
 
 /**
- * Look up the Counterparty assets attached to each input's UTXO. Returns only
- * the inputs that carry assets. A failed lookup (indexer/network) yields no
- * assets for that input rather than blocking — this enriches the display; it
- * is not a signing gate.
+ * Look up the Counterparty assets attached to each input's UTXO, returning only
+ * the inputs that carry assets. A failed lookup yields no assets for that input
+ * rather than blocking: this enriches the display, it is not a signing gate.
  */
 export async function fetchInputsAttachedAssets(
   inputs: Array<{ index: number; txid: string; vout: number }>

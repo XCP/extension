@@ -1,11 +1,11 @@
 /**
  * Local, structural extraction of a Counterparty OP_RETURN payload from a raw
- * Bitcoin transaction — no remote decode call.
+ * Bitcoin transaction, with no remote decode call.
  *
  * Counterparty currently ARC4-obfuscates the OP_RETURN data with the first
  * input's txid as the key. A future protocol version may emit the payload in
- * the clear, so extraction tries the plaintext form first and falls back to
- * ARC4 decryption — working across both without a flag.
+ * the clear, so extraction tries plaintext first and falls back to ARC4,
+ * working across both without a flag.
  */
 
 import { Transaction } from '@scure/btc-signer';
