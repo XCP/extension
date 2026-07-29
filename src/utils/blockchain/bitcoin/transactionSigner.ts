@@ -1,4 +1,4 @@
-import { Transaction, p2pkh, p2wpkh, p2sh, p2tr, SigHash } from '@scure/btc-signer';
+import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction } from '@/utils/blockchain/bitcoin/utxo';
@@ -25,25 +25,8 @@ interface TransactionInputData {
   };
   /** Redeem script for P2SH-P2WPKH (nested SegWit) */
   redeemScript?: Uint8Array;
-}
-
-function paymentScript(pubkeyBytes: Uint8Array, addressFormat: AddressFormat) {
-  switch (addressFormat) {
-    case AddressFormat.P2PKH:
-    case AddressFormat.Counterwallet:
-    case AddressFormat.FreewalletBIP39:
-      return p2pkh(pubkeyBytes);
-    case AddressFormat.P2WPKH:
-    case AddressFormat.CounterwalletSegwit:
-    case AddressFormat.FreewalletBIP39Segwit:
-      return p2wpkh(pubkeyBytes);
-    case AddressFormat.P2SH_P2WPKH:
-      return p2sh(p2wpkh(pubkeyBytes));
-    case AddressFormat.P2TR:
-      return p2tr(pubkeyBytes);
-    default:
-      throw new ValidationError('INVALID_ADDRESS', `Unsupported address type: ${addressFormat}`);
-  }
+  /** X-only internal public key for Taproot key-path spends */
+  tapInternalKey?: Uint8Array;
 }
 
 /**
@@ -158,6 +141,14 @@ export async function signTransaction(
         sequence: 0xfffffffd,
         sighashType: SigHash.ALL,
       };
+
+      if (wallet.addressFormat === AddressFormat.P2TR) {
+        // Taproot key-path spend (BIP341): the signer matches the input by
+        // tapInternalKey and tweaks the private key itself. SIGHASH_DEFAULT is
+        // required — an explicit ALL is rejected for taproot inputs.
+        inputData.sighashType = SigHash.DEFAULT;
+        inputData.tapInternalKey = pubkeyBytes.slice(1, 33);
+      }
 
       if (isLegacy) {
         // Legacy P2PKH needs full previous transaction for nonWitnessUtxo

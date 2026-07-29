@@ -22,6 +22,7 @@ const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
 import { hash160 } from '@scure/btc-signer/utils.js';
+import { p2tr, Transaction } from '@scure/btc-signer';
 
 describe('Transaction Signer Utilities', () => {
   // Use a valid secp256k1 private key
@@ -238,20 +239,27 @@ describe('Transaction Signer Utilities', () => {
       expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
-    it.skip('should successfully sign P2TR transaction', async () => {
-      // P2TR requires specific schnorr key generation and x-only pubkey
-      // which is not easily testable with mock data
+    it('should successfully sign P2TR transaction with a key-path schnorr witness', async () => {
       const p2trWallet = { ...mockWallet, addressFormat: AddressFormat.P2TR };
+      // BIP341 lock script for our key: OP_1 <tweaked x-only pubkey>
+      const lockScript = bytesToHex(p2tr(publicKey.slice(1)).script);
 
-      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
-      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
-      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2trWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        [100000],
+        [lockScript]
+      );
 
-      const result = await signTransaction(mockRawTransaction, p2trWallet, mockTargetAddress, mockPrivateKey);
-
-      expect(typeof result).toBe('string');
-      expect(result.length).toBeGreaterThan(0);
       expect(result).toMatch(/^[0-9a-f]+$/i);
+      // Key-path spend with SIGHASH_DEFAULT: witness is a single 64-byte schnorr signature
+      const signedTx = Transaction.fromRaw(hexToBytes(result));
+      const witness = signedTx.getInput(0).finalScriptWitness;
+      expect(witness).toHaveLength(1);
+      expect(witness![0]).toHaveLength(64);
     });
 
     it('should successfully sign Counterwallet transaction', async () => {
@@ -443,7 +451,7 @@ describe('Transaction Signer Utilities', () => {
     });
   });
 
-  describe('paymentScript edge cases', () => {
+  describe('address format coverage', () => {
     it('should handle all supported address types without error', async () => {
       const addressTypes = [
         AddressFormat.P2PKH,
@@ -455,7 +463,8 @@ describe('Transaction Signer Utilities', () => {
 
       for (const addressFormat of addressTypes) {
         if (addressFormat === AddressFormat.P2TR) {
-          // Skip P2TR test due to schnorr key requirements
+          // The mock previous tx pays to a P2PKH script, so it cannot exercise
+          // taproot signing; P2TR has its own test with a real P2TR lock script
           continue;
         }
 
