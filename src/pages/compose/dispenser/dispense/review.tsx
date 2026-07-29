@@ -171,7 +171,7 @@ export function ReviewDispense({
       );
     } else {
       // Single dispenser
-      const dispenser = allTriggeredDispensers[0];
+      const dispenser = allTriggeredDispensers[0]!;
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
 

@@ -238,9 +238,9 @@ describe('Provider Service Lifecycle Tests', () => {
       
       // Should maintain order
       const all = approvalQueue.getAll();
-      expect(all[0].id).toBe('concurrent-0');
-      expect(all[1].id).toBe('concurrent-1');
-      expect(all[2].id).toBe('concurrent-2');
+      expect(all[0]!.id).toBe('concurrent-0');
+      expect(all[1]!.id).toBe('concurrent-1');
+      expect(all[2]!.id).toBe('concurrent-2');
     });
 
     it('should handle requests from multiple origins', () => {

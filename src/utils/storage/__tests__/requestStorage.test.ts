@@ -58,7 +58,7 @@ describe('RequestStorage<T>', () => {
 
       const all = await storage.getAll();
       expect(all).toHaveLength(1);
-      expect(all[0].id).toBe('new');
+      expect(all[0]!.id).toBe('new');
 
       vi.useRealTimers();
     });
@@ -122,7 +122,7 @@ describe('RequestStorage<T>', () => {
 
       const all = await storage.getAll();
       expect(all).toHaveLength(1);
-      expect(all[0].id).toBe('new');
+      expect(all[0]!.id).toBe('new');
 
       vi.useRealTimers();
     });
@@ -138,7 +138,7 @@ describe('RequestStorage<T>', () => {
 
       const all = await storage.getAll();
       expect(all).toHaveLength(1);
-      expect(all[0].id).toBe('req-2');
+      expect(all[0]!.id).toBe('req-2');
     });
 
     it('should handle removing non-existent request', async () => {

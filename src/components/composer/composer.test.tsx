@@ -173,7 +173,7 @@ describe('Composer', () => {
     renderWithProvider();
     
     expect(mockSetHeaderProps).toHaveBeenCalled();
-    const headerConfig = mockSetHeaderProps.mock.calls[0][0];
+    const headerConfig = mockSetHeaderProps.mock.calls[0]![0];
     expect(headerConfig.title).toBe('Test Transaction');
   });
 

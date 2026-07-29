@@ -83,7 +83,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('transfer_destination=bc1qtransferaddr');
       expect(actualUrl).toContain('divisible=true');
@@ -145,7 +145,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('lock=true');
       expect(actualUrl).toContain('quantity=0');
@@ -172,7 +172,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('transfer_destination=bc1qnewowner');
       expect(actualUrl).toContain('quantity=0');
@@ -209,7 +209,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
       expect(actualUrl).toContain('tag=destruction-tag');
     });
@@ -228,7 +228,7 @@ describe('Compose Asset Management Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`asset=${asset}`);
       }
@@ -248,7 +248,7 @@ describe('Compose Asset Management Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity=${quantity}`);
       }
@@ -285,7 +285,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
     });
 
@@ -318,7 +318,7 @@ describe('Compose Asset Management Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity_per_unit=${quantity_per_unit}`);
       }
@@ -353,7 +353,7 @@ describe('Compose Asset Management Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const actualUrl = actualCall[0];
     });
 
@@ -370,7 +370,7 @@ describe('Compose Asset Management Operations', () => {
           quantity,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const actualUrl = actualCall[0];
         expect(actualUrl).toContain(`quantity=${quantity}`);
       }

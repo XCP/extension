@@ -30,16 +30,16 @@ describe('message type safety', () => {
     const result = analyzeTransactionSafety('sweep', normalOutputs, SIGNER);
     expect(result.blocked).toBe(true);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('block');
-    expect(result.warnings[0].title).toContain('Sweep');
+    expect(result.warnings[0]!.severity).toBe('block');
+    expect(result.warnings[0]!.title).toContain('Sweep');
   });
 
   it('should warn about destroy transactions', () => {
     const result = analyzeTransactionSafety('destroy', normalOutputs, SIGNER);
     expect(result.blocked).toBe(false);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('danger');
-    expect(result.warnings[0].title).toContain('Destruction');
+    expect(result.warnings[0]!.severity).toBe('danger');
+    expect(result.warnings[0]!.title).toContain('Destruction');
   });
 
   it('should allow enhanced_send without warnings', () => {
@@ -135,8 +135,8 @@ describe('message type safety', () => {
     const result = analyzeTransactionSafety('totally_new_type', normalOutputs, SIGNER);
     expect(result.blocked).toBe(false);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('warning');
-    expect(result.warnings[0].title).toContain('Unknown');
+    expect(result.warnings[0]!.severity).toBe('warning');
+    expect(result.warnings[0]!.title).toContain('Unknown');
   });
 
   it('should handle undefined message type gracefully', () => {
@@ -184,9 +184,9 @@ describe('suspicious output detection', () => {
     );
     const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('danger');
-    expect(result.warnings[0].title).toContain('External Address');
-    expect(result.warnings[0].message).toContain('1.00000000 BTC');
+    expect(result.warnings[0]!.severity).toBe('danger');
+    expect(result.warnings[0]!.title).toContain('External Address');
+    expect(result.warnings[0]!.message).toContain('1.00000000 BTC');
   });
 
   it('should flag multiple suspicious outputs and sum values', () => {
@@ -198,8 +198,8 @@ describe('suspicious output detection', () => {
     );
     const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].message).toContain('0.80000000 BTC');
-    expect(result.warnings[0].message).toContain('2 addresses');
+    expect(result.warnings[0]!.message).toContain('0.80000000 BTC');
+    expect(result.warnings[0]!.message).toContain('2 addresses');
   });
 
   it('should be case-insensitive when comparing Bech32 signer addresses', () => {
@@ -219,7 +219,7 @@ describe('suspicious output detection', () => {
     );
     const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].title).toContain('External Address');
+    expect(result.warnings[0]!.title).toContain('External Address');
   });
 
   it('should combine message type and output warnings', () => {
@@ -230,8 +230,8 @@ describe('suspicious output detection', () => {
     const result = analyzeTransactionSafety('destroy', outputs, SIGNER);
     expect(result.warnings).toHaveLength(2);
     // Sorted by severity: danger (destroy) then danger (external output)
-    expect(result.warnings[0].title).toContain('Destruction');
-    expect(result.warnings[1].title).toContain('External Address');
+    expect(result.warnings[0]!.title).toContain('Destruction');
+    expect(result.warnings[1]!.title).toContain('External Address');
   });
 
   it('should sort block severity before danger', () => {
@@ -241,8 +241,8 @@ describe('suspicious output detection', () => {
     );
     const result = analyzeTransactionSafety('sweep', outputs, SIGNER);
     expect(result.blocked).toBe(true);
-    expect(result.warnings[0].severity).toBe('block');
-    expect(result.warnings[1].severity).toBe('danger');
+    expect(result.warnings[0]!.severity).toBe('block');
+    expect(result.warnings[1]!.severity).toBe('danger');
   });
 });
 
@@ -282,7 +282,7 @@ describe('real-world scenarios', () => {
     // btcpay legitimately sends BTC to another address, but we still flag it
     // so the user can verify the payment amount
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('danger');
+    expect(result.warnings[0]!.severity).toBe('danger');
   });
 
   it('malicious site: hidden extra output draining BTC', () => {
@@ -293,8 +293,8 @@ describe('real-world scenarios', () => {
     );
     const result = analyzeTransactionSafety('enhanced_send', outputs, SIGNER);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('danger');
-    expect(result.warnings[0].message).toContain('5.00000000 BTC');
+    expect(result.warnings[0]!.severity).toBe('danger');
+    expect(result.warnings[0]!.message).toContain('5.00000000 BTC');
   });
 
   it('no OP_RETURN (plain BTC transaction)', () => {
@@ -306,6 +306,6 @@ describe('real-world scenarios', () => {
     expect(result.blocked).toBe(false);
     // Non-dust to external address is flagged
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0].severity).toBe('danger');
+    expect(result.warnings[0]!.severity).toBe('danger');
   });
 });

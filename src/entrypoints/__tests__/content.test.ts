@@ -459,7 +459,7 @@ describe('Content Script', () => {
 
       await contentScript.default.main(mockContext as any);
 
-      const cleanupCallback = mockContext.onInvalidated.mock.calls[0][0];
+      const cleanupCallback = mockContext.onInvalidated.mock.calls[0]![0];
       expect(typeof cleanupCallback).toBe('function');
 
       cleanupCallback();

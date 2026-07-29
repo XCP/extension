@@ -65,7 +65,7 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/${endpoint}`;
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       expect(actualCall[0]).toContain(expectedUrl);
       expect(actualCall[1]?.headers?.['Content-Type']).toBe('application/json');
     });
@@ -111,7 +111,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('inscription=SGVsbG8gV29ybGQ%3D');
       expect(url).toContain('mime_type=text%2Fplain');
@@ -131,7 +131,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const url = actualCall[0] as string;
         const urlParams = new URLSearchParams(url.split('?')[1]);
         const actualParams = Object.fromEntries(urlParams.entries());
@@ -168,7 +168,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('max_fee=5000');
     });
@@ -186,7 +186,7 @@ describe('Compose Specialized Operations', () => {
           order_match_id,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -226,7 +226,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('memos[]=memo1');
       expect(url).toContain('memos[]=memo2');
@@ -256,7 +256,7 @@ describe('Compose Specialized Operations', () => {
           quantities,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const url = actualCall[0] as string;
         expect(url).toContain(`assets=${encodeURIComponent(assets.join(','))}`);
       }
@@ -303,7 +303,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -323,7 +323,7 @@ describe('Compose Specialized Operations', () => {
         lp_asset: 'A95428956661682178',
       });
 
-      const url = mockedApiClient.get.mock.calls[0][0] as string;
+      const url = mockedApiClient.get.mock.calls[0]![0] as string;
       expect(url).toContain('pool_quantity=400000000');
       expect(url).toContain('lp_asset=A95428956661682178');
     });
@@ -358,7 +358,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('quantity=200');
     });
@@ -377,7 +377,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
       const actualParams = Object.fromEntries(urlParams.entries());
@@ -417,7 +417,7 @@ describe('Compose Specialized Operations', () => {
         lp_asset: 'A77777777777777777',
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('min_lp_quantity=1000');
       expect(url).toContain('lp_asset=A77777777777777777');
@@ -460,7 +460,7 @@ describe('Compose Specialized Operations', () => {
         lp_asset: 'A77777777777777777',
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('quantity=1000000');
       expect(url).toContain('min_quantity_a=100');
@@ -502,7 +502,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('utxo_value=10000');
       expect(url).toContain('destination_vout=1');
@@ -525,7 +525,7 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/detach`;
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       expect(actualCall[0]).toContain(expectedUrl);
     });
 
@@ -541,7 +541,7 @@ describe('Compose Specialized Operations', () => {
         ...optionalParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('destination=bc1qoptionaldest');
     });
@@ -560,7 +560,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const url = actualCall[0] as string;
         expect(url).toContain(`/v2/utxos/${sourceUtxo}/compose/detach`);
       }
@@ -585,7 +585,7 @@ describe('Compose Specialized Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`;
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       expect(actualCall[0]).toContain(expectedUrl);
     });
 
@@ -598,7 +598,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      const actualCall = mockedApiClient.get.mock.calls[0];
+      const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       expect(url).toContain('destination=bc1qdestination');
     });
@@ -618,7 +618,7 @@ describe('Compose Specialized Operations', () => {
           ...params,
         });
 
-        const actualCall = mockedApiClient.get.mock.calls[0];
+        const actualCall = mockedApiClient.get.mock.calls[0]!;
         const url = actualCall[0] as string;
         expect(url).toContain(`/v2/utxos/${sourceUtxo}/compose/movetoutxo`);
       }

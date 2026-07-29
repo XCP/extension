@@ -88,7 +88,7 @@ export function AmountWithMaxInput({
     // Block decimal input for non-divisible assets
     if (!isDivisible && val.includes('.')) return;
     // Limit to 8 decimal places for divisible assets
-    if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
     onChange(val);
     setError(null);
   };

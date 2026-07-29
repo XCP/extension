@@ -356,7 +356,7 @@ describe('HeaderContext', () => {
       });
 
       expect(result.current.subheadings.addresses['bc1qtest123']).toBeDefined();
-      expect(result.current.subheadings.addresses['bc1qtest123'].walletName).toBe('My Wallet');
+      expect(result.current.subheadings.addresses['bc1qtest123']!.walletName).toBe('My Wallet');
     });
 
     it('should set asset header', () => {

@@ -224,7 +224,7 @@ describe.skipIf(!(await isEmulatorAvailable()))('TrezorAdapter Emulator Integrat
 
       // First address should match expected (only in non-discovery mode)
       if (!DISCOVER_MODE) {
-        expect(results[0].address).toBe(EXPECTED_ADDRESSES.P2WPKH.first);
+        expect(results[0]!.address).toBe(EXPECTED_ADDRESSES.P2WPKH.first);
       }
 
       // Verify all addresses are unique

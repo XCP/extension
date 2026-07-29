@@ -473,15 +473,15 @@ describe('sessionManager', () => {
       }
 
       // Clear some secrets
-      clearUnlockedSecret(wallets[0].id);
-      clearUnlockedSecret(wallets[2].id);
+      clearUnlockedSecret(wallets[0]!.id);
+      clearUnlockedSecret(wallets[2]!.id);
 
       // Verify selective clearing
-      expect(await getUnlockedSecret(wallets[0].id)).toBeNull();
-      expect(await getUnlockedSecret(wallets[1].id)).toBe(wallets[1].secret);
-      expect(await getUnlockedSecret(wallets[2].id)).toBeNull();
-      expect(await getUnlockedSecret(wallets[3].id)).toBe(wallets[3].secret);
-      expect(await getUnlockedSecret(wallets[4].id)).toBe(wallets[4].secret);
+      expect(await getUnlockedSecret(wallets[0]!.id)).toBeNull();
+      expect(await getUnlockedSecret(wallets[1]!.id)).toBe(wallets[1]!.secret);
+      expect(await getUnlockedSecret(wallets[2]!.id)).toBeNull();
+      expect(await getUnlockedSecret(wallets[3]!.id)).toBe(wallets[3]!.secret);
+      expect(await getUnlockedSecret(wallets[4]!.id)).toBe(wallets[4]!.secret);
 
       // Clear all remaining
       await clearAllUnlockedSecrets();

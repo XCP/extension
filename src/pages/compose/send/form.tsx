@@ -113,7 +113,7 @@ export function SendForm({
       formData.set("destinations", destinations.map(d => d.address).join(","));
       formData.delete("destination");
     } else {
-      const destination = destinations[0].address;
+      const destination = destinations[0]!.address;
       formData.set("destination", destination);
 
       // Prevent triggering dispensers when sending BTC to self,
@@ -220,7 +220,7 @@ export function SendForm({
             }
             disabled={pending}
             destinationCount={destinations.length}
-            destination={destinations.length === 1 ? destinations[0].address : undefined}
+            destination={destinations.length === 1 ? destinations[0]!.address : undefined}
             memo={memo}
             isDivisible={isDivisible}
             placeholder={showBtcOutput && (initialAsset || initialFormData?.asset) ? `${isDivisible ? "0.00000000" : "0"} ${initialAsset || initialFormData?.asset}` : undefined}

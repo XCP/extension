@@ -45,7 +45,7 @@ export async function verifyBIP137(
     }
 
     // Parse header flag
-    const flag = sigBytes[0];
+    const flag = sigBytes[0]!;
     const { addressType, recoveryId, compressed } = parseSignatureFlag(flag);
 
     if (addressType === null) {

@@ -591,11 +591,11 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Bundle response is an array
     const addressResults = result.payload as Array<{ address: string; publicKey?: string; path: number[]; serializedPath: string }>;
     for (let i = 0; i < addressResults.length; i++) {
-      const addr = addressResults[i];
+      const addr = addressResults[i]!;
       addresses.push({
         address: addr.address,
         publicKey: addr.publicKey ?? '',
-        path: pathStrings[i],
+        path: pathStrings[i]!,
       });
     }
 
@@ -853,7 +853,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
 
     // Check for Taproot path (purpose 86') - Trezor doesn't support Taproot message signing
-    const purpose = request.path[0] & ~DerivationPaths.HARDENED;
+    const purpose = request.path[0]! & ~DerivationPaths.HARDENED;
     if (purpose === 86) {
       throw new HardwareWalletError(
         'Trezor does not support message signing for Taproot (P2TR) addresses',
@@ -930,7 +930,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Convert inputs to Trezor format
     const inputs: TrezorSignInput[] = [];
     for (let i = 0; i < psbtDetails.inputs.length; i++) {
-      const input = psbtDetails.inputs[i];
+      const input = psbtDetails.inputs[i]!;
       const path = inputPaths.get(i);
 
       if (!path) {
@@ -953,7 +953,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       }
 
       // Determine script type from the derivation path (purpose)
-      const purpose = path[0] & ~DerivationPaths.HARDENED;
+      const purpose = path[0]! & ~DerivationPaths.HARDENED;
       const scriptType = getScriptTypeFromPurpose(purpose);
 
       inputs.push({
@@ -969,7 +969,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Convert outputs to Trezor format
     const outputs: TrezorSignOutput[] = [];
     for (let i = 0; i < psbtDetails.outputs.length; i++) {
-      const output = psbtDetails.outputs[i];
+      const output = psbtDetails.outputs[i]!;
 
       if (output.type === 'op_return') {
         // OP_RETURN output
@@ -1117,10 +1117,10 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     // Try to get address from account info (preferred - no extra call)
     const addresses = account.addresses;
     if (addresses?.unused && addresses.unused.length > 0) {
-      return addresses.unused[0].address;
+      return addresses.unused[0]!.address;
     }
     if (addresses?.used && addresses.used.length > 0) {
-      return addresses.used[0].address;
+      return addresses.used[0]!.address;
     }
 
     // Fall back to explicit getAddress call if account has no address history

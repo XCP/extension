@@ -15,7 +15,7 @@ function readLength(data: Uint8Array, offset: number, additionalInfo: number): [
 
   let value = 0n;
   for (let index = 0; index < byteCount; index += 1) {
-    value = (value << 8n) | BigInt(data[offset + index]);
+    value = (value << 8n) | BigInt(data[offset + index]!);
   }
   return [value, offset + byteCount];
 }
@@ -28,7 +28,7 @@ function toSafeLength(value: bigint): number {
 function decodeValue(data: Uint8Array, offset: number): DecodedValue {
   if (offset >= data.length) throw new Error('Unexpected end of CBOR data');
 
-  const initial = data[offset];
+  const initial = data[offset]!;
   const majorType = initial >> 5;
   const additionalInfo = initial & 0x1f;
   const [length, valueOffset] = readLength(data, offset + 1, additionalInfo);

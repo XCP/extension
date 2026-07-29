@@ -120,7 +120,7 @@ export function hybridSignTransaction(
     let scriptForSigning: Uint8Array | undefined;
     
     if (prevOutputScripts && prevOutputScripts[i]) {
-      scriptForSigning = prevOutputScripts[i];
+      scriptForSigning = prevOutputScripts[i]!;
     } else if (input.redeemScript) {
       // Fallback to redeemScript if no prevOutputScripts provided
       scriptForSigning = input.redeemScript;
@@ -170,7 +170,7 @@ export function signAllInputsWithUncompressedKey(
       i,
       privateKey,
       pubkeyUncompressed,
-      prevOutputScripts[i],
+      prevOutputScripts[i]!,
       SigHash.ALL
     );
   }

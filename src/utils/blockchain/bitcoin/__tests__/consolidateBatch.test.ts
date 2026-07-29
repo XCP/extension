@@ -140,7 +140,7 @@ describe('consolidateBareMultisigBatch', () => {
   describe('Previous transaction cross-checks', () => {
     it('should reject a UTXO whose amount disagrees with its previous transaction', async () => {
       const batchData = createBatchData();
-      batchData.utxos[0].amount += 1;
+      batchData.utxos[0]!.amount += 1;
 
       await expect(
         consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
@@ -149,7 +149,7 @@ describe('consolidateBareMultisigBatch', () => {
 
     it('should reject a UTXO whose script disagrees with its previous transaction', async () => {
       const batchData = createBatchData();
-      batchData.utxos[0].script = bytesToHex(currentScript);
+      batchData.utxos[0]!.script = bytesToHex(currentScript);
 
       await expect(
         consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
@@ -158,9 +158,9 @@ describe('consolidateBareMultisigBatch', () => {
 
     it('should reject prev_tx_hex that does not hash to the txid', async () => {
       const batchData = createBatchData();
-      const tampered = hexToBytes(batchData.utxos[0].prev_tx_hex);
-      tampered[tampered.length - 1] ^= 0x01; // flip a locktime bit
-      batchData.utxos[0].prev_tx_hex = bytesToHex(tampered);
+      const tampered = hexToBytes(batchData.utxos[0]!.prev_tx_hex);
+      tampered[tampered.length - 1] = tampered[tampered.length - 1]! ^ 0x01; // flip a locktime bit
+      batchData.utxos[0]!.prev_tx_hex = bytesToHex(tampered);
 
       await expect(
         consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
@@ -169,7 +169,7 @@ describe('consolidateBareMultisigBatch', () => {
 
     it('should reject a vout the previous transaction does not have', async () => {
       const batchData = createBatchData();
-      batchData.utxos[0].vout = 5;
+      batchData.utxos[0]!.vout = 5;
 
       await expect(
         consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
@@ -263,9 +263,9 @@ describe('consolidateBareMultisigBatch', () => {
 
       const wire = parseWireTx(hexToBytes(result.signedTxHex));
       expect(wire.outputs).toHaveLength(2);
-      expect(wire.outputs[0].amount).toBe(BigInt(result.outputAmount));
-      expect(bytesToHex(wire.outputs[1].script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
-      expect(wire.outputs[1].amount).toBe(BigInt(result.serviceFee));
+      expect(wire.outputs[0]!.amount).toBe(BigInt(result.outputAmount));
+      expect(bytesToHex(wire.outputs[1]!.script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
+      expect(wire.outputs[1]!.amount).toBe(BigInt(result.serviceFee));
     });
 
     it('should return a sub-dust service fee to the user instead of burning it', async () => {
@@ -327,11 +327,11 @@ describe('consolidateBareMultisigBatch', () => {
 
       const wire = parseWireTx(hexToBytes(result.signedTxHex));
       expect(wire.outputs).toHaveLength(1);
-      expect(bytesToHex(wire.outputs[0].script)).toBe(p2pkhScriptHex(TEST_ADDRESS));
-      expect(wire.outputs[0].amount).toBe(BigInt(result.outputAmount));
+      expect(bytesToHex(wire.outputs[0]!.script)).toBe(p2pkhScriptHex(TEST_ADDRESS));
+      expect(wire.outputs[0]!.amount).toBe(BigInt(result.outputAmount));
 
       for (const [index, spec] of specs.entries()) {
-        const scriptSig = wire.inputs[index].script;
+        const scriptSig = wire.inputs[index]!.script;
         expect(scriptSig[0]).toBe(0x00);
         expect(scriptSig[scriptSig.length - 1]).toBe(0x01);
         const sighash = legacySighashAll(wire, index, spec.script);
@@ -349,7 +349,7 @@ describe('consolidateBareMultisigBatch', () => {
       );
 
       const wire = parseWireTx(hexToBytes(result.signedTxHex));
-      expect(bytesToHex(wire.outputs[0].script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
+      expect(bytesToHex(wire.outputs[0]!.script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
     });
   });
 
@@ -370,7 +370,7 @@ describe('consolidateBareMultisigBatch', () => {
       for (const index of [0, 252]) {
         const sighash = legacySighashAll(wire, index, historicalScript);
         expect(
-          secp.verify(derToCompact(wire.inputs[index].script.slice(2, -1)), sighash, compressedPubkey, { prehash: false })
+          secp.verify(derToCompact(wire.inputs[index]!.script.slice(2, -1)), sighash, compressedPubkey, { prehash: false })
         ).toBe(true);
       }
     });

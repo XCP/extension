@@ -133,7 +133,7 @@ describe('Message Passing Between Contexts', () => {
       
       // Call the emitProviderEvent function
       await fakeBrowser.tabs.query({});
-      const tabs = await vi.mocked(fakeBrowser.tabs.query).mock.results[0].value;
+      const tabs = await vi.mocked(fakeBrowser.tabs.query).mock.results[0]!.value;
       
       for (const tab of tabs) {
         if (tab.id) {

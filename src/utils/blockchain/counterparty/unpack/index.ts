@@ -90,7 +90,7 @@ function extractMessageTypeId(reader: BinaryReader): { messageTypeId: number; su
   }
 
   // Try 1-byte format first (for modern short_tx_type_id)
-  const firstByte = reader.peek(1)[0];
+  const firstByte = reader.peek(1)[0]!;
 
   if (firstByte > 0 && firstByte < 256) {
     // 1-byte message type ID

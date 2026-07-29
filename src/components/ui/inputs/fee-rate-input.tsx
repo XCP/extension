@@ -125,7 +125,7 @@ export function FeeRateInput({
     }
     
     // Enforce maximum two decimal places during typing
-    if (parts.length === 2 && parts[1].length > 2) {
+    if (parts.length === 2 && parts[1]!.length > 2) {
       const formattedValue = formatAmount({
         value: num,
         maximumFractionDigits: 2,
@@ -193,7 +193,7 @@ export function FeeRateInput({
 
   const handleEscClick = () => {
     if (uniquePresetOptions.length > 0) {
-      const firstPreset = uniquePresetOptions[0];
+      const firstPreset = uniquePresetOptions[0]!;
       setSelectedOption(firstPreset.id);
       setCustomInput(firstPreset.value.toString());
       setInternalError(null);

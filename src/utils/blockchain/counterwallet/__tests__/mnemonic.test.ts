@@ -261,7 +261,7 @@ describe('counterwallet/mnemonic.ts', () => {
       getCounterwalletSeed(validMnemonics.twelveWord);
       
       expect(hexToBytes).toHaveBeenCalled();
-      const callArg = vi.mocked(hexToBytes).mock.calls[0][0];
+      const callArg = vi.mocked(hexToBytes).mock.calls[0]![0];
       expect(typeof callArg).toBe('string');
       expect(callArg).toMatch(/^[0-9a-f]+$/);
     });

@@ -134,7 +134,7 @@ export function assetIdToName(assetId: bigint | number): string {
 
   while (remaining > 0n) {
     const digit = Number(remaining % 26n);
-    chars.push(B26_DIGITS[digit]);
+    chars.push(B26_DIGITS[digit]!);
     remaining = remaining / 26n;
   }
 

@@ -239,7 +239,7 @@ export async function normalizeFormData(
     
     // Get asset name from form data (use hidden fields for hardcoded assets like BTC)
     const assetField = config.assetFields[quantityField];
-    const assetName = rawData[assetField]?.toString();
+    const assetName = rawData[assetField!]?.toString();
     if (!assetName) {
       continue;
     }

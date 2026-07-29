@@ -200,7 +200,7 @@ class ApprovalQueueManager {
     }
 
     const [request] = this.queue.splice(currentIndex, 1);
-    this.queue.splice(newIndex, 0, request);
+    this.queue.splice(newIndex, 0, request!);
     this.notifyListeners();
     return true;
   }

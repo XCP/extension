@@ -55,7 +55,7 @@ export function useMultiBatchConsolidation() {
 
       // Process each batch sequentially
       for (let i = 0; i < allBatches.length; i++) {
-        const batch = allBatches[i];
+        const batch = allBatches[i]!;
         setCurrentBatch(i + 1);
 
         try {

@@ -228,8 +228,8 @@ describe('CSV Parser Fuzz Tests', () => {
       const result = parseCSV(csv);
       expect(result.success).toBe(true);
       expect(result.rows).toHaveLength(2);
-      expect(result.rows![0].asset).toBe('XCP');
-      expect(result.rows![0].quantityNum).toBe(100);
+      expect(result.rows![0]!.asset).toBe('XCP');
+      expect(result.rows![0]!.quantityNum).toBe(100);
     });
 
     it('should handle various line endings', () => {
@@ -326,7 +326,7 @@ describe('CSV Parser Fuzz Tests', () => {
             expect(typeof result).toBe('string');
             // Should not start with injection characters
             if (result.length > 0) {
-              expect('=@+-'.includes(result[0])).toBe(false);
+              expect('=@+-'.includes(result[0]!)).toBe(false);
             }
           }
         ),

@@ -65,17 +65,17 @@ export function serializeWireTx(tx: WireTx): Uint8Array {
 export function parseWireTx(bytes: Uint8Array): WireTx {
   let offset = 0;
   const readVarint = (): number => {
-    const first = bytes[offset++];
+    const first = bytes[offset++]!;
     if (first < 0xfd) return first;
     if (first === 0xfd) {
-      const value = bytes[offset] | (bytes[offset + 1] << 8);
+      const value = bytes[offset]! | (bytes[offset + 1]! << 8);
       offset += 2;
       return value;
     }
     throw new Error('varint too large for test fixtures');
   };
   const readU32 = (): number => {
-    const value = bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | ((bytes[offset + 3] << 24) >>> 0);
+    const value = bytes[offset]! | (bytes[offset + 1]! << 8) | (bytes[offset + 2]! << 16) | ((bytes[offset + 3]! << 24) >>> 0);
     offset += 4;
     return value >>> 0;
   };
@@ -97,7 +97,7 @@ export function parseWireTx(bytes: Uint8Array): WireTx {
   const outputs: WireOutput[] = [];
   for (let i = 0; i < outputCount; i++) {
     let amount = 0n;
-    for (let b = 7; b >= 0; b--) amount = (amount << 8n) | BigInt(bytes[offset + b]);
+    for (let b = 7; b >= 0; b--) amount = (amount << 8n) | BigInt(bytes[offset + b]!);
     offset += 8;
     const scriptLength = readVarint();
     outputs.push({ amount, script: bytes.slice(offset, offset + scriptLength) });
@@ -135,7 +135,7 @@ export function derToCompact(der: Uint8Array): Uint8Array {
   let offset = 2;
   const readInt = (): Uint8Array => {
     if (der[offset++] !== 0x02) throw new Error('invalid DER integer');
-    const length = der[offset++];
+    const length = der[offset++]!;
     let value = der.slice(offset, offset + length);
     offset += length;
     while (value.length > 32 && value[0] === 0x00) value = value.slice(1);

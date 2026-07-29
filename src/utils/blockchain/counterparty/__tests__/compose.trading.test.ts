@@ -155,7 +155,7 @@ describe('Compose Trading Operations', () => {
       });
       
       // Check if apiClient.get was called with query parameters
-      const actualUrl = mockedApiClient.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0];
       const url = new URL(actualUrl);
       expect(url.searchParams.get('expiration')).toBe('0');
       expect(mockedRequireCounterpartyFeature).toHaveBeenCalledWith('indefiniteOrders');

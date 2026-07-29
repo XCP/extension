@@ -250,7 +250,7 @@ function validateDataURL(dataURL: string): QRCodeValidationResult {
     // Extract and validate the MIME type
     const mimeTypeMatch = dataURL.match(/^data:([^;]+)/);
     if (mimeTypeMatch) {
-      const mimeType = mimeTypeMatch[1].toLowerCase();
+      const mimeType = mimeTypeMatch[1]!.toLowerCase();
       const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
       
       if (!allowedTypes.includes(mimeType)) {

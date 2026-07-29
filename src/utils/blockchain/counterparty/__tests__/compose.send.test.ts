@@ -74,7 +74,7 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       const url = new URL(actualUrl);
 
       expect(url.searchParams.get('memo')).toBe(testMemos.TEXT);
@@ -94,7 +94,7 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       expect(actualUrl).toContain(`memo=${encodeURIComponent(testMemos.HEX)}`);
       expect(actualUrl).toContain('memo_is_hex=true');
     });
@@ -170,7 +170,7 @@ describe('Compose Send Operations', () => {
 
       expect(result.result.name).toBe('mpma');
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       expect(actualUrl).toContain('/compose/mpma');
       // MPMA uses comma-separated destinations
       expect(actualUrl).toContain('destinations=');
@@ -191,7 +191,7 @@ describe('Compose Send Operations', () => {
         destinations,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       // Should have same asset for both destinations
       expect(actualUrl).toContain(`assets=${testAssets.XCP}%2C${testAssets.XCP}`);
       // Should have same quantity for both destinations
@@ -213,7 +213,7 @@ describe('Compose Send Operations', () => {
         memo_is_hex: false,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       // Should have memo arrays
       expect(actualUrl).toContain(`memos[]=${encodeURIComponent(testMemos.TEXT)}`);
       expect(actualUrl).toContain('memos_are_hex[]=false');
@@ -230,7 +230,7 @@ describe('Compose Send Operations', () => {
       });
 
       expect(result.result.name).toBe('send');
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       expect(actualUrl).toContain('/compose/send');
     });
 
@@ -247,7 +247,7 @@ describe('Compose Send Operations', () => {
         destinations,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       // Destinations should be trimmed (MPMA uses comma-separated, not array syntax)
       expect(actualUrl).toContain(`destinations=${encodeURIComponent(mockDestAddress)}%2Cbc1qsecond`);
       // Should not contain extra whitespace
@@ -285,7 +285,7 @@ describe('Compose Send Operations', () => {
         ...optionalParams,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       expect(actualUrl).toContain('allow_unconfirmed_inputs=true');
     });
 
@@ -301,7 +301,7 @@ describe('Compose Send Operations', () => {
         ...noMemoParams,
       });
       
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       const url = new URL(actualUrl);
       expect(url.searchParams.get('memo')).toBe(''); // Default empty string
     });
@@ -320,7 +320,7 @@ describe('Compose Send Operations', () => {
           ...params,
         });
         
-        const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+        const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
         expect(actualUrl).toContain(`flags=${flags}`);
       }
     });
@@ -333,7 +333,7 @@ describe('Compose Send Operations', () => {
         more_outputs: `10000:${mockDestAddress}`,
       });
 
-      const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
       const url = new URL(actualUrl);
       expect(url.searchParams.get('more_outputs')).toBe(`10000:${mockDestAddress}`);
     });
@@ -355,7 +355,7 @@ describe('Compose Send Operations', () => {
       expect(result).toEqual(createMockComposeResult());
       
       // For UTXO-based transactions, check the URL format
-      const actualUrl = mockedApiClient.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0];
       expect(actualUrl).toContain(`/v2/utxos/${defaultParams.sourceUtxo}/compose/move`);
       expect(actualUrl).toContain(`destination=${defaultParams.destination}`);
     });
@@ -372,7 +372,7 @@ describe('Compose Send Operations', () => {
         sat_per_vbyte: mockSatPerVbyte,
         ...moveAllParams,
       });
-      const actualUrl = mockedApiClient.get.mock.calls[0][0];
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0];
       expect(actualUrl).toContain(`/v2/utxos/${moveAllParams.sourceUtxo}/compose/move`);
       expect(actualUrl).toContain(`destination=${moveAllParams.destination}`);
     });
@@ -395,7 +395,7 @@ describe('Compose Send Operations', () => {
           ...params,
         });
         
-        const actualUrl = mockedApiClient.get.mock.calls[0][0] as string;
+        const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
         expect(actualUrl).toContain(`/v2/utxos/${sourceUtxo}/compose/move`);
       }
     });

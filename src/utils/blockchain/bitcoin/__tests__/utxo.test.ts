@@ -84,11 +84,11 @@ describe('UTXO Utilities', () => {
 
       // Result should match the API response format
       expect(result).toHaveLength(1);
-      expect(result[0].txid).toBe(mockTxid);
-      expect(result[0].vout).toBe(0);
-      expect(result[0].value).toBe(100000);
-      expect(result[0].status.confirmed).toBe(true);
-      expect(result[0].status.block_height).toBe(850000);
+      expect(result[0]!.txid).toBe(mockTxid);
+      expect(result[0]!.vout).toBe(0);
+      expect(result[0]!.value).toBe(100000);
+      expect(result[0]!.status.confirmed).toBe(true);
+      expect(result[0]!.status.block_height).toBe(850000);
       expect(mockApiClient.get).toHaveBeenCalledWith(
         `https://mempool.space/api/address/${mockAddress}/utxo`,
         { retries: 0, signal: undefined }
@@ -162,10 +162,10 @@ describe('UTXO Utilities', () => {
       const result = await fetchUTXOs(mockAddress);
 
       expect(result).toHaveLength(3);
-      expect(result[0].vout).toBe(0);
-      expect(result[1].vout).toBe(1);
-      expect(result[2].vout).toBe(2);
-      expect(result[2].value).toBe(200000);
+      expect(result[0]!.vout).toBe(0);
+      expect(result[1]!.vout).toBe(1);
+      expect(result[2]!.vout).toBe(2);
+      expect(result[2]!.value).toBe(200000);
     });
 
     it('should handle UTXOs with different confirmation statuses', async () => {
@@ -179,8 +179,8 @@ describe('UTXO Utilities', () => {
 
       const result = await fetchUTXOs(mockAddress);
 
-      expect(result[0].status.confirmed).toBe(true);
-      expect(result[1].status.confirmed).toBe(false);
+      expect(result[0]!.status.confirmed).toBe(true);
+      expect(result[1]!.status.confirmed).toBe(false);
     });
 
     it('should handle very large UTXO values', async () => {
@@ -190,7 +190,7 @@ describe('UTXO Utilities', () => {
 
       const result = await fetchUTXOs(mockAddress);
 
-      expect(result[0].value).toBe(2100000000000000);
+      expect(result[0]!.value).toBe(2100000000000000);
     });
 
     it('should handle zero-value UTXOs', async () => {
@@ -200,7 +200,7 @@ describe('UTXO Utilities', () => {
 
       const result = await fetchUTXOs(mockAddress);
 
-      expect(result[0].value).toBe(0);
+      expect(result[0]!.value).toBe(0);
     });
   });
 

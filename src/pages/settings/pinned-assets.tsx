@@ -129,7 +129,7 @@ export default function PinnedAssetsPage(): ReactElement {
     const newPinnedAssets = [...pinnedAssets];
     // Swap the elements
     [newPinnedAssets[index], newPinnedAssets[newIndex]] =
-    [newPinnedAssets[newIndex], newPinnedAssets[index]];
+    [newPinnedAssets[newIndex]!, newPinnedAssets[index]!];
 
     await handleReorder(newPinnedAssets);
   };

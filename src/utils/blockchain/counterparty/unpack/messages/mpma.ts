@@ -75,7 +75,7 @@ class BitReader {
       throw new Error('BitReader: out of data');
     }
 
-    const bit = (this.data[this.bytePos] >> (7 - this.bitPos)) & 1;
+    const bit = (this.data[this.bytePos]! >> (7 - this.bitPos)) & 1;
     this.bitPos++;
     if (this.bitPos >= 8) {
       this.bitPos = 0;
@@ -133,7 +133,7 @@ function decodeLUT(
   }
 
   // Read number of addresses (2 bytes big-endian)
-  const numAddresses = (data[0] << 8) | data[1];
+  const numAddresses = (data[0]! << 8) | data[1]!;
 
   if (numAddresses === 0) {
     throw new Error('MPMA address list cannot be empty');
@@ -258,7 +258,7 @@ export function unpackMPMA(payload: Uint8Array): MPMAData {
 
       const send: MPMASend = {
         asset,
-        destination: addresses[addrIndex],
+        destination: addresses[addrIndex]!,
         quantity,
       };
 

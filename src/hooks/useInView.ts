@@ -17,7 +17,7 @@ export function useInView(options?: IntersectionObserverInit) {
     // Create and start observing immediately
     const observer = new IntersectionObserver(
       ([entry]) => {
-        setInView(entry.isIntersecting);
+        setInView(entry!.isIntersecting);
       },
       {
         root: options?.root || null,

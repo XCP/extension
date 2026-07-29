@@ -135,8 +135,8 @@ describe('WalletManager', () => {
 
       const wallets = walletManager.getWallets();
       expect(wallets).toHaveLength(1);
-      expect(wallets[0].name).toBe(testWallet.name);
-      expect(wallets[0].type).toBe(testWallet.type);
+      expect(wallets[0]!.name).toBe(testWallet.name);
+      expect(wallets[0]!.type).toBe(testWallet.type);
     });
 
     it('should handle no master key gracefully (keychain locked)', async () => {

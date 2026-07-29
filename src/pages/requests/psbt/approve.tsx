@@ -291,9 +291,9 @@ export default function ApprovePsbtPage() {
     if (outputs.length < 3) return null;
 
     const signerAddr = activeAddress?.address;
-    const sellerOutput = outputs[0];
-    const dustOutput = outputs[1];
-    const feeOutput = outputs[2];
+    const sellerOutput = outputs[0]!;
+    const dustOutput = outputs[1]!;
+    const feeOutput = outputs[2]!;
 
     // Validate pattern: dust output should be 546 sats to the signer address
     if (dustOutput.value !== 546) return null;

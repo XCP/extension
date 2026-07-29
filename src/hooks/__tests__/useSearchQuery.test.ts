@@ -230,7 +230,7 @@ describe("useSearchQuery", () => {
     expect(resolveFunctions).toHaveLength(2);
 
     // Resolve the second search first (this should be the one that sets results)
-    resolveFunctions[1]({
+    resolveFunctions[1]!({
       ok: true,
       json: async () => ({ assets: [{ symbol: "SECOND" }] }),
     });
@@ -240,7 +240,7 @@ describe("useSearchQuery", () => {
     });
 
     // Now resolve the first search (this should be ignored due to cancellation)
-    resolveFunctions[0]({
+    resolveFunctions[0]!({
       ok: true,
       json: async () => ({ assets: [{ symbol: "FIRST" }] }),
     });

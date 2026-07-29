@@ -72,7 +72,7 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
     let queryName: string;
     if (normalizedName.includes('.')) {
       const [parent, child] = normalizedName.split('.');
-      queryName = parent.toUpperCase() + '.' + child; // Keep child case-sensitive
+      queryName = parent!.toUpperCase() + '.' + child; // Keep child case-sensitive
     } else {
       queryName = normalizedName.toUpperCase(); // Regular assets are uppercase
     }

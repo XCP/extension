@@ -58,7 +58,7 @@ export function SweepForm({
   const [showBtcOutput, setShowBtcOutput] = useState(false);
   const [btcAmount, setBtcAmount] = useState("");
   const [selectedSweepType, setSelectedSweepType] = useState(
-    sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]
+    sweepTypeOptions.find(opt => opt.value === (initialFormData?.flags || (FLAG_BALANCES | FLAG_OWNERSHIP))) || sweepTypeOptions[2]!
   );
   
   // Refs

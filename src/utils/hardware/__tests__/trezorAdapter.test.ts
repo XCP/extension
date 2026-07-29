@@ -408,8 +408,8 @@ describe('TrezorAdapter', () => {
       const results = await adapter.getAddresses(AddressFormat.P2WPKH, 0, 0, 3);
 
       expect(results).toHaveLength(3);
-      expect(results[0].address).toBe('bc1q0');
-      expect(results[2].address).toBe('bc1q2');
+      expect(results[0]!.address).toBe('bc1q0');
+      expect(results[2]!.address).toBe('bc1q2');
     });
   });
 

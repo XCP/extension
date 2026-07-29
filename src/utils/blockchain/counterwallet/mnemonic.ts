@@ -43,9 +43,9 @@ export class CounterwalletMnemonic {
     this.random = new Uint32Array(l);
 
     for (let i = 0; i < l; i++) {
-      const w1 = counterwalletWordlist.indexOf(words[3 * i]);
-      const w2 = counterwalletWordlist.indexOf(words[3 * i + 1]);
-      const w3 = counterwalletWordlist.indexOf(words[3 * i + 2]);
+      const w1 = counterwalletWordlist.indexOf(words[3 * i]!);
+      const w2 = counterwalletWordlist.indexOf(words[3 * i + 1]!);
+      const w3 = counterwalletWordlist.indexOf(words[3 * i + 2]!);
 
       if (w1 === -1 || w2 === -1 || w3 === -1) {
         throw new Error(`Invalid mnemonic word at group #${i}`);
@@ -61,7 +61,7 @@ export class CounterwalletMnemonic {
   toHex(): string {
     let res = '';
     for (let i = 0; i < this.random.length; i++) {
-      const hexVal = this.random[i].toString(16).padStart(8, '0');
+      const hexVal = this.random[i]!.toString(16).padStart(8, '0');
       res += hexVal;
     }
     return res;

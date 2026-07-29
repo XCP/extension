@@ -178,8 +178,8 @@ class EventEmitterService extends BaseService {
     const index = timedListeners.findIndex(tl => tl.callback === callback);
     if (index !== -1) {
       const [removed] = timedListeners.splice(index, 1);
-      if (removed.timeoutId) {
-        clearTimeout(removed.timeoutId);
+      if (removed!.timeoutId) {
+        clearTimeout(removed!.timeoutId);
       }
     }
 

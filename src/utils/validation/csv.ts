@@ -98,7 +98,7 @@ export function validateCSVQuantity(quantity: string): { valid: boolean; value?:
   const trimmed = quantity.trim();
   
   // Check for injection attempts at the start
-  if (trimmed && '=@+-'.includes(trimmed[0])) {
+  if (trimmed && '=@+-'.includes(trimmed[0]!)) {
     return { valid: false, error: 'Invalid quantity format' };
   }
   
@@ -132,7 +132,7 @@ export function detectCSVInjection(value: string): boolean {
   
   // Check for formula injection
   const firstChar = value.trim()[0];
-  if ('=@+-'.includes(firstChar)) {
+  if ('=@+-'.includes(firstChar!)) {
     return true;
   }
   
@@ -182,7 +182,7 @@ export function parseCSV(text: string, options?: {
   let startIndex = 0;
   
   // Check for header
-  if (opts.skipHeader && lines.length > 0 && isHeaderRow(lines[0])) {
+  if (opts.skipHeader && lines.length > 0 && isHeaderRow(lines[0]!)) {
     startIndex = 1;
   }
   
@@ -196,7 +196,7 @@ export function parseCSV(text: string, options?: {
   }
   
   for (let i = startIndex; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const line = lines[i]!.trim();
     
     // Skip empty lines
     if (!line) continue;
@@ -219,7 +219,7 @@ export function parseCSV(text: string, options?: {
     if (opts.detectInjection) {
       const fields = [address, asset, quantity, memo];
       for (const field of fields) {
-        if (detectCSVInjection(field)) {
+        if (detectCSVInjection(field!)) {
           return {
             success: false,
             error: `Potential injection detected`,
@@ -230,7 +230,7 @@ export function parseCSV(text: string, options?: {
     }
     
     // Validate address
-    if (opts.validateAddresses && !validateBitcoinAddressFormat(address)) {
+    if (opts.validateAddresses && !validateBitcoinAddressFormat(address!)) {
       return {
         success: false,
         error: `Invalid Bitcoin address: ${address}`,
@@ -248,7 +248,7 @@ export function parseCSV(text: string, options?: {
     }
     
     // Validate quantity
-    const quantityValidation = validateCSVQuantity(quantity);
+    const quantityValidation = validateCSVQuantity(quantity!);
     if (!quantityValidation.valid) {
       return {
         success: false,
@@ -258,9 +258,9 @@ export function parseCSV(text: string, options?: {
     }
     
     rows.push({
-      address,
+      address: address!,
       asset,
-      quantity,
+      quantity: quantity!,
       memo,
       lineNumber,
       quantityNum: quantityValidation.value!
@@ -282,7 +282,7 @@ export function sanitizeCSVValue(value: string): string {
   
   // Remove potential injection characters from start
   let sanitized = value;
-  while (sanitized && '=@+-'.includes(sanitized[0])) {
+  while (sanitized && '=@+-'.includes(sanitized[0]!)) {
     sanitized = sanitized.slice(1);
   }
   

@@ -131,7 +131,7 @@ export function DestinationsInput({
       // Update current input with first resolved address
       const currentIndex = destinations.findIndex(d => d.id === id);
       const updatedDestinations = [...destinations];
-      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex], address: resolvedLines[0] };
+      updatedDestinations[currentIndex] = { ...updatedDestinations[currentIndex]!, address: resolvedLines[0]! };
       
       // Add remaining addresses as new destinations (respect 1000 limit)
       const remainingSlots = 1000 - updatedDestinations.length;

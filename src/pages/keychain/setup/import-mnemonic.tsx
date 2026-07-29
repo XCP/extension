@@ -129,7 +129,7 @@ function ImportMnemonicPage() {
     if (words.length > 1 && trimmedValue.length > 0) {
       let lastFilledIndex = index;
       for (let i = 0; i < words.length && index + i < 12; i++) {
-        newMnemonicWords[index + i] = words[i];
+        newMnemonicWords[index + i] = words[i]!;
         lastFilledIndex = index + i;
       }
 

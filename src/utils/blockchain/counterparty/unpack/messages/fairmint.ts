@@ -62,7 +62,7 @@ function tryDecodeCBORFairmint(payload: Uint8Array): FairmintData | null {
 function parseCBORInt(data: Uint8Array, pos: number): [bigint, number] | null {
   if (pos >= data.length) return null;
 
-  const firstByte = data[pos];
+  const firstByte = data[pos]!;
 
   // Major type 0: positive integer
   if ((firstByte & 0xe0) !== 0x00) return null;
@@ -75,24 +75,24 @@ function parseCBORInt(data: Uint8Array, pos: number): [bigint, number] | null {
   } else if (additionalInfo === 24) {
     // 1-byte value
     if (pos + 1 >= data.length) return null;
-    return [BigInt(data[pos + 1]), pos + 2];
+    return [BigInt(data[pos + 1]!), pos + 2];
   } else if (additionalInfo === 25) {
     // 2-byte value
     if (pos + 2 >= data.length) return null;
-    const value = (data[pos + 1] << 8) | data[pos + 2];
+    const value = (data[pos + 1]! << 8) | data[pos + 2]!;
     return [BigInt(value), pos + 3];
   } else if (additionalInfo === 26) {
     // 4-byte value
     if (pos + 4 >= data.length) return null;
     const value =
-      (data[pos + 1] << 24) | (data[pos + 2] << 16) | (data[pos + 3] << 8) | data[pos + 4];
+      (data[pos + 1]! << 24) | (data[pos + 2]! << 16) | (data[pos + 3]! << 8) | data[pos + 4]!;
     return [BigInt(value >>> 0), pos + 5];
   } else if (additionalInfo === 27) {
     // 8-byte value
     if (pos + 8 >= data.length) return null;
     let value = 0n;
     for (let i = 0; i < 8; i++) {
-      value = (value << 8n) | BigInt(data[pos + 1 + i]);
+      value = (value << 8n) | BigInt(data[pos + 1 + i]!);
     }
     return [value, pos + 9];
   }

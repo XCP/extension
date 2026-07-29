@@ -138,7 +138,7 @@ namespace qrcodegen {
 			while (dataCodewords.length * 8 < bb.length)
 				dataCodewords.push(0);
 			bb.forEach((b: bit, i: int) =>
-				dataCodewords[i >>> 3] |= b << (7 - (i & 7)));
+				dataCodewords[i >>> 3]! |= b << (7 - (i & 7)));
 			
 			// Create the QR Code object
 			return new QrCode(version, ecl, dataCodewords, mask);
@@ -232,7 +232,7 @@ namespace qrcodegen {
 		// for light or true for dark. The top left corner has the coordinates (x=0, y=0).
 		// If the given coordinates are out of bounds, then false (light) is returned.
 		public getModule(x: int, y: int): boolean {
-			return 0 <= x && x < this.size && 0 <= y && y < this.size && this.modules[y][x];
+			return 0 <= x && x < this.size && 0 <= y && y < this.size && this.modules[y]![x]!;
 		}
 		
 		
@@ -258,7 +258,7 @@ namespace qrcodegen {
 				for (let j = 0; j < numAlign; j++) {
 					// Don't draw on the three finder corners
 					if (!(i == 0 && j == 0 || i == 0 && j == numAlign - 1 || i == numAlign - 1 && j == 0))
-						this.drawAlignmentPattern(alignPatPos[i], alignPatPos[j]);
+						this.drawAlignmentPattern(alignPatPos[i]!, alignPatPos[j]!);
 				}
 			}
 			
@@ -349,8 +349,8 @@ namespace qrcodegen {
 		// Sets the color of a module and marks it as a function module.
 		// Only used by the constructor. Coordinates must be in bounds.
 		private setFunctionModule(x: int, y: int, isDark: boolean): void {
-			this.modules[y][x] = isDark;
-			this.isFunction[y][x] = true;
+			this.modules[y]![x] = isDark;
+			this.isFunction[y]![x] = true;
 		}
 		
 		
@@ -365,8 +365,8 @@ namespace qrcodegen {
 				throw new RangeError("Invalid argument");
 			
 			// Calculate parameter numbers
-			const numBlocks: int = QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal][ver];
-			const blockEccLen: int = QrCode.ECC_CODEWORDS_PER_BLOCK  [ecl.ordinal][ver];
+			const numBlocks: int = QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal]![ver]!;
+			const blockEccLen: int = QrCode.ECC_CODEWORDS_PER_BLOCK  [ecl.ordinal]![ver]!;
 			const rawCodewords: int = Math.floor(QrCode.getNumRawDataModules(ver) / 8);
 			const numShortBlocks: int = numBlocks - rawCodewords % numBlocks;
 			const shortBlockLen: int = Math.floor(rawCodewords / numBlocks);
@@ -385,11 +385,11 @@ namespace qrcodegen {
 			
 			// Interleave (not concatenate) the bytes from every block into a single sequence
 			let result: Array<byte> = [];
-			for (let i = 0; i < blocks[0].length; i++) {
+			for (let i = 0; i < blocks[0]!.length; i++) {
 				blocks.forEach((block, j) => {
 					// Skip the padding byte in short blocks
 					if (i != shortBlockLen - blockEccLen || j >= numShortBlocks)
-						result.push(block[i]);
+						result.push(block[i]!);
 				});
 			}
 			assert(result.length == rawCodewords);
@@ -412,8 +412,8 @@ namespace qrcodegen {
 						const x: int = right - j;  // Actual x coordinate
 						const upward: boolean = ((right + 1) & 2) == 0;
 						const y: int = upward ? this.size - 1 - vert : vert;  // Actual y coordinate
-						if (!this.isFunction[y][x] && i < data.length * 8) {
-							this.modules[y][x] = getBit(data[i >>> 3], 7 - (i & 7));
+						if (!this.isFunction[y]![x] && i < data.length * 8) {
+							this.modules[y]![x] = getBit(data[i >>> 3]!, 7 - (i & 7));
 							i++;
 						}
 						// If this QR Code has any remainder bits (0 to 7), they were assigned as
@@ -447,8 +447,8 @@ namespace qrcodegen {
 						case 7:  invert = ((x + y) % 2 + x * y % 3) % 2 == 0;                break;
 						default:  throw new Error("Unreachable");
 					}
-					if (!this.isFunction[y][x] && invert)
-						this.modules[y][x] = !this.modules[y][x];
+					if (!this.isFunction[y]![x] && invert)
+						this.modules[y]![x] = !this.modules[y]![x];
 				}
 			}
 		}
@@ -465,7 +465,7 @@ namespace qrcodegen {
 				let runX = 0;
 				let runHistory = [0,0,0,0,0,0,0];
 				for (let x = 0; x < this.size; x++) {
-					if (this.modules[y][x] == runColor) {
+					if (this.modules[y]![x] == runColor) {
 						runX++;
 						if (runX == 5)
 							result += QrCode.PENALTY_N1;
@@ -475,7 +475,7 @@ namespace qrcodegen {
 						this.finderPenaltyAddHistory(runX, runHistory);
 						if (!runColor)
 							result += this.finderPenaltyCountPatterns(runHistory) * QrCode.PENALTY_N3;
-						runColor = this.modules[y][x];
+						runColor = this.modules[y]![x]!;
 						runX = 1;
 					}
 				}
@@ -487,7 +487,7 @@ namespace qrcodegen {
 				let runY = 0;
 				let runHistory = [0,0,0,0,0,0,0];
 				for (let y = 0; y < this.size; y++) {
-					if (this.modules[y][x] == runColor) {
+					if (this.modules[y]![x] == runColor) {
 						runY++;
 						if (runY == 5)
 							result += QrCode.PENALTY_N1;
@@ -497,7 +497,7 @@ namespace qrcodegen {
 						this.finderPenaltyAddHistory(runY, runHistory);
 						if (!runColor)
 							result += this.finderPenaltyCountPatterns(runHistory) * QrCode.PENALTY_N3;
-						runColor = this.modules[y][x];
+						runColor = this.modules[y]![x]!;
 						runY = 1;
 					}
 				}
@@ -507,10 +507,10 @@ namespace qrcodegen {
 			// 2*2 blocks of modules having same color
 			for (let y = 0; y < this.size - 1; y++) {
 				for (let x = 0; x < this.size - 1; x++) {
-					const color: boolean = this.modules[y][x];
-					if (  color == this.modules[y][x + 1] &&
-					      color == this.modules[y + 1][x] &&
-					      color == this.modules[y + 1][x + 1])
+					const color: boolean = this.modules[y]![x]!;
+					if (  color == this.modules[y]![x + 1] &&
+					      color == this.modules[y + 1]![x] &&
+					      color == this.modules[y + 1]![x + 1])
 						result += QrCode.PENALTY_N2;
 				}
 			}
@@ -571,8 +571,8 @@ namespace qrcodegen {
 		// This stateless pure function could be implemented as a (40*4)-cell lookup table.
 		private static getNumDataCodewords(ver: int, ecl: QrCode.Ecc): int {
 			return Math.floor(QrCode.getNumRawDataModules(ver) / 8) -
-				QrCode.ECC_CODEWORDS_PER_BLOCK    [ecl.ordinal][ver] *
-				QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal][ver];
+				QrCode.ECC_CODEWORDS_PER_BLOCK    [ecl.ordinal]![ver]! *
+				QrCode.NUM_ERROR_CORRECTION_BLOCKS[ecl.ordinal]![ver]!;
 		}
 		
 		
@@ -595,9 +595,9 @@ namespace qrcodegen {
 			for (let i = 0; i < degree; i++) {
 				// Multiply the current product by (x - r^i)
 				for (let j = 0; j < result.length; j++) {
-					result[j] = QrCode.reedSolomonMultiply(result[j], root);
+					result[j] = QrCode.reedSolomonMultiply(result[j]!, root);
 					if (j + 1 < result.length)
-						result[j] ^= result[j + 1];
+						result[j]! ^= result[j + 1]!;
 				}
 				root = QrCode.reedSolomonMultiply(root, 0x02);
 			}
@@ -612,7 +612,7 @@ namespace qrcodegen {
 				const factor: byte = b ^ (result.shift() as byte);
 				result.push(0);
 				divisor.forEach((coef, i) =>
-					result[i] ^= QrCode.reedSolomonMultiply(coef, factor));
+					result[i]! ^= QrCode.reedSolomonMultiply(coef, factor));
 			}
 			return result;
 		}
@@ -637,11 +637,11 @@ namespace qrcodegen {
 		// Can only be called immediately after a light run is added, and
 		// returns either 0, 1, or 2. A helper function for getPenaltyScore().
 		private finderPenaltyCountPatterns(runHistory: Readonly<Array<int>>): int {
-			const n: int = runHistory[1];
+			const n: int = runHistory[1]!;
 			assert(n <= this.size * 3);
 			const core: boolean = n > 0 && runHistory[2] == n && runHistory[3] == n * 3 && runHistory[4] == n && runHistory[5] == n;
-			return (core && runHistory[0] >= n * 4 && runHistory[6] >= n ? 1 : 0)
-			     + (core && runHistory[6] >= n * 4 && runHistory[0] >= n ? 1 : 0);
+			return (core && runHistory[0]! >= n * 4 && runHistory[6]! >= n ? 1 : 0)
+			     + (core && runHistory[6]! >= n * 4 && runHistory[0]! >= n ? 1 : 0);
 		}
 		
 		
@@ -982,7 +982,7 @@ namespace qrcodegen.QrSegment {
 		// (Package-private) Returns the bit width of the character count field for a segment in
 		// this mode in a QR Code at the given version number. The result is in the range [0, 16].
 		public numCharCountBits(ver: int): int {
-			return this.numBitsCharCount[Math.floor((ver + 7) / 17)];
+			return this.numBitsCharCount[Math.floor((ver + 7) / 17)]!;
 		}
 		
 	}

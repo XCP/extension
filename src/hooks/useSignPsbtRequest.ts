@@ -81,10 +81,10 @@ export function useSignPsbtRequest(signerAddress?: string) {
     let decryptedDataHex: string | undefined;
 
     // ARC4 decrypt OP_RETURN data using the first input's txid as key
-    if (psbtDetails.hasOpReturn && psbtDetails.inputs.length > 0 && psbtDetails.inputs[0].txid) {
+    if (psbtDetails.hasOpReturn && psbtDetails.inputs.length > 0 && psbtDetails.inputs[0]!.txid) {
       for (const output of psbtDetails.outputs) {
         if (output.type === 'op_return' && output.script) {
-          const decrypted = decryptOpReturnData(output.script, psbtDetails.inputs[0].txid);
+          const decrypted = decryptOpReturnData(output.script, psbtDetails.inputs[0]!.txid);
           if (decrypted) {
             decryptedDataHex = decrypted;
             break;

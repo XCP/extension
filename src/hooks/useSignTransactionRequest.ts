@@ -135,10 +135,10 @@ export function useSignTransactionRequest(signerAddress?: string) {
 
     // Counterparty encrypts OP_RETURN data with ARC4 using the first input's txid.
     // Decrypt to get the CNTRPRTY-prefixed datahex for local verification and API decode.
-    if (hasOpReturn && inputs.length > 0 && inputs[0].txid) {
+    if (hasOpReturn && inputs.length > 0 && inputs[0]!.txid) {
       for (const output of outputs) {
         if (output.opReturnData) {
-          const decrypted = decryptOpReturnData(output.opReturnData, inputs[0].txid);
+          const decrypted = decryptOpReturnData(output.opReturnData, inputs[0]!.txid);
           if (decrypted) {
             decryptedDataHex = decrypted;
             break;

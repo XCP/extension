@@ -188,7 +188,7 @@ export async function decryptWithKey(encrypted: string, key: CryptoKey): Promise
   // - AES-GCM provides authenticated encryption with integrity verification
   // - The primary threat is local/disk attackers, not network timing analysis
   // For higher-security applications, constant-time comparison would be preferred.
-  const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0] / 255 * 10; // 0-10ms
+  const randomDelay = crypto.getRandomValues(new Uint8Array(1))[0]! / 255 * 10; // 0-10ms
   await new Promise(resolve => setTimeout(resolve, randomDelay));
 
   if (decryptionError || !decryptedBuffer) {

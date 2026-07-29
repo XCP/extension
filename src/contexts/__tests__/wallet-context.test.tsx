@@ -461,7 +461,7 @@ describe('WalletContext', () => {
 
       // Wait for state to update
       await waitFor(() => {
-        expect(result.current.activeWallet?.id).toBe(mockWallets[1].id);
+        expect(result.current.activeWallet?.id).toBe(mockWallets[1]!.id);
       });
     });
 
@@ -693,7 +693,7 @@ describe('WalletContext', () => {
 
       // Verify initial state
       expect(result.current.wallets).toHaveLength(1);
-      expect(result.current.wallets[0].addresses[0].address).toBe('bc1qtest1');
+      expect(result.current.wallets[0]!.addresses[0]!.address).toBe('bc1qtest1');
 
       // Now update with modified wallet
       mockWalletService.getWallets.mockResolvedValue([wallet1Modified]);

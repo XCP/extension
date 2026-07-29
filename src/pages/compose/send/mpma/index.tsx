@@ -48,7 +48,7 @@ function ComposeMpmaPage() {
     // Normalize quantities based on divisibility
     const normalizedQuantities = assets.map((asset, i) => {
       const isDivisible = divisibilityCache[asset];
-      return isDivisible ? toSatoshis(quantities[i]) : quantities[i];
+      return isDivisible ? toSatoshis(quantities[i]!) : quantities[i]!;
     });
 
     // Create MPMA options with normalized quantities

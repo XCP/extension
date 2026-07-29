@@ -65,8 +65,8 @@ export function isVersionAtLeast(version: string, minimum: string): boolean {
   const required = parseVersion(minimum);
 
   for (let i = 0; i < required.length; i += 1) {
-    if (current[i] > required[i]) return true;
-    if (current[i] < required[i]) return false;
+    if (current[i]! > required[i]!) return true;
+    if (current[i]! < required[i]!) return false;
   }
   return true;
 }
@@ -122,7 +122,7 @@ export async function getCounterpartyFeatureStatus(feature: CounterpartyFeature)
 
   const activationHeight =
     requirement.activationHeights[serverInfo.network] ??
-    requirement.activationHeights.mainnet;
+    requirement.activationHeights.mainnet!;
 
   if (serverInfo.counterparty_height < activationHeight) {
     return {

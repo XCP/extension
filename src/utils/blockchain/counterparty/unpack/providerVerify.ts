@@ -323,8 +323,8 @@ function verifyMPMA(
 
   // Verify each send
   for (let i = 0; i < local.sends.length; i++) {
-    const localSend = local.sends[i];
-    const apiSend = apiSends[i];
+    const localSend = local.sends[i]!;
+    const apiSend = apiSends[i]!;
 
     if (!assetsEqual(localSend.asset, apiSend.asset as string)) {
       mismatches.push(`Send[${i}] asset: local="${localSend.asset}", API="${apiSend.asset}"`);

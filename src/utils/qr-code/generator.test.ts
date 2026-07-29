@@ -16,7 +16,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length); // Should be square
+      expect(matrix.length).toBe(matrix[0]!.length); // Should be square
 
       // Version 3 (29x29) should be sufficient for 34 chars
       expect(matrix.length).toBeLessThanOrEqual(29);
@@ -27,7 +27,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length);
+      expect(matrix.length).toBe(matrix[0]!.length);
 
       // Version 3 (29x29) should be sufficient
       expect(matrix.length).toBeLessThanOrEqual(29);
@@ -38,7 +38,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length);
+      expect(matrix.length).toBe(matrix[0]!.length);
 
       // Version 3 or 4 (33x33) for 42 chars
       expect(matrix.length).toBeLessThanOrEqual(33);
@@ -49,7 +49,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length);
+      expect(matrix.length).toBe(matrix[0]!.length);
 
       // Version 4 or 5 (37x37) for 62 chars
       expect(matrix.length).toBeLessThanOrEqual(37);
@@ -61,7 +61,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length);
+      expect(matrix.length).toBe(matrix[0]!.length);
     });
 
     it('should have correct finder patterns', () => {
@@ -69,13 +69,13 @@ describe('Bitcoin QR Code Generator', () => {
       const size = matrix.length;
 
       // Check top-left finder pattern center
-      expect(matrix[3][3]).toBe(true);
+      expect(matrix[3]![3]).toBe(true);
 
       // Check top-right finder pattern center
-      expect(matrix[3][size - 4]).toBe(true);
+      expect(matrix[3]![size - 4]).toBe(true);
 
       // Check bottom-left finder pattern center
-      expect(matrix[size - 4][3]).toBe(true);
+      expect(matrix[size - 4]![3]).toBe(true);
     });
 
     it('should have timing patterns', () => {
@@ -83,9 +83,9 @@ describe('Bitcoin QR Code Generator', () => {
 
       // Check alternating pattern on row 6
       for (let i = 8; i < matrix.length - 8; i += 2) {
-        expect(matrix[6][i]).toBe(true);
+        expect(matrix[6]![i]).toBe(true);
         if (i + 1 < matrix.length - 8) {
-          expect(matrix[6][i + 1]).toBe(false);
+          expect(matrix[6]![i + 1]).toBe(false);
         }
       }
     });
@@ -99,7 +99,7 @@ describe('Bitcoin QR Code Generator', () => {
       // The dark module should be present somewhere in column 8
       let hasDarkModule = false;
       for (let row = 0; row < size; row++) {
-        if (matrix[row][8] === true && row > size - 10) {
+        if (matrix[row]![8] === true && row > size - 10) {
           hasDarkModule = true;
           break;
         }
@@ -132,7 +132,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       expect(matrix).toBeDefined();
       expect(matrix.length).toBeGreaterThan(0);
-      expect(matrix.length).toBe(matrix[0].length);
+      expect(matrix.length).toBe(matrix[0]!.length);
     });
 
     it('should generate QR code for Bitcoin URI with all parameters', () => {
@@ -170,7 +170,7 @@ describe('Bitcoin QR Code Generator', () => {
 
       for (let i = centerStart; i < centerEnd; i++) {
         for (let j = centerStart; j < centerEnd; j++) {
-          if (matrix1[i] && matrix2[i] && matrix1[i][j] !== matrix2[i][j]) {
+          if (matrix1[i] && matrix2[i] && matrix1[i]![j] !== matrix2[i]![j]) {
             differences++;
           }
         }

@@ -83,7 +83,7 @@ export async function fetchFromKraken(): Promise<PriceData> {
       endpoint: "/0/public/Ticker",
     });
   }
-  return { bitcoin: { usd: parseFloat(data.result.XXBTZUSD.c[0]) } };
+  return { bitcoin: { usd: parseFloat(data.result.XXBTZUSD.c[0]!) } };
 }
 
 /**
@@ -379,8 +379,8 @@ export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<Bt
       }
 
       const stats: BtcStats = {
-        price: data.bitcoin[currency],
-        change24h: data.bitcoin[`${currency}_24h_change`],
+        price: data.bitcoin[currency]!,
+        change24h: data.bitcoin[`${currency}_24h_change`]!,
       };
 
       statsCache.set(cacheKey, stats);

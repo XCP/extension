@@ -264,7 +264,7 @@ export const DispenserForm = memo(function DispenserForm({
               onChange={(e) => {
                 const val = e.target.value;
                 if (!isDivisible && val.includes('.')) return;
-                if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+                if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
                 setGiveQuantity(val);
               }}
               className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${

@@ -175,7 +175,7 @@ export function generateRandomNumericAsset(): string {
   crypto.getRandomValues(randomBytes);
   let randomValue = BigInt(0);
   for (let i = 0; i < 8; i++) {
-    randomValue = (randomValue << BigInt(8)) | BigInt(randomBytes[i]);
+    randomValue = (randomValue << BigInt(8)) | BigInt(randomBytes[i]!);
   }
 
   const value = min + (randomValue % range);

@@ -142,7 +142,7 @@ export function validateFileName(filename: string): FileValidationResult {
     'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
   ];
 
-  const baseNameUpper = filename.split('.')[0].toUpperCase();
+  const baseNameUpper = filename.split('.')[0]!.toUpperCase();
   if (reservedNames.includes(baseNameUpper)) {
     return { isValid: false, error: 'Reserved filename detected' };
   }

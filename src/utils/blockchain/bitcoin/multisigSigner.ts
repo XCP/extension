@@ -32,7 +32,7 @@ export function parseBareMultisig(script: Uint8Array): ParsedBareMultisig | null
   if (script.length < 4) return null;
 
   let offset = 0;
-  const requiredOpcode = script[offset++];
+  const requiredOpcode = script[offset++]!;
   if (requiredOpcode < 0x51 || requiredOpcode > 0x60) return null;
 
   const pubkeys: Uint8Array[] = [];
@@ -45,7 +45,7 @@ export function parseBareMultisig(script: Uint8Array): ParsedBareMultisig | null
   }
 
   if (offset + 2 !== script.length) return null;
-  const countOpcode = script[offset++];
+  const countOpcode = script[offset++]!;
   if (countOpcode < 0x51 || countOpcode > 0x60 || script[offset] !== 0xae) return null;
 
   const requiredSignatures = requiredOpcode - 0x50;

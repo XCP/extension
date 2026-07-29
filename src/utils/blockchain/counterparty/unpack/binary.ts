@@ -54,7 +54,7 @@ export class BinaryReader {
     if (this.remaining < 1) {
       throw new BinaryReadError('Buffer underflow: cannot read uint8');
     }
-    return this.data[this.position++];
+    return this.data[this.position++]!;
   }
 
   /**
@@ -64,7 +64,7 @@ export class BinaryReader {
     if (this.remaining < 2) {
       throw new BinaryReadError('Buffer underflow: cannot read uint16');
     }
-    const value = (this.data[this.position] << 8) | this.data[this.position + 1];
+    const value = (this.data[this.position]! << 8) | this.data[this.position + 1]!;
     this.position += 2;
     return value;
   }
@@ -77,10 +77,10 @@ export class BinaryReader {
       throw new BinaryReadError('Buffer underflow: cannot read uint32');
     }
     const value =
-      (this.data[this.position] << 24) |
-      (this.data[this.position + 1] << 16) |
-      (this.data[this.position + 2] << 8) |
-      this.data[this.position + 3];
+      (this.data[this.position]! << 24) |
+      (this.data[this.position + 1]! << 16) |
+      (this.data[this.position + 2]! << 8) |
+      this.data[this.position + 3]!;
     this.position += 4;
     return value >>> 0; // Convert to unsigned
   }
@@ -94,7 +94,7 @@ export class BinaryReader {
     }
     let value = 0n;
     for (let i = 0; i < 8; i++) {
-      value = (value << 8n) | BigInt(this.data[this.position + i]);
+      value = (value << 8n) | BigInt(this.data[this.position + i]!);
     }
     this.position += 8;
     return value;
@@ -208,8 +208,8 @@ export function arc4(key: Uint8Array, data: Uint8Array): Uint8Array {
   for (let i = 0; i < 256; i++) S[i] = i;
   let j = 0;
   for (let i = 0; i < 256; i++) {
-    j = (j + S[i] + key[i % key.length]) & 0xff;
-    [S[i], S[j]] = [S[j], S[i]];
+    j = (j + S[i]! + key[i % key.length]!) & 0xff;
+    [S[i], S[j]] = [S[j]!, S[i]!];
   }
 
   // Pseudo-random generation algorithm (PRGA)
@@ -218,9 +218,9 @@ export function arc4(key: Uint8Array, data: Uint8Array): Uint8Array {
   let b = 0;
   for (let k = 0; k < data.length; k++) {
     a = (a + 1) & 0xff;
-    b = (b + S[a]) & 0xff;
-    [S[a], S[b]] = [S[b], S[a]];
-    output[k] = data[k] ^ S[(S[a] + S[b]) & 0xff];
+    b = (b + S[a]!) & 0xff;
+    [S[a], S[b]] = [S[b]!, S[a]!];
+    output[k] = data[k]! ^ S[(S[a]! + S[b]!) & 0xff]!;
   }
   return output;
 }

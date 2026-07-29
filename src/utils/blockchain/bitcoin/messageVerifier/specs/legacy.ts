@@ -46,7 +46,7 @@ export async function verifyLegacy(
       return { valid: false, details: `Invalid signature length: ${sigBytes.length}` };
     }
 
-    const flag = sigBytes[0];
+    const flag = sigBytes[0]!;
 
     // Legacy only supports flags 27-34
     if (flag < 27 || flag > 34) {

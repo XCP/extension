@@ -350,7 +350,7 @@ export default function AssetOrdersPage(): ReactElement {
     if (matches.length === 0) return null;
 
     // Last match price
-    const lastMatch = matches[0];
+    const lastMatch = matches[0]!;
     const lastPrice = getMatchPricePerUnit(lastMatch, baseAsset || "");
 
     // Calculate totals and average

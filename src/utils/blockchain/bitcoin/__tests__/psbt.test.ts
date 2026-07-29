@@ -172,10 +172,10 @@ describe('extractPsbtDetails', () => {
     const details = extractPsbtDetails(psbtHex);
 
     expect(details.inputs).toHaveLength(1);
-    expect(details.inputs[0].index).toBe(0);
-    expect(details.inputs[0].txid).toBe('0'.repeat(64));
-    expect(details.inputs[0].vout).toBe(0);
-    expect(details.inputs[0].value).toBe(100000);
+    expect(details.inputs[0]!.index).toBe(0);
+    expect(details.inputs[0]!.txid).toBe('0'.repeat(64));
+    expect(details.inputs[0]!.vout).toBe(0);
+    expect(details.inputs[0]!.value).toBe(100000);
   });
 
   it('should extract outputs from PSBT', () => {
@@ -185,17 +185,17 @@ describe('extractPsbtDetails', () => {
     expect(details.outputs).toHaveLength(3);
 
     // First output - regular payment
-    expect(details.outputs[0].value).toBe(50000);
-    expect(details.outputs[0].type).toBe('p2wpkh');
+    expect(details.outputs[0]!.value).toBe(50000);
+    expect(details.outputs[0]!.type).toBe('p2wpkh');
 
     // Second output - OP_RETURN
-    expect(details.outputs[1].value).toBe(0);
-    expect(details.outputs[1].type).toBe('op_return');
-    expect(details.outputs[1].opReturnData).toBeDefined();
+    expect(details.outputs[1]!.value).toBe(0);
+    expect(details.outputs[1]!.type).toBe('op_return');
+    expect(details.outputs[1]!.opReturnData).toBeDefined();
 
     // Third output - change
-    expect(details.outputs[2].value).toBe(49000);
-    expect(details.outputs[2].type).toBe('p2wpkh');
+    expect(details.outputs[2]!.value).toBe(49000);
+    expect(details.outputs[2]!.type).toBe('p2wpkh');
   });
 
   it('should calculate totals and fee', () => {
@@ -438,7 +438,7 @@ describe('signPSBT', () => {
 
     expect(input.sighashType).toBe(0x83);
     expect(input.partialSig).toHaveLength(1);
-    expect(input.partialSig?.[0][1].at(-1)).toBe(0x83);
+    expect(input.partialSig?.[0]![1].at(-1)).toBe(0x83);
   });
 
   it('should throw on invalid private key', () => {
@@ -649,10 +649,10 @@ describe('Script type detection', () => {
     const psbtHex = bytesToHex(tx.toPSBT());
     const details = extractPsbtDetails(psbtHex);
 
-    expect(details.outputs[0].type).toBe('p2wpkh');
-    expect(details.outputs[1].type).toBe('p2tr');
-    expect(details.outputs[2].type).toBe('p2pkh');
-    expect(details.outputs[3].type).toBe('p2sh');
+    expect(details.outputs[0]!.type).toBe('p2wpkh');
+    expect(details.outputs[1]!.type).toBe('p2tr');
+    expect(details.outputs[2]!.type).toBe('p2pkh');
+    expect(details.outputs[3]!.type).toBe('p2sh');
   });
 });
 
@@ -671,7 +671,7 @@ describe('completePsbtWithInputValues', () => {
 
     // Verify input has no value initially
     const detailsBefore = extractPsbtDetails(incompletePsbt);
-    expect(detailsBefore.inputs[0].value).toBeUndefined();
+    expect(detailsBefore.inputs[0]!.value).toBeUndefined();
 
     // P2WPKH lock script for bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
     // Format: OP_0 <20-byte-hash>
@@ -686,7 +686,7 @@ describe('completePsbtWithInputValues', () => {
 
     // Verify input now has value
     const detailsAfter = extractPsbtDetails(completedPsbt);
-    expect(detailsAfter.inputs[0].value).toBe(100000);
+    expect(detailsAfter.inputs[0]!.value).toBe(100000);
     expect(detailsAfter.totalInputValue).toBe(100000);
     expect(detailsAfter.fee).toBe(50000); // 100000 - 50000
   });
@@ -713,8 +713,8 @@ describe('completePsbtWithInputValues', () => {
     );
 
     const details = extractPsbtDetails(completedPsbt);
-    expect(details.inputs[0].value).toBe(100000);
-    expect(details.inputs[1].value).toBe(80000);
+    expect(details.inputs[0]!.value).toBe(100000);
+    expect(details.inputs[1]!.value).toBe(80000);
     expect(details.totalInputValue).toBe(180000);
     expect(details.fee).toBe(30000); // 180000 - 150000
   });
@@ -731,7 +731,7 @@ describe('completePsbtWithInputValues', () => {
     );
 
     const details = extractPsbtDetails(completedPsbt);
-    expect(details.inputs[0].value).toBe(10000);
+    expect(details.inputs[0]!.value).toBe(10000);
     expect(details.totalInputValue).toBe(10000);
   });
 

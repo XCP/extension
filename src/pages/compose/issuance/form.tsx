@@ -113,7 +113,7 @@ export function IssuanceForm({
       reader.onload = () => {
         const base64 = reader.result as string;
         // Remove data URL prefix
-        const base64Data = base64.split(',')[1];
+        const base64Data = base64.split(',')[1]!;
         resolve(base64Data);
       };
       reader.onerror = error => reject(error);

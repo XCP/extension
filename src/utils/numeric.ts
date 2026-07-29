@@ -109,7 +109,7 @@ export const isValidPositiveNumber = (
     }
 
     // Check decimal places
-    const decimalPlaces = value.includes(".") ? value.split(".")[1].length : 0;
+    const decimalPlaces = value.includes(".") ? value.split(".")[1]!.length : 0;
     if (decimalPlaces > maxDecimals) return false;
 
     return true;

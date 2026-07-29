@@ -286,9 +286,9 @@ export const DerivationPaths = {
       return null;
     }
 
-    const purpose = parseInt(match[1], 10);
-    const coinType = parseInt(match[2], 10);
-    const accountIndex = parseInt(match[3], 10);
+    const purpose = parseInt(match[1]!, 10);
+    const coinType = parseInt(match[2]!, 10);
+    const accountIndex = parseInt(match[3]!, 10);
 
     // Validate coin type (0 = Bitcoin mainnet, 1 = testnet)
     if (coinType !== 0 && coinType !== 1) {

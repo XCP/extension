@@ -86,7 +86,7 @@ export const QRCanvas = memo(({
     const exactCellSize = actualSize / totalSize;
     for (let row = 0; row < matrixSize; row++) {
       for (let col = 0; col < matrixSize; col++) {
-        if (matrix[row][col]) {
+        if (matrix[row]![col]) {
           const x = (col + margin) * exactCellSize;
           const y = (row + margin) * exactCellSize;
           ctx.fillRect(x, y, exactCellSize, exactCellSize);

@@ -93,7 +93,7 @@ export function unpackBroadcast(payload: Uint8Array): BroadcastData {
 
     // Check if first byte could be a VarInt length
     if (remainingBytes.length > 0) {
-      const firstByte = remainingBytes[0];
+      const firstByte = remainingBytes[0]!;
 
       // If first byte + 1 equals remaining length, it's a Pascal string
       if (firstByte + 1 === remainingBytes.length) {

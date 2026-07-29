@@ -306,7 +306,7 @@ export default function AssetDispensersPage(): ReactElement {
     if (dispenses.length === 0) return null;
 
     // Last dispense price (first in array = most recent)
-    const lastDispense = dispenses[0];
+    const lastDispense = dispenses[0]!;
     const lastQuantity = Number(lastDispense.dispense_quantity_normalized);
     const lastPricePerUnit = lastQuantity > 0 ? lastDispense.btc_amount / lastQuantity : 0;
 

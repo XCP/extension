@@ -83,12 +83,12 @@ export default function UtxoPage(): ReactElement {
       try {
         // Parse UTXO format (txid:vout)
         const [transactionId, voutStr] = txid.split(':');
-        const vout = parseInt(voutStr, 10);
+        const vout = parseInt(voutStr!, 10);
         
         // Load both UTXO balances and Bitcoin transaction data in parallel
         const [balancesResponse, btcTx] = await Promise.all([
           fetchUtxoBalances(txid),
-          fetchBitcoinTransaction(transactionId)
+          fetchBitcoinTransaction(transactionId!)
         ]);
         
         setBalances(balancesResponse.result);

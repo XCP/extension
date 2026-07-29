@@ -31,9 +31,9 @@ describe('ApprovalQueue', () => {
 
       expect(approvalQueue.getCount()).toBe(1);
       const requests = approvalQueue.getAll();
-      expect(requests[0].id).toBe('test-1');
-      expect(requests[0].origin).toBe('https://example.com');
-      expect(requests[0].timestamp).toBeDefined();
+      expect(requests[0]!.id).toBe('test-1');
+      expect(requests[0]!.origin).toBe('https://example.com');
+      expect(requests[0]!.timestamp).toBeDefined();
     });
 
     it('should get a request by ID', () => {
@@ -215,9 +215,9 @@ describe('ApprovalQueue', () => {
 
       expect(result).toBe(true);
       const requests = approvalQueue.getAll();
-      expect(requests[0].id).toBe('c');
-      expect(requests[1].id).toBe('a');
-      expect(requests[2].id).toBe('b');
+      expect(requests[0]!.id).toBe('c');
+      expect(requests[1]!.id).toBe('a');
+      expect(requests[2]!.id).toBe('b');
     });
 
     it('should return false for invalid reorder', () => {
@@ -238,7 +238,7 @@ describe('ApprovalQueue', () => {
 
       const expired = approvalQueue.getExpired(5 * 60 * 1000);
       expect(expired.length).toBe(1);
-      expect(expired[0].id).toBe('old');
+      expect(expired[0]!.id).toBe('old');
     });
 
     it('should remove expired requests', () => {

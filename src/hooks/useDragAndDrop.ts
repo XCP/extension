@@ -78,7 +78,7 @@ export function useDragAndDrop<T>({
 
     const newItems = [...items];
     const [removed] = newItems.splice(dragIndex, 1);
-    newItems.splice(dropIndex, 0, removed);
+    newItems.splice(dropIndex, 0, removed!);
 
     onReorder(newItems);
     setDraggedIndex(null);

@@ -91,9 +91,9 @@ describe('selectUtxosForTransaction', () => {
 
     const result = await selectUtxosForTransaction(mockAddress);
 
-    expect(result.utxos[0].value).toBe(50000);
-    expect(result.utxos[1].value).toBe(30000);
-    expect(result.utxos[2].value).toBe(10000);
+    expect(result.utxos[0]!.value).toBe(50000);
+    expect(result.utxos[1]!.value).toBe(30000);
+    expect(result.utxos[2]!.value).toBe(10000);
   });
 
   it('should limit to maxUtxos (default 20)', async () => {

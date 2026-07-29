@@ -96,7 +96,7 @@ describe('Amount Validation Fuzz Tests', () => {
             
             // Check actual decimal places in the result
             const actualDecimals = amount.includes('.') ? 
-              amount.split('.')[1].replace(/0+$/, '').length : 0;
+              amount.split('.')[1]!.replace(/0+$/, '').length : 0;
             
             if (actualDecimals > 8) {
               expect(result.isValid).toBe(false);

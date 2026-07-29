@@ -143,7 +143,7 @@ describe("ConsolidationApiService", () => {
       data: {
         ...page,
         transactions: {},
-        missing_transactions: [page.outputs[0].txid],
+        missing_transactions: [page.outputs[0]!.txid],
       },
       status: 200,
       statusText: "OK",

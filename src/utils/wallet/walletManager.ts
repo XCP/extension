@@ -978,7 +978,7 @@ export class WalletManager {
     if (!this.keychain) return;
 
     for (let i = 0; i < this.wallets.length; i++) {
-      const wallet = this.wallets[i];
+      const wallet = this.wallets[i]!;
       if (!wallet.name.match(/^Wallet \d+$/)) continue;
 
       const newName = `Wallet ${i + 1}`;

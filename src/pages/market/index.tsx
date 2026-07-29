@@ -59,7 +59,7 @@ export default function MarketPage(): ReactElement {
   const setActiveTab = (tab: number) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      next.set("tab", TAB_NAMES[tab]);
+      next.set("tab", TAB_NAMES[tab]!);
       return next;
     }, { replace: true });
   };

@@ -171,7 +171,7 @@ describe('signMessageRequestStorage', () => {
       const result = await signMessageRequestStorage.getAll();
 
       expect(result).toHaveLength(1);
-      expect(result[0].id).toBe('valid');
+      expect(result[0]!.id).toBe('valid');
     });
 
     it('should return empty array when no requests exist', async () => {

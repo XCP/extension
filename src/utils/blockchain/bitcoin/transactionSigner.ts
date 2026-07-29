@@ -176,8 +176,8 @@ export async function signTransaction(
         // SegWit with API-provided data - use directly, no fetch needed
         // This is more efficient: avoids N network requests for N inputs
         inputData.witnessUtxo = {
-          script: hexToBytes(lockScripts[i]),
-          amount: BigInt(inputValues[i]),
+          script: hexToBytes(lockScripts[i]!),
+          amount: BigInt(inputValues[i]!),
         };
         if (wallet.addressFormat === AddressFormat.P2SH_P2WPKH) {
           // Generate redeem script for nested SegWit

@@ -55,32 +55,32 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
   }
 
   const hasPool = fields.length === 21;
-  const poolQuantity = hasPool ? integer(fields[17], 'pool quantity') : 0n;
-  const lpAssetId = hasPool ? integer(fields[18], 'LP asset') : 0n;
+  const poolQuantity = hasPool ? integer(fields[17]!, 'pool quantity') : 0n;
+  const lpAssetId = hasPool ? integer(fields[18]!, 'LP asset') : 0n;
   const mimeTypeIndex = hasPool ? 19 : 17;
   const descriptionIndex = hasPool ? 20 : 18;
 
   return {
-    asset: assetIdToName(integer(fields[0], 'asset')),
-    assetParent: integer(fields[1], 'asset parent') === 0n ? '' : assetIdToName(integer(fields[1], 'asset parent')),
-    price: integer(fields[2], 'price'),
-    quantityByPrice: integer(fields[3], 'quantity by price'),
-    maxMintPerTx: integer(fields[4], 'max mint per transaction'),
-    maxMintPerAddress: integer(fields[5], 'max mint per address'),
-    hardCap: integer(fields[6], 'hard cap'),
-    premintQuantity: integer(fields[7], 'premint quantity'),
-    startBlock: block(fields[8], 'start block'),
-    endBlock: block(fields[9], 'end block'),
-    softCap: integer(fields[10], 'soft cap'),
-    softCapDeadlineBlock: block(fields[11], 'soft cap deadline block'),
-    mintedAssetCommissionInt: integer(fields[12], 'commission'),
-    burnPayment: flag(fields[13], 'burn payment'),
-    lockDescription: flag(fields[14], 'lock description'),
-    lockQuantity: flag(fields[15], 'lock quantity'),
-    divisible: flag(fields[16], 'divisible'),
+    asset: assetIdToName(integer(fields[0]!, 'asset')),
+    assetParent: integer(fields[1]!, 'asset parent') === 0n ? '' : assetIdToName(integer(fields[1]!, 'asset parent')),
+    price: integer(fields[2]!, 'price'),
+    quantityByPrice: integer(fields[3]!, 'quantity by price'),
+    maxMintPerTx: integer(fields[4]!, 'max mint per transaction'),
+    maxMintPerAddress: integer(fields[5]!, 'max mint per address'),
+    hardCap: integer(fields[6]!, 'hard cap'),
+    premintQuantity: integer(fields[7]!, 'premint quantity'),
+    startBlock: block(fields[8]!, 'start block'),
+    endBlock: block(fields[9]!, 'end block'),
+    softCap: integer(fields[10]!, 'soft cap'),
+    softCapDeadlineBlock: block(fields[11]!, 'soft cap deadline block'),
+    mintedAssetCommissionInt: integer(fields[12]!, 'commission'),
+    burnPayment: flag(fields[13]!, 'burn payment'),
+    lockDescription: flag(fields[14]!, 'lock description'),
+    lockQuantity: flag(fields[15]!, 'lock quantity'),
+    divisible: flag(fields[16]!, 'divisible'),
     poolQuantity,
     lpAsset: lpAssetId === 0n ? null : assetIdToName(lpAssetId),
-    mimeType: text(fields[mimeTypeIndex], 'MIME type') || 'text/plain',
-    description: text(fields[descriptionIndex], 'description'),
+    mimeType: text(fields[mimeTypeIndex]!, 'MIME type') || 'text/plain',
+    description: text(fields[descriptionIndex]!, 'description'),
   };
 }

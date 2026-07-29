@@ -244,7 +244,7 @@ describe('Destinations Validation Fuzz Tests', () => {
       const testCases = [
         [{ id: 1, address: '' }],
         [{ id: 1, address: '   ' }],
-        [{ id: 1, address: VALID_ADDRESSES[0] }, { id: 2, address: '' }],
+        [{ id: 1, address: VALID_ADDRESSES[0]! }, { id: 2, address: '' }],
         [{ id: 1, address: '\t\n' }],
       ];
 
@@ -466,7 +466,7 @@ describe('Destinations Validation Fuzz Tests', () => {
     it('should handle extremely large destination arrays', () => {
       const largeArray: Destination[] = Array.from({ length: 100 }, (_, i) => ({
         id: i,
-        address: VALID_ADDRESSES[i % VALID_ADDRESSES.length],
+        address: VALID_ADDRESSES[i % VALID_ADDRESSES.length]!,
       }));
 
       const start = performance.now();
@@ -480,9 +480,9 @@ describe('Destinations Validation Fuzz Tests', () => {
     it('should handle destinations with special characters in IDs', () => {
       // IDs should be numbers, but test resilience
       const destinations = [
-        { id: 0, address: VALID_ADDRESSES[0] },
-        { id: -1, address: VALID_ADDRESSES[1] },
-        { id: Number.MAX_SAFE_INTEGER, address: VALID_ADDRESSES[2] },
+        { id: 0, address: VALID_ADDRESSES[0]! },
+        { id: -1, address: VALID_ADDRESSES[1]! },
+        { id: Number.MAX_SAFE_INTEGER, address: VALID_ADDRESSES[2]! },
       ];
 
       expect(() => validateDestinations(destinations)).not.toThrow();

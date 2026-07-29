@@ -100,7 +100,7 @@ function validateBech32Address(address: string): AddressValidationResult {
       return { isValid: false, error: 'Invalid bech32 data' };
     }
     
-    const witnessVersion = words[0];
+    const witnessVersion = words[0]!;
     
     // Convert 5-bit words to 8-bit bytes for program length check
     const witnessProgram = bech32.fromWords(words.slice(1));

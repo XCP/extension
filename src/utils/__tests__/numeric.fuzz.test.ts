@@ -134,7 +134,7 @@ describe('Numeric Utilities Fuzz Tests', () => {
           
           // The function correctly validates decimal places (default max is 8)
           // We need to check how many decimal places the number string has
-          const decimalPlaces = str.includes('.') ? str.split('.')[1].length : 0;
+          const decimalPlaces = str.includes('.') ? str.split('.')[1]!.length : 0;
           const result = isValidPositiveNumber(str, { allowZero: false });
           
           if (decimalPlaces <= 8) {

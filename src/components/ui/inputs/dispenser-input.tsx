@@ -144,14 +144,14 @@ export function DispenserInput({
             opt => opt.dispenser.asset === initialAsset
           );
           if (matchIndex >= 0) {
-            onSelectionChange(matchIndex, dispenserOptions[matchIndex]);
+            onSelectionChange(matchIndex, dispenserOptions[matchIndex]!);
             return;
           }
         }
         // Fall back to first option
-        onSelectionChange(0, dispenserOptions[0]);
+        onSelectionChange(0, dispenserOptions[0]!);
       } else if (selectedIndex >= dispenserOptions.length) {
-        onSelectionChange(0, dispenserOptions[0]);
+        onSelectionChange(0, dispenserOptions[0]!);
       }
     } else if (dispenserOptions.length === 0) {
       onSelectionChange(null, null);

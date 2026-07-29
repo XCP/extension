@@ -17,7 +17,7 @@ const formatOptionsText = (text: string | number | undefined) => {
   }
   const match = text.match(/options (\d+)/);
   if (match) {
-    const value = parseInt(match[1], 10);
+    const value = parseInt(match[1]!, 10);
     return value === ADDRESS_OPTION_REQUIRE_MEMO ? "Require Memo" : String(value);
   }
   return String(text);

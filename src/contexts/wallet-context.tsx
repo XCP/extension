@@ -309,7 +309,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           let active = await walletService.getActiveWallet();
           if (!active) {
             // No active wallet - select the first one (this decrypts and derives addresses)
-            await walletService.selectWallet(allWallets[0].id);
+            await walletService.selectWallet(allWallets[0]!.id);
             active = await walletService.getActiveWallet();
           }
           // Safety check - if still no active wallet, skip wallet/address processing
@@ -329,7 +329,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
             const lastActiveAddress = await walletService.getLastActiveAddress();
             const newActiveAddress =
               lastActiveAddress && active.addresses.some((addr) => addr.address === lastActiveAddress)
-                ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]
+                ? active.addresses.find((addr) => addr.address === lastActiveAddress) || active.addresses[0]!
                 : active.addresses[0] || null;
             addressChanged = newState.activeAddress?.address !== newActiveAddress?.address;
             if (addressChanged) newState.activeAddress = newActiveAddress;

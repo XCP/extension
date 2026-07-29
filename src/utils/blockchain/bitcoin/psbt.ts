@@ -488,8 +488,8 @@ export function completePsbtWithInputValues(
 
   // Add witnessUtxo to each input
   for (let i = 0; i < tx.inputsLength; i++) {
-    const amount = BigInt(inputValues[i]);
-    const script = hexToBytes(lockScripts[i]);
+    const amount = BigInt(inputValues[i]!);
+    const script = hexToBytes(lockScripts[i]!);
 
     tx.updateInput(i, {
       witnessUtxo: {

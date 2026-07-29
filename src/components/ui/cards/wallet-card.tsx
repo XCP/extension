@@ -36,7 +36,7 @@ export function WalletCard({
       ? disabledMessage
       : displayAddress?.address ||
         (wallet.addresses.length > 0
-          ? wallet.addresses[0].address
+          ? wallet.addresses[0]!.address
           : wallet.previewAddress || 'No address');
 
   const handleClick = (e: React.MouseEvent) => {

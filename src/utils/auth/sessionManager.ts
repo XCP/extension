@@ -189,7 +189,7 @@ export async function getUnlockedSecret(walletId: string): Promise<string | null
   
   // Check if key exists to differentiate between undefined and empty string
   if (walletId in unlockedSecrets) {
-    return unlockedSecrets[walletId];
+    return unlockedSecrets[walletId]!;
   }
   return null;
 }
@@ -215,7 +215,7 @@ export function clearUnlockedSecret(walletId: string): void {
   
   if (walletId in unlockedSecrets) {
     // Best-effort memory clearing - see ADR-001 for JS memory limitation details
-    const secretLength = unlockedSecrets[walletId].length;
+    const secretLength = unlockedSecrets[walletId]!.length;
     if (secretLength > 0) {
       unlockedSecrets[walletId] = '0'.repeat(secretLength);
     }

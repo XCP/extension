@@ -143,7 +143,7 @@ describe('addressDeriver', () => {
 
       const addresses = deriveAddressesFromSecret(secret, record);
       expect(addresses).toHaveLength(1);
-      expect(addresses[0].address).toBe(getAddressFromPrivateKey(PRIV_HEX, AddressFormat.P2WPKH, true));
+      expect(addresses[0]!.address).toBe(getAddressFromPrivateKey(PRIV_HEX, AddressFormat.P2WPKH, true));
     });
 
     it('returns [] for malformed hardware secret', () => {

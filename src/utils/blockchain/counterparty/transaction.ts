@@ -135,7 +135,7 @@ export async function fetchInputValues(
           // Store all vout values for this txid
           for (const input of inputs) {
             if (input.txid === txid && response.data.vout[input.vout]) {
-              values.set(`${txid}:${input.vout}`, response.data.vout[input.vout].value);
+              values.set(`${txid}:${input.vout}`, response.data.vout[input.vout]!.value);
             }
           }
           break; // Success, skip fallback
@@ -376,7 +376,7 @@ export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
     let offset = 1;
     let dataLength: number;
 
-    const pushByte = bytes[offset];
+    const pushByte = bytes[offset]!;
     if (pushByte <= 0x4b) {
       // Direct push (1-75 bytes)
       dataLength = pushByte;
@@ -384,12 +384,12 @@ export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
     } else if (pushByte === 0x4c) {
       // OP_PUSHDATA1
       if (bytes.length < 3) return null;
-      dataLength = bytes[offset + 1];
+      dataLength = bytes[offset + 1]!;
       offset += 2;
     } else if (pushByte === 0x4d) {
       // OP_PUSHDATA2
       if (bytes.length < 4) return null;
-      dataLength = bytes[offset + 1] | (bytes[offset + 2] << 8);
+      dataLength = bytes[offset + 1]! | (bytes[offset + 2]! << 8);
       offset += 3;
     } else {
       return null;

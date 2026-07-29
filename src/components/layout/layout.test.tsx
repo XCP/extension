@@ -117,7 +117,7 @@ describe('Layout', () => {
     expect(children).toHaveLength(4);
     expect(children[0]).toHaveAttribute('data-testid', 'header');
     expect(children[1]).toHaveAttribute('data-testid', 'api-status-banner');
-    expect(children[2].tagName.toLowerCase()).toBe('main');
+    expect(children[2]!.tagName.toLowerCase()).toBe('main');
     expect(children[3]).toHaveAttribute('data-testid', 'footer');
   });
 
@@ -131,7 +131,7 @@ describe('Layout', () => {
     expect(children).toHaveLength(3);
     expect(children[0]).toHaveAttribute('data-testid', 'header');
     expect(children[1]).toHaveAttribute('data-testid', 'api-status-banner');
-    expect(children[2].tagName.toLowerCase()).toBe('main');
+    expect(children[2]!.tagName.toLowerCase()).toBe('main');
   });
 
 

@@ -74,7 +74,7 @@ function RemoveWalletPage() {
     try {
       const remainingWallets = wallets.filter((w) => w.id !== walletId);
       if (activeWallet?.id === walletId) {
-        await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0] : null);
+        await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0]! : null);
       }
       await removeWallet(walletId);
       navigate(PATHS.SUCCESS, { replace: true });

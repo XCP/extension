@@ -42,7 +42,7 @@ function isValidPrivateKey(key: Uint8Array): boolean {
   // Convert key to BigInt
   let keyNum = BigInt(0);
   for (let i = 0; i < key.length; i++) {
-    keyNum = (keyNum << BigInt(8)) | BigInt(key[i]);
+    keyNum = (keyNum << BigInt(8)) | BigInt(key[i]!);
   }
 
   // Must be > 0 and < ORDER
@@ -292,7 +292,7 @@ describe('BIP-322 Fuzz Testing', () => {
         description: 'Flip one bit',
         tamper: (sig: string) => {
           const bytes = base64.decode(sig);
-          bytes[10] ^= 0x01; // Flip one bit
+          bytes[10] = bytes[10]! ^ 0x01; // Flip one bit
           return base64.encode(bytes);
         }
       },

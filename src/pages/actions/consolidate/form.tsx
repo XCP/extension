@@ -65,7 +65,7 @@ export function ConsolidationForm({
 
         setFormData((prev) => ({
           ...prev,
-          consolidationData: batches[0], // First batch for initial display
+          consolidationData: batches[0]!, // First batch for initial display
           allBatches: batches,
         }));
 

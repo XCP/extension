@@ -89,9 +89,9 @@ export const PriceChart = memo(({
     gradient.addColorStop(1, hexToRgba(lineColor, 0));
 
     ctx.beginPath();
-    ctx.moveTo(scaleX(0), scaleY(data[0].price));
+    ctx.moveTo(scaleX(0), scaleY(data[0]!.price));
     for (let i = 1; i < data.length; i++) {
-      ctx.lineTo(scaleX(i), scaleY(data[i].price));
+      ctx.lineTo(scaleX(i), scaleY(data[i]!.price));
     }
     ctx.lineTo(scaleX(data.length - 1), height - padding.bottom);
     ctx.lineTo(scaleX(0), height - padding.bottom);
@@ -101,9 +101,9 @@ export const PriceChart = memo(({
 
     // Draw line
     ctx.beginPath();
-    ctx.moveTo(scaleX(0), scaleY(data[0].price));
+    ctx.moveTo(scaleX(0), scaleY(data[0]!.price));
     for (let i = 1; i < data.length; i++) {
-      ctx.lineTo(scaleX(i), scaleY(data[i].price));
+      ctx.lineTo(scaleX(i), scaleY(data[i]!.price));
     }
     ctx.strokeStyle = lineColor;
     ctx.lineWidth = 2;
@@ -114,7 +114,7 @@ export const PriceChart = memo(({
     // Draw hover indicator if hovering
     if (hoverIndex !== null && hoverIndex >= 0 && hoverIndex < data.length) {
       const x = scaleX(hoverIndex);
-      const y = scaleY(data[hoverIndex].price);
+      const y = scaleY(data[hoverIndex]!.price);
 
       // Vertical line
       ctx.beginPath();
@@ -215,9 +215,9 @@ function hexToRgba(hex: string, alpha: number): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!result) return `rgba(0, 0, 0, ${alpha})`;
 
-  const r = parseInt(result[1], 16);
-  const g = parseInt(result[2], 16);
-  const b = parseInt(result[3], 16);
+  const r = parseInt(result[1]!, 16);
+  const g = parseInt(result[2]!, 16);
+  const b = parseInt(result[3]!, 16);
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }

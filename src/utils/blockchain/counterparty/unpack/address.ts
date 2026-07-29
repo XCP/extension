@@ -70,7 +70,7 @@ function decodeBase58Check(address: string): { version: number; hash: Uint8Array
     }
 
     return {
-      version: payload[0],
+      version: payload[0]!,
       hash: payload.slice(1),
     };
   } catch (error) {
@@ -111,7 +111,7 @@ function decodeBech32(address: string): { version: number; program: Uint8Array }
       if (decoded.prefix !== 'bc' && decoded.prefix !== 'tb') {
         throw new AddressPackError('Invalid bech32 prefix');
       }
-      const version = decoded.words[0];
+      const version = decoded.words[0]!;
       const program = bech32.fromWords(decoded.words.slice(1));
       return { version, program: new Uint8Array(program) };
     } catch {
@@ -120,7 +120,7 @@ function decodeBech32(address: string): { version: number; program: Uint8Array }
       if (decoded.prefix !== 'bc' && decoded.prefix !== 'tb') {
         throw new AddressPackError('Invalid bech32m prefix');
       }
-      const version = decoded.words[0];
+      const version = decoded.words[0]!;
       const program = bech32m.fromWords(decoded.words.slice(1));
       return { version, program: new Uint8Array(program) };
     }
@@ -214,7 +214,7 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
     throw new AddressPackError(`Invalid packed address length: ${packed.length} (expected ${PACKED_ADDRESS_LENGTH})`);
   }
 
-  const firstByte = packed[0];
+  const firstByte = packed[0]!;
   const hashOrProgram = packed.slice(1);
 
   // Check for SegWit marker (0x80 - 0x8F)
@@ -243,7 +243,7 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
  */
 export function isSegwitPacked(packed: Uint8Array): boolean {
   if (packed.length < 1) return false;
-  return packed[0] >= VERSION.SEGWIT_MARKER && packed[0] <= VERSION.SEGWIT_MARKER + 0x0F;
+  return packed[0]! >= VERSION.SEGWIT_MARKER && packed[0]! <= VERSION.SEGWIT_MARKER + 0x0F;
 }
 
 /**
@@ -252,7 +252,7 @@ export function isSegwitPacked(packed: Uint8Array): boolean {
  */
 export function getWitnessVersion(packed: Uint8Array): number {
   if (!isSegwitPacked(packed)) return -1;
-  return packed[0] - VERSION.SEGWIT_MARKER;
+  return packed[0]! - VERSION.SEGWIT_MARKER;
 }
 
 /**

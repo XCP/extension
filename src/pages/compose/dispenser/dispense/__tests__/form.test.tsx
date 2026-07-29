@@ -241,7 +241,7 @@ describe('DispenseForm', () => {
     expect(radioButtons).toHaveLength(2);
     
     // Click the second radio button
-    await userEvent.click(radioButtons[1]);
+    await userEvent.click(radioButtons[1]!);
 
     // Check that the second radio is selected
     await waitFor(() => {

@@ -55,14 +55,14 @@ export function MPMAForm({
       // Check if first line is a header and skip it
       let startIndex = 0;
       if (lines.length > 0) {
-        const firstLine = lines[0].toLowerCase().replace(/["\s]/g, '');
+        const firstLine = lines[0]!.toLowerCase().replace(/["\s]/g, '');
         if (firstLine.includes('address') && firstLine.includes('asset') && firstLine.includes('quantity')) {
           startIndex = 1; // Skip header row
         }
       }
       
       for (let i = startIndex; i < lines.length; i++) {
-        const line = lines[i].trim();
+        const line = lines[i]!.trim();
         if (!line) continue; // Skip empty lines
         
         // Parse CSV line (handle quoted values with commas)
@@ -80,7 +80,7 @@ export function MPMAForm({
         const [address, asset, quantity, memo] = parts;
         
         // Validate address
-        const addressValidation = validateBitcoinAddress(address);
+        const addressValidation = validateBitcoinAddress(address!);
         if (!addressValidation.isValid) {
           throw new Error(`Line ${lineNum}: Invalid Bitcoin address: ${address}. ${addressValidation.error || ''}`);
         }
@@ -91,7 +91,7 @@ export function MPMAForm({
         }
         
         // Validate quantity
-        const quantityNum = parseFloat(quantity);
+        const quantityNum = parseFloat(quantity!);
         if (isNaN(quantityNum) || quantityNum <= 0) {
           throw new Error(`Line ${lineNum}: Invalid quantity: ${quantity}`);
         }
@@ -109,7 +109,7 @@ export function MPMAForm({
               assetCache[asset] = true;
             }
           }
-          isDivisible = assetCache[asset];
+          isDivisible = assetCache[asset]!;
         }
         
         // Validate memo length if provided
@@ -122,12 +122,12 @@ export function MPMAForm({
         }
         
         parsedRows.push({
-          address,
+          address: address!,
           asset,
-          quantity: quantity,
+          quantity: quantity!,
           memo,
           isDivisible,
-          originalQuantity: quantity
+          originalQuantity: quantity!
         });
       }
       

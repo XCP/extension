@@ -242,13 +242,13 @@ describe('Header', () => {
     const sections = container.querySelectorAll('.col-span-1, .col-span-2');
     
     // Left section should be empty
-    expect(sections[0].children).toHaveLength(0);
-    
+    expect(sections[0]!.children).toHaveLength(0);
+
     // Center section should be empty
-    expect(sections[1].children).toHaveLength(0);
-    
+    expect(sections[1]!.children).toHaveLength(0);
+
     // Right section should be empty
-    expect(sections[2].children).toHaveLength(0);
+    expect(sections[2]!.children).toHaveLength(0);
   });
 
   it('should apply header variant to buttons', () => {

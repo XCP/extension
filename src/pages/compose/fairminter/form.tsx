@@ -119,7 +119,7 @@ export function FairminterForm({
   const handleQuantityChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (!isDivisible && val.includes('.')) return;
-    if (isDivisible && val.includes('.') && val.split('.')[1]?.length > 8) return;
+    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
     setter(val);
   };
 

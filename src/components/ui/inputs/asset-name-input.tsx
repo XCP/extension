@@ -91,7 +91,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
             const [parentName] = value.split('.');
 
             // Check if parent asset exists and get its details
-            const parentAssetInfo = await fetchAssetDetails(parentName);
+            const parentAssetInfo = await fetchAssetDetails(parentName!);
             if (!parentAssetInfo || !parentAssetInfo.asset) {
               setAvailabilityError("Parent asset does not exist");
               setIsValid(false);

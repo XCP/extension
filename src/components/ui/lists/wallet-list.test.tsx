@@ -85,7 +85,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[1]}
+        selectedWallet={mockWallets[1]!}
         onSelectWallet={mockOnSelectWallet}
       />
     );
@@ -106,7 +106,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[1]}
+        selectedWallet={mockWallets[1]!}
         selectedAddress={selectedAddress}
         onSelectWallet={mockOnSelectWallet}
       />
@@ -122,7 +122,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[0]}
+        selectedWallet={mockWallets[0]!}
         onSelectWallet={mockOnSelectWallet}
       />
     );
@@ -136,8 +136,8 @@ describe('WalletList', () => {
   it('should mark wallet as only wallet when there is one wallet', () => {
     render(
       <WalletList
-        wallets={[mockWallets[0]]}
-        selectedWallet={mockWallets[0]}
+        wallets={[mockWallets[0]!]}
+        selectedWallet={mockWallets[0]!}
         onSelectWallet={mockOnSelectWallet}
       />
     );
@@ -150,7 +150,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[0]}
+        selectedWallet={mockWallets[0]!}
         onSelectWallet={mockOnSelectWallet}
       />
     );
@@ -180,7 +180,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[0]}
+        selectedWallet={mockWallets[0]!}
         onSelectWallet={mockOnSelectWallet}
       />
     );
@@ -196,7 +196,7 @@ describe('WalletList', () => {
     render(
       <WalletList
         wallets={mockWallets}
-        selectedWallet={mockWallets[0]}
+        selectedWallet={mockWallets[0]!}
         onSelectWallet={mockOnSelectWallet}
         disableHardwareWallets
         hardwareWalletDisabledMessage="Open in sidepanel"

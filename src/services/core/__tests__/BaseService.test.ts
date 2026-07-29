@@ -248,7 +248,7 @@ describe('BaseService', () => {
       // Get the alarm listener from the static registration
       const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
       expect(addListenerCalls.length).toBeGreaterThan(0);
-      const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
+      const alarmListener = addListenerCalls[addListenerCalls.length - 1]![0];
 
       // Simulate alarm event for this service
       const alarm = {
@@ -271,7 +271,7 @@ describe('BaseService', () => {
       // Get the alarm listener from the static registration
       const addListenerCalls = vi.mocked(chrome.alarms.onAlarm.addListener).mock.calls;
       expect(addListenerCalls.length).toBeGreaterThan(0);
-      const alarmListener = addListenerCalls[addListenerCalls.length - 1][0];
+      const alarmListener = addListenerCalls[addListenerCalls.length - 1]![0];
 
       // Simulate alarm event for different service
       const alarm = {
@@ -360,7 +360,7 @@ describe('BaseService', () => {
       
       await testService.destroy();
       
-      const savedState = vi.mocked(mockSessionStorage.set).mock.calls[0][0];
+      const savedState = vi.mocked(mockSessionStorage.set).mock.calls[0]![0];
       expect(savedState['TestService_state'].version).toBe(1);
     });
   });

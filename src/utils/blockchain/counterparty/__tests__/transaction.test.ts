@@ -303,7 +303,7 @@ describe('decodeRawTransaction', () => {
     } as any);
 
     await decodeRawTransaction('deadbeef', false);
-    const callUrl = mockedApiClient.get.mock.calls[0][0];
+    const callUrl = mockedApiClient.get.mock.calls[0]![0];
     expect(callUrl).toContain('rawtx=deadbeef');
     expect(callUrl).toContain('verbose=false');
   });
@@ -337,7 +337,7 @@ describe('decodeRawTransaction', () => {
     } as any);
 
     await decodeRawTransaction('0200');
-    const callUrl = mockedApiClient.get.mock.calls[0][0];
+    const callUrl = mockedApiClient.get.mock.calls[0]![0];
     expect(callUrl).toContain('https://custom-api.example.com/v2/bitcoin/transactions/decode');
   });
 
@@ -350,7 +350,7 @@ describe('decodeRawTransaction', () => {
     } as any);
 
     await decodeRawTransaction('0200');
-    const callUrl = mockedApiClient.get.mock.calls[0][0];
+    const callUrl = mockedApiClient.get.mock.calls[0]![0];
     expect(callUrl).toContain('https://api.counterparty.io/v2/bitcoin/transactions/decode');
   });
 });

@@ -34,7 +34,7 @@ describe('Multisig Signer', () => {
       expect(parsed).not.toBeNull();
       expect(parsed!.requiredSignatures).toBe(1);
       expect(parsed!.pubkeys).toHaveLength(2);
-      expect(bytesToHex(parsed!.pubkeys[0])).toBe(bytesToHex(compressedPubkey));
+      expect(bytesToHex(parsed!.pubkeys[0]!)).toBe(bytesToHex(compressedPubkey));
     });
 
     it('parses a current 1-of-3 script with off-curve fake keys', () => {
@@ -45,7 +45,7 @@ describe('Multisig Signer', () => {
       expect(parsed).not.toBeNull();
       expect(parsed!.requiredSignatures).toBe(1);
       expect(parsed!.pubkeys).toHaveLength(3);
-      expect(bytesToHex(parsed!.pubkeys[2])).toBe(bytesToHex(uncompressedPubkey));
+      expect(bytesToHex(parsed!.pubkeys[2]!)).toBe(bytesToHex(uncompressedPubkey));
     });
 
     it('agrees with the library encoding of a standard multisig', () => {
@@ -154,7 +154,7 @@ describe('Multisig Signer', () => {
 
       expect(wire.inputs).toHaveLength(inputSpecs.length);
       expect(wire.outputs).toHaveLength(1);
-      expect(wire.outputs[0].amount).toBe(99_000n);
+      expect(wire.outputs[0]!.amount).toBe(99_000n);
       // Outpoints serialize little-endian; confirm they reference our prev txs
       wire.inputs.forEach((input, index) => {
         expect(bytesToHex(input.txidLE.slice().reverse())).toBe(prevTxids[index]);
@@ -162,7 +162,7 @@ describe('Multisig Signer', () => {
       });
 
       for (const [index, spec] of inputSpecs.entries()) {
-        const scriptSig = wire.inputs[index].script;
+        const scriptSig = wire.inputs[index]!.script;
         expect(scriptSig[0], spec.label).toBe(0x00); // OP_0
         expect(scriptSig[1], spec.label).toBe(scriptSig.length - 2); // single push
         expect(scriptSig[scriptSig.length - 1], spec.label).toBe(0x01); // SIGHASH_ALL

@@ -578,7 +578,7 @@ export async function fetchTokenBalance(
       const val = parseFloat(b.quantity_normalized);
       return sum + (Number.isNaN(val) ? 0 : val);
     }, 0).toString(),
-    asset_info: balances[0].asset_info,
+    asset_info: balances[0]!.asset_info,
   };
 }
 

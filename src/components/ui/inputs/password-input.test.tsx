@@ -111,7 +111,7 @@ describe('PasswordInput', () => {
     fireEvent.change(input, { target: { value: 'test123' } });
     
     expect(handleChange).toHaveBeenCalled();
-    expect(handleChange.mock.calls[0][0].target.value).toBe('test123');
+    expect(handleChange.mock.calls[0]![0].target.value).toBe('test123');
   });
 
   it('should not toggle visibility when disabled', () => {

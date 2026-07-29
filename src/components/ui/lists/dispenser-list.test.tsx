@@ -237,7 +237,7 @@ describe('DispenserList', () => {
   });
 
   it('handles single dispenser', () => {
-    const singleDispenser = [mockDispensers[0]];
+    const singleDispenser = [mockDispensers[0]!];
 
     render(
       <DispenserList

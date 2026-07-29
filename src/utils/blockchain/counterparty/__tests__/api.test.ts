@@ -468,7 +468,7 @@ describe('counterparty/api.ts', () => {
           }),
         })
       );
-      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
+      expect(mockedApiClient.get.mock.calls[0]![1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should handle custom options', async () => {
@@ -496,7 +496,7 @@ describe('counterparty/api.ts', () => {
           }),
         })
       );
-      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
+      expect(mockedApiClient.get.mock.calls[0]![1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should throw CounterpartyApiError on network error', async () => {
@@ -605,7 +605,7 @@ describe('counterparty/api.ts', () => {
           }),
         })
       );
-      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
+      expect(mockedApiClient.get.mock.calls[0]![1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should return null for non-existent order', async () => {
@@ -643,7 +643,7 @@ describe('counterparty/api.ts', () => {
           }),
         })
       );
-      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
+      expect(mockedApiClient.get.mock.calls[0]![1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should throw CounterpartyApiError on network error', async () => {
@@ -674,7 +674,7 @@ describe('counterparty/api.ts', () => {
           }),
         })
       );
-      expect(mockedApiClient.get.mock.calls[0][1]?.params).not.toHaveProperty('show_unconfirmed');
+      expect(mockedApiClient.get.mock.calls[0]![1]?.params).not.toHaveProperty('show_unconfirmed');
     });
 
     it('should return null for non-existent transaction', async () => {

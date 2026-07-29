@@ -178,7 +178,7 @@ function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array):
   const txidBytes = hex.decode(toSpendTxId);
   const reversedTxid = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
-    reversedTxid[i] = txidBytes[31 - i];
+    reversedTxid[i] = txidBytes[31 - i]!;
   }
   parts.push(reversedTxid);
 
@@ -278,21 +278,21 @@ function calculateLegacySighashManual(
  */
 function encodeDER(r: Uint8Array, s: Uint8Array): Uint8Array {
   // Remove leading zeros
-  while (r.length > 1 && r[0] === 0 && (r[1] & 0x80) === 0) {
+  while (r.length > 1 && r[0] === 0 && (r[1]! & 0x80) === 0) {
     r = r.slice(1);
   }
-  while (s.length > 1 && s[0] === 0 && (s[1] & 0x80) === 0) {
+  while (s.length > 1 && s[0] === 0 && (s[1]! & 0x80) === 0) {
     s = s.slice(1);
   }
 
   // Add padding if high bit is set
-  if (r[0] & 0x80) {
+  if (r[0]! & 0x80) {
     const padded = new Uint8Array(r.length + 1);
     padded[0] = 0;
     padded.set(r, 1);
     r = padded;
   }
-  if (s[0] & 0x80) {
+  if (s[0]! & 0x80) {
     const padded = new Uint8Array(s.length + 1);
     padded[0] = 0;
     padded.set(s, 1);
@@ -403,7 +403,7 @@ function calculateWitnessV0SighashManual(
   const txidBytes = hex.decode(toSpendTxId);
   const reversedTxid = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
-    reversedTxid[i] = txidBytes[31 - i];
+    reversedTxid[i] = txidBytes[31 - i]!;
   }
   const prevout = new Uint8Array(36);
   prevout.set(reversedTxid, 0);
@@ -587,7 +587,7 @@ function parseWitnessStack(witnessData: Uint8Array): Uint8Array[] | null {
   try {
     if (witnessData.length < 1) return null;
 
-    const stackItemCount = witnessData[0];
+    const stackItemCount = witnessData[0]!;
     if (stackItemCount === 0) return [];
 
     const items: Uint8Array[] = [];
@@ -595,7 +595,7 @@ function parseWitnessStack(witnessData: Uint8Array): Uint8Array[] | null {
 
     for (let i = 0; i < stackItemCount && offset < witnessData.length; i++) {
       // For witness stack, we use simple byte length
-      const itemLength = witnessData[offset];
+      const itemLength = witnessData[offset]!;
       offset += 1;
 
       if (offset + itemLength > witnessData.length) return null;
@@ -631,12 +631,12 @@ export async function verifyBIP322Signature(
 
       if (parts.length === 2) {
         // Extended format with public key
-        if (parts[0].length !== 128 || parts[1].length !== 64) {
+        if (parts[0]!.length !== 128 || parts[1]!.length !== 64) {
           return false;
         }
 
-        const sigBytes = hex.decode(parts[0]);
-        const providedPubKey = hex.decode(parts[1]);
+        const sigBytes = hex.decode(parts[0]!);
+        const providedPubKey = hex.decode(parts[1]!);
 
         // Verify signature with provided untweaked key
         const isValid = secp256k1.schnorr.verify(sigBytes, messageHash, providedPubKey);
@@ -667,8 +667,8 @@ export async function verifyBIP322Signature(
     }
 
     // Extract signature and public key
-    const sigDER = witnessStack[0];
-    const pubkey = witnessStack[1];
+    const sigDER = witnessStack[0]!;
+    const pubkey = witnessStack[1]!;
 
     // Verify the public key matches the address
     let derivedAddress: string;
@@ -785,13 +785,13 @@ function parseDERSignature(der: Uint8Array): Uint8Array | null {
 
     // Parse r
     if (der[offset] !== 0x02) return null;
-    const rLen = der[offset + 1];
+    const rLen = der[offset + 1]!;
     const r = der.slice(offset + 2, offset + 2 + rLen);
     offset += 2 + rLen;
 
     // Parse s
     if (der[offset] !== 0x02) return null;
-    const sLen = der[offset + 1];
+    const sLen = der[offset + 1]!;
     const s = der.slice(offset + 2, offset + 2 + sLen);
 
     // Remove padding and ensure 32 bytes
@@ -841,8 +841,8 @@ export async function parseBIP322Signature(signature: string): Promise<{
     if (signature.startsWith('tr:')) {
       const sigData = signature.slice(3);
       const parts = sigData.split(':');
-      if (parts.length === 2 && parts[0].length === 128 && parts[1].length === 64) {
-        return { type: 'taproot', data: hex.decode(parts[0]) };
+      if (parts.length === 2 && parts[0]!.length === 128 && parts[1]!.length === 64) {
+        return { type: 'taproot', data: hex.decode(parts[0]!) };
       } else if (sigData.length === 128) {
         return { type: 'taproot', data: hex.decode(sigData) };
       }
@@ -852,13 +852,13 @@ export async function parseBIP322Signature(signature: string): Promise<{
     try {
       const decoded = base64.decode(signature);
       if (decoded.length === 65) {
-        const flag = decoded[0];
+        const flag = decoded[0]!;
         if (flag >= 27 && flag <= 34) {
           return { type: 'legacy', data: decoded };
         } else if (flag >= 35 && flag <= 42) {
           return { type: 'segwit', data: decoded };
         }
-      } else if (decoded.length > 3 && decoded[0] >= 2) {
+      } else if (decoded.length > 3 && decoded[0]! >= 2) {
         return { type: 'segwit', data: decoded };
       }
     } catch {
