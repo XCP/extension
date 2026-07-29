@@ -476,6 +476,32 @@ describe('signPSBT', () => {
       .toThrow(/unsupported sighash/i);
   });
 
+  it('best-effort skips a bad-sighash input instead of aborting the whole PSBT', () => {
+    // Two inputs: index 0 signable with ALL, index 1 embeds NONE. In
+    // best-effort mode (no explicit indices) the bad-sighash input must be
+    // skipped, not abort signing of input 0.
+    const payment = p2wpkh(getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true));
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: { script: payment.script, amount: BigInt(100000) },
+    });
+    tx.addInput({
+      txid: hexToBytes('1'.repeat(64)),
+      index: 1,
+      witnessUtxo: { script: payment.script, amount: BigInt(100000) },
+      sighashType: 0x02,
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(150000));
+    const psbtHex = bytesToHex(tx.toPSBT());
+
+    const signed = signPSBT(psbtHex, TEST_PRIVATE_KEY, [], AddressFormat.P2WPKH);
+    const result = parsePSBT(signed);
+    expect(result.getInput(0).partialSig).toHaveLength(1);
+    expect(result.getInput(1).partialSig ?? []).toHaveLength(0);
+  });
+
   it('refuses a legacy input backed only by a bare witnessUtxo', () => {
     // A P2PKH input with a witnessUtxo declaring an arbitrary amount but no
     // previous transaction — the forged-amount vector.

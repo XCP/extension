@@ -411,8 +411,11 @@ export function signPSBT(
       const requestedSighashType = sighashTypes?.[inputIdx];
       const sighashType = resolvePsbtSighashType(requestedSighashType, input.sighashType);
       // Enforce the allowlist on the EFFECTIVE sighash, so an embedded
-      // SIGHASH_NONE/SINGLE can't bypass the explicit-parameter check.
+      // SIGHASH_NONE/SINGLE can't bypass the explicit-parameter check. In
+      // best-effort mode the input may be a co-signer's, so skip it; with
+      // explicit indices the caller asked to sign it, so fail closed.
       if (!ALLOWED_PSBT_SIGHASH_TYPES.has(sighashType)) {
+        if (bestEffort) continue;
         throw new ValidationError(
           'INVALID_PSBT',
           `Refusing to sign input ${inputIdx} with unsupported sighash type 0x${sighashType.toString(16)}`
