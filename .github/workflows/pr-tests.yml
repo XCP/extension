@@ -157,8 +157,20 @@ jobs:
           exit 1
 
       - name: Install Playwright system dependencies
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium
+        timeout-minutes: 8
+        run: |
+          # apt can stall on a slow Ubuntu mirror while fetching fonts; retry
+          # so a stalled mirror fails in minutes instead of timing out the step.
+          for attempt in 1 2 3; do
+            if npx playwright install-deps chromium; then
+              exit 0
+            fi
+            echo "install-deps attempt $attempt failed; retrying..."
+            sudo apt-get clean || true
+            sleep $((attempt * 10))
+          done
+          echo "install-deps failed after 3 attempts"
+          exit 1
 
       - name: Configure Xvfb (MetaMask style)
         run: |
