@@ -10,6 +10,8 @@ Self-reported security assessment based on industry checklists.
 
 **Independent Audit:** Not yet completed. We intend to pursue a professional audit when funding allows.
 
+**Internal Review:** July 2026 — code-verified review of the cryptography, session, storage, and secret-handling layers against this checklist. Findings were remediated and this document updated to match the code.
+
 **Automated Analysis:** The encryption module has been analyzed with Trail of Bits security tools:
 
 | Tool | Scope | Result |
@@ -33,7 +35,7 @@ Self-reported security assessment based on industry checklists.
 | **Disk attacker** (stolen device, malware reading files) | All secrets encrypted at rest with AES-256-GCM |
 | **Brute-force password attack** | PBKDF2 with 600K iterations, rate limiting |
 | **Malicious dApp** | Origin validation, explicit approval for all signing |
-| **Supply chain attack** | Minimal deps (12), exact version pins, npm audit CI |
+| **Supply chain attack** | Minimal deps (13), exact version pins, npm audit CI |
 | **Memory inspection** (while unlocked) | Auto-lock timeout, session cleared on lock |
 | **Replay attacks** | Nonce tracking, transaction deduplication |
 
@@ -85,11 +87,11 @@ Self-reported security assessment based on industry checklists.
 | ✅ | Use CSPRNG for all randomness | `crypto.getRandomValues()` for salts, IVs, keys |
 | ✅ | High iteration key derivation | PBKDF2 with 600,000 iterations |
 | ✅ | Use audited crypto libraries | Noble/Scure family (Cure53 audited) |
-| ✅ | Domain separation for keys | HKDF with distinct contexts per key type |
-| ✅ | Random salt per encryption | 16-byte random salt generated each time |
+| ⚪ | HKDF domain separation | Superseded by the unified keychain (ADR-015): one PBKDF2 master key; each wallet secret individually encrypted, then the keychain blob encrypted again |
+| ✅ | Random salt per password | 16-byte random salt at keychain creation and password change |
 | ✅ | Random IV per encryption | 12-byte random IV for each operation |
 | ✅ | Timing attack mitigation | Random delays (0-10ms) on decryption |
-| ✅ | Keys zeroed after use | Best-effort overwrite with zeros |
+| ✅ | Key buffers zeroed after use | Password and signing key bytes zeroed in finally blocks |
 | ⚠️ | Memory clearing | JS limitation—V8 may retain copies (ADR-001) |
 | ⚪ | HSM/hardware key storage | Not applicable—browser extension |
 | ⚪ | Key rotation | Not applicable—user controls keys |
@@ -110,11 +112,11 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Idle timeout | Configurable 1-30 minute auto-lock |
+| ✅ | Idle timeout | Configurable 1-30 minute auto-lock; alarm re-armed on service worker startup |
 | ✅ | Absolute timeout | 8-hour maximum session duration |
-| ✅ | Re-auth after restart | Service worker restart requires unlock |
-| ✅ | Rate limiting on unlock | 5 attempts per minute per origin |
-| ✅ | Session stored server-side only | Keys in memory, never in storage unlocked |
+| ✅ | Re-auth after browser restart | Session storage cleared on browser close; service worker restarts keep the session by design (see Known Limitations) |
+| ✅ | Rate limiting on unlock | 5 failed attempts per minute, persisted across service worker restarts |
+| ✅ | Secrets never on disk | Decrypted secrets in memory; master key in memory-backed chrome.storage.session |
 | ✅ | Logout clears session | `clearAllUnlockedSecrets()` on lock |
 | ⚪ | Cookie security attributes | Not applicable—no cookies used |
 | ⚪ | Session ID entropy | Not applicable—no session tokens |
@@ -124,7 +126,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | Status | Item | Implementation |
 |--------|------|----------------|
 | ✅ | Minimum password length | 8 characters enforced |
-| ✅ | Rate limiting on attempts | Tiered: 5-500 requests/min |
+| ✅ | Rate limiting on attempts | Unlock: 5 failed/min persisted; provider API tiered 5-500 requests/min |
 | ✅ | Generic error messages | No oracle attacks via error text |
 | ⚠️ | Password complexity | Length only—no uppercase/symbol requirements |
 | ⚠️ | 2FA/PIN for sensitive actions | Password required, no separate 2FA |
@@ -139,8 +141,8 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | CSP enforced | MV3 strict default, no unsafe-eval |
 | ✅ | No hardcoded secrets | Scanned with gitleaks patterns |
 | ✅ | Dependency version pinning | Exact versions in package.json |
-| ✅ | npm audit clean | 0 vulnerabilities |
-| ✅ | Console stripping in prod | `vite-plugin-remove-console` removes log/error |
+| ✅ | npm audit clean | 0 high/critical outside the documented @trezor/elliptic acceptance; gated in CI |
+| ✅ | Console stripping in prod | esbuild `drop` removes all console.* calls |
 | ✅ | Content script isolation | Separate injected.js, content.js contexts |
 | ✅ | XSS protection | Input sanitization, no innerHTML with user data |
 | ✅ | Clickjacking protection | postMessage origin validation |
@@ -191,7 +193,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 |--------|------|----------------|
 | ✅ | Full message display | Transaction details shown before signing |
 | ✅ | User-initiated clipboard | Copy only on explicit user action |
-| ✅ | Clipboard auto-clear | 30-second auto-clear after copy |
+| ✅ | Clipboard auto-clear | 30-second auto-clear (including private key copy); a pending clear fires on navigation |
 | ❌ | Screenshot prevention | Not possible in browser extensions |
 | ⚪ | Custom keyboard blocking | Not applicable—browser extensions |
 | ⚪ | Jailbreak/root detection | Not applicable—desktop browser |
@@ -211,7 +213,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 |--------|------|----------------|
 | ✅ | Opt-out available | Users can disable in Settings > Advanced |
 | ✅ | Firefox consent integration | Respects Firefox 140+ built-in data collection consent |
-| ✅ | Path sanitization | Dynamic params stripped (wallet IDs, asset names, tx hashes) |
+| ✅ | Path sanitization | Dynamic params stripped (wallet IDs, asset names, tx hashes); data-shaped segments on unlisted routes truncated (fail closed) |
 | ✅ | No query strings | Empty `qs: {}` sent; no UTM/marketing params |
 | ✅ | No referrer tracking | Empty `r: ''` for all events |
 | ✅ | No persistent user IDs | Random `cid` per request; no cookies/localStorage IDs |
@@ -220,7 +222,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Self-hosted script | Bundled directly; no third-party JS execution |
 | ⚪ | User identification | Not supported—by design |
 
-**Events tracked:** `compose`, `broadcast`, `consolidate`, `compose_error`, `broadcast_error`, `not_found`, connection events.
+**Events tracked:** `compose`, `broadcast`, `consolidate` and its eligibility funnel, categorized error events (`compose_error_<category>`, `broadcast_error_<category>`, `consolidate_error_<category>` — categories only, never messages), `not_found`, connection events.
 
 **BTC bucketing:** Amounts are bucketed (dust/micro/tiny/small/medium/large/whale/mega) to understand volume without revealing exact values that could correlate with on-chain data.
 
@@ -231,7 +233,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Exact version pinning | No wildcards in package.json |
 | ✅ | Lockfile integrity | package-lock.json with hashes |
 | ✅ | npm audit CI | Runs on every PR |
-| ✅ | Minimal dependencies | 12 runtime deps (most wallets have 50+) |
+| ✅ | Minimal dependencies | 13 runtime deps (most wallets have 50+) |
 | ⚪ | Dependency confusion | Not applicable—no private packages |
 
 ## Hardware Wallet Security
@@ -274,7 +276,11 @@ Browser extensions cannot prevent OS-level screenshots. Users should be aware th
 
 ### Clipboard Auto-Clear
 
-Clipboard is automatically cleared 30 seconds after copying. However, if the extension is closed before the timer fires, the data remains in clipboard until manually overwritten.
+Clipboard is automatically cleared 30 seconds after copying, and a pending clear fires immediately when navigating within the extension. However, if the extension window is closed before the timer fires, the clear cannot run and the data remains in clipboard until manually overwritten.
+
+### Service Worker Session Persistence
+
+The derived master key is cached in memory-backed `chrome.storage.session` so MV3 service worker restarts (which occur after ~30 seconds of idle) do not prompt for the password — requiring re-auth per restart would mean password entry many times per hour. The cache never touches disk, is unreadable from web pages and content scripts, and is cleared on lock, auto-lock, and browser close. While unlocked it is password-equivalent capability; the mitigations are the auto-lock timeout and the 8-hour absolute session cap.
 
 ### Password Policy
 
@@ -298,14 +304,14 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-001 | JavaScript memory clearing limitations | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
 | ADR-002 | No automatic key refresh during session | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
 | ADR-003 | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
-| ADR-004 | Promise-based write mutex for storage | [storage.ts](src/utils/storage/storage.ts) |
+| ADR-004 | Promise-based write mutex for storage | [mutex.ts](src/utils/storage/mutex.ts) |
 | ADR-005 | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
 | ADR-006 | Request callbacks lost on service worker restart | [RequestManager.ts](src/services/core/RequestManager.ts) |
 | ADR-007 | Distributed request state design | [approvalService.ts](src/services/approvalService.ts) |
-| ADR-008 | Storage error handling pattern | [storage.ts](src/utils/storage/storage.ts) |
-| ADR-009 | Key derivation with HKDF domain separation | [settings.ts](src/utils/encryption/settings.ts) |
+| ADR-008 | Storage error handling pattern | [walletStorage.ts](src/utils/storage/walletStorage.ts) |
+| ADR-009 | Key derivation with HKDF domain separation — superseded by ADR-015 | [walletManager.ts](src/utils/wallet/walletManager.ts) |
 | ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/utils/storage/requestStorage.ts) |
-| ADR-011 | Isolated wallet and settings storage | [storage.ts](src/utils/storage/storage.ts) |
+| ADR-011 | Isolated wallet and settings storage | [walletStorage.ts](src/utils/storage/walletStorage.ts) |
 | ADR-012 | Type organization and extraction strategy | [types/index.ts](src/types/index.ts) |
 | ADR-013 | Constants organization strategy | [wallet/constants.ts](src/utils/wallet/constants.ts) |
 | ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/utils/encryption/encryption.ts) |
@@ -320,7 +326,7 @@ This is not true constant-time code. For higher-security applications, constant-
 
 | Category | ✅ | ⚠️ | ❌ | ⚪ |
 |----------|-----|-----|-----|-----|
-| Cryptography | 10 | 1 | 0 | 2 |
+| Cryptography | 9 | 1 | 0 | 3 |
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
 | Extension | 10 | 1 | 0 | 2 |
@@ -332,6 +338,6 @@ This is not true constant-time code. For higher-security applications, constant-
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **82** | **5** | **2** | **11** |
+| **Total** | **81** | **5** | **2** | **12** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
