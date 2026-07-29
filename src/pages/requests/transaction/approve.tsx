@@ -13,6 +13,7 @@ import { useHeader } from '@/contexts/header-context';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 
 /**
@@ -348,12 +349,8 @@ export default function ApproveTransactionPage() {
     .filter(({ input }) => input.address &&
       normalizeAddressForComparison(input.address) === normalizeAddressForComparison(activeAddress.address))
     .map(({ index }) => index);
-  const signedInputsWithAssets = signerInputIndices
-    .map(index => attachedByInput.get(index))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && entry.assets.length > 0);
-  const signedInputsUnknownStatus = signerInputIndices
-    .map(index => attachedByInput.get(index))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && !!entry.lookupFailed);
+  const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
+    classifySignedInputAssets(decodedInfo.attachedAssets, signerInputIndices);
 
   return (
     <div className="flex flex-col h-full bg-gray-50">

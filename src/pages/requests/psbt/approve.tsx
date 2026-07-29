@@ -16,6 +16,7 @@ import { getConnectionService } from '@/services/connectionService';
 import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
+import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
@@ -256,14 +257,8 @@ export default function ApprovePsbtPage() {
         .filter(input => input.address && normalizeAddressForComparison(input.address)
           === normalizeAddressForComparison(activeAddress.address))
         .map(input => input.index);
-  // Signed inputs that carry Counterparty assets: signing moves the assets, not just BTC.
-  const signedInputsWithAssets = requestedInputIndices
-    .map(index => attachedByInput.get(index))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && entry.assets.length > 0);
-  // Signed inputs whose balance lookup failed: asset status is unknown, not confirmed clean.
-  const signedInputsUnknownStatus = requestedInputIndices
-    .map(index => attachedByInput.get(index))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && !!entry.lookupFailed);
+  const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
+    classifySignedInputAssets(attachedAssets, requestedInputIndices);
   const effectiveSighashes = requestedInputIndices.map(index => ({
     index,
     type: resolvePsbtSighashType(

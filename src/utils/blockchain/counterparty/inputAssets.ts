@@ -70,3 +70,29 @@ export async function fetchInputsAttachedAssets(
 
   return results.filter((r): r is InputAttachedAssets => r !== null);
 }
+
+export interface SignedInputAssetSummary {
+  /** Signed inputs whose UTXOs carry assets — signing moves them. */
+  withAssets: InputAttachedAssets[];
+  /** Signed inputs whose lookup failed — asset status unknown, not confirmed clean. */
+  unknownStatus: InputAttachedAssets[];
+}
+
+/**
+ * From the attached-asset entries and the indices of the inputs the wallet is
+ * about to sign, split out the signed inputs that carry assets from those whose
+ * lookup failed. Inputs the user isn't signing, or confirmed empty, are ignored.
+ */
+export function classifySignedInputAssets(
+  attachedAssets: InputAttachedAssets[],
+  signedInputIndices: number[]
+): SignedInputAssetSummary {
+  const byIndex = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
+  const signed = signedInputIndices
+    .map((index) => byIndex.get(index))
+    .filter((entry): entry is InputAttachedAssets => entry !== undefined);
+  return {
+    withAssets: signed.filter((entry) => entry.assets.length > 0),
+    unknownStatus: signed.filter((entry) => !!entry.lookupFailed),
+  };
+}

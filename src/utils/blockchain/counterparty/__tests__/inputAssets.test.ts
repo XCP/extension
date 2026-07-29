@@ -1,5 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { fetchInputsAttachedAssets, MAX_ASSET_LOOKUP_INPUTS } from '../inputAssets';
+import {
+  fetchInputsAttachedAssets,
+  classifySignedInputAssets,
+  MAX_ASSET_LOOKUP_INPUTS,
+  type InputAttachedAssets,
+} from '../inputAssets';
 import { fetchUtxoBalances } from '@/utils/blockchain/counterparty/api';
 
 vi.mock('@/utils/blockchain/counterparty/api');
@@ -112,5 +117,44 @@ describe('fetchInputsAttachedAssets', () => {
     expect(assets[0]!.assets).toEqual([
       { asset: 'XCP', quantity_normalized: '5.00000000', asset_longname: null },
     ]);
+  });
+});
+
+describe('classifySignedInputAssets', () => {
+  const withAsset = (inputIndex: number): InputAttachedAssets => ({
+    inputIndex,
+    utxo: `tx:${inputIndex}`,
+    assets: [{ asset: 'XCP', quantity_normalized: '1', asset_longname: null }],
+  });
+  const failed = (inputIndex: number): InputAttachedAssets => ({
+    inputIndex,
+    utxo: `tx:${inputIndex}`,
+    assets: [],
+    lookupFailed: true,
+  });
+
+  it('splits signed inputs into with-assets and unknown-status', () => {
+    const r = classifySignedInputAssets([withAsset(0), failed(1)], [0, 1]);
+    expect(r.withAssets.map(e => e.inputIndex)).toEqual([0]);
+    expect(r.unknownStatus.map(e => e.inputIndex)).toEqual([1]);
+  });
+
+  it('ignores assets on inputs the wallet is not signing', () => {
+    const r = classifySignedInputAssets([withAsset(2), failed(3)], [0, 1]);
+    expect(r.withAssets).toEqual([]);
+    expect(r.unknownStatus).toEqual([]);
+  });
+
+  it('treats a signed input with no entry as clean (in neither list)', () => {
+    const r = classifySignedInputAssets([], [0, 1]);
+    expect(r.withAssets).toEqual([]);
+    expect(r.unknownStatus).toEqual([]);
+  });
+
+  it('classifies only the signed subset when some inputs carry assets and others fail', () => {
+    // index 0 assets (signed), 1 failed (signed), 2 assets (NOT signed)
+    const r = classifySignedInputAssets([withAsset(0), failed(1), withAsset(2)], [0, 1]);
+    expect(r.withAssets.map(e => e.inputIndex)).toEqual([0]);
+    expect(r.unknownStatus.map(e => e.inputIndex)).toEqual([1]);
   });
 });
