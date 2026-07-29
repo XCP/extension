@@ -46,9 +46,9 @@
     "webext-bridge": "6.0.1"
   },
   "overrides": {
-    "fx-runner": "1.5.0",
-    "protobufjs": "7.6.4",
-    "tmp": "0.2.7",
+    "@vitejs/plugin-react": "5.2.0",
+    "postcss": "8.5.18",
+    "protobufjs": "7.6.5",
     "ws": "8.21.0",
     "axios": "1.18.1"
   },
@@ -70,7 +70,6 @@
     "typescript": "7.0.2",
     "vite": "7.3.6",
     "vitest": "4.1.10",
-    "web-ext": "10.5.0",
     "wxt": "0.21.2"
   }
 }
