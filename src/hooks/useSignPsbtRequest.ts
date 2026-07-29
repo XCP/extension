@@ -39,6 +39,12 @@ export interface InputAttachedAssets {
   inputIndex: number;
   /** UTXO identifier (txid:vout). */
   utxo: string;
+  /**
+   * True when the balance lookup itself failed, so the asset status is unknown
+   * rather than a confirmed empty. Surfaced separately in the UI so a network
+   * or rate-limit failure is not shown as "no assets."
+   */
+  lookupFailed?: boolean;
   assets: Array<{
     asset: string;
     quantity_normalized: string;
@@ -50,9 +56,10 @@ export interface InputAttachedAssets {
 export const MAX_ASSET_LOOKUP_INPUTS = 30;
 
 /**
- * Look up the Counterparty assets attached to each input's UTXO, returning only
- * the inputs that carry assets. A failed lookup yields no assets for that input
- * rather than blocking: this enriches the display, it is not a signing gate.
+ * Look up the Counterparty assets attached to each input's UTXO. Returns an
+ * entry for every input that carries assets or whose lookup failed; inputs
+ * confirmed empty are omitted. A failed lookup is reported (lookupFailed) rather
+ * than silently treated as empty, and never blocks signing.
  */
 export async function fetchInputsAttachedAssets(
   inputs: Array<{ index: number; txid: string; vout: number }>
@@ -76,11 +83,10 @@ export async function fetchInputsAttachedAssets(
             quantity_normalized: b.quantity_normalized,
             asset_longname: b.asset_info?.asset_longname ?? null,
           }));
-        if (assets.length === 0) return null;
-        return { inputIndex: input.index, utxo, assets };
+        return assets.length > 0 ? { inputIndex: input.index, utxo, assets } : null;
       } catch (err) {
         console.warn(`Failed to fetch attached assets for ${utxo}:`, err);
-        return null;
+        return { inputIndex: input.index, utxo, assets: [], lookupFailed: true };
       }
     })
   );

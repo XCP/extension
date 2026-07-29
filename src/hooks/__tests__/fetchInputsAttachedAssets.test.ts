@@ -55,10 +55,28 @@ describe('fetchInputsAttachedAssets', () => {
     expect(assets[0]!.assets[0]!.asset_longname).toBe('MYPROJECT.RARE');
   });
 
-  it('treats a failed lookup as no assets rather than throwing', async () => {
+  it('reports a failed lookup as unknown status, not as clean', async () => {
     mockedFetch.mockRejectedValue(new Error('indexer down'));
 
-    await expect(fetchInputsAttachedAssets([input(0)])).resolves.toEqual([]);
+    const result = await fetchInputsAttachedAssets([input(0)]);
+    expect(result).toEqual([
+      { inputIndex: 0, utxo: `${input(0).txid}:0`, assets: [], lookupFailed: true },
+    ]);
+  });
+
+  it('omits inputs confirmed empty but keeps ones that failed', async () => {
+    mockedFetch.mockImplementation(async (utxo: string) => {
+      if (utxo.startsWith('aaaa')) throw new Error('rate limited');
+      return page([]); // confirmed empty
+    });
+
+    const result = await fetchInputsAttachedAssets([
+      input(0, 'aaaa'.repeat(16)), // failed -> kept as unknown
+      input(1, 'bbbb'.repeat(16)), // clean  -> omitted
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ inputIndex: 0, lookupFailed: true, assets: [] });
   });
 
   it('builds the UTXO string as txid:vout in display order', async () => {

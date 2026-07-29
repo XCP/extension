@@ -259,7 +259,11 @@ export default function ApprovePsbtPage() {
   // Signed inputs that carry Counterparty assets: signing moves the assets, not just BTC.
   const signedInputsWithAssets = requestedInputIndices
     .map(index => attachedByInput.get(index))
-    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined);
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && entry.assets.length > 0);
+  // Signed inputs whose balance lookup failed: asset status is unknown, not confirmed clean.
+  const signedInputsUnknownStatus = requestedInputIndices
+    .map(index => attachedByInput.get(index))
+    .filter((entry): entry is NonNullable<typeof entry> => entry !== undefined && !!entry.lookupFailed);
   const effectiveSighashes = requestedInputIndices.map(index => ({
     index,
     type: resolvePsbtSighashType(
@@ -545,7 +549,7 @@ export default function ApprovePsbtPage() {
                         <div className="text-gray-400 truncate" title={input.txid}>
                           {input.txid.slice(0, 8)}...:{input.vout}
                         </div>
-                        {inputAssets && inputAssets.assets.map((asset) => (
+                        {inputAssets?.assets.map((asset) => (
                           <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
                             <span className="truncate" title={asset.asset_longname ?? asset.asset}>
                               {asset.asset_longname ?? asset.asset}
@@ -553,6 +557,9 @@ export default function ApprovePsbtPage() {
                             <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
                           </div>
                         ))}
+                        {inputAssets?.lookupFailed && (
+                          <div className="mt-1 text-amber-600">Asset status unavailable</div>
+                        )}
                       </div>
                       );
                     })}
@@ -625,6 +632,28 @@ export default function ApprovePsbtPage() {
                         </li>
                       ))
                     )}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Asset status unknown: a signed input's balance lookup failed */}
+          {signedInputsUnknownStatus.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-start">
+                <FiAlertTriangle className="size-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Couldn't verify asset status</p>
+                  <p className="text-xs mt-1">
+                    The balance lookup failed for {signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you
+                    are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust
+                    this transaction.
+                  </p>
+                  <ul className="mt-2 space-y-1 text-xs font-medium">
+                    {signedInputsUnknownStatus.map(entry => (
+                      <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
+                    ))}
                   </ul>
                 </div>
               </div>
