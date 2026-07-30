@@ -16,6 +16,8 @@ interface BannerProps {
   /** Override the default per-severity icon. */
   icon?: IconComponent;
   className?: string;
+  /** Root element id, e.g. so a form can point `aria-describedby` at the banner. */
+  id?: string;
 }
 
 /*
@@ -37,11 +39,11 @@ const SEVERITY: Record<BannerSeverity, { container: string; icon: string; text: 
  * Layout and spacing match the prior markup so it is a drop-in; severity picks
  * the semantic color and default icon.
  */
-export const Banner = memo<BannerProps>(({ severity, title, description, children, icon, className = '' }) => {
+export const Banner = memo<BannerProps>(({ severity, title, description, children, icon, className = '', id }) => {
   const s = SEVERITY[severity];
   const Icon = icon ?? s.Icon;
   return (
-    <div className={`rounded-lg border p-4 ${s.container} ${className}`}>
+    <div id={id} className={`rounded-lg border p-4 ${s.container} ${className}`}>
       <div className="flex items-start">
         <Icon className={`size-5 ${s.icon} mt-0.5 mr-2 flex-shrink-0`} aria-hidden="true" />
         <div className={`text-sm ${s.text}`}>

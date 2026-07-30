@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { FiAlertTriangle } from '@/components/icons';
+import { Banner } from '@/components/ui/banner';
 import { Button } from '@/components/ui/button';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
@@ -62,18 +62,11 @@ function ImportTestAddressPage() {
     <div className="h-full flex flex-col">
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-4">
-          {/* Warning Banner */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <FiAlertTriangle className="size-4 text-amber-600 mt-0.5 flex-shrink-0" aria-hidden="true" />
-              <div>
-                <h2 className="font-semibold text-amber-900">Development Mode</h2>
-                <p className="text-sm text-amber-800 mt-1">
-                  This creates a watch-only wallet for testing. You cannot sign or broadcast transactions.
-                </p>
-              </div>
-            </div>
-          </div>
+          <Banner
+            severity="warning"
+            title="Development Mode"
+            description="This creates a watch-only wallet for testing. You cannot sign or broadcast transactions."
+          />
           
           {/* Input Field */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">

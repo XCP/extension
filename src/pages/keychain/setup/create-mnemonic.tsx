@@ -1,5 +1,6 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { FaEyeSlash, FiRefreshCw } from "@/components/icons";
@@ -163,6 +164,13 @@ function CreateMnemonicPage() {
               </div>
             )}
           </div>
+          {isRecoveryPhraseVisible && (
+            <Banner
+              severity="warning"
+              title="Keep this private"
+              description="Never share your recovery phrase. Anyone with these 12 words can steal your funds."
+            />
+          )}
           <CheckboxInput
             name="confirmed"
             label="I have saved my secret recovery phrase."

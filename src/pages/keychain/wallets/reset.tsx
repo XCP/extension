@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate } from "react-router";
-import { FaExclamationTriangle } from "@/components/icons";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
@@ -71,15 +71,13 @@ function ResetWalletPage() {
       <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">Reset Wallet</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="reset-wallet-warning">
-        <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6" id="reset-wallet-warning">
-          <div className="flex items-center mb-4">
-            <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
-            <h2 className="text-xl font-bold text-red-700">Warning</h2>
-          </div>
-          <p className="text-red-700 font-medium leading-relaxed">
-            Resetting your wallet will delete all wallet data. This action cannot be undone.
-          </p>
-        </div>
+        <Banner
+          id="reset-wallet-warning"
+          severity="danger"
+          className="max-w-md w-full mb-6"
+          title="This can't be undone"
+          description="Resetting your wallet will delete all wallet data. This action cannot be undone."
+        />
         <div className="w-full max-w-md space-y-4">
           <PasswordInput
             name="password"

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useParams, useNavigate } from "react-router";
-import { FaExclamationTriangle } from "@/components/icons";
+import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
@@ -85,15 +85,12 @@ export default function ShowPassphrasePage(): ReactElement {
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
-          <div className="max-w-md w-full bg-red-50 border-2 border-red-500 rounded-xl p-6 mb-6">
-            <div className="flex items-center mb-4">
-              <FaExclamationTriangle className="size-6 text-red-500 mr-2" aria-hidden="true" />
-              <h2 className="text-xl font-bold text-red-700">Warning</h2>
-            </div>
-            <p className="text-red-700 font-medium leading-relaxed">
-              Never share your recovery phrase with anyone. Anyone with these words can steal your funds!
-            </p>
-          </div>
+          <Banner
+            severity="warning"
+            className="max-w-md w-full mb-6"
+            title="Keep your recovery phrase private"
+            description="Never share it with anyone. Anyone with these words can steal your funds."
+          />
           <div className="w-full max-w-md space-y-4">
             <PasswordInput
               name="password"
@@ -129,15 +126,11 @@ export default function ShowPassphrasePage(): ReactElement {
                 ))}
               </ol>
             </div>
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-              <div className="flex items-center space-x-2 mb-2">
-                <FaExclamationTriangle className="size-5 text-red-500" aria-hidden="true" />
-                <p className="text-sm font-bold text-red-800">Security Notice</p>
-              </div>
-              <p className="text-sm text-red-700">
-                Never share your recovery phrase. Anyone with these 12 words can steal your bitcoin!
-              </p>
-            </div>
+            <Banner
+              severity="warning"
+              title="Keep this private"
+              description="Never share your recovery phrase. Anyone with these 12 words can steal your bitcoin."
+            />
           </div>
         </div>
       )}
