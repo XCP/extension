@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiGlobe, FiAlertTriangle, FiShieldOff, FiClock, FiChevronDown, FiChevronUp, FaCheckCircle } from '@/components/icons';
+import { FiGlobe, FiClock, FiChevronDown, FiChevronUp } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
@@ -17,6 +17,12 @@ import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
+import { Banner, type BannerSeverity } from '@/components/ui/banner';
+
+/** Map a safety-analysis severity onto a Banner severity. */
+const SAFETY_TO_BANNER: Record<string, BannerSeverity> = {
+  block: 'danger', danger: 'danger', warning: 'warning', info: 'info',
+};
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
@@ -587,72 +593,47 @@ export default function ApprovePsbtPage() {
           </div>
 
           {/* Security Warnings */}
-          {safetyWarnings.map((warning, idx) => {
-            const isBlock = warning.severity === 'block';
-            const isDanger = warning.severity === 'danger';
-            const bgColor = isBlock ? 'bg-red-50' : isDanger ? 'bg-red-50' : 'bg-orange-50';
-            const borderColor = isBlock ? 'border-red-300' : isDanger ? 'border-red-200' : 'border-orange-200';
-            const iconColor = isBlock ? 'text-red-600' : isDanger ? 'text-red-500' : 'text-orange-600';
-            const textColor = isBlock ? 'text-red-800' : isDanger ? 'text-red-700' : 'text-orange-800';
-            const Icon = isBlock || isDanger ? FiShieldOff : FiAlertTriangle;
-
-            return (
-              <div key={idx} className={`${bgColor} border ${borderColor} rounded-lg p-4`}>
-                <div className="flex items-start">
-                  <Icon className={`size-5 ${iconColor} mt-0.5 mr-2 flex-shrink-0`} aria-hidden="true" />
-                  <div className={`text-sm ${textColor}`}>
-                    <p className="font-medium">{warning.title}</p>
-                    <p className="text-xs mt-1">{warning.message}</p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {safetyWarnings.map((warning, idx) => (
+            <Banner
+              key={idx}
+              severity={SAFETY_TO_BANNER[warning.severity] ?? 'warning'}
+              title={warning.title}
+              description={warning.message}
+            />
+          ))}
 
           {/* Attached-asset warning: a signed input's UTXO holds Counterparty assets */}
           {signedInputsWithAssets.length > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-orange-800">
-                  <p className="font-medium">Spends UTXOs holding Counterparty assets</p>
-                  <p className="text-xs mt-1">
-                    Inputs you are signing carry attached assets. Signing moves them, not just BTC.
-                  </p>
-                  <ul className="mt-2 space-y-1 text-xs font-medium">
-                    {signedInputsWithAssets.flatMap(entry =>
-                      entry.assets.map(asset => (
-                        <li key={`${entry.inputIndex}-${asset.asset}`}>
-                          Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <Banner
+              severity="warning"
+              title="Spends UTXOs holding Counterparty assets"
+              description="Inputs you are signing carry attached assets. Signing moves them, not just BTC."
+            >
+              <ul className="mt-2 space-y-1 text-xs font-medium">
+                {signedInputsWithAssets.flatMap(entry =>
+                  entry.assets.map(asset => (
+                    <li key={`${entry.inputIndex}-${asset.asset}`}>
+                      Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+                    </li>
+                  ))
+                )}
+              </ul>
+            </Banner>
           )}
 
           {/* Asset status unknown: a signed input's balance lookup failed */}
           {signedInputsUnknownStatus.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FiAlertTriangle className="size-5 text-amber-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-amber-800">
-                  <p className="font-medium">Couldn't verify asset status</p>
-                  <p className="text-xs mt-1">
-                    The balance lookup failed for {signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you
-                    are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust
-                    this transaction.
-                  </p>
-                  <ul className="mt-2 space-y-1 text-xs font-medium">
-                    {signedInputsUnknownStatus.map(entry => (
-                      <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <Banner
+              severity="warning"
+              title="Couldn't verify asset status"
+              description={`The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`}
+            >
+              <ul className="mt-2 space-y-1 text-xs font-medium">
+                {signedInputsUnknownStatus.map(entry => (
+                  <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
+                ))}
+              </ul>
+            </Banner>
           )}
 
           {/* Verification Status */}
@@ -664,50 +645,35 @@ export default function ApprovePsbtPage() {
 
           {/* High Fee Warning */}
           {hasHighFee && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-orange-800">
-                  <p className="font-medium">High Network Fee</p>
-                  <p className="text-xs mt-1">This transaction has an unusually high fee. Double-check before signing.</p>
-                </div>
-              </div>
-            </div>
+            <Banner
+              severity="warning"
+              title="High Network Fee"
+              description="This transaction has an unusually high fee. Double-check before signing."
+            />
           )}
 
           {/* ANYONECANPAY warning (PSBT-specific) */}
           {userSignsWithAnyoneCanPay && (
-            <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FiAlertTriangle className="size-5 text-orange-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-orange-800">
-                  <p className="font-medium">Flexible signature rules</p>
-                  <p className="text-xs mt-1">
-                    ANYONECANPAY allows other inputs to be added or removed after you sign.
-                    SINGLE commits only to the output at the same input index. Review the paired
-                    inputs and outputs carefully.
-                  </p>
-                  <ul className="mt-2 space-y-1 text-xs font-medium">
-                    {anyoneCanPaySighashes.map(({ index, type }) => (
-                      <li key={index}>Input #{index}: {formatSighashType(type)}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
+            <Banner
+              severity="warning"
+              title="Flexible signature rules"
+              description="ANYONECANPAY allows other inputs to be added or removed after you sign. SINGLE commits only to the output at the same input index. Review the paired inputs and outputs carefully."
+            >
+              <ul className="mt-2 space-y-1 text-xs font-medium">
+                {anyoneCanPaySighashes.map(({ index, type }) => (
+                  <li key={index}>Input #{index}: {formatSighashType(type)}</li>
+                ))}
+              </ul>
+            </Banner>
           )}
 
           {/* Swap purchase info (buyer completing a swap) */}
           {swapFeeBreakdown && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-start">
-                <FaCheckCircle className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-                <div className="text-sm text-green-800">
-                  <p className="font-medium">Atomic Swap Purchase</p>
-                  <p className="text-xs mt-1">You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast.</p>
-                </div>
-              </div>
-            </div>
+            <Banner
+              severity="success"
+              title="Atomic Swap Purchase"
+              description="You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast."
+            />
           )}
         </div>
       </div>
