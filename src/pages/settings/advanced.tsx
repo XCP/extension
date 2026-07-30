@@ -61,116 +61,150 @@ export default function AdvancedSettingsPage(): ReactElement {
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
-    <div className="space-y-6 p-4 mb-2" role="main" aria-labelledby="advanced-settings-title">
+    <div className="space-y-8 p-4 mb-2" role="main" aria-labelledby="advanced-settings-title">
       <h2 id="advanced-settings-title" className="sr-only">
         Advanced Settings
       </h2>
-      
-      <Field>
-        <Label className="font-bold">Counterparty API</Label>
-        <ApiUrlInput
-          value={settings.counterpartyApiBase}
-          onChange={() => {}}
-          onValidationSuccess={async (url) => {
-            await updateSettings({ counterpartyApiBase: url });
-          }}
-          showHelpText={shouldShowHelpText}
-          className="mt-2"
-        />
-        {shouldShowHelpText && (
-          <Description className="mt-2 text-sm text-gray-500">
-            The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.2.0 or newer.
+
+      <SettingsSection id="adv-security" title="Security">
+        <Field>
+          <Label className="font-bold">Auto-Lock Timer</Label>
+          <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
+            Choose how long to wait before automatically locking your wallet.
           </Description>
-        )}
-      </Field>
+          <RadioGroup
+            value={settings.autoLockTimer}
+            onChange={(value: AutoLockTimer) => updateSettings({ autoLockTimer: value })}
+            className="mt-4"
+          >
+            <SelectionCardGroup>
+              {AUTO_LOCK_OPTIONS.map((option) => (
+                <SelectionCard
+                  key={option.value}
+                  value={option.value}
+                  title={option.label}
+                />
+              ))}
+            </SelectionCardGroup>
+          </RadioGroup>
+        </Field>
 
-      <Field>
-        <Label className="font-bold">Auto-Lock Timer</Label>
-        <Description className={`mt-2 text-sm text-gray-500 ${shouldShowHelpText ? "" : "hidden"}`}>
-          Choose how long to wait before automatically locking your wallet.
-        </Description>
-        <RadioGroup
-          value={settings.autoLockTimer}
-          onChange={(value: AutoLockTimer) => updateSettings({ autoLockTimer: value })}
-          className="mt-4"
-        >
-          <SelectionCardGroup>
-            {AUTO_LOCK_OPTIONS.map((option) => (
-              <SelectionCard
-                key={option.value}
-                value={option.value}
-                title={option.label}
-              />
-            ))}
-          </SelectionCardGroup>
-        </RadioGroup>
-      </Field>
+        <SettingSwitch
+          label="Strict TXs Verification"
+          description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
+          checked={settings.strictTransactionVerification}
+          onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
+          showHelpText={shouldShowHelpText}
+        />
+      </SettingsSection>
 
-      <SettingSwitch
-        label="Use Unconfirmed TXs"
-        description="Enable this to chain transactions that haven't been confirmed yet."
-        checked={settings.allowUnconfirmedTxs}
-        onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+      <SettingsSection id="adv-transactions" title="Transactions">
+        <SettingSwitch
+          label="Use Unconfirmed TXs"
+          description="Enable this to chain transactions that haven't been confirmed yet."
+          checked={settings.allowUnconfirmedTxs}
+          onChange={(checked) => updateSettings({ allowUnconfirmedTxs: checked })}
+          showHelpText={shouldShowHelpText}
+        />
 
-      <SettingSwitch
-        label="Strict TXs Verification"
-        description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
-        checked={settings.strictTransactionVerification}
-        onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+        <SettingSwitch
+          label="Enable More Outputs"
+          description="Attach BTC to asset sends. Adds a + BTC option on the send form."
+          checked={settings.enableMoreOutputs}
+          onChange={(checked) => updateSettings({ enableMoreOutputs: checked })}
+          showHelpText={shouldShowHelpText}
+        />
 
-      <SettingSwitch
-        label="Enable More Outputs"
-        description="Attach BTC to asset sends. Adds a + BTC option on the send form."
-        checked={settings.enableMoreOutputs}
-        onChange={(checked) => updateSettings({ enableMoreOutputs: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+        <SettingSwitch
+          label="Enable MPMA Sends"
+          description="Enable multi-destination sends (MPMA) for supported assets."
+          checked={settings.enableMPMA}
+          onChange={(checked) => updateSettings({ enableMPMA: checked })}
+          showHelpText={shouldShowHelpText}
+        />
 
-      <SettingSwitch
-        label="Enable MPMA Sends"
-        description="Enable multi-destination sends (MPMA) for supported assets."
-        checked={settings.enableMPMA}
-        onChange={(checked) => updateSettings({ enableMPMA: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+        <SettingSwitch
+          label="Advanced Broadcasts"
+          description="Show advanced options for broadcast transactions (value and fee fraction)."
+          checked={settings.enableAdvancedBroadcasts}
+          onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
+          showHelpText={shouldShowHelpText}
+        />
+      </SettingsSection>
 
-      <SettingSwitch
-        label="Advanced Broadcasts"
-        description="Show advanced options for broadcast transactions (value and fee fraction)."
-        checked={settings.enableAdvancedBroadcasts}
-        onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+      <SettingsSection id="adv-connection" title="Connection">
+        <Field>
+          <Label className="font-bold">Counterparty API</Label>
+          <ApiUrlInput
+            value={settings.counterpartyApiBase}
+            onChange={() => {}}
+            onValidationSuccess={async (url) => {
+              await updateSettings({ counterpartyApiBase: url });
+            }}
+            showHelpText={shouldShowHelpText}
+            className="mt-2"
+          />
+          {shouldShowHelpText && (
+            <Description className="mt-2 text-sm text-gray-500">
+              The Counterparty API endpoint URL. Must be a mainnet API server running Counterparty Core 11.2.0 or newer.
+            </Description>
+          )}
+        </Field>
+      </SettingsSection>
 
-      <SettingSwitch
-        label="Show/Hide Help Text"
-        description="Show or hide help text by default."
-        checked={settings.showHelpText}
-        onChange={(checked) => updateSettings({ showHelpText: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+      <SettingsSection id="adv-privacy" title="Privacy & Display">
+        <SettingSwitch
+          label="Anonymous Analytics"
+          description="Choose whether to share usage data."
+          checked={settings.analyticsAllowed}
+          onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
+          showHelpText={shouldShowHelpText}
+        />
 
-      <SettingSwitch
-        label="Anonymous Analytics"
-        description="Choose whether to share usage data."
-        checked={settings.analyticsAllowed}
-        onChange={(checked) => updateSettings({ analyticsAllowed: checked })}
-        showHelpText={shouldShowHelpText}
-      />
+        <SettingSwitch
+          label="Show/Hide Help Text"
+          description="Show or hide help text by default."
+          checked={settings.showHelpText}
+          onChange={(checked) => updateSettings({ showHelpText: checked })}
+          showHelpText={shouldShowHelpText}
+        />
+      </SettingsSection>
 
       {process.env.NODE_ENV === 'development' && (
-        <SettingSwitch
-          label="Transaction Dry Run"
-          description="When enabled, transactions will be simulated instead of being broadcast to the network."
-          checked={settings.transactionDryRun}
-          onChange={(checked) => updateSettings({ transactionDryRun: checked })}
-          showHelpText={shouldShowHelpText}
-        />
+        <SettingsSection id="adv-developer" title="Developer">
+          <SettingSwitch
+            label="Transaction Dry Run"
+            description="When enabled, transactions will be simulated instead of being broadcast to the network."
+            checked={settings.transactionDryRun}
+            onChange={(checked) => updateSettings({ transactionDryRun: checked })}
+            showHelpText={shouldShowHelpText}
+          />
+        </SettingsSection>
       )}
     </div>
+  );
+}
+
+/**
+ * SettingsSection — a labeled group of related controls. The heading gives the
+ * flat list of advanced toggles some scannable structure without hiding
+ * anything behind a mode switch.
+ */
+function SettingsSection({
+  id,
+  title,
+  children,
+}: {
+  id: string;
+  title: string;
+  children: ReactElement | ReactElement[];
+}): ReactElement {
+  return (
+    <section aria-labelledby={id} className="space-y-4">
+      <h3 id={id} className="text-sm font-medium text-gray-500">
+        {title}
+      </h3>
+      {children}
+    </section>
   );
 }
