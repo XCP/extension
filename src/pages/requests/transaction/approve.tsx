@@ -16,6 +16,8 @@ import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/addres
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo, normalizeQuantity, isAssetDivisible } from '@/components/domain/tx/txActionInfo';
+import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
+import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import {
   ApprovalLoading, ApprovalExpired, ApprovalNoWallet,
   ApprovalWalletHeader, ApprovalSiteBar, ApprovalFooter,
@@ -205,6 +207,14 @@ export default function ApproveTransactionPage() {
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
     classifySignedInputAssets(decodedInfo.attachedAssets, signerInputIndices);
 
+  // Net effect of this transaction on your wallet — the anti-blind-signing summary.
+  const movement = computeMoneyMovement({
+    inputs: decodedInfo.inputs,
+    outputs: decodedInfo.outputs,
+    myAddresses: [activeAddress.address],
+    fee: decodedInfo.fee,
+  });
+
   const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
     key: `safety-${idx}`,
     severity: warning.severity === 'block' ? 'danger' : warning.severity,
@@ -308,59 +318,27 @@ export default function ApproveTransactionPage() {
                     : `Expires in ${txAction.expiration.toLocaleString()} blocks`}
                 </p>
               </div>
-            ) : (
-              /* Fallback — flat label + description (all other types) */
+            ) : txAction?.type === 'fallback' ? (
+              /* Counterparty action — flat label + description */
               <div className="text-center mb-3">
-                {txAction?.type === 'fallback' ? (
-                  <>
-                    <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                    <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-xs text-gray-500 mb-1">Total Value</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatAmount({
-                        value: fromSatoshis(decodedInfo.totalInputValue, true),
-                        minimumFractionDigits: 8,
-                        maximumFractionDigits: 8,
-                      })} <span className="text-base font-medium text-gray-500">BTC</span>
-                    </p>
-                  </>
-                )}
+                <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
+                <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
               </div>
-            )}
-            <div className="text-center pt-3 border-t border-gray-100 space-y-1.5">
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xs text-gray-500">Network Fee:</span>
-                <span className={`text-xs font-medium ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
+            ) : null}
+            <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
+            {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
+              Number(decodedInfo.counterpartyMessage.messageData.fee) > 0 && (
+              <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
+                <span className="text-gray-500">Protocol Fee:</span>
+                <span className="text-sm font-medium text-purple-700">
                   {formatAmount({
-                    value: fromSatoshis(decodedInfo.fee, true),
+                    value: fromSatoshis(Number(decodedInfo.counterpartyMessage.messageData.fee), true),
                     minimumFractionDigits: 8,
                     maximumFractionDigits: 8,
-                  })} BTC
-                  {decodedInfo.vsize && (
-                    <span className="text-gray-400 font-normal ml-1">({Math.ceil(decodedInfo.fee / decodedInfo.vsize)} sat/vB)</span>
-                  )}
+                  })} XCP
                 </span>
               </div>
-              {hasHighFee && (
-                <p className="text-xs text-warning-600">Unusually high — double-check before signing.</p>
-              )}
-              {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
-                Number(decodedInfo.counterpartyMessage.messageData.fee) > 0 && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-gray-500">Protocol Fee:</span>
-                  <span className="text-sm font-medium text-purple-700">
-                    {formatAmount({
-                      value: fromSatoshis(Number(decodedInfo.counterpartyMessage.messageData.fee), true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} XCP
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Transaction Details (expandable) */}
