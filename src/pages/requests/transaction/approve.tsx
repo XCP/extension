@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiGlobe, FiClock, FiChevronDown, FiChevronUp, FiArrowDown } from '@/components/icons';
-import { Button } from '@/components/ui/button';
+import { FiChevronDown, FiChevronUp, FiArrowDown } from '@/components/icons';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount, formatPriceRatio } from '@/utils/format';
@@ -16,6 +15,10 @@ import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/addres
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo, normalizeQuantity, isAssetDivisible } from '@/components/domain/tx/txActionInfo';
+import {
+  ApprovalLoading, ApprovalExpired, ApprovalNoWallet,
+  ApprovalWalletHeader, ApprovalSiteBar, ApprovalFooter,
+} from '@/components/domain/approval/approval-chrome';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 
 /**
@@ -129,21 +132,7 @@ export default function ApproveTransactionPage() {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
   const [showDetails, setShowDetails] = useState(false);
-  const [faviconError, setFaviconError] = useState(false);
   const [priceFlipped, setPriceFlipped] = useState(false);
-
-  // Parse origin to get domain name
-  const getDomain = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.hostname;
-    } catch {
-      return url;
-    }
-  };
-
-  const domain = request ? getDomain(request.origin) : '';
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
 
   // Configure header
   useEffect(() => {
@@ -191,46 +180,9 @@ export default function ApproveTransactionPage() {
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-dvh p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full size-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading transaction details…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (loadError || !request || !decodedInfo) {
-    return (
-      <div className="flex flex-col items-center justify-center h-dvh p-6">
-        <div className="bg-gray-100 rounded-full p-4 mb-4">
-          <FiClock className="size-8 text-gray-400" aria-hidden="true" />
-        </div>
-        <p className="text-sm font-medium text-gray-700 mb-1">Request Expired</p>
-        <p className="text-xs text-gray-500 mb-6 text-center max-w-[240px]">
-          {loadError || 'This signing request is no longer available.'}
-        </p>
-        <Button color="gray" onClick={() => window.close()} className="min-w-[160px]">
-          Close Window
-        </Button>
-      </div>
-    );
-  }
-
-  // No wallet state
-  if (!activeAddress || !activeWallet) {
-    return (
-      <div className="flex items-center justify-center h-dvh p-4">
-        <div className="text-center">
-          <p className="text-gray-500">Please unlock your wallet first</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <ApprovalLoading />;
+  if (loadError || !request || !decodedInfo) return <ApprovalExpired message={loadError} />;
+  if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const txAction = getTxActionData(decodedInfo);
   const hasHighFee = decodedInfo.fee > 10000000; // > 0.1 BTC fee
@@ -299,40 +251,9 @@ export default function ApproveTransactionPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="max-w-md mx-auto space-y-4">
-          {/* Wallet info - shown at top */}
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {activeWallet.name}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {activeAddress.address}
-              </p>
-            </div>
-            <div className="ml-3 flex-shrink-0">
-              <div className="size-2.5 bg-green-500 rounded-full"></div>
-            </div>
-          </div>
+          <ApprovalWalletHeader walletName={activeWallet.name} address={activeAddress.address} />
 
-          {/* Site info - slim bar since user is already connected */}
-          <div className="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3">
-            <div className="flex-shrink-0 inline-flex items-center justify-center size-8 bg-blue-100 rounded-full">
-              {faviconError ? (
-                <FiGlobe className="size-4 text-blue-600" aria-hidden="true" />
-              ) : (
-                <img
-                  src={faviconUrl}
-                  alt={`${domain} favicon`}
-                  className="size-4 rounded-sm"
-                  onError={() => setFaviconError(true)}
-                />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{domain}</p>
-              <p className="text-xs text-gray-400 truncate">{request.origin}</p>
-            </div>
-          </div>
+          <ApprovalSiteBar origin={request.origin} />
 
           {error && <ErrorAlert message={error} />}
 
@@ -540,27 +461,13 @@ export default function ApproveTransactionPage() {
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-          <Button
-            color="gray"
-            onClick={handleReject}
-            disabled={isSigning}
-            fullWidth
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSign}
-            disabled={isSigning || shouldBlockSigning}
-            fullWidth
-          >
-            {isSigning ? (activeWallet.type === 'hardware' ? 'Confirm on device…' : 'Signing…') : shouldBlockSigning ? 'Blocked' : 'Sign'}
-          </Button>
-        </div>
-      </div>
+      <ApprovalFooter
+        onCancel={handleReject}
+        onSign={handleSign}
+        busy={isSigning}
+        blocked={shouldBlockSigning}
+        isHardware={activeWallet.type === 'hardware'}
+      />
     </div>
   );
 }
