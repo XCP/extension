@@ -13,16 +13,11 @@ import { useHeader } from '@/contexts/header-context';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 import { getConnectionService } from '@/services/connectionService';
-import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import { Banner } from '@/components/ui/banner';
-
-function normalizeLpQuantity(quantity: unknown): string {
-  if (quantity == null) return '?';
-  return fromSatoshis(String(quantity), { removeTrailingZeros: true });
-}
+import { getTxActionInfo } from '@/components/domain/tx/txActionInfo';
 
 function formatSighashType(sighashType: number): string {
   switch (sighashType) {
@@ -30,69 +25,6 @@ function formatSighashType(sighashType: number): string {
     case 0x81: return 'ALL | ANYONECANPAY';
     case 0x83: return 'SINGLE | ANYONECANPAY';
     default: return `0x${sighashType.toString(16)}`;
-  }
-}
-
-/**
- * Build a human-readable label and description from PSBT decoded info.
- * Uses the API counterpartyMessage if available, otherwise falls back
- * to the local unpack from verification.
- */
-function getTxActionInfo(decodedInfo: DecodedPsbtInfo): { label: string; description: string } | null {
-  // Try API message first
-  if (decodedInfo.counterpartyMessage) {
-    return {
-      label: decodedInfo.counterpartyMessage.messageType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
-      description: decodedInfo.counterpartyMessage.description,
-    };
-  }
-
-  // Fall back to local unpack
-  const unpack = decodedInfo.verification?.localUnpack;
-  if (!unpack?.success || !unpack.messageType || !unpack.data) return null;
-
-  const data = unpack.data as Record<string, unknown>;
-  const label = unpack.messageType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-  switch (unpack.messageType) {
-    case 'enhanced_send':
-    case 'send':
-      return { label: 'Send', description: `${data.quantity} ${data.asset}` };
-    case 'order':
-      return { label: 'Order', description: `Give ${data.giveQuantity} ${data.giveAsset} for ${data.getQuantity} ${data.getAsset}` };
-    case 'cancel':
-      return { label: 'Cancel Order', description: `Cancel ${String(data.offerHash).slice(0, 16)}…` };
-    case 'issuance':
-    case 'subasset_issuance':
-    case 'lr_issuance':
-    case 'lr_subasset':
-      return { label: 'Issuance', description: `${data.quantity} ${data.asset}` };
-    case 'dispenser':
-      return { label: 'Dispenser', description: `${data.escrowQuantity} ${data.asset}` };
-    case 'dispense':
-      return { label: 'Dispense', description: 'Dispense from dispenser' };
-    case 'sweep':
-      return { label: 'Sweep', description: `Sweep to ${String(data.destination).slice(0, 16)}…` };
-    case 'destroy':
-      return { label: 'Destroy', description: `${data.quantity} ${data.asset}` };
-    case 'dividend':
-      return { label: 'Dividend', description: `${data.quantityPerUnit} ${data.dividendAsset} per ${data.asset}` };
-    case 'attach':
-      return { label: 'Attach', description: `${data.quantity} ${data.asset}` };
-    case 'detach':
-      return { label: 'Detach', description: data.destination ? `To ${String(data.destination).slice(0, 16)}…` : 'Detach assets from UTXO' };
-    case 'mpma_send':
-      return { label: 'Multi-Send', description: `${(data.sends as unknown[])?.length || 0} recipients` };
-    case 'fairminter':
-      return { label: 'Fairminter', description: `${data.asset}` };
-    case 'fairmint':
-      return { label: 'Fairmint', description: `${data.quantity} ${data.asset}` };
-    case 'pooldeposit':
-      return { label: 'Pool Deposit', description: `${data.quantityA} ${data.assetA} + ${data.quantityB} ${data.assetB}` };
-    case 'poolwithdraw':
-      return { label: 'Pool Withdraw', description: `Burn ${normalizeLpQuantity(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
-    default:
-      return { label, description: unpack.messageType };
   }
 }
 
