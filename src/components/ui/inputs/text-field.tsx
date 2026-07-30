@@ -53,11 +53,11 @@ export function TextField({
         required={required}
         disabled={disabled}
         invalid={hasError}
-        className={`block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 ${
+        className={`block w-full p-2.5 rounded-md border outline-none focus-visible:ring-2 ${
           hasError
             ? 'border-danger-500 focus:border-danger-500 focus-visible:ring-danger-500'
             : 'border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500'
-        } ${label ? 'mt-1' : ''} ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''} ${inputClassName}`}
+        } ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-gray-50'} ${label ? 'mt-1' : ''} ${inputClassName}`}
         {...inputProps}
       />
       {hasError ? (

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Field, Label, Description, Textarea, Input } from "@headlessui/react";
+import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
@@ -165,49 +166,31 @@ export function BroadcastForm({
 
           {showAdvancedOptions && (
             <>
-              <Field>
-                <Label htmlFor="value" className="block text-sm font-medium text-gray-700">
-                  Value
-                </Label>
-                <Input
-                  id="value"
-                  name="value"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d*"
-                  defaultValue={initialFormData?.value || ""}
-                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-gray-400"
-                  placeholder="0"
-                  disabled={false}
-                />
-                {showHelpText && (
-                  <Description className="mt-2 text-sm text-gray-500">
-                    Optional numeric value if publishing data.
-                  </Description>
-                )}
-              </Field>
+              <TextField
+                label="Value"
+                id="value"
+                name="value"
+                type="text"
+                inputMode="numeric"
+                pattern="\d*"
+                defaultValue={initialFormData?.value || ""}
+                placeholder="0"
+                showHelpText={showHelpText}
+                description="Optional numeric value if publishing data."
+              />
 
-              <Field>
-                <Label htmlFor="fee_fraction" className="block text-sm font-medium text-gray-700">
-                  Fee Fraction
-                </Label>
-                <Input
-                  id="fee_fraction"
-                  name="fee_fraction"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*\.?[0-9]*"
-                  defaultValue={initialFormData?.fee_fraction || ""}
-                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 hover:border-gray-400"
-                  placeholder="0"
-                  disabled={false}
-                />
-                {showHelpText && (
-                  <Description className="mt-2 text-sm text-gray-500">
-                    Optional fee fraction for paid broadcasts (e.g., 0.05 for 5%).
-                  </Description>
-                )}
-              </Field>
+              <TextField
+                label="Fee Fraction"
+                id="fee_fraction"
+                name="fee_fraction"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*\.?[0-9]*"
+                defaultValue={initialFormData?.fee_fraction || ""}
+                placeholder="0"
+                showHelpText={showHelpText}
+                description="Optional fee fraction for paid broadcasts (e.g., 0.05 for 5%)."
+              />
             </>
           )}
 

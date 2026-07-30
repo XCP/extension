@@ -5,7 +5,6 @@ import {
   Field,
   Label,
   Description,
-  Input,
   Textarea,
   Listbox,
   ListboxButton,
@@ -265,98 +264,66 @@ export function FairminterForm({
           )}
           
           {selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
-            <Field>
-              <Label htmlFor="max_mint_per_tx" className="block text-sm font-medium text-gray-700">
-                Mint per TX <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="max_mint_per_tx"
-                name="max_mint_per_tx"
-                type="text"
-                inputMode="decimal"
-                value={maxMintPerTx}
-                onChange={handleQuantityChange(setMaxMintPerTx)}
-                step={getInputStep()}
-                placeholder={getInputPlaceholder()}
-                className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                required
-                disabled={pending}
-              />
-              {showHelpText && (
-                <Description className="mt-2 text-sm text-gray-500">
-                  Maximum amount that can be minted in a single transaction.
-                </Description>
-              )}
-            </Field>
-          )}
-
-          <Field>
-            <Label htmlFor="max_mint_per_address" className="block text-sm font-medium text-gray-700">
-              Mint per Address
-            </Label>
-            <Input
-              id="max_mint_per_address"
-              name="max_mint_per_address"
+            <TextField
+              label="Mint per TX"
+              id="max_mint_per_tx"
+              name="max_mint_per_tx"
               type="text"
               inputMode="decimal"
-              value={maxMintPerAddress}
-              onChange={handleQuantityChange(setMaxMintPerAddress)}
+              value={maxMintPerTx}
+              onChange={handleQuantityChange(setMaxMintPerTx)}
               step={getInputStep()}
-              placeholder="No limit"
-              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
+              placeholder={getInputPlaceholder()}
+              required
               disabled={pending}
+              showHelpText={showHelpText}
+              description="Maximum amount that can be minted in a single transaction."
             />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Optional maximum amount each address can mint. Leave blank for no per-address limit.
-              </Description>
-            )}
-          </Field>
+          )}
+
+          <TextField
+            label="Mint per Address"
+            id="max_mint_per_address"
+            name="max_mint_per_address"
+            type="text"
+            inputMode="decimal"
+            value={maxMintPerAddress}
+            onChange={handleQuantityChange(setMaxMintPerAddress)}
+            step={getInputStep()}
+            placeholder="No limit"
+            disabled={pending}
+            showHelpText={showHelpText}
+            description="Optional maximum amount each address can mint. Leave blank for no per-address limit."
+          />
           {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <>
-              <Field>
-                <Label htmlFor="lot_size" className="block text-sm font-medium text-gray-700">
-                  Tokens per Mint
-                </Label>
-                <Input
-                  id="lot_size"
-                  name="lot_size"
-                  type="text"
-                  inputMode="decimal"
-                  value={lotSize}
-                  onChange={handleQuantityChange(setLotSize)}
-                  step={getInputStep()}
-                  placeholder={getInputPlaceholder()}
-                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                  disabled={pending}
-                />
-                {showHelpText && (
-                  <Description className="mt-2 text-sm text-gray-500">
-                    Number of tokens received per mint transaction.
-                  </Description>
-                )}
-              </Field>
+              <TextField
+                label="Tokens per Mint"
+                id="lot_size"
+                name="lot_size"
+                type="text"
+                inputMode="decimal"
+                value={lotSize}
+                onChange={handleQuantityChange(setLotSize)}
+                step={getInputStep()}
+                placeholder={getInputPlaceholder()}
+                disabled={pending}
+                showHelpText={showHelpText}
+                description="Number of tokens received per mint transaction."
+              />
 
-              <Field>
-                <Label htmlFor="lot_price" className="block text-sm font-medium text-gray-700">
-                  XCP Cost per Mint <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="lot_price"
-                  name="lot_price"
-                  type="text"
-                  inputMode="decimal"
-                  defaultValue={initialFormData?.lot_price?.toString() || ""}
-                  className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                  required
-                  disabled={pending}
-                />
-                {showHelpText && (
-                  <Description className="mt-2 text-sm text-gray-500">
-                    XCP required for each mint transaction.
-                  </Description>
-                )}
-              </Field>
+              <TextField
+                label="XCP Cost per Mint"
+                id="lot_price"
+                name="lot_price"
+                type="text"
+                inputMode="decimal"
+                defaultValue={initialFormData?.lot_price?.toString() || ""}
+                required
+                disabled={pending}
+                showHelpText={showHelpText}
+                description="XCP required for each mint transaction."
+              />
             </>
           )}
           
@@ -406,28 +373,20 @@ export function FairminterForm({
             defaultChecked={initialFormData?.lock_description || false}
             disabled={pending}
           />
-          <Field>
-            <Label htmlFor="hard_cap" className="block text-sm font-medium text-gray-700">
-              Hard Cap
-            </Label>
-            <Input
-              id="hard_cap"
-              name="hard_cap"
-              type="text"
-              inputMode="decimal"
-              value={hardCap}
-              onChange={handleQuantityChange(setHardCap)}
-              step={getInputStep()}
-              placeholder={getInputPlaceholder()}
-              className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-              disabled={pending}
-            />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                Maximum total supply that can be minted.
-              </Description>
-            )}
-          </Field>
+          <TextField
+            label="Hard Cap"
+            id="hard_cap"
+            name="hard_cap"
+            type="text"
+            inputMode="decimal"
+            value={hardCap}
+            onChange={handleQuantityChange(setHardCap)}
+            step={getInputStep()}
+            placeholder={getInputPlaceholder()}
+            disabled={pending}
+            showHelpText={showHelpText}
+            description="Maximum total supply that can be minted."
+          />
           <CheckboxInput
             name="lock_quantity"
             label="Lock Quantity"
@@ -483,27 +442,19 @@ export function FairminterForm({
                   />
                   {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                     <>
-                      <Field>
-                        <Label htmlFor="soft_cap" className="block text-sm font-medium text-gray-700">
-                          Soft Cap
-                        </Label>
-                        <Input
-                          id="soft_cap"
-                          name="soft_cap"
-                          type="text"
-                          inputMode="decimal"
-                          value={softCap}
-                          onChange={handleQuantityChange(setSoftCap)}
-                          className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                          placeholder={getInputPlaceholder()}
-                          disabled={pending}
-                        />
-                        {showHelpText && (
-                          <Description className="mt-2 text-sm text-gray-500">
-                            Minimum amount required for the sale to succeed.
-                          </Description>
-                        )}
-                      </Field>
+                      <TextField
+                        label="Soft Cap"
+                        id="soft_cap"
+                        name="soft_cap"
+                        type="text"
+                        inputMode="decimal"
+                        value={softCap}
+                        onChange={handleQuantityChange(setSoftCap)}
+                        placeholder={getInputPlaceholder()}
+                        disabled={pending}
+                        showHelpText={showHelpText}
+                        description="Minimum amount required for the sale to succeed."
+                      />
                       <BlockHeightInput
                         name="soft_cap_deadline_block"
                         label="Soft Cap Deadline Block"

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, memo, useCallback } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Input } from "@headlessui/react";
+import { TextField } from "@/components/ui/inputs/text-field";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
@@ -252,38 +252,27 @@ export const DispenserForm = memo(function DispenserForm({
           />
           {/* Hidden field to indicate mainchainrate is always in BTC for normalization */}
           <input type="hidden" name="mainchainrate_asset" value="BTC" />
-          <Field>
-            <Label htmlFor="give_quantity_display" className="text-sm font-medium text-gray-700">
-              Amount per Dispense <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="give_quantity_display"
-              type="text"
-              name="give_quantity_display"
-              value={giveQuantity}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (!isDivisible && val.includes('.')) return;
-                if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
-                setGiveQuantity(val);
-              }}
-              className={`mt-1 block w-full p-2.5 rounded-md border border-gray-300 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                isRefill ? "bg-gray-100 cursor-not-allowed" : "bg-gray-50"
-              }`}
-              required
-              placeholder={isDivisible ? "0.00000000" : "0"}
-              disabled={pending || isRefill}
-              inputMode="decimal"
-            />
-            {showHelpText && (
-              <Description className="mt-2 text-sm text-gray-500">
-                {isRefill
-                  ? "Amount per dispense is fixed for refills."
-                  : `The quantity of the asset to dispense per transaction.${isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`
-                }
-              </Description>
-            )}
-          </Field>
+          <TextField
+            label="Amount per Dispense"
+            id="give_quantity_display"
+            name="give_quantity_display"
+            type="text"
+            inputMode="decimal"
+            value={giveQuantity}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!isDivisible && val.includes('.')) return;
+              if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
+              setGiveQuantity(val);
+            }}
+            required
+            placeholder={isDivisible ? "0.00000000" : "0"}
+            disabled={pending || isRefill}
+            showHelpText={showHelpText}
+            description={isRefill
+              ? "Amount per dispense is fixed for refills."
+              : `The quantity of the asset to dispense per transaction.${isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`}
+          />
           
     </ComposerForm>
   );
