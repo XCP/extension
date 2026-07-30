@@ -21,6 +21,7 @@ import {
   ApprovalLoading, ApprovalExpired, ApprovalNoWallet,
   ApprovalWalletHeader, ApprovalSiteBar, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
+import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
 
 function formatSighashType(sighashType: number): string {
   switch (sighashType) {
@@ -305,116 +306,16 @@ export default function ApprovePsbtPage() {
           {error && <ErrorAlert message={error} />}
 
           {/* Transaction action & fee */}
-          <div className="bg-white rounded-lg shadow-sm p-5">
-            <div className="text-center mb-3">
-              {txAction ? (
-                <>
-                  <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                  <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
-                </>
-              ) : userSignsWithAnyoneCanPay ? (
-                <>
-                  <p className="text-xs text-gray-500 mb-1">Atomic Swap Listing</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {formatAmount({
-                      value: fromSatoshis(psbtDetails.outputs[0]?.value ?? 0, true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} <span className="text-base font-medium text-gray-500">BTC</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Listing price (paid to you when sold)
-                  </p>
-                </>
-              ) : swapFeeBreakdown ? (
-                <>
-                  <p className="text-xs text-gray-500 mb-1">Atomic Swap Purchase</p>
-                  <p className="text-lg font-bold text-gray-900">
-                    {formatAmount({
-                      value: fromSatoshis(swapFeeBreakdown.sellerPayment, true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} <span className="text-base font-medium text-gray-500">BTC</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Payment to seller
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-gray-500 mb-1">Total Value</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {formatAmount({
-                      value: fromSatoshis(psbtDetails.totalInputValue, true),
-                      minimumFractionDigits: 8,
-                      maximumFractionDigits: 8,
-                    })} <span className="text-base font-medium text-gray-500">BTC</span>
-                  </p>
-                </>
-              )}
-            </div>
-            <div className="text-center pt-3 border-t border-gray-100 space-y-1.5">
-              {swapFeeBreakdown ? (
-                <>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs text-gray-500">Seller payment:</span>
-                    <span className="text-xs font-medium text-gray-900">
-                      {swapFeeBreakdown.sellerPayment.toLocaleString()} sats
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs text-gray-500">Platform fee:</span>
-                    <span className="text-xs font-medium text-gray-900">
-                      {swapFeeBreakdown.platformFee.toLocaleString()} sats
-                      {swapFeeBreakdown.sellerPayment > 0 && (
-                        <span className="text-gray-400 font-normal ml-1">
-                          ({((swapFeeBreakdown.platformFee / swapFeeBreakdown.sellerPayment) * 100).toFixed(1)}%)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs text-gray-500">Network fee:</span>
-                    <span className={`text-xs font-medium ${swapFeeBreakdown.networkFee > 10000000 ? 'text-warning-600' : 'text-gray-900'}`}>
-                      {swapFeeBreakdown.networkFee.toLocaleString()} sats
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {psbtDetails.fee > 0 && (
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-xs text-gray-500">Network Fee:</span>
-                      <span className={`text-xs font-medium ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
-                        {formatAmount({
-                          value: fromSatoshis(psbtDetails.fee, true),
-                          minimumFractionDigits: 8,
-                          maximumFractionDigits: 8,
-                        })} BTC
-                        <span className="text-gray-400 font-normal ml-1">({psbtDetails.fee.toLocaleString()} sats)</span>
-                      </span>
-                    </div>
-                  )}
-                  {hasHighFee && (
-                    <p className="text-xs text-warning-600">Unusually high — double-check before signing.</p>
-                  )}
-                  {counterpartyMessage?.messageData?.fee != null &&
-                    Number(counterpartyMessage.messageData.fee) > 0 && (
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-xs text-gray-500">Protocol Fee:</span>
-                      <span className="text-sm font-medium text-purple-700">
-                        {formatAmount({
-                          value: fromSatoshis(Number(counterpartyMessage.messageData.fee), true),
-                          minimumFractionDigits: 8,
-                          maximumFractionDigits: 8,
-                        })} XCP
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+          <ApprovalSummaryCard
+            txAction={txAction}
+            isSwapListing={userSignsWithAnyoneCanPay}
+            swapFeeBreakdown={swapFeeBreakdown}
+            fee={psbtDetails.fee}
+            hasHighFee={hasHighFee}
+            totalValue={psbtDetails.totalInputValue}
+            listingPrice={psbtDetails.outputs[0]?.value ?? 0}
+            protocolFeeXcp={counterpartyMessage?.messageData?.fee != null ? Number(counterpartyMessage.messageData.fee) : null}
+          />
 
           {/* Transaction Details (expandable) */}
           <Collapsible variant="card" title="Transaction Details">
