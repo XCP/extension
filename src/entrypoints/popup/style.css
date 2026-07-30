@@ -1,5 +1,90 @@
 @import "tailwindcss";
 
+/* =========================================================================
+   Semantic design tokens (Phase 0 foundation)
+
+   Status colors are aliased onto Tailwind's default palette so the canonical
+   tone for each severity lives in ONE place: retone a status everywhere by
+   editing one line here. These are ADDITIVE — no component consumes them yet,
+   so nothing changes visually. Adoption happens as the primitives land
+   (Banner, Card, TextField, FormField). Full 50–950 scales are provided so a
+   token drops into any existing `bg-*-50 / border-*-200 / text-*-800` pattern.
+
+   Severity model (for the forthcoming <Banner> primitive):
+     danger  — destructive or blocked (sweep, destroy, verification failed)
+     warning — caution but proceedable (high fee, ANYONECANPAY, spends assets)
+     info    — neutral context (paired address, connection request)
+     success — verified / positive (no tampering detected, swap completed)
+
+   `primary` (interactive blue) is intentionally NOT defined here yet: an
+   existing `text-primary-600` spinner (app.tsx) would flip color the moment
+   the token exists, so it lands in Phase 1 with the button/spinner work rather
+   than silently changing rendering now. The four status colors below have no
+   existing consumers, so this block is visually inert.
+
+   Type scale (canonical roles — enforce via primitives, standard Tailwind
+   classes, no new utilities minted):
+     display  text-2xl font-bold             hero amounts
+     heading  text-base font-semibold        card / section titles
+     label    text-sm  font-medium           field labels, primary rows
+     body     text-sm                         default copy
+     caption  text-xs                         addresses, fees, meta, detail rows
+     eyebrow  text-xs  font-medium uppercase  detail-section headers
+   ========================================================================= */
+@theme {
+  /* success — verified / positive (green) */
+  --color-success-50: var(--color-green-50);
+  --color-success-100: var(--color-green-100);
+  --color-success-200: var(--color-green-200);
+  --color-success-300: var(--color-green-300);
+  --color-success-400: var(--color-green-400);
+  --color-success-500: var(--color-green-500);
+  --color-success-600: var(--color-green-600);
+  --color-success-700: var(--color-green-700);
+  --color-success-800: var(--color-green-800);
+  --color-success-900: var(--color-green-900);
+  --color-success-950: var(--color-green-950);
+
+  /* warning — caution but proceedable (amber) */
+  --color-warning-50: var(--color-amber-50);
+  --color-warning-100: var(--color-amber-100);
+  --color-warning-200: var(--color-amber-200);
+  --color-warning-300: var(--color-amber-300);
+  --color-warning-400: var(--color-amber-400);
+  --color-warning-500: var(--color-amber-500);
+  --color-warning-600: var(--color-amber-600);
+  --color-warning-700: var(--color-amber-700);
+  --color-warning-800: var(--color-amber-800);
+  --color-warning-900: var(--color-amber-900);
+  --color-warning-950: var(--color-amber-950);
+
+  /* danger — destructive / blocked (red) */
+  --color-danger-50: var(--color-red-50);
+  --color-danger-100: var(--color-red-100);
+  --color-danger-200: var(--color-red-200);
+  --color-danger-300: var(--color-red-300);
+  --color-danger-400: var(--color-red-400);
+  --color-danger-500: var(--color-red-500);
+  --color-danger-600: var(--color-red-600);
+  --color-danger-700: var(--color-red-700);
+  --color-danger-800: var(--color-red-800);
+  --color-danger-900: var(--color-red-900);
+  --color-danger-950: var(--color-red-950);
+
+  /* info — neutral context (sky, kept distinct from primary blue) */
+  --color-info-50: var(--color-sky-50);
+  --color-info-100: var(--color-sky-100);
+  --color-info-200: var(--color-sky-200);
+  --color-info-300: var(--color-sky-300);
+  --color-info-400: var(--color-sky-400);
+  --color-info-500: var(--color-sky-500);
+  --color-info-600: var(--color-sky-600);
+  --color-info-700: var(--color-sky-700);
+  --color-info-800: var(--color-sky-800);
+  --color-info-900: var(--color-sky-900);
+  --color-info-950: var(--color-sky-950);
+}
+
 /* Add scrollbar hiding utilities */
 @layer utilities {
   /* Chrome, Safari and Opera */
