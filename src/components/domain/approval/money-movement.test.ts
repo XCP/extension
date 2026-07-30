@@ -1,0 +1,81 @@
+import { describe, it, expect } from 'vitest';
+import { computeMoneyMovement } from './money-movement';
+
+describe('computeMoneyMovement', () => {
+  it('computes a plain send (net outflow)', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 100000 }],
+      outputs: [
+        { address: 'them', value: 90000 },
+        { address: 'me', value: 5000 }, // change
+      ],
+      fee: 5000,
+    });
+    expect(m).toMatchObject({ spent: 100000, backToYou: 5000, net: -95000, incomplete: false });
+    expect(m.external).toEqual([{ address: 'them', value: 90000 }]);
+  });
+
+  it('computes a receive (net positive) when inputs are not yours', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'them', value: 100000 }],
+      outputs: [
+        { address: 'me', value: 60000 },
+        { address: 'them', value: 39000 },
+      ],
+      fee: 1000,
+    });
+    expect(m).toMatchObject({ spent: 0, backToYou: 60000, net: 60000, incomplete: false });
+  });
+
+  it('excludes OP_RETURN outputs from movement', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 50000 }],
+      outputs: [
+        { address: 'them', value: 40000 },
+        { value: 0, type: 'op_return' },
+      ],
+      fee: 10000,
+    });
+    expect(m.external).toEqual([{ address: 'them', value: 40000 }]);
+  });
+
+  it('records an unresolved output address as an external destination with null address', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 50000 }],
+      outputs: [{ value: 40000 }],
+      fee: 10000,
+    });
+    expect(m.external).toEqual([{ address: null, value: 40000 }]);
+  });
+
+  it('flags incomplete when an input lacks a value or address', () => {
+    expect(computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me' }], // no value
+      outputs: [{ address: 'them', value: 10000 }],
+      fee: 1000,
+    }).incomplete).toBe(true);
+
+    expect(computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ value: 100000 }], // no address
+      outputs: [{ address: 'them', value: 90000 }],
+      fee: 10000,
+    }).incomplete).toBe(true);
+  });
+
+  it('matches bech32 addresses case-insensitively', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['BC1QME'],
+      inputs: [{ address: 'bc1qme', value: 100000 }],
+      outputs: [{ address: 'bc1qthem', value: 95000 }],
+      fee: 5000,
+    });
+    expect(m.spent).toBe(100000);
+    expect(m.net).toBe(-100000);
+  });
+});
