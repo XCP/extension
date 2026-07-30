@@ -65,7 +65,6 @@ import AssetsPage from '@/pages/assets';
 import AssetPage from '@/pages/assets/[asset]';
 import AssetBalancePage from '@/pages/assets/[asset]/balance';
 import UtxoPage from '@/pages/assets/utxos/[txHash]';
-import ManagePoolsPage from '@/pages/pools';
 import PoolPage from '@/pages/pools/[assetA]/[assetB]';
 import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import TransactionPage from '@/pages/transactions/[txHash]';
@@ -208,7 +207,6 @@ export default function App() {
             <Route path="/assets/utxos/:txHash" element={<UtxoPage />} />
             <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
             <Route path="/assets/:asset" element={<AssetPage />} />
-            <Route path="/pools" element={<ManagePoolsPage />} />
             <Route path="/pools/:assetA/:assetB" element={<PoolPage />} />
             <Route path="/pools/:lpAsset" element={<PoolPositionPage />} />
 
