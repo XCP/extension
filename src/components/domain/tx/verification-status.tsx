@@ -9,6 +9,12 @@
 import type { ReactElement } from 'react';
 import { FiShield, FiShieldOff } from '@/components/icons';
 
+/*
+ * The passed state is intentionally low-weight — a small inline badge, not a
+ * full banner — so the normal (verified) case doesn't compete visually with
+ * the exceptional warning/danger banners. Only failures render a full box.
+ */
+
 export interface VerificationStatusProps {
   /** Whether verification passed */
   passed?: boolean;
@@ -36,29 +42,22 @@ export function VerificationStatus({
     return null;
   }
 
-  // Verification passed
+  // Verification passed — compact inline badge, not a full banner.
   if (passed === true) {
     return (
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <FiShield className="size-5 text-green-600 mt-0.5 mr-2 flex-shrink-0" aria-hidden="true" />
-          <div className="text-sm text-green-800">
-            <p className="font-medium">Transaction Verified</p>
-            <p className="text-xs mt-1">
-              The transaction data was decoded locally and matches what the site requested. No tampering detected.
-            </p>
-          </div>
-        </div>
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-success-700">
+        <FiShield className="size-4 flex-shrink-0" aria-hidden="true" />
+        Verified locally — no tampering detected
       </div>
     );
   }
 
   // Verification failed
   const shouldBlock = isStrict;
-  const bgColor = shouldBlock ? 'bg-red-50' : 'bg-orange-50';
-  const borderColor = shouldBlock ? 'border-red-200' : 'border-orange-200';
-  const iconColor = shouldBlock ? 'text-red-600' : 'text-orange-600';
-  const textColor = shouldBlock ? 'text-red-800' : 'text-orange-800';
+  const bgColor = shouldBlock ? 'bg-danger-50' : 'bg-warning-50';
+  const borderColor = shouldBlock ? 'border-danger-200' : 'border-warning-200';
+  const iconColor = shouldBlock ? 'text-danger-600' : 'text-warning-600';
+  const textColor = shouldBlock ? 'text-danger-800' : 'text-warning-800';
 
   return (
     <div className={`rounded-lg p-4 ${bgColor} border ${borderColor}`}>

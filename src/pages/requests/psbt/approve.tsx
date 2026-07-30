@@ -16,7 +16,7 @@ import { getConnectionService } from '@/services/connectionService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
-import { Banner } from '@/components/ui/banner';
+import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo } from '@/components/domain/tx/txActionInfo';
 
 function formatSighashType(sighashType: number): string {
@@ -250,6 +250,70 @@ export default function ApprovePsbtPage() {
     };
   })();
 
+  const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
+    key: `safety-${idx}`,
+    severity: warning.severity === 'block' ? 'danger' : warning.severity,
+    title: warning.title,
+    description: warning.message,
+  }));
+  if (signedInputsWithAssets.length > 0) {
+    warningItems.push({
+      key: 'attached-assets',
+      severity: 'warning',
+      title: 'Spends UTXOs holding Counterparty assets',
+      description: 'Inputs you are signing carry attached assets. Signing moves them, not just BTC.',
+      children: (
+        <ul className="mt-2 space-y-1 text-xs font-medium">
+          {signedInputsWithAssets.flatMap(entry =>
+            entry.assets.map(asset => (
+              <li key={`${entry.inputIndex}-${asset.asset}`}>
+                Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+              </li>
+            ))
+          )}
+        </ul>
+      ),
+    });
+  }
+  if (signedInputsUnknownStatus.length > 0) {
+    warningItems.push({
+      key: 'unknown-status',
+      severity: 'warning',
+      title: "Couldn't verify asset status",
+      description: `The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`,
+      children: (
+        <ul className="mt-2 space-y-1 text-xs font-medium">
+          {signedInputsUnknownStatus.map(entry => (
+            <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+  if (userSignsWithAnyoneCanPay) {
+    warningItems.push({
+      key: 'anyonecanpay',
+      severity: 'warning',
+      title: 'Flexible signature rules',
+      description: 'ANYONECANPAY allows other inputs to be added or removed after you sign. SINGLE commits only to the output at the same input index. Review the paired inputs and outputs carefully.',
+      children: (
+        <ul className="mt-2 space-y-1 text-xs font-medium">
+          {anyoneCanPaySighashes.map(({ index, type }) => (
+            <li key={index}>Input #{index}: {formatSighashType(type)}</li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+  if (swapFeeBreakdown) {
+    warningItems.push({
+      key: 'swap',
+      severity: 'success',
+      title: 'Atomic Swap Purchase',
+      description: "You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast.",
+    });
+  }
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Content */}
@@ -391,7 +455,7 @@ export default function ApprovePsbtPage() {
                   </div>
                   <div className="flex items-center justify-center gap-2">
                     <span className="text-xs text-gray-500">Network fee:</span>
-                    <span className={`text-xs font-medium ${swapFeeBreakdown.networkFee > 10000000 ? 'text-orange-600' : 'text-gray-900'}`}>
+                    <span className={`text-xs font-medium ${swapFeeBreakdown.networkFee > 10000000 ? 'text-warning-600' : 'text-gray-900'}`}>
                       {swapFeeBreakdown.networkFee.toLocaleString()} sats
                     </span>
                   </div>
@@ -401,7 +465,7 @@ export default function ApprovePsbtPage() {
                   {psbtDetails.fee > 0 && (
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-xs text-gray-500">Network Fee:</span>
-                      <span className={`text-xs font-medium ${psbtDetails.fee > 10000000 ? 'text-orange-600' : 'text-gray-900'}`}>
+                      <span className={`text-xs font-medium ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
                         {formatAmount({
                           value: fromSatoshis(psbtDetails.fee, true),
                           minimumFractionDigits: 8,
@@ -410,6 +474,9 @@ export default function ApprovePsbtPage() {
                         <span className="text-gray-400 font-normal ml-1">({psbtDetails.fee.toLocaleString()} sats)</span>
                       </span>
                     </div>
+                  )}
+                  {hasHighFee && (
+                    <p className="text-xs text-warning-600">Unusually high — double-check before signing.</p>
                   )}
                   {counterpartyMessage?.messageData?.fee != null &&
                     Number(counterpartyMessage.messageData.fee) > 0 && (
@@ -519,89 +586,15 @@ export default function ApprovePsbtPage() {
             )}
           </div>
 
-          {/* Security Warnings */}
-          {safetyWarnings.map((warning, idx) => (
-            <Banner
-              key={idx}
-              severity={warning.severity === 'block' ? 'danger' : warning.severity}
-              title={warning.title}
-              description={warning.message}
-            />
-          ))}
+          {/* Warnings, rendered in a fixed severity order (danger → success) */}
+          <WarningStack items={warningItems} />
 
-          {/* Attached-asset warning: a signed input's UTXO holds Counterparty assets */}
-          {signedInputsWithAssets.length > 0 && (
-            <Banner
-              severity="warning"
-              title="Spends UTXOs holding Counterparty assets"
-              description="Inputs you are signing carry attached assets. Signing moves them, not just BTC."
-            >
-              <ul className="mt-2 space-y-1 text-xs font-medium">
-                {signedInputsWithAssets.flatMap(entry =>
-                  entry.assets.map(asset => (
-                    <li key={`${entry.inputIndex}-${asset.asset}`}>
-                      Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
-                    </li>
-                  ))
-                )}
-              </ul>
-            </Banner>
-          )}
-
-          {/* Asset status unknown: a signed input's balance lookup failed */}
-          {signedInputsUnknownStatus.length > 0 && (
-            <Banner
-              severity="warning"
-              title="Couldn't verify asset status"
-              description={`The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`}
-            >
-              <ul className="mt-2 space-y-1 text-xs font-medium">
-                {signedInputsUnknownStatus.map(entry => (
-                  <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
-                ))}
-              </ul>
-            </Banner>
-          )}
-
-          {/* Verification Status */}
+          {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
             passed={verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
-
-          {/* High Fee Warning */}
-          {hasHighFee && (
-            <Banner
-              severity="warning"
-              title="High Network Fee"
-              description="This transaction has an unusually high fee. Double-check before signing."
-            />
-          )}
-
-          {/* ANYONECANPAY warning (PSBT-specific) */}
-          {userSignsWithAnyoneCanPay && (
-            <Banner
-              severity="warning"
-              title="Flexible signature rules"
-              description="ANYONECANPAY allows other inputs to be added or removed after you sign. SINGLE commits only to the output at the same input index. Review the paired inputs and outputs carefully."
-            >
-              <ul className="mt-2 space-y-1 text-xs font-medium">
-                {anyoneCanPaySighashes.map(({ index, type }) => (
-                  <li key={index}>Input #{index}: {formatSighashType(type)}</li>
-                ))}
-              </ul>
-            </Banner>
-          )}
-
-          {/* Swap purchase info (buyer completing a swap) */}
-          {swapFeeBreakdown && (
-            <Banner
-              severity="success"
-              title="Atomic Swap Purchase"
-              description="You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast."
-            />
-          )}
         </div>
       </div>
 
