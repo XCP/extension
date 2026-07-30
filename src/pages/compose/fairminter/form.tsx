@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AdvancedSection } from "@/components/ui/advanced-section";
+import { Collapsible } from "@/components/ui/collapsible";
 import {
   Field,
   Label,
@@ -394,7 +394,7 @@ export function FairminterForm({
             disabled={pending}
           />
           
-          <AdvancedSection title="Advanced Options">
+          <Collapsible title="Advanced Options">
                   <BlockHeightInput
                     name="start_block"
                     label="Start Block"
@@ -467,7 +467,7 @@ export function FairminterForm({
                       />
                     </>
                   )}
-          </AdvancedSection>
+          </Collapsible>
     </ComposerForm>
   );
 }

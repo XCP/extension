@@ -74,7 +74,7 @@ describe('ReviewScreen', () => {
     expect(screen.getByText('Review Transaction')).toBeInTheDocument();
 
     // Check source address (formatted/truncated)
-    expect(screen.getByText(/bc1qar0s.*5mdq/)).toBeInTheDocument();
+    expect(screen.getByText('bc1qar...wf5mdq')).toBeInTheDocument();
 
     // Check destination address (now shown in full)
     expect(screen.getByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('ReviewScreen', () => {
       />
     );
 
-    expect(screen.getByText(/bc1qar0s.*5mdq/)).toBeInTheDocument();
+    expect(screen.getByText('bc1qar...wf5mdq')).toBeInTheDocument();
     expect(screen.getByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBeInTheDocument();
     expect(screen.getByText('XCP Fee:')).toBeInTheDocument();
     expect(screen.getByText(/1.00000000.*XCP/)).toBeInTheDocument();
@@ -283,8 +283,10 @@ describe('ReviewScreen', () => {
 
     const summary = screen.getByText('Raw Transaction');
     expect(summary).toBeInTheDocument();
-    
-    // The pre element should contain the JSON
+
+    // The disclosure unmounts its panel until opened; expand it, then the
+    // <pre> with the JSON should be present.
+    fireEvent.click(summary);
     const pre = screen.getByText((content, element) => {
       return element?.tagName === 'PRE' && content.includes('"btc_fee": 10000');
     });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiChevronDown, FiChevronUp } from '@/components/icons';
+import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount } from '@/utils/format';
@@ -48,7 +48,6 @@ export default function ApprovePsbtPage() {
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
-  const [showDetails, setShowDetails] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -418,21 +417,7 @@ export default function ApprovePsbtPage() {
           </div>
 
           {/* Transaction Details (expandable) */}
-          <div className="bg-white rounded-lg shadow-sm">
-            <button
-              onClick={() => setShowDetails(!showDetails)}
-              className="px-6 py-4 flex items-center gap-1.5 text-left cursor-pointer hover:opacity-70 transition-opacity"
-            >
-              <span className="text-sm font-medium text-gray-700">Transaction Details</span>
-              {showDetails ? (
-                <FiChevronUp className="size-4 text-gray-400" aria-hidden="true" />
-              ) : (
-                <FiChevronDown className="size-4 text-gray-400" aria-hidden="true" />
-              )}
-            </button>
-
-            {showDetails && (
-              <div className="px-6 pb-4 space-y-4 border-t border-gray-100 pt-4">
+          <Collapsible variant="card" title="Transaction Details">
                 {/* TX Hash */}
                 {txid && (
                   <div>
@@ -503,9 +488,7 @@ export default function ApprovePsbtPage() {
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+          </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
           <WarningStack items={warningItems} />

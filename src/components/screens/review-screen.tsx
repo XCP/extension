@@ -1,5 +1,6 @@
 import { type ReactElement, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
@@ -204,15 +205,12 @@ export function ReviewScreen({
         </div>
       </div>
       
-      {/* Raw Transaction Details (Collapsible) */}
-      <details className="mt-4">
-        <summary className="text-md font-semibold cursor-pointer text-gray-700 hover:text-gray-900 select-none">
-          Raw Transaction
-        </summary>
-        <pre className="mt-2 overflow-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
+      {/* Raw Transaction Details */}
+      <Collapsible title="Raw Transaction" className="mt-4">
+        <pre className="overflow-auto text-sm bg-gray-50 p-3 rounded-md h-44 border border-gray-200">
           {JSON.stringify(apiResponse, null, 2)}
         </pre>
-      </details>
+      </Collapsible>
       
       {/* Action Buttons */}
       <div className="flex space-x-4">
