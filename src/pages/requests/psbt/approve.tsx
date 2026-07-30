@@ -22,6 +22,7 @@ import {
   ApprovalWalletHeader, ApprovalSiteBar, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
+import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 
 function formatSighashType(sighashType: number): string {
   switch (sighashType) {
@@ -170,37 +171,16 @@ export default function ApprovePsbtPage() {
       )
     : null;
 
-  // Detect swap buy PSBT fee breakdown (buyer completing a swap):
-  // The PSBT has the seller's ANYONECANPAY input, but the USER is not signing
-  // with ANYONECANPAY (they sign with ALL). Output pattern:
-  //   Output 0 = seller payment, Output 1 = dust to buyer (546), Output 2 = platform fee
-  const swapFeeBreakdown = (() => {
-    if (txAction || userSignsWithAnyoneCanPay || counterpartyMessage) return null;
-    const outputs = psbtDetails.outputs;
-    if (outputs.length < 3) return null;
-
-    const signerAddr = activeAddress?.address;
-    const sellerOutput = outputs[0]!;
-    const dustOutput = outputs[1]!;
-    const feeOutput = outputs[2]!;
-
-    // Validate pattern: dust output should be 546 sats to the signer address
-    if (dustOutput.value !== 546) return null;
-    if (dustOutput.address && signerAddr && dustOutput.address !== signerAddr) return null;
-
-    // Fee output should be to neither the seller nor the buyer address
-    if (!feeOutput.address) return null;
-    if (feeOutput.address === signerAddr) return null;
-    if (feeOutput.address === sellerOutput.address) return null;
-
-    return {
-      sellerPayment: sellerOutput.value,
-      sellerAddress: sellerOutput.address,
-      platformFee: feeOutput.value,
-      platformAddress: feeOutput.address,
-      networkFee: psbtDetails.fee,
-    };
-  })();
+  // Net effect of this transaction on your wallet — the money-movement summary,
+  // computed structurally (replaces the old swap-detection heuristic; works for
+  // any tx shape). "Your" addresses are the active address plus any paired signer.
+  const myAddresses = [activeAddress.address, ...requestedAddressSpends.map((s) => s.address)];
+  const movement = computeMoneyMovement({
+    inputs: psbtDetails.inputs,
+    outputs: psbtDetails.outputs,
+    myAddresses,
+    fee: psbtDetails.fee,
+  });
 
   const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
     key: `safety-${idx}`,
@@ -257,15 +237,6 @@ export default function ApprovePsbtPage() {
       ),
     });
   }
-  if (swapFeeBreakdown) {
-    warningItems.push({
-      key: 'swap',
-      severity: 'success',
-      title: 'Atomic Swap Purchase',
-      description: "You are completing an atomic swap. The seller's UTXO asset will transfer to you upon broadcast.",
-    });
-  }
-
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Content */}
@@ -308,12 +279,9 @@ export default function ApprovePsbtPage() {
           {/* Transaction action & fee */}
           <ApprovalSummaryCard
             txAction={txAction}
-            isSwapListing={userSignsWithAnyoneCanPay}
-            swapFeeBreakdown={swapFeeBreakdown}
-            fee={psbtDetails.fee}
+            movement={movement}
+            flexible={userSignsWithAnyoneCanPay}
             hasHighFee={hasHighFee}
-            totalValue={psbtDetails.totalInputValue}
-            listingPrice={psbtDetails.outputs[0]?.value ?? 0}
             protocolFeeXcp={counterpartyMessage?.messageData?.fee != null ? Number(counterpartyMessage.messageData.fee) : null}
           />
 
