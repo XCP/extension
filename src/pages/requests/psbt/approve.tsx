@@ -17,12 +17,7 @@ import type { DecodedPsbtInfo } from '@/hooks/useSignPsbtRequest';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
-import { Banner, type BannerSeverity } from '@/components/ui/banner';
-
-/** Map a safety-analysis severity onto a Banner severity. */
-const SAFETY_TO_BANNER: Record<string, BannerSeverity> = {
-  block: 'danger', danger: 'danger', warning: 'warning', info: 'info',
-};
+import { Banner } from '@/components/ui/banner';
 
 function normalizeLpQuantity(quantity: unknown): string {
   if (quantity == null) return '?';
@@ -596,7 +591,7 @@ export default function ApprovePsbtPage() {
           {safetyWarnings.map((warning, idx) => (
             <Banner
               key={idx}
-              severity={SAFETY_TO_BANNER[warning.severity] ?? 'warning'}
+              severity={warning.severity === 'block' ? 'danger' : warning.severity}
               title={warning.title}
               description={warning.message}
             />
