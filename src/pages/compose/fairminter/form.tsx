@@ -15,6 +15,7 @@ import {
 import { ComposerForm } from "@/components/composer/composer-form";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
+import { TextField } from "@/components/ui/inputs/text-field";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AddressHeader } from "@/components/ui/headers/address-header";
@@ -455,50 +456,31 @@ export function FairminterForm({
                     description="The block at which the sale ends."
                     disabled={pending}
                   />
-                  <Field>
-                    <Label htmlFor="premint_quantity" className="block text-sm font-medium text-gray-700">
-                      Pre-mine
-                    </Label>
-                    <Input
-                      id="premint_quantity"
-                      name="premint_quantity"
-                      type="text"
-                      inputMode="decimal"
-                      value={premintQuantity}
-                      onChange={handleQuantityChange(setPremintQuantity)}
-                      step={getInputStep()}
-                      placeholder={getInputPlaceholder()}
-                      className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                      disabled={pending}
-                    />
-                    {showHelpText && (
-                      <Description className="mt-2 text-sm text-gray-500">
-                        Amount of asset to mint when the sale starts.
-                      </Description>
-                    )}
-                  </Field>
-                  <Field>
-                    <Label
-                      htmlFor="minted_asset_commission"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Commission
-                    </Label>
-                    <Input
-                      id="minted_asset_commission"
-                      name="minted_asset_commission"
-                      type="text"
-                      inputMode="decimal"
-                      defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
-                      className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                      disabled={pending}
-                    />
-                    {showHelpText && (
-                      <Description className="mt-2 text-sm text-gray-500">
-                        Commission (fraction between 0 and less than 1) to be paid.
-                      </Description>
-                    )}
-                  </Field>
+                  <TextField
+                    label="Pre-mine"
+                    id="premint_quantity"
+                    name="premint_quantity"
+                    type="text"
+                    inputMode="decimal"
+                    value={premintQuantity}
+                    onChange={handleQuantityChange(setPremintQuantity)}
+                    step={getInputStep()}
+                    placeholder={getInputPlaceholder()}
+                    disabled={pending}
+                    showHelpText={showHelpText}
+                    description="Amount of asset to mint when the sale starts."
+                  />
+                  <TextField
+                    label="Commission"
+                    id="minted_asset_commission"
+                    name="minted_asset_commission"
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={initialFormData?.minted_asset_commission?.toString() || "0.0"}
+                    disabled={pending}
+                    showHelpText={showHelpText}
+                    description="Commission (fraction between 0 and less than 1) to be paid."
+                  />
                   {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
                     <>
                       <Field>
