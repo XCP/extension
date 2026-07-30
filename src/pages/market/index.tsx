@@ -258,7 +258,7 @@ export default function MarketPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Exchange",
+      title: "Market",
       onBack: () => navigate("/index"),
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
