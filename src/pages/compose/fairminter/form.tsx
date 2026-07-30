@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { FiChevronDown } from "@/components/icons";
+import { AdvancedSection } from "@/components/ui/advanced-section";
 import {
   Field,
   Label,
@@ -11,9 +11,6 @@ import {
   ListboxButton,
   ListboxOption,
   ListboxOptions,
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel,
 } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
@@ -437,17 +434,7 @@ export function FairminterForm({
             disabled={pending}
           />
           
-          <Disclosure>
-            {({ open }) => (
-              <>
-                <DisclosureButton className="flex items-center text-md font-semibold text-gray-700 hover:text-gray-900 cursor-pointer">
-                  <FiChevronDown
-                    className={`${open ? "transform rotate-180" : ""} size-4 mr-2 transition-transform`}
-                    aria-hidden="true"
-                  />
-                  Advanced Options
-                </DisclosureButton>
-                <DisclosurePanel className="mt-2 space-y-4">
+          <AdvancedSection title="Advanced Options">
                   <BlockHeightInput
                     name="start_block"
                     label="Start Block"
@@ -547,10 +534,7 @@ export function FairminterForm({
                       />
                     </>
                   )}
-                </DisclosurePanel>
-              </>
-            )}
-          </Disclosure>
+          </AdvancedSection>
     </ComposerForm>
   );
 }
