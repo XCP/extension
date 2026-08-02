@@ -14,7 +14,8 @@ To qualify for a reward, your report must:
 
 - Describe a reproducible vulnerability with clear steps
 - Include proof of concept (code, screenshots, or video)
-- Affect the latest release on the main branch
+- Affect the current published release. Unreleased code on `main` is developed in the open and sits
+  outside the programme — such reports are welcome and credited, but are not eligible for a reward
 - Not be a duplicate of a known issue or previously reported vulnerability
 - Be reported privately via GitHub Security Advisories
 
@@ -59,3 +60,5 @@ We recognize all valid security contributions, regardless of severity:
 | Contributor | Finding | PR |
 |-------------|---------|-----|
 | Niftyboss | Password memory cleanup | [#178](https://github.com/XCP/extension/pull/178) |
+| refangga1337 | Approval summary priced a PSBT without regard to what the signature committed to | [GHSA-xm3c-v5fj-mxqv](https://github.com/XCP/extension/security/advisories/GHSA-xm3c-v5fj-mxqv) |
+| refangga1337 | Attached-asset warning suppressible by padding a PSBT past the lookup cap | [GHSA-6mmc-r2hj-qq43](https://github.com/XCP/extension/security/advisories/GHSA-6mmc-r2hj-qq43) |
