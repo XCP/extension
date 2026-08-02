@@ -11,6 +11,8 @@ interface MoneyMovementViewProps {
   flexible?: boolean;
   /** Highlight the network fee as unusually high. */
   hasHighFee?: boolean;
+  /** The outputs exceed the inputs, so the fee depends on inputs someone else has yet to add. */
+  unfunded?: boolean;
   /**
    * Show the big "You send/receive N" headline. Off when a Counterparty action
    * is the card's headline instead (composition A) — the BTC movement then
@@ -26,7 +28,7 @@ interface MoneyMovementViewProps {
  * would just re-create habituation); genuine anomalies escalate via the warning
  * stack, not here.
  */
-export function MoneyMovementView({ movement, flexible, hasHighFee, showHeadline = true }: MoneyMovementViewProps) {
+export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, showHeadline = true }: MoneyMovementViewProps) {
   const { net, external, backToYou, atRisk, fee, incomplete } = movement;
   const sending = net < 0;
 
@@ -64,7 +66,7 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, showHeadline
         <div className="flex items-center justify-between gap-2">
           <span className="text-gray-500">Network fee</span>
           <span className={`font-medium flex-shrink-0 ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
-            {btc(fee)} BTC
+            {unfunded ? 'Set by the other party' : `${btc(fee)} BTC`}
           </span>
         </div>
         {hasHighFee && (

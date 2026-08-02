@@ -161,8 +161,13 @@ export interface PsbtDetails {
   totalInputValue: number;
   /** Total output value */
   totalOutputValue: number;
-  /** Calculated fee (inputs - outputs), 0 if input values unknown */
+  /** Calculated fee (inputs - outputs), 0 if input values are unknown or the outputs exceed them */
   fee: number;
+  /**
+   * Outputs exceed inputs, so `fee` is not yet knowable. Normal for a marketplace listing, where the
+   * counterparty supplies the funding inputs.
+   */
+  unfunded: boolean;
   /** True if any output contains OP_RETURN */
   hasOpReturn: boolean;
 }
@@ -360,8 +365,9 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     }
   }
 
-  // Calculate fee (only valid if all input values are known)
-  const fee = totalInputValue > 0 ? totalInputValue - totalOutputValue : 0;
+  // A fee only exists once the inputs cover the outputs.
+  const unfunded = totalInputValue > 0 && totalOutputValue > totalInputValue;
+  const fee = totalInputValue > 0 && !unfunded ? totalInputValue - totalOutputValue : 0;
 
   return {
     rawTxHex,
@@ -370,6 +376,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     totalInputValue,
     totalOutputValue,
     fee,
+    unfunded,
     hasOpReturn,
   };
 }

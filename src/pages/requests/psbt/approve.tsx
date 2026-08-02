@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
+import { CheckboxInput } from '@/components/ui/inputs/checkbox-input';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
@@ -50,6 +51,7 @@ export default function ApprovePsbtPage() {
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
+  const [acceptedAtRisk, setAcceptedAtRisk] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -289,6 +291,7 @@ export default function ApprovePsbtPage() {
 
           {/* Transaction action & fee */}
           <ApprovalSummaryCard
+            unfunded={psbtDetails.unfunded}
             txAction={txAction}
             movement={movement}
             flexible={userSignsWithAnyoneCanPay}
@@ -379,6 +382,21 @@ export default function ApprovePsbtPage() {
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
+
+          {movement.atRisk > 0 && (
+            <div className="rounded-lg border border-danger-200 bg-danger-50 p-3">
+              <CheckboxInput
+                name="acceptAtRisk"
+                label={`I understand ${formatAmount({
+                  value: fromSatoshis(movement.atRisk, true),
+                  minimumFractionDigits: 8,
+                  maximumFractionDigits: 8,
+                })} BTC may not come back to me`}
+                checked={acceptedAtRisk}
+                onChange={setAcceptedAtRisk}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -386,7 +404,7 @@ export default function ApprovePsbtPage() {
         onCancel={handleReject}
         onSign={handleSign}
         busy={isSigning}
-        blocked={shouldBlockSigning}
+        blocked={shouldBlockSigning || (movement.atRisk > 0 && !acceptedAtRisk)}
         isHardware={activeWallet.type === 'hardware'}
       />
     </div>

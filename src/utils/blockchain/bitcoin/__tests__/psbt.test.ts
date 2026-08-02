@@ -896,3 +896,30 @@ describe('committedOutputIndices', () => {
     expect(committed).toBeNull();
   });
 });
+
+describe('unfunded PSBTs', () => {
+  it('reports no fee for a listing whose outputs exceed its inputs', () => {
+    const pub = getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true);
+    const payment = p2wpkh(pub);
+    const tx = new Transaction({ allowUnknownOutputs: true, allowUnknownInputs: true });
+    // A seller's dust UTXO offered against an asking price the buyer has yet to fund.
+    tx.addInput({
+      txid: hexToBytes('11'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: payment.script, amount: 546n },
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 10_000_000n);
+
+    const details = extractPsbtDetails(bytesToHex(tx.toPSBT()));
+
+    expect(details.unfunded).toBe(true);
+    expect(details.fee).toBe(0);
+  });
+
+  it('reports a real fee once the inputs cover the outputs', () => {
+    const details = extractPsbtDetails(createTestPsbt());
+
+    expect(details.unfunded).toBe(false);
+    expect(details.fee).toBe(1000);
+  });
+});

@@ -11,6 +11,8 @@ interface ApprovalSummaryCardProps {
   /** ANYONECANPAY — the movement can change after signing. */
   flexible: boolean;
   hasHighFee: boolean;
+  /** Outputs exceed inputs; the fee depends on inputs the counterparty has yet to add. */
+  unfunded?: boolean;
   /** Counterparty protocol (XCP) fee in sats, if any. */
   protocolFeeXcp: number | null;
 }
@@ -27,6 +29,7 @@ export function ApprovalSummaryCard({
   movement,
   flexible,
   hasHighFee,
+  unfunded,
   protocolFeeXcp,
 }: ApprovalSummaryCardProps) {
   return (
@@ -37,7 +40,7 @@ export function ApprovalSummaryCard({
           <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
         </div>
       )}
-      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} showHeadline={!txAction} />
+      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction} />
       {protocolFeeXcp != null && protocolFeeXcp > 0 && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>
