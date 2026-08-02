@@ -5,24 +5,12 @@
  * Requires password verification before revealing sensitive data.
  */
 
-import { walletTest, expect, TEST_PASSWORD } from '@e2e/fixtures';
+import { walletTest, expect, getWalletId, TEST_PASSWORD } from '@e2e/fixtures';
 import { secrets, common, unlock, errors } from '@e2e/selectors';
 
 walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
-  async function getWalletId(page: any): Promise<string | null> {
-    return await page.evaluate(() => {
-      const state = localStorage.getItem('wallet-state');
-      if (state) {
-        const parsed = JSON.parse(state);
-        return parsed.activeWalletId || Object.keys(parsed.wallets || {})[0];
-      }
-      return null;
-    });
-  }
-
   walletTest('page loads with wallet ID', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -33,7 +21,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows security warning', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -44,7 +31,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('requires password verification', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -55,7 +41,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('has reveal button', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -66,7 +51,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('reveals passphrase with correct password', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -83,7 +67,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows error for wrong password', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -98,26 +81,25 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
     await expect(errors.genericError(page)).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('has copy functionality after reveal', async ({ page }) => {
+  // Unlike a private key, a recovery phrase is deliberately awkward to exfiltrate: there is no copy
+  // control and the words are `select-none`, so the only way out is to write them down. This asserted
+  // the opposite and had never run. Lock in the property the product actually has.
+  walletTest('the phrase cannot be copied or selected in one gesture', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
 
-    await expect(unlock.passwordInput(page)).toBeVisible({ timeout: 5000 });
-
     await unlock.passwordInput(page).fill(TEST_PASSWORD);
-
     await secrets.revealButton(page).click();
+    await expect(secrets.mnemonicDisplay(page)).toBeVisible({ timeout: 5000 });
 
-    // After revealing, there should be a copy button - wait for it to appear
-    await expect(secrets.copyButton(page)).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[aria-label*="Copy" i], [title*="Copy" i]')).toHaveCount(0);
+    await expect(page.locator('ol li span.font-mono').first()).toHaveClass(/select-none/);
   });
 
   walletTest('can navigate back', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -144,7 +126,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('displays exactly 12 mnemonic words after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -162,7 +143,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('each word has number prefix', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -181,7 +161,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows security notice after revealing', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -198,7 +177,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('words are valid BIP39 mnemonic words', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -223,7 +201,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows instructions before reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -235,7 +212,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows instructions after reveal', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -252,7 +228,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows error for empty password', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -267,7 +242,6 @@ walletTest.describe('Show Passphrase Page (/secrets/show-passphrase)', () => {
 
   walletTest('shows error for short password', async ({ page }) => {
     const walletId = await getWalletId(page);
-    if (!walletId) return;
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-passphrase/${walletId}`));
     await page.waitForLoadState('networkidle');

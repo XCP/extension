@@ -5,24 +5,12 @@
  * Requires password verification before revealing sensitive data.
  */
 
-import { walletTest, expect, TEST_PASSWORD } from '@e2e/fixtures';
+import { walletTest, expect, getPrivateKeyRoute, TEST_PASSWORD } from '@e2e/fixtures';
 import { secrets, common, unlock, errors } from '@e2e/selectors';
 
 walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
-  async function getWalletId(page: any): Promise<string | null> {
-    return await page.evaluate(() => {
-      const state = localStorage.getItem('wallet-state');
-      if (state) {
-        const parsed = JSON.parse(state);
-        return parsed.activeWalletId || Object.keys(parsed.wallets || {})[0];
-      }
-      return null;
-    });
-  }
-
   walletTest('page loads with wallet ID', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -32,8 +20,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows security warning', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -43,8 +30,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('requires password verification', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -54,8 +40,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('has reveal button', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -65,8 +50,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('reveals private key with correct password', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -82,8 +66,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows error for wrong password', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -99,8 +82,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('has copy functionality after reveal', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -116,8 +98,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows private key display after reveal', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -133,8 +114,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('can navigate back', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -154,8 +134,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('page shows Private Key title', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -168,39 +147,36 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   // Warning Message Tests
   // ============================================================================
 
-  walletTest('warning message has red styling', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+  walletTest('warning callout uses the warning severity', async ({ page }) => {
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Warning box should have red border
-    const warningBox = page.locator('.border-red-500, .bg-red-50').first();
+    const warningBox = page.locator('.bg-warning-50').first();
     await expect(warningBox).toBeVisible({ timeout: 5000 });
   });
 
-  walletTest('warning shows "Never share" text', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+  walletTest('warning tells the reader not to share the key', async ({ page }) => {
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show warning text about not sharing
-    const warningText = page.locator('text=/Never share your private key/i');
+    const warningText = page.locator('text=/Never share it with anyone/i');
     await expect(warningText.first()).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('warning shows exclamation triangle icon', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
 
     // Should show warning icon
-    const warningIcon = page.locator('.text-red-500 svg, svg.text-red-500').first();
+    const warningIcon = page.locator('svg.text-warning-600').first();
     await expect(warningIcon).toBeVisible({ timeout: 5000 });
   });
 
@@ -209,8 +185,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   // ============================================================================
 
   walletTest('shows error for empty password', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -224,8 +199,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows error for short password', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -240,8 +214,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows "Incorrect password" for wrong password', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -260,8 +233,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   // ============================================================================
 
   walletTest('reveals WIF format title after reveal', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -275,8 +247,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('private key display is clickable to copy', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -290,8 +261,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('private key starts with valid WIF prefix', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -310,8 +280,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('copy button shows "Copied!" feedback after click', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -330,8 +299,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('shows security notice after reveal', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -340,13 +308,12 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await secrets.revealButton(page).click();
 
     // Should show security notice after reveal
-    const securityNotice = page.locator('text=/Security Notice/i');
+    const securityNotice = page.locator('text=/Keep this private/i');
     await expect(securityNotice).toBeVisible({ timeout: 5000 });
   });
 
   walletTest('security notice warns about theft', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -355,7 +322,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await secrets.revealButton(page).click();
 
     // Security notice should mention stealing
-    const theftWarning = page.locator('text=/steal your bitcoin/i');
+    const theftWarning = page.locator('text=/steal your funds/i');
     await expect(theftWarning).toBeVisible({ timeout: 5000 });
   });
 
@@ -364,8 +331,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   // ============================================================================
 
   walletTest('back button navigates back', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     // Start from select-wallet page to have navigation history
     await page.goto(page.url().replace(/\/index.*/, '/keychain/wallets'));
@@ -387,8 +353,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   // ============================================================================
 
   walletTest('reveal button has red color', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');
@@ -404,8 +369,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
   });
 
   walletTest('password input has placeholder text', async ({ page }) => {
-    const walletId = await getWalletId(page);
-    if (!walletId) return;
+    const walletId = await getPrivateKeyRoute(page);
 
     await page.goto(page.url().replace(/\/index.*/, `/keychain/secrets/show-private-key/${walletId}`));
     await page.waitForLoadState('networkidle');

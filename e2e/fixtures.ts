@@ -15,6 +15,7 @@ import {
   importWallet,
   unlock,
   header,
+  selectAddress,
   index,
 } from './selectors';
 
@@ -291,6 +292,60 @@ async function cleanup(context: BrowserContext, contextPath?: string): Promise<v
   }
 }
 
+/**
+ * The id of the first wallet, for tests that navigate straight to a `:walletId` route.
+ *
+ * It has to come from the UI. The keychain in chrome.storage is encrypted, so the id is not readable
+ * from storage, and the wallet cards carry only Headless UI's generated ids. Reaching a secret screen
+ * once and reading the id back out of the URL is the only honest route to it.
+ *
+ * Throws rather than returning null: a test that cannot find a wallet has not passed, and the previous
+ * `if (!walletId) return` form silently turned 41 assertions into no-ops.
+ */
+async function getWalletId(page: Page): Promise<string> {
+  await header.walletSelector(page).click();
+  await page.waitForURL(/keychain\/wallets/, { timeout: 5000 });
+
+  const walletCard = page.locator('[role="radio"]').first();
+  await walletCard.locator('button').last().click();
+  await page.getByText(/Show.*Passphrase|View.*Seed|Recovery/i).first().click();
+  await page.waitForURL(/show-passphrase\/[^/?#]+/, { timeout: 5000 });
+
+  const walletId = page.url().match(/show-passphrase\/([^/?#]+)/)?.[1];
+  if (!walletId) throw new Error(`could not read a wallet id from ${page.url()}`);
+
+  // Callers build their target from `page.url().replace(/\/index.*/, ...)`, so hand the page back on
+  // the index it started from. Leaving it on the secret screen makes that replace a silent no-op and
+  // every caller re-loads this page instead of its own.
+  await page.goto(`${page.url().split('#')[0]}#/index`);
+  await page.waitForURL(/#\/index/, { timeout: 5000 });
+  return walletId;
+}
+
+/**
+ * The `walletId/addressPath` segment that addresses the active address's private key.
+ *
+ * A mnemonic wallet's key is only reachable with a derivation path — the page refuses without one —
+ * and the path is not knowable from outside the app. Let the address menu build the route and read it
+ * back, so the tests exercise the same URL the product produces.
+ */
+async function getPrivateKeyRoute(page: Page): Promise<string> {
+  await selectAddress.chevronButton(page).click();
+  await page.waitForURL(/addresses/, { timeout: 5000 });
+
+  const addressCard = page.locator('[role="radio"]').first();
+  await addressCard.locator('button').last().click();
+  await page.getByText(/Show.*Private.*Key|Export.*Key/i).first().click();
+  await page.waitForURL(/show-private-key\/.+/, { timeout: 5000 });
+
+  const route = page.url().match(/show-private-key\/(.+)$/)?.[1];
+  if (!route) throw new Error(`could not read a private key route from ${page.url()}`);
+
+  await page.goto(`${page.url().split('#')[0]}#/index`);
+  await page.waitForURL(/#\/index/, { timeout: 5000 });
+  return route;
+}
+
 async function getCurrentAddress(page: Page): Promise<string> {
   // Use index.addressText which filters by address pattern (bc1, tb1, 1, 3, m, n prefixes)
   const text = await index.addressText(page).textContent();
@@ -405,6 +460,8 @@ export {
   navigateTo,
   cleanup,
   getCurrentAddress,
+  getWalletId,
+  getPrivateKeyRoute,
   grantClipboardPermissions,
   // Note: sleep() is intentionally not exported - use web-first assertions instead
 };

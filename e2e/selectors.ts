@@ -578,12 +578,16 @@ export const secrets = {
   // Show passphrase page
   showPassphraseTitle: (page: Page) => page.getByText(/Show.*Passphrase|View.*Seed|Recovery/i).first(),
   revealButton: (page: Page) => page.locator('button:has-text("Reveal"), button:has-text("Show")').first(),
-  mnemonicDisplay: (page: Page) => page.locator('text=/word|phrase|mnemonic/i').first(),
+  // The revealed word list. A text match on /phrase/ also hit the "Show Recovery Phrase" button, so
+  // waiting on it returned before the phrase existed and callers counted an empty list.
+  mnemonicDisplay: (page: Page) => page.locator('ol:has(li span.font-mono)'),
   copyButton: (page: Page) => page.locator('button[aria-label*="Copy"]').first(),
 
   // Show private key page
   showPrivateKeyTitle: (page: Page) => page.getByText(/Show.*Private.*Key|Export.*Key/i).first(),
-  privateKeyDisplay: (page: Page) => page.getByText(/Private Key|WIF/i).first(),
+  // The key itself: matching on text picked up the heading, and the accessible name is shared with
+  // the copy button below it, so pin to the element that actually renders the key.
+  privateKeyDisplay: (page: Page) => page.locator('div[role="button"][aria-label="Copy Private Key"]'),
   warningMessage: (page: Page) => page.getByText(/never share|keep.*secret|dangerous/i).first(),
 };
 
