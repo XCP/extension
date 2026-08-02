@@ -90,8 +90,7 @@ describe('fetchInputsAttachedAssets', () => {
     expect(mockedFetch).toHaveBeenCalledWith(`${'dead'.repeat(16)}:2`);
   });
 
-  it('caps the number of lookups and warns on truncation', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('caps the number of lookups', async () => {
     mockedFetch.mockResolvedValue(page([]));
 
     const many = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS + 5 }, (_, i) =>
@@ -100,8 +99,60 @@ describe('fetchInputsAttachedAssets', () => {
     await fetchInputsAttachedAssets(many);
 
     expect(mockedFetch).toHaveBeenCalledTimes(MAX_ASSET_LOOKUP_INPUTS);
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('only the first'));
-    warn.mockRestore();
+  });
+
+  it('reports an input the cap displaced as unknown, never as empty', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+
+    const many = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS + 5 }, (_, i) =>
+      input(i, `${i}`.padStart(64, '0'))
+    );
+    const assets = await fetchInputsAttachedAssets(many);
+
+    for (let index = MAX_ASSET_LOOKUP_INPUTS; index < many.length; index++) {
+      const entry = assets.find((a) => a.inputIndex === index);
+      expect(entry?.lookupFailed, `input ${index} must be reported unknown`).toBe(true);
+    }
+  });
+
+  it('checks a signed input even when padding would push it past the cap', async () => {
+    const assetTxid = 'ab'.repeat(32);
+    mockedFetch.mockImplementation(async (utxo: string) =>
+      utxo.startsWith(assetTxid)
+        ? page([{ asset: 'RAREPEPE', quantity_normalized: '1.00000000', asset_info: { asset_longname: null } }])
+        : page([])
+    );
+
+    const padding = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS }, (_, i) =>
+      input(i, `${i}`.padStart(64, '0'))
+    );
+    const victimIndex = MAX_ASSET_LOOKUP_INPUTS;
+    const inputs = [...padding, input(victimIndex, assetTxid)];
+
+    const assets = await fetchInputsAttachedAssets(inputs, [victimIndex]);
+    const { withAssets, unknownStatus } = classifySignedInputAssets(assets, [victimIndex]);
+
+    expect(withAssets).toHaveLength(1);
+    expect(withAssets[0]?.inputIndex).toBe(victimIndex);
+    expect(withAssets[0]?.assets[0]?.asset).toBe('RAREPEPE');
+    expect(unknownStatus).toHaveLength(0);
+  });
+
+  it('reports a signed input as unknown when it is displaced and not prioritised', async () => {
+    mockedFetch.mockResolvedValue(page([]));
+
+    const inputs = Array.from({ length: MAX_ASSET_LOOKUP_INPUTS + 1 }, (_, i) =>
+      input(i, `${i}`.padStart(64, '0'))
+    );
+    const victimIndex = MAX_ASSET_LOOKUP_INPUTS;
+
+    // No signed indices supplied, so the displaced input cannot be prioritised.
+    const assets = await fetchInputsAttachedAssets(inputs);
+    const { withAssets, unknownStatus } = classifySignedInputAssets(assets, [victimIndex]);
+
+    expect(withAssets).toHaveLength(0);
+    expect(unknownStatus).toHaveLength(1);
+    expect(unknownStatus[0]?.inputIndex).toBe(victimIndex);
   });
 
   it('drops balance rows missing an asset or quantity', async () => {

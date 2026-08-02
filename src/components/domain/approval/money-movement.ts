@@ -10,8 +10,14 @@ export interface MovementDestination {
 export interface MoneyMovement {
   /** Sats spent from your addresses. */
   spent: number;
-  /** Sats returned to your addresses (change). */
+  /** Sats returned to your addresses that the signature commits to — change you are promised. */
   backToYou: number;
+  /**
+   * Sats sent back to your addresses that the signature does *not* commit to. Whoever completes the
+   * transaction can redirect these and the signature still verifies, so this is money you may not
+   * keep. Non-zero only under a sighash that leaves outputs free (SINGLE|ANYONECANPAY).
+   */
+  atRisk: number;
   /** Outputs to addresses that aren't yours (OP_RETURN excluded). */
   external: MovementDestination[];
   /** Network fee in sats. */
@@ -51,6 +57,11 @@ export function computeMoneyMovement(params: {
   myAddresses: string[];
   /** Network fee in sats. */
   fee: number;
+  /**
+   * Output indices the signature commits to (see `committedOutputIndices`); omit when every output
+   * is committed. An uncommitted output back to you is reported as at-risk, not counted as change.
+   */
+  committedOutputs?: Set<number> | null;
 }): MoneyMovement {
   const mine = new Set(params.myAddresses.map(normalizeAddressForComparison));
   const isMine = (address?: string) =>
@@ -70,14 +81,20 @@ export function computeMoneyMovement(params: {
   }
 
   const external: MovementDestination[] = [];
-  for (const output of params.outputs) {
-    if (output.type === 'op_return') continue; // data, not money movement
+  let atRisk = 0;
+  params.outputs.forEach((output, index) => {
+    if (output.type === 'op_return') return; // data, not money movement
+    const committed = !params.committedOutputs || params.committedOutputs.has(index);
     if (isMine(output.address)) {
-      backToYou += output.value;
+      // Only a committed output is change you are promised; an uncommitted one can be repointed by
+      // whoever completes the transaction.
+      if (committed) backToYou += output.value;
+      else atRisk += output.value;
     } else {
+      // Already leaving either way, so not also counted as at-risk.
       external.push({ address: output.address ?? null, value: output.value });
     }
-  }
+  });
 
   return {
     spent,
@@ -85,6 +102,7 @@ export function computeMoneyMovement(params: {
     external,
     fee: params.fee,
     net: backToYou - spent,
+    atRisk,
     incomplete,
   };
 }

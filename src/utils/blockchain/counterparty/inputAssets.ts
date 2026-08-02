@@ -29,24 +29,28 @@ export interface InputAttachedAssets {
   }>;
 }
 
-/** Cap on per-input asset lookups; truncation past this is logged, not silent. */
+/** Cap on per-input asset lookups. Inputs past it are reported unknown, never assumed empty. */
 export const MAX_ASSET_LOOKUP_INPUTS = 30;
 
 /**
- * Look up the Counterparty assets attached to each input's UTXO. Returns an
- * entry for every input that carries assets or whose lookup failed; inputs
- * confirmed empty are omitted. A failed lookup is reported (lookupFailed) rather
- * than silently treated as empty, and never blocks signing.
+ * Look up the Counterparty assets attached to each input's UTXO. Returns an entry for every input
+ * that carries assets, whose lookup failed, or that the cap displaced; inputs confirmed empty are
+ * omitted, so absence of an entry means "checked, carries nothing". Never blocks signing.
+ *
+ * Signed inputs are looked up first. Their asset status is what the user is agreeing to, so the cap
+ * must not let input ordering decide which of them gets checked.
  */
 export async function fetchInputsAttachedAssets(
-  inputs: Array<{ index: number; txid: string; vout: number }>
+  inputs: Array<{ index: number; txid: string; vout: number }>,
+  signedInputIndices?: number[]
 ): Promise<InputAttachedAssets[]> {
-  const checked = inputs.slice(0, MAX_ASSET_LOOKUP_INPUTS);
-  if (inputs.length > MAX_ASSET_LOOKUP_INPUTS) {
-    console.warn(
-      `Transaction has ${inputs.length} inputs; only the first ${MAX_ASSET_LOOKUP_INPUTS} were checked for attached Counterparty assets.`
-    );
-  }
+  // Stable sort, so inputs keep their order within the signed and unsigned groups.
+  const signed = new Set(signedInputIndices ?? []);
+  const byPriority = [...inputs].sort(
+    (a, b) => Number(signed.has(b.index)) - Number(signed.has(a.index))
+  );
+  const checked = byPriority.slice(0, MAX_ASSET_LOOKUP_INPUTS);
+  const unchecked = byPriority.slice(MAX_ASSET_LOOKUP_INPUTS);
 
   const results = await Promise.all(
     checked.map(async (input): Promise<InputAttachedAssets | null> => {
@@ -68,7 +72,15 @@ export async function fetchInputsAttachedAssets(
     })
   );
 
-  return results.filter((r): r is InputAttachedAssets => r !== null);
+  // Never queried, so unknown rather than empty.
+  const displaced = unchecked.map((input) => ({
+    inputIndex: input.index,
+    utxo: `${input.txid}:${input.vout}`,
+    assets: [],
+    lookupFailed: true,
+  }));
+
+  return [...results.filter((r): r is InputAttachedAssets => r !== null), ...displaced];
 }
 
 export interface SignedInputAssetSummary {
@@ -79,9 +91,12 @@ export interface SignedInputAssetSummary {
 }
 
 /**
- * From the attached-asset entries and the indices of the inputs the wallet is
- * about to sign, split out the signed inputs that carry assets from those whose
- * lookup failed. Inputs the user isn't signing, or confirmed empty, are ignored.
+ * From the attached-asset entries and the indices of the inputs the wallet is about to sign, split
+ * out the signed inputs that carry assets from those whose status is unknown. Inputs the user isn't
+ * signing, or confirmed empty, are ignored.
+ *
+ * Absence of an entry means the input was checked and carries nothing; `fetchInputsAttachedAssets`
+ * emits an entry for every input it did not check.
  */
 export function classifySignedInputAssets(
   attachedAssets: InputAttachedAssets[],

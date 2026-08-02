@@ -33,6 +33,31 @@ export const ALLOWED_PSBT_SIGHASH_TYPES: ReadonlySet<number> = new Set([
 ]);
 
 /**
+ * Which output indices a set of signatures commits to. `null` means every output is committed, so
+ * the outputs cannot change without invalidating a signature.
+ *
+ * SINGLE|ANYONECANPAY covers only the output sharing the signed input's index and leaves the rest
+ * free for whoever holds the partially-signed transaction to delete, replace or repoint. One signed
+ * input committing to all outputs pins the whole set, since changing any output would invalidate
+ * that signature and the transaction still needs that input.
+ */
+export function committedOutputIndices(
+  signedInputs: Array<{ index: number; sighashType: number }>,
+  outputCount: number
+): Set<number> | null {
+  if (signedInputs.length === 0) return null;
+
+  const committed = new Set<number>();
+  for (const { index, sighashType } of signedInputs) {
+    const base = sighashType & 0x1f;
+    if (base === SigHash.DEFAULT || base === SigHash.ALL) return null;
+    // SINGLE commits to the output sharing the input's index; NONE commits to none at all.
+    if (base === SigHash.SINGLE && index < outputCount) committed.add(index);
+  }
+  return committed;
+}
+
+/**
  * Normalize PSBT string to hex format.
  *
  * PSBTs can be provided in either hex or base64 format:

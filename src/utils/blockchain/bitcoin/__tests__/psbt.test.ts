@@ -6,6 +6,7 @@ import { Transaction, p2wpkh, p2pkh } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import {
+  committedOutputIndices,
   normalizePsbtToHex,
   parsePSBT,
   extractPsbtDetails,
@@ -837,5 +838,61 @@ describe('completePsbtWithInputValues', () => {
       [100000],
       [lockScript, lockScript] // 2 scripts but only 1 input
     )).toThrow(/doesn't match/);
+  });
+});
+
+describe('committedOutputIndices', () => {
+  const ALL = 0x01;
+  const SINGLE_ACP = 0x83;      // marketplace listings
+  const ALL_ACP = 0x81;
+  const NONE = 0x02;
+  const DEFAULT = 0x00;         // taproot key-path, ALL semantics
+
+  it('reports every output committed when nothing is being signed', () => {
+    expect(committedOutputIndices([], 3)).toBeNull();
+  });
+
+  it('reports every output committed under SIGHASH_ALL', () => {
+    expect(committedOutputIndices([{ index: 0, sighashType: ALL }], 3)).toBeNull();
+  });
+
+  it('reports every output committed under taproot DEFAULT', () => {
+    expect(committedOutputIndices([{ index: 0, sighashType: DEFAULT }], 3)).toBeNull();
+  });
+
+  it('reports every output committed under ALL|ANYONECANPAY', () => {
+    // ANYONECANPAY frees the inputs; the outputs stay covered.
+    expect(committedOutputIndices([{ index: 1, sighashType: ALL_ACP }], 3)).toBeNull();
+  });
+
+  it('commits only to the matching index under SINGLE|ANYONECANPAY', () => {
+    const committed = committedOutputIndices([{ index: 0, sighashType: SINGLE_ACP }], 3);
+    expect(committed).toEqual(new Set([0]));
+  });
+
+  it('commits to each signed index when several inputs use SINGLE', () => {
+    const committed = committedOutputIndices(
+      [{ index: 0, sighashType: SINGLE_ACP }, { index: 2, sighashType: SINGLE_ACP }],
+      4
+    );
+    expect(committed).toEqual(new Set([0, 2]));
+  });
+
+  it('ignores a SINGLE input with no output at its index', () => {
+    // No output at that index, so that signature pins nothing.
+    expect(committedOutputIndices([{ index: 5, sighashType: SINGLE_ACP }], 2)).toEqual(new Set());
+  });
+
+  it('commits to nothing under SIGHASH_NONE', () => {
+    expect(committedOutputIndices([{ index: 0, sighashType: NONE }], 3)).toEqual(new Set());
+  });
+
+  it('lets one SIGHASH_ALL input pin the whole output set', () => {
+
+    const committed = committedOutputIndices(
+      [{ index: 0, sighashType: SINGLE_ACP }, { index: 1, sighashType: ALL }],
+      4
+    );
+    expect(committed).toBeNull();
   });
 });

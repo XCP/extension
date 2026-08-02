@@ -5,7 +5,7 @@ import { MoneyMovementView } from './money-movement-view';
 import type { MoneyMovement } from './money-movement';
 
 const movement = (over: Partial<MoneyMovement>): MoneyMovement => ({
-  spent: 0, backToYou: 0, external: [], fee: 0, net: 0, incomplete: false, ...over,
+  spent: 0, backToYou: 0, atRisk: 0, external: [], fee: 0, net: 0, incomplete: false, ...over,
 });
 
 describe('MoneyMovementView', () => {

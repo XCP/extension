@@ -13,7 +13,7 @@ import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getWalletService } from '@/services/walletService';
 import { getConnectionService } from '@/services/connectionService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
+import { committedOutputIndices, resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo } from '@/components/domain/tx/txActionInfo';
@@ -175,11 +175,17 @@ export default function ApprovePsbtPage() {
   // computed structurally (replaces the old swap-detection heuristic; works for
   // any tx shape). "Your" addresses are the active address plus any paired signer.
   const myAddresses = [activeAddress.address, ...requestedAddressSpends.map((s) => s.address)];
+  // Outputs the signature leaves free are not change coming back to you.
+  const committedOutputs = committedOutputIndices(
+    effectiveSighashes.map(({ index, type }) => ({ index, sighashType: type })),
+    psbtDetails.outputs.length
+  );
   const movement = computeMoneyMovement({
     inputs: psbtDetails.inputs,
     outputs: psbtDetails.outputs,
     myAddresses,
     fee: psbtDetails.fee,
+    committedOutputs,
   });
 
   const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
@@ -223,11 +229,16 @@ export default function ApprovePsbtPage() {
     });
   }
   if (userSignsWithAnyoneCanPay) {
+    // Money the signature leaves redirectable is a different order of risk from a transaction that
+    // can merely gain inputs, so it reads as danger rather than caution.
+    const redirectable = movement.atRisk > 0;
     warningItems.push({
       key: 'anyonecanpay',
-      severity: 'warning',
-      title: 'Flexible signature rules',
-      description: 'ANYONECANPAY allows other inputs to be added or removed after you sign. SINGLE commits only to the output at the same input index. Review the paired inputs and outputs carefully.',
+      severity: redirectable ? 'danger' : 'warning',
+      title: redirectable ? 'Some of your funds can be redirected' : 'This transaction can still change',
+      description: redirectable
+        ? 'Part of the amount shown returning to your wallet can be sent somewhere else after you sign. Only approve this if you trust the site with that amount.'
+        : 'Inputs or outputs can be added after you sign. Check the amounts above before approving.',
       children: (
         <ul className="mt-2 space-y-1 text-xs font-medium">
           {anyoneCanPaySighashes.map(({ index, type }) => (

@@ -27,7 +27,7 @@ interface MoneyMovementViewProps {
  * stack, not here.
  */
 export function MoneyMovementView({ movement, flexible, hasHighFee, showHeadline = true }: MoneyMovementViewProps) {
-  const { net, external, backToYou, fee, incomplete } = movement;
+  const { net, external, backToYou, atRisk, fee, incomplete } = movement;
   const sending = net < 0;
 
   return (
@@ -55,6 +55,12 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, showHeadline
             <span className="text-gray-400 font-normal flex-shrink-0">{btc(backToYou)} BTC</span>
           </div>
         )}
+        {atRisk > 0 && (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-danger-600">May not return to you</span>
+            <span className="text-danger-600 font-medium flex-shrink-0">{btc(atRisk)} BTC</span>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-gray-500">Network fee</span>
           <span className={`font-medium flex-shrink-0 ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
@@ -65,12 +71,17 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, showHeadline
           <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
         )}
       </div>
-      {(incomplete || flexible) && (
+      {(incomplete || flexible || atRisk > 0) && (
         <div className="mt-2 space-y-1 text-center text-xs">
           {incomplete && (
             <p className="text-warning-600">Some amounts couldn't be determined — review the details.</p>
           )}
-          {flexible && (
+          {atRisk > 0 && (
+            <p className="text-danger-600">
+              This can be sent elsewhere after you sign, so the total above counts it as leaving.
+            </p>
+          )}
+          {flexible && atRisk === 0 && (
             <p className="text-gray-400">More inputs or outputs may be added after you sign.</p>
           )}
         </div>

@@ -68,6 +68,60 @@ describe('computeMoneyMovement', () => {
     }).incomplete).toBe(true);
   });
 
+  it('treats every output as committed when no commitment set is supplied', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 100000 }],
+      outputs: [{ address: 'them', value: 90000 }, { address: 'me', value: 5000 }],
+      fee: 5000,
+    });
+    expect(m.atRisk).toBe(0);
+    expect(m.backToYou).toBe(5000);
+  });
+
+  it('does not count an uncommitted output back to you as change', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 100_000_000 }],
+      outputs: [
+        { address: 'me', value: 546 },        // committed
+        { address: 'me', value: 99_989_454 }, // looks like change, not committed
+      ],
+      fee: 10_000,
+      committedOutputs: new Set([0]),
+    });
+
+    expect(m.backToYou).toBe(546);
+    expect(m.atRisk).toBe(99_989_454);
+    expect(m.net).toBe(-99_999_454);
+  });
+
+  it('still counts a committed output back to you as change under a partial commitment', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 100000 }],
+      outputs: [{ address: 'me', value: 40000 }, { address: 'them', value: 55000 }],
+      fee: 5000,
+      committedOutputs: new Set([0, 1]),
+    });
+    expect(m.backToYou).toBe(40000);
+    expect(m.atRisk).toBe(0);
+    expect(m.net).toBe(-60000);
+  });
+
+  it('does not double-count an uncommitted external output', () => {
+    const m = computeMoneyMovement({
+      myAddresses: ['me'],
+      inputs: [{ address: 'me', value: 100000 }],
+      outputs: [{ address: 'them', value: 95000 }],
+      fee: 5000,
+      committedOutputs: new Set(), // commits to nothing
+    });
+
+    expect(m.external).toEqual([{ address: 'them', value: 95000 }]);
+    expect(m.atRisk).toBe(0);
+  });
+
   it('matches bech32 addresses case-insensitively', () => {
     const m = computeMoneyMovement({
       myAddresses: ['BC1QME'],

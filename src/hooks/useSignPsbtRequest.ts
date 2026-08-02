@@ -77,14 +77,15 @@ export function useSignPsbtRequest(signerAddress?: string) {
   // Decode PSBT and enrich with API data
   const decodePsbt = useCallback(async (
     psbtHex: string,
-    signerAddresses?: string[]
+    signerAddresses?: string[],
+    signedInputIndices?: number[]
   ): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
 
     // Kick off per-input attached-asset lookups now so they overlap with the
     // OP_RETURN/txid API decodes below rather than adding a serial round-trip.
-    const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs);
+    const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
@@ -179,7 +180,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
         const requestedSigners = Object.keys(req.signInputs ?? {});
         const decoded = await decodePsbt(
           req.psbtHex,
-          requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : []
+          requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
+          Object.values(req.signInputs ?? {}).flat()
         );
         setDecodedInfo(decoded);
       } catch (err) {
@@ -205,7 +207,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
             const requestedSigners = Object.keys(req.signInputs ?? {});
             const decoded = await decodePsbt(
               req.psbtHex,
-              requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : []
+              requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
+              Object.values(req.signInputs ?? {}).flat()
             );
             setDecodedInfo(decoded);
           }
