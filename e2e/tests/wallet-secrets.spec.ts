@@ -106,8 +106,8 @@ walletTest.describe('Show Passphrase Page (/show-passphrase)', () => {
     const wordList = page.locator('ol');
     await expect(wordList).toBeVisible({ timeout: 5000 });
 
-    // Should show security notice after revealing
-    const securityNotice = page.locator('text=/Security Notice|Never share/i').first();
+    // Should warn about keeping the phrase private once it is on screen
+    const securityNotice = page.locator('text=/Keep this private/i').first();
     await expect(securityNotice).toBeVisible({ timeout: 5000 });
   });
 });
