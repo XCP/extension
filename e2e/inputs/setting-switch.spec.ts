@@ -174,18 +174,15 @@ walletTest.describe('SettingSwitch Component', () => {
 
   walletTest.describe('Info Icon/Tooltip', () => {
     walletTest('hovering info icon shows tooltip', async ({ page }) => {
-      const infoIcon = page.locator('button[aria-label*="Info"]').first();
-      const infoIconCount = await infoIcon.count();
-
-      walletTest.skip(infoIconCount === 0, 'No info icon on this page');
-
+      // Target this setting's own icon. Keying on "the first info icon" tied the test to the order
+      // of the settings list, so grouping the page into sections silently pointed it at a different
+      // switch than the tooltip text it asserts.
+      const infoIcon = page.locator('button[aria-label*="chain transactions"]').first();
       await expect(infoIcon).toBeVisible({ timeout: 2000 });
 
-      // Hover over info icon
       await infoIcon.hover();
 
-      // Look for tooltip text that appears on hover (use .first() to target visible tooltip)
-      const tooltip = page.getByText(/Enable this to|chain transactions/i).first();
+      const tooltip = page.getByText(/chain transactions that haven't been confirmed/i).first();
       await expect(tooltip).toBeVisible({ timeout: 2000 });
     });
   });

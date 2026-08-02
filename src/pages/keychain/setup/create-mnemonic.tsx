@@ -168,7 +168,7 @@ function CreateMnemonicPage() {
             <Banner
               severity="warning"
               title="Keep this private"
-              description="Never share your recovery phrase. Anyone with these 12 words can steal your funds."
+              description="Anyone with it can steal your funds."
             />
           )}
           <CheckboxInput

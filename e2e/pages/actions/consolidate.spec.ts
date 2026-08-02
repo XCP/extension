@@ -56,8 +56,8 @@ walletTest.describe('Consolidation Page (/actions/consolidate)', () => {
 
     await expect(page).toHaveURL(/actions\/consolidate/);
 
-    // Should show page title
-    const pageTitle = page.locator('text=/Recover Bitcoin/i').first();
+    // The header names the tool; "Recover Bitcoin" is the Actions-list entry, not this page.
+    const pageTitle = page.locator('text=/Recovery Tool/i').first();
     await expect(pageTitle).toBeVisible({ timeout: 5000 });
   });
 

@@ -169,7 +169,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
             <Banner
               severity="warning"
               title="Keep this private"
-              description="Never share your private key. Anyone with access to this string can steal your bitcoin."
+              description="Anyone with it can steal your funds."
             />
           </div>
         </div>

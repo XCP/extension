@@ -129,7 +129,7 @@ export default function ShowPassphrasePage(): ReactElement {
             <Banner
               severity="warning"
               title="Keep this private"
-              description="Never share your recovery phrase. Anyone with these 12 words can steal your bitcoin."
+              description="Anyone with it can steal your funds."
             />
           </div>
         </div>
