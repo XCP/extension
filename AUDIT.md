@@ -165,10 +165,13 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
 | ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
-| ✅ | Effective sighash enforcement | The resolved sighash (explicit override, else embedded, else ALL) is enforced against an allowlist — DEFAULT, ALL, ALL\|ANYONECANPAY, SINGLE\|ANYONECANPAY — so an embedded SIGHASH_NONE or bare SINGLE cannot obtain a signature the approval screen didn't reflect |
+| ✅ | Effective sighash enforcement | The resolved sighash (explicit override, else embedded, else ALL) is enforced against an allowlist — DEFAULT, ALL, ALL\|ANYONECANPAY, SINGLE\|ANYONECANPAY — so SIGHASH_NONE and bare SINGLE are rejected whether requested explicitly or embedded in the PSBT. Verified by `psbt.test.ts` |
+| ✅ | Uncommitted outputs priced as at-risk | SINGLE\|ANYONECANPAY commits to one output and leaves the rest free, so the approval summary counts only committed outputs as change and reports the remainder as at-risk; the headline shows the worst case and signing is gated on acknowledging that amount. Verified by `psbt.test.ts`, `money-movement.test.ts`, `marketplace-psbts.test.ts` |
+| ✅ | `sighashTypes` coverage | Supplied entries are positional by absolute PSBT input index; a signed input with no entry is rejected rather than falling back to a different sighash. Verified by `providerService.test.ts` |
 | ✅ | Legacy input amount integrity | Legacy (P2PKH) inputs must carry the full previous transaction; a bare witnessUtxo is rejected, so a declared amount can't be forged into a drain-to-fee |
 | ✅ | Sign-flow origin binding | Rejoin/recovery of a signing flow matches the requesting origin, not just the request key, so a hash collision can't cross origins |
-| ✅ | Attached-asset disclosure | On both PSBT and raw-transaction approval, each input's UTXO is checked for attached Counterparty assets; assets are shown per input and a warning is raised when a signed input carries them (with a distinct caution when the lookup failed), so an asset-bearing UTXO can't be spent as if it were only BTC |
+| ✅ | Attached-asset disclosure | On both PSBT and raw-transaction approval, each input's UTXO is checked for attached Counterparty assets, signed inputs first. Assets are shown per input and a warning is raised when a signed input carries them; an input the lookup cap displaced reports as unknown rather than as carrying nothing. Verified by `inputAssets.test.ts` |
+| ✅ | Local address resolution | Input and output addresses are decoded from their scripts, so the money-movement summary can tell change from a stranger's output without an indexer call; an address that cannot be resolved marks the summary incomplete. Verified by `marketplace-psbts.test.ts` |
 
 ## Transaction Security
 

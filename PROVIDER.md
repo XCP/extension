@@ -177,10 +177,37 @@ prevout so the amount is authenticated:
 - **SegWit inputs (P2WPKH, P2WSH, P2TR)** may use `witnessUtxo` as usual; BIP143
   commits to the amount in the signature.
 
-**Accepted sighash flags.** Signable inputs must resolve to one of `SIGHASH_DEFAULT`
-(0x00), `SIGHASH_ALL` (0x01), `ALL | ANYONECANPAY` (0x81), or
-`SINGLE | ANYONECANPAY` (0x83). `SIGHASH_NONE` and bare `SIGHASH_SINGLE` are
-rejected, since neither is reflected on the approval screen the user sees.
+**Accepted sighash flags.** A signable input must resolve to one of:
+
+| Flag | Value | What the signature commits to |
+|------|-------|-------------------------------|
+| `SIGHASH_DEFAULT` | `0x00` | Every input and output |
+| `SIGHASH_ALL` | `0x01` | Every input and output |
+| `ALL \| ANYONECANPAY` | `0x81` | Every output; other inputs may be added afterwards |
+| `SINGLE \| ANYONECANPAY` | `0x83` | Only the output at the signed input's index; **every other output may be removed, replaced, or repointed afterwards** |
+
+`SIGHASH_NONE` and bare `SIGHASH_SINGLE` are rejected, whether requested through
+`sighashTypes` or embedded in the PSBT.
+
+**How the approval screen prices a request.** The summary counts an output as
+returning to the signer only when the signature commits to it. Under `0x83` that
+is the output sharing the signed input's index; any *other* output paying the
+signer is shown as "may not return to you", the headline reflects that worst
+case, and signing is gated until the signer acknowledges the amount.
+
+For a marketplace listing this means:
+
+- Put the seller's proceeds at the **same index as the input being signed**.
+- Do **not** add another output back to the seller. It carries no guarantee — the
+  buyer can repoint it and the signature still verifies — so the wallet will not
+  price it as change.
+
+A listing built that way has nothing at risk and signs with no extra prompt.
+
+**Unfunded PSBTs.** A PSBT whose outputs exceed its inputs — the normal shape of
+a listing awaiting a buyer's funding inputs — is accepted. No fee is claimed for
+it; the approval screen reports the fee as set by the other party rather than
+showing a figure that cannot be known yet.
 
 ### Broadcasting
 
@@ -339,3 +366,7 @@ const result = await validateProof(proof, origin, address, {
 - **Replay protection**: Broadcast transactions are tracked to prevent double-submission
 - **Parameter validation**: All inputs are type-checked and size-limited (max 1MB)
 - **CSP analysis**: Sites without Content Security Policy generate console warnings
+- **Signature-scoped pricing**: The approval summary values a request by what the signature commits
+  to, so a flag that leaves outputs free cannot make a large outflow read as a small one
+- **Attached-asset disclosure**: Signed inputs are checked for attached Counterparty assets first,
+  and an input that could not be checked is reported as unknown rather than as carrying nothing
