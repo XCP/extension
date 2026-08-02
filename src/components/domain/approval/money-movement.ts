@@ -91,6 +91,9 @@ export function computeMoneyMovement(params: {
       if (committed) backToYou += output.value;
       else atRisk += output.value;
     } else {
+      // An output with no resolvable address can't be classified as yours or theirs, so the totals
+      // below are a lower bound on what comes back to you.
+      if (output.address === undefined) incomplete = true;
       // Already leaving either way, so not also counted as at-risk.
       external.push({ address: output.address ?? null, value: output.value });
     }

@@ -359,6 +359,10 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
       outputs.push({
         index: i,
         value,
+        // Resolved from the script, as inputs are. Callers may still enrich from an indexer, but the
+        // approval summary needs to tell your change from someone else's output without a network
+        // round-trip that can fail.
+        address: decodeAddressFromScript(scriptHex) ?? undefined,
         type,
         script: scriptHex,
       });
