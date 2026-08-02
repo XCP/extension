@@ -2,7 +2,11 @@ import { apiClient } from "@/utils/apiClient";
 
 const API_BASE_URL = "https://api.xcp.io";
 const SATOSHIS_PER_BTC = 100_000_000;
-const MAX_OUTPUTS_PER_RECOVERY = 420;
+/**
+ * Fallback only. The service owns this bound and reports it as `summary.max_outputs_per_page`; keeping
+ * a second authoritative copy here is how pagination silently breaks the day the two disagree.
+ */
+const DEFAULT_MAX_OUTPUTS_PER_RECOVERY = 420;
 
 interface RecoveryOutput {
   txid: string;
@@ -21,6 +25,7 @@ interface RecoveryPageResponse {
     pages: number;
     current_page: number;
     outputs_on_page: number;
+    max_outputs_per_page?: number;
   };
   fee: { address: string | null; percent: number; exemption_sats: number };
   pending_attempts: number;
@@ -70,6 +75,8 @@ export interface ConsolidationData {
     batches_required: number;
     current_batch: number;
     batch_utxos: number;
+    /** Service-reported ceiling on UTXOs per recovery transaction. */
+    max_batch_utxos: number;
   };
   fee_config: {
     fee_address: string;
@@ -140,6 +147,7 @@ function toConsolidationData(page: RecoveryPageResponse): ConsolidationData {
       batches_required: page.summary.pages,
       current_batch: page.summary.current_page,
       batch_utxos: page.summary.outputs_on_page,
+      max_batch_utxos: page.summary.max_outputs_per_page ?? DEFAULT_MAX_OUTPUTS_PER_RECOVERY,
     },
     fee_config: {
       fee_address: page.fee.address ?? "",
@@ -173,7 +181,7 @@ class ConsolidationApiService {
   async fetchConsolidationBatch(
     address: string,
     batch = 1,
-    maxUtxos = MAX_OUTPUTS_PER_RECOVERY,
+    maxUtxos = DEFAULT_MAX_OUTPUTS_PER_RECOVERY,
     includeProtectedStamps = false,
   ): Promise<ConsolidationData> {
     const response = await apiClient.get<RecoveryPageResponse>(
@@ -193,22 +201,22 @@ class ConsolidationApiService {
     address: string,
     includeProtectedStamps = false,
   ): Promise<ConsolidationData[]> {
-    const firstBatch = await this.fetchConsolidationBatch(
+    // The first page settles how large the remaining ones may be, so the service stays the single
+    // authority on batch size even as it changes.
+    const probe = await this.fetchConsolidationBatch(
       address,
       1,
-      MAX_OUTPUTS_PER_RECOVERY,
+      DEFAULT_MAX_OUTPUTS_PER_RECOVERY,
       includeProtectedStamps,
     );
+    const batchSize = probe.summary.max_batch_utxos;
+    const firstBatch =
+      batchSize === DEFAULT_MAX_OUTPUTS_PER_RECOVERY
+        ? probe
+        : await this.fetchConsolidationBatch(address, 1, batchSize, includeProtectedStamps);
     const rest = await Promise.all(
-      Array.from(
-        { length: firstBatch.summary.batches_required - 1 },
-        (_, index) =>
-          this.fetchConsolidationBatch(
-            address,
-            index + 2,
-            MAX_OUTPUTS_PER_RECOVERY,
-            includeProtectedStamps,
-          ),
+      Array.from({ length: firstBatch.summary.batches_required - 1 }, (_, index) =>
+        this.fetchConsolidationBatch(address, index + 2, batchSize, includeProtectedStamps),
       ),
     );
     return [firstBatch, ...rest];
@@ -271,11 +279,6 @@ class ConsolidationApiService {
         replaced_by: row.replacement_txid ?? undefined,
       })),
     };
-  }
-
-  async canBroadcastMore(address: string): Promise<boolean> {
-    const batch = await this.fetchConsolidationBatch(address, 1, 1);
-    return batch.mempool_status.can_broadcast_more;
   }
 }
 

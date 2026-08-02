@@ -84,6 +84,7 @@ function createBatchData(options: {
       batches_required: 1,
       current_batch: 1,
       batch_utxos: utxos.length,
+      max_batch_utxos: 420,
     },
     fee_config: {
       fee_address: feeAddress,

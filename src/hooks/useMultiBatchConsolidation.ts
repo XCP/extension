@@ -6,6 +6,7 @@ import {
   type ConsolidationData,
   type ConsolidationReport,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
+import { isStaleInputsError } from "@/utils/blockchain/bitcoin/broadcastErrors";
 import { getWalletService } from "@/services/walletService";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
@@ -15,7 +16,14 @@ export interface ConsolidationResult {
   utxosConsolidated: number;
   status: "success" | "error";
   error?: string;
+  /** False when the transaction is on the network but the recovery service never recorded it. */
+  reported?: boolean;
 }
+
+const REPORT_ATTEMPTS = 3;
+const REPORT_RETRY_MS = 1_000;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function useMultiBatchConsolidation() {
   const navigate = useNavigate();
@@ -23,6 +31,28 @@ export function useMultiBatchConsolidation() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [results, setResults] = useState<ConsolidationResult[]>([]);
+
+  /**
+   * Reporting is bookkeeping, not consensus. The coins have already moved by the time this runs, so a
+   * failure here must never be shown as a failed batch — but it does matter: an unreported recovery is
+   * one the service cannot know consumed its inputs, so it retries before giving up loudly.
+   */
+  const reportBatch = async (address: string, report: ConsolidationReport): Promise<boolean> => {
+    for (let attempt = 1; attempt <= REPORT_ATTEMPTS; attempt++) {
+      try {
+        await consolidationApi.reportConsolidation(address, report);
+        return true;
+      } catch (error) {
+        if (attempt === REPORT_ATTEMPTS) {
+          console.error("Broadcast succeeded but the recovery could not be reported:", error);
+          analytics.track("consolidate_report_failed");
+          return false;
+        }
+        await delay(REPORT_RETRY_MS * attempt);
+      }
+    }
+    return false;
+  };
 
   const consolidateAllBatches = async (
     allBatches: ConsolidationData[],
@@ -38,31 +68,15 @@ export function useMultiBatchConsolidation() {
     setResults([]);
     const batchResults: ConsolidationResult[] = [];
     let totalOutputSats = 0;
+    let totalBatches = allBatches.length;
 
     try {
       // Signing happens in the background; the key never enters the popup
       const walletService = getWalletService();
 
-      // Process each batch sequentially
-      for (let i = 0; i < allBatches.length; i++) {
-        const batch = allBatches[i]!;
-        setCurrentBatch(i + 1);
-
+      const runBatch = async (batch: ConsolidationData, batchNumber: number): Promise<ConsolidationResult> => {
+        setCurrentBatch(batchNumber);
         try {
-          console.log(`Processing batch ${i + 1} of ${allBatches.length}`);
-
-          // Check if we can still broadcast
-          if (i > 0) {
-            const canBroadcast = await consolidationApi.canBroadcastMore(
-              activeAddress.address,
-            );
-            if (!canBroadcast) {
-              throw new Error(
-                "Mempool limit reached. Please wait for confirmations before continuing.",
-              );
-            }
-          }
-
           // Build and sign the transaction for this batch (in the background)
           const consolidationResult = await walletService.consolidateBareMultisig(
             activeAddress.address,
@@ -71,80 +85,81 @@ export function useMultiBatchConsolidation() {
             destinationAddress,
           );
 
-          // Broadcast the transaction
-          const broadcastResult = await broadcastTransaction(
-            consolidationResult.signedTxHex,
-          );
-          const txid =
-            typeof broadcastResult === "string"
-              ? broadcastResult
-              : broadcastResult.txid;
+          const broadcastResult = await broadcastTransaction(consolidationResult.signedTxHex);
+          const txid = typeof broadcastResult === "string" ? broadcastResult : broadcastResult.txid;
+          console.log(`Batch ${batchNumber} broadcast successfully: ${txid}`);
 
-          console.log(`Batch ${i + 1} broadcast successfully: ${txid}`);
-
-          // Report to API for tracking with actual fees
-          const report: ConsolidationReport = {
+          // Past this point the coins have moved; nothing below may downgrade the outcome.
+          const reported = await reportBatch(activeAddress.address, {
             raw_transaction_hex: consolidationResult.signedTxHex,
             network_fee: consolidationResult.networkFee,
             service_fee: consolidationResult.serviceFee,
             output_amount: consolidationResult.outputAmount,
             include_protected_stamps: includeProtectedStamps,
-          };
+          });
 
-          await consolidationApi.reportConsolidation(
-            activeAddress.address,
-            report,
-          );
-
-          // Accumulate output for analytics
           totalOutputSats += consolidationResult.outputAmount;
-
-          // Add to results
-          const result: ConsolidationResult = {
-            batchNumber: i + 1,
+          return {
+            batchNumber,
             txid: txid || "",
             utxosConsolidated: batch.summary.batch_utxos,
             status: "success",
+            reported,
           };
-
-          batchResults.push(result);
-          setResults([...batchResults]);
         } catch (batchError) {
-          console.error(`Error processing batch ${i + 1}:`, batchError);
-          analytics.track(
-            `consolidate_error_${classifyTransactionError(
-              batchError instanceof Error ? batchError.message : String(batchError)
-            )}`
-          );
-
-          const result: ConsolidationResult = {
-            batchNumber: i + 1,
+          const message = batchError instanceof Error ? batchError.message : String(batchError);
+          console.error(`Error processing batch ${batchNumber}:`, batchError);
+          analytics.track(`consolidate_error_${classifyTransactionError(message)}`);
+          return {
+            batchNumber,
             txid: "",
             utxosConsolidated: batch.summary.batch_utxos,
             status: "error",
-            error:
-              batchError instanceof Error
-                ? batchError.message
-                : String(batchError),
+            error: message,
           };
+        }
+      };
 
-          batchResults.push(result);
-          setResults([...batchResults]);
+      const record = (result: ConsolidationResult) => {
+        batchResults.push(result);
+        setResults([...batchResults]);
+      };
 
-          // Stop processing on error
-          throw new Error(`Batch ${i + 1} failed: ${result.error}`);
+      // Each batch spends a distinct page of UTXOs, so one failure says nothing about the rest.
+      for (const [index, batch] of allBatches.entries()) record(await runBatch(batch, index + 1));
+
+      // A stale batch list is the one failure a second attempt can actually fix, because the refetch
+      // excludes everything the batches above just consumed. Exactly one retry, so an address the
+      // service is persistently wrong about cannot become a broadcast loop.
+      const staleFailure = batchResults.some(
+        (result) => result.status === "error" && result.error && isStaleInputsError(result.error),
+      );
+      if (staleFailure) {
+        try {
+          analytics.track("consolidate_stale_retry");
+          const refreshed = await consolidationApi.fetchAllBatches(
+            activeAddress.address,
+            includeProtectedStamps,
+          );
+          const remaining = refreshed.filter((batch) => batch.summary.batch_utxos > 0);
+          totalBatches += remaining.length;
+          for (const [index, batch] of remaining.entries()) {
+            record(await runBatch(batch, batchResults.length + index + 1));
+          }
+        } catch (refreshError) {
+          console.error("Could not refresh the batch list after a stale-input failure:", refreshError);
         }
       }
 
-      // Track successful consolidation with bucketed BTC amount
-      const totalBtc = totalOutputSats / 100000000;
-      analytics.track("consolidate", getBtcBucket(totalBtc));
+      if (batchResults.some((result) => result.status === "success")) {
+        analytics.track("consolidate", getBtcBucket(totalOutputSats / 100000000));
+      }
 
-      // All batches successful - navigate to success with results
+      // Report every batch, successful or not; the results screen breaks them down
       navigate("/actions/consolidate/success", {
         state: {
           results: batchResults,
-          totalBatches: allBatches.length,
+          totalBatches,
           address: activeAddress.address,
         },
       });

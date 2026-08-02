@@ -43,8 +43,9 @@ function calculateBatchFees(
     const inputSats = Math.floor(batch.summary.total_btc * 100000000 / batch.summary.batches_required);
     totalInput += inputSats;
     
-    // More accurate size estimation for bare multisig
-    const bytesPerInput = 147; // 1-of-2 bare multisig
+    // Measured against confirmed recoveries: a 420-input spend lands at ~48,200 bytes, so a 1-of-3
+    // bare-multisig input costs ~114 bytes rather than the 147 this once assumed.
+    const bytesPerInput = 114;
     const baseOverhead = 10;
     const bytesPerOutput = 34;
     const numOutputs = batch.fee_config?.fee_percent > 0 ? 2 : 1;
@@ -161,7 +162,7 @@ export const ConsolidationReview = ({
               </div>
               <div className="flex justify-between">
                 <span>UTXOs per Batch:</span>
-                <span className="font-medium">Up to 420</span>
+                <span className="font-medium">Up to {consolidationData.summary.max_batch_utxos}</span>
               </div>
               <div className="flex justify-between">
                 <span>Total UTXOs:</span>

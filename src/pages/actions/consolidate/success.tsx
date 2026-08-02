@@ -52,21 +52,38 @@ function ConsolidateSuccessPage() {
   
   return (
     <div className="p-4 space-y-4">
-      {/* Success Header */}
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <FaCheckCircle className="size-6 text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold text-green-900">
-              Consolidation Successful!
-            </h2>
-            <p className="text-sm text-green-700 mt-1">
-              Successfully broadcast {successfulBatches.length} of {state.totalBatches} batch{state.totalBatches > 1 ? 'es' : ''}.
-              {failedBatches.length > 0 && ` ${failedBatches.length} batch${failedBatches.length > 1 ? 'es' : ''} failed.`}
-            </p>
+      {/* Result Header */}
+      {successfulBatches.length > 0 ? (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <FaCheckCircle className="size-6 text-green-600 mt-1 flex-shrink-0" aria-hidden="true" />
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-green-900">
+                Consolidation Successful!
+              </h2>
+              <p className="text-sm text-green-700 mt-1">
+                Successfully broadcast {successfulBatches.length} of {state.totalBatches} batch{state.totalBatches > 1 ? 'es' : ''}.
+                {failedBatches.length > 0 && ` ${failedBatches.length} batch${failedBatches.length > 1 ? 'es' : ''} failed — you can retry those later.`}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <FiX className="size-6 text-red-600 mt-1 flex-shrink-0" aria-hidden="true" />
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-red-900">
+                No Batches Broadcast
+              </h2>
+              <p className="text-sm text-red-700 mt-1">
+                All {state.totalBatches} batch{state.totalBatches > 1 ? 'es' : ''} failed. Nothing was sent and no
+                Bitcoin was spent. See the errors below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Summary Stats */}
       <div className="bg-white rounded-lg shadow-lg p-4">
@@ -145,6 +162,13 @@ function ConsolidateSuccessPage() {
                 </div>
               )}
               
+              {result.status === 'success' && result.reported === false && (
+                <div className="text-xs text-amber-700 mt-2">
+                  Broadcast, but the recovery service could not be notified. Your Bitcoin is safe and on
+                  its way; these UTXOs may briefly reappear as recoverable.
+                </div>
+              )}
+
               {result.status === 'error' && result.error && (
                 <div className="text-xs text-red-600 mt-2">
                   Error: {result.error}
