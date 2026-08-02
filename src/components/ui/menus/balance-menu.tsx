@@ -1,6 +1,6 @@
 import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router';
-import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaPaperPlane } from '@/components/icons';
+import { BsThreeDots, FaBitcoin, FaCoins, FaExchangeAlt, FaPaperPlane, FaTrash } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
 import { BaseMenu } from './base-menu';
 import { Button } from '@/components/ui/button';
@@ -12,8 +12,8 @@ interface BalanceMenuProps {
 /**
  * Provides quick actions for token balances based on asset type:
  * - BTC: Send, Swap, Mint
- * - XCP: Send, Swap, Mint
- * - Other assets: Send, Sell, Swap
+ * - XCP: Send, Swap, Mint, Destroy
+ * - Other assets: Send, Sell, Swap, Destroy
  */
 export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
   const navigate = useNavigate();
@@ -35,6 +35,10 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
 
   const handleSell = useCallback(() => {
     navigate(`/compose/dispenser/${encodedAsset}`);
+  }, [encodedAsset, navigate]);
+
+  const handleDestroy = useCallback(() => {
+    navigate(`/compose/issuance/destroy/${encodedAsset}`);
   }, [encodedAsset, navigate]);
 
   return (
@@ -70,6 +74,16 @@ export function BalanceMenu({ asset }: BalanceMenuProps): ReactElement {
           <Button variant="menu-item" fullWidth onClick={handleMint}>
             <FaCoins className="mr-3 size-4 text-gray-600" aria-hidden="true" />
             Mint
+          </Button>
+        </MenuItem>
+      )}
+
+      {/* Destroy burns a Counterparty asset; BTC is not one. Last, and the only destructive entry. */}
+      {!isBTC && (
+        <MenuItem>
+          <Button variant="menu-item" fullWidth onClick={handleDestroy}>
+            <FaTrash className="mr-3 size-4 text-danger-600" aria-hidden="true" />
+            Destroy
           </Button>
         </MenuItem>
       )}
