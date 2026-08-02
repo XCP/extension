@@ -53,6 +53,7 @@ export function PriceTicker({
         onKeyDown={handleBtcKeyDown}
         role={onBtcClick ? "button" : undefined}
         tabIndex={onBtcClick ? 0 : undefined}
+        aria-label={onBtcClick ? "Bitcoin price" : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -77,6 +78,7 @@ export function PriceTicker({
         onKeyDown={handleXcpKeyDown}
         role={onXcpClick ? "button" : undefined}
         tabIndex={onXcpClick ? 0 : undefined}
+        aria-label={onXcpClick ? "XCP price" : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

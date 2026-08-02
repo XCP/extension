@@ -430,12 +430,25 @@ export const market = {
   dispensersTab: (page: Page) => page.getByRole('tab', { name: 'Dispensers' }),
   ordersTab: (page: Page) => page.getByRole('tab', { name: 'Orders' }),
 
+  // Price ticker cards on the market index
+  btcTickerCard: (page: Page) => page.getByRole('button', { name: 'Bitcoin price' }),
+  xcpTickerCard: (page: Page) => page.getByRole('button', { name: 'XCP price' }),
+
   // BTC Price page
   btcPriceTitle: (page: Page) => page.getByText(/Bitcoin Price/i).first(),
   priceChart: (page: Page) => page.locator('canvas[aria-label="Price chart"]'),
   timeRange1h: (page: Page) => page.getByRole('button', { name: '1H' }),
   timeRange24h: (page: Page) => page.getByRole('button', { name: '24H' }),
   refreshButton: (page: Page) => page.locator('button[aria-label*="Refresh"]'),
+
+  // XCP Price page
+  xcpPriceTitle: (page: Page) => page.getByText(/XCP Price/i).first(),
+  buyXcpButton: (page: Page) => page.getByRole('button', { name: 'Buy XCP' }),
+  xcpRange7d: (page: Page) => page.getByRole('button', { name: '7D' }),
+  xcpRange30d: (page: Page) => page.getByRole('button', { name: '30D' }),
+  xcpRangeAll: (page: Page) => page.getByRole('button', { name: 'All' }),
+  dexRate: (page: Page) => page.getByText(/DEX Rate/i),
+  allTimeHigh: (page: Page) => page.getByText(/All-Time High/i),
 
   // Asset dispensers/orders pages - main heading
   pageTitle: (page: Page) => page.getByRole('heading', { level: 1 }),
