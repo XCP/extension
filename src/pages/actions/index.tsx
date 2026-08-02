@@ -38,14 +38,15 @@ const getActionSections = (
           description: "Verify a signed message",
           onClick: () => navigate("/actions/verify-message"),
         },
-        {
+        // Bare multisig recovery only exists for legacy P2PKH-based addresses
+        ...(!isSegwitWallet ? [{
           id: "consolidate",
           title: "Recover Bitcoin",
           description: "Find and consolidate bare multisig UTXOs",
           onClick: () => navigate("/actions/consolidate"),
           showNotification: showRecoverBitcoinNotification,
           className: showRecoverBitcoinNotification ? "!border !border-orange-500" : "",
-        },
+        }] : []),
         ...(enableMPMA ? [{
           id: "upload-mpma",
           title: "Upload MPMA",

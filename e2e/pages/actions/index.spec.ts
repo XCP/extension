@@ -121,10 +121,12 @@ walletTest.describe('Actions Page', () => {
     expect(page.url()).toContain('index');
   });
 
-  walletTest('Recover Bitcoin option is visible', async ({ page }) => {
+  // Onboarding creates a Taproot wallet, and bare-multisig recovery only exists for legacy P2PKH
+  // addresses — the recovery API rejects anything else outright — so the tool is not offered here.
+  walletTest('Recover Bitcoin is not offered on a Taproot wallet', async ({ page }) => {
     await navigateTo(page, 'actions');
     await expect(page).toHaveURL(/actions/);
 
-    await expect(actions.recoverBitcoinOption(page)).toBeVisible();
+    await expect(actions.recoverBitcoinOption(page)).toBeHidden();
   });
 });

@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router';
 import { FaWallet, FaUniversity, FaTools, FaCog } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/contexts/settings-context';
+import { useWallet } from '@/contexts/wallet-context';
+import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 
 /**
  * Footer provides bottom navigation with icons for main app sections.
@@ -13,9 +15,16 @@ export const Footer = (): ReactElement => {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings } = useSettings();
-  
-  // Show notification if user hasn't visited recover bitcoin page
-  const showRecoverBitcoinNotification = !settings?.hasVisitedRecoverBitcoin;
+  const { activeWallet } = useWallet();
+
+  // Show notification if user hasn't visited recover bitcoin page.
+  // The recovery tool only applies to legacy P2PKH-based wallets, so
+  // SegWit/Taproot wallets (which have no "Recover Bitcoin" action) never see it.
+  const isLegacyWallet = activeWallet?.addressFormat
+    ? !isSegwitFormat(activeWallet.addressFormat)
+    : false;
+  const showRecoverBitcoinNotification =
+    isLegacyWallet && !settings?.hasVisitedRecoverBitcoin;
 
   const handleNavigation = (route: string, eventName: string) => {
     navigate(route);

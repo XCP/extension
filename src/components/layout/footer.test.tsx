@@ -20,6 +20,11 @@ vi.mock('@/services/walletService', () => ({
   }),
 }));
 
+// Mock wallet context (used for the recover-bitcoin badge)
+vi.mock('@/contexts/wallet-context', () => ({
+  useWallet: () => ({ activeWallet: null }),
+}));
+
 // Mock webext-bridge (required by settings-context)
 vi.mock('webext-bridge/popup', () => ({
   sendMessage: vi.fn(),
