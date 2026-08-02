@@ -29,6 +29,7 @@ import SettingsPage from '@/pages/settings';
 
 // Market
 import BtcPricePage from '@/pages/market/btc';
+import XcpPricePage from '@/pages/market/xcp';
 import AssetDispensersPage from '@/pages/market/dispensers/[asset]';
 import AssetOrdersPage from '@/pages/market/orders/[baseAsset]/[quoteAsset]';
 
@@ -176,6 +177,7 @@ export default function App() {
 
           <Route element={<Layout />}>
             <Route path="/market/btc" element={<BtcPricePage />} />
+            <Route path="/market/xcp" element={<XcpPricePage />} />
 
             <Route path="/actions/consolidate" element={<ConsolidatePage />} />
             <Route path="/actions/consolidate/status" element={<ConsolidateStatusPage />} />

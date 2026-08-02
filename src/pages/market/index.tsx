@@ -359,7 +359,7 @@ export default function MarketPage(): ReactElement {
             xcp={xcp}
             currency={settings.fiat}
             onBtcClick={() => navigate("/market/btc")}
-            onXcpClick={() => navigate("/market/dispensers/XCP")}
+            onXcpClick={() => navigate("/market/xcp")}
             className="mb-4"
           />
 

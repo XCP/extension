@@ -1,4 +1,5 @@
 import { DataFetchError } from "@/utils/blockchain/errors";
+import type { PricePoint } from "@/utils/blockchain/bitcoin/price";
 
 /**
  * Interface for XCP price data response from xcp.io API.
@@ -114,6 +115,105 @@ export async function fetchFromDexTrade(
       usd: xcpUsdPrice,
       // Could add volume data if needed: volume_24h_usd: parseFloat(data.data.volume_24H) * btcPriceUsd
     },
+  };
+}
+
+/**
+ * Current XCP price statistics from the xcp.io ticker.
+ */
+export interface XcpStats {
+  price: number;
+  change24h: number | null;
+}
+
+/**
+ * Fetches current XCP price and 24h change from the xcp.io ticker.
+ * @returns {Promise<XcpStats | null>} Stats or null if unavailable.
+ */
+export async function getXcpStats(): Promise<XcpStats | null> {
+  try {
+    const data = await fetchTickerResponse();
+    const xcp = data.result?.xcp;
+    if (!xcp || !Number.isFinite(xcp.usd) || xcp.usd <= 0) return null;
+    return {
+      price: xcp.usd,
+      change24h: typeof xcp.change_pct === "number" ? xcp.change_pct : null,
+    };
+  } catch (err) {
+    console.error("Failed to fetch XCP ticker:", err);
+    return null;
+  }
+}
+
+async function fetchTickerResponse(): Promise<XCPApiResponse> {
+  const response = await fetch("https://api.xcp.io/v2/price/ticker");
+  if (!response.ok) {
+    throw new DataFetchError("Failed to fetch XCP price", "xcp.io", {
+      endpoint: "/v2/price/ticker",
+      statusCode: response.status,
+    });
+  }
+  return response.json();
+}
+
+/**
+ * Interface for the xcp.io /v2/price daily history response (fields we use).
+ */
+interface XCPPricePageResponse {
+  result: {
+    sats: { price_btc: number; day: string } | null;
+    ath: { day: string; usd: number } | null;
+    history: Array<{ day: string; usd: number }>;
+  };
+}
+
+/**
+ * XCP daily price history with supporting stats.
+ */
+export interface XcpPriceHistoryData {
+  history: PricePoint[];
+  satsPerXcp: number | null;
+  ath: { usd: number; day: string } | null;
+}
+
+/**
+ * Fetches the full daily XCP/USD price history from xcp.io.
+ * @returns {Promise<XcpPriceHistoryData>} Daily price points (ascending) plus sats rate and ATH.
+ * @throws {DataFetchError} If the API response is invalid.
+ */
+export async function getXcpPriceHistory(): Promise<XcpPriceHistoryData> {
+  const response = await fetch("https://api.xcp.io/v2/price");
+  if (!response.ok) {
+    throw new DataFetchError("Failed to fetch XCP price history", "xcp.io", {
+      endpoint: "/v2/price",
+      statusCode: response.status,
+    });
+  }
+  const data: XCPPricePageResponse = await response.json();
+
+  if (!Array.isArray(data.result?.history)) {
+    throw new DataFetchError("Invalid response data", "xcp.io", {
+      endpoint: "/v2/price",
+    });
+  }
+
+  const history: PricePoint[] = data.result.history
+    .filter((row) => typeof row.usd === "number" && Number.isFinite(row.usd))
+    .map((row) => ({
+      timestamp: Date.parse(`${row.day}T00:00:00Z`),
+      price: row.usd,
+    }))
+    .filter((point) => Number.isFinite(point.timestamp));
+
+  const satsBtc = data.result.sats?.price_btc;
+
+  return {
+    history,
+    satsPerXcp:
+      typeof satsBtc === "number" && Number.isFinite(satsBtc) && satsBtc > 0
+        ? satsBtc * 1e8
+        : null,
+    ath: data.result.ath ?? null,
   };
 }
 

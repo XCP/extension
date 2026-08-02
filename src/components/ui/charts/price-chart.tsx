@@ -10,6 +10,10 @@ interface PriceChartProps {
   loading?: boolean;
   className?: string;
   currencySymbol?: string;
+  /** Decimal places for the hover tooltip price */
+  priceDecimals?: number;
+  /** 'datetime' suits intraday data; 'date' suits daily data */
+  timeFormat?: 'datetime' | 'date';
 }
 
 /**
@@ -24,6 +28,8 @@ export const PriceChart = memo(({
   loading = false,
   className = '',
   currencySymbol = '$',
+  priceDecimals = 0,
+  timeFormat = 'datetime',
 }: PriceChartProps): ReactElement => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
@@ -160,12 +166,19 @@ export const PriceChart = memo(({
 
   // Format price for display
   const formatPrice = (price: number) => {
-    return `${currencySymbol}${price.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    return `${currencySymbol}${price.toLocaleString('en-US', { maximumFractionDigits: priceDecimals })}`;
   };
 
   // Format time for display
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
+    if (timeFormat === 'date') {
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    }
     return date.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
