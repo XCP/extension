@@ -8,12 +8,10 @@ import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
-import { useConsolidationHistory } from "@/hooks/useConsolidationHistory";
 
 function ConsolidatePage() {
   const navigate = useNavigate();
   const { activeAddress, activeWallet } = useWallet();
-  const { hasHistory } = useConsolidationHistory(activeAddress?.address || "");
   const { consolidateAllBatches, isProcessing, currentBatch, results } =
     useMultiBatchConsolidation();
   const [step, setStep] = useState<"form" | "review">("form");
@@ -112,10 +110,7 @@ function ConsolidatePage() {
 
       {step === "form" && (
         <>
-          <ConsolidationForm
-            onSubmit={handleFormSubmit}
-            hasHistory={hasHistory}
-          />
+          <ConsolidationForm onSubmit={handleFormSubmit} />
           <ConsolidationHistory address={activeAddress.address} />
         </>
       )}
