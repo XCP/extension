@@ -41,6 +41,15 @@ export interface ApiCounterpartyMessage {
 export interface ProviderVerificationResult {
   /** Whether verification passed (no critical mismatches). undefined = not attempted. */
   passed: boolean | undefined;
+  /**
+   * Whether a second decoding was actually compared against the local one.
+   *
+   * `passed: true` alone does not mean anything was cross-checked: when the API decode is
+   * unavailable — a network error, a non-200, or a payload core rejects — there is nothing to
+   * compare and a successful local unpack is all that happened. Reporting that as verified
+   * overstates it precisely when the least checking occurred, so the display distinguishes the two.
+   */
+  comparedAgainstApi: boolean;
   /** Warning message if verification failed or had issues */
   warning?: string;
   /** Detailed list of mismatches found */
@@ -590,6 +599,7 @@ export function verifyProviderTransaction(
   if (!opReturnData || !isCounterpartyData(opReturnData)) {
     return {
       passed: undefined,
+      comparedAgainstApi: false,
       mismatches: [],
       warning: undefined,
     };
@@ -602,16 +612,19 @@ export function verifyProviderTransaction(
   if (!localUnpack.success || !localUnpack.data) {
     return {
       passed: false,
+      comparedAgainstApi: false,
       warning: localUnpack.error || 'Failed to unpack transaction locally',
       mismatches: ['Local unpack failed'],
       localUnpack,
     };
   }
 
-  // If no API message to compare against, local unpack success is enough
+  // Nothing to compare against: the message decoded locally, but no second opinion was obtained.
+  // Not a failure — the transaction is not blocked — but the display must not call it verified.
   if (!apiMessage) {
     return {
       passed: true,
+      comparedAgainstApi: false,
       mismatches: [],
       localUnpack,
     };
@@ -726,6 +739,7 @@ export function verifyProviderTransaction(
 
   return {
     passed,
+    comparedAgainstApi: true,
     warning: passed ? undefined : `Verification failed: ${mismatches.join('; ')}`,
     mismatches,
     localUnpack,

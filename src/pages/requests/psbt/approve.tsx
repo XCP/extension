@@ -135,6 +135,7 @@ export default function ApprovePsbtPage() {
 
 
   const verificationPassed = verification?.passed;
+  const verificationComparedAgainstApi = verification?.comparedAgainstApi ?? false;
   const verificationWarning = verification?.warning;
   const verificationFailed = verificationPassed === false;
   const isStrictMode = settings?.strictTransactionVerification !== false;
@@ -394,6 +395,7 @@ export default function ApprovePsbtPage() {
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
             passed={verificationPassed}
+            comparedAgainstApi={verificationComparedAgainstApi}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
