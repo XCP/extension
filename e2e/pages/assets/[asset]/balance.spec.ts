@@ -51,10 +51,10 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(page.locator('text="Attach"').first()).not.toBeVisible();
   });
 
-  walletTest('does not show Destroy action for XCP', async ({ page }) => {
+  walletTest('shows Destroy action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    await expect(page.locator('text="Destroy"').first()).not.toBeVisible();
+    await expect(page.locator('text="Destroy"').first()).toBeVisible();
   });
 
   walletTest('shows Send action for BTC', async ({ page }) => {

@@ -18,14 +18,16 @@
  * SUBASSET_FORMAT: ">QQ?B" + compacted_subasset + description
  *   - asset_id, quantity, divisible, compacted_length, compacted_name, description
  *
- * Modern (Taproot): CBOR2 encoded
- *
- * This unpacker handles the most common formats.
+ * Modern (taproot_support): CBOR array
+ *   Standard: [asset_id, quantity, divisible, lock, reset, mime_type, description]
+ *   Subasset: [asset_id, quantity, divisible, lock, reset,
+ *              compacted_length, compacted_name, mime_type, description]
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader, bytesToTextOrHex } from '../binary';
 import { assetIdToName } from '../assetId';
 import { MessageTypeId } from '../messageTypes';
+import { tryDecodeCborArray, type CborValue } from '../cbor';
 
 /** Minimum length of issuance (FORMAT_1) */
 const MIN_ISSUANCE_LENGTH = 17;
@@ -65,17 +67,80 @@ export interface IssuanceData {
  * Subassets use a variable-length encoding.
  */
 function decodeCompactedSubasset(bytes: Uint8Array): string {
-  // Subasset names are encoded as a series of bytes where each character
-  // is mapped to a value 1-68 (for the SUBASSET_DIGITS charset)
+  // Compacted subasset names are a base-68 big-endian integer over the
+  // SUBASSET_DIGITS charset, where digit value d maps to SUBASSET_DIGITS[d-1]
+  // and d === 0 maps to the final character (Python's DIGITS[-1]).
   const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@!';
 
-  let result = '';
+  let integer = 0n;
   for (const byte of bytes) {
-    if (byte === 0) break; // Null terminator
-    if (byte <= SUBASSET_DIGITS.length) {
-      result += SUBASSET_DIGITS[byte - 1];
-    }
+    integer = (integer << 8n) | BigInt(byte);
   }
+
+  let result = '';
+  while (integer !== 0n) {
+    const digit = Number(integer % 68n);
+    result = SUBASSET_DIGITS[digit === 0 ? SUBASSET_DIGITS.length - 1 : digit - 1] + result;
+    integer /= 68n;
+  }
+  return result;
+}
+
+/** Coerce a CBOR boolean-or-integer flag (core encodes both) to boolean. */
+function cborFlag(value: CborValue): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'bigint') return value !== 0n;
+  return null;
+}
+
+/** A CBOR description field is bytes, or null when the issuance carries none. */
+function cborDescription(value: CborValue): string | undefined {
+  return value instanceof Uint8Array ? bytesToTextOrHex(value) : undefined;
+}
+
+/**
+ * Try to decode a CBOR-encoded issuance (taproot_support era).
+ *
+ * Standard (IDs 20/22): [asset_id, quantity, divisible, lock, reset, mime_type, description]
+ * Subasset (IDs 21/23): [asset_id, quantity, divisible, lock, reset,
+ *                        compacted_length, compacted_name, mime_type, description]
+ *
+ * Returns null if the payload is not CBOR, so the caller falls back to legacy parsing.
+ */
+function tryCborDecode(payload: Uint8Array, messageTypeId: number): IssuanceData | null {
+  const isSubasset = messageTypeId === MessageTypeId.SUBASSET_ISSUANCE ||
+                     messageTypeId === MessageTypeId.LR_SUBASSET;
+
+  const decoded = tryDecodeCborArray(payload, isSubasset ? 9 : 7);
+  if (!decoded) return null;
+
+  const [assetIdValue, quantityValue, divisibleValue, lockValue, resetValue] = decoded;
+  if (typeof assetIdValue !== 'bigint' || typeof quantityValue !== 'bigint') return null;
+  const divisible = cborFlag(divisibleValue ?? null);
+  const lock = cborFlag(lockValue ?? null);
+  const reset = cborFlag(resetValue ?? null);
+  if (divisible === null || lock === null || reset === null) return null;
+
+  const result: IssuanceData = {
+    asset: assetIdToName(assetIdValue),
+    assetId: assetIdValue,
+    quantity: quantityValue,
+    divisible,
+    isLock: lock,
+    isReset: reset,
+    messageTypeId,
+  };
+
+  if (isSubasset) {
+    const compactedName = decoded[6];
+    if (compactedName instanceof Uint8Array) {
+      result.subassetLongname = decodeCompactedSubasset(compactedName);
+    }
+    result.description = cborDescription(decoded[8] ?? null);
+  } else {
+    result.description = cborDescription(decoded[6] ?? null);
+  }
+
   return result;
 }
 
@@ -88,6 +153,12 @@ function decodeCompactedSubasset(bytes: Uint8Array): string {
  * @throws Error if payload is invalid
  */
 export function unpackIssuance(payload: Uint8Array, messageTypeId: number): IssuanceData {
+  // CBOR (taproot_support era) first, matching core's unpack order.
+  const cborResult = tryCborDecode(payload, messageTypeId);
+  if (cborResult) {
+    return cborResult;
+  }
+
   if (payload.length < MIN_ISSUANCE_LENGTH) {
     throw new Error(`Invalid issuance payload length: ${payload.length} (minimum ${MIN_ISSUANCE_LENGTH})`);
   }

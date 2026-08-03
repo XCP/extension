@@ -199,6 +199,18 @@ export function bytesToHex(bytes: Uint8Array): string {
 }
 
 /**
+ * Render free-form bytes for display: text when they are valid UTF-8, hex otherwise.
+ * Used for memos, descriptions and broadcast text, which carry either.
+ */
+export function bytesToTextOrHex(bytes: Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return bytesToHex(bytes);
+  }
+}
+
+/**
  * ARC4 (RC4) decrypt/encrypt. ARC4 is symmetric — same operation for both.
  * Used by Counterparty to encrypt OP_RETURN data with the first input's txid.
  */

@@ -3,6 +3,39 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router';
 import type { ReactElement } from 'react';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { Transaction, p2wpkh } from '@scure/btc-signer';
+import { getPublicKey } from '@noble/secp256k1';
+import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
+import { packAddress } from '@/utils/blockchain/counterparty/unpack/address';
+
+/** Encode an enhanced send as counterparty-core does: CBOR [asset_id, quantity, address, memo]. */
+function encodeEnhancedSendCbor(
+  assetId: bigint,
+  quantity: bigint,
+  address: Uint8Array,
+  memo: string
+): number[] {
+  const uint = (major: number, value: bigint): number[] => {
+    const base = major << 5;
+    if (value < 24n) return [base | Number(value)];
+    if (value < 256n) return [base | 24, Number(value)];
+    if (value < 65536n) return [base | 25, Number(value >> 8n), Number(value & 0xffn)];
+    if (value < 4294967296n) {
+      return [base | 26, ...[24n, 16n, 8n, 0n].map((s) => Number((value >> s) & 0xffn))];
+    }
+    return [base | 27, ...[56n, 48n, 40n, 32n, 24n, 16n, 8n, 0n].map((s) => Number((value >> s) & 0xffn))];
+  };
+  const memoBytes = new TextEncoder().encode(memo);
+  return [
+    0x84,
+    ...uint(0, assetId),
+    ...uint(0, quantity),
+    ...uint(2, BigInt(address.length)), ...address,
+    ...uint(2, BigInt(memoBytes.length)), ...memoBytes,
+  ];
+}
 
 // Mock webext-bridge before any imports that might use it
 vi.mock('webext-bridge/background', () => ({
@@ -33,7 +66,7 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
-const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet' };
+const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet', addressFormat: AddressFormat.P2WPKH };
 const mockActiveAddress = { address: 'bc1qtest123', name: 'Test Address' };
 const mockSignTransaction = vi.fn();
 const mockBroadcastTransaction = vi.fn();
@@ -108,6 +141,9 @@ describe('Composer', () => {
     result: {
       // A real, parseable BTC-only transaction so fee verification can decode it.
       rawtransaction: '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01b8730100000000001976a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac00000000',
+      // Its single output is 95160 sats; fee verification needs the input value to
+      // compute the fee rather than resolve it over the network.
+      inputs_values: [96000],
       tx_hash: 'hash123',
       data: 'data123'
     },
@@ -243,9 +279,121 @@ describe('Composer', () => {
     
     const signButton = screen.getByText('Sign');
     fireEvent.click(signButton);
-    
+
     await waitFor(() => {
       expect(mockSignTransaction).toHaveBeenCalled();
+    });
+  });
+
+  describe('differences between the request and the composed transaction', () => {
+    const DESTINATION = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+    /** A form submitting the fields a send is verified against. */
+    const SendForm = ({ formAction }: any): ReactElement => (
+      <form data-testid="form-component" onSubmit={(e) => {
+        e.preventDefault();
+        formAction(new FormData(e.currentTarget));
+      }}>
+        <input name="destination" defaultValue={DESTINATION} />
+        <input name="asset" defaultValue="XCP" />
+        <input name="quantity" defaultValue="1" />
+        <input name="memo" defaultValue="requested memo" />
+        <button type="submit">Compose</button>
+      </form>
+    );
+
+    /**
+     * A raw transaction carrying the given Counterparty message (type id + body) in a plaintext
+     * OP_RETURN, which extraction accepts, so the tests need no ARC4 key.
+     */
+    function rawTxCarrying(message: number[]): string {
+      const payload = new Uint8Array([...hexToBytes(COUNTERPARTY_PREFIX_HEX), ...message]);
+
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes('33'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 100_000n },
+      });
+      tx.addOutput({ script: new Uint8Array([0x6a, payload.length, ...payload]), amount: 0n });
+      tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 98_000n);
+      return bytesToHex(tx.unsignedTx);
+    }
+
+    /** A raw transaction carrying an enhanced send with the given memo. */
+    function composedSendWithMemo(memo: string): string {
+      return rawTxCarrying([
+        0x02,
+        ...encodeEnhancedSendCbor(1n, 100_000_000n, packAddress(DESTINATION), memo),
+      ]);
+    }
+
+    it('shows an informational difference on the review screen', async () => {
+      // A memo mismatch is informational: it does not block, and before this it went only to a
+      // console.warn that production builds strip.
+      mockComposeApi.mockResolvedValue({
+        result: {
+          rawtransaction: composedSendWithMemo('composed memo'),
+          inputs_values: [100_000],
+          tx_hash: 'hash123',
+        },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      renderWithProvider({ FormComponent: SendForm });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Composed transaction differs from your request/i)).toBeInTheDocument();
+      expect(screen.getByText(/memo/i)).toBeInTheDocument();
+    });
+
+    it('shows nothing when the composed transaction matches', async () => {
+      mockComposeApi.mockResolvedValue({
+        result: {
+          rawtransaction: composedSendWithMemo('requested memo'),
+          inputs_values: [100_000],
+          tx_hash: 'hash123',
+        },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      renderWithProvider({ FormComponent: SendForm });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Composed transaction differs from your request/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it('claims no difference when the compose type has no field-level verifier', async () => {
+      // A broadcast has no field verifier: only its message type is confirmed. That absence of
+      // checking must not be announced as a detected difference — the banner is only credible on
+      // types with field verification if it stays silent here.
+      mockComposeApi.mockResolvedValue({
+        result: {
+          // Type id 30 (broadcast), CBOR [timestamp 0, value 1, fee_fraction 0, mime "", text ""]
+          rawtransaction: rawTxCarrying([0x1e, 0x85, 0x00, 0x01, 0x00, 0x60, 0x40]),
+          inputs_values: [100_000],
+          tx_hash: 'hash123',
+        },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      renderWithProvider({ composeType: 'broadcast' });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Composed transaction differs from your request/i)
+      ).not.toBeInTheDocument();
     });
   });
 

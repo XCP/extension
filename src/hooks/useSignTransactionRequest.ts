@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Hook to handle raw transaction signing requests from provider/dApps
  *
  * This hook centralizes the logic for:
@@ -19,7 +19,7 @@ import {
   fetchInputValues,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
-import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
@@ -144,26 +144,22 @@ export function useSignTransactionRequest(signerAddress?: string) {
     const hasOpReturn = outputs.some(o => o.type === 'op_return');
 
     let counterpartyMessage: CounterpartyMessage | undefined;
-    let decryptedDataHex: string | undefined;
+    let counterpartyDataHex: string | undefined;
 
-    // Counterparty encrypts OP_RETURN data with ARC4 using the first input's txid.
-    // Decrypt to get the CNTRPRTY-prefixed datahex for local verification and API decode.
-    if (hasOpReturn && inputs.length > 0 && inputs[0]!.txid) {
-      for (const output of outputs) {
-        if (output.opReturnData) {
-          const decrypted = decryptOpReturnData(output.opReturnData, inputs[0]!.txid);
-          if (decrypted) {
-            decryptedDataHex = decrypted;
-            break;
-          }
-        }
-      }
+    // Resolve any Counterparty payload the outputs carry — plaintext or ARC4 OP_RETURN, or
+    // bare-multisig data outputs, which produce no OP_RETURN at all. Classifying every encoding
+    // here is what lets the sweep block apply regardless of how the message is carried.
+    if (inputs.length > 0 && inputs[0]!.txid) {
+      counterpartyDataHex = extractPayloadFromOutputs(
+        decoded.vout.map((vout: any) => vout.scriptPubKey?.hex ?? ''),
+        inputs[0]!.txid
+      ) ?? undefined;
     }
 
-    // If we decrypted Counterparty data, try API unpack for rich message info
-    if (decryptedDataHex) {
+    // If the outputs carried Counterparty data, try API unpack for rich message info
+    if (counterpartyDataHex) {
       try {
-        const msg = await decodeCounterpartyMessage(decryptedDataHex);
+        const msg = await decodeCounterpartyMessage(counterpartyDataHex);
         if (msg) {
           counterpartyMessage = msg;
         }
@@ -173,7 +169,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
     }
 
     // Verify locally (compares local binary unpack against API result)
-    const verification = verifyProviderTransaction(decryptedDataHex, counterpartyMessage);
+    const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
 
     // Analyze for security risks (dangerous types, suspicious outputs)
     const messageType = counterpartyMessage?.messageType

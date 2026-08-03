@@ -58,10 +58,12 @@ export function computeMoneyMovement(params: {
   /** Network fee in sats. */
   fee: number;
   /**
-   * Output indices the signature commits to (see `committedOutputIndices`); omit when every output
-   * is committed. An uncommitted output back to you is reported as at-risk, not counted as change.
+   * Output indices the signature commits to (see `committedOutputIndices`), or `null` when every
+   * output is committed. An uncommitted output back to you is reported as at-risk rather than
+   * counted as change. Required, since `null` is the permissive value and must be chosen
+   * deliberately.
    */
-  committedOutputs?: Set<number> | null;
+  committedOutputs: Set<number> | null;
 }): MoneyMovement {
   const mine = new Set(params.myAddresses.map(normalizeAddressForComparison));
   const isMine = (address?: string) =>

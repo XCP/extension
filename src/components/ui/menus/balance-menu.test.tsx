@@ -148,55 +148,21 @@ describe('BalanceMenu', () => {
     expect(mockOnClick).not.toHaveBeenCalled();
   });
 
-  it('offers Destroy for a Counterparty asset', async () => {
-    render(
-      <MemoryRouter>
-        <BalanceMenu asset="RAREPEPE" />
-      </MemoryRouter>
-    );
+  it.each(['RAREPEPE', 'XCP', 'BTC'])(
+    'keeps Destroy out of the quick-actions menu for %s',
+    async (asset) => {
+      // Destroying is irreversible, so it belongs on the balance page rather than
+      // one tap away in the list.
+      render(
+        <MemoryRouter>
+          <BalanceMenu asset={asset} />
+        </MemoryRouter>
+      );
 
-    openMenu();
+      openMenu();
 
-    fireEvent.click(await screen.findByText('Destroy'));
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/issuance/destroy/RAREPEPE');
-  });
-
-  it('offers Destroy for XCP', async () => {
-    render(
-      <MemoryRouter>
-        <BalanceMenu asset="XCP" />
-      </MemoryRouter>
-    );
-
-    openMenu();
-
-    fireEvent.click(await screen.findByText('Destroy'));
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/issuance/destroy/XCP');
-  });
-
-  it('does not offer Destroy for BTC, which is not a Counterparty asset', async () => {
-    render(
-      <MemoryRouter>
-        <BalanceMenu asset="BTC" />
-      </MemoryRouter>
-    );
-
-    openMenu();
-
-    await waitFor(() => expect(screen.getByText('Send')).toBeInTheDocument());
-    expect(screen.queryByText('Destroy')).not.toBeInTheDocument();
-  });
-
-  it('encodes an asset longname in the destroy route', async () => {
-    render(
-      <MemoryRouter>
-        <BalanceMenu asset="A95428956661682177.SUB" />
-      </MemoryRouter>
-    );
-
-    openMenu();
-
-    fireEvent.click(await screen.findByText('Destroy'));
-    expect(mockNavigate).toHaveBeenCalledWith('/compose/issuance/destroy/A95428956661682177.SUB');
-  });
+      await waitFor(() => expect(screen.getByText('Send')).toBeInTheDocument());
+      expect(screen.queryByText('Destroy')).not.toBeInTheDocument();
+    }
+  );
 });

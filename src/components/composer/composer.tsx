@@ -3,6 +3,7 @@ import { FiHelpCircle, FiX, FiRefreshCw } from "@/components/icons";
 import { useNavigate } from "react-router";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { Spinner } from "@/components/ui/spinner";
+import { Banner } from "@/components/ui/banner";
 import { ComposerProvider, useComposer } from "@/contexts/composer-context";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
@@ -192,13 +193,30 @@ function ComposerInner<T>({
       )}
 
       {state.step === "review" && state.apiResponse && (
-        <ReviewComponent
-          apiResponse={state.apiResponse}
-          onSign={signAndBroadcast}
-          onBack={goBack}
-          error={state.error}
-          isSigning={state.isSigning}
-        />
+        <>
+          {state.verificationWarnings.length > 0 && (
+            <div className="px-4 pt-4">
+              <Banner
+                severity="warning"
+                title="Composed transaction differs from your request"
+                description="These differences are not dangerous on their own, but review them before signing."
+              >
+                <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                  {state.verificationWarnings.map((warning, index) => (
+                    <li key={`${index}-${warning}`}>{warning}</li>
+                  ))}
+                </ul>
+              </Banner>
+            </div>
+          )}
+          <ReviewComponent
+            apiResponse={state.apiResponse}
+            onSign={signAndBroadcast}
+            onBack={goBack}
+            error={state.error}
+            isSigning={state.isSigning}
+          />
+        </>
       )}
 
       {state.step === "success" && state.apiResponse && (

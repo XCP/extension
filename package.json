@@ -2,7 +2,8 @@
   "name": "xcp-wallet",
   "description": "Counterparty Web3 Wallet",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=24 <25",

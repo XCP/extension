@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Hook to handle PSBT signing requests from provider/dApps
  *
  * This hook centralizes the logic for:
  * - Loading PSBT request data from storage
  * - Decoding PSBT details (inputs, outputs, fee)
- * - ARC4 decryption of OP_RETURN data for Counterparty detection
+ * - Counterparty payload extraction (plaintext/ARC4 OP_RETURN, bare multisig)
  * - Safety analysis (block sweeps, warn on suspicious outputs)
  * - Handling success/cancel callbacks
  * - Cleaning up storage
@@ -20,7 +20,7 @@ import {
   decodeCounterpartyMessage,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
-import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
@@ -89,25 +89,23 @@ export function useSignPsbtRequest(signerAddress?: string) {
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
-    let decryptedDataHex: string | undefined;
+    let counterpartyDataHex: string | undefined;
 
-    // ARC4 decrypt OP_RETURN data using the first input's txid as key
-    if (psbtDetails.hasOpReturn && psbtDetails.inputs.length > 0 && psbtDetails.inputs[0]!.txid) {
-      for (const output of psbtDetails.outputs) {
-        if (output.type === 'op_return' && output.script) {
-          const decrypted = decryptOpReturnData(output.script, psbtDetails.inputs[0]!.txid);
-          if (decrypted) {
-            decryptedDataHex = decrypted;
-            break;
-          }
-        }
-      }
+    // Resolve any Counterparty payload the outputs carry — plaintext or ARC4 OP_RETURN, or
+    // bare-multisig data outputs, which produce no OP_RETURN at all. Classifying every encoding
+    // here is what lets the sweep block apply regardless of how the message is carried.
+    const firstInputTxid = psbtDetails.inputs[0]?.txid;
+    if (firstInputTxid) {
+      counterpartyDataHex = extractPayloadFromOutputs(
+        psbtDetails.outputs.map((output) => output.script ?? ''),
+        firstInputTxid
+      ) ?? undefined;
     }
 
-    // If we decrypted Counterparty data, try API unpack for rich message info
-    if (decryptedDataHex) {
+    // If the outputs carried Counterparty data, try API unpack for rich message info
+    if (counterpartyDataHex) {
       try {
-        const msg = await decodeCounterpartyMessage(decryptedDataHex);
+        const msg = await decodeCounterpartyMessage(counterpartyDataHex);
         if (msg) {
           counterpartyMessage = msg;
         }
@@ -135,7 +133,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     }
 
     // Verify locally (compares local binary unpack against API result)
-    const verification = verifyProviderTransaction(decryptedDataHex, counterpartyMessage);
+    const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
 
     // Analyze for security risks (dangerous types, suspicious outputs)
     const messageType = counterpartyMessage?.messageType

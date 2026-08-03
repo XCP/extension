@@ -1,28 +1,28 @@
 /**
  * Counterparty Address Packing/Unpacking
  *
- * Counterparty uses a 21-byte packed address format in messages:
+ * Two packed-address encodings exist on the wire.
  *
- * For P2PKH (legacy) addresses:
- *   - Byte 0: Version byte (0x00 for mainnet P2PKH, 0x05 for P2SH)
- *   - Bytes 1-20: 20-byte pubkey hash (HASH160)
+ * Legacy (pre-taproot_support), always 21 bytes:
+ *   - P2PKH/P2SH: base58 version byte (0x00/0x05 mainnet) + 20-byte hash
+ *   - SegWit v0:  0x80 + witness_version, + 20-byte witness program
+ *   Taproot cannot be represented (a 32-byte program does not fit).
  *
- * For SegWit (P2WPKH) addresses:
- *   - Byte 0: 0x80 + witness_version (0x80 for witness v0)
- *   - Bytes 1-20: 20-byte witness program
+ * Modern (taproot_support, counterparty-rs utils::pack), variable length:
+ *   - 0x01 + 20-byte pubkey hash            → P2PKH
+ *   - 0x02 + 20-byte script hash            → P2SH
+ *   - 0x03 + witness_version + program      → any SegWit, including Taproot
  *
- * For Taproot (P2TR) addresses:
- *   - Byte 0: 0x80 + witness_version (0x81 for witness v1)
- *   - Bytes 1-20: First 20 bytes of 32-byte witness program (truncated)
- *   - Note: This is lossy - we cannot fully reconstruct P2TR addresses from packed form
- *
- * The pack/unpack functions convert between Bitcoin addresses and this 21-byte format.
+ * The modern prefixes cannot collide with legacy mainnet version bytes
+ * (0x00/0x05) or the SegWit marker range (0x80+), so unpackAddress accepts
+ * both encodings; packAddress emits the legacy form where it is expressible
+ * and the modern form for witness programs longer than 20 bytes.
  */
 
 import { bech32, bech32m, base58 } from '@scure/base';
 import { sha256 } from '@noble/hashes/sha2.js';
 
-/** Length of packed address in bytes */
+/** Length of a legacy packed address in bytes */
 export const PACKED_ADDRESS_LENGTH = 21;
 
 /** Version byte prefixes for mainnet */
@@ -31,6 +31,16 @@ const VERSION = {
   P2SH: 0x05,        // Pay-to-script-hash
   SEGWIT_MARKER: 0x80, // Added to witness version for SegWit
 } as const;
+
+/** Modern (taproot_support) packed-address type prefixes */
+const MODERN = {
+  P2PKH: 0x01,
+  P2SH: 0x02,
+  WITNESS: 0x03,
+} as const;
+
+/** Defined base58 version bytes: mainnet P2PKH/P2SH and their testnet counterparts. */
+const BASE58_VERSIONS = new Set<number>([VERSION.P2PKH, VERSION.P2SH, 0x6f, 0xc4]);
 
 /**
  * Error thrown when address packing/unpacking fails
@@ -167,22 +177,23 @@ export function packAddress(address: string): Uint8Array {
   if (address.toLowerCase().startsWith('bc1') || address.toLowerCase().startsWith('tb1')) {
     const { version, program } = decodeBech32(address);
 
-    // Mark as SegWit with version
-    packed[0] = VERSION.SEGWIT_MARKER + version;
-
-    // P2WPKH has 20-byte program, P2TR has 32-byte program
     if (program.length === 20) {
-      // P2WPKH - fits exactly
+      // Fits the legacy 21-byte packing: SegWit marker + program.
+      packed[0] = VERSION.SEGWIT_MARKER + version;
       packed.set(program, 1);
-    } else if (program.length === 32) {
-      // P2TR - truncate to 20 bytes (lossy!)
-      // Note: This means we can't fully reconstruct P2TR addresses
-      packed.set(program.slice(0, 20), 1);
-    } else {
-      throw new AddressPackError(`Unsupported witness program length: ${program.length}`);
+      return packed;
     }
 
-    return packed;
+    if (program.length === 32) {
+      // Taproot/P2WSH programs only exist in the modern packing.
+      const modern = new Uint8Array(2 + program.length);
+      modern[0] = MODERN.WITNESS;
+      modern[1] = version;
+      modern.set(program, 2);
+      return modern;
+    }
+
+    throw new AddressPackError(`Unsupported witness program length: ${program.length}`);
   }
 
   // Check for base58 (legacy) address
@@ -204,9 +215,10 @@ export function packAddress(address: string): Uint8Array {
 }
 
 /**
- * Unpack a 21-byte Counterparty packed address to a Bitcoin address string.
+ * Unpack a Counterparty packed address (legacy or modern encoding) to a
+ * Bitcoin address string.
  *
- * @param packed - 21-byte packed address
+ * @param packed - Packed address bytes
  * @param network - 'mainnet' or 'testnet' (default: 'mainnet')
  * @returns Bitcoin address string
  * @throws AddressPackError if the packed address is invalid
@@ -216,32 +228,61 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
     throw new AddressPackError('Empty packed address');
   }
 
+  const firstByte = packed[0]!;
+  const rest = packed.slice(1);
+  const bech32Prefix = network === 'mainnet' ? 'bc' : 'tb';
+
+  // Modern encoding: type prefix + payload.
+  if (firstByte === MODERN.P2PKH && packed.length === PACKED_ADDRESS_LENGTH) {
+    return encodeBase58Check(network === 'mainnet' ? 0x00 : 0x6f, rest);
+  }
+  if (firstByte === MODERN.P2SH && packed.length === PACKED_ADDRESS_LENGTH) {
+    return encodeBase58Check(network === 'mainnet' ? 0x05 : 0xc4, rest);
+  }
+  // Core's unpacker (counterparty-rs utils.rs) requires prefix + version + a program of at
+  // least 20 bytes; accepting less would render an address core itself refuses to unpack.
+  if (firstByte === MODERN.WITNESS && packed.length >= 22) {
+    const witnessVersion = packed[1]!;
+    const program = packed.slice(2);
+    if (witnessVersion > 16) {
+      throw new AddressPackError(`Invalid witness version: ${witnessVersion}`);
+    }
+    // BIP141 allows up to 40 bytes, but v0 is only defined for 20 (P2WPKH) and 32 (P2WSH), and
+    // v1 only for 32 (P2TR). Anything else would render as a plausible address nobody can spend.
+    const validForVersion = witnessVersion === 0
+      ? program.length === 20 || program.length === 32
+      : witnessVersion === 1
+        ? program.length === 32
+        : program.length <= 40;
+    if (!validForVersion) {
+      throw new AddressPackError(
+        `Invalid witness program length for v${witnessVersion}: ${program.length}`
+      );
+    }
+    return encodeBech32(witnessVersion, program, bech32Prefix);
+  }
+
+  // Legacy SegWit marker (0x80 - 0x8F): fixed 21-byte packing, 20-byte program.
+  if (firstByte >= VERSION.SEGWIT_MARKER && firstByte <= VERSION.SEGWIT_MARKER + 0x0F) {
+    if (packed.length !== PACKED_ADDRESS_LENGTH) {
+      throw new AddressPackError(
+        `Invalid packed SegWit address length: ${packed.length} (expected ${PACKED_ADDRESS_LENGTH})`
+      );
+    }
+    return encodeBech32(firstByte - VERSION.SEGWIT_MARKER, rest, bech32Prefix);
+  }
+
+  // Legacy P2PKH/P2SH: base58 version byte + 20-byte hash.
   if (packed.length !== PACKED_ADDRESS_LENGTH) {
     throw new AddressPackError(`Invalid packed address length: ${packed.length} (expected ${PACKED_ADDRESS_LENGTH})`);
   }
-
-  const firstByte = packed[0]!;
-  const hashOrProgram = packed.slice(1);
-
-  // Check for SegWit marker (0x80 - 0x8F)
-  if (firstByte >= VERSION.SEGWIT_MARKER && firstByte <= VERSION.SEGWIT_MARKER + 0x0F) {
-    const witnessVersion = firstByte - VERSION.SEGWIT_MARKER;
-    const prefix = network === 'mainnet' ? 'bc' : 'tb';
-
-    // Note: For P2TR (witness v1), the packed format only contains 20 bytes
-    // of the 32-byte witness program, so we cannot fully reconstruct it.
-    // We assume P2WPKH (20-byte program) for unpacking.
-    if (witnessVersion === 1) {
-      // This is P2TR but we only have 20 bytes - cannot reconstruct
-      // For now, treat it as if we have the full program (caller should be aware)
-      console.warn('P2TR address unpacking may be incomplete (only 20 of 32 bytes available)');
-    }
-
-    return encodeBech32(witnessVersion, hashOrProgram, prefix);
+  // The version byte itself carries the network, so accept the four defined values rather than
+  // scoping by the `network` argument. Any other leading byte would still base58-encode,
+  // producing something that reads as an address and is not one.
+  if (!BASE58_VERSIONS.has(firstByte)) {
+    throw new AddressPackError(`Unrecognized packed address version byte: 0x${firstByte.toString(16)}`);
   }
-
-  // Legacy address (P2PKH or P2SH)
-  return encodeBase58Check(firstByte, hashOrProgram);
+  return encodeBase58Check(firstByte, rest);
 }
 
 /**

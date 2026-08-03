@@ -139,10 +139,13 @@ export default function ApprovePsbtPage() {
       ),
     })
   );
+  // Without signInputs the signer works best-effort across every input with the active address's
+  // key, so an input whose prevout address cannot be decoded may still be signed. Those count as
+  // ours here, so their sighash reaches the at-risk calculation below.
   const requestedInputIndices = request.signInputs
     ? Object.values(request.signInputs).flat()
     : psbtDetails.inputs
-        .filter(input => input.address && normalizeAddressForComparison(input.address)
+        .filter(input => !input.address || normalizeAddressForComparison(input.address)
           === normalizeAddressForComparison(activeAddress.address))
         .map(input => input.index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =

@@ -11,6 +11,7 @@ describe('computeMoneyMovement', () => {
         { address: 'me', value: 5000 }, // change
       ],
       fee: 5000,
+      committedOutputs: null,
     });
     expect(m).toMatchObject({ spent: 100000, backToYou: 5000, net: -95000, incomplete: false });
     expect(m.external).toEqual([{ address: 'them', value: 90000 }]);
@@ -25,6 +26,7 @@ describe('computeMoneyMovement', () => {
         { address: 'them', value: 39000 },
       ],
       fee: 1000,
+      committedOutputs: null,
     });
     expect(m).toMatchObject({ spent: 0, backToYou: 60000, net: 60000, incomplete: false });
   });
@@ -38,6 +40,7 @@ describe('computeMoneyMovement', () => {
         { value: 0, type: 'op_return' },
       ],
       fee: 10000,
+      committedOutputs: null,
     });
     expect(m.external).toEqual([{ address: 'them', value: 40000 }]);
   });
@@ -48,6 +51,7 @@ describe('computeMoneyMovement', () => {
       inputs: [{ address: 'me', value: 50000 }],
       outputs: [{ value: 40000 }],
       fee: 10000,
+      committedOutputs: null,
     });
     expect(m.external).toEqual([{ address: null, value: 40000 }]);
   });
@@ -58,6 +62,7 @@ describe('computeMoneyMovement', () => {
       inputs: [{ address: 'me' }], // no value
       outputs: [{ address: 'them', value: 10000 }],
       fee: 1000,
+      committedOutputs: null,
     }).incomplete).toBe(true);
 
     expect(computeMoneyMovement({
@@ -65,6 +70,7 @@ describe('computeMoneyMovement', () => {
       inputs: [{ value: 100000 }], // no address
       outputs: [{ address: 'them', value: 90000 }],
       fee: 10000,
+      committedOutputs: null,
     }).incomplete).toBe(true);
   });
 
@@ -74,6 +80,7 @@ describe('computeMoneyMovement', () => {
       inputs: [{ address: 'me', value: 100000 }],
       outputs: [{ address: 'them', value: 90000 }, { address: 'me', value: 5000 }],
       fee: 5000,
+      committedOutputs: null,
     });
     expect(m.atRisk).toBe(0);
     expect(m.backToYou).toBe(5000);
@@ -128,6 +135,7 @@ describe('computeMoneyMovement', () => {
       inputs: [{ address: 'bc1qme', value: 100000 }],
       outputs: [{ address: 'bc1qthem', value: 95000 }],
       fee: 5000,
+      committedOutputs: null,
     });
     expect(m.spent).toBe(100000);
     expect(m.net).toBe(-100000);

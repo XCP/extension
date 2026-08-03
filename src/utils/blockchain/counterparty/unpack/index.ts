@@ -28,6 +28,7 @@ import { unpackMPMA, type MPMAData, type MPMASend } from './messages/mpma';
 import { unpackBTCPay, type BTCPayData } from './messages/btcpay';
 import { unpackDispense, type DispenseData } from './messages/dispense';
 import { unpackBroadcast, type BroadcastData } from './messages/broadcast';
+import { unpackBet, type BetData } from './messages/bet';
 import { unpackDividend, type DividendData } from './messages/dividend';
 import { unpackFairminter, type FairminterData } from './messages/fairminter';
 import { unpackFairmint, type FairmintData } from './messages/fairmint';
@@ -50,6 +51,7 @@ export type UnpackedMessageData =
   | BTCPayData
   | DispenseData
   | BroadcastData
+  | BetData
   | DividendData
   | FairminterData
   | FairmintData
@@ -209,6 +211,10 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           unpackedData = unpackBroadcast(rawPayload);
           break;
 
+        case MessageTypeId.BET:
+          unpackedData = unpackBet(rawPayload);
+          break;
+
         case MessageTypeId.DIVIDEND:
           unpackedData = unpackDividend(rawPayload);
           break;
@@ -237,7 +243,7 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           break;
 
         default:
-          // Return raw payload for unsupported types
+          // Keep the raw payload for display, but this is not a decode.
           unpackedData = { _raw: Array.from(rawPayload) };
           unpackError = `Unsupported message type: ${messageType} (ID: ${messageTypeId})`;
       }
@@ -246,7 +252,9 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
     }
 
     return {
-      success: !unpackError || unpackedData !== undefined,
+      // Success means the message was decoded. An unsupported type still returns data — the raw
+      // bytes, for display — so the presence of data is not itself a decode.
+      success: !unpackError,
       error: unpackError,
       messageTypeId,
       messageType,
@@ -303,7 +311,6 @@ export type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 export {
   verifyTransaction,
   verifyTransactionLegacy,
-  extractOpReturnData,
   type ComposeRequest,
   type ComposeParams,
   type VerificationResult,

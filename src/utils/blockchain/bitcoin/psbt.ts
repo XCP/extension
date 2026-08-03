@@ -36,10 +36,15 @@ export const ALLOWED_PSBT_SIGHASH_TYPES: ReadonlySet<number> = new Set([
  * Which output indices a set of signatures commits to. `null` means every output is committed, so
  * the outputs cannot change without invalidating a signature.
  *
- * SINGLE|ANYONECANPAY covers only the output sharing the signed input's index and leaves the rest
- * free for whoever holds the partially-signed transaction to delete, replace or repoint. One signed
- * input committing to all outputs pins the whole set, since changing any output would invalidate
- * that signature and the transaction still needs that input.
+ * A signature binds only transactions that contain its own input. Without ANYONECANPAY it commits
+ * to the whole input set, so the reviewed transaction is the only broadcastable one. ANYONECANPAY
+ * lifts that restriction: such an input can be moved into a transaction built by whoever holds the
+ * PSBT, and the signatures left behind go with their inputs.
+ *
+ * Any one detachable input can therefore be kept while the rest are dropped, so only the outputs
+ * every detachable input covers on its own are guaranteed. SINGLE|ANYONECANPAY covers the output
+ * sharing its input's index and nothing when there is no such output; ALL|ANYONECANPAY covers
+ * every output.
  */
 export function committedOutputIndices(
   signedInputs: Array<{ index: number; sighashType: number }>,
@@ -47,14 +52,39 @@ export function committedOutputIndices(
 ): Set<number> | null {
   if (signedInputs.length === 0) return null;
 
-  const committed = new Set<number>();
-  for (const { index, sighashType } of signedInputs) {
+  const isDetachable = (sighashType: number) => (sighashType & 0x80) !== 0;
+  const commitsToEveryOutput = (sighashType: number) => {
     const base = sighashType & 0x1f;
-    if (base === SigHash.DEFAULT || base === SigHash.ALL) return null;
-    // SINGLE commits to the output sharing the input's index; NONE commits to none at all.
-    if (base === SigHash.SINGLE && index < outputCount) committed.add(index);
+    return base === SigHash.DEFAULT || base === SigHash.ALL;
+  };
+
+  /** Outputs one signature covers alone: SINGLE takes the output at its index, NONE takes none. */
+  const ownCommitment = ({ index, sighashType }: { index: number; sighashType: number }) =>
+    (sighashType & 0x1f) === SigHash.SINGLE && index < outputCount
+      ? new Set([index])
+      : new Set<number>();
+
+  const detachable = signedInputs.filter(({ sighashType }) => isDetachable(sighashType));
+
+  // With nothing detachable the whole input set has to be kept, so every signature keeps binding
+  // and their commitments combine.
+  if (detachable.length === 0) {
+    if (signedInputs.some(({ sighashType }) => commitsToEveryOutput(sighashType))) return null;
+    const committed = new Set<number>();
+    for (const signedInput of signedInputs) {
+      for (const index of ownCommitment(signedInput)) committed.add(index);
+    }
+    return committed;
   }
-  return committed;
+
+  // Only what every detachable input covers survives. An ALL|ANYONECANPAY input covers every
+  // output, so it constrains nothing; when every detachable input is of that kind, the whole
+  // output set is committed.
+  const constraining = detachable.filter(({ sighashType }) => !commitsToEveryOutput(sighashType));
+  if (constraining.length === 0) return null;
+  return constraining
+    .map(ownCommitment)
+    .reduce((intersection, own) => new Set([...intersection].filter((index) => own.has(index))));
 }
 
 /**
