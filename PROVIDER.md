@@ -158,7 +158,10 @@ const result = await xcpwallet.request({
 When `signInputs` is supplied, it must contain at least one input. Every index must be
 unique, in range, and assigned to the address found in that input's embedded prevout.
 The provider rejects mismatches before opening the approval popup. Omitting `signInputs`
-preserves the legacy best-effort behavior for the active address only.
+preserves the legacy best-effort behavior for the active address only. For pricing, an
+input whose embedded prevout cannot be attributed to an address is treated as
+potentially the signer's, so its sighash reaches the at-risk calculation rather than
+being skipped.
 
 `sighashTypes` is indexed by absolute PSBT input index, not by `signInputs` entry
 or subset order. When supplied, it must cover every input the wallet is asked to
@@ -203,6 +206,22 @@ For a marketplace listing this means:
   price it as change.
 
 A listing built that way has nothing at risk and signs with no extra prompt.
+
+**Mixed sighash flags.** When signed inputs carry different flags, the summary
+prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
+an input is detachable — whoever holds the PSBT can keep it, drop the rest, and
+its signature travels with it — so an additional `SIGHASH_ALL` input cannot
+vouch for outputs a detachable input leaves free. In practice: batching two
+`SINGLE | ANYONECANPAY` listings into one PSBT prices **both** proceeds outputs
+as at risk, since each signature covers only the output at its own index and
+neither covers the other's. Submit one listing per PSBT to keep the
+no-extra-prompt path.
+
+**Counterparty classification.** The wallet reads Counterparty data from an
+OP_RETURN output — plaintext or ARC4-obfuscated — and from bare-multisig data
+outputs, so message classification and the sweep block apply regardless of
+encoding. A payload that cannot be decoded is surfaced as an unrecognized
+transaction rather than rendered as an ordinary transfer.
 
 **Unfunded PSBTs.** A PSBT whose outputs exceed its inputs — the normal shape of
 a listing awaiting a buyer's funding inputs — is accepted. No fee is claimed for
