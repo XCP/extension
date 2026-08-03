@@ -80,6 +80,31 @@ describe('verifyProviderTransaction', () => {
       expect(result.passed).toBe(true);
       expect(result.mismatches).toEqual([]);
       expect(result.localUnpack).toBeDefined();
+      // ...but nothing was cross-checked, and the caller must be able to tell the difference.
+      // The API decode is unavailable whenever the endpoint errors or rejects the payload, which
+      // is exactly when an affirmative "no tampering detected" would be least earned.
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('reports comparedAgainstApi=true only when a comparison actually happened', () => {
+      const payload = bigintHex(XCP_ID) + bigintHex(1000n) + packedAddressHex(TEST_HASH);
+      const data = buildMessage(MessageTypeId.ENHANCED_SEND, payload);
+      const apiMessage: ApiCounterpartyMessage = {
+        messageType: 'enhanced_send',
+        messageTypeId: MessageTypeId.ENHANCED_SEND,
+        messageData: { asset: 'XCP', quantity: 1000 },
+        description: 'send',
+      };
+
+      const result = verifyProviderTransaction(data, apiMessage);
+      expect(result.passed).toBe(true);
+      expect(result.comparedAgainstApi).toBe(true);
+    });
+
+    it('reports comparedAgainstApi=false when the payload is not Counterparty data', () => {
+      const result = verifyProviderTransaction('deadbeef');
+      expect(result.passed).toBeUndefined();
+      expect(result.comparedAgainstApi).toBe(false);
     });
   });
 

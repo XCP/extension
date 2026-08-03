@@ -7,7 +7,7 @@
  */
 
 import type { ReactElement } from 'react';
-import { FiShield, FiShieldOff } from '@/components/icons';
+import { FiShield, FiShieldOff, FiInfo } from '@/components/icons';
 
 /*
  * The passed state is intentionally low-weight — a small inline badge, not a
@@ -18,6 +18,14 @@ import { FiShield, FiShieldOff } from '@/components/icons';
 export interface VerificationStatusProps {
   /** Whether verification passed */
   passed?: boolean;
+  /**
+   * Whether a second decoding was actually compared against the local one.
+   *
+   * Passing with nothing to compare against is not the same as passing a comparison: when the API
+   * decode is unavailable, the message decoded locally and that is all. Claiming "no tampering
+   * detected" there asserts most where least was checked, so the two are shown differently.
+   */
+  comparedAgainstApi?: boolean;
   /** Warning/error message to display */
   warning?: string;
   /** Whether strict mode is enabled (blocks signing on failure) */
@@ -27,12 +35,14 @@ export interface VerificationStatusProps {
 /**
  * Displays verification status with appropriate styling.
  *
- * - Green: Verification passed
+ * - Green: cross-checked and agreed
+ * - Neutral: decoded locally, but no second source to compare against
  * - Orange: Verification failed (non-strict mode, warning only)
  * - Red: Verification failed (strict mode, signing blocked)
  */
 export function VerificationStatus({
   passed,
+  comparedAgainstApi = true,
   warning,
   isStrict = true,
 }: VerificationStatusProps): ReactElement | null {
@@ -40,6 +50,16 @@ export function VerificationStatus({
   // (e.g., non-Counterparty transactions)
   if (passed === undefined) {
     return null;
+  }
+
+  // Decoded, but nothing to compare it against. Neither an error nor a clean bill of health.
+  if (passed === true && !comparedAgainstApi) {
+    return (
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600">
+        <FiInfo className="size-4 flex-shrink-0" aria-hidden="true" />
+        Decoded locally — no second source to check it against
+      </div>
+    );
   }
 
   // Verification passed — compact inline badge, not a full banner.
