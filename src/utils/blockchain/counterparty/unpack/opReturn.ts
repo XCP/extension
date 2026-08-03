@@ -11,6 +11,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { arc4, hexToBytes, bytesToHex } from './binary';
 import { COUNTERPARTY_PREFIX_HEX } from './messageTypes';
+import { extractMultisigPayload } from './multisig';
 
 /**
  * Strip the OP_RETURN opcode (0x6a) and push-data length prefix from an
@@ -78,13 +79,13 @@ export function decryptOpReturnData(
 
 /**
  * Extract the Counterparty message payload from a raw transaction hex by
- * parsing its structure locally: locate the OP_RETURN output and the first
- * input's txid, then resolve the payload as plaintext (future protocol) or
- * ARC4-obfuscated (current protocol).
+ * parsing its structure locally: locate the first input's txid, then resolve the
+ * payload from an OP_RETURN output — as plaintext (future protocol) or
+ * ARC4-obfuscated (current protocol) — or from bare-multisig data outputs.
  *
  * @param rawTxHex - Raw (unsigned or signed) transaction hex
  * @returns Counterparty datahex with the CNTRPRTY prefix, or null if the
- *          transaction carries no recognizable Counterparty OP_RETURN
+ *          transaction carries no recognizable Counterparty payload
  */
 export function extractCounterpartyPayload(rawTxHex: string): string | null {
   let tx: Transaction;
@@ -107,10 +108,14 @@ export function extractCounterpartyPayload(rawTxHex: string): string | null {
   if (!firstInput?.txid) return null;
   const firstInputTxid = bytesToHex(firstInput.txid);
 
+  const outputScriptHexes: string[] = [];
+
   for (let i = 0; i < tx.outputsLength; i++) {
     const script = tx.getOutput(i)?.script;
+    const scriptHex = script ? bytesToHex(script) : '';
+    outputScriptHexes.push(scriptHex);
+
     if (!script || script[0] !== 0x6a) continue;
-    const scriptHex = bytesToHex(script);
 
     // Plaintext first (future protocol), then ARC4 (current protocol)
     const payload = extractOpReturnPayload(scriptHex);
@@ -120,5 +125,8 @@ export function extractCounterpartyPayload(rawTxHex: string): string | null {
     if (decrypted) return decrypted;
   }
 
-  return null;
+  // The message may instead be spread across bare-multisig outputs, which carry no OP_RETURN.
+  // Callers read a null return as "no Counterparty data" and skip verification, so every
+  // encoding that can carry a message has to be looked for here.
+  return extractMultisigPayload(outputScriptHexes, firstInputTxid);
 }

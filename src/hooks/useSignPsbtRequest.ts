@@ -21,6 +21,7 @@ import {
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
 import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { extractMultisigPayload } from '@/utils/blockchain/counterparty/unpack/multisig';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
@@ -91,6 +92,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
     let txid: string | undefined;
     let decryptedDataHex: string | undefined;
 
+    const firstInputTxid = psbtDetails.inputs[0]?.txid;
+
     // ARC4 decrypt OP_RETURN data using the first input's txid as key
     if (psbtDetails.hasOpReturn && psbtDetails.inputs.length > 0 && psbtDetails.inputs[0]!.txid) {
       for (const output of psbtDetails.outputs) {
@@ -102,6 +105,15 @@ export function useSignPsbtRequest(signerAddress?: string) {
           }
         }
       }
+    }
+
+    // Counterparty also carries messages in bare-multisig outputs, which produce no OP_RETURN.
+    // Classifying them here is what lets the sweep block apply regardless of encoding.
+    if (!decryptedDataHex && firstInputTxid) {
+      decryptedDataHex = extractMultisigPayload(
+        psbtDetails.outputs.map((output) => output.script ?? ''),
+        firstInputTxid
+      ) ?? undefined;
     }
 
     // If we decrypted Counterparty data, try API unpack for rich message info

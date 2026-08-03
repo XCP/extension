@@ -619,6 +619,15 @@ function verifyPoolWithdraw(
  * @param params - The params (only for new API)
  * @returns Verification result with any mismatches found
  */
+/**
+ * Compose types whose message is named differently on the wire. Types not listed here use the
+ * compose type as the message type name.
+ */
+const COMPOSE_TYPE_MESSAGE_NAMES: Record<string, string> = {
+  mpma: 'mpma_send',
+  move: 'utxo',
+};
+
 export function verifyTransaction(
   opReturnData: string | Uint8Array,
   composeTypeOrRequest: VerifiableComposeType | string | ComposeRequest,
@@ -744,11 +753,21 @@ export function verifyTransaction(
       verifyPoolWithdraw(unpacked.data as PoolWithdrawData, actualParams, result);
       break;
 
-    default:
-      // Unknown compose type - can't verify, but don't fail
-      result.warnings.push(`Unknown compose type: ${composeType}, skipping verification`);
+    default: {
+      // No field-level verifier exists for this compose type, so its fields go unchecked. The
+      // message type must still be the one that was requested, or a response substituting any
+      // other message — a sweep, say — would be reported as verified.
+      const expectedMessageType = COMPOSE_TYPE_MESSAGE_NAMES[composeType] ?? composeType;
+      if (unpacked.messageType !== expectedMessageType) {
+        result.errors.push(
+          `Message type mismatch: expected ${expectedMessageType}, got ${unpacked.messageType}`
+        );
+        return result;
+      }
+      result.warnings.push(`No field-level verification for compose type: ${composeType}`);
       result.valid = true;
       return result;
+    }
   }
 
   // Transaction is valid if no critical or dangerous mismatches

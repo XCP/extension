@@ -466,8 +466,9 @@ describe('Contraexample Tests (Mocked)', () => {
     const assetId = '0000000000000001'; // XCP
     const quantity = '000000003b9aca00'; // 1 XCP
 
-    // Attacker's address packed (all 0xff = different from expected)
-    const attackerDest = 'ff'.repeat(21);
+    // A valid P2PKH packing for an address that is not the requested one, so the mismatch is
+    // caught by comparing destinations rather than by rejecting a malformed address.
+    const attackerDest = '00' + 'ff'.repeat(20);
 
     const data = CNTRPRTY + typeId + assetId + quantity + attackerDest;
 

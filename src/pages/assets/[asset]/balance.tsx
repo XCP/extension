@@ -89,6 +89,14 @@ export default function AssetBalancePage(): ReactElement {
       onClick: () => navigate(`${PATHS.COMPOSE}/dispenser/${encodedAsset}`),
     };
 
+    // Destroy burns the asset irreversibly; BTC is not a Counterparty asset, so it has none.
+    const destroyAction = {
+      id: "destroy",
+      title: "Destroy",
+      description: "Permanently burn this asset",
+      onClick: () => navigate(`${PATHS.COMPOSE}/issuance/destroy/${encodedAsset}`),
+    };
+
     const items = isBTC
       ? [
           sendAction,
@@ -108,8 +116,8 @@ export default function AssetBalancePage(): ReactElement {
           },
         ]
       : isXCP
-      ? [sendAction, swapAction, mintAction]
-      : [sendAction, sellAction, swapAction];
+      ? [sendAction, swapAction, mintAction, destroyAction]
+      : [sendAction, sellAction, swapAction, destroyAction];
     if (lpPool) {
       return [
         {

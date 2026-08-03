@@ -67,6 +67,7 @@ const SAFE_MESSAGE_TYPES = new Set([
   'fairmint',
   'dividend',
   'broadcast',
+  'bet',
   'attach',
   'detach',
   'mpma_send',
@@ -81,6 +82,18 @@ const SAFE_MESSAGE_TYPES = new Set([
  * dispenser triggers).
  */
 const DUST_THRESHOLD = 546;
+
+/**
+ * Output script types that can carry a Counterparty payload. Reaching one of these without a
+ * resolved message type means the payload was not read, which is not the same as its absence.
+ * Covers both the PSBT decoder's vocabulary and the node's scriptPubKey types.
+ */
+const DATA_CARRYING_OUTPUT_TYPES = new Set([
+  'op_return',   // present but did not decrypt to a Counterparty message
+  'unknown',     // PSBT decoder: bare multisig lands here
+  'multisig',    // node scriptPubKey type
+  'nonstandard', // node scriptPubKey type
+]);
 
 /**
  * Analyze a decoded transaction for security risks.
@@ -125,6 +138,16 @@ export function analyzeTransactionSafety(
         message: `Unrecognized message type "${messageType}". Review the transaction details carefully before signing.`,
       });
     }
+  } else if (outputs.some((output) => DATA_CARRYING_OUTPUT_TYPES.has(output.type))) {
+    // Every check above is keyed on the message type, so a payload that could not be read
+    // reaches none of them. Say so rather than presenting it as an ordinary transfer.
+    warnings.push({
+      severity: 'warning',
+      title: 'Unrecognized Transaction',
+      message:
+        'This transaction could not be identified as a known Counterparty action. It may carry ' +
+        'protocol data in a form this screen cannot read. Review it carefully before signing.',
+    });
   }
 
   // ── Check for suspicious outputs ──

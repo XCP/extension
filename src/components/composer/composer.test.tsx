@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router';
 import type { ReactElement } from 'react';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock webext-bridge before any imports that might use it
 vi.mock('webext-bridge/background', () => ({
@@ -33,7 +34,7 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
-const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet' };
+const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet', addressFormat: AddressFormat.P2WPKH };
 const mockActiveAddress = { address: 'bc1qtest123', name: 'Test Address' };
 const mockSignTransaction = vi.fn();
 const mockBroadcastTransaction = vi.fn();
@@ -108,6 +109,9 @@ describe('Composer', () => {
     result: {
       // A real, parseable BTC-only transaction so fee verification can decode it.
       rawtransaction: '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01b8730100000000001976a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac00000000',
+      // Its single output is 95160 sats; fee verification needs the input value to
+      // compute the fee rather than resolve it over the network.
+      inputs_values: [96000],
       tx_hash: 'hash123',
       data: 'data123'
     },

@@ -213,6 +213,8 @@ export default function ApproveTransactionPage() {
     outputs: decodedInfo.outputs,
     myAddresses: [activeAddress.address],
     fee: decodedInfo.fee,
+    // A raw transaction is signed SIGHASH_ALL throughout, so every output is committed.
+    committedOutputs: null,
   });
 
   const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({

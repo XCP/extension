@@ -12,11 +12,13 @@
  *   0x02 (FLAG_OWNERSHIP): Include asset ownership
  *   0x04 (FLAG_BINARY_MEMO): Memo is binary (not text)
  *
- * Modern (Taproot) Format: CBOR2 encoded
+ * Modern (taproot_support) Format: CBOR array
+ *   [short_address_bytes, flags, memo_bytes]
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader, bytesToHex } from '../binary';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
+import { decodeCbor, type CborValue } from '../cbor';
 
 /** Minimum length of sweep message (destination + flags) */
 const SWEEP_MIN_LENGTH = 22;
@@ -50,6 +52,56 @@ export interface SweepData {
   memoBytes?: Uint8Array;
 }
 
+/** Build the flag-derived fields shared by both decode paths. */
+function sweepFromParts(destination: string, flags: number, memoBytes?: Uint8Array): SweepData {
+  const memoIsBinary = (flags & SweepFlags.BINARY_MEMO) !== 0;
+
+  const result: SweepData = {
+    destination,
+    flags,
+    sweepBalances: (flags & SweepFlags.BALANCES) !== 0,
+    sweepOwnership: (flags & SweepFlags.OWNERSHIP) !== 0,
+    memoIsBinary,
+  };
+
+  if (memoBytes && memoBytes.length > 0) {
+    result.memoBytes = memoBytes;
+    // The flag says how to read the memo. Core decodes a non-binary one as strict UTF-8 and
+    // aborts on invalid bytes; let it throw rather than masking with a hex fallback.
+    result.memo = memoIsBinary
+      ? bytesToHex(memoBytes)
+      : new TextDecoder('utf-8', { fatal: true }).decode(memoBytes);
+  }
+
+  return result;
+}
+
+/**
+ * Try to decode a CBOR-encoded sweep (taproot_support era).
+ *
+ * Format: [short_address_bytes, flags, memo_bytes]
+ *
+ * Returns null if the payload is not CBOR, so the caller falls back to legacy.
+ */
+function tryCborDecode(payload: Uint8Array): SweepData | null {
+  // 0x83 = definite-length array of 3.
+  if (payload.length < 2 || payload[0] !== 0x83) return null;
+
+  let decoded: CborValue;
+  try {
+    decoded = decodeCbor(payload);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(decoded) || decoded.length !== 3) return null;
+
+  const [addressValue, flagsValue, memoValue] = decoded;
+  if (!(addressValue instanceof Uint8Array) || typeof flagsValue !== 'bigint') return null;
+
+  const memoBytes = memoValue instanceof Uint8Array ? memoValue : undefined;
+  return sweepFromParts(unpackAddress(addressValue), Number(flagsValue), memoBytes);
+}
+
 /**
  * Unpack a sweep message.
  *
@@ -58,6 +110,12 @@ export interface SweepData {
  * @throws Error if payload is invalid
  */
 export function unpackSweep(payload: Uint8Array): SweepData {
+  // CBOR (taproot_support era) first, matching core's unpack order.
+  const cborResult = tryCborDecode(payload);
+  if (cborResult) {
+    return cborResult;
+  }
+
   if (payload.length < SWEEP_MIN_LENGTH) {
     throw new Error(`Invalid sweep payload length: ${payload.length} (minimum ${SWEEP_MIN_LENGTH})`);
   }
@@ -71,36 +129,7 @@ export function unpackSweep(payload: Uint8Array): SweepData {
 
   const packedAddress = reader.readBytes(PACKED_ADDRESS_LENGTH);
   const flags = reader.readUint8();
+  const memoBytes = memoLength > 0 ? reader.readBytes(memoLength) : undefined;
 
-  // Unpack destination address
-  const destination = unpackAddress(packedAddress);
-
-  // Parse flags
-  const sweepBalances = (flags & SweepFlags.BALANCES) !== 0;
-  const sweepOwnership = (flags & SweepFlags.OWNERSHIP) !== 0;
-  const memoIsBinary = (flags & SweepFlags.BINARY_MEMO) !== 0;
-
-  const result: SweepData = {
-    destination,
-    flags,
-    sweepBalances,
-    sweepOwnership,
-    memoIsBinary,
-  };
-
-  // Read optional memo
-  if (memoLength > 0) {
-    result.memoBytes = reader.readBytes(memoLength);
-
-    if (memoIsBinary) {
-      // Binary memo - store as hex
-      result.memo = Array.from(result.memoBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    } else {
-      // Non-binary memo: core decodes strict UTF-8 and aborts on invalid bytes;
-      // let it throw rather than masking with a hex fallback.
-      result.memo = new TextDecoder('utf-8', { fatal: true }).decode(result.memoBytes);
-    }
-  }
-
-  return result;
+  return sweepFromParts(unpackAddress(packedAddress), flags, memoBytes);
 }

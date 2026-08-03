@@ -870,12 +870,14 @@ describe('committedOutputIndices', () => {
     expect(committed).toEqual(new Set([0]));
   });
 
-  it('commits to each signed index when several inputs use SINGLE', () => {
+  it('guarantees nothing when two SINGLE inputs cover different outputs', () => {
+    // Either input can be kept while the other is dropped, so neither output is assured: keeping
+    // only input 2 leaves output 0 free, and vice versa.
     const committed = committedOutputIndices(
       [{ index: 0, sighashType: SINGLE_ACP }, { index: 2, sighashType: SINGLE_ACP }],
       4
     );
-    expect(committed).toEqual(new Set([0, 2]));
+    expect(committed).toEqual(new Set());
   });
 
   it('ignores a SINGLE input with no output at its index', () => {
@@ -887,13 +889,58 @@ describe('committedOutputIndices', () => {
     expect(committedOutputIndices([{ index: 0, sighashType: NONE }], 3)).toEqual(new Set());
   });
 
-  it('lets one SIGHASH_ALL input pin the whole output set', () => {
-
+  it('does not let a SIGHASH_ALL input pin outputs a detachable input leaves free', () => {
+    // The ALL signature only constrains transactions containing its own input. Dropping that
+    // input discards the signature with it, leaving the SINGLE|ANYONECANPAY input to be lifted
+    // into a transaction where only the output at its index is covered.
     const committed = committedOutputIndices(
       [{ index: 0, sighashType: SINGLE_ACP }, { index: 1, sighashType: ALL }],
       4
     );
-    expect(committed).toBeNull();
+    expect(committed).toEqual(new Set([0]));
+  });
+
+  it('does not let a SIGHASH_ALL input pin outputs when it is signed first', () => {
+    // The verdict must not depend on the order inputs appear in.
+    const committed = committedOutputIndices(
+      [{ index: 0, sighashType: ALL }, { index: 1, sighashType: SINGLE_ACP }],
+      3
+    );
+    expect(committed).toEqual(new Set([1]));
+  });
+
+  it('does not let an ALL|ANYONECANPAY input pin outputs a SINGLE input leaves free', () => {
+    // ALL|ANYONECANPAY covers every output but can itself be dropped, so it cannot vouch for
+    // outputs that the cheaper SINGLE signature leaves open.
+    const committed = committedOutputIndices(
+      [{ index: 0, sighashType: ALL_ACP }, { index: 1, sighashType: SINGLE_ACP }],
+      3
+    );
+    expect(committed).toEqual(new Set([1]));
+  });
+
+  it('guarantees nothing when a detachable SINGLE input has no output at its index', () => {
+    // That signature covers no output at all, so keeping only it leaves every output free.
+    const committed = committedOutputIndices(
+      [{ index: 0, sighashType: ALL_ACP }, { index: 3, sighashType: SINGLE_ACP }],
+      3
+    );
+    expect(committed).toEqual(new Set());
+  });
+
+  it('keeps the whole set pinned when every input commits to all outputs', () => {
+    expect(
+      committedOutputIndices(
+        [{ index: 0, sighashType: ALL }, { index: 1, sighashType: ALL }],
+        3
+      )
+    ).toBeNull();
+    expect(
+      committedOutputIndices(
+        [{ index: 0, sighashType: ALL_ACP }, { index: 1, sighashType: ALL_ACP }],
+        3
+      )
+    ).toBeNull();
   });
 });
 

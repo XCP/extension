@@ -20,6 +20,7 @@ import {
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
 import { decryptOpReturnData } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { extractMultisigPayload } from '@/utils/blockchain/counterparty/unpack/multisig';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
@@ -158,6 +159,15 @@ export function useSignTransactionRequest(signerAddress?: string) {
           }
         }
       }
+    }
+
+    // Counterparty also carries messages in bare-multisig outputs, which produce no OP_RETURN.
+    // Classifying them here is what lets the sweep block apply regardless of encoding.
+    if (!decryptedDataHex && inputs.length > 0 && inputs[0]!.txid) {
+      decryptedDataHex = extractMultisigPayload(
+        decoded.vout.map((vout: any) => vout.scriptPubKey?.hex ?? ''),
+        inputs[0]!.txid
+      ) ?? undefined;
     }
 
     // If we decrypted Counterparty data, try API unpack for rich message info

@@ -56,6 +56,7 @@ import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
+import { isSegwitFormat } from "@/utils/blockchain/bitcoin/address";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 /**
@@ -345,10 +346,14 @@ export function ComposerProvider<T>({
       // Independently bound the fee for every transaction type (including
       // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
       // buggy fee estimate is rejected before the review screen.
-      const feeCheck = checkTransactionFee({
+      const feeCheck = await checkTransactionFee({
         rawTransaction: response.result.rawtransaction,
         inputsValues: response.result.inputs_values,
-        declaredFee: response.result.btc_fee ?? 0,
+        // A SegWit signature commits to the amount it spends, so the response's input values
+        // cannot be understated without invalidating it. A legacy one commits to no amount.
+        signaturesCommitToInputValues: activeWallet
+          ? isSegwitFormat(activeWallet.addressFormat)
+          : false,
         // sat_per_vbyte arrives as a form string; checkTransactionFee coerces it.
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
       });

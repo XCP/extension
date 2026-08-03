@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { ComposerProvider, useComposer } from '../composer-context';
 import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // A real, parseable BTC-only transaction (1 input, one 95000-sat P2PKH output,
 // no OP_RETURN) so the composer's fee verification can decode it. Paired with
@@ -16,7 +17,7 @@ const VALID_BTC_ONLY_TX =
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     activeAddress: { address: 'test-address' },
-    activeWallet: { id: 'test-wallet' },
+    activeWallet: { id: 'test-wallet', addressFormat: AddressFormat.P2WPKH },
     authState: 'UNLOCKED',
     keychainLocked: false,
   }),

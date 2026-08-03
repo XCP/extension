@@ -14,9 +14,10 @@
  * The unpacker attempts CBOR2 first, then falls back to legacy format.
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader, bytesToTextOrHex } from '../binary';
 import { assetIdToName } from '../assetId';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
+import { decodeCbor, type CborValue } from '../cbor';
 
 /** Minimum length of legacy enhanced send (without memo) */
 const MIN_LEGACY_LENGTH = 8 + 8 + 21; // 37 bytes
@@ -42,27 +43,42 @@ export interface EnhancedSendData {
 }
 
 /**
- * Try to decode CBOR2 format (modern Taproot-era messages).
- * Returns null if not valid CBOR2.
+ * Try to decode a CBOR-encoded enhanced send (taproot_support era).
+ *
+ * Format: [asset_id, quantity, short_address_bytes, memo_bytes]
+ *
+ * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryCbor2Decode(payload: Uint8Array): EnhancedSendData | null {
-  // CBOR2 arrays start with specific bytes:
-  // 0x84 = array of 4 elements
-  // 0x83 = array of 3 elements
-  if (payload.length < 4) return null;
-  if (payload[0] !== 0x84 && payload[0] !== 0x83) return null;
+  // 0x84 = definite-length array of 4.
+  if (payload.length < 4 || payload[0] !== 0x84) return null;
 
+  let decoded: CborValue;
   try {
-    // Simple CBOR2 decoder for the specific format we expect
-    // Full CBOR2 parsing would require a library, but we can handle
-    // the specific case of [bigint, bigint, bytes, bytes]
-
-    // For now, return null and use legacy parsing
-    // TODO: Implement CBOR2 parsing if needed
-    return null;
+    decoded = decodeCbor(payload);
   } catch {
     return null;
   }
+
+  if (!Array.isArray(decoded) || decoded.length !== 4) return null;
+  const [assetIdValue, quantityValue, addressValue, memoValue] = decoded;
+  if (typeof assetIdValue !== 'bigint' || typeof quantityValue !== 'bigint') return null;
+  if (!(addressValue instanceof Uint8Array)) return null;
+
+  if (assetIdValue === 0n) {
+    throw new Error('Invalid enhanced send: BTC (asset_id 0) is not allowed');
+  }
+
+  const memoBytes = memoValue instanceof Uint8Array && memoValue.length > 0 ? memoValue : undefined;
+
+  return {
+    asset: assetIdToName(assetIdValue),
+    assetId: assetIdValue,
+    quantity: quantityValue,
+    destination: unpackAddress(addressValue),
+    memo: memoBytes ? bytesToTextOrHex(memoBytes) : undefined,
+    memoBytes,
+  };
 }
 
 /**
@@ -89,13 +105,7 @@ function unpackLegacy(payload: Uint8Array): EnhancedSendData {
 
   if (memoLength > 0) {
     memoBytes = reader.readBytes(memoLength);
-    // Try to decode as UTF-8 text
-    try {
-      memo = new TextDecoder('utf-8', { fatal: true }).decode(memoBytes);
-    } catch {
-      // Not valid UTF-8, store as hex
-      memo = Array.from(memoBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
+    memo = bytesToTextOrHex(memoBytes);
   }
 
   // Core rejects asset_id 0 (BTC) for enhanced sends; reject it here too.

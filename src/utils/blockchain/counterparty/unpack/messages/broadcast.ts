@@ -8,13 +8,16 @@
  *   - fee_fraction_int (I): 4 bytes unsigned int
  *   - text: Variable length string
  *
- * Modern format uses CBOR encoding with additional fields.
+ * Modern (taproot_support) Format: CBOR array
+ *   [timestamp, value, fee_fraction_int, mime_type, text]
+ *
  * Legacy format uses Pascal strings or variable-length encoding.
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader, bytesToTextOrHex } from '../binary';
+import { decodeCbor, type CborValue } from '../cbor';
 
-/** Minimum length of broadcast message (timestamp + value + fee_fraction) */
+/** Minimum length of legacy broadcast message (timestamp + value + fee_fraction) */
 const BROADCAST_MIN_LENGTH = 16; // 4 + 8 + 4
 
 /**
@@ -34,22 +37,44 @@ export interface BroadcastData {
 }
 
 /**
- * Try to decode CBOR-encoded broadcast (modern format)
- * Returns null if not CBOR format
+ * Try to decode a CBOR-encoded broadcast (taproot_support era).
+ *
+ * Format: [timestamp, value, fee_fraction_int, mime_type, text]
+ * where text is bytes (or null) and value may be an integer or float.
+ *
+ * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryDecodeCBOR(payload: Uint8Array): BroadcastData | null {
-  try {
-    // Basic CBOR array detection - starts with 0x85 (5-element array)
-    if (payload[0] !== 0x85) {
-      return null;
-    }
+  // 0x85 = definite-length array of 5.
+  if (payload.length < 2 || payload[0] !== 0x85) return null;
 
-    // For now, skip CBOR parsing and return null to fall back to legacy
-    // Full CBOR parsing would require a CBOR library
-    return null;
+  let decoded: CborValue;
+  try {
+    decoded = decodeCbor(payload);
   } catch {
     return null;
   }
+  if (!Array.isArray(decoded) || decoded.length !== 5) return null;
+
+  const [timestampValue, valueValue, feeFractionValue, mimeTypeValue, textValue] = decoded;
+  if (typeof timestampValue !== 'bigint' || typeof feeFractionValue !== 'bigint') return null;
+  if (typeof valueValue !== 'bigint' && typeof valueValue !== 'number') return null;
+
+  // Core encodes the text as bytes; a null means the broadcast carries none.
+  let text = '';
+  if (textValue instanceof Uint8Array) {
+    text = bytesToTextOrHex(textValue);
+  } else if (typeof textValue === 'string') {
+    text = textValue;
+  }
+
+  return {
+    timestamp: Number(timestampValue),
+    value: Number(valueValue),
+    feeFractionInt: Number(feeFractionValue),
+    text,
+    mimeType: typeof mimeTypeValue === 'string' && mimeTypeValue !== '' ? mimeTypeValue : undefined,
+  };
 }
 
 /**
@@ -60,16 +85,16 @@ function tryDecodeCBOR(payload: Uint8Array): BroadcastData | null {
  * @throws Error if payload is invalid
  */
 export function unpackBroadcast(payload: Uint8Array): BroadcastData {
+  // CBOR (taproot_support era) first; it can be shorter than the legacy minimum.
+  const cborResult = tryDecodeCBOR(payload);
+  if (cborResult) {
+    return cborResult;
+  }
+
   if (payload.length < BROADCAST_MIN_LENGTH) {
     throw new Error(
       `Invalid broadcast payload length: ${payload.length} (minimum ${BROADCAST_MIN_LENGTH})`
     );
-  }
-
-  // Try CBOR first (modern format)
-  const cborResult = tryDecodeCBOR(payload);
-  if (cborResult) {
-    return cborResult;
   }
 
   // Legacy format: ">IdI" + text
