@@ -1,20 +1,14 @@
 /**
- * Local construction of the Counterparty message bytes a compose request should produce.
+ * Local construction of the Counterparty message bytes a compose request should produce, so
+ * verification can be a single byte comparison instead of a field-by-field walk (ADR-019, see
+ * `unpack/verify.ts`).
  *
- * This is the mirror of `unpack/messages/*`, and exists so verification can be a single byte
- * comparison rather than a field-by-field walk. Field-by-field comparison fails open — a field
- * nobody enumerated goes unchecked — whereas comparing the whole message catches any difference,
- * including in fields this build has never heard of. counterparty-core validates its own
- * composition the same way (`check_transaction_sanity` asserts `tx_data == data`). See ADR-019.
+ * Field order and encoding follow core's compose functions exactly, since the output is compared
+ * byte-for-byte. Only the taproot_support (CBOR-era) encoding is produced: protocol features
+ * activate at a block height and never turn off, so every present-day compose uses it.
  *
- * Field order and encoding follow core's compose functions exactly
- * (`lib/messages/versions/enhancedsend.py`, `lib/messages/issuance.py`), because the output is
- * compared byte-for-byte. Only the taproot_support (CBOR) encoding is produced: protocol features
- * activate at a block height and never turn off, so every present-day compose is CBOR.
- *
- * Coverage is deliberately partial. A type that cannot be packed yields `null`, and the caller
- * treats that as "cannot verify by equality" rather than as agreement — adding a type is opt-in and
- * its absence is loud, which is the opposite of the enumeration problem this replaces.
+ * A type that cannot be packed yields `null`, which the caller treats as "cannot verify by
+ * equality" — never as agreement.
  */
 
 import { encodeCbor, type CborEncodable } from './cbor';
@@ -56,16 +50,10 @@ export interface PackedMessage {
 type Params = Record<string, unknown>;
 
 /**
- * Fields a packer may take from the composed message instead of from the request.
- *
- * Some values are not the user's to choose — a reissuance's divisibility is fixed by the asset that
- * already exists. Declining to pack those types would leave every other field of a common flow
- * (update description, transfer ownership) unverified, so instead the unknowable field is read back
- * from the response and everything else is still compared byte for byte.
- *
- * This is a deliberate hole, so each use must argue why the borrowed field is safe to accept — the
- * bar being that a wrong value cannot help an attacker, because consensus would reject the
- * transaction anyway. Never borrow a value the user authored.
+ * Fields a packer may take from the composed message instead of from the request, for values the
+ * request cannot determine (a reissuance's divisibility, a new subasset's server-drawn asset id).
+ * Each use must document why a substituted value is safe to accept, and a value the user authored
+ * must never be borrowed.
  */
 type Observed = Record<string, unknown> | undefined;
 
@@ -132,11 +120,9 @@ function packEnhancedSend(params: Params): PackedMessage | null {
  * description]` (core `issuance.py`, taproot_support branch). Core packs LR_ISSUANCE_ID whenever
  * `issuance_backwards_compatibility` is active, which it is on mainnet.
  *
- * An ownership transfer packs the same message: core carries the new owner only in an output that
- * pays `transfer_destination` (`compose` returns `(source, [(destination, None)], data)`), so the
- * message is byte-for-byte a reissuance. Equality here covers every message field, and the output
- * policy — which requires each output to be an address the request names — is what pins the
- * ownership output to the requested destination, the same division of labor dispense relies on.
+ * An ownership transfer packs the same message: core carries the new owner only in an output
+ * paying `transfer_destination`, so the message is byte-for-byte a reissuance. The output policy
+ * (`outputPolicy.ts`) is what pins the ownership output to the requested destination.
  */
 function packIssuance(params: Params, observed: Observed): PackedMessage | null {
   const asset = requireString(params, 'asset');
@@ -165,10 +151,9 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
  * borrowed asset id is resolved by the caller).
  *
  * Divisibility is the user's choice on a first issuance and the ledger's on a reissuance, where
- * the form omits it. Borrowing it from the response keeps reissuances — update description,
- * transfer ownership — byte-verified in every other field. Safe to borrow: core requires a
- * reissuance's divisibility to match the existing asset, so a substituted value yields a
- * transaction consensus rejects rather than one that moves value.
+ * the form omits it and it is borrowed from the response. Safe to borrow: core requires a
+ * reissuance's divisibility to match the existing asset, so a substituted value is
+ * consensus-rejected.
  */
 function packStandardIssuanceBody(
   assetId: bigint,
@@ -205,11 +190,10 @@ const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 
 /**
  * Compact a subasset longname to core's wire form: the name read as a base-68 big-endian integer,
- * emitted as its minimal big-endian bytes (`assetnames.compact_subasset_longname`). Minimality
- * matters — core's unpack rejects non-canonical compactions (`canonical_subasset_compact`), and a
- * leading zero byte would also fail byte equality against core's own output.
+ * emitted as its minimal big-endian bytes (`assetnames.compact_subasset_longname`). Minimal bytes
+ * are required — core's unpack rejects non-canonical compactions (`canonical_subasset_compact`).
  *
- * Returns null for a character outside the charset, which core would refuse to compose anyway.
+ * Returns null for a character outside the charset, which core refuses to compose.
  */
 function compactSubassetLongname(longname: string): Uint8Array | null {
   let integer = 0n;
@@ -226,29 +210,24 @@ function compactSubassetLongname(longname: string): Uint8Array | null {
 }
 
 /**
- * Subasset issuance, initial or reissuance. Both need the numeric asset id borrowed from the
- * composed message — core draws a random unused numeric asset for a new subasset
+ * Subasset issuance, initial or reissuance. Both borrow the numeric asset id from the composed
+ * message: core draws a random unused numeric asset for a new subasset
  * (`assetnames.generate_random_asset`) and resolves an existing longname through the ledger for a
- * reissuance — so the request cannot determine it either way.
+ * reissuance, so the request cannot determine the id either way.
  *
- * The borrow's blast radius sets the terms. A substituted id cannot pay an attacker: an id naming
- * someone else's asset is consensus-rejected ("issued by another address"), and neither the field
- * fallback nor any other verifier without an independent ledger view could detect the
- * substitution anyway — the fallback compares the longname the user typed, which the response
- * echoes faithfully. What a substituted id *can* do is land the operation on a different numeric
- * asset the user owns, so the borrow is limited to operations that are recoverable when that
- * happens: issue and describe, whose worst case is supply the user can destroy and a description
- * they can rewrite. `lock`, `reset` and an ownership transfer are permanent against the wrong
- * asset, so those decline to the field fallback — which is no blinder, but does not put this
- * module's signature on the bytes. The range guard pins the id to the numeric space subassets
- * live in.
+ * Borrow safety: a substituted id cannot pay an attacker — an id naming someone else's asset is
+ * consensus-rejected ("issued by another address") — but it can land the operation on a different
+ * numeric asset the user owns. The borrow is therefore limited to operations recoverable in that
+ * case (issue, describe); `lock`, `reset` and ownership transfer are permanent against the wrong
+ * asset and decline to the field fallback. The range guard restricts the id to the numeric space
+ * subassets live in. No verifier without an independent ledger view can detect the substitution
+ * itself; the fallback compares the longname, which the response echoes.
  *
- * The layout follows the composed message, gated on its decoded type. An *initial* issuance
- * (SUBASSET_ISSUANCE / LR_SUBASSET) carries the compacted longname:
+ * Layout follows the composed message's decoded type. Initial (SUBASSET_ISSUANCE / LR_SUBASSET):
  * `[asset_id, quantity, divisible, lock, reset, compacted_length, compacted_name, mime_type,
- * description]`, flags as ints — core's subasset branch writes `1 if divisible else 0` where the
- * standard branch passes booleans, a byte-level difference in CBOR. A *reissuance* (ISSUANCE /
- * LR_ISSUANCE) is the standard layout under the borrowed id.
+ * description]` with the flags as ints (core's subasset branch writes `1 if divisible else 0`;
+ * the standard branch passes booleans — a byte-level difference in CBOR). Reissuance (ISSUANCE /
+ * LR_ISSUANCE): the standard layout under the borrowed id.
  */
 function packSubasset(
   longname: string,
@@ -508,11 +487,9 @@ function packFairminter(params: Params): PackedMessage | null {
 }
 
 /**
- * Dispense: the message is the constant marker `0x00` (core `dispense.py`). Which dispenser is paid
- * and how much BTC it receives live in the transaction's outputs, not here, and the output policy
- * checks those against the requested dispenser. Equality on this message is therefore narrow — it
- * proves only that the response did not substitute some other message type — but that is still more
- * than the type check it replaces.
+ * Dispense: the message is the constant marker `0x00` (core `dispense.py`). Which dispenser is
+ * paid, and how much BTC, live in the outputs and are checked by the output policy; equality here
+ * only rules out a substituted message type.
  */
 function packDispense(): PackedMessage {
   return withPrefix(MessageTypeId.DISPENSE, new Uint8Array([0x00]));
@@ -520,16 +497,13 @@ function packDispense(): PackedMessage {
 
 /**
  * How far into the future a borrowed broadcast timestamp may sit before the borrow is refused.
- * `verifyBroadcast` in `unpack/verify.ts` applies the same bound to the field-comparison fallback,
- * so a refusal here does not become an allowance there.
+ * `verifyBroadcast` in `unpack/verify.ts` applies the same bound on the fallback path.
  */
 const MAX_BORROWED_TIMESTAMP_FUTURE_SECONDS = 3600n;
 
 /**
- * A float param as core's API receives it: absent means the compose function's default, and a
- * present value goes through Python's `float()`. JavaScript's Number() performs the same
- * correctly-rounded decimal parse, and both sides then share IEEE-754 double arithmetic, so the
- * wire bytes agree.
+ * A float param as core's API receives it: absent means the compose default, a present value goes
+ * through Python's `float()`. JavaScript's Number() performs the same correctly-rounded parse.
  */
 function floatParam(params: Params, key: string): number | null {
   const value = params[key];
@@ -540,19 +514,16 @@ function floatParam(params: Params, key: string): number | null {
 
 /**
  * Broadcast: CBOR `[timestamp, value, fee_fraction_int, mime_type, text_bytes]` (core
- * `broadcast.py`, taproot branch). `value` rides the wire as a float — the API coerces the param
- * with `float()` and cbor2 emits every finite float as an 8-byte double — so it must stay a
- * `number` here, where an integral bigint would encode differently.
+ * `broadcast.py`, taproot branch). `value` rides the wire as a float — the API coerces it with
+ * `float()` and cbor2 emits every finite float as an 8-byte double — so it must stay a `number`
+ * here; an integral bigint would encode differently.
  *
- * The timestamp is the one field the form does not carry: when the caller supplies none,
- * `composeBroadcast` stamps the wallet's own clock into the request, and that value never reaches
- * `params`. It is borrowed from the composed message instead, bounded against the same clock that
- * stamped it — an honest response echoes a timestamp taken moments earlier, while a substituted
- * future timestamp is how a feed's open bets get settled before their deadline (`broadcast.py`
- * settles once `timestamp >= deadline`). Past the bound the borrow is refused and verification
- * falls back to field comparison, which applies the same bound. A request that explicitly passes
- * `timestamp=0` asks the server to continue the feed from ledger state, which cannot be
- * reconstructed here.
+ * The timestamp never reaches `params`: when the caller supplies none, `composeBroadcast` stamps
+ * the wallet's own clock into the request. It is borrowed from the composed message, bounded
+ * against that same clock, because a substituted future timestamp settles a feed's open bets
+ * before their deadline (`broadcast.py` settles once `timestamp >= deadline`). Past the bound the
+ * borrow is refused. An explicit `timestamp=0` asks the server to continue the feed from ledger
+ * state, which cannot be reconstructed here.
  *
  * Inscriptions and non-text MIME types are declined: the ord path restructures the content into a
  * tapscript envelope, and a non-text MIME makes core hex-decode the text (`content_to_bytes`).
@@ -628,12 +599,10 @@ interface MpmaSend {
 }
 
 /**
- * Append a memo in core's bit format: a presence bit, then is_hex, a 6-bit *byte* length, and the
+ * Append a memo in core's bit format: a presence bit, is_hex, a 6-bit *byte* length, then the
  * bytes (`mpmaencoding._encode_memo`). Returns false for a memo core cannot encode — over 63
- * bytes, or hex with an odd length or a non-hex character. Core's encoder wraps this step in a
- * bare `except` and silently drops such memos from the message; declining to pack is the honest
- * mirror, because byte-agreeing with a message that ignored the user's memo would verify the
- * very substitution this comparison exists to catch.
+ * bytes, or hex with an odd length or non-hex character. Core wraps this step in a bare `except`
+ * and silently drops such memos; declining to pack keeps a memo-dropping response from verifying.
  */
 function writeMemo(writer: BitWriter, memo: string | null, isHex: boolean): boolean {
   if (memo === null || memo === '') {
@@ -663,16 +632,14 @@ function writeMemo(writer: BitWriter, memo: string | null, isHex: boolean): bool
  * quantity and memo — terminated by a `0` bit and zero-padded to a byte
  * (core `mpmaencoding._encode_mpma_send`; nbits is ceil(log2(LUT size))).
  *
- * A single distinct destination makes nbits zero: the count and index fields occupy no bits at
- * all (bitstring 4.1.4, core's pin, appends nothing for `uint:0` — newer versions raise, so this
- * was checked against the pinned version) and the decoder infers one recipient per asset. That
- * also means an asset group with several sends cannot be expressed at nbits zero; core's encoder
- * would raise, and its validate rejects duplicate asset-destination pairs anyway.
+ * A single distinct destination makes nbits zero: the count and index fields occupy no bits
+ * (bitstring 4.1.4, core's pin, appends nothing for `uint:0`; newer versions raise) and the
+ * decoder infers one recipient per asset. An asset group with several sends is therefore not
+ * expressible at nbits zero — core's encoder raises on it.
  *
  * Declined when core could not compose the same request: a Taproot or P2WSH destination does not
- * fit the 21-byte legacy packing; a subasset resolves through the ledger; and BTC cannot be sent
- * by message. Order matters twice — the LUT and the asset groups are sorted, but sends within an
- * asset keep request order — and both are what the decoder round-trips.
+ * fit the 21-byte legacy packing, a subasset resolves through the ledger, and BTC cannot be sent
+ * by message. The LUT and the asset groups are sorted; sends within an asset keep request order.
  */
 function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex: boolean): PackedMessage | null {
   if (sends.length < 2) return null;
@@ -727,12 +694,11 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
  * Parse MPMA params as the wallet's forms produce them: parallel comma-separated `assets`,
  * `destinations` and `quantities`, optional per-send `memos` (empty entries mean none) with a
  * `memos_are_hex` flag, and an optional whole-send `memo`/`memo_is_hex` used when no per-send
- * memos are given. Quantities are whole base units — normalization happens before compose — so a
- * non-integral value means divisibility was not resolved and equality must not be attempted.
+ * memos are given. Quantities must be whole base units; a non-integral value means divisibility
+ * was not resolved and equality must not be attempted.
  *
- * `memos_are_hex` may arrive as one value or a comma-separated list from the form; core's API
- * applies a single flag to every memo, so a mixed list is not expressible and `composeMPMA`
- * refuses to send it — mirrored here by declining.
+ * Core's API applies a single `memos_are_hex` flag to every memo, so a mixed list is not
+ * expressible; `composeMPMA` refuses to send one, and it is declined here.
  */
 function packMpmaFromParams(params: Params): PackedMessage | null {
   const assetsCsv = requireString(params, 'assets');

@@ -749,10 +749,9 @@ function verifyDetach(
 }
 
 /**
- * Verify a broadcast publishes what was written. Everything the user authored is compared; the
- * timestamp is stamped into the request by `composeBroadcast` from the wallet's own clock when the
- * caller supplies none, so it is not in `params` — but that also means an honest response echoes a
- * timestamp taken moments ago, and one far in the future can only be a substitution.
+ * Verify a broadcast publishes what was written. When the caller supplies no timestamp,
+ * `composeBroadcast` stamps the wallet's own clock into the request, so a decoded timestamp far
+ * in the future can only be a substitution.
  */
 function verifyBroadcast(
   data: BroadcastData,
@@ -764,10 +763,9 @@ function verifyBroadcast(
       'Different text = publishing something you did not write');
   }
 
-  // Same bound as the byte-equality packer's borrowed timestamp (`pack/messages.ts`), so a
-  // broadcast the packer declines does not sail through here with a timestamp the packer refused.
-  // The future direction is the dangerous one: bets settle once a broadcast's timestamp reaches
-  // their deadline, so a substituted future timestamp settles a feed's open bets early.
+  // Same bound as the packer's borrowed-timestamp limit (`pack/messages.ts`). Bets settle once a
+  // broadcast's timestamp reaches their deadline, so a substituted future timestamp settles a
+  // feed's open bets early.
   if (params.timestamp === undefined && typeof data.timestamp === 'number') {
     const now = Math.floor(Date.now() / 1000);
     if (data.timestamp > now + 3600) {
@@ -786,9 +784,9 @@ function verifyBroadcast(
 /**
  * Verify a move of assets between UTXOs.
  *
- * The destination is the whole point: it decides which UTXO owns the assets afterwards, and it is
- * the one field the request names. Asset and quantity are filled in by the composer from whatever
- * the source UTXO holds, so the request does not pin them.
+ * The destination decides which UTXO owns the assets afterwards and is the one field the request
+ * names. Asset and quantity are filled in by the composer from whatever the source UTXO holds, so
+ * the request does not pin them.
  */
 function verifyMove(
   data: MoveData,

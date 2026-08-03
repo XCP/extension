@@ -95,12 +95,9 @@ export interface DecodedMessage {
 }
 
 /**
- * Every Bitcoin address named anywhere in the request.
- *
- * Deliberately generous: it does not care *which* field an address came from, only that the user's
- * request mentioned it. That keeps legitimate composes working without enumerating each type's
- * destination fields — the property being enforced is that money does not go somewhere the request
- * never named, and an attacker's address is not in the request.
+ * Every Bitcoin address named anywhere in the request, regardless of field. The property being
+ * enforced is that no output pays an address the request never named, so which field an address
+ * came from does not matter and per-type destination fields need not be enumerated.
  */
 function addressesNamedIn(params: Record<string, unknown>): string[] {
   const addresses: string[] = [];
@@ -395,34 +392,24 @@ export function ComposerProvider<T>({
             data: unpacked.data as Record<string, unknown>,
           };
         }
-        // Prefer byte equality: build the message this request should have produced and compare it
-        // whole. One comparison covers every field, including any this build does not know about,
-        // so it cannot silently miss one the way a field-by-field walk can (ADR-019). Returns null
-        // for types we cannot construct, which means "cannot verify this way" — never agreement —
-        // and falls through to field comparison below.
-        // The decoded message supplies only values the request cannot determine (see `Observed`);
-        // everything the user chose still has to match byte for byte.
+        // Byte equality first: rebuild the message this request should have produced and compare
+        // it whole, so no field goes unchecked (ADR-019). A null return means the type cannot be
+        // constructed locally and falls through to field comparison; the decoded message supplies
+        // only values the request cannot determine (see `Observed` in pack/messages.ts).
         const expected = packComposeMessage(composeType, dataForApi, decodedMessage?.data);
 
         if (expected) {
-          // Any difference is fatal, with no severity gradation. Severity was a concept the
-          // field-by-field mechanism needed, because it could only judge fields it knew to look at.
-          // Equality asks a different question — did the composer produce what was asked? — and the
-          // answer is binary. There is no benign reason for a composer to alter a message, and a
-          // difference we could name would be stronger evidence of tampering than one we could not,
-          // so classifying it would invert the right response. counterparty-core takes the same
-          // position on its own output (`check_transaction_sanity` raises on `tx_data != data`).
-          // Nothing is packed unless it can be built exactly, so this only bites where we are sure.
+          // Any difference is fatal, with no severity gradation: there is no benign reason for a
+          // composer to alter a message. counterparty-core treats its own output the same way
+          // (`check_transaction_sanity` raises on `tx_data != data`).
           if (bytesToHex(expected.bytes).toLowerCase() !== counterpartyData.toLowerCase()) {
             throw new Error(
               'Transaction verification failed: the composed message does not match your request.'
             );
           }
-          // Equal bytes mean every field agrees, so field comparison could only concur.
         } else {
-          // The message could not be built locally, so fall back to comparing the fields we know.
-          // This path still needs severity: it can only speak to fields it was taught about, and an
-          // informational difference belongs on the review screen rather than blocking outright.
+          // Field comparison covers only fields it was taught about, so it grades severity:
+          // informational differences surface on the review screen instead of blocking.
           const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
 
           if (!verification.valid) {
