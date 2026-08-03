@@ -114,17 +114,33 @@ describe('packing matches bytes generated with cbor2 5.9.0, the version core pin
     );
   });
 
-  it('reproduces a divisible locked subasset issuance with no description', () => {
+  it('reproduces a divisible subasset issuance with no description', () => {
     const packed = packComposeMessage(
       'issuance',
-      { asset: 'PEPE.rare-pepe_2026', quantity: 100_000_000, divisible: true, lock: true },
+      { asset: 'PEPE.rare-pepe_2026', quantity: 100_000_000, divisible: true },
       { messageTypeId: 23, assetId: 18446744073709551615n }
     );
 
     expect(packed).not.toBeNull();
     expect(bytesToHex(packed!.bytes)).toBe(
-      '434e54525052545917891bffffffffffffffff1a05f5e1000101000f4f07e75b9a418da186050a715c3ec2e760f6'
+      '434e54525052545917891bffffffffffffffff1a05f5e1000100000f4f07e75b9a418da186050a715c3ec2e760f6'
     );
+  });
+
+  it('packs an ownership transfer as the reissuance message core composes for it', () => {
+    // The new owner lives only in an output paying transfer_destination; the message is
+    // byte-for-byte a reissuance, and the output policy pins the ownership output.
+    const packed = packComposeMessage(
+      'issuance',
+      {
+        asset: 'LANDMARKS', quantity: 0, divisible: false,
+        transfer_destination: TAPROOT_DESTINATION,
+      }
+    );
+
+    expect(packed).not.toBeNull();
+    const body = encodeCbor([assetNameToId('LANDMARKS'), 0n, false, false, false, '', null]);
+    expect(bytesToHex(packed!.bytes)).toBe(expectedMessage(22, body));
   });
 });
 
@@ -383,9 +399,6 @@ describe('refusing to pack is not the same as agreeing', () => {
     ['a reissuance with no observed message to borrow divisibility from', 'issuance', {
       asset: 'LANDMARKS', quantity: 0, description: 'new text',
     }],
-    ['an ownership transfer, which moves via an output', 'issuance', {
-      asset: 'LANDMARKS', quantity: 0, divisible: false, transfer_destination: TAPROOT_DESTINATION,
-    }],
     ['a quantity that is not whole base units', 'send', {
       asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: '1.5',
     }],
@@ -393,14 +406,55 @@ describe('refusing to pack is not the same as agreeing', () => {
     expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();
   });
 
-  it('returns null for a subasset reissuance, which core composes in the standard layout', () => {
-    // Reissuing PARENT.child produces a standard-layout message whose asset id resolves through
-    // the ledger; only a composed message in the subasset layout is accepted for the subasset form.
-    expect(packComposeMessage(
+  it('refuses the subasset borrow for operations irreversible against a substituted id', () => {
+    // A wrong borrowed id lands the operation on a different numeric asset the user owns. Issue
+    // and describe are recoverable there; lock, reset and an ownership transfer are not, so the
+    // borrow refuses them and those flows stay on the field fallback.
+    const irreversible: Array<Record<string, unknown>> = [
+      { asset: 'PEPE.rare', quantity: 1, divisible: false, lock: true },
+      { asset: 'PEPE.rare', quantity: 0, divisible: false, reset: true },
+      { asset: 'PEPE.rare', quantity: 0, divisible: false, transfer_destination: TAPROOT_DESTINATION },
+    ];
+    for (const params of irreversible) {
+      for (const messageTypeId of [22, 23]) {
+        expect(packComposeMessage(
+          'issuance', params, { messageTypeId, assetId: 95428956661682177n, divisible: false }
+        )).toBeNull();
+      }
+    }
+  });
+});
+
+describe('subasset reissuance borrows the ledger-resolved asset id', () => {
+  it('packs a description update in the standard layout under the borrowed id', () => {
+    // Core resolves PARENT.child to its numeric asset through the ledger and composes the
+    // standard layout; the id is borrowed, and every field the user authored is byte-compared.
+    const packed = packComposeMessage(
       'issuance',
-      { asset: 'PARENT.child', quantity: 0, divisible: false, description: 'updated' },
-      { messageTypeId: 22, assetId: 95428956661682177n }
-    )).toBeNull();
+      { asset: 'PARENT.child', quantity: 0, description: 'updated text' },
+      { messageTypeId: 22, assetId: 95428956661682177n, divisible: true }
+    );
+
+    expect(packed).not.toBeNull();
+    const body = encodeCbor([
+      95428956661682177n, 0n, true, false, false, '',
+      new TextEncoder().encode('updated text'),
+    ]);
+    expect(bytesToHex(packed!.bytes)).toBe(expectedMessage(22, body));
+  });
+
+  it('still compares the description against what the user wrote', () => {
+    const packed = packComposeMessage(
+      'issuance',
+      { asset: 'PARENT.child', quantity: 0, description: 'what the user wrote' },
+      { messageTypeId: 22, assetId: 95428956661682177n, divisible: true, description: 'substituted' }
+    );
+
+    const substituted = encodeCbor([
+      95428956661682177n, 0n, true, false, false, '',
+      new TextEncoder().encode('substituted'),
+    ]);
+    expect(bytesToHex(packed!.bytes)).not.toBe(expectedMessage(22, substituted));
   });
 });
 

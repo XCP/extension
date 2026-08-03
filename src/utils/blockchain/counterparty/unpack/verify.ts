@@ -34,9 +34,10 @@
  *    are borrowed from the composed message under the argued conditions in `pack/messages.ts`
  *    (`Observed`), and everything the user authored still has to match byte for byte. Severity
  *    belongs only to the field-by-field fallback used for what still cannot be built — an
- *    inscription's tapscript envelope, a subasset reissuance's ledger-resolved asset id — because
- *    that path can speak only to fields it was taught about. Packing returns null rather than
- *    guess, so equality applies only where the bytes are known exactly.
+ *    inscription's tapscript envelope, or a subasset lock/reset/transfer, where a substituted
+ *    borrowed id would do irreversible harm and the borrow refuses — because that path can speak
+ *    only to fields it was taught about. Packing returns null rather than guess, so equality
+ *    applies only where the bytes are known exactly.
  *
  *    Two oracles keep the packers honest, both nightly:
  *    `coreOracle.test.ts` asks a live node what it would compose for a set of params and requires

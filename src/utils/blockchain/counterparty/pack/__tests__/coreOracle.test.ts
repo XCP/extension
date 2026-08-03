@@ -99,6 +99,20 @@ const CASES: OracleCase[] = [
     },
   },
   {
+    // The new owner rides in an output, not the message, so the composed data is byte-for-byte a
+    // reissuance — this proves core agrees the transfer changes nothing about the message.
+    label: 'issuance transferring ownership',
+    composeType: 'issuance',
+    params: {
+      asset: 'LANDMARKS', quantity: 0, divisible: false,
+      transfer_destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    },
+    query: {
+      asset: 'LANDMARKS', quantity: '0', divisible: 'false',
+      transfer_destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    },
+  },
+  {
     label: 'sweep of balances and ownership',
     composeType: 'sweep',
     params: { destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', flags: 3, memo: 'moving' },
