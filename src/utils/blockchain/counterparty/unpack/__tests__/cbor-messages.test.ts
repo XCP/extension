@@ -296,6 +296,38 @@ describe('verifyTransaction over CBOR messages', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('does not report a difference for a blank memo field against an absent memo', () => {
+    // The send form submits an untouched memo input as "", and a composed send without a memo
+    // unpacks it as undefined. Both mean "no memo"; reporting them as a mismatch put a
+    // "differs from your request" warning on every plain send.
+    const payload = payloadOf([1n, 50000000000n, packAddress(DESTINATION), new Uint8Array(0)]);
+    const message = new Uint8Array([...CNTRPRTY, 0x02, ...payload]);
+
+    const result = verifyTransaction(message, 'send', {
+      destination: DESTINATION,
+      asset: 'XCP',
+      quantity: 50000000000,
+      memo: '',
+    });
+    expect(result.valid).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect(result.infoMismatches).toEqual([]);
+  });
+
+  it('still flags a composed memo the request did not ask for', () => {
+    const memoBytes = new TextEncoder().encode('planted memo');
+    const payload = payloadOf([1n, 50000000000n, packAddress(DESTINATION), memoBytes]);
+    const message = new Uint8Array([...CNTRPRTY, 0x02, ...payload]);
+
+    const result = verifyTransaction(message, 'send', {
+      destination: DESTINATION,
+      asset: 'XCP',
+      quantity: 50000000000,
+      memo: '',
+    });
+    expect(result.infoMismatches.some((m) => m.field === 'memo')).toBe(true);
+  });
+
   it('still flags a destination substitution', () => {
     const other = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
     const payload = payloadOf([1n, 50000000000n, modernPackP2pkh(other), new Uint8Array(0)]);
