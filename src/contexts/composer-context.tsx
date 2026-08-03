@@ -59,6 +59,10 @@ import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpa
 import { packAddress } from "@/utils/blockchain/counterparty/unpack/address";
 import { checkOutputPolicy, type IntendedDestination } from "@/utils/blockchain/counterparty/outputPolicy";
 import { packComposeMessage } from "@/utils/blockchain/counterparty/pack/messages";
+import {
+  verifyInscriptionEnvelope,
+  verifyRevealTransaction,
+} from "@/utils/blockchain/counterparty/inscriptionEnvelope";
 import { unpackCounterpartyMessage } from "@/utils/blockchain/counterparty/unpack";
 import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
@@ -382,6 +386,37 @@ export function ComposerProvider<T>({
       const counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
       let verificationWarnings: string[] = [];
       let decodedMessage: DecodedMessage | null = null;
+
+      // An inscription compose carries its message in an ord envelope rather than an OP_RETURN, so
+      // the transaction being signed is a commit paying a P2TR address derived from that envelope.
+      // Rebuild the envelope from the message this request should produce and require the composed
+      // one to match, then let the derived address explain the commit output. Verified here rather
+      // than exempted, so a substituted inscription still fails (`inscriptionEnvelope.ts`).
+      let inscriptionCommitAddress: string | null = null;
+      const envelopeScript = response.result.envelope_script;
+      if (typeof envelopeScript === 'string' && envelopeScript.length > 0) {
+        const expectedMessage = packComposeMessage(composeType, dataForApi);
+        if (!expectedMessage) {
+          throw new Error(
+            'Transaction verification failed: this inscription could not be rebuilt for checking.'
+          );
+        }
+        const envelopeCheck = verifyInscriptionEnvelope(envelopeScript, expectedMessage.bytes);
+        if (!envelopeCheck.ok || !envelopeCheck.commitAddress) {
+          throw new Error(envelopeCheck.error || 'Transaction verification failed: bad inscription.');
+        }
+        // The reveal is signed by the composer, so its outputs are checked rather than trusted.
+        const revealHex = response.result.signed_reveal_rawtransaction;
+        if (typeof revealHex !== 'string' || revealHex.length === 0) {
+          throw new Error('The composer did not return the reveal transaction for this inscription.');
+        }
+        const revealCheck = verifyRevealTransaction(revealHex, [activeAddress.address]);
+        if (!revealCheck.ok) {
+          throw new Error(revealCheck.error || 'Transaction verification failed: bad reveal.');
+        }
+        inscriptionCommitAddress = envelopeCheck.commitAddress;
+      }
+
       if (counterpartyData) {
         // Read the message out of the transaction so the review screen can render what the bytes
         // say rather than what the response claims they say.
@@ -444,6 +479,12 @@ export function ComposerProvider<T>({
       if (activeAddress && !SERVER_DERIVED_DESTINATION_TYPES.has(composeType)) {
         const intendedDestinations: IntendedDestination[] =
           addressesNamedIn(dataForApi).map(address => ({ address }));
+        // The inscription commit output pays an address the request cannot name, but one that was
+        // just derived from an envelope verified to carry this request's message — so it is
+        // explained by proof rather than by exemption.
+        if (inscriptionCommitAddress) {
+          intendedDestinations.push({ address: inscriptionCommitAddress });
+        }
         if (composeType === 'burn') {
           // A burn carries no Counterparty message at all, so the outputs are the only thing that
           // can be checked — and pinning the amount here is the only verification a burn gets.
@@ -576,10 +617,38 @@ export function ComposerProvider<T>({
       );
     }
 
+    // An inscription is two transactions. The commit just went out; the reveal — already signed by
+    // the composer with the ephemeral key that owns the commit output, and checked at compose time
+    // to pay only us — is what actually publishes the content. Broadcasting it immediately is safe
+    // because it spends the commit's output, and the commit's txid is fixed before signing (its
+    // inputs are segwit, which is why taproot encoding requires a segwit source). Without this the
+    // content never lands and the committed sats are stranded.
+    const revealHex = state.apiResponse.result.signed_reveal_rawtransaction;
+    let revealBroadcast: { txid?: string } | undefined;
+    if (typeof revealHex === 'string' && revealHex.length > 0) {
+      try {
+        revealBroadcast = await broadcastTransaction(revealHex);
+      } catch (error) {
+        // The commit is already on the network and cannot be recalled, so this must not throw:
+        // surface it as a warning with the reveal hex so the inscription can still be completed.
+        const detail = error instanceof Error ? error.message : String(error);
+        setState(prev => ({
+          ...prev,
+          verificationWarnings: [
+            ...prev.verificationWarnings,
+            `The inscription's commit transaction was broadcast, but the reveal that publishes the `
+            + `content was not accepted (${detail}). The content is not on chain yet. Reveal `
+            + `transaction: ${revealHex}`,
+          ],
+        }));
+      }
+    }
+
     // Return the updated apiResponse with broadcast info
     return {
       ...state.apiResponse,
-      broadcast: broadcastResponse
+      broadcast: broadcastResponse,
+      ...(revealBroadcast ? { revealBroadcast } : {}),
     };
   }, [state.apiResponse, activeAddress, activeWallet, signTransaction, broadcastTransaction, setHardwareOperationInProgress]);
 

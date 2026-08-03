@@ -7,6 +7,7 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
+import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
@@ -60,17 +61,14 @@ export function BroadcastForm({
     setSelectedFile(file);
   };
   
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        const base64Data = base64.split(',')[1]!;
-        resolve(base64Data);
-      };
-      reader.onerror = error => reject(error);
-    });
+  /**
+   * The content as a compose request must carry it: hex for binary types, the decoded string for
+   * textual ones. Core unhexlifies non-text content (`helpers.content_to_bytes`), so sending
+   * anything else makes it reject the compose.
+   */
+  const fileToInscriptionContent = async (file: File): Promise<string> => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    return encodeInscriptionContent(bytes, file.type || "application/octet-stream");
   };
 
   return (
@@ -84,15 +82,14 @@ export function BroadcastForm({
             formData.set("fee_fraction", "0");
           }
           
-          // Handle inscription mode
+          // Handle inscription mode. `inscription` is a boolean flag to core — the content itself
+          // travels in `text`, hex-encoded unless the MIME type is textual.
           if (inscribeEnabled && selectedFile) {
             try {
-              // Convert file to base64 for inscription
-              const base64Data = await fileToBase64(selectedFile);
-              formData.set("inscription", base64Data);
+              formData.set("text", await fileToInscriptionContent(selectedFile));
+              formData.set("inscription", "true");
               formData.set("mime_type", selectedFile.type || "application/octet-stream");
               formData.set("encoding", "taproot");
-              formData.set("text", `Inscribed ${selectedFile.name}`); // Description for the broadcast
             } catch (error) {
               setFileError("Failed to process file");
               return;

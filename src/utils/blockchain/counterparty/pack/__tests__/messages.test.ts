@@ -246,6 +246,36 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
   });
 });
 
+describe('inscription composes pack the same message, only carried differently', () => {
+  it('hex-decodes binary content, so the packed message matches what core composes', () => {
+    // An inscription's content reaches the API as hex when the MIME type is binary, because core
+    // unhexlifies it (`helpers.content_to_bytes`). The message is otherwise an ordinary broadcast.
+    const packed = packComposeMessage('broadcast', {
+      text: '89504e470d0a1a0a', mime_type: 'image/png', inscription: 'true',
+      value: '0', fee_fraction: '0', timestamp: 1722700000,
+    });
+
+    expect(packed).not.toBeNull();
+    const body = encodeCbor([
+      1722700000n, 0, 0n, 'image/png',
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    ]);
+    expect(bytesToHex(packed!.bytes)).toBe(expectedMessage(30, body));
+  });
+
+  it('encodes textual content as UTF-8 rather than hex', () => {
+    const packed = packComposeMessage('broadcast', {
+      text: 'hello', mime_type: 'text/plain', inscription: 'true',
+      value: '0', fee_fraction: '0', timestamp: 1722700000,
+    });
+
+    const body = encodeCbor([
+      1722700000n, 0, 0n, 'text/plain', new TextEncoder().encode('hello'),
+    ]);
+    expect(bytesToHex(packed!.bytes)).toBe(expectedMessage(30, body));
+  });
+});
+
 describe('borrowing only what the request cannot determine', () => {
   it('packs a reissuance by taking divisibility from the composed message', () => {
     // update-description and transfer-ownership omit `divisible` because the asset already fixes
@@ -344,8 +374,9 @@ describe('refusing to pack is not the same as agreeing', () => {
     ['a broadcast that lets the server continue the feed', 'broadcast', {
       text: 'hello', value: 0, fee_fraction: 0, timestamp: 0,
     }],
-    ['an inscription broadcast, whose content moves into a tapscript envelope', 'broadcast', {
-      text: 'deadbeef', mime_type: 'image/png', inscription: 'ZGVhZGJlZWY=', timestamp: 1722700000,
+    // Binary content rides the request as hex; anything else is not what core would unhexlify.
+    ['a binary-mime broadcast whose content is not hex', 'broadcast', {
+      text: 'not hex at all', mime_type: 'image/png', inscription: 'true', timestamp: 1722700000,
     }],
     // At nbits zero (one distinct destination) the count field has no bits, so a second send of
     // the same asset is not expressible; core's own encoder would raise on `uint:0=1`.

@@ -13,6 +13,7 @@ import { useComposer } from "@/contexts/composer-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
+import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";
 
@@ -105,33 +106,23 @@ export function IssuanceForm({
     setSelectedFile(file);
   };
   
-  // Convert file to base64
-  const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        // Remove data URL prefix
-        const base64Data = base64.split(',')[1]!;
-        resolve(base64Data);
-      };
-      reader.onerror = error => reject(error);
-    });
-  };
+
 
   const processedFormAction = async (formData: FormData) => {
     formData.set('quantity', amount);
     formData.set('divisible', String(isDivisible));
     formData.set('lock', String(isLocked));
 
-    // If inscribing, convert file to base64 and set as description
+    // If inscribing, the content travels in `description` — hex-encoded unless the MIME type is
+    // textual — and `inscription` is the boolean flag that selects core's ord envelope path.
     if (inscribeEnabled) {
       if (selectedFile) {
         try {
-          const base64Data = await fileToBase64(selectedFile);
-          formData.set("description", base64Data);
-          formData.set("mime_type", selectedFile.type);
+          const bytes = new Uint8Array(await selectedFile.arrayBuffer());
+          const mimeType = selectedFile.type || "application/octet-stream";
+          formData.set("description", encodeInscriptionContent(bytes, mimeType));
+          formData.set("inscription", "true");
+          formData.set("mime_type", mimeType);
           formData.set("encoding", "taproot");
         } catch (error) {
           setFileError("Failed to process file");
