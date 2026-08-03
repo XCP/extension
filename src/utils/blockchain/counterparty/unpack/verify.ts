@@ -25,13 +25,17 @@
  * mirroring what counterparty-core itself asserts in `check_transaction_sanity`:
  *
  * 1. **Message payload** — where the message can be built locally (`pack/messages.ts`: send,
- *    issuance, sweep, destroy, cancel, order, dividend and fairmint), verification is byte equality
- *    and any difference is fatal, with no severity gradation: equality asks whether the composer
- *    produced what was asked, and that answer is binary. Severity belongs only to the field-by-field
- *    fallback used for types we cannot build — broadcast takes a server-chosen timestamp, a
- *    reissuance takes its divisibility from the ledger — because that path can speak only to fields
- *    it was taught about. Packing returns null rather than guess, so equality applies only where the
- *    bytes are known exactly.
+ *    issuance including initial subassets, sweep, destroy, cancel, order, dividend, fairmint,
+ *    fairminter, dispense and broadcast), verification is byte equality and any difference is
+ *    fatal, with no severity gradation: equality asks whether the composer produced what was asked,
+ *    and that answer is binary. A few values the request cannot determine — a reissuance's
+ *    divisibility, a new subasset's randomly drawn asset id, a wallet-stamped broadcast timestamp —
+ *    are borrowed from the composed message under the argued conditions in `pack/messages.ts`
+ *    (`Observed`), and everything the user authored still has to match byte for byte. Severity
+ *    belongs only to the field-by-field fallback used for what still cannot be built — an
+ *    inscription's tapscript envelope, a subasset reissuance's ledger-resolved asset id — because
+ *    that path can speak only to fields it was taught about. Packing returns null rather than
+ *    guess, so equality applies only where the bytes are known exactly.
  *
  *    Two oracles keep the packers honest, both nightly:
  *    `coreOracle.test.ts` asks a live node what it would compose for a set of params and requires
@@ -743,8 +747,10 @@ function verifyDetach(
 }
 
 /**
- * Verify a broadcast publishes what was written. The timestamp is chosen by the composer and so is
- * not comparable; everything the user authored is.
+ * Verify a broadcast publishes what was written. Everything the user authored is compared; the
+ * timestamp is stamped into the request by `composeBroadcast` from the wallet's own clock when the
+ * caller supplies none, so it is not in `params` — but that also means an honest response echoes a
+ * timestamp taken moments ago, and one far in the future can only be a substitution.
  */
 function verifyBroadcast(
   data: BroadcastData,
@@ -754,6 +760,18 @@ function verifyBroadcast(
   if (params.text !== undefined && !valuesEqual(data.text, params.text)) {
     addMismatch(result, 'text', params.text, data.text, 'critical',
       'Different text = publishing something you did not write');
+  }
+
+  // Same bound as the byte-equality packer's borrowed timestamp (`pack/messages.ts`), so a
+  // broadcast the packer declines does not sail through here with a timestamp the packer refused.
+  // The future direction is the dangerous one: bets settle once a broadcast's timestamp reaches
+  // their deadline, so a substituted future timestamp settles a feed's open bets early.
+  if (params.timestamp === undefined && typeof data.timestamp === 'number') {
+    const now = Math.floor(Date.now() / 1000);
+    if (data.timestamp > now + 3600) {
+      addMismatch(result, 'timestamp', 'the wallet clock at compose time', data.timestamp, 'critical',
+        'A future timestamp settles bets against this feed before their deadline');
+    }
   }
 
   verifyOptional(result, 'value', params.value, data.value, 0, 'dangerous',
