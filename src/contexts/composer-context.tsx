@@ -362,7 +362,8 @@ export function ComposerProvider<T>({
       if (signal.aborted) return;
 
       // Call compose API (UTXO selection is handled internally by compose functions)
-      const response = await composeApi(dataForApi);
+      // Reassigned below if verification finds the reported fee differs from the real one.
+      let response = await composeApi(dataForApi);
 
       // Check if aborted after API call
       if (signal.aborted) return;
@@ -471,6 +472,29 @@ export function ComposerProvider<T>({
       }, fetchInputValues);
       if (!feeCheck.ok) {
         throw new Error(feeCheck.error || 'Transaction fee verification failed');
+      }
+
+      // The fee the review screen shows must be the one just computed from the transaction's own
+      // inputs and outputs, not `btc_fee` as the response asserts it. The bound above is
+      // deliberately loose enough to accommodate legitimate composers, so a response can pass it
+      // while claiming a smaller fee than the transaction actually pays — and the user would sign
+      // against the claim. Replacing the field here fixes every review screen at once, since they
+      // all render `result.btc_fee`.
+      if (feeCheck.computedFee !== undefined) {
+        const reportedFee = response.result.btc_fee;
+        // Contradicting a stated fee is worth telling the user about; filling in one the response
+        // never stated is not, so absence is corrected silently rather than reported as a
+        // discrepancy.
+        if (typeof reportedFee === 'number' && reportedFee !== feeCheck.computedFee) {
+          verificationWarnings.push(
+            `This transaction pays a ${feeCheck.computedFee} sat miner fee, though the composer `
+            + `reported ${reportedFee}. The amount shown is the one the transaction pays.`
+          );
+        }
+        response = {
+          ...response,
+          result: { ...response.result, btc_fee: feeCheck.computedFee },
+        };
       }
 
       // Account for every output: each must be the data output, an address the request names, or
