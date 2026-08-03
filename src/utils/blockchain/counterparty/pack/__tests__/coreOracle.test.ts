@@ -42,8 +42,9 @@ interface OracleCase {
   composeType: string;
   /** Params as the wallet's forms normalize them, fed to the local packer. */
   params: Record<string, unknown>;
-  /** Query string for core's compose endpoint. */
-  query: Record<string, string>;
+  /** Query string for core's compose endpoint. An array value becomes repeated keys, which is
+   * how core's `query_params()` receives a list (MPMA per-send memos travel this way). */
+  query: Record<string, string | string[]>;
   /**
    * Decode core's response and hand it to the packer as the observed message, exactly as
    * production does — for types with a value the request cannot determine, such as the random
@@ -137,6 +138,78 @@ const CASES: OracleCase[] = [
     observedFromResponse: true,
   },
   {
+    label: 'MPMA send of two assets to two addresses',
+    composeType: 'mpma',
+    params: {
+      assets: 'XCP,PEPECASH',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '100,500',
+    },
+    query: {
+      assets: 'XCP,PEPECASH',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '100,500',
+    },
+  },
+  {
+    // One distinct destination: nbits is zero and the count/index fields occupy no bits. This is
+    // the dominant shape of real MPMA traffic (airdropping several assets to one address).
+    label: 'MPMA send of two assets to one address',
+    composeType: 'mpma',
+    params: {
+      assets: 'XCP,PEPECASH',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      quantities: '3,5',
+    },
+    query: {
+      assets: 'XCP,PEPECASH',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      quantities: '3,5',
+    },
+  },
+  {
+    // The memos travel as repeated `memos=` keys — the transport `composeMPMA` uses — so this
+    // case also proves the API actually receives them (a `memos[]=` suffix would be ignored).
+    label: 'MPMA send with per-send memos',
+    composeType: 'mpma',
+    params: {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
+        + 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      quantities: '7,9',
+      memos: 'first,second',
+      memos_are_hex: 'false,false',
+    },
+    query: {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
+        + 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      quantities: '7,9',
+      memos: ['first', 'second'],
+      memos_are_hex: 'false',
+    },
+  },
+  {
+    label: 'MPMA send with a whole-send memo',
+    composeType: 'mpma',
+    params: {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
+        + 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      quantities: '1,2',
+      memo: 'thanks',
+      memo_is_hex: false,
+    },
+    query: {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
+        + 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4',
+      quantities: '1,2',
+      memo: 'thanks',
+      memo_is_hex: 'false',
+    },
+  },
+  {
     label: 'DEX order',
     composeType: 'order',
     params: {
@@ -153,11 +226,12 @@ const CASES: OracleCase[] = [
 ];
 
 async function composeDataFromCore(testCase: OracleCase): Promise<string> {
-  const query = new URLSearchParams({
-    ...testCase.query,
-    return_only_data: 'true',
-    validate: 'false',
-  });
+  const query = new URLSearchParams({ return_only_data: 'true', validate: 'false' });
+  for (const [key, value] of Object.entries(testCase.query)) {
+    for (const entry of Array.isArray(value) ? value : [value]) {
+      query.append(key, entry);
+    }
+  }
   const url = `${API_URL}/v2/addresses/${SOURCE}/compose/${testCase.composeType}?${query}`;
   const response = await fetch(url);
   if (!response.ok) {

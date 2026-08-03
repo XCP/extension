@@ -214,9 +214,13 @@ describe('Compose Send Operations', () => {
       });
 
       const actualUrl = mockedApiClient.get.mock.calls[0]![0] as string;
-      // Should have memo arrays
-      expect(actualUrl).toContain(`memos[]=${encodeURIComponent(testMemos.TEXT)}`);
-      expect(actualUrl).toContain('memos_are_hex[]=false');
+      // The memo is identical for every destination, so it travels once as the whole-send memo.
+      // (It must NOT travel as `memos[]=`: core's query_params() ignores a PHP-style [] suffix.)
+      // URLSearchParams encodes a space as '+'.
+      expect(actualUrl).toContain(`memo=${encodeURIComponent(testMemos.TEXT).replace(/%20/g, '+')}`);
+      expect(actualUrl).toContain('memo_is_hex=false');
+      expect(actualUrl).not.toContain('memos%5B%5D');
+      expect(actualUrl).not.toContain('memos[]');
     });
 
     it('should treat single destination without comma as regular send', async () => {

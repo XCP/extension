@@ -187,8 +187,13 @@ export interface MPMAOptions extends BaseComposeOptions {
   assets: string[];
   destinations: string[];
   quantities: string[];
+  /** Per-send memos, one entry per send; empty string means no memo for that send. */
   memos?: string[];
+  /** Hex flags for `memos`. Core applies a single flag to every memo, so these must agree. */
   memos_are_hex?: boolean[];
+  /** Whole-send memo, used for every send when `memos` is not given; encoded once. */
+  memo?: string;
+  memo_is_hex?: boolean;
 }
 
 export interface OrderOptions extends BaseComposeOptions {
@@ -504,12 +509,15 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       ...(inputsSet && { inputs_set: inputsSet }),
     }));
 
-    // Append array params with [] notation
+    // Append array params as repeated plain keys: core's `query_params()` builds lists from
+    // repeated keys via `request.args.to_dict(flat=False)` and does nothing with a PHP-style
+    // `[]` suffix — `memos[]` is a different, ignored parameter, and the memos silently
+    // never reach compose.
     let url = `${apiUrl}?${params.toString()}`;
     for (const [key, values] of Object.entries(arrayParams)) {
       if (Array.isArray(values)) {
         for (const value of values) {
-          url += `&${key}[]=${encodeURIComponent(String(value ?? ''))}`;
+          url += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
         }
       }
     }
@@ -792,6 +800,8 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
     quantities,
     memos,
     memos_are_hex,
+    memo,
+    memo_is_hex,
     sat_per_vbyte,
     max_fee,
     encoding,
@@ -806,19 +816,34 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
     throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
   }
 
-  if (memos && memos.length > 0) {
+  if (memos && memos.some((memo) => memo !== '')) {
+    // Core applies one `memos_are_hex` flag to every memo in the list (`compose_mpma` appends the
+    // same boolean to each send tuple), so a mix of hex and text memos cannot be expressed over
+    // the API. Refusing loudly beats composing a transaction whose memos mean something else.
+    const hexFlags = new Set((memos_are_hex ?? []).filter((_, i) => memos[i] !== ''));
+    if (hexFlags.size > 1) {
+      throw new Error(
+        'MPMA memos must be all hex or all text: the API applies a single memos_are_hex flag to every memo.'
+      );
+    }
+    // Core requires exactly one memos entry per send; empty entries mean "no memo for this send".
+    if (memos.length !== assets.length) {
+      throw new Error('The number of memos must equal the number of sends.');
+    }
     return composeTransactionWithArrays('mpma', {
       assets: assets.join(','),
       destinations: destinations.join(','),
       quantities: quantities.join(','),
+      memos_are_hex: (hexFlags.values().next().value ?? false).toString(),
       ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
-    }, { memos, memos_are_hex }, sourceAddress, sat_per_vbyte, encoding);
+    }, { memos }, sourceAddress, sat_per_vbyte, encoding);
   }
 
   const paramsObj = {
     assets: assets.join(','),
     destinations: destinations.join(','),
     quantities: quantities.join(','),
+    ...(memo && { memo, memo_is_hex: (memo_is_hex ?? false).toString() }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
   return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);
@@ -905,7 +930,9 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
   if (destinations && destinations.includes(',')) {
     const destArray = destinations.split(',').map((d: string) => d.trim());
 
-    // Create MPMA options - same asset/quantity/memo for each destination
+    // Create MPMA options - same asset/quantity for each destination. A memo shared by every
+    // send travels as the whole-send memo (core's `memo` param, encoded once in the message)
+    // rather than as a per-send list saying the same thing n times.
     const mpmaOptions: MPMAOptions = {
       sourceAddress: options.sourceAddress,
       assets: destArray.map(() => options.asset),
@@ -913,8 +940,8 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
       quantities: destArray.map(() => options.quantity.toString()),
       sat_per_vbyte: options.sat_per_vbyte,
       ...(options.memo && {
-        memos: destArray.map(() => options.memo as string),
-        memos_are_hex: destArray.map(() => options.memo_is_hex ?? false)
+        memo: options.memo,
+        memo_is_hex: options.memo_is_hex ?? false,
       })
     };
 

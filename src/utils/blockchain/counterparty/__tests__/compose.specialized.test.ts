@@ -213,7 +213,10 @@ describe('Compose Specialized Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'mpma', defaultParams);
     });
 
-    it('should include optional parameters', async () => {
+    it('sends per-send memos as repeated plain keys with one memos_are_hex flag', async () => {
+      // Core's query_params() builds lists from repeated keys and does nothing with a PHP-style
+      // [] suffix — `memos[]` is a different parameter that silently never reaches compose. The
+      // hex flag is singular because core applies one flag to every memo in the list.
       const optionalParams = {
         memos: ['memo1', 'memo2'],
         memos_are_hex: [false, false],
@@ -228,10 +231,21 @@ describe('Compose Specialized Operations', () => {
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
-      expect(url).toContain('memos[]=memo1');
-      expect(url).toContain('memos[]=memo2');
-      expect(url).toContain('memos_are_hex[]=');
-      expect(url).toContain('memos_are_hex[]=');
+      expect(url).toContain('&memos=memo1');
+      expect(url).toContain('&memos=memo2');
+      expect(url).toContain('memos_are_hex=false');
+      expect(url).not.toContain('memos[]');
+      expect(url).not.toContain('memos%5B%5D');
+    });
+
+    it('refuses memos that mix hex and text, which one memos_are_hex flag cannot express', async () => {
+      await expect(composeMPMA({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        memos: ['beef', 'plain text'],
+        memos_are_hex: [true, false],
+      })).rejects.toThrow(/all hex or all text/);
     });
 
     it('should handle different message data', async () => {

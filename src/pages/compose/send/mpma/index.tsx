@@ -2,8 +2,6 @@ import { MPMAForm } from "./form";
 import { ReviewMPMA } from "./review";
 import { Composer } from "@/components/composer/composer";
 import { composeMPMA } from "@/utils/blockchain/counterparty/compose";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
-import { toSatoshis } from "@/utils/numeric";
 import type { MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
 
 interface MPMAData {
@@ -18,7 +16,9 @@ interface MPMAData {
 
 function ComposeMpmaPage() {
   const composeTransaction = async (data: MPMAData): Promise<ApiResponse> => {
-    // Parse the comma-separated values
+    // Parse the comma-separated values. Quantities arrive in base units: normalizeFormData
+    // resolves each asset's divisibility before compose, so that message verification can
+    // rebuild the message from the same data the API receives (`pack/messages.ts`).
     const assets = data.assets.split(',');
     const destinations = data.destinations.split(',');
     const quantities = data.quantities.split(',');
@@ -31,46 +31,17 @@ function ComposeMpmaPage() {
       throw new Error('Mismatched MPMA form data: assets, destinations, and quantities must align');
     }
 
-    // Build divisibility cache: fetch unique assets in parallel
-    const knownDivisible: Record<string, boolean> = { BTC: true, XCP: true };
-    const uniqueAssets = [...new Set(assets)].filter(a => !(a in knownDivisible));
-
-    const assetInfos = await Promise.all(
-      uniqueAssets.map(async (asset) => {
-        try {
-          const info = await fetchAssetDetails(asset);
-          return { asset, divisible: info?.divisible ?? false };
-        } catch {
-          return { asset, divisible: false };
-        }
-      })
-    );
-
-    const divisibilityCache: Record<string, boolean> = {
-      ...knownDivisible,
-      ...Object.fromEntries(assetInfos.map(({ asset, divisible }) => [asset, divisible]))
-    };
-
-    // Normalize quantities based on divisibility
-    const normalizedQuantities = assets.map((asset, i) => {
-      const isDivisible = divisibilityCache[asset];
-      return isDivisible ? toSatoshis(quantities[i]!) : quantities[i]!;
-    });
-
-    // Create MPMA options with normalized quantities
     const mpmaOptions: MPMAOptions = {
       sourceAddress: data.sourceAddress,
       assets,
       destinations,
-      quantities: normalizedQuantities,
+      quantities,
       sat_per_vbyte: data.sat_per_vbyte,
       ...(memos && { memos }),
       ...(memosAreHex && { memos_are_hex: memosAreHex })
     };
 
-    // Compose MPMA transaction
-    const response = await composeMPMA(mpmaOptions);
-    return response;
+    return composeMPMA(mpmaOptions);
   };
 
   return (

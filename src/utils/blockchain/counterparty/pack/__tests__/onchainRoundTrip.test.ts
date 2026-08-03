@@ -120,6 +120,33 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
       mime_type: data.mimeType ?? '',
     };
   },
+  mpma_send: (data) => {
+    // A whole-send memo is copied into each send by the decoder, indistinguishable from per-send
+    // memos that happen to agree — the original layout cannot be recovered, so skip. A
+    // present-but-empty memo (its bit set, zero length) is also inexpressible from params.
+    if (data.globalMemo !== undefined) return null;
+    const sends = data.sends as Array<{
+      asset: string; destination: string; quantity: bigint; memo?: string; memoIsHex?: boolean;
+    }>;
+    if (sends.some((send) => send.memo === '')) return null;
+    // Params are comma-separated, so a memo containing a comma cannot travel that way.
+    if (sends.some((send) => (send.memo ?? '').includes(','))) return null;
+    const withMemos = sends.filter((send) => send.memo);
+    const hexFlags = new Set(withMemos.map((send) => send.memoIsHex === true));
+    if (hexFlags.size > 1) return null; // one flag covers all memos on the API
+
+    return {
+      assets: sends.map((send) => send.asset).join(','),
+      destinations: sends.map((send) => send.destination).join(','),
+      quantities: sends.map((send) => send.quantity).join(','),
+      ...(withMemos.length > 0
+        ? {
+          memos: sends.map((send) => send.memo ?? '').join(','),
+          memos_are_hex: String(hexFlags.values().next().value ?? false),
+        }
+        : {}),
+    };
+  },
 };
 
 /** API transaction type → the compose type our packers are keyed by. */
@@ -134,6 +161,7 @@ const COMPOSE_TYPE_FOR: Record<string, string> = {
   issuance: 'issuance',
   fairminter: 'fairminter',
   broadcast: 'broadcast',
+  mpma: 'mpma',
 };
 
 async function recentTransactions(type: string): Promise<OnChainTransaction[]> {
