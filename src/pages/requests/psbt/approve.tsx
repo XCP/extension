@@ -115,9 +115,11 @@ export default function ApprovePsbtPage() {
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
   const txAction = getTxActionInfo(decodedInfo);
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
-  // Bound the fee rate as well as its absolute size. vsize is estimated generously — the unsigned
-  // bytes plus a signature allowance per input — so the implied rate is understated and this cannot
-  // fire on a merely expensive transaction. Skipped when the PSBT is unfunded, where the fee is not
+  // Warn on the fee *rate* as well as its absolute size: a fee under the absolute ceiling can still
+  // be absurd on a small transaction, and that case previously drew no warning at all. It warns
+  // rather than blocks — an expensive transaction can be legitimate here, the transaction was built
+  // elsewhere so the wallet cannot know the intent, and vsize is only estimated (the unsigned bytes
+  // plus a signature allowance per input). Skipped when the PSBT is unfunded, where the fee is not
   // yet knowable because the other party supplies the inputs.
   const estimatedVsize = psbtDetails.rawTxHex
     ? psbtDetails.rawTxHex.length / 2 + psbtDetails.inputs.length * 110
@@ -138,9 +140,7 @@ export default function ApprovePsbtPage() {
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
-  // An absurd rate is a drain rather than a fee estimate, so it blocks — as it does on the compose
-  // path and the raw-transaction approval.
-  const shouldBlockSigning = safetyBlocked || feeRateAbsurd || (isStrictMode && verificationFailed);
+  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
   const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
     ([address, indices]) => ({
       address,

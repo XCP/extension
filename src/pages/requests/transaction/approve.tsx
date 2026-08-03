@@ -189,8 +189,10 @@ export default function ApproveTransactionPage() {
 
   const txAction = getTxActionData(decodedInfo);
   // An absolute ceiling alone lets a fee just under it drain a small transaction, so the rate is
-  // bounded too — the same bound the compose path applies, which a site-supplied transaction
-  // previously escaped entirely.
+  // checked too — that case previously drew no warning at all. It warns rather than blocks: the
+  // transaction was built elsewhere, so an expensive one can be legitimate and the wallet cannot
+  // know the intent. The compose path blocks the same condition because it built the transaction
+  // itself, and there an absurd fee means the response misbehaved.
   const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
@@ -199,9 +201,7 @@ export default function ApproveTransactionPage() {
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
-  // A fee rate this far above anything the network has demanded is a drain, not a fee estimate, so
-  // it blocks rather than warns — matching how the compose path treats the same condition.
-  const shouldBlockSigning = safetyBlocked || feeRateAbsurd || (isStrictMode && verificationFailed);
+  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
   const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
