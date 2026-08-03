@@ -134,11 +134,13 @@ function toBigInt(value: number | string | bigint | boolean | undefined | null):
  * Compare two values, handling bigint/number/string conversions
  */
 function valuesEqual(a: unknown, b: unknown): boolean {
-  // Handle null/undefined
-  if (a === null || a === undefined) {
-    return b === null || b === undefined;
+  // Absence: null, undefined and the empty string all mean "not provided". Form fields submit ""
+  // for an input left blank, while unpackers report the same field as undefined — those must not
+  // read as a difference. A present value against any absent one still does.
+  const absent = (value: unknown) => value === null || value === undefined || value === '';
+  if (absent(a) || absent(b)) {
+    return absent(a) && absent(b);
   }
-  if (b === null || b === undefined) return false;
 
   // Handle booleans
   if (typeof a === 'boolean' || typeof b === 'boolean') {
