@@ -311,7 +311,6 @@ export type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 export {
   verifyTransaction,
   verifyTransactionLegacy,
-  extractOpReturnData,
   type ComposeRequest,
   type ComposeParams,
   type VerificationResult,

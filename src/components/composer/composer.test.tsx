@@ -303,15 +303,11 @@ describe('Composer', () => {
     );
 
     /**
-     * A raw transaction carrying an enhanced send whose memo is not the one requested. The payload
-     * is plaintext, which extraction accepts, so the test needs no ARC4 key.
+     * A raw transaction carrying the given Counterparty message (type id + body) in a plaintext
+     * OP_RETURN, which extraction accepts, so the tests need no ARC4 key.
      */
-    function composedSendWithMemo(memo: string): string {
-      const payload = new Uint8Array([
-        ...hexToBytes(COUNTERPARTY_PREFIX_HEX),
-        0x02,
-        ...encodeEnhancedSendCbor(1n, 100_000_000n, packAddress(DESTINATION), memo),
-      ]);
+    function rawTxCarrying(message: number[]): string {
+      const payload = new Uint8Array([...hexToBytes(COUNTERPARTY_PREFIX_HEX), ...message]);
 
       const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
       tx.addInput({
@@ -322,6 +318,14 @@ describe('Composer', () => {
       tx.addOutput({ script: new Uint8Array([0x6a, payload.length, ...payload]), amount: 0n });
       tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 98_000n);
       return bytesToHex(tx.unsignedTx);
+    }
+
+    /** A raw transaction carrying an enhanced send with the given memo. */
+    function composedSendWithMemo(memo: string): string {
+      return rawTxCarrying([
+        0x02,
+        ...encodeEnhancedSendCbor(1n, 100_000_000n, packAddress(DESTINATION), memo),
+      ]);
     }
 
     it('shows an informational difference on the review screen', async () => {
@@ -357,6 +361,31 @@ describe('Composer', () => {
       });
 
       renderWithProvider({ FormComponent: SendForm });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByText(/Composed transaction differs from your request/i)
+      ).not.toBeInTheDocument();
+    });
+
+    it('claims no difference when the compose type has no field-level verifier', async () => {
+      // A broadcast has no field verifier: only its message type is confirmed. That absence of
+      // checking must not be announced as a detected difference — the banner is only credible on
+      // types with field verification if it stays silent here.
+      mockComposeApi.mockResolvedValue({
+        result: {
+          // Type id 30 (broadcast), CBOR [timestamp 0, value 1, fee_fraction 0, mime "", text ""]
+          rawtransaction: rawTxCarrying([0x1e, 0x85, 0x00, 0x01, 0x00, 0x60, 0x40]),
+          inputs_values: [100_000],
+          tx_hash: 'hash123',
+        },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      renderWithProvider({ composeType: 'broadcast' });
       fireEvent.submit(screen.getByTestId('form-component'));
 
       await waitFor(() => {

@@ -196,8 +196,10 @@ describe('compose types with no field-level verifier', () => {
     const result = verifyTransaction(broadcastPayload, 'broadcast', {});
 
     expect(result.valid).toBe(true);
-    // The absence of field checks is recorded rather than presented as a clean verification.
-    expect(result.warnings.join(' ')).toContain('No field-level verification');
+    // The absence of field checks is recorded as coverage, not presented as a clean verification —
+    // and not pushed into `warnings`, which the review screen shows as detected differences.
+    expect(result.fieldVerification).toBe('type-only');
+    expect(result.warnings).toEqual([]);
   });
 
   it('rejects a response carrying a different message type than requested', () => {

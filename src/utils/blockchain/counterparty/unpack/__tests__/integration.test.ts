@@ -15,7 +15,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import {
   unpackCounterpartyMessage,
   verifyTransaction,
-  extractOpReturnData,
   MessageTypeId,
 } from '../index';
 

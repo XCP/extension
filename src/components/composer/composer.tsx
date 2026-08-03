@@ -202,8 +202,8 @@ function ComposerInner<T>({
                 description="These differences are not dangerous on their own, but review them before signing."
               >
                 <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                  {state.verificationWarnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
+                  {state.verificationWarnings.map((warning, index) => (
+                    <li key={`${index}-${warning}`}>{warning}</li>
                   ))}
                 </ul>
               </Banner>

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Hook to handle raw transaction signing requests from provider/dApps
  *
  * This hook centralizes the logic for:
@@ -144,22 +144,22 @@ export function useSignTransactionRequest(signerAddress?: string) {
     const hasOpReturn = outputs.some(o => o.type === 'op_return');
 
     let counterpartyMessage: CounterpartyMessage | undefined;
-    let decryptedDataHex: string | undefined;
+    let counterpartyDataHex: string | undefined;
 
     // Resolve any Counterparty payload the outputs carry — plaintext or ARC4 OP_RETURN, or
     // bare-multisig data outputs, which produce no OP_RETURN at all. Classifying every encoding
     // here is what lets the sweep block apply regardless of how the message is carried.
     if (inputs.length > 0 && inputs[0]!.txid) {
-      decryptedDataHex = extractPayloadFromOutputs(
+      counterpartyDataHex = extractPayloadFromOutputs(
         decoded.vout.map((vout: any) => vout.scriptPubKey?.hex ?? ''),
         inputs[0]!.txid
       ) ?? undefined;
     }
 
-    // If we decrypted Counterparty data, try API unpack for rich message info
-    if (decryptedDataHex) {
+    // If the outputs carried Counterparty data, try API unpack for rich message info
+    if (counterpartyDataHex) {
       try {
-        const msg = await decodeCounterpartyMessage(decryptedDataHex);
+        const msg = await decodeCounterpartyMessage(counterpartyDataHex);
         if (msg) {
           counterpartyMessage = msg;
         }
@@ -169,7 +169,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
     }
 
     // Verify locally (compares local binary unpack against API result)
-    const verification = verifyProviderTransaction(decryptedDataHex, counterpartyMessage);
+    const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
 
     // Analyze for security risks (dangerous types, suspicious outputs)
     const messageType = counterpartyMessage?.messageType

@@ -239,19 +239,21 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
   if (firstByte === MODERN.P2SH && packed.length === PACKED_ADDRESS_LENGTH) {
     return encodeBase58Check(network === 'mainnet' ? 0x05 : 0xc4, rest);
   }
-  if (firstByte === MODERN.WITNESS && packed.length >= 4) {
+  // Core's unpacker (counterparty-rs utils.rs) requires prefix + version + a program of at
+  // least 20 bytes; accepting less would render an address core itself refuses to unpack.
+  if (firstByte === MODERN.WITNESS && packed.length >= 22) {
     const witnessVersion = packed[1]!;
     const program = packed.slice(2);
     if (witnessVersion > 16) {
       throw new AddressPackError(`Invalid witness version: ${witnessVersion}`);
     }
-    // BIP141 allows 2..40 bytes, but v0 is only defined for 20 (P2WPKH) and 32 (P2WSH), and v1
-    // only for 32 (P2TR). Anything else would render as a plausible address nobody can spend.
+    // BIP141 allows up to 40 bytes, but v0 is only defined for 20 (P2WPKH) and 32 (P2WSH), and
+    // v1 only for 32 (P2TR). Anything else would render as a plausible address nobody can spend.
     const validForVersion = witnessVersion === 0
       ? program.length === 20 || program.length === 32
       : witnessVersion === 1
         ? program.length === 32
-        : program.length >= 2 && program.length <= 40;
+        : program.length <= 40;
     if (!validForVersion) {
       throw new AddressPackError(
         `Invalid witness program length for v${witnessVersion}: ${program.length}`

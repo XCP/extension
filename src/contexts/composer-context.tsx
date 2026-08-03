@@ -54,7 +54,8 @@ import { useHeader } from "@/contexts/header-context";
 import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
-import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
+import { verifyTransaction } from "@/utils/blockchain/counterparty/unpack/verify";
+import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpack/opReturn";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
 import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
 import { isSegwitFormat } from "@/utils/blockchain/bitcoin/address";
@@ -93,6 +94,24 @@ interface ComposerState<T> {
   composedAt: number | null;
   /** Current fee rate in sat/vB (null = use network default, set once user interacts or FeeRateInput initializes) */
   feeRate: number | null;
+}
+
+/**
+ * A fresh composer state — the single definition every reset path uses. A function rather than a
+ * constant so each reset gets its own `verificationWarnings` array.
+ */
+function freshComposerState<T>(): ComposerState<T> {
+  return {
+    step: "form",
+    formData: null,
+    apiResponse: null,
+    error: null,
+    verificationWarnings: [],
+    isComposing: false,
+    isSigning: false,
+    composedAt: null,
+    feeRate: null,
+  };
 }
 
 /**
@@ -193,17 +212,7 @@ export function ComposerProvider<T>({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize state
-  const [state, setState] = useState<ComposerState<T>>({
-    step: "form",
-    formData: null,
-    apiResponse: null,
-    error: null,
-    verificationWarnings: [],
-    isComposing: false,
-    isSigning: false,
-    composedAt: null,
-    feeRate: null,
-  });
+  const [state, setState] = useState<ComposerState<T>>(freshComposerState);
 
 
   // Help text state (can be toggled locally)
@@ -226,17 +235,7 @@ export function ComposerProvider<T>({
       previousAddressRef.current &&
       activeAddress.address !== previousAddressRef.current
     ) {
-      setState({
-        step: "form",
-        formData: null,
-        apiResponse: null,
-        error: null,
-        verificationWarnings: [],
-        isComposing: false,
-        isSigning: false,
-        composedAt: null,
-        feeRate: null,
-      });
+      setState(freshComposerState<T>());
     }
     previousAddressRef.current = activeAddress?.address;
   }, [activeAddress?.address]);
@@ -251,17 +250,7 @@ export function ComposerProvider<T>({
                             (authState === "LOCKED" || previousAuthStateRef.current === "LOCKED");
 
     if (walletChanged || lockStateChanged) {
-      setState({
-        step: "form",
-        formData: null,
-        apiResponse: null,
-        error: null,
-        verificationWarnings: [],
-        isComposing: false,
-        isSigning: false,
-        composedAt: null,
-        feeRate: null,
-      });
+      setState(freshComposerState<T>());
     }
 
     previousWalletRef.current = activeWallet?.id;
@@ -333,11 +322,11 @@ export function ComposerProvider<T>({
 
       // Verify the transaction locally before showing review screen
       // This protects against a compromised API returning malicious transactions
-      const opReturnData = extractOpReturnData(response.result.rawtransaction);
+      const counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
       let verificationWarnings: string[] = [];
-      if (opReturnData) {
+      if (counterpartyData) {
         // Verify the composed transaction matches what we requested
-        const verification = verifyTransaction(opReturnData, composeType, dataForApi);
+        const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
 
         if (!verification.valid) {
           // In strict mode (default), block the transaction
@@ -349,8 +338,8 @@ export function ComposerProvider<T>({
         // Differences too minor to block, shown on the review screen so the user can still see them.
         verificationWarnings = verification.warnings;
       }
-      // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
-      // which is allowed through (e.g., BTC-only transactions)
+      // Note: If no Counterparty payload was found, this might be a non-Counterparty
+      // transaction, which is allowed through (e.g., BTC-only transactions)
 
       // Independently bound the fee for every transaction type (including
       // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
@@ -568,17 +557,7 @@ export function ComposerProvider<T>({
 
   // Navigation actions
   const reset = useCallback(() => {
-    setState({
-      step: "form",
-      formData: null,
-      apiResponse: null,
-      error: null,
-      verificationWarnings: [],
-      isComposing: false,
-      isSigning: false,
-      composedAt: null,
-      feeRate: null,
-    });
+    setState(freshComposerState<T>());
     currentComposeTypeRef.current = composeType;
   }, [composeType]);
 

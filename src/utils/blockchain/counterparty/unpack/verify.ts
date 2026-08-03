@@ -21,7 +21,6 @@ import type { MPMAData } from './messages/mpma';
 import type { IssuanceData } from './messages/issuance';
 import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 import { addressesEqual } from './address';
-import { extractCounterpartyPayload } from './opReturn';
 import { getMessageSchema, type Criticality } from './paramSchema';
 
 // Import compose types directly
@@ -99,6 +98,13 @@ export interface VerificationResult {
   errors: string[];
   /** Legacy: all warnings (informational) */
   warnings: string[];
+  /**
+   * Whether the message's fields were compared against the request. 'type-only' means no
+   * field-level verifier exists for the compose type: the message type was confirmed and nothing
+   * else. That is an absence of checking, not a detected difference, so it is carried here rather
+   * than in `warnings`, which surface to the user as differences.
+   */
+  fieldVerification: 'full' | 'type-only';
   /** The unpacked transaction data */
   unpacked?: UnpackedMessageData;
   /** The message type that was unpacked */
@@ -653,6 +659,7 @@ export function verifyTransaction(
     infoMismatches: [],
     errors: [],
     warnings: [],
+    fieldVerification: 'full',
     expected: actualParams,
     actual: {},
   };
@@ -764,7 +771,7 @@ export function verifyTransaction(
         );
         return result;
       }
-      result.warnings.push(`No field-level verification for compose type: ${composeType}`);
+      result.fieldVerification = 'type-only';
       result.valid = true;
       return result;
     }
@@ -795,18 +802,3 @@ export function verifyTransactionLegacy(
   return verifyTransaction(opReturnData, request.type, request.params);
 }
 
-/**
- * Extract the Counterparty OP_RETURN payload from a raw transaction hex.
- *
- * Parses the transaction structurally and resolves the payload as plaintext
- * or ARC4-obfuscated (keyed on the first input txid). Returns the datahex with
- * the CNTRPRTY prefix, or null if the transaction carries no Counterparty
- * OP_RETURN — so verifyTransaction runs on real composed transactions, whose
- * OP_RETURN is obfuscated, rather than being skipped.
- *
- * @param rawTxHex - Raw transaction hex
- * @returns Counterparty datahex with the CNTRPRTY prefix, or null
- */
-export function extractOpReturnData(rawTxHex: string): string | null {
-  return extractCounterpartyPayload(rawTxHex);
-}

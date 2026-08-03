@@ -14,6 +14,7 @@ function emptyResult(): VerificationResult {
     infoMismatches: [],
     errors: [],
     warnings: [],
+    fieldVerification: 'full',
     expected: {},
     actual: {},
   };
