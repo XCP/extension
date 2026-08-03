@@ -56,6 +56,7 @@ import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction, extractOpReturnData } from "@/utils/blockchain/counterparty/unpack/verify";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
+import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
 import { isSegwitFormat } from "@/utils/blockchain/bitcoin/address";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
@@ -78,6 +79,12 @@ interface ComposerState<T> {
   apiResponse: ApiResponse | null;
   /** Error message to display */
   error: string | null;
+  /**
+   * Non-blocking differences between what was requested and what the API composed. Carried in
+   * state rather than logged: console output is stripped from production builds, so a logged
+   * warning reaches no user.
+   */
+  verificationWarnings: string[];
   /** True while calling compose API */
   isComposing: boolean;
   /** True while signing/broadcasting */
@@ -191,6 +198,7 @@ export function ComposerProvider<T>({
     formData: null,
     apiResponse: null,
     error: null,
+    verificationWarnings: [],
     isComposing: false,
     isSigning: false,
     composedAt: null,
@@ -223,6 +231,7 @@ export function ComposerProvider<T>({
         formData: null,
         apiResponse: null,
         error: null,
+        verificationWarnings: [],
         isComposing: false,
         isSigning: false,
         composedAt: null,
@@ -247,6 +256,7 @@ export function ComposerProvider<T>({
         formData: null,
         apiResponse: null,
         error: null,
+        verificationWarnings: [],
         isComposing: false,
         isSigning: false,
         composedAt: null,
@@ -324,6 +334,7 @@ export function ComposerProvider<T>({
       // Verify the transaction locally before showing review screen
       // This protects against a compromised API returning malicious transactions
       const opReturnData = extractOpReturnData(response.result.rawtransaction);
+      let verificationWarnings: string[] = [];
       if (opReturnData) {
         // Verify the composed transaction matches what we requested
         const verification = verifyTransaction(opReturnData, composeType, dataForApi);
@@ -335,10 +346,8 @@ export function ComposerProvider<T>({
           throw new Error(`Transaction verification failed: ${errorDetails}`);
         }
 
-        // Log any warnings (but don't block)
-        if (verification.warnings.length > 0) {
-          console.warn('Transaction verification warnings:', verification.warnings);
-        }
+        // Differences too minor to block, shown on the review screen so the user can still see them.
+        verificationWarnings = verification.warnings;
       }
       // Note: If no OP_RETURN data found, this might be a non-Counterparty transaction
       // which is allowed through (e.g., BTC-only transactions)
@@ -356,7 +365,7 @@ export function ComposerProvider<T>({
           : false,
         // sat_per_vbyte arrives as a form string; checkTransactionFee coerces it.
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
-      });
+      }, fetchInputValues);
       if (!feeCheck.ok) {
         throw new Error(feeCheck.error || 'Transaction fee verification failed');
       }
@@ -374,6 +383,7 @@ export function ComposerProvider<T>({
         formData: userData,
         apiResponse: response,
         error: null,
+        verificationWarnings,
         isComposing: false,
         composedAt: Date.now(),
       }));
@@ -563,6 +573,7 @@ export function ComposerProvider<T>({
       formData: null,
       apiResponse: null,
       error: null,
+      verificationWarnings: [],
       isComposing: false,
       isSigning: false,
       composedAt: null,
@@ -579,6 +590,7 @@ export function ComposerProvider<T>({
         step: "form",
         apiResponse: null,
         error: null,
+        verificationWarnings: [],
       }));
     } else if (state.step === "success") {
       reset();

@@ -608,6 +608,15 @@ function verifyPoolWithdraw(
 }
 
 /**
+ * Compose types whose message is named differently on the wire. Types not listed here use the
+ * compose type as the message type name.
+ */
+const COMPOSE_TYPE_MESSAGE_NAMES: Record<string, string> = {
+  mpma: 'mpma_send',
+  move: 'utxo',
+};
+
+/**
  * Verify a composed transaction matches the request params.
  *
  * Supports two call signatures for backward compatibility:
@@ -619,15 +628,6 @@ function verifyPoolWithdraw(
  * @param params - The params (only for new API)
  * @returns Verification result with any mismatches found
  */
-/**
- * Compose types whose message is named differently on the wire. Types not listed here use the
- * compose type as the message type name.
- */
-const COMPOSE_TYPE_MESSAGE_NAMES: Record<string, string> = {
-  mpma: 'mpma_send',
-  move: 'utxo',
-};
-
 export function verifyTransaction(
   opReturnData: string | Uint8Array,
   composeTypeOrRequest: VerifiableComposeType | string | ComposeRequest,

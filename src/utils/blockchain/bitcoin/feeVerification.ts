@@ -15,7 +15,6 @@
 
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import { fetchInputValues } from '@/utils/blockchain/counterparty/transaction';
 
 /** A fee rate above this (sat/vByte) is treated as never legitimate. */
 export const MAX_SANE_FEE_RATE = 5000;
@@ -67,13 +66,17 @@ function estimateVsize(tx: Transaction, rawBytesLength: number): number {
   return rawBytesLength + tx.inputsLength * perInputSignatureAllowance;
 }
 
-/** Total input value in sats, from the compose hint or resolved independently. */
+/**
+ * Total input value in sats, from the compose hint or resolved independently. A failure says
+ * which kind it was, so the caller's error can distinguish a transaction whose inputs cannot be
+ * read from a value lookup that did not answer.
+ */
 async function resolveInputsTotal(
   tx: Transaction,
   inputsValues: number[] | undefined,
   signaturesCommitToInputValues: boolean,
   resolveInputValues: InputValueResolver
-): Promise<bigint | null> {
+): Promise<{ total: bigint } | { failed: 'unreadable-inputs' | 'lookup' }> {
   // A hint is usable when a signature will bind it and it covers every input with a whole
   // number of sats.
   if (
@@ -82,37 +85,39 @@ async function resolveInputsTotal(
     && inputsValues.length === tx.inputsLength
     && inputsValues.every((value) => Number.isSafeInteger(value) && value >= 0)
   ) {
-    return inputsValues.reduce((sum, value) => sum + BigInt(value), 0n);
+    return { total: inputsValues.reduce((sum, value) => sum + BigInt(value), 0n) };
   }
 
   const outpoints: Array<{ txid: string; vout: number }> = [];
   for (let i = 0; i < tx.inputsLength; i++) {
     const txInput = tx.getInput(i);
-    if (!txInput?.txid) return null;
-    outpoints.push({ txid: bytesToHex(txInput.txid), vout: txInput.index ?? 0 });
+    // A missing outpoint half cannot be guessed: pricing a different prevout would bound the
+    // fee against the wrong value.
+    if (!txInput?.txid || txInput.index == null) return { failed: 'unreadable-inputs' };
+    outpoints.push({ txid: bytesToHex(txInput.txid), vout: txInput.index });
   }
-  if (outpoints.length === 0) return null;
+  if (outpoints.length === 0) return { failed: 'unreadable-inputs' };
 
   let resolved: Map<string, number>;
   try {
     resolved = await resolveInputValues(outpoints);
   } catch {
-    return null;
+    return { failed: 'lookup' };
   }
 
   let total = 0n;
   for (const { txid, vout } of outpoints) {
     const value = resolved.get(`${txid}:${vout}`);
     // A partial answer cannot bound the fee; treat it as unresolved.
-    if (value === undefined) return null;
+    if (value === undefined) return { failed: 'lookup' };
     total += BigInt(value);
   }
-  return total;
+  return { total };
 }
 
 export async function checkTransactionFee(
   input: FeeCheckInput,
-  resolveInputValues: InputValueResolver = fetchInputValues
+  resolveInputValues: InputValueResolver
 ): Promise<FeeCheckResult> {
   const { rawTransaction, inputsValues, signaturesCommitToInputValues, userFeeRate } = input;
 
@@ -139,11 +144,14 @@ export async function checkTransactionFee(
     signaturesCommitToInputValues,
     resolveInputValues
   );
-  if (inputsTotal === null) {
+  if ('failed' in inputsTotal) {
     return {
       ok: false,
-      error: 'Could not establish this transaction\'s fee from the inputs it spends, so it was not '
-        + 'accepted. Check your connection and try again.',
+      error: inputsTotal.failed === 'lookup'
+        ? 'Could not establish this transaction\'s fee: the values of the inputs it spends could '
+          + 'not be fetched. Check your connection and try again.'
+        : 'Could not establish this transaction\'s fee: its inputs could not be read, so it was '
+          + 'not accepted.',
     };
   }
 
@@ -151,7 +159,7 @@ export async function checkTransactionFee(
   for (let i = 0; i < tx.outputsLength; i++) {
     outputsTotal += tx.getOutput(i)?.amount ?? 0n;
   }
-  const fee = inputsTotal - outputsTotal;
+  const fee = inputsTotal.total - outputsTotal;
   if (fee < 0n) {
     return { ok: false, error: 'Transaction outputs exceed inputs — refusing to sign.' };
   }

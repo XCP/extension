@@ -100,3 +100,21 @@ export function decodeCbor(data: Uint8Array): CborValue {
   if (decoded.offset !== data.length) throw new Error('Unexpected trailing CBOR data');
   return decoded.value;
 }
+
+/**
+ * Decode a payload expected to be a definite-length CBOR array of exactly `arity` elements — the
+ * shape of every taproot_support-era Counterparty message. Returns the elements, or null when the
+ * payload is not such an array, so message unpackers can fall back to legacy struct parsing.
+ */
+export function tryDecodeCborArray(payload: Uint8Array, arity: number): CborValue[] | null {
+  // Definite-length array header (major type 4); anything else is not a modern message.
+  if (payload.length < 2 || (payload[0]! & 0xe0) !== 0x80) return null;
+
+  let decoded: CborValue;
+  try {
+    decoded = decodeCbor(payload);
+  } catch {
+    return null;
+  }
+  return Array.isArray(decoded) && decoded.length === arity ? decoded : null;
+}

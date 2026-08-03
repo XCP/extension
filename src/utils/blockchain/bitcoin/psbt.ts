@@ -77,17 +77,14 @@ export function committedOutputIndices(
     return committed;
   }
 
-  // Only what every detachable input covers survives. `null` stands for "all outputs" here, which
-  // is the identity for intersection and the value an ALL|ANYONECANPAY input contributes.
-  let committed: Set<number> | null = null;
-  for (const signedInput of detachable) {
-    if (commitsToEveryOutput(signedInput.sighashType)) continue;
-    const own = ownCommitment(signedInput);
-    committed = committed === null
-      ? own
-      : new Set([...own].filter((index) => committed!.has(index)));
-  }
-  return committed;
+  // Only what every detachable input covers survives. An ALL|ANYONECANPAY input covers every
+  // output, so it constrains nothing; when every detachable input is of that kind, the whole
+  // output set is committed.
+  const constraining = detachable.filter(({ sighashType }) => !commitsToEveryOutput(sighashType));
+  if (constraining.length === 0) return null;
+  return constraining
+    .map(ownCommitment)
+    .reduce((intersection, own) => new Set([...intersection].filter((index) => own.has(index))));
 }
 
 /**

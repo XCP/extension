@@ -17,7 +17,7 @@
 import { BinaryReader, bytesToTextOrHex } from '../binary';
 import { assetIdToName } from '../assetId';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
-import { decodeCbor, type CborValue } from '../cbor';
+import { tryDecodeCborArray } from '../cbor';
 
 /** Minimum length of legacy enhanced send (without memo) */
 const MIN_LEGACY_LENGTH = 8 + 8 + 21; // 37 bytes
@@ -50,17 +50,9 @@ export interface EnhancedSendData {
  * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryCbor2Decode(payload: Uint8Array): EnhancedSendData | null {
-  // 0x84 = definite-length array of 4.
-  if (payload.length < 4 || payload[0] !== 0x84) return null;
+  const decoded = tryDecodeCborArray(payload, 4);
+  if (!decoded) return null;
 
-  let decoded: CborValue;
-  try {
-    decoded = decodeCbor(payload);
-  } catch {
-    return null;
-  }
-
-  if (!Array.isArray(decoded) || decoded.length !== 4) return null;
   const [assetIdValue, quantityValue, addressValue, memoValue] = decoded;
   if (typeof assetIdValue !== 'bigint' || typeof quantityValue !== 'bigint') return null;
   if (!(addressValue instanceof Uint8Array)) return null;

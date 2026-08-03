@@ -27,7 +27,7 @@
 import { BinaryReader, bytesToTextOrHex } from '../binary';
 import { assetIdToName } from '../assetId';
 import { MessageTypeId } from '../messageTypes';
-import { decodeCbor, type CborValue } from '../cbor';
+import { tryDecodeCborArray, type CborValue } from '../cbor';
 
 /** Minimum length of issuance (FORMAT_1) */
 const MIN_ISSUANCE_LENGTH = 17;
@@ -108,22 +108,11 @@ function cborDescription(value: CborValue): string | undefined {
  * Returns null if the payload is not CBOR, so the caller falls back to legacy parsing.
  */
 function tryCborDecode(payload: Uint8Array, messageTypeId: number): IssuanceData | null {
-  if (payload.length < 2) return null;
-  // CBOR definite-length array header (major type 4).
-  if ((payload[0]! & 0xe0) !== 0x80) return null;
-
-  let decoded: CborValue;
-  try {
-    decoded = decodeCbor(payload);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(decoded)) return null;
-
   const isSubasset = messageTypeId === MessageTypeId.SUBASSET_ISSUANCE ||
                      messageTypeId === MessageTypeId.LR_SUBASSET;
 
-  if (decoded.length !== (isSubasset ? 9 : 7)) return null;
+  const decoded = tryDecodeCborArray(payload, isSubasset ? 9 : 7);
+  if (!decoded) return null;
 
   const [assetIdValue, quantityValue, divisibleValue, lockValue, resetValue] = decoded;
   if (typeof assetIdValue !== 'bigint' || typeof quantityValue !== 'bigint') return null;

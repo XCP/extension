@@ -15,7 +15,7 @@
  */
 
 import { BinaryReader, bytesToTextOrHex } from '../binary';
-import { decodeCbor, type CborValue } from '../cbor';
+import { tryDecodeCborArray } from '../cbor';
 
 /** Minimum length of legacy broadcast message (timestamp + value + fee_fraction) */
 const BROADCAST_MIN_LENGTH = 16; // 4 + 8 + 4
@@ -45,16 +45,8 @@ export interface BroadcastData {
  * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryDecodeCBOR(payload: Uint8Array): BroadcastData | null {
-  // 0x85 = definite-length array of 5.
-  if (payload.length < 2 || payload[0] !== 0x85) return null;
-
-  let decoded: CborValue;
-  try {
-    decoded = decodeCbor(payload);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(decoded) || decoded.length !== 5) return null;
+  const decoded = tryDecodeCborArray(payload, 5);
+  if (!decoded) return null;
 
   const [timestampValue, valueValue, feeFractionValue, mimeTypeValue, textValue] = decoded;
   if (typeof timestampValue !== 'bigint' || typeof feeFractionValue !== 'bigint') return null;

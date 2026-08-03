@@ -78,10 +78,42 @@ export function decryptOpReturnData(
 }
 
 /**
+ * Resolve a Counterparty payload from a transaction's output scripts: from an OP_RETURN output —
+ * as plaintext (future protocol) or ARC4-obfuscated (current protocol) — or from bare-multisig
+ * data outputs. The single home for that encoding order, so every caller (composer verification
+ * and both dapp sign-request paths) recognizes exactly the same payloads.
+ *
+ * A null return is read as "no Counterparty data" and skips verification, so every encoding that
+ * can carry a message has to be looked for here.
+ *
+ * @param outputScriptHexes - All output scriptPubKey hexes, in output order
+ * @param firstInputTxid - First input txid in display (big-endian) order
+ * @returns Counterparty datahex with the CNTRPRTY prefix, or null if the
+ *          outputs carry no recognizable Counterparty payload
+ */
+export function extractPayloadFromOutputs(
+  outputScriptHexes: readonly string[],
+  firstInputTxid: string
+): string | null {
+  for (const scriptHex of outputScriptHexes) {
+    // extractOpReturnPayload returns null for anything that is not an OP_RETURN output.
+    // Plaintext first (future protocol), then ARC4 (current protocol).
+    const payload = extractOpReturnPayload(scriptHex);
+    if (!payload) continue;
+    if (payload.startsWith(COUNTERPARTY_PREFIX_HEX)) return payload;
+
+    const decrypted = decryptOpReturnData(scriptHex, firstInputTxid);
+    if (decrypted) return decrypted;
+  }
+
+  // The message may instead be spread across bare-multisig outputs, which carry no OP_RETURN.
+  return extractMultisigPayload(outputScriptHexes, firstInputTxid);
+}
+
+/**
  * Extract the Counterparty message payload from a raw transaction hex by
- * parsing its structure locally: locate the first input's txid, then resolve the
- * payload from an OP_RETURN output — as plaintext (future protocol) or
- * ARC4-obfuscated (current protocol) — or from bare-multisig data outputs.
+ * parsing its structure locally: locate the first input's txid and hand the
+ * output scripts to `extractPayloadFromOutputs`.
  *
  * @param rawTxHex - Raw (unsigned or signed) transaction hex
  * @returns Counterparty datahex with the CNTRPRTY prefix, or null if the
@@ -109,24 +141,10 @@ export function extractCounterpartyPayload(rawTxHex: string): string | null {
   const firstInputTxid = bytesToHex(firstInput.txid);
 
   const outputScriptHexes: string[] = [];
-
   for (let i = 0; i < tx.outputsLength; i++) {
     const script = tx.getOutput(i)?.script;
-    const scriptHex = script ? bytesToHex(script) : '';
-    outputScriptHexes.push(scriptHex);
-
-    if (!script || script[0] !== 0x6a) continue;
-
-    // Plaintext first (future protocol), then ARC4 (current protocol)
-    const payload = extractOpReturnPayload(scriptHex);
-    if (payload?.startsWith(COUNTERPARTY_PREFIX_HEX)) return payload;
-
-    const decrypted = decryptOpReturnData(scriptHex, firstInputTxid);
-    if (decrypted) return decrypted;
+    outputScriptHexes.push(script ? bytesToHex(script) : '');
   }
 
-  // The message may instead be spread across bare-multisig outputs, which carry no OP_RETURN.
-  // Callers read a null return as "no Counterparty data" and skip verification, so every
-  // encoding that can carry a message has to be looked for here.
-  return extractMultisigPayload(outputScriptHexes, firstInputTxid);
+  return extractPayloadFromOutputs(outputScriptHexes, firstInputTxid);
 }

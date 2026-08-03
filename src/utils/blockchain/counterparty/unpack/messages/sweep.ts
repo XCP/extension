@@ -18,7 +18,7 @@
 
 import { BinaryReader, bytesToHex } from '../binary';
 import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
-import { decodeCbor, type CborValue } from '../cbor';
+import { tryDecodeCborArray } from '../cbor';
 
 /** Minimum length of sweep message (destination + flags) */
 const SWEEP_MIN_LENGTH = 22;
@@ -84,16 +84,8 @@ function sweepFromParts(destination: string, flags: number, memoBytes?: Uint8Arr
  * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryCborDecode(payload: Uint8Array): SweepData | null {
-  // 0x83 = definite-length array of 3.
-  if (payload.length < 2 || payload[0] !== 0x83) return null;
-
-  let decoded: CborValue;
-  try {
-    decoded = decodeCbor(payload);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(decoded) || decoded.length !== 3) return null;
+  const decoded = tryDecodeCborArray(payload, 3);
+  if (!decoded) return null;
 
   const [addressValue, flagsValue, memoValue] = decoded;
   if (!(addressValue instanceof Uint8Array) || typeof flagsValue !== 'bigint') return null;

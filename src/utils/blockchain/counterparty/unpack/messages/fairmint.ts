@@ -11,7 +11,7 @@
  */
 
 import { assetIdToName } from '../assetId';
-import { decodeCbor, type CborValue } from '../cbor';
+import { tryDecodeCborArray } from '../cbor';
 
 /**
  * Unpacked Fairmint data
@@ -28,16 +28,8 @@ export interface FairmintData {
  * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
 function tryCborDecode(payload: Uint8Array): FairmintData | null {
-  // 0x82 = definite-length array of 2.
-  if (payload.length < 2 || payload[0] !== 0x82) return null;
-
-  let decoded: CborValue;
-  try {
-    decoded = decodeCbor(payload);
-  } catch {
-    return null;
-  }
-  if (!Array.isArray(decoded) || decoded.length !== 2) return null;
+  const decoded = tryDecodeCborArray(payload, 2);
+  if (!decoded) return null;
 
   const [assetIdValue, quantityValue] = decoded;
   if (typeof assetIdValue !== 'bigint' || typeof quantityValue !== 'bigint') return null;
