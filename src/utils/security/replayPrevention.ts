@@ -137,11 +137,16 @@ class ReplayPreventionStore {
     return this.transactions.has(txid);
   }
 
-  updateTransactionStatus(txid: string, status: TransactionRecord['status']): void {
+  /**
+   * @returns true when a record existed under this key. A false return means the caller used a key
+   *   nothing was stored under, which previously passed unnoticed and left records 'pending'
+   *   forever — so the outcome is reported rather than swallowed.
+   */
+  updateTransactionStatus(txid: string, status: TransactionRecord['status']): boolean {
     const record = this.transactions.get(txid);
-    if (record) {
-      record.status = status;
-    }
+    if (!record) return false;
+    record.status = status;
+    return true;
   }
 
   setNonce(origin: string, address: string, nonce: number): void {
@@ -420,15 +425,15 @@ export function isTransactionBroadcasted(txid: string): boolean {
 /**
  * Mark a transaction as broadcasted
  */
-export function markTransactionBroadcasted(txid: string): void {
-  store.updateTransactionStatus(txid, 'broadcasted');
+export function markTransactionBroadcasted(txid: string): boolean {
+  return store.updateTransactionStatus(txid, 'broadcasted');
 }
 
 /**
  * Mark a transaction as failed
  */
-export function markTransactionFailed(txid: string): void {
-  store.updateTransactionStatus(txid, 'failed');
+export function markTransactionFailed(txid: string): boolean {
+  return store.updateTransactionStatus(txid, 'failed');
 }
 
 /**

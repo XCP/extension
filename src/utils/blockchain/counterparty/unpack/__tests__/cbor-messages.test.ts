@@ -98,14 +98,17 @@ describe('modern packed address format', () => {
     expect(unpackAddress(modernPackP2pkh(P2PKH))).toBe(P2PKH);
   });
 
-  it('unpacks a 0x03-prefixed witness v0 packing', () => {
-    const legacy = packAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
-    // Legacy marker packing still round-trips.
-    expect(unpackAddress(legacy)).toBe('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
-    // Modern packing of the same program also unpacks.
-    const program = legacy.slice(1);
-    const modern = new Uint8Array([0x03, 0x00, ...program]);
-    expect(unpackAddress(modern)).toBe('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
+  it('unpacks both the modern and legacy witness v0 packings', () => {
+    const SEGWIT = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+    // packAddress now emits the modern form, matching what core composes.
+    const modern = packAddress(SEGWIT);
+    expect(modern[0]).toBe(0x03);
+    expect(unpackAddress(modern)).toBe(SEGWIT);
+
+    // The legacy marker packing still round-trips, because historical messages contain it.
+    const program = modern.slice(2);
+    const legacy = new Uint8Array([0x80, ...program]);
+    expect(unpackAddress(legacy)).toBe(SEGWIT);
   });
 
   it('rejects a truncated witness packing', () => {
@@ -293,6 +296,65 @@ describe('verifyTransaction over CBOR messages', () => {
     });
     expect(result.criticalMismatches).toEqual([]);
     expect(result.errors).toEqual([]);
+    expect(result.valid).toBe(true);
+  });
+
+  it('flags an injected supply lock the request never asked for', () => {
+    // update-description and transfer-ownership submit no `lock`; a compromised API answers with a
+    // lock issuance (type 22, lock=true). Absent must compare as "no lock", so the injection is
+    // flagged rather than passing unverified.
+    const payload = payloadOf([assetNameToId('LANDMARKS'), 0n, false, true, false, '', null]);
+    const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
+
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 0 });
+    expect(result.valid).toBe(false);
+    expect(result.dangerousMismatches.some((m) => m.field === 'lock')).toBe(true);
+  });
+
+  it('flags an injected supply reset the request never asked for', () => {
+    const payload = payloadOf([assetNameToId('LANDMARKS'), 0n, false, false, true, '', null]);
+    const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
+
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 0 });
+    expect(result.valid).toBe(false);
+    expect(result.dangerousMismatches.some((m) => m.field === 'reset')).toBe(true);
+  });
+
+  it('flags a flipped flag that arrives as a form string', () => {
+    // Boolean comparison used to coerce with Boolean(), and Boolean('false') is true — so a request
+    // for an indivisible asset answered with a divisible one read as a match. Only recognized
+    // boolean spellings compare equal now.
+    const payload = payloadOf([assetNameToId('LANDMARKS'), 21n, true, false, false, '', null]);
+    const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
+
+    const result = verifyTransaction(message, 'issuance', {
+      asset: 'LANDMARKS',
+      quantity: 21,
+      divisible: 'false',
+    });
+    expect(result.valid).toBe(false);
+    expect(result.dangerousMismatches.some((m) => m.field === 'divisible')).toBe(true);
+  });
+
+  it('still accepts a flag that arrives as a matching form string', () => {
+    const payload = payloadOf([assetNameToId('LANDMARKS'), 21n, true, false, false, '', null]);
+    const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
+
+    const result = verifyTransaction(message, 'issuance', {
+      asset: 'LANDMARKS',
+      quantity: 21,
+      divisible: 'true',
+    });
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts a plain issuance whose request omits lock and reset', () => {
+    // The other side of the one-sided check: absent lock/reset must not false-positive on an honest
+    // issuance that also does neither.
+    const payload = payloadOf([assetNameToId('LANDMARKS'), 21n, false, false, false, '', null]);
+    const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
+
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 21 });
     expect(result.valid).toBe(true);
   });
 

@@ -89,7 +89,13 @@ export async function signTransaction(
       allowLegacyWitnessUtxo: true,
       disableScriptCheck: true
     });
+    // Carry the version and lock time across. Rebuilding without them silently rewrote the
+    // transaction the user reviewed: @scure defaults to version 2 and lockTime 0, so a transaction
+    // presented as "not valid until block N" was signed as immediately spendable, and the txid shown
+    // on the approval screen was not the txid of the bytes being signed.
     const tx = new Transaction({
+      version: parsedTx.version,
+      lockTime: parsedTx.lockTime,
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
@@ -138,7 +144,9 @@ export async function signTransaction(
       const inputData: TransactionInputData = {
         txid: input.txid,
         index: input.index,
-        sequence: 0xfffffffd,
+        // Preserve the sequence the reviewed transaction carried. Forcing 0xfffffffd overrode any
+        // relative timelock (BIP68) and re-enabled RBF on a transaction presented as final.
+        sequence: input.sequence ?? 0xfffffffd,
         sighashType: SigHash.ALL,
       };
 

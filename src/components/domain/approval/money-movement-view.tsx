@@ -36,10 +36,23 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
     <>
       {showHeadline && (
         <div className="text-center mb-3">
-          <p className="text-xs text-gray-500 mb-1">{sending ? 'You send' : 'You receive'}</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {btc(Math.abs(net))} <span className="text-base font-medium text-gray-500">BTC</span>
-          </p>
+          {incomplete ? (
+            // An input whose value or owner could not be resolved is left out of `spent`, which
+            // drives `net` non-negative and would announce "You receive" over a transaction that is
+            // draining the wallet. The direction is not knowable here, so it is not claimed; the
+            // destinations below still show what can be read from the transaction.
+            <>
+              <p className="text-xs text-gray-500 mb-1">Net effect</p>
+              <p className="text-2xl font-bold text-warning-600">Couldn&apos;t be determined</p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 mb-1">{sending ? 'You send' : 'You receive'}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {btc(Math.abs(net))} <span className="text-base font-medium text-gray-500">BTC</span>
+              </p>
+            </>
+          )}
         </div>
       )}
       <div className="pt-3 border-t border-gray-100 space-y-1.5 text-xs">

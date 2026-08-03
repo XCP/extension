@@ -67,6 +67,15 @@ export interface IssuanceData {
  * Subassets use a variable-length encoding.
  */
 function decodeCompactedSubasset(bytes: Uint8Array): string {
+  // Bound the input before the O(n^2) bigint fold below. The legacy encoding caps this at a single
+  // length byte (255); the CBOR path has no such cap, so an attacker could hand a 250 KB byte
+  // string and hang the popup's main thread for minutes. A real subasset longname is far under 255
+  // bytes, so anything larger is malformed — throw, and the unpacker's caller treats it as a failed
+  // decode (fail closed) rather than an ordinary transfer.
+  if (bytes.length > 255) {
+    throw new Error(`Subasset name too long: ${bytes.length} bytes`);
+  }
+
   // Compacted subasset names are a base-68 big-endian integer over the
   // SUBASSET_DIGITS charset, where digit value d maps to SUBASSET_DIGITS[d-1]
   // and d === 0 maps to the final character (Python's DIGITS[-1]).

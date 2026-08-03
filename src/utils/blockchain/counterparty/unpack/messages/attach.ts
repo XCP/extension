@@ -36,6 +36,52 @@ export interface DetachData {
  * @returns Unpacked Attach data
  * @throws Error if payload is invalid
  */
+/**
+ * Unpacked move data (type 100): assets moved from one UTXO to another.
+ */
+export interface MoveData {
+  /** Source UTXO the assets are held by, as "txid:vout". */
+  source: string;
+  /** Destination — a UTXO or an address. */
+  destination: string;
+  /** Asset name */
+  asset: string;
+  /** Quantity moved */
+  quantity: bigint;
+}
+
+/**
+ * Unpack a move message (type 100).
+ * Format: `source|destination|asset|quantity`, UTF-8 (core `utxo.py`).
+ *
+ * This is a different field list from attach, which carries `asset|quantity|vout`. Routing type 100
+ * through the attach unpacker read the destination address as the quantity, so `BigInt` threw and
+ * every move failed to decode — which, since an undecodable message is treated as unverifiable,
+ * blocked the transaction outright.
+ */
+export function unpackMove(payload: Uint8Array): MoveData {
+  if (payload.length === 0) {
+    throw new Error('Empty move payload');
+  }
+
+  const parts = new TextDecoder('utf-8').decode(payload).split('|');
+  if (parts.length < 4) {
+    throw new Error(`Invalid move format: expected 4 fields, got ${parts.length}`);
+  }
+
+  const [source, destination, asset, quantityStr] = parts;
+  if (!/^\d+$/.test((quantityStr ?? '').trim())) {
+    throw new Error('Invalid move quantity');
+  }
+
+  return {
+    source: source ?? '',
+    destination: destination ?? '',
+    asset: asset ?? '',
+    quantity: BigInt(quantityStr!.trim()),
+  };
+}
+
 export function unpackAttach(payload: Uint8Array): AttachData {
   if (payload.length === 0) {
     throw new Error('Empty attach payload');

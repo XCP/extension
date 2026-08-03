@@ -32,7 +32,7 @@ import { unpackBet, type BetData } from './messages/bet';
 import { unpackDividend, type DividendData } from './messages/dividend';
 import { unpackFairminter, type FairminterData } from './messages/fairminter';
 import { unpackFairmint, type FairmintData } from './messages/fairmint';
-import { unpackAttach, unpackDetach, type AttachData, type DetachData } from './messages/attach';
+import { unpackAttach, unpackDetach, unpackMove, type AttachData, type DetachData, type MoveData } from './messages/attach';
 import { unpackPoolDeposit, unpackPoolWithdraw, type PoolDepositData, type PoolWithdrawData } from './messages/pool';
 
 /**
@@ -56,6 +56,7 @@ export type UnpackedMessageData =
   | FairminterData
   | FairmintData
   | AttachData
+  | MoveData
   | DetachData
   | PoolDepositData
   | PoolWithdrawData
@@ -228,8 +229,8 @@ export function unpackCounterpartyMessage(data: string | Uint8Array): UnpackResu
           break;
 
         case MessageTypeId.UTXO:
-          // UTXO type 100 is legacy move (move to UTXO)
-          unpackedData = unpackAttach(rawPayload);
+          // Type 100 is a move between UTXOs, whose field list differs from attach's.
+          unpackedData = unpackMove(rawPayload);
           break;
 
         case MessageTypeId.UTXO_ATTACH:
@@ -304,7 +305,7 @@ export type { BroadcastData } from './messages/broadcast';
 export type { DividendData } from './messages/dividend';
 export type { FairminterData } from './messages/fairminter';
 export type { FairmintData } from './messages/fairmint';
-export type { AttachData } from './messages/attach';
+export type { AttachData, MoveData } from './messages/attach';
 export type { PoolDepositData, PoolWithdrawData } from './messages/pool';
 
 // Re-export verification utilities

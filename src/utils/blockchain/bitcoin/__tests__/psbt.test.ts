@@ -503,6 +503,41 @@ describe('signPSBT', () => {
     expect(result.getInput(1).partialSig ?? []).toHaveLength(0);
   });
 
+  it('best-effort mode signs only the active address, not a paired same-key address', () => {
+    // Counterwallet/Freewallet legacy and SegWit addresses are one key in two encodings, so the
+    // active key CAN sign a paired UTXO. Signing those must go through signInputs (which gates on
+    // paired-address permission); best-effort (no signInputs) must not. Here the active format is
+    // P2WPKH and input#1 is a P2PKH output of the SAME key — without address scoping best-effort
+    // would sign it, draining an address the approval screen never priced.
+    const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
+    const pubkey = getPublicKey(privateKeyBytes, true);
+
+    // A prior tx whose output 0 pays the paired P2PKH (legacy) address, used as nonWitnessUtxo so
+    // the legacy input parses under allowLegacyWitnessUtxo:false.
+    const prevTx = new Transaction({ allowUnknownOutputs: true });
+    prevTx.addInput({ txid: hexToBytes('2'.repeat(64)), index: 0 });
+    prevTx.addOutput({ script: p2pkh(pubkey).script, amount: BigInt(100000) });
+
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('0'.repeat(64)),
+      index: 0,
+      witnessUtxo: { script: p2wpkh(pubkey).script, amount: BigInt(100000) }, // active P2WPKH
+    });
+    tx.addInput({
+      txid: prevTx.id,
+      index: 0,
+      nonWitnessUtxo: prevTx.toBytes(true, false), // paired P2PKH, same key
+    });
+    tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', BigInt(150000));
+    const psbtHex = bytesToHex(tx.toPSBT());
+
+    const signed = signPSBT(psbtHex, TEST_PRIVATE_KEY, [], AddressFormat.P2WPKH);
+    const result = parsePSBT(signed);
+    expect(result.getInput(0).partialSig).toHaveLength(1);        // active address: signed
+    expect(result.getInput(1).partialSig ?? []).toHaveLength(0);  // paired address: skipped
+  });
+
   it('refuses a legacy input backed only by a bare witnessUtxo', () => {
     // A P2PKH input with a witnessUtxo declaring an arbitrary amount but no
     // previous transaction — the forged-amount vector.

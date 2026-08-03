@@ -14,6 +14,7 @@ import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
+import { exceedsSaneFeeRate } from '@/utils/blockchain/bitcoin/feeVerification';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo, normalizeQuantity, isAssetDivisible } from '@/components/domain/tx/txActionInfo';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
@@ -187,7 +188,13 @@ export default function ApproveTransactionPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const txAction = getTxActionData(decodedInfo);
-  const hasHighFee = decodedInfo.fee > 10000000; // > 0.1 BTC fee
+  // An absolute ceiling alone lets a fee just under it drain a small transaction, so the rate is
+  // checked too — that case previously drew no warning at all. It warns rather than blocks: the
+  // transaction was built elsewhere, so an expensive one can be legitimate and the wallet cannot
+  // know the intent. The compose path blocks the same condition because it built the transaction
+  // itself, and there an absurd fee means the response misbehaved.
+  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
+  const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationWarning = decodedInfo.verification?.warning;
   const verificationFailed = verificationPassed === false;

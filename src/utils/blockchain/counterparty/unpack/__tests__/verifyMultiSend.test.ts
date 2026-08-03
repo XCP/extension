@@ -95,12 +95,17 @@ describe('verifyMultiSend', () => {
   });
 
   it('fails closed when there are no intended destinations', () => {
+    // A single-destination send whose request has no `destinations` list, answered with an MPMA
+    // that pays anyone. This must record a CRITICAL mismatch — not just an error string — because
+    // verifyTransaction derives `valid` from criticalMismatches; a bare errors.push left valid=true
+    // and let a substituted MPMA verify as faithful.
     const result = emptyResult();
     verifyMultiSend(
       mpma([{ asset: 'XCP', destination: DEST_A, quantity: 100000000n }]),
       { asset: 'XCP', quantity: 100000000n },
       result,
     );
+    expect(result.criticalMismatches.some((m) => m.field === 'destinations')).toBe(true);
     expect(result.errors.length).toBeGreaterThan(0);
   });
 });

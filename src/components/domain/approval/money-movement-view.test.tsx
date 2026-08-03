@@ -39,7 +39,29 @@ describe('MoneyMovementView', () => {
 
   it('surfaces the incomplete caveat', () => {
     render(<MoneyMovementView movement={movement({ net: -1000, incomplete: true })} />);
-    expect(screen.getByText(/couldn't be determined/i)).toBeInTheDocument();
+    // Specific, because the headline now also says the net effect couldn't be determined.
+    expect(screen.getByText(/some amounts couldn't be determined/i)).toBeInTheDocument();
+  });
+
+  it('does not claim a direction when the totals are incomplete', () => {
+    // An input whose value or owner could not be resolved is excluded from `spent`, which drives
+    // `net` non-negative — so a draining transaction used to announce "You receive". The direction
+    // is unknowable here and must not be asserted.
+    render(
+      <MoneyMovementView
+        movement={movement({ net: 0, spent: 0, backToYou: 0, incomplete: true,
+          external: [{ address: 'bc1qthem', value: 500_000 }] })}
+      />
+    );
+
+    expect(screen.queryByText('You receive')).not.toBeInTheDocument();
+    expect(screen.queryByText('You send')).not.toBeInTheDocument();
+    expect(screen.getByText('Net effect')).toBeInTheDocument();
+  });
+
+  it('still shows a direction when the totals are complete', () => {
+    render(<MoneyMovementView movement={movement({ net: -95000, fee: 5000 })} />);
+    expect(screen.getByText('You send')).toBeInTheDocument();
   });
 
   it('shows the flexible (ANYONECANPAY) caveat when set', () => {

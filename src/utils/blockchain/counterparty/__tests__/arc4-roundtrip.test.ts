@@ -294,16 +294,18 @@ describe('real compose API vector', () => {
     expect(extractCounterpartyPayload(REAL_RAW_TX)).toBe(REAL_DATA_HEX);
   });
 
-  it('extractCounterpartyPayload reads a plaintext OP_RETURN (future protocol)', () => {
-    // Same transaction structure but with an unobfuscated CNTRPRTY payload.
-    // REAL_DATA_HEX is 51 bytes, so the OP_RETURN push opcode is 0x33.
+  it('does NOT read a plaintext CNTRPRTY OP_RETURN (matches core, which always ARC4-decrypts)', () => {
+    // A plaintext CNTRPRTY OP_RETURN is not a real Counterparty message: the node ARC4-decrypts
+    // every OP_RETURN, so plaintext bytes are garbage to it. Honoring plaintext here let an
+    // attacker pair a benign plaintext decoy with a multisig-encoded sweep — the wallet blessed
+    // the decoy while the network ran the sweep. Extraction now ignores plaintext, as core does.
     const plaintextScript = '6a33' + REAL_DATA_HEX;
     const scriptLen = (plaintextScript.length / 2).toString(16).padStart(2, '0');
     const plaintextTx =
       '020000000133997605bfe854fd8bdd784b47bd3b423488e64cc5fb5820e0f8d134670b0b670100000000ffffffff01' +
       '0000000000000000' + scriptLen + plaintextScript +
       '00000000';
-    expect(extractCounterpartyPayload(plaintextTx)).toBe(REAL_DATA_HEX);
+    expect(extractCounterpartyPayload(plaintextTx)).toBeNull();
   });
 
   it('verifyTransaction accepts the real order against its true intent', () => {

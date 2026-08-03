@@ -56,9 +56,13 @@ import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 import { verifyTransaction } from "@/utils/blockchain/counterparty/unpack/verify";
 import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpack/opReturn";
+import { packAddress } from "@/utils/blockchain/counterparty/unpack/address";
+import { checkOutputPolicy, type IntendedDestination } from "@/utils/blockchain/counterparty/outputPolicy";
+import { packComposeMessage } from "@/utils/blockchain/counterparty/pack/messages";
+import { unpackCounterpartyMessage } from "@/utils/blockchain/counterparty/unpack";
+import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
 import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
-import { isSegwitFormat } from "@/utils/blockchain/bitcoin/address";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
 
 /**
@@ -66,6 +70,55 @@ import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fatho
  * After this time, UTXOs may have been spent or fee rates may have changed significantly.
  */
 const STALE_TRANSACTION_MS = 5 * 60 * 1000;
+
+/**
+ * Compose types whose payee is derived server-side and so cannot appear in the request. A BTCPay is
+ * settled against an order match, and the address to pay comes from that match rather than from
+ * anything the user typed — output accounting would have nothing to match it against. These skip
+ * the output policy; every other type is accounted for.
+ */
+const SERVER_DERIVED_DESTINATION_TYPES = new Set(['btcpay']);
+
+/**
+ * Where a burn sends its BTC. These are protocol constants rather than anything the user types, so
+ * the request never names them and output accounting would otherwise read a burn as paying a
+ * stranger. Supplying them keeps the check exact — a burn must pay this address the quantity that
+ * was asked and nothing else — instead of exempting burns the way btcpay is exempted. Both networks
+ * are listed because both are provably unspendable.
+ */
+const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
+
+/** A Counterparty message read out of the composed transaction itself. */
+export interface DecodedMessage {
+  messageType: string;
+  data: Record<string, unknown>;
+}
+
+/**
+ * Every Bitcoin address named anywhere in the request.
+ *
+ * Deliberately generous: it does not care *which* field an address came from, only that the user's
+ * request mentioned it. That keeps legitimate composes working without enumerating each type's
+ * destination fields — the property being enforced is that money does not go somewhere the request
+ * never named, and an attacker's address is not in the request.
+ */
+function addressesNamedIn(params: Record<string, unknown>): string[] {
+  const addresses: string[] = [];
+  for (const value of Object.values(params)) {
+    if (typeof value !== 'string') continue;
+    // Addresses arrive bare, comma-separated (multi-destination sends), or packed alongside a value
+    // (`more_outputs` is "sats:address"), so split on every separator the forms use.
+    for (const candidate of value.split(/[,:\s]+/).map(part => part.trim()).filter(Boolean)) {
+      try {
+        packAddress(candidate);
+        addresses.push(candidate);
+      } catch {
+        // Not an address; ignore.
+      }
+    }
+  }
+  return addresses;
+}
 
 /**
  * Internal state for the composer workflow.
@@ -86,6 +139,12 @@ interface ComposerState<T> {
    * warning reaches no user.
    */
   verificationWarnings: string[];
+  /**
+   * The Counterparty message decoded from the composed transaction's own bytes, or null when the
+   * transaction carries none. Review screens render from this rather than from the API's echo of
+   * the request, so what the user reads is what the transaction says (ADR-019).
+   */
+  decodedMessage: DecodedMessage | null;
   /** True while calling compose API */
   isComposing: boolean;
   /** True while signing/broadcasting */
@@ -107,6 +166,7 @@ function freshComposerState<T>(): ComposerState<T> {
     apiResponse: null,
     error: null,
     verificationWarnings: [],
+    decodedMessage: null,
     isComposing: false,
     isSigning: false,
     composedAt: null,
@@ -324,19 +384,57 @@ export function ComposerProvider<T>({
       // This protects against a compromised API returning malicious transactions
       const counterpartyData = extractCounterpartyPayload(response.result.rawtransaction);
       let verificationWarnings: string[] = [];
+      let decodedMessage: DecodedMessage | null = null;
       if (counterpartyData) {
-        // Verify the composed transaction matches what we requested
-        const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
-
-        if (!verification.valid) {
-          // In strict mode (default), block the transaction
-          // Verification errors are critical security issues
-          const errorDetails = verification.errors.join('; ');
-          throw new Error(`Transaction verification failed: ${errorDetails}`);
+        // Read the message out of the transaction so the review screen can render what the bytes
+        // say rather than what the response claims they say.
+        const unpacked = unpackCounterpartyMessage(counterpartyData);
+        if (unpacked.success && unpacked.messageType && unpacked.data) {
+          decodedMessage = {
+            messageType: unpacked.messageType,
+            data: unpacked.data as Record<string, unknown>,
+          };
         }
+        // Prefer byte equality: build the message this request should have produced and compare it
+        // whole. One comparison covers every field, including any this build does not know about,
+        // so it cannot silently miss one the way a field-by-field walk can (ADR-019). Returns null
+        // for types we cannot construct, which means "cannot verify this way" — never agreement —
+        // and falls through to field comparison below.
+        // The decoded message supplies only values the request cannot determine (see `Observed`);
+        // everything the user chose still has to match byte for byte.
+        const expected = packComposeMessage(composeType, dataForApi, decodedMessage?.data);
 
-        // Differences too minor to block, shown on the review screen so the user can still see them.
-        verificationWarnings = verification.warnings;
+        if (expected) {
+          // Any difference is fatal, with no severity gradation. Severity was a concept the
+          // field-by-field mechanism needed, because it could only judge fields it knew to look at.
+          // Equality asks a different question — did the composer produce what was asked? — and the
+          // answer is binary. There is no benign reason for a composer to alter a message, and a
+          // difference we could name would be stronger evidence of tampering than one we could not,
+          // so classifying it would invert the right response. counterparty-core takes the same
+          // position on its own output (`check_transaction_sanity` raises on `tx_data != data`).
+          // Nothing is packed unless it can be built exactly, so this only bites where we are sure.
+          if (bytesToHex(expected.bytes).toLowerCase() !== counterpartyData.toLowerCase()) {
+            throw new Error(
+              'Transaction verification failed: the composed message does not match your request.'
+            );
+          }
+          // Equal bytes mean every field agrees, so field comparison could only concur.
+        } else {
+          // The message could not be built locally, so fall back to comparing the fields we know.
+          // This path still needs severity: it can only speak to fields it was taught about, and an
+          // informational difference belongs on the review screen rather than blocking outright.
+          const verification = verifyTransaction(counterpartyData, composeType, dataForApi);
+
+          if (!verification.valid) {
+            // In strict mode (default), block the transaction
+            // Verification errors are critical security issues
+            const errorDetails = verification.errors.join('; ');
+            throw new Error(`Transaction verification failed: ${errorDetails}`);
+          }
+
+          // Differences too minor to block, shown on the review screen so the user can still see them.
+          verificationWarnings = verification.warnings;
+        }
       }
       // Note: If no Counterparty payload was found, this might be a non-Counterparty
       // transaction, which is allowed through (e.g., BTC-only transactions)
@@ -346,17 +444,35 @@ export function ComposerProvider<T>({
       // buggy fee estimate is rejected before the review screen.
       const feeCheck = await checkTransactionFee({
         rawTransaction: response.result.rawtransaction,
-        inputsValues: response.result.inputs_values,
-        // A SegWit signature commits to the amount it spends, so the response's input values
-        // cannot be understated without invalidating it. A legacy one commits to no amount.
-        signaturesCommitToInputValues: activeWallet
-          ? isSegwitFormat(activeWallet.addressFormat)
-          : false,
         // sat_per_vbyte arrives as a form string; checkTransactionFee coerces it.
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
       }, fetchInputValues);
       if (!feeCheck.ok) {
         throw new Error(feeCheck.error || 'Transaction fee verification failed');
+      }
+
+      // Account for every output: each must be the data output, an address the request names, or
+      // change to one of our own addresses. Anything else rejects the transaction, so a response
+      // that adds a recipient fails closed even though no field-level check covers it (ADR-019).
+      if (activeAddress && !SERVER_DERIVED_DESTINATION_TYPES.has(composeType)) {
+        const intendedDestinations: IntendedDestination[] =
+          addressesNamedIn(dataForApi).map(address => ({ address }));
+        if (composeType === 'burn') {
+          // A burn carries no Counterparty message at all, so the outputs are the only thing that
+          // can be checked — and pinning the amount here is the only verification a burn gets.
+          const quantity = Number(dataForApi.quantity);
+          const value = Number.isSafeInteger(quantity) && quantity > 0 ? quantity : undefined;
+          for (const address of BURN_ADDRESSES) intendedDestinations.push({ address, value });
+        }
+
+        const outputCheck = checkOutputPolicy({
+          rawTransaction: response.result.rawtransaction,
+          ownAddresses: [activeAddress.address],
+          intendedDestinations,
+        });
+        if (!outputCheck.ok) {
+          throw new Error(outputCheck.error || 'Transaction pays outputs your request did not ask for');
+        }
       }
 
       // Final abort check before state update
@@ -373,6 +489,7 @@ export function ComposerProvider<T>({
         apiResponse: response,
         error: null,
         verificationWarnings,
+        decodedMessage,
         isComposing: false,
         composedAt: Date.now(),
       }));
@@ -570,6 +687,7 @@ export function ComposerProvider<T>({
         apiResponse: null,
         error: null,
         verificationWarnings: [],
+        decodedMessage: null,
       }));
     } else if (state.step === "success") {
       reset();

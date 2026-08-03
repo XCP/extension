@@ -15,6 +15,7 @@ import { getWalletService } from '@/services/walletService';
 import { getConnectionService } from '@/services/connectionService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
+import { exceedsSaneFeeRate } from '@/utils/blockchain/bitcoin/feeVerification';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo } from '@/components/domain/tx/txActionInfo';
@@ -114,7 +115,18 @@ export default function ApprovePsbtPage() {
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
   const txAction = getTxActionInfo(decodedInfo);
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
-  const hasHighFee = psbtDetails.fee > 10000000; // > 0.1 BTC fee
+  // Warn on the fee *rate* as well as its absolute size: a fee under the absolute ceiling can still
+  // be absurd on a small transaction, and that case previously drew no warning at all. It warns
+  // rather than blocks — an expensive transaction can be legitimate here, the transaction was built
+  // elsewhere so the wallet cannot know the intent, and vsize is only estimated (the unsigned bytes
+  // plus a signature allowance per input). Skipped when the PSBT is unfunded, where the fee is not
+  // yet knowable because the other party supplies the inputs.
+  const estimatedVsize = psbtDetails.rawTxHex
+    ? psbtDetails.rawTxHex.length / 2 + psbtDetails.inputs.length * 110
+    : undefined;
+  const feeRateAbsurd = !psbtDetails.unfunded
+    && exceedsSaneFeeRate(psbtDetails.fee, estimatedVsize);
+  const hasHighFee = psbtDetails.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
 
   // Distinguish seller vs buyer in atomic swap PSBTs:
   // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)

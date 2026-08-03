@@ -254,9 +254,21 @@ describe('replayPrevention', () => {
       const params = [{ signedTx: 'hex...' }];
 
       recordTransaction(txid, origin, method, params, { status: 'pending' });
-      markTransactionBroadcasted(txid);
+      expect(markTransactionBroadcasted(txid)).toBe(true);
 
       expect(isTransactionBroadcasted(txid)).toBe(true);
+    });
+
+    it('reports a key nothing was recorded under, rather than silently doing nothing', () => {
+      // The broadcast path records under a pre-broadcast id, because the txid is unknown until the
+      // node answers. Marking the real txid instead addressed a record that never existed, and the
+      // update quietly found nothing — so every record stayed 'pending'. A miss is now visible.
+      recordTransaction('pending-key', 'https://test.com', 'xcp_broadcastTransaction',
+        [{ signedTx: 'hex...' }], { status: 'pending' });
+
+      expect(markTransactionBroadcasted('a-txid-never-recorded')).toBe(false);
+      expect(markTransactionFailed('a-txid-never-recorded')).toBe(false);
+      expect(markTransactionBroadcasted('pending-key')).toBe(true);
     });
 
     it('should handle failed transactions', () => {
