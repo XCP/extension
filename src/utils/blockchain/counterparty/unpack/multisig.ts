@@ -30,6 +30,10 @@ const DATA_BYTES_PER_PUBKEY = 31;
  * @param scriptHex - Full scriptPubKey hex
  * @returns The data bytes, or null if this is not a bare-multisig data output
  */
+export function isBareMultisigDataOutput(scriptHex: string): boolean {
+  return extractMultisigDataBytes(scriptHex) !== null;
+}
+
 function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
   let bytes: Uint8Array;
   try {

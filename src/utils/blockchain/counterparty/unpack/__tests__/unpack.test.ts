@@ -74,20 +74,30 @@ describe('assetId', () => {
 
 describe('address packing', () => {
   describe('packAddress', () => {
-    it('should pack legacy P2PKH addresses', () => {
+    // Core packs with the modern (taproot_support) prefixes, so these assert those bytes rather
+    // than the legacy base58 version / SegWit marker. The compose oracle caught the difference:
+    // emitting 0x00 here made every send to a legacy address differ from core's bytes.
+    it('should pack P2PKH addresses with the modern 0x01 prefix', () => {
       // mainnet P2PKH address starting with 1
       const address = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'; // Satoshi's address
       const packed = packAddress(address);
       expect(packed.length).toBe(21);
-      expect(packed[0]).toBe(0x00); // P2PKH version byte
+      expect(packed[0]).toBe(0x01); // MODERN.P2PKH
     });
 
-    it('should pack SegWit addresses', () => {
+    it('should pack P2SH addresses with the modern 0x02 prefix', () => {
+      const packed = packAddress('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy');
+      expect(packed.length).toBe(21);
+      expect(packed[0]).toBe(0x02); // MODERN.P2SH
+    });
+
+    it('should pack SegWit addresses as a witness program', () => {
       // mainnet P2WPKH address starting with bc1q
       const address = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
       const packed = packAddress(address);
-      expect(packed.length).toBe(21);
-      expect(packed[0]).toBe(0x80); // SegWit marker + witness version 0
+      expect(packed.length).toBe(22); // 0x03, witness version, 20-byte program
+      expect(packed[0]).toBe(0x03); // MODERN.WITNESS
+      expect(packed[1]).toBe(0x00); // witness version 0
     });
 
     it('should throw for invalid addresses', () => {

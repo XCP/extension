@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { extractMultisigPayload } from '../multisig';
+import { extractPayloadFromOutputs } from '../opReturn';
 import { unpackCounterpartyMessage } from '../index';
 import { packAddress } from '../address';
 import { arc4, hexToBytes, bytesToHex } from '../binary';
@@ -94,6 +95,20 @@ describe('extractMultisigPayload', () => {
 
     expect(extractMultisigPayload(scripts, FIRST_INPUT_TXID))
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
+  });
+
+  it('a plaintext CNTRPRTY OP_RETURN decoy does not shadow a multisig sweep', () => {
+    // The attack: a benign plaintext CNTRPRTY OP_RETURN (which the node ignores, since it
+    // ARC4-decrypts every OP_RETURN) paired with a real sweep spread across multisig outputs. If
+    // extraction honored the plaintext decoy, the wallet would bless it while the network ran the
+    // sweep. extractPayloadFromOutputs must decrypt-or-skip the OP_RETURN and surface the sweep.
+    const sweep = sweepMessage();
+    const decoyOpReturn = '6a0d' + COUNTERPARTY_PREFIX_HEX + '0212345678'; // plaintext CNTRPRTY bytes
+    const scripts = [decoyOpReturn, ...multisigScriptsFor(sweep, FIRST_INPUT_TXID)];
+
+    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
+    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweep));
+    expect(unpackCounterpartyMessage(payload!).messageType).toBe('sweep');
   });
 
   it('returns null for a transaction with no data outputs', () => {
@@ -193,7 +208,10 @@ describe('compose types with no field-level verifier', () => {
   const broadcastPayload = COUNTERPARTY_PREFIX_HEX + '1e' + '850001006040';
 
   it('accepts a response whose message type is the one requested', () => {
-    const result = verifyTransaction(broadcastPayload, 'broadcast', {});
+    // Dispense has no field-level verifier, so it exercises the type-only path. (Broadcast used to
+    // serve this purpose and now has one.)
+    const dispensePayload = COUNTERPARTY_PREFIX_HEX + '0d' + '00';
+    const result = verifyTransaction(dispensePayload, 'dispense', {});
 
     expect(result.valid).toBe(true);
     // The absence of field checks is recorded as coverage, not presented as a clean verification —

@@ -8,7 +8,7 @@
 import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { AddressFormat, decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 
 /** Resolve the exact sighash the signer will use for one PSBT input. */
@@ -456,10 +456,37 @@ export function signPSBT(
   // When trying all inputs (no signInputs specified), gracefully skip
   // inputs that don't belong to us (e.g., other party's input in an atomic swap).
   const bestEffort = inputIndices.length === 0;
+
+  // In best-effort mode, restrict signing to the active address's OWN inputs. This key can also
+  // sign a paired address's inputs — Counterwallet/Freewallet legacy and SegWit are one key in two
+  // encodings (derivation m/0'/0) — but signing those must go through the explicit signInputs path,
+  // which alone gates on paired-address permission. Without this scope a PSBT that omits signInputs
+  // would sign a paired UTXO with no permission check and no at-risk pricing (the paired input is
+  // dropped from the approval summary). Deriving the address here fails closed: if it throws, the
+  // whole sign throws and nothing is signed. The check is strictly subtractive — it can only skip
+  // inputs, never sign one that was not already going to be signed.
+  const ownScopeAddress = bestEffort
+    ? normalizeAddressForComparison(encodeAddress(pubkeyBytes, addressFormat))
+    : null;
+  const belongsToActiveAddress = (inputIdx: number): boolean => {
+    const input = tx.getInput(inputIdx);
+    const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+      ?? input.witnessUtxo;
+    const inputAddress = prevout?.script
+      ? decodeAddressFromScript(bytesToHex(prevout.script))
+      : undefined;
+    // An input whose script can't be attributed is not provably ours, so skip it (fail closed).
+    return inputAddress != null && normalizeAddressForComparison(inputAddress) === ownScopeAddress;
+  };
+
   let signedCount = 0;
 
   try {
     for (const inputIdx of indicesToSign) {
+      // Best-effort mode signs only the active address's own inputs; a paired or foreign input is
+      // silently skipped, exactly as a co-signer's input in an atomic swap is.
+      if (bestEffort && !belongsToActiveAddress(inputIdx)) continue;
+
       // For P2SH-P2WPKH, we may need to add the redeem script
       if (addressFormat === AddressFormat.P2SH_P2WPKH) {
         const input = tx.getInput(inputIdx);

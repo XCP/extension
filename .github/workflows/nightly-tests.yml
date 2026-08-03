@@ -42,6 +42,22 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src
 
+      # Asks a live counterparty-core node what it would compose for a matrix of parameters and
+      # requires our locally packed message bytes to match exactly. Composed-message verification is
+      # byte equality, so a divergence between our packer and core blocks those transaction types
+      # outright — this is the check that catches such drift before a release rather than after.
+      # Nightly rather than per-PR because it depends on a third-party endpoint being reachable.
+      # Two checks live here: coreOracle asks a node what it would compose for a set of params, and
+      # onchainRoundTrip rebuilds real confirmed transactions and requires byte equality with the
+      # chain. The second covers types core cannot compose synthetically (a dividend needs an asset
+      # with holders, a fairmint needs an open fairminter).
+      - name: Run compose oracle against counterparty-core
+        timeout-minutes: 5
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+          COUNTERPARTY_API_URL: ${{ vars.COUNTERPARTY_API_URL || 'https://api.counterparty.io:4000' }}
+        run: npx vitest run src/utils/blockchain/counterparty/pack
+
       - name: Run fuzz tests
         timeout-minutes: 15
         env:

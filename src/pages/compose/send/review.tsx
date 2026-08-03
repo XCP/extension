@@ -1,6 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
+import { useComposer } from "@/contexts/composer-context";
+import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
 import { formatAmount } from "@/utils/format";
 import type { ReactElement, ReactNode } from "react";
 
@@ -30,6 +32,7 @@ export function ReviewSend({
   const isMPMA = result.name === 'mpma';
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
+  const { state: { decodedMessage } } = useComposer();
 
   // Build custom fields based on transaction type
   let customFields: Array<{ label: string; value: string | number | ReactNode; rightElement?: ReactNode }> = [];
@@ -40,23 +43,29 @@ export function ReviewSend({
     const assetDestQuantListNormalized = result.params.asset_dest_quant_list_normalized || [];
     const assetDestQuantList = result.params.asset_dest_quant_list || [];
 
-    // Build transaction list for display using normalized values
-    const transactions = assetDestQuantListNormalized.map((item: any[], index: number) => {
-      const [asset, destination, quantity] = item;
-      const memo = result.params.memos?.[index];
-      return {
-        asset,
-        destination,
-        quantity,
-        memo
-      };
-    });
+    // Prefer the recipients the transaction actually encodes over the API's echoed list, so a
+    // substituted recipient cannot hide behind a correct-looking echo (ADR-019).
+    const decodedSends = (decodedMessage?.data as
+      | { sends?: Array<{ asset: string; destination: string; quantity: bigint }> }
+      | undefined)?.sends;
 
-    // Calculate total from normalized values
-    const totalQuantity = assetDestQuantListNormalized.reduce(
-      (sum: number, item: any[]) => sum + Number(item[2]), 0
+    const transactions = decodedSends
+      ? decodedSends.map((send, index) => ({
+          asset: send.asset,
+          destination: send.destination,
+          quantity: normalizeQuantity(send.quantity, send.asset, result.params, 'asset'),
+          memo: result.params.memos?.[index],
+        }))
+      : assetDestQuantListNormalized.map((item: any[], index: number) => {
+          const [asset, destination, quantity] = item;
+          return { asset, destination, quantity, memo: result.params.memos?.[index] };
+        });
+
+    // Total across the recipients shown above, so the total and the list cannot disagree.
+    const totalQuantity = transactions.reduce(
+      (sum: number, tx: { quantity: string | number }) => sum + Number(tx.quantity), 0
     );
-    const asset = assetDestQuantList[0]?.[0] || '';
+    const asset = transactions[0]?.asset ?? assetDestQuantList[0]?.[0] ?? '';
 
     // Show expanded list as custom field
     customFields.push({
@@ -89,22 +98,34 @@ export function ReviewSend({
       value: `${totalQuantity} ${asset}`,
     });
   } else {
-    // Single send transaction - use normalized quantity from verbose API
-    const quantityDisplay = result.params.quantity_normalized ?? result.params.quantity;
-    const isBtc = result.params.asset === 'BTC';
+    // Single send. Asset, amount, destination and memo are read from the transaction's own message
+    // rather than from result.params, which is the API's echo of the request and so cannot testify
+    // about the API (ADR-019). A response that composed something other than what it echoed shows
+    // the truth here. Divisibility still comes from asset_info — it is a ledger fact rather than a
+    // property of this transaction — so only the decimal point retains an echo dependency.
+    const decoded = decodedMessage?.data as
+      | { asset?: string; quantity?: bigint; destination?: string; memo?: string }
+      | undefined;
+
+    const asset = decoded?.asset ?? result.params.asset;
+    const isBtc = asset === 'BTC';
+    const quantityDisplay = decoded?.quantity !== undefined
+      ? normalizeQuantity(decoded.quantity, asset, result.params, 'asset')
+      : (result.params.quantity_normalized ?? result.params.quantity);
+    const memo = decoded?.memo ?? result.params.memo;
     const amountInFiat = isBtc && btcPrice ? Number(quantityDisplay) * btcPrice : null;
 
     customFields = [
       {
         label: "Amount",
-        value: `${quantityDisplay} ${result.params.asset}`,
+        value: `${quantityDisplay} ${asset}`,
         rightElement: amountInFiat !== null ? (
           <span className="text-gray-500">
             ${formatAmount({ value: amountInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         ) : undefined,
       },
-      ...(result.params.memo ? [{ label: "Memo", value: String(result.params.memo) }] : []),
+      ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
       ...(result.params.more_outputs ? [(() => {
         const sats = Number(String(result.params.more_outputs).split(':')[0]);
         const btcVal = sats / 100_000_000;

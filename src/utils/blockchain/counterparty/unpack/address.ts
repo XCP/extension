@@ -15,8 +15,12 @@
  *
  * The modern prefixes cannot collide with legacy mainnet version bytes
  * (0x00/0x05) or the SegWit marker range (0x80+), so unpackAddress accepts
- * both encodings; packAddress emits the legacy form where it is expressible
- * and the modern form for witness programs longer than 20 bytes.
+ * both encodings — historical messages contain the legacy form.
+ *
+ * packAddress emits the **modern** form for every address type, because that is what core produces
+ * today: `lib/utils/address.py::pack` calls the Rust packer first and only falls back to legacy if
+ * it raises, which it does not for a well-formed address. Composed-message verification compares
+ * bytes, so emitting the legacy form here would differ from core on the first byte alone.
  */
 
 import { bech32, bech32m, base58 } from '@scure/base';
@@ -160,10 +164,18 @@ function encodeBech32(version: number, program: Uint8Array, prefix: string = 'bc
 }
 
 /**
- * Pack a Bitcoin address into 21-byte Counterparty format.
+ * Pack a Bitcoin address into Counterparty's packed format.
+ *
+ * Emits the modern (taproot_support) encoding for every address type, because that is what core
+ * produces: `lib/utils/address.py::pack` calls the Rust `utils::pack_address` first and only falls
+ * back to the legacy packing if that raises, and for any well-formed mainnet address it does not
+ * raise. Emitting the legacy form here instead would differ from core's bytes on the first byte
+ * alone — caught by the compose oracle, which found exactly that for P2PKH destinations.
+ *
+ * Legacy packings are still *read* by `unpackAddress`, since they exist in historical messages.
  *
  * @param address - Bitcoin address string (legacy, SegWit, or Taproot)
- * @returns 21-byte packed address
+ * @returns Packed address: 21 bytes for P2PKH/P2SH, 2 + program length for witness programs
  * @throws AddressPackError if the address is invalid or unsupported
  */
 export function packAddress(address: string): Uint8Array {
@@ -171,32 +183,22 @@ export function packAddress(address: string): Uint8Array {
     throw new AddressPackError('Address is required');
   }
 
-  const packed = new Uint8Array(PACKED_ADDRESS_LENGTH);
-
-  // Check for bech32/bech32m (SegWit) address
+  // Witness programs: 0x03, witness version, then the program (counterparty-rs utils.rs).
   if (address.toLowerCase().startsWith('bc1') || address.toLowerCase().startsWith('tb1')) {
     const { version, program } = decodeBech32(address);
 
-    if (program.length === 20) {
-      // Fits the legacy 21-byte packing: SegWit marker + program.
-      packed[0] = VERSION.SEGWIT_MARKER + version;
-      packed.set(program, 1);
-      return packed;
+    if (program.length !== 20 && program.length !== 32) {
+      throw new AddressPackError(`Unsupported witness program length: ${program.length}`);
     }
 
-    if (program.length === 32) {
-      // Taproot/P2WSH programs only exist in the modern packing.
-      const modern = new Uint8Array(2 + program.length);
-      modern[0] = MODERN.WITNESS;
-      modern[1] = version;
-      modern.set(program, 2);
-      return modern;
-    }
-
-    throw new AddressPackError(`Unsupported witness program length: ${program.length}`);
+    const packed = new Uint8Array(2 + program.length);
+    packed[0] = MODERN.WITNESS;
+    packed[1] = version;
+    packed.set(program, 2);
+    return packed;
   }
 
-  // Check for base58 (legacy) address
+  // Base58: 0x01 for a pubkey hash, 0x02 for a script hash.
   if (address.startsWith('1') || address.startsWith('3') ||
       address.startsWith('m') || address.startsWith('n') || address.startsWith('2')) {
     const { version, hash } = decodeBase58Check(address);
@@ -204,10 +206,14 @@ export function packAddress(address: string): Uint8Array {
     if (hash.length !== 20) {
       throw new AddressPackError(`Invalid hash length: ${hash.length}`);
     }
+    if (!BASE58_VERSIONS.has(version)) {
+      throw new AddressPackError(`Unrecognized base58 version byte: 0x${version.toString(16)}`);
+    }
 
-    packed[0] = version;
+    const isScriptHash = version === VERSION.P2SH || version === 0xc4;
+    const packed = new Uint8Array(PACKED_ADDRESS_LENGTH);
+    packed[0] = isScriptHash ? MODERN.P2SH : MODERN.P2PKH;
     packed.set(hash, 1);
-
     return packed;
   }
 
@@ -286,19 +292,25 @@ export function unpackAddress(packed: Uint8Array, network: 'mainnet' | 'testnet'
 }
 
 /**
- * Check if a packed address represents a SegWit address.
+ * Check if a packed address represents a SegWit address, in either encoding.
+ *
+ * Recognizes the modern `0x03` witness prefix as well as the legacy `0x80 + witness version`
+ * marker. Checking only the legacy marker would answer "no" for everything `packAddress` now
+ * produces, which is a silently wrong answer rather than a failure.
  */
 export function isSegwitPacked(packed: Uint8Array): boolean {
   if (packed.length < 1) return false;
+  if (packed[0] === MODERN.WITNESS) return packed.length >= 3;
   return packed[0]! >= VERSION.SEGWIT_MARKER && packed[0]! <= VERSION.SEGWIT_MARKER + 0x0F;
 }
 
 /**
- * Get the witness version from a packed SegWit address.
+ * Get the witness version from a packed SegWit address, in either encoding.
  * Returns -1 if not a SegWit address.
  */
 export function getWitnessVersion(packed: Uint8Array): number {
   if (!isSegwitPacked(packed)) return -1;
+  if (packed[0] === MODERN.WITNESS) return packed[1]!;
   return packed[0]! - VERSION.SEGWIT_MARKER;
 }
 

@@ -80,7 +80,11 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
     divisible: flag(fields[16]!, 'divisible'),
     poolQuantity,
     lpAsset: lpAssetId === 0n ? null : assetIdToName(lpAssetId),
-    mimeType: text(fields[mimeTypeIndex]!, 'MIME type') || 'text/plain',
+    // Reported as it appears on the wire, empty included. Substituting "text/plain" for an absent
+    // value would make a fairminter that named that type indistinguishable from one that named
+    // none, and any comparison against the request would then reject honest transactions. Callers
+    // that need a default for display should apply it themselves.
+    mimeType: text(fields[mimeTypeIndex]!, 'MIME type'),
     description: text(fields[descriptionIndex]!, 'description'),
   };
 }

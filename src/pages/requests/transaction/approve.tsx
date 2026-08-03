@@ -14,6 +14,7 @@ import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
 import { getWalletService } from '@/services/walletService';
 import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
+import { exceedsSaneFeeRate } from '@/utils/blockchain/bitcoin/feeVerification';
 import { WarningStack, type WarningItem } from '@/components/ui/warning-stack';
 import { getTxActionInfo, normalizeQuantity, isAssetDivisible } from '@/components/domain/tx/txActionInfo';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
@@ -187,14 +188,20 @@ export default function ApproveTransactionPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const txAction = getTxActionData(decodedInfo);
-  const hasHighFee = decodedInfo.fee > 10000000; // > 0.1 BTC fee
+  // An absolute ceiling alone lets a fee just under it drain a small transaction, so the rate is
+  // bounded too — the same bound the compose path applies, which a site-supplied transaction
+  // previously escaped entirely.
+  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
+  const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationWarning = decodedInfo.verification?.warning;
   const verificationFailed = verificationPassed === false;
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
-  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  // A fee rate this far above anything the network has demanded is a drain, not a fee estimate, so
+  // it blocks rather than warns — matching how the compose path treats the same condition.
+  const shouldBlockSigning = safetyBlocked || feeRateAbsurd || (isStrictMode && verificationFailed);
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
   const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));

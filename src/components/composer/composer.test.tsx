@@ -3,11 +3,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { MemoryRouter } from 'react-router';
 import type { ReactElement } from 'react';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { Transaction, p2wpkh } from '@scure/btc-signer';
 import { getPublicKey } from '@noble/secp256k1';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
+import { arc4 } from '@/utils/blockchain/counterparty/unpack/binary';
+import { encodeCbor } from '@/utils/blockchain/counterparty/pack/cbor';
+import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
 import { packAddress } from '@/utils/blockchain/counterparty/unpack/address';
 
 /** Encode an enhanced send as counterparty-core does: CBOR [asset_id, quantity, address, memo]. */
@@ -44,6 +47,7 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 import { Composer } from './composer';
+import { useComposer } from '@/contexts/composer-context';
 
 // Mock dependencies
 const mockNavigate = vi.fn();
@@ -54,6 +58,14 @@ vi.mock('react-router', async () => {
     useNavigate: () => mockNavigate
   };
 });
+
+// Fee verification always resolves input values independently of the compose response (ADR-019),
+// so every compose consults this resolver. Stub it rather than reaching the network.
+vi.mock('@/utils/blockchain/counterparty/transaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/blockchain/counterparty/transaction')>()),
+  fetchInputValues: vi.fn(async (inputs: Array<{ txid: string; vout: number }>) =>
+    new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000]))),
+}));
 
 // Mock fee rates to prevent network calls
 vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
@@ -66,8 +78,12 @@ vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
   })
 }));
 
+// Both composed fixtures below pay their change to this P2PKH script, so the mock wallet must own
+// that address — output accounting (ADR-019) rejects outputs it cannot attribute.
+const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
+
 const mockActiveWallet = { id: 'wallet1', name: 'Test Wallet', addressFormat: AddressFormat.P2WPKH };
-const mockActiveAddress = { address: 'bc1qtest123', name: 'Test Address' };
+const mockActiveAddress = { address: OWN_ADDRESS, name: 'Test Address' };
 const mockSignTransaction = vi.fn();
 const mockBroadcastTransaction = vi.fn();
 
@@ -303,20 +319,25 @@ describe('Composer', () => {
     );
 
     /**
-     * A raw transaction carrying the given Counterparty message (type id + body) in a plaintext
-     * OP_RETURN, which extraction accepts, so the tests need no ARC4 key.
+     * A raw transaction carrying the given Counterparty message (type id + body) in an OP_RETURN,
+     * ARC4-obfuscated with the first input's txid exactly as counterparty-core composes it. Core
+     * always encrypts, and extraction always decrypts, so a fixture must be obfuscated to be read.
      */
+    const FIRST_INPUT_TXID = '33'.repeat(32);
     function rawTxCarrying(message: number[]): string {
-      const payload = new Uint8Array([...hexToBytes(COUNTERPARTY_PREFIX_HEX), ...message]);
+      const payload = arc4(
+        hexToBytes(FIRST_INPUT_TXID),
+        new Uint8Array([...hexToBytes(COUNTERPARTY_PREFIX_HEX), ...message])
+      );
 
       const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
       tx.addInput({
-        txid: hexToBytes('33'.repeat(32)),
+        txid: hexToBytes(FIRST_INPUT_TXID),
         index: 0,
         witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 100_000n },
       });
       tx.addOutput({ script: new Uint8Array([0x6a, payload.length, ...payload]), amount: 0n });
-      tx.addOutputAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4', 98_000n);
+      tx.addOutputAddress(OWN_ADDRESS, 98_000n); // change, back to the signer
       return bytesToHex(tx.unsignedTx);
     }
 
@@ -328,9 +349,10 @@ describe('Composer', () => {
       ]);
     }
 
-    it('shows an informational difference on the review screen', async () => {
-      // A memo mismatch is informational: it does not block, and before this it went only to a
-      // console.warn that production builds strip.
+    it('blocks a send whose composed memo is not the one requested', async () => {
+      // A send can be built locally, so verification is byte equality and any difference is fatal —
+      // including a memo, which used to be classed informational and shown as a banner. There is no
+      // benign reason for a composer to alter a message it was told to build.
       mockComposeApi.mockResolvedValue({
         result: {
           rawtransaction: composedSendWithMemo('composed memo'),
@@ -344,10 +366,8 @@ describe('Composer', () => {
       fireEvent.submit(screen.getByTestId('form-component'));
 
       await waitFor(() => {
-        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+        expect(screen.queryByTestId('review-component')).not.toBeInTheDocument();
       });
-      expect(screen.getByText(/Composed transaction differs from your request/i)).toBeInTheDocument();
-      expect(screen.getByText(/memo/i)).toBeInTheDocument();
     });
 
     it('shows nothing when the composed transaction matches', async () => {
@@ -371,21 +391,229 @@ describe('Composer', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('shows an informational difference for a type it cannot build locally', async () => {
+      // A binary memo is encoded differently by core, so packing declines and verification falls
+      // back to comparing the fields it knows. That path keeps severity: a memo difference is
+      // informational and belongs on the review screen rather than blocking. This is the banner's
+      // remaining job now that predictable messages compare by bytes.
+      const sweepBody = encodeCbor([
+        packAddress(DESTINATION),
+        3n,
+        new TextEncoder().encode('composed memo'),
+      ]);
+      const rawtransaction = rawTxCarrying([0x04, ...sweepBody]);
+
+      mockComposeApi.mockResolvedValue({
+        result: { rawtransaction, inputs_values: [100_000], tx_hash: 'hash123' },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      const BinaryMemoSweepForm = ({ formAction }: any): ReactElement => (
+        <form data-testid="form-component" onSubmit={(e) => {
+          e.preventDefault();
+          formAction(new FormData(e.currentTarget));
+        }}>
+          <input name="destination" defaultValue={DESTINATION} />
+          <input name="flags" defaultValue="3" />
+          <input name="memo" defaultValue="requested memo" />
+          <input name="memo_is_hex" defaultValue="true" />
+          <button type="submit">Compose</button>
+        </form>
+      );
+
+      renderWithProvider({ FormComponent: BinaryMemoSweepForm, composeType: 'sweep' });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(screen.getByText(/Composed transaction differs from your request/i)).toBeInTheDocument();
+      expect(screen.getByText(/memo/i)).toBeInTheDocument();
+    });
+
+    it('renders the review screen from the transaction, not the API echo', async () => {
+      // The echoed params claim a 999 PEPECASH send; the transaction encodes 1 XCP. The review
+      // screen must show what the transaction says. Sweep-style types aside, this is the property
+      // that keeps a verification gap visible instead of silent: even if a check missed, the user
+      // is reading the bytes (ADR-019).
+      const sweepBody = encodeCbor([
+        packAddress(DESTINATION),
+        3n,
+        new TextEncoder().encode('requested memo'),
+      ]);
+
+      mockComposeApi.mockResolvedValue({
+        result: {
+          rawtransaction: rawTxCarrying([0x04, ...sweepBody]),
+          inputs_values: [100_000],
+          tx_hash: 'hash123',
+          // A lie: the echo advertises a different destination than the message carries.
+          params: { destination: '1LiedAboutThisAddressXXXXXXXXXXXXXX', flags: 3 },
+        },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      const SweepForm = ({ formAction }: any): ReactElement => (
+        <form data-testid="form-component" onSubmit={(e) => {
+          e.preventDefault();
+          formAction(new FormData(e.currentTarget));
+        }}>
+          <input name="destination" defaultValue={DESTINATION} />
+          <input name="flags" defaultValue="3" />
+          <input name="memo" defaultValue="requested memo" />
+          <button type="submit">Compose</button>
+        </form>
+      );
+
+      // A review component that renders what the real ones now read: the decoded message from
+      // context. If the screen were still driven by result.params, the lie would appear here.
+      const DecodedReview = (): ReactElement => {
+        const { state } = useComposer();
+        const decoded = state.decodedMessage?.data as { destination?: string } | undefined;
+        return (
+          <div data-testid="review-component">
+            <div>Destination: {decoded?.destination ?? 'none'}</div>
+          </div>
+        );
+      };
+
+      renderWithProvider({
+        FormComponent: SweepForm,
+        ReviewComponent: DecodedReview,
+        composeType: 'sweep',
+      });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+      expect(screen.getByText(`Destination: ${DESTINATION}`)).toBeInTheDocument();
+      expect(screen.queryByText(/1LiedAboutThisAddress/)).not.toBeInTheDocument();
+    });
+
+    it('allows a burn, whose payee is a protocol constant the request never names', async () => {
+      // Regression: output accounting rejects any output it cannot explain, and a burn pays the
+      // protocol's unspendable address rather than anything the user typed — so deny-by-default
+      // blocked every burn until that address was supplied as an intended destination.
+      const BURN_ADDRESS = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes(FIRST_INPUT_TXID),
+        index: 0,
+        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+      });
+      tx.addOutputAddress(BURN_ADDRESS, 50_000n);
+      tx.addOutputAddress(OWN_ADDRESS, 40_000n); // change; the stubbed resolver funds 100k
+
+      mockComposeApi.mockResolvedValue({
+        result: { rawtransaction: bytesToHex(tx.unsignedTx), inputs_values: [200_000], tx_hash: 'hash123' },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      const BurnForm = ({ formAction }: any): ReactElement => (
+        <form data-testid="form-component" onSubmit={(e) => {
+          e.preventDefault();
+          formAction(new FormData(e.currentTarget));
+        }}>
+          <input name="quantity" defaultValue="50000" />
+          <button type="submit">Compose</button>
+        </form>
+      );
+
+      renderWithProvider({ FormComponent: BurnForm, composeType: 'burn' });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('review-component')).toBeInTheDocument();
+      });
+    });
+
+    it('blocks a burn that sends a different amount than requested', async () => {
+      // The burn address is the only output a burn may pay, and the amount is the only thing about
+      // it the request pins — so a response burning more than asked must be rejected.
+      const BURN_ADDRESS = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes(FIRST_INPUT_TXID),
+        index: 0,
+        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+      });
+      tx.addOutputAddress(BURN_ADDRESS, 80_000n); // more than was asked
+      tx.addOutputAddress(OWN_ADDRESS, 10_000n);
+
+      mockComposeApi.mockResolvedValue({
+        result: { rawtransaction: bytesToHex(tx.unsignedTx), inputs_values: [200_000], tx_hash: 'hash123' },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      const BurnForm = ({ formAction }: any): ReactElement => (
+        <form data-testid="form-component" onSubmit={(e) => {
+          e.preventDefault();
+          formAction(new FormData(e.currentTarget));
+        }}>
+          <input name="quantity" defaultValue="50000" />
+          <button type="submit">Compose</button>
+        </form>
+      );
+
+      renderWithProvider({ FormComponent: BurnForm, composeType: 'burn' });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('review-component')).not.toBeInTheDocument();
+      });
+    });
+
+    it('blocks a response that pays an address the request never named', async () => {
+      // No field-level check covers this: the enhanced send's payload is exactly what was asked
+      // for, and the extra payment rides along as a plain output. Output accounting (ADR-019) is
+      // what catches it, because the address is neither ours nor named anywhere in the request.
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes('33'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script, amount: 200_000n },
+      });
+      const payload = arc4(
+        hexToBytes(FIRST_INPUT_TXID),
+        new Uint8Array([
+          ...hexToBytes(COUNTERPARTY_PREFIX_HEX),
+          0x02,
+          ...encodeEnhancedSendCbor(1n, 100_000_000n, packAddress(DESTINATION), 'requested memo'),
+        ])
+      );
+      tx.addOutput({ script: new Uint8Array([0x6a, payload.length, ...payload]), amount: 0n });
+      tx.addOutputAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', 60_000n); // stranger
+      tx.addOutputAddress(OWN_ADDRESS, 130_000n);
+
+      mockComposeApi.mockResolvedValue({
+        result: { rawtransaction: bytesToHex(tx.unsignedTx), inputs_values: [200_000], tx_hash: 'hash123' },
+        error: null, id: 1, jsonrpc: '2.0',
+      });
+
+      renderWithProvider({ FormComponent: SendForm });
+      fireEvent.submit(screen.getByTestId('form-component'));
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('review-component')).not.toBeInTheDocument();
+      });
+    });
+
     it('claims no difference when the compose type has no field-level verifier', async () => {
       // A broadcast has no field verifier: only its message type is confirmed. That absence of
       // checking must not be announced as a detected difference — the banner is only credible on
       // types with field verification if it stays silent here.
       mockComposeApi.mockResolvedValue({
         result: {
-          // Type id 30 (broadcast), CBOR [timestamp 0, value 1, fee_fraction 0, mime "", text ""]
-          rawtransaction: rawTxCarrying([0x1e, 0x85, 0x00, 0x01, 0x00, 0x60, 0x40]),
+          // Type id 13 (dispense), which has no field-level verifier of its own.
+          rawtransaction: rawTxCarrying([0x0d, 0x00]),
           inputs_values: [100_000],
           tx_hash: 'hash123',
         },
         error: null, id: 1, jsonrpc: '2.0',
       });
 
-      renderWithProvider({ composeType: 'broadcast' });
+      renderWithProvider({ composeType: 'dispense' });
       fireEvent.submit(screen.getByTestId('form-component'));
 
       await waitFor(() => {

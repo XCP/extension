@@ -52,9 +52,12 @@ Self-reported security assessment based on industry checklists.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  UNTRUSTED: dApps, user input, stored encrypted data        │
+│  UNTRUSTED: dApps, user input, stored encrypted data,       │
+│             the Counterparty compose API (ADR-019)          │
 └──────────────────────────┬──────────────────────────────────┘
                            │ Validation + Origin checks
+                           │ Structural verification of composed
+                           │ transactions (ADR-019)
                            v
 ┌─────────────────────────────────────────────────────────────┐
 │  EXTENSION: Background service worker, popup UI             │
@@ -65,6 +68,11 @@ Self-reported security assessment based on industry checklists.
 │  TRUSTED: Browser crypto primitives, Chrome storage APIs    │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+The compose API is inside the untrusted band deliberately. Counterparty transactions are composed
+remotely, so the composer is a party to every transaction; the endpoint is user-configurable and may
+be infrastructure this project does not run. Verification is therefore structural rather than
+field-enumerated — see ADR-019 in [verify.ts](src/utils/blockchain/counterparty/unpack/verify.ts).
 
 ---
 
@@ -184,7 +192,7 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Race condition prevention | Mutex locks, `isComposing`/`isSigning` guards |
 | ✅ | Stale transaction detection | 5-minute timeout on composed transactions |
 | ✅ | Address checksum validation | Base58check (double-SHA256) and Bech32 checksums verified client-side |
-| ⚠️ | Bitcoin output verification | Fee/value bounded; per-address destination-output matching for plain BTC sends is not yet enforced client-side |
+| ✅ | Bitcoin output verification | Deny-by-default accounting: every output must be the Counterparty data output, an address the request names, or change to an address the signer controls — anything else rejects the transaction before the review screen, so an added recipient fails closed without any field-level check covering it. BTCPay is exempt (its payee is derived from the order match, not the request). Verified by `outputPolicy.test.ts` and `composer.test.tsx` (ADR-019) |
 
 ## Input Validation
 
@@ -328,6 +336,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/utils/fathom.ts) |
 | ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/utils/hardware/trezorAdapter.ts) |
 | ADR-018 | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
+| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/utils/blockchain/counterparty/unpack/verify.ts) |
 
 ---
 

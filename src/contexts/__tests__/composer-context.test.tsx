@@ -3,7 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { ComposerProvider, useComposer } from '../composer-context';
 import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 
 // A real, parseable BTC-only transaction (1 input, one 95000-sat P2PKH output,
 // no OP_RETURN) so the composer's fee verification can decode it. Paired with
@@ -13,10 +13,14 @@ const VALID_BTC_ONLY_TX =
   'b873010000000000' + '19' + '76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac' +
   '00000000';
 
+// The composed fixture below pays its change to this P2PKH script, so the mock wallet must own that
+// address — output accounting (ADR-019) rejects a transaction whose outputs it cannot attribute.
+const OWN_ADDRESS = decodeAddressFromScript('76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac')!;
+
 // Mock wallet context to avoid webext-bridge dependency in tests
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
-    activeAddress: { address: 'test-address' },
+    activeAddress: { address: OWN_ADDRESS },
     activeWallet: { id: 'test-wallet', addressFormat: AddressFormat.P2WPKH },
     authState: 'UNLOCKED',
     keychainLocked: false,
@@ -26,6 +30,14 @@ vi.mock('@/contexts/wallet-context', () => ({
 // Mock the API module
 vi.mock('@/utils/blockchain/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue(null),
+}));
+
+// Fee verification always resolves input values independently of the compose response (ADR-019),
+// so every compose consults this resolver. Stub it rather than reaching the network.
+vi.mock('@/utils/blockchain/counterparty/transaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/blockchain/counterparty/transaction')>()),
+  fetchInputValues: vi.fn(async (inputs: Array<{ txid: string; vout: number }>) =>
+    new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000]))),
 }));
 
 // Mock settings context
@@ -171,7 +183,7 @@ describe('ComposerContext', () => {
       const expectedData = {
         amount: '100',
         address: 'bc1qtest',
-        sourceAddress: 'test-address'
+        sourceAddress: OWN_ADDRESS
       };
       expect(mockComposeApi).toHaveBeenCalledWith(expectedData);
     });

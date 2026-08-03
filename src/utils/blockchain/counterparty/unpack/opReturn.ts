@@ -2,10 +2,11 @@
  * Local, structural extraction of a Counterparty OP_RETURN payload from a raw
  * Bitcoin transaction, with no remote decode call.
  *
- * Counterparty currently ARC4-obfuscates the OP_RETURN data with the first
- * input's txid as the key. A future protocol version may emit the payload in
- * the clear, so extraction tries plaintext first and falls back to ARC4,
- * working across both without a flag.
+ * Counterparty ARC4-obfuscates the OP_RETURN data with the first input's txid as
+ * the key. Extraction always ARC4-decrypts, matching counterparty-core exactly:
+ * core never reads a plaintext CNTRPRTY OP_RETURN, so neither may we. Reading one
+ * would let a plaintext decoy shadow a multisig-encoded message the node parses
+ * instead — see extractPayloadFromOutputs.
  */
 
 import { Transaction } from '@scure/btc-signer';
@@ -78,10 +79,16 @@ export function decryptOpReturnData(
 }
 
 /**
- * Resolve a Counterparty payload from a transaction's output scripts: from an OP_RETURN output —
- * as plaintext (future protocol) or ARC4-obfuscated (current protocol) — or from bare-multisig
- * data outputs. The single home for that encoding order, so every caller (composer verification
- * and both dapp sign-request paths) recognizes exactly the same payloads.
+ * Resolve a Counterparty payload from a transaction's output scripts: from an ARC4-obfuscated
+ * OP_RETURN output, or from bare-multisig data outputs. The single home for that encoding order,
+ * so every caller (composer verification and both dapp sign-request paths) recognizes exactly the
+ * same payloads counterparty-core would.
+ *
+ * OP_RETURN is only ever ARC4-decrypted — never read as plaintext. Core does the same, so a
+ * plaintext CNTRPRTY OP_RETURN is garbage to the node, which then parses a multisig-encoded
+ * message instead. Honoring the plaintext form here would let an attacker pair a benign plaintext
+ * decoy with a real multisig sweep: the wallet would surface and bless the decoy while the network
+ * executed the sweep. Decrypting first, exactly as core does, keeps the two in agreement.
  *
  * A null return is read as "no Counterparty data" and skips verification, so every encoding that
  * can carry a message has to be looked for here.
@@ -96,12 +103,8 @@ export function extractPayloadFromOutputs(
   firstInputTxid: string
 ): string | null {
   for (const scriptHex of outputScriptHexes) {
-    // extractOpReturnPayload returns null for anything that is not an OP_RETURN output.
-    // Plaintext first (future protocol), then ARC4 (current protocol).
-    const payload = extractOpReturnPayload(scriptHex);
-    if (!payload) continue;
-    if (payload.startsWith(COUNTERPARTY_PREFIX_HEX)) return payload;
-
+    // decryptOpReturnData returns null for non-OP_RETURN outputs and for anything that does not
+    // ARC4-decrypt to the CNTRPRTY prefix, so a plaintext decoy is correctly ignored.
     const decrypted = decryptOpReturnData(scriptHex, firstInputTxid);
     if (decrypted) return decrypted;
   }

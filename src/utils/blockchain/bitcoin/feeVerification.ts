@@ -5,12 +5,16 @@
  * the user chose (which the API cannot influence) and an absolute ceiling, so a response that
  * drains the balance to fees is rejected before signing.
  *
- * The API's own fee figure is never the subject of the check, and its input values are trusted
- * only where a signature will bind them. A SegWit signature commits to the amount it spends
- * (BIP143), so an understated value cannot also produce a valid signature. A legacy signature
- * commits to no amount at all, so those values are resolved from block explorers instead —
- * signing fetches the same prevouts for legacy inputs regardless, so this costs no availability
- * that signing did not already require. A fee that cannot be established is refused.
+ * Neither the API's fee figure nor its input values are trusted: input values are always resolved
+ * independently, and a fee that cannot be established is refused.
+ *
+ * An earlier version accepted the response's values for SegWit wallets, reasoning that BIP-143 makes
+ * a signature commit to the amount it spends, so an understated value could not also produce a valid
+ * signature. That reasoning is exactly what Trezor and Ledger shipped, and Saleem Rashid broke it in
+ * 2020 by mixing signatures across two confirmation rounds to burn funds as fees; both vendors
+ * responded by resolving amounts from the previous transactions instead of trusting the host. The
+ * check is cheap — signing already fetches these prevouts — so the assumption is deleted rather than
+ * reasoned about. See ADR-019.
  */
 
 import { Transaction } from '@scure/btc-signer';
@@ -23,18 +27,26 @@ export const USER_FEE_RATE_TOLERANCE = 10;
 /** Absolute floor so tiny transactions aren't rejected by rate rounding. */
 const MIN_BOUND_SATS = 10_000;
 
+/**
+ * Whether a fee is absurd for the size of the transaction carrying it.
+ *
+ * The compose path bounds fees by recomputing them from resolved input values, but a transaction
+ * handed over by a connected site is already built, and its fee only had an absolute ceiling — so a
+ * fee just under that ceiling passed unremarked however small the transaction was. This is the rate
+ * bound for those paths: it needs no network, since a decoded transaction already yields both
+ * numbers, and `MAX_SANE_FEE_RATE` sits far above any rate the network has ever demanded.
+ *
+ * @param fee - Miner fee in sats, or null when it could not be established.
+ * @param vsize - Transaction virtual size in vbytes.
+ */
+export function exceedsSaneFeeRate(fee: number | null | undefined, vsize: number | undefined): boolean {
+  if (fee == null || !Number.isFinite(fee) || fee <= 0) return false;
+  if (!vsize || !Number.isFinite(vsize) || vsize <= 0) return false;
+  return fee / vsize > MAX_SANE_FEE_RATE;
+}
+
 export interface FeeCheckInput {
   rawTransaction: string;
-  /**
-   * Per-input values in sats, as hinted by the compose response. Used only for SegWit inputs,
-   * whose signatures commit to the amount, and only when there is one value per input.
-   */
-  inputsValues?: number[];
-  /**
-   * Whether the spending signatures will commit to the input amounts. False for legacy
-   * (P2PKH-family) wallets, whose values must be resolved independently.
-   */
-  signaturesCommitToInputValues: boolean;
   /**
    * User-selected fee rate in sat/vByte, or null for network default. Accepts
    * a string because it arrives from a form field; coerced internally so a
@@ -67,27 +79,14 @@ function estimateVsize(tx: Transaction, rawBytesLength: number): number {
 }
 
 /**
- * Total input value in sats, from the compose hint or resolved independently. A failure says
+ * Total input value in sats, always resolved independently of the compose response. A failure says
  * which kind it was, so the caller's error can distinguish a transaction whose inputs cannot be
  * read from a value lookup that did not answer.
  */
 async function resolveInputsTotal(
   tx: Transaction,
-  inputsValues: number[] | undefined,
-  signaturesCommitToInputValues: boolean,
   resolveInputValues: InputValueResolver
 ): Promise<{ total: bigint } | { failed: 'unreadable-inputs' | 'lookup' }> {
-  // A hint is usable when a signature will bind it and it covers every input with a whole
-  // number of sats.
-  if (
-    signaturesCommitToInputValues
-    && inputsValues
-    && inputsValues.length === tx.inputsLength
-    && inputsValues.every((value) => Number.isSafeInteger(value) && value >= 0)
-  ) {
-    return { total: inputsValues.reduce((sum, value) => sum + BigInt(value), 0n) };
-  }
-
   const outpoints: Array<{ txid: string; vout: number }> = [];
   for (let i = 0; i < tx.inputsLength; i++) {
     const txInput = tx.getInput(i);
@@ -119,7 +118,7 @@ export async function checkTransactionFee(
   input: FeeCheckInput,
   resolveInputValues: InputValueResolver
 ): Promise<FeeCheckResult> {
-  const { rawTransaction, inputsValues, signaturesCommitToInputValues, userFeeRate } = input;
+  const { rawTransaction, userFeeRate } = input;
 
   let tx: Transaction;
   let rawBytes: Uint8Array;
@@ -138,12 +137,7 @@ export async function checkTransactionFee(
     return { ok: true };
   }
 
-  const inputsTotal = await resolveInputsTotal(
-    tx,
-    inputsValues,
-    signaturesCommitToInputValues,
-    resolveInputValues
-  );
+  const inputsTotal = await resolveInputsTotal(tx, resolveInputValues);
   if ('failed' in inputsTotal) {
     return {
       ok: false,
