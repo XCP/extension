@@ -195,6 +195,36 @@ describe('packing matches bytes generated with core\'s MPMA encoder', () => {
     );
   });
 
+  it('packs a hex memo alongside a send with no memo', () => {
+    // The form emits one flag per row and a row with no memo emits `false`, so this batch arrives
+    // as memos_are_hex="true,false". Only the flags belonging to an actual memo describe the
+    // encoding, and `composeMPMA` sends the single flag `true` — so declining here would have
+    // silently dropped byte verification for any batch where only some rows carry memos.
+    const packed = packComposeMessage('mpma', {
+      assets: 'XCP,XCP',
+      destinations: `${P2PKH_A},${P2WPKH}`,
+      quantities: '7,9',
+      memos: 'beef,',
+      memos_are_hex: 'true,false',
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300020062e907b15cbf27d5425399ebf6f0fb50ebb88f1880751e76e8199196d454941c45d1b3a323f1433bd6400000000000000060000000000000007c2beef80000000000000048'
+    );
+  });
+
+  it('still declines memos that genuinely mix hex and text', () => {
+    // Two real memos with different encodings cannot travel under core's single flag.
+    expect(packComposeMessage('mpma', {
+      assets: 'XCP,XCP',
+      destinations: `${P2PKH_A},${P2WPKH}`,
+      quantities: '7,9',
+      memos: 'beef,hello',
+      memos_are_hex: 'true,false',
+    })).toBeNull();
+  });
+
   it('packs the send form\'s comma-separated destinations as the same MPMA message', () => {
     // composeSendOrMPMA replicates the asset and quantity per destination and carries the memo
     // once as the whole-send memo; the fixture is core's encoding of exactly that request.

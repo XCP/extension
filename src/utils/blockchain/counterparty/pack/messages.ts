@@ -739,8 +739,13 @@ function packMpmaFromParams(params: Params): PackedMessage | null {
     const flagValues = typeof params.memos_are_hex === 'string'
       ? params.memos_are_hex.split(',').map((value) => value === 'true')
       : [params.memos_are_hex === true];
-    if (new Set(flagValues).size > 1) return null;
-    memosAreHex = flagValues[0] ?? false;
+    // Only the flags belonging to a memo matter. The form emits one flag per row, and a row with
+    // no memo emits `false`, so a batch mixing a hex memo with an empty one would otherwise look
+    // like a hex/text mix and decline — the common shape when only some rows carry memos.
+    // `composeMPMA` filters the same way before choosing the single flag it sends.
+    const flagsForMemos = flagValues.filter((_, index) => (memosCsv[index] ?? '') !== '');
+    if (new Set(flagsForMemos).size > 1) return null;
+    memosAreHex = flagsForMemos[0] ?? false;
   }
 
   const sends: MpmaSend[] = [];
