@@ -19,14 +19,14 @@
 
 import { encodeCbor, type CborEncodable } from './cbor';
 import { assetNameToId } from '../unpack/assetId';
-import { packAddress } from '../unpack/address';
+import { packAddress, packAddressLegacy } from '../unpack/address';
 import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { hexToBytes } from '../unpack/binary';
 
 /** The message types this module can construct. */
 export type PackableComposeType =
   | 'send' | 'issuance' | 'sweep' | 'destroy' | 'cancel' | 'order'
-  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast';
+  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast' | 'mpma';
 
 /**
  * Not every message is CBOR. The taproot_support upgrade moved enhanced send, issuance, sweep,
@@ -104,7 +104,8 @@ function packEnhancedSend(params: Params): PackedMessage | null {
   const destination = requireString(params, 'destination');
   const quantity = requireQuantity(params, 'quantity');
   if (!asset || !destination || quantity === null) return null;
-  // A multi-destination send composes as MPMA, which this module does not pack.
+  // Several destinations arrive in `destinations` and pack as MPMA (`packSendAsMpma`); a comma
+  // inside the singular field is not an address and cannot be an enhanced send.
   if (destination.includes(',')) return null;
   // memo_is_hex changes how core encodes the memo; only the plain-text form is packed here.
   if (params.memo_is_hex === true || params.memo_is_hex === 'true') return null;
@@ -552,6 +553,219 @@ function packBroadcast(params: Params, observed: Observed): PackedMessage | null
   return withPrefix(MessageTypeId.BROADCAST, encodeCbor(body));
 }
 
+/** MSB-first bit accumulator, the mirror of the unpacker's BitReader (`unpack/messages/mpma.ts`). */
+class BitWriter {
+  private bits: number[] = [];
+
+  writeBit(bit: boolean): void {
+    this.bits.push(bit ? 1 : 0);
+  }
+
+  writeUint(value: bigint, bitCount: number): void {
+    for (let i = bitCount - 1; i >= 0; i -= 1) {
+      this.bits.push(Number((value >> BigInt(i)) & 1n));
+    }
+  }
+
+  writeBytes(bytes: Uint8Array): void {
+    for (const byte of bytes) this.writeUint(BigInt(byte), 8);
+  }
+
+  /** Zero-pad to a byte boundary and return the bytes, as core's BitArray-to-bytes does. */
+  toBytes(): Uint8Array {
+    const out = new Uint8Array(Math.ceil(this.bits.length / 8));
+    this.bits.forEach((bit, index) => {
+      if (bit) out[index >> 3]! |= 0x80 >> (index & 7);
+    });
+    return out;
+  }
+}
+
+/** One send of an MPMA message, after the params have been parsed and validated. */
+interface MpmaSend {
+  asset: string;
+  destination: string;
+  quantity: bigint;
+  memo: string | null;
+  memoIsHex: boolean;
+}
+
+/**
+ * Append a memo in core's bit format: a presence bit, then is_hex, a 6-bit *byte* length, and the
+ * bytes (`mpmaencoding._encode_memo`). Returns false for a memo core cannot encode — over 63
+ * bytes, or hex with an odd length or a non-hex character. Core's encoder wraps this step in a
+ * bare `except` and silently drops such memos from the message; declining to pack is the honest
+ * mirror, because byte-agreeing with a message that ignored the user's memo would verify the
+ * very substitution this comparison exists to catch.
+ */
+function writeMemo(writer: BitWriter, memo: string | null, isHex: boolean): boolean {
+  if (memo === null || memo === '') {
+    writer.writeBit(false);
+    return true;
+  }
+  let bytes: Uint8Array;
+  if (isHex) {
+    if (memo.length % 2 !== 0 || !/^[0-9a-fA-F]+$/.test(memo)) return false;
+    bytes = hexToBytes(memo.toLowerCase());
+  } else {
+    bytes = new TextEncoder().encode(memo);
+  }
+  if (bytes.length > 63) return false;
+
+  writer.writeBit(true);
+  writer.writeBit(isHex);
+  writer.writeUint(BigInt(bytes.length), 6);
+  writer.writeBytes(bytes);
+  return true;
+}
+
+/**
+ * MPMA send: a `>H`-counted LUT of legacy-packed destination addresses sorted lexicographically,
+ * then a bit stream — a global memo, and per asset (sorted by name) a `1` continuation bit, the
+ * 64-bit asset id, an nbits-wide send count less one, and each send's nbits-wide LUT index, 64-bit
+ * quantity and memo — terminated by a `0` bit and zero-padded to a byte
+ * (core `mpmaencoding._encode_mpma_send`; nbits is ceil(log2(LUT size))).
+ *
+ * A single distinct destination makes nbits zero: the count and index fields occupy no bits at
+ * all (bitstring 4.1.4, core's pin, appends nothing for `uint:0` — newer versions raise, so this
+ * was checked against the pinned version) and the decoder infers one recipient per asset. That
+ * also means an asset group with several sends cannot be expressed at nbits zero; core's encoder
+ * would raise, and its validate rejects duplicate asset-destination pairs anyway.
+ *
+ * Declined when core could not compose the same request: a Taproot or P2WSH destination does not
+ * fit the 21-byte legacy packing; a subasset resolves through the ledger; and BTC cannot be sent
+ * by message. Order matters twice — the LUT and the asset groups are sorted, but sends within an
+ * asset keep request order — and both are what the decoder round-trips.
+ */
+function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex: boolean): PackedMessage | null {
+  if (sends.length < 2) return null;
+  for (const send of sends) {
+    if (!send.asset || send.asset === 'BTC' || send.asset.includes('.')) return null;
+    if (send.quantity <= 0n || send.quantity >= 1n << 64n) return null;
+  }
+
+  const lutAddresses = [...new Set(sends.map((send) => send.destination))].sort();
+  const nbits = lutAddresses.length > 1 ? Math.ceil(Math.log2(lutAddresses.length)) : 0;
+
+  let lut: Uint8Array[];
+  try {
+    lut = lutAddresses.map((address) => packAddressLegacy(address));
+  } catch {
+    return null;
+  }
+
+  const writer = new BitWriter();
+  if (!writeMemo(writer, globalMemo, globalMemoIsHex)) return null;
+
+  const assets = [...new Set(sends.map((send) => send.asset))].sort();
+  for (const asset of assets) {
+    const assetSends = sends.filter((send) => send.asset === asset);
+    // At nbits zero the count field has no bits, so only one send per asset is expressible.
+    if (nbits === 0 && assetSends.length > 1) return null;
+    writer.writeBit(true);
+    try {
+      writer.writeUint(assetNameToId(asset), 64);
+    } catch {
+      return null;
+    }
+    writer.writeUint(BigInt(assetSends.length - 1), nbits);
+    for (const send of assetSends) {
+      writer.writeUint(BigInt(lutAddresses.indexOf(send.destination)), nbits);
+      writer.writeUint(send.quantity, 64);
+      if (!writeMemo(writer, send.memo, send.memoIsHex)) return null;
+    }
+  }
+  writer.writeBit(false);
+
+  const lutBytes = new Uint8Array(2 + lut.length * 21);
+  lutBytes[0] = lut.length >> 8;
+  lutBytes[1] = lut.length & 0xff;
+  lut.forEach((packed, index) => lutBytes.set(packed, 2 + index * 21));
+
+  const body = new Uint8Array([...lutBytes, ...writer.toBytes()]);
+  return withPrefix(MessageTypeId.MPMA_SEND, body);
+}
+
+/**
+ * Parse MPMA params as the wallet's forms produce them: parallel comma-separated `assets`,
+ * `destinations` and `quantities`, optional per-send `memos` (empty entries mean none) with a
+ * `memos_are_hex` flag, and an optional whole-send `memo`/`memo_is_hex` used when no per-send
+ * memos are given. Quantities are whole base units — normalization happens before compose — so a
+ * non-integral value means divisibility was not resolved and equality must not be attempted.
+ *
+ * `memos_are_hex` may arrive as one value or a comma-separated list from the form; core's API
+ * applies a single flag to every memo, so a mixed list is not expressible and `composeMPMA`
+ * refuses to send it — mirrored here by declining.
+ */
+function packMpmaFromParams(params: Params): PackedMessage | null {
+  const assetsCsv = requireString(params, 'assets');
+  const destinationsCsv = requireString(params, 'destinations');
+  const quantitiesCsv = requireString(params, 'quantities');
+  if (!assetsCsv || !destinationsCsv || !quantitiesCsv) return null;
+
+  const assets = assetsCsv.split(',');
+  const destinations = destinationsCsv.split(',');
+  const quantities = quantitiesCsv.split(',');
+  if (assets.length !== destinations.length || assets.length !== quantities.length) return null;
+
+  const memosCsv = typeof params.memos === 'string' && params.memos !== ''
+    ? params.memos.split(',')
+    : null;
+  if (memosCsv && memosCsv.length !== assets.length) return null;
+
+  let memosAreHex = false;
+  if (memosCsv) {
+    const flagValues = typeof params.memos_are_hex === 'string'
+      ? params.memos_are_hex.split(',').map((value) => value === 'true')
+      : [params.memos_are_hex === true];
+    if (new Set(flagValues).size > 1) return null;
+    memosAreHex = flagValues[0] ?? false;
+  }
+
+  const sends: MpmaSend[] = [];
+  for (let i = 0; i < assets.length; i += 1) {
+    const quantity = requireQuantity({ quantity: quantities[i]!.trim() }, 'quantity');
+    if (quantity === null) return null;
+    const memo = memosCsv ? memosCsv[i]! : null;
+    sends.push({
+      asset: assets[i]!.trim(),
+      destination: destinations[i]!.trim(),
+      quantity,
+      memo: memo === '' ? null : memo,
+      memoIsHex: memosAreHex,
+    });
+  }
+
+  const globalMemo = !memosCsv && typeof params.memo === 'string' && params.memo !== ''
+    ? params.memo
+    : null;
+  const globalMemoIsHex = params.memo_is_hex === true || params.memo_is_hex === 'true';
+
+  return packMpma(sends, globalMemo, globalMemo === null ? false : globalMemoIsHex);
+}
+
+/**
+ * The send form's multi-destination convenience: `composeSendOrMPMA` turns comma-separated
+ * destinations into an MPMA send of the same asset, quantity and memo to each, with the memo
+ * carried once as the whole-send memo.
+ */
+function packSendAsMpma(params: Params): PackedMessage | null {
+  const asset = requireString(params, 'asset');
+  const quantity = requireQuantity(params, 'quantity');
+  const destinations = requireString(params, 'destinations');
+  if (!asset || quantity === null || !destinations) return null;
+
+  const list = destinations.split(',').map((destination) => destination.trim());
+  return packMpmaFromParams({
+    assets: list.map(() => asset).join(','),
+    destinations: list.join(','),
+    quantities: list.map(() => quantity.toString()).join(','),
+    ...(typeof params.memo === 'string' && params.memo !== ''
+      ? { memo: params.memo, memo_is_hex: params.memo_is_hex }
+      : {}),
+  });
+}
+
 /**
  * Build the message bytes a compose request should produce, or null when this build cannot
  * construct them (unsupported type, or a value the request does not determine).
@@ -565,7 +779,13 @@ export function packComposeMessage(
 ): PackedMessage | null {
   switch (composeType) {
     case 'send':
+      // Several comma-separated destinations compose as MPMA (`composeSendOrMPMA`).
+      if (typeof params.destinations === 'string' && params.destinations.includes(',')) {
+        return packSendAsMpma(params);
+      }
       return packEnhancedSend(params);
+    case 'mpma':
+      return packMpmaFromParams(params);
     case 'issuance':
       return packIssuance(params, observed);
     case 'sweep':

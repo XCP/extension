@@ -25,7 +25,8 @@
  * mirroring what counterparty-core itself asserts in `check_transaction_sanity`:
  *
  * 1. **Message payload** — where the message can be built locally (`pack/messages.ts`: send,
- *    issuance including initial subassets, sweep, destroy, cancel, order, dividend, fairmint,
+ *    MPMA including the send form's multi-destination flow, issuance including initial subassets,
+ *    sweep, destroy, cancel, order, dividend, fairmint,
  *    fairminter, dispense and broadcast), verification is byte equality and any difference is
  *    fatal, with no severity gradation: equality asks whether the composer produced what was asked,
  *    and that answer is binary. A few values the request cannot determine — a reissuance's

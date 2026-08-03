@@ -221,6 +221,47 @@ export function packAddress(address: string): Uint8Array {
 }
 
 /**
+ * Pack a Bitcoin address into the **legacy** 21-byte format.
+ *
+ * MPMA is the one message that still composes with this encoding: core's
+ * `mpmaencoding._encode_compress_lut` calls `address.pack_legacy` for every LUT entry, and the
+ * decoder reads fixed 21-byte slots. Base58 addresses pack as version byte + 20-byte hash; SegWit
+ * v0 packs as `0x80 + witness_version` + the 20-byte program. A 32-byte program does not fit, so
+ * Taproot and P2WSH destinations are rejected exactly as core rejects them
+ * ("p2wsh still not supported for sending").
+ *
+ * @throws AddressPackError if the address is invalid or not representable in 21 bytes
+ */
+export function packAddressLegacy(address: string): Uint8Array {
+  if (!address || typeof address !== 'string') {
+    throw new AddressPackError('Address is required');
+  }
+
+  if (address.toLowerCase().startsWith('bc1') || address.toLowerCase().startsWith('tb1')) {
+    const { version, program } = decodeBech32(address);
+    if (program.length > 20) {
+      throw new AddressPackError('Witness programs over 20 bytes do not fit the legacy packing');
+    }
+    const packed = new Uint8Array(1 + program.length);
+    packed[0] = VERSION.SEGWIT_MARKER + version;
+    packed.set(program, 1);
+    return packed;
+  }
+
+  const { version, hash } = decodeBase58Check(address);
+  if (hash.length !== 20) {
+    throw new AddressPackError(`Invalid hash length: ${hash.length}`);
+  }
+  if (!BASE58_VERSIONS.has(version)) {
+    throw new AddressPackError(`Unrecognized base58 version byte: 0x${version.toString(16)}`);
+  }
+  const packed = new Uint8Array(PACKED_ADDRESS_LENGTH);
+  packed[0] = version;
+  packed.set(hash, 1);
+  return packed;
+}
+
+/**
  * Unpack a Counterparty packed address (legacy or modern encoding) to a
  * Bitcoin address string.
  *

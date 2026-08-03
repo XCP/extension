@@ -128,6 +128,108 @@ describe('packing matches bytes generated with cbor2 5.9.0, the version core pin
   });
 });
 
+describe('packing matches bytes generated with core\'s MPMA encoder', () => {
+  // These hexes come from running core's own `mpmaencoding` functions (copied verbatim, with
+  // `address.pack_legacy` and the ledger asset lookup replaced by pure equivalents) under the
+  // same bitstring library core uses.
+  const P2PKH_A = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+  const P2PKH_B = '1CounterpartyXXXXXXXXXXXXXXXUWLpVr';
+  const P2WPKH = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+
+  it('reproduces a two-asset MPMA send with no memos', () => {
+    const packed = packComposeMessage('mpma', {
+      assets: 'XCP,PEPECASH',
+      destinations: `${P2PKH_A},${P2PKH_B}`,
+      quantities: '100,500',
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300020062e907b15cbf27d5425399ebf6f0fb50ebb88f1800818895f3dc2c178629d3d2d8fa3ec4a3f81798214000000718588312d00000000000001f440000000000000004000000000000006400'
+    );
+  });
+
+  it('reproduces a whole-send memo, encoded once ahead of the send lists', () => {
+    const packed = packComposeMessage('mpma', {
+      assets: 'XCP,XCP',
+      destinations: `${P2PKH_A},${P2WPKH}`,
+      quantities: '1,2',
+      memo: 'thanks',
+      memo_is_hex: false,
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300020062e907b15cbf27d5425399ebf6f0fb50ebb88f1880751e76e8199196d454941c45d1b3a323f1433bd6867468616e6b738000000000000000c000000000000000280000000000000010'
+    );
+  });
+
+  it('reproduces per-send hex memos, pinning the is_hex bit and byte-length encoding', () => {
+    const packed = packComposeMessage('mpma', {
+      assets: 'XCP,XCP',
+      destinations: `${P2PKH_A},${P2WPKH}`,
+      quantities: '7,9',
+      memos: 'beef,68656c6c6f',
+      memos_are_hex: 'true,true',
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300020062e907b15cbf27d5425399ebf6f0fb50ebb88f1880751e76e8199196d454941c45d1b3a323f1433bd6400000000000000060000000000000007c2beef8000000000000004e2b432b636378'
+    );
+  });
+
+  it('packs the send form\'s comma-separated destinations as the same MPMA message', () => {
+    // composeSendOrMPMA replicates the asset and quantity per destination and carries the memo
+    // once as the whole-send memo; the fixture is core's encoding of exactly that request.
+    const packed = packComposeMessage('send', {
+      asset: 'XCP',
+      destinations: `${P2PKH_A},${P2WPKH}`,
+      quantity: 1,
+      memo: 'thanks',
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300020062e907b15cbf27d5425399ebf6f0fb50ebb88f1880751e76e8199196d454941c45d1b3a323f1433bd6867468616e6b738000000000000000c000000000000000280000000000000008'
+    );
+  });
+
+  it('reproduces a single-destination send, whose count and index fields occupy no bits', () => {
+    // One distinct destination makes nbits zero. Core's pinned bitstring (4.1.4) appends nothing
+    // for a zero-width field — newer versions raise, so this shape looked uncomposable until the
+    // fixture generator ran under the pin. Every recent on-chain MPMA is this shape.
+    const packed = packComposeMessage('mpma', {
+      assets: 'PEPECASH,XCP',
+      destinations: `${P2PKH_A},${P2PKH_A}`,
+      quantities: '5,3',
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254590300010062e907b15cbf27d5425399ebf6f0fb50ebb88f184000000718588312c0000000000000015000000000000000100000000000000030'
+    );
+  });
+
+  it('round-trips through the MPMA unpacker, which was verified against core independently', () => {
+    const packed = packComposeMessage('mpma', {
+      assets: 'XCP,PEPECASH',
+      destinations: `${P2PKH_A},${P2PKH_B}`,
+      quantities: '100,500',
+    });
+
+    const result = unpackCounterpartyMessage(packed!.bytes);
+    expect(result.success).toBe(true);
+    expect(result.messageType).toBe('mpma_send');
+    const data = result.data as { sends: Array<{ asset: string; destination: string; quantity: bigint }> };
+    // The wire orders asset groups by name; each send keeps its request destination.
+    expect(data.sends).toEqual([
+      { asset: 'PEPECASH', destination: P2PKH_B, quantity: 500n },
+      { asset: 'XCP', destination: P2PKH_A, quantity: 100n },
+    ]);
+  });
+});
+
 describe('borrowing only what the request cannot determine', () => {
   it('packs a reissuance by taking divisibility from the composed message', () => {
     // update-description and transfer-ownership omit `divisible` because the asset already fixes
@@ -228,6 +330,55 @@ describe('refusing to pack is not the same as agreeing', () => {
     }],
     ['an inscription broadcast, whose content moves into a tapscript envelope', 'broadcast', {
       text: 'deadbeef', mime_type: 'image/png', inscription: 'ZGVhZGJlZWY=', timestamp: 1722700000,
+    }],
+    // At nbits zero (one distinct destination) the count field has no bits, so a second send of
+    // the same asset is not expressible; core's own encoder would raise on `uint:0=1`.
+    ['an MPMA send repeating an asset to one distinct destination', 'mpma', {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+      quantities: '1,2',
+    }],
+    // A 32-byte witness program does not fit the 21-byte legacy LUT slot.
+    ['an MPMA send to a Taproot destination', 'mpma', {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,'
+        + 'bc1pcm9gfgcy8q45y4m0ryskyc5nczex8yn9jc5r0tpuacz897y5rlfqn2u02z',
+      quantities: '1,2',
+    }],
+    // Core's encoder silently drops a memo its 6-bit length cannot carry; declining is the
+    // honest mirror — agreeing with a message that ignored the memo would verify a substitution.
+    ['an MPMA memo longer than 63 bytes', 'mpma', {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '1,2',
+      memos: `${'x'.repeat(64)},`,
+      memos_are_hex: 'false,false',
+    }],
+    ['an MPMA hex memo with an odd length', 'mpma', {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '1,2',
+      memos: 'abc,',
+      memos_are_hex: 'true,true',
+    }],
+    // One memos_are_hex flag covers every memo on the API, so a mix is not expressible.
+    ['MPMA memos mixing hex and text', 'mpma', {
+      assets: 'XCP,XCP',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '1,2',
+      memos: 'beef,hello',
+      memos_are_hex: 'true,false',
+    }],
+    // A subasset in the list resolves to its numeric id through the ledger.
+    ['an MPMA send that includes a subasset', 'mpma', {
+      assets: 'XCP,PARENT.child',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '1,2',
+    }],
+    ['an MPMA send that includes BTC', 'mpma', {
+      assets: 'XCP,BTC',
+      destinations: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa,1CounterpartyXXXXXXXXXXXXXXXUWLpVr',
+      quantities: '1,2',
     }],
     ['a reissuance with no observed message to borrow divisibility from', 'issuance', {
       asset: 'LANDMARKS', quantity: 0, description: 'new text',

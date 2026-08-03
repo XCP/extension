@@ -229,7 +229,51 @@ export async function normalizeFormData(
   const rawData = Object.fromEntries(formData);
   const normalizedData: Record<string, any> = { ...rawData };
   const assetInfoCache: AssetInfoCache = new Map();
-  
+
+  // MPMA carries parallel CSV lists, which the per-field table above cannot describe: each
+  // quantity is normalized by its own asset's divisibility. Base units must be resolved here,
+  // before compose, because message verification rebuilds the message from this same data
+  // (`pack/messages.ts`) — display units would make every quantity wrong by a factor of 1e8.
+  if (composeType === 'mpma'
+      && typeof rawData.assets === 'string' && typeof rawData.quantities === 'string') {
+    const assets = rawData.assets.split(',');
+    const quantities = rawData.quantities.split(',');
+    if (assets.length === quantities.length) {
+      const normalizedQuantities: string[] = [];
+      for (let i = 0; i < assets.length; i += 1) {
+        const assetName = assets[i]!.trim();
+        const value = quantities[i]!.toString();
+        // Always divisible, no lookup needed. (BTC is not sendable by MPMA; compose rejects it
+        // with a better error than an asset-info lookup failure would produce here.)
+        if (assetName === 'BTC' || assetName === 'XCP') {
+          normalizedQuantities.push(toSatoshis(value));
+          continue;
+        }
+        let assetInfo = assetInfoCache.get(assetName);
+        if (assetInfo === undefined) {
+          try {
+            const details = await fetchAssetDetails(assetName);
+            if (!details) {
+              throw new Error(`Asset "${assetName}" not found`);
+            }
+            assetInfo = details;
+            assetInfoCache.set(assetName, assetInfo);
+          } catch (error) {
+            // Fail fast: guessing divisibility would compose a quantity wrong by 1e8.
+            const message = error instanceof Error
+              ? error.message
+              : `Failed to fetch asset info for ${assetName}`;
+            throw new Error(message);
+          }
+        }
+        normalizedQuantities.push(assetInfo?.divisible
+          ? toSatoshis(value)
+          : toBigNumber(value).integerValue().toString());
+      }
+      normalizedData.quantities = normalizedQuantities.join(',');
+    }
+  }
+
   // Process quantity fields
   for (const quantityField of config.quantityFields) {
     const value = rawData[quantityField];
