@@ -16,6 +16,7 @@ import { assetNameToId } from '../unpack/assetId';
 import { packAddress, packAddressLegacy } from '../unpack/address';
 import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { hexToBytes } from '../unpack/binary';
+import { isTextualMimeType } from '../inscriptionEnvelope';
 
 /** The message types this module can construct. */
 export type PackableComposeType =
@@ -75,6 +76,21 @@ function requireQuantity(params: Params, key: string): bigint | null {
   return null;
 }
 
+/**
+ * Message content as core encodes it: UTF-8 for textual MIME types, hex-decoded for everything
+ * else (`helpers.content_to_bytes`). This is what lets an inscription — whose content is a binary
+ * file carried as hex in the request — pack to the same bytes core composes.
+ *
+ * Returns null when a binary type's content is not valid hex, which core would reject outright.
+ */
+function encodeMessageContent(content: string, mimeType: string): Uint8Array | null {
+  if (isTextualMimeType(mimeType || 'text/plain')) {
+    return new TextEncoder().encode(content);
+  }
+  if (content.length % 2 !== 0 || !/^[0-9a-fA-F]*$/.test(content)) return null;
+  return hexToBytes(content.toLowerCase());
+}
+
 function withPrefix(messageTypeId: number, body: Uint8Array): PackedMessage {
   const prefix = hexToBytes(COUNTERPARTY_PREFIX_HEX);
   return {
@@ -130,11 +146,9 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
   if (!asset || quantity === null) return null;
   // A dotted asset is a subasset request, which needs its asset id borrowed from the response.
   if (asset.includes('.')) return packSubasset(asset, quantity, params, observed);
-  // The ord-inscription path restructures the message, and a non-text MIME type makes core
-  // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
-  if (params.inscription) return null;
+  // An inscription carries the same message; only its transport differs (an ord envelope instead
+  // of an OP_RETURN), so it is packed normally and `inscriptionEnvelope.ts` checks the envelope.
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
-  if (mimeType !== '' && mimeType !== 'text/plain') return null;
 
   let assetId: bigint;
   try {
@@ -168,6 +182,11 @@ function packStandardIssuanceBody(
   if (divisible === null) return null;
 
   const description = typeof params.description === 'string' ? params.description : '';
+  let descriptionBytes: Uint8Array | null = null;
+  if (description.length > 0) {
+    descriptionBytes = encodeMessageContent(description, mimeType);
+    if (descriptionBytes === null) return null;
+  }
 
   const body: CborEncodable = [
     assetId,
@@ -176,7 +195,7 @@ function packStandardIssuanceBody(
     params.lock === true,
     params.reset === true,
     mimeType,
-    description.length > 0 ? new TextEncoder().encode(description) : null,
+    descriptionBytes,
   ];
   return withPrefix(MessageTypeId.LR_ISSUANCE, encodeCbor(body));
 }
@@ -235,11 +254,9 @@ function packSubasset(
   params: Params,
   observed: Observed
 ): PackedMessage | null {
-  // The ord-inscription path restructures the message, and a non-text MIME type makes core
-  // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
-  if (params.inscription) return null;
+  // An inscription carries the same message; only its transport differs (an ord envelope instead
+  // of an OP_RETURN), so it is packed normally and `inscriptionEnvelope.ts` checks the envelope.
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
-  if (mimeType !== '' && mimeType !== 'text/plain') return null;
 
   // Irreversible against a substituted id — see the borrow argument above.
   if (params.lock === true || params.lock === 'true') return null;
@@ -530,9 +547,7 @@ function floatParam(params: Params, key: string): number | null {
  */
 function packBroadcast(params: Params, observed: Observed): PackedMessage | null {
   if (typeof params.text !== 'string') return null;
-  if (params.inscription) return null;
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
-  if (mimeType !== '' && mimeType !== 'text/plain') return null;
 
   const value = floatParam(params, 'value');
   const feeFraction = floatParam(params, 'fee_fraction');
@@ -551,12 +566,15 @@ function packBroadcast(params: Params, observed: Observed): PackedMessage | null
     timestamp = BigInt(seen);
   }
 
+  const textBytes = encodeMessageContent(params.text, mimeType);
+  if (textBytes === null) return null;
+
   const body: CborEncodable = [
     timestamp,
     value,
     BigInt(feeFractionInt),
     mimeType,
-    new TextEncoder().encode(params.text),
+    textBytes,
   ];
   return withPrefix(MessageTypeId.BROADCAST, encodeCbor(body));
 }

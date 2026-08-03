@@ -96,6 +96,14 @@ export interface ComposeResult {
   inputs_values: number[];
   signed_tx_estimated_size: SignedTxEstimatedSize;
   psbt: string;
+  /**
+   * Present only for `encoding=taproot` composes. The ord envelope script carrying the message,
+   * and the reveal transaction — already signed by the composer's ephemeral key — that spends the
+   * commit output and publishes the content. `rawtransaction` is only the commit, so an
+   * inscription is not complete until the reveal is broadcast too.
+   */
+  envelope_script?: string;
+  signed_reveal_rawtransaction?: string;
   params: ComposeParams & {
     asset_dest_quant_list?: [string, string, string | number][];
     memos?: string[];
