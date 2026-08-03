@@ -968,10 +968,14 @@ export function createProviderService(): ProviderService {
             throw new Error(`Transaction replay detected: ${replayCheck.reason}`);
           }
 
-          // Record transaction before broadcast to prevent double-broadcast
-          const tempTxid = generateRequestId('pending');
+          // Record before broadcasting so a repeat cannot slip through while this one is in
+          // flight. The txid is not known until the node answers, so the record is keyed by a
+          // pre-broadcast id — and the completion below must update *that* key. Marking the real
+          // txid instead looked right but addressed a record that was never stored, so
+          // updateTransactionStatus silently found nothing and every record stayed 'pending'.
+          const pendingKey = generateRequestId('pending');
           recordTransaction(
-            tempTxid,
+            pendingKey,
             origin,
             'xcp_broadcastTransaction',
             [signedTx],
@@ -983,7 +987,7 @@ export function createProviderService(): ProviderService {
 
           // Mark as successfully broadcasted
           if (result.txid) {
-            markTransactionBroadcasted(result.txid);
+            markTransactionBroadcasted(pendingKey);
           }
 
           // Track successful broadcast
