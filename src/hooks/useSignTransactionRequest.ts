@@ -14,12 +14,12 @@ import { useSearchParams } from 'react-router';
 import { signTransactionRequestStorage, type SignTransactionRequest } from '@/utils/storage/signTransactionRequestStorage';
 import { recordSignOutcome } from '@/utils/provider/signFlow';
 import {
-  decodeRawTransaction,
   decodeCounterpartyMessage,
   fetchInputValues,
   type CounterpartyMessage
 } from '@/utils/blockchain/counterparty/transaction';
-import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { extractCounterpartyPayload } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { parseRawTransactionLocally } from '@/utils/blockchain/bitcoin/localTransactionParse';
 import {
   verifyProviderTransaction,
   type ProviderVerificationResult
@@ -90,16 +90,18 @@ export function useSignTransactionRequest(signerAddress?: string) {
 
   const requestId = searchParams.get('requestId');
 
-  // Decode raw transaction and enrich with API data
+  // Describe the transaction from its own bytes, then enrich with facts only a node can supply.
   const decodeTransaction = useCallback(async (rawTxHex: string, signerAddress?: string): Promise<DecodedTransactionInfo> => {
-    // Decode the raw transaction via API
-    const decoded = await decodeRawTransaction(rawTxHex, true);
+    // The screen must describe the bytes being signed, not a remote party's account of them
+    // (ADR-019). A parse failure is reported as such rather than deferring to the API's version.
+    const parsed = parseRawTransactionLocally(rawTxHex);
+    if (!parsed) {
+      throw new Error('This transaction could not be decoded, so it was not shown for signing.');
+    }
 
-    const inputs: DecodedTransactionInfo['inputs'] = decoded.vin.map((vin: any) => ({
-      txid: vin.txid,
-      vout: vin.vout,
-      value: vin.prevout?.value,
-      address: vin.prevout?.scriptPubKey?.address
+    const inputs: DecodedTransactionInfo['inputs'] = parsed.inputs.map((input) => ({
+      txid: input.txid,
+      vout: input.vout,
     }));
 
     // Kick off per-input attached-asset lookups now so they overlap with the
@@ -109,25 +111,22 @@ export function useSignTransactionRequest(signerAddress?: string) {
       inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout }))
     );
 
-    const outputs: DecodedTransactionInfo['outputs'] = decoded.vout.map((vout: any) => {
-      const isOpReturn = vout.scriptPubKey.type === 'nulldata';
-      return {
-        index: vout.n,
-        value: Math.round(vout.value * 100000000), // Convert to satoshis
-        address: vout.scriptPubKey.address,
-        type: isOpReturn ? 'op_return' : vout.scriptPubKey.type,
-        opReturnData: isOpReturn ? vout.scriptPubKey.hex : undefined
-      };
-    });
+    const outputs: DecodedTransactionInfo['outputs'] = parsed.outputs.map((output) => ({
+      index: output.index,
+      value: output.value,
+      ...(output.address ? { address: output.address } : {}),
+      type: output.type,
+      ...(output.opReturnData ? { opReturnData: output.opReturnData } : {}),
+    }));
 
-    // If decode didn't provide input values (prevout), look them up from blockchain
-    const hasInputValues = inputs.some(i => i.value != null && i.value > 0);
-    if (!hasInputValues && inputs.length > 0) {
+    // An input's value is not in the transaction that spends it, so it has to be resolved from the
+    // chain. Every input is looked up: previously one API-supplied value suppressed the lookup for
+    // all of them, and unresolved inputs silently counted as zero, understating the fee.
+    if (inputs.length > 0) {
       try {
         const inputValues = await fetchInputValues(inputs);
         for (const input of inputs) {
-          const key = `${input.txid}:${input.vout}`;
-          const value = inputValues.get(key);
+          const value = inputValues.get(`${input.txid}:${input.vout}`);
           if (value != null) {
             input.value = value;
           }
@@ -139,9 +138,12 @@ export function useSignTransactionRequest(signerAddress?: string) {
 
     const totalInputValue = inputs.reduce((sum, input) => sum + (input.value || 0), 0);
     const totalOutputValue = outputs.reduce((sum, output) => sum + output.value, 0);
-    const fee = totalInputValue > 0 ? totalInputValue - totalOutputValue : 0;
+    // Any unresolved input makes the fee unknowable rather than small: reporting a partial
+    // subtraction would understate it, and the fee-rate warning is computed from this number.
+    const allInputValuesResolved = inputs.every((input) => input.value != null);
+    const fee = allInputValuesResolved ? totalInputValue - totalOutputValue : 0;
 
-    const hasOpReturn = outputs.some(o => o.type === 'op_return');
+    const hasOpReturn = parsed.hasOpReturn;
 
     let counterpartyMessage: CounterpartyMessage | undefined;
     let counterpartyDataHex: string | undefined;
@@ -149,12 +151,11 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // Resolve any Counterparty payload the outputs carry — plaintext or ARC4 OP_RETURN, or
     // bare-multisig data outputs, which produce no OP_RETURN at all. Classifying every encoding
     // here is what lets the sweep block apply regardless of how the message is carried.
-    if (inputs.length > 0 && inputs[0]!.txid) {
-      counterpartyDataHex = extractPayloadFromOutputs(
-        decoded.vout.map((vout: any) => vout.scriptPubKey?.hex ?? ''),
-        inputs[0]!.txid
-      ) ?? undefined;
-    }
+    //
+    // Read from the raw bytes, not from the API's rendering of them. Extracting from an API-
+    // supplied script list keyed by an API-supplied txid would leave both sides of the comparison
+    // below rooted in the same source, so agreement would prove nothing about the bytes.
+    counterpartyDataHex = extractCounterpartyPayload(rawTxHex) ?? undefined;
 
     // If the outputs carried Counterparty data, try API unpack for rich message info
     if (counterpartyDataHex) {
@@ -179,13 +180,13 @@ export function useSignTransactionRequest(signerAddress?: string) {
     const attachedAssets = await attachedAssetsPromise;
 
     return {
-      txid: decoded.txid,
+      txid: parsed.txid,
       inputs,
       outputs,
       totalInputValue,
       totalOutputValue,
       fee,
-      vsize: decoded.vsize ?? decoded.size,
+      vsize: parsed.vsize,
       hasOpReturn,
       counterpartyMessage,
       verification,
