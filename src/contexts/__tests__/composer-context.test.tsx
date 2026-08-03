@@ -176,8 +176,17 @@ describe('ComposerContext', () => {
 
       await waitFor(() => {
         expect(result.current.state.step).toBe('review');
-        expect(result.current.state.apiResponse).toEqual(apiResponse);
       });
+
+      // The composer stores the fee the transaction actually pays, not the one the response
+      // claims. This fixture is a good example of why: it asserts btc_fee 5000, while its inputs
+      // (100,000, from the stubbed resolver) minus its single 95,160 sat output leave 4,840. Every
+      // review screen renders `result.btc_fee`, so substituting it here is what makes them honest.
+      expect(result.current.state.apiResponse).toEqual({
+        ...apiResponse,
+        result: { ...apiResponse.result, btc_fee: 4840 },
+      });
+      expect(result.current.state.verificationWarnings.join(' ')).toContain('4840');
 
       // The context converts FormData to plain object before calling composeApi
       const expectedData = {
