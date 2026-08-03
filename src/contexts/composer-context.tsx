@@ -249,6 +249,16 @@ export function useComposer<T>(): ComposerContextType<T> {
 }
 
 /**
+ * The composer context if there is one, otherwise null.
+ *
+ * For shared components that are normally rendered inside a compose flow but must not require it —
+ * they can prefer the decoded transaction when it is available and fall back when it is not.
+ */
+export function useComposerOptional<T>(): ComposerContextType<T> | null {
+  return (use(ComposerContext) as ComposerContextType<T> | null) ?? null;
+}
+
+/**
  * Provides transaction composition workflow to child components.
  * Handles the form → review → success flow with automatic state management.
  * @template T - Type of the form data

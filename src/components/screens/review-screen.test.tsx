@@ -23,6 +23,15 @@ vi.mock('@/hooks/useMarketPrices', () => ({
   })
 }));
 
+// The screen reads the decoded transaction when a compose flow provides one. Mocked rather than
+// wrapped in a real provider so this stays a component test — the real module reaches for
+// webext-bridge. `decodedMessage` is overwritten per test via `setDecodedMessage`.
+let mockDecodedMessage: { messageType: string; data: Record<string, unknown> } | null = null;
+const setDecodedMessage = (value: typeof mockDecodedMessage) => { mockDecodedMessage = value; };
+vi.mock('@/contexts/composer-context', () => ({
+  useComposerOptional: () => ({ state: { decodedMessage: mockDecodedMessage } }),
+}));
+
 describe('ReviewScreen', () => {
   const mockApiResponse = {
     result: {
@@ -56,6 +65,49 @@ describe('ReviewScreen', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setDecodedMessage(null);
+  });
+
+  describe('showing what the transaction encodes rather than what was echoed', () => {
+    it('prefers the decoded destination over the response params', () => {
+      // The response echoes the requested recipient while the transaction actually encodes a
+      // different one. The screen must show what will be signed, not what was asked for.
+      setDecodedMessage({
+        messageType: 'move',
+        data: { destination: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq' },
+      });
+
+      render(
+        <ReviewScreen
+          apiResponse={mockApiResponse}
+          onSign={vi.fn()}
+          onBack={vi.fn()}
+          error={null}
+          isSigning={false}
+        />
+      );
+
+      expect(screen.getByText('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')).toBeInTheDocument();
+      expect(
+        screen.queryByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')
+      ).not.toBeInTheDocument();
+    });
+
+    it('falls back to the response when the transaction carries no decodable destination', () => {
+      setDecodedMessage({ messageType: 'issuance', data: { asset: 'LANDMARKS' } });
+
+      render(
+        <ReviewScreen
+          apiResponse={mockApiResponse}
+          onSign={vi.fn()}
+          onBack={vi.fn()}
+          error={null}
+          isSigning={false}
+        />
+      );
+
+      expect(screen.getByText('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')).toBeInTheDocument();
+    });
   });
 
   it('renders transaction details correctly', () => {

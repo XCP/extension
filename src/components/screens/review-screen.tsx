@@ -6,6 +6,7 @@ import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
+import { useComposerOptional } from "@/contexts/composer-context";
 
 /**
  * Transaction result from API response
@@ -94,8 +95,24 @@ export function ReviewScreen({
   const { result } = apiResponse;
   const { settings } = useSettings();
   const { btc: btcPrice, xcp: xcpPrice } = useMarketPrices(settings.fiat);
+
+  // Prefer the destination the transaction actually encodes over the API's echo of the request.
+  // `result.params` is the composer repeating what it was asked for, so it cannot testify about
+  // the composer (ADR-019): a response that composed a different recipient than it echoed would
+  // otherwise display as correct. Types with byte equality are already proven, but the ones
+  // verified only field by field — btcpay, dispenser, the pool and UTXO screens — are exactly
+  // where an unenumerated difference could hide, and they all render through here.
+  //
+  // Optional context because this component is also rendered outside a compose flow.
+  const decoded = useComposerOptional()?.state.decodedMessage?.data as
+    | { destination?: string; source?: string }
+    | undefined;
+
   const sourceAddress = result.name === "dispense" ? result.params.address : result.params.source;
-  const destinationAddress = result.name === "dispense" ? result.params.dispenser : result.params.destination;
+  const destinationAddress = result.name === "dispense"
+    ? result.params.dispenser
+    // A move encodes "txid:vout"; anything else the decoder reports is an address.
+    : decoded?.destination ?? result.params.destination;
 
   // Calculate fee in fiat
   const feeInBtc = fromSatoshis(result.btc_fee, true);
