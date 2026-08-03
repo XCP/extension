@@ -74,6 +74,60 @@ describe('packing produces the bytes core composes', () => {
   });
 });
 
+describe('packing matches bytes generated with cbor2 5.9.0, the version core pins', () => {
+  // These hexes come from running core's own arithmetic — `cbor2.dumps` plus
+  // `assetnames.compact_subasset_longname` copied verbatim — under cbor2==5.9.0.
+
+  it('reproduces a text broadcast', () => {
+    const packed = packComposeMessage('broadcast', {
+      text: 'BLOCKCHAIN IS THE FUTURE', value: '0', fee_fraction: '0', timestamp: 1722700000,
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254591e851a66ae50e0fb000000000000000000605818424c4f434b434841494e2049532054484520465554555245'
+    );
+  });
+
+  it('reproduces a valued broadcast, with the value as a float and the fee fraction scaled', () => {
+    // value 1.5 must ride the wire as an 8-byte double, and fee_fraction 0.05 as int(0.05 * 1e8).
+    const packed = packComposeMessage('broadcast', {
+      text: 'price feed', value: '1.5', fee_fraction: '0.05', timestamp: 1722700000,
+    });
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254591e851a66ae50e0fb3ff80000000000001a004c4b40604a70726963652066656564'
+    );
+  });
+
+  it('reproduces an initial subasset issuance, flags as ints and the longname compacted', () => {
+    const packed = packComposeMessage(
+      'issuance',
+      { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false, description: 'a subasset' },
+      { messageTypeId: 23, assetId: 95428956661682177n }
+    );
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e54525052545917891b01530821671b10011903e80000000c4c05595523c6457390627d610b604a61207375626173736574'
+    );
+  });
+
+  it('reproduces a divisible locked subasset issuance with no description', () => {
+    const packed = packComposeMessage(
+      'issuance',
+      { asset: 'PEPE.rare-pepe_2026', quantity: 100_000_000, divisible: true, lock: true },
+      { messageTypeId: 23, assetId: 18446744073709551615n }
+    );
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e54525052545917891bffffffffffffffff1a05f5e1000101000f4f07e75b9a418da186050a715c3ec2e760f6'
+    );
+  });
+});
+
 describe('borrowing only what the request cannot determine', () => {
   it('packs a reissuance by taking divisibility from the composed message', () => {
     // update-description and transfer-ownership omit `divisible` because the asset already fixes
@@ -91,6 +145,46 @@ describe('borrowing only what the request cannot determine', () => {
       new TextEncoder().encode('updated text'),
     ]);
     expect(bytesToHex(packed!.bytes)).toBe(expectedMessage(22, body));
+  });
+
+  it('packs a broadcast by taking the wallet-stamped timestamp from the composed message', () => {
+    // The broadcast form carries no timestamp; composeBroadcast stamps the wallet clock into the
+    // request, so the packer reads it back from the decoded message. 1722700000 is in the past,
+    // which the borrow allows — only the future direction is dangerous.
+    const packed = packComposeMessage(
+      'broadcast',
+      { text: 'BLOCKCHAIN IS THE FUTURE', value: '0', fee_fraction: '0' },
+      { timestamp: 1722700000 }
+    );
+
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).toBe(
+      '434e5452505254591e851a66ae50e0fb000000000000000000605818424c4f434b434841494e2049532054484520465554555245'
+    );
+  });
+
+  it('refuses to borrow a broadcast timestamp from the far future', () => {
+    // Bets settle once a broadcast's timestamp reaches their deadline, so a substituted future
+    // timestamp settles a feed's open bets early. The wallet stamped its own clock moments before
+    // this runs, so an honest response cannot be out here.
+    const packed = packComposeMessage(
+      'broadcast',
+      { text: 'hello', value: '0', fee_fraction: '0' },
+      { timestamp: Math.floor(Date.now() / 1000) + 86_400 }
+    );
+
+    expect(packed).toBeNull();
+  });
+
+  it('refuses a subasset asset id outside the numeric space core draws from', () => {
+    // generate_random_asset draws from (26^12, 2^64); anything else is not a value core chose.
+    for (const assetId of [26n ** 12n, 1n << 64n, 1n]) {
+      expect(packComposeMessage(
+        'issuance',
+        { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false },
+        { messageTypeId: 23, assetId }
+      )).toBeNull();
+    }
   });
 
   it('still compares the description the user wrote, rather than borrowing it', () => {
@@ -114,8 +208,7 @@ describe('refusing to pack is not the same as agreeing', () => {
   // Each of these must return null so the caller reports "cannot verify by equality" rather than
   // treating an unpackable request as verified.
   it.each([
-    // Broadcast carries a server-chosen timestamp, so its bytes are not predictable from a request.
-    ['an unsupported compose type', 'broadcast', { text: 'hello', value: 0, fee_fraction: 0 }],
+    ['an unsupported compose type', 'attach', { asset: 'XCP', quantity: 1 }],
     ['a multi-destination send', 'send', { asset: 'XCP', destination: 'bc1qa,bc1qb', quantity: 1 }],
     ['a hex memo, which core encodes differently', 'send', {
       asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: 1, memo: 'ff00', memo_is_hex: true,
@@ -123,8 +216,18 @@ describe('refusing to pack is not the same as agreeing', () => {
     ['a BTC "send", which is not a Counterparty message', 'send', {
       asset: 'BTC', destination: TAPROOT_DESTINATION, quantity: 1,
     }],
-    ['a subasset issuance, whose parent name is compacted', 'issuance', {
+    ['a subasset issuance with no composed message to borrow the asset id from', 'issuance', {
       asset: 'PARENT.child', quantity: 1, divisible: false,
+    }],
+    ['a broadcast with no timestamp and no composed message to borrow one from', 'broadcast', {
+      text: 'hello', value: 0, fee_fraction: 0,
+    }],
+    // timestamp=0 asks the server to continue the feed from ledger state, which is unknowable here.
+    ['a broadcast that lets the server continue the feed', 'broadcast', {
+      text: 'hello', value: 0, fee_fraction: 0, timestamp: 0,
+    }],
+    ['an inscription broadcast, whose content moves into a tapscript envelope', 'broadcast', {
+      text: 'deadbeef', mime_type: 'image/png', inscription: 'ZGVhZGJlZWY=', timestamp: 1722700000,
     }],
     ['a reissuance with no observed message to borrow divisibility from', 'issuance', {
       asset: 'LANDMARKS', quantity: 0, description: 'new text',
@@ -138,6 +241,16 @@ describe('refusing to pack is not the same as agreeing', () => {
   ])('returns null for %s', (_label, composeType, params) => {
     expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();
   });
+
+  it('returns null for a subasset reissuance, which core composes in the standard layout', () => {
+    // Reissuing PARENT.child produces a standard-layout message whose asset id resolves through
+    // the ledger; only a composed message in the subasset layout is accepted for the subasset form.
+    expect(packComposeMessage(
+      'issuance',
+      { asset: 'PARENT.child', quantity: 0, divisible: false, description: 'updated' },
+      { messageTypeId: 22, assetId: 95428956661682177n }
+    )).toBeNull();
+  });
 });
 
 describe('CBOR encoding matches cbor2 canonical choices', () => {
@@ -149,6 +262,16 @@ describe('CBOR encoding matches cbor2 canonical choices', () => {
     expect(bytesToHex(encodeCbor(256n))).toBe('190100');
     expect(bytesToHex(encodeCbor(65_536n))).toBe('1a00010000');
     expect(bytesToHex(encodeCbor(4_294_967_296n))).toBe('1b0000000100000000');
+  });
+
+  it('encodes floats as 8-byte doubles, as cbor2.dumps does with core\'s default options', () => {
+    // Verified against cbor2 5.9.0 (core's pin): default dumps never shortens a finite float.
+    expect(bytesToHex(encodeCbor(0))).toBe('fb0000000000000000');
+    expect(bytesToHex(encodeCbor(1.5))).toBe('fb3ff8000000000000');
+    expect(bytesToHex(encodeCbor(0.1))).toBe('fb3fb999999999999a');
+    // Core's compose refuses non-finite values, so bytes for them would be meaningless.
+    expect(() => encodeCbor(Number.NaN)).toThrow();
+    expect(() => encodeCbor(Number.POSITIVE_INFINITY)).toThrow();
   });
 
   it('encodes null, booleans, byte strings and arrays as core does', () => {

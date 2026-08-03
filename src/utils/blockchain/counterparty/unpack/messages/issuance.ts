@@ -52,6 +52,8 @@ export interface IssuanceData {
   callPrice?: number;
   /** Asset description */
   description?: string;
+  /** MIME type of the description content (CBOR formats carry it; legacy formats have none) */
+  mimeType?: string;
   /** Subasset long name (for subasset issuances) */
   subassetLongname?: string;
   /** Whether this is a lock operation */
@@ -148,6 +150,12 @@ function tryCborDecode(payload: Uint8Array, messageTypeId: number): IssuanceData
     result.description = cborDescription(decoded[8] ?? null);
   } else {
     result.description = cborDescription(decoded[6] ?? null);
+  }
+
+  // The wire carries "" for the default MIME type; only a stated one is reported.
+  const mimeType = decoded[isSubasset ? 7 : 5];
+  if (typeof mimeType === 'string' && mimeType !== '') {
+    result.mimeType = mimeType;
   }
 
   return result;

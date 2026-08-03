@@ -9,15 +9,22 @@
  *   - integers use the shortest head that fits (cbor2's default),
  *   - byte strings and text strings carry a definite length,
  *   - arrays are definite-length,
- *   - `None` encodes as `null` (0xf6), and booleans as 0xf4 / 0xf5.
+ *   - `None` encodes as `null` (0xf6), and booleans as 0xf4 / 0xf5,
+ *   - floats are always 8-byte doubles (0xfb).
  *
- * Floats are deliberately unsupported: core emits them only for a broadcast's value, which this
- * module does not pack, and guessing between float16/32/64 would silently produce bytes that differ
- * from core's.
+ * The float choice is cbor2's default, not its canonical mode: `dumps` with no options emits every
+ * finite float as a big-endian float64, and canonical mode (which shortens to float16/32 when
+ * lossless) is something core never enables. Verified empirically against cbor2 5.9.0, the version
+ * core pins. Core emits floats only for a broadcast's value. Non-finite floats are refused — core's
+ * compose rejects them before packing, so bytes for them have no meaning here.
+ *
+ * A JavaScript `number` therefore always encodes as a float, even when integral: integers must be
+ * passed as `bigint`, which is what keeps 1 and 1.0 — different bytes on the wire — distinct.
  */
 
 export type CborEncodable =
   | bigint
+  | number
   | boolean
   | string
   | Uint8Array
@@ -48,6 +55,12 @@ function encodeValue(value: CborEncodable): number[] {
   if (value === false) return [0xf4];
   if (value === true) return [0xf5];
   if (typeof value === 'bigint') return encodeHead(0, value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new Error('CBOR: non-finite floats are rejected by core');
+    const bytes = new Uint8Array(8);
+    new DataView(bytes.buffer).setFloat64(0, value, false);
+    return [0xfb, ...bytes];
+  }
   if (typeof value === 'string') {
     const bytes = new TextEncoder().encode(value);
     return [...encodeHead(3, BigInt(bytes.length)), ...bytes];

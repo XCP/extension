@@ -29,6 +29,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { packComposeMessage } from '../messages';
+import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
@@ -43,6 +44,12 @@ interface OracleCase {
   params: Record<string, unknown>;
   /** Query string for core's compose endpoint. */
   query: Record<string, string>;
+  /**
+   * Decode core's response and hand it to the packer as the observed message, exactly as
+   * production does — for types with a value the request cannot determine, such as the random
+   * numeric asset id core draws for a new subasset. Equality then proves every *other* byte.
+   */
+  observedFromResponse?: boolean;
 }
 
 const CASES: OracleCase[] = [
@@ -109,6 +116,27 @@ const CASES: OracleCase[] = [
     query: { offer_hash: 'a'.repeat(64) },
   },
   {
+    label: 'text broadcast',
+    composeType: 'broadcast',
+    params: { text: 'BLOCKCHAIN IS THE FUTURE', value: '0', fee_fraction: '0', timestamp: 1722700000 },
+    query: { text: 'BLOCKCHAIN IS THE FUTURE', value: '0', fee_fraction: '0', timestamp: '1722700000' },
+  },
+  {
+    label: 'valued broadcast with a fee fraction',
+    composeType: 'broadcast',
+    params: { text: 'price feed', value: '1.5', fee_fraction: '0.05', timestamp: 1722700000 },
+    query: { text: 'price feed', value: '1.5', fee_fraction: '0.05', timestamp: '1722700000' },
+  },
+  {
+    label: 'initial subasset issuance',
+    composeType: 'issuance',
+    params: { asset: 'PEPECASH.oracle-check', quantity: 1000, divisible: false, description: 'a subasset' },
+    query: { asset: 'PEPECASH.oracle-check', quantity: '1000', divisible: 'false', description: 'a subasset' },
+    // Core names the subasset by drawing a random numeric asset per compose, so the id differs on
+    // every call and can only come from the response.
+    observedFromResponse: true,
+  },
+  {
     label: 'DEX order',
     composeType: 'order',
     params: {
@@ -143,10 +171,17 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
 
 describe.skipIf(!API_URL)('local packing matches counterparty-core', () => {
   it.each(CASES)('$label', async (testCase) => {
-    const packed = packComposeMessage(testCase.composeType, testCase.params);
-    expect(packed, 'this case should be packable locally').not.toBeNull();
-
     const fromCore = await composeDataFromCore(testCase);
+
+    let observed: Record<string, unknown> | undefined;
+    if (testCase.observedFromResponse) {
+      const unpacked = unpackCounterpartyMessage(fromCore);
+      expect(unpacked.success, 'the response should decode before anything can be borrowed').toBe(true);
+      observed = unpacked.data as Record<string, unknown>;
+    }
+
+    const packed = packComposeMessage(testCase.composeType, testCase.params, observed);
+    expect(packed, 'this case should be packable locally').not.toBeNull();
     expect(bytesToHex(packed!.bytes).toLowerCase()).toBe(fromCore);
   }, 30_000);
 });

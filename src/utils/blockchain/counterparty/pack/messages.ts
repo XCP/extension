@@ -24,7 +24,9 @@ import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
 import { hexToBytes } from '../unpack/binary';
 
 /** The message types this module can construct. */
-export type PackableComposeType = 'send' | 'issuance' | 'sweep' | 'destroy' | 'cancel' | 'order';
+export type PackableComposeType =
+  | 'send' | 'issuance' | 'sweep' | 'destroy' | 'cancel' | 'order'
+  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast';
 
 /**
  * Not every message is CBOR. The taproot_support upgrade moved enhanced send, issuance, sweep,
@@ -133,10 +135,15 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
   const asset = requireString(params, 'asset');
   const quantity = requireQuantity(params, 'quantity');
   if (!asset || quantity === null) return null;
-  // Subassets carry a compacted parent name this module does not construct.
-  if (asset.includes('.')) return null;
   // A transfer moves ownership via an output; equality on the message alone would not cover it.
   if (requireString(params, 'transfer_destination')) return null;
+  // A dotted asset is a subasset request, which composes a different layout.
+  if (asset.includes('.')) return packSubassetIssuance(asset, quantity, params, observed);
+  // The ord-inscription path restructures the message, and a non-text MIME type makes core
+  // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
+  if (params.inscription) return null;
+  const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
+  if (mimeType !== '' && mimeType !== 'text/plain') return null;
 
   // Divisibility is the user's choice on a first issuance and the ledger's on a reissuance, where
   // the form omits it. Borrowing it from the response keeps reissuances — update description,
@@ -156,7 +163,6 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
   }
 
   const description = typeof params.description === 'string' ? params.description : '';
-  const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
 
   const body: CborEncodable = [
     assetId,
@@ -168,6 +174,95 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
     description.length > 0 ? new TextEncoder().encode(description) : null,
   ];
   return withPrefix(MessageTypeId.LR_ISSUANCE, encodeCbor(body));
+}
+
+/**
+ * The subasset name charset, in digit order: digit d encodes SUBASSET_DIGITS[d-1], and the digits
+ * run 1..68 with no zero (core `assetnames.py`, SUBASSET_REVERSE). The decoder in
+ * `unpack/messages/issuance.ts` is the inverse of this.
+ */
+const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_@!';
+
+/**
+ * Compact a subasset longname to core's wire form: the name read as a base-68 big-endian integer,
+ * emitted as its minimal big-endian bytes (`assetnames.compact_subasset_longname`). Minimality
+ * matters — core's unpack rejects non-canonical compactions (`canonical_subasset_compact`), and a
+ * leading zero byte would also fail byte equality against core's own output.
+ *
+ * Returns null for a character outside the charset, which core would refuse to compose anyway.
+ */
+function compactSubassetLongname(longname: string): Uint8Array | null {
+  let integer = 0n;
+  for (const char of longname) {
+    const digit = SUBASSET_DIGITS.indexOf(char) + 1;
+    if (digit === 0) return null;
+    integer = integer * 68n + BigInt(digit);
+  }
+  const bytes: number[] = [];
+  for (let rest = integer; rest > 0n; rest >>= 8n) {
+    bytes.unshift(Number(rest & 0xffn));
+  }
+  return new Uint8Array(bytes);
+}
+
+/**
+ * Initial subasset issuance: CBOR `[asset_id, quantity, divisible, lock, reset, compacted_length,
+ * compacted_name, mime_type, description]` under LR_SUBASSET, since
+ * `issuance_backwards_compatibility` is active on mainnet. The flags are packed as ints — core's
+ * subasset branch writes `1 if divisible else 0` where the standard branch passes booleans
+ * (`issuance.py`), and int versus bool is a byte-level difference in CBOR.
+ *
+ * Only the *initial* issuance takes this layout. Core composes a reissuance of an existing
+ * subasset as a standard-layout message whose asset id resolves through the ledger, so a response
+ * that decodes to anything but a subasset layout is declined here and falls back to field
+ * comparison.
+ *
+ * The asset id is borrowed from the composed message: core names a new subasset by drawing a
+ * random unused numeric asset at compose time (`assetnames.generate_random_asset`), so the request
+ * cannot determine it. Safe to borrow: the longname — which the user did author — is still
+ * byte-compared through its compaction, and a substituted id cannot pay an attacker. An id naming
+ * someone else's asset is consensus-rejected ("issued by another address"), and an id naming an
+ * asset the source already owns degrades the transaction into a reissuance of the user's own asset
+ * to themselves. The range guard pins the id to the numeric space core draws from.
+ */
+function packSubassetIssuance(
+  longname: string,
+  quantity: bigint,
+  params: Params,
+  observed: Observed
+): PackedMessage | null {
+  const observedType = observed?.messageTypeId;
+  if (observedType !== MessageTypeId.SUBASSET_ISSUANCE && observedType !== MessageTypeId.LR_SUBASSET) {
+    return null;
+  }
+  // Divisibility is always the user's choice here: only a first issuance packs this layout.
+  if (typeof params.divisible !== 'boolean') return null;
+  // The ord-inscription path restructures the message, and a non-text MIME type makes core
+  // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
+  if (params.inscription) return null;
+  const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
+  if (mimeType !== '' && mimeType !== 'text/plain') return null;
+
+  const assetId = typeof observed?.assetId === 'bigint' ? observed.assetId : null;
+  if (assetId === null || assetId <= 26n ** 12n || assetId >= 1n << 64n) return null;
+
+  const compacted = compactSubassetLongname(longname);
+  if (!compacted) return null;
+
+  const description = typeof params.description === 'string' ? params.description : '';
+
+  const body: CborEncodable = [
+    assetId,
+    quantity,
+    params.divisible ? 1n : 0n,
+    params.lock === true ? 1n : 0n,
+    params.reset === true ? 1n : 0n,
+    BigInt(compacted.length),
+    compacted,
+    mimeType,
+    description.length > 0 ? new TextEncoder().encode(description) : null,
+  ];
+  return withPrefix(MessageTypeId.LR_SUBASSET, encodeCbor(body));
 }
 
 /** Sweep: CBOR `[short_address_bytes, flags, memo_bytes]` (core `sweep.py`). */
@@ -386,6 +481,78 @@ function packDispense(): PackedMessage {
 }
 
 /**
+ * How far into the future a borrowed broadcast timestamp may sit before the borrow is refused.
+ * `verifyBroadcast` in `unpack/verify.ts` applies the same bound to the field-comparison fallback,
+ * so a refusal here does not become an allowance there.
+ */
+const MAX_BORROWED_TIMESTAMP_FUTURE_SECONDS = 3600n;
+
+/**
+ * A float param as core's API receives it: absent means the compose function's default, and a
+ * present value goes through Python's `float()`. JavaScript's Number() performs the same
+ * correctly-rounded decimal parse, and both sides then share IEEE-754 double arithmetic, so the
+ * wire bytes agree.
+ */
+function floatParam(params: Params, key: string): number | null {
+  const value = params[key];
+  if (value === undefined || value === '') return 0;
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Broadcast: CBOR `[timestamp, value, fee_fraction_int, mime_type, text_bytes]` (core
+ * `broadcast.py`, taproot branch). `value` rides the wire as a float — the API coerces the param
+ * with `float()` and cbor2 emits every finite float as an 8-byte double — so it must stay a
+ * `number` here, where an integral bigint would encode differently.
+ *
+ * The timestamp is the one field the form does not carry: when the caller supplies none,
+ * `composeBroadcast` stamps the wallet's own clock into the request, and that value never reaches
+ * `params`. It is borrowed from the composed message instead, bounded against the same clock that
+ * stamped it — an honest response echoes a timestamp taken moments earlier, while a substituted
+ * future timestamp is how a feed's open bets get settled before their deadline (`broadcast.py`
+ * settles once `timestamp >= deadline`). Past the bound the borrow is refused and verification
+ * falls back to field comparison, which applies the same bound. A request that explicitly passes
+ * `timestamp=0` asks the server to continue the feed from ledger state, which cannot be
+ * reconstructed here.
+ *
+ * Inscriptions and non-text MIME types are declined: the ord path restructures the content into a
+ * tapscript envelope, and a non-text MIME makes core hex-decode the text (`content_to_bytes`).
+ */
+function packBroadcast(params: Params, observed: Observed): PackedMessage | null {
+  if (typeof params.text !== 'string') return null;
+  if (params.inscription) return null;
+  const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
+  if (mimeType !== '' && mimeType !== 'text/plain') return null;
+
+  const value = floatParam(params, 'value');
+  const feeFraction = floatParam(params, 'fee_fraction');
+  if (value === null || feeFraction === null) return null;
+  // int(fee_fraction * 1e8), the same float arithmetic core performs.
+  const feeFractionInt = Math.trunc(feeFraction * 1e8);
+  if (!Number.isSafeInteger(feeFractionInt) || feeFractionInt < 0) return null;
+
+  let timestamp = requireQuantity(params, 'timestamp');
+  if (timestamp === 0n) return null;
+  if (timestamp === null) {
+    const seen = observed?.timestamp;
+    if (typeof seen !== 'number' || !Number.isSafeInteger(seen) || seen <= 0) return null;
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    if (BigInt(seen) > now + MAX_BORROWED_TIMESTAMP_FUTURE_SECONDS) return null;
+    timestamp = BigInt(seen);
+  }
+
+  const body: CborEncodable = [
+    timestamp,
+    value,
+    BigInt(feeFractionInt),
+    mimeType,
+    new TextEncoder().encode(params.text),
+  ];
+  return withPrefix(MessageTypeId.BROADCAST, encodeCbor(body));
+}
+
+/**
  * Build the message bytes a compose request should produce, or null when this build cannot
  * construct them (unsupported type, or a value the request does not determine).
  *
@@ -417,6 +584,8 @@ export function packComposeMessage(
       return packFairminter(params);
     case 'dispense':
       return packDispense();
+    case 'broadcast':
+      return packBroadcast(params, observed);
     default:
       return null;
   }

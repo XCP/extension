@@ -95,14 +95,31 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
     mime_type: data.mimeType,
     description: data.description,
   }),
-  issuance: (data) => (data.subassetLongname ? null : {
-    asset: data.asset,
+  issuance: (data) => ({
+    // A subasset issuance composes from the longname; the numeric asset id it carries is the
+    // random draw the packer borrows from the decoded message, which the harness already passes.
+    asset: data.subassetLongname ?? data.asset,
     quantity: data.quantity,
     divisible: data.divisible,
     lock: data.isLock,
     reset: data.isReset,
     description: data.description ?? '',
+    mime_type: data.mimeType ?? '',
   }),
+  broadcast: (data) => {
+    // The wire stores the scaled integer; undo it so the packer can redo core's arithmetic. Skip
+    // the rare value whose double round-trip does not survive — a mismatch there would be
+    // arithmetic noise, not an encoding defect.
+    const feeFraction = data.feeFractionInt / 1e8;
+    if (Math.trunc(feeFraction * 1e8) !== data.feeFractionInt) return null;
+    return {
+      text: data.text,
+      value: String(data.value),
+      fee_fraction: String(feeFraction),
+      timestamp: data.timestamp,
+      mime_type: data.mimeType ?? '',
+    };
+  },
 };
 
 /** API transaction type → the compose type our packers are keyed by. */
@@ -116,6 +133,7 @@ const COMPOSE_TYPE_FOR: Record<string, string> = {
   fairmint: 'fairmint',
   issuance: 'issuance',
   fairminter: 'fairminter',
+  broadcast: 'broadcast',
 };
 
 async function recentTransactions(type: string): Promise<OnChainTransaction[]> {
