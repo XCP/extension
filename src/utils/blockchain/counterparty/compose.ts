@@ -509,10 +509,8 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       ...(inputsSet && { inputs_set: inputsSet }),
     }));
 
-    // Append array params as repeated plain keys: core's `query_params()` builds lists from
-    // repeated keys via `request.args.to_dict(flat=False)` and does nothing with a PHP-style
-    // `[]` suffix — `memos[]` is a different, ignored parameter, and the memos silently
-    // never reach compose.
+    // Array params must be repeated plain keys: core's `query_params()` builds lists from
+    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter.
     let url = `${apiUrl}?${params.toString()}`;
     for (const [key, values] of Object.entries(arrayParams)) {
       if (Array.isArray(values)) {
@@ -817,9 +815,8 @@ export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
   }
 
   if (memos && memos.some((memo) => memo !== '')) {
-    // Core applies one `memos_are_hex` flag to every memo in the list (`compose_mpma` appends the
-    // same boolean to each send tuple), so a mix of hex and text memos cannot be expressed over
-    // the API. Refusing loudly beats composing a transaction whose memos mean something else.
+    // Core applies one `memos_are_hex` flag to every memo in the list, so a mix of hex and text
+    // memos cannot be expressed over the API and must be rejected before compose.
     const hexFlags = new Set((memos_are_hex ?? []).filter((_, i) => memos[i] !== ''));
     if (hexFlags.size > 1) {
       throw new Error(
@@ -930,9 +927,8 @@ export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<Api
   if (destinations && destinations.includes(',')) {
     const destArray = destinations.split(',').map((d: string) => d.trim());
 
-    // Create MPMA options - same asset/quantity for each destination. A memo shared by every
-    // send travels as the whole-send memo (core's `memo` param, encoded once in the message)
-    // rather than as a per-send list saying the same thing n times.
+    // Same asset/quantity for each destination; a memo shared by every send travels once as the
+    // whole-send `memo` param.
     const mpmaOptions: MPMAOptions = {
       sourceAddress: options.sourceAddress,
       assets: destArray.map(() => options.asset),
