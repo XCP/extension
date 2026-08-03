@@ -131,30 +131,24 @@ function packEnhancedSend(params: Params): PackedMessage | null {
  * Issuance (standard, non-subasset): `[asset_id, quantity, divisible, lock, reset, mime_type,
  * description]` (core `issuance.py`, taproot_support branch). Core packs LR_ISSUANCE_ID whenever
  * `issuance_backwards_compatibility` is active, which it is on mainnet.
+ *
+ * An ownership transfer packs the same message: core carries the new owner only in an output that
+ * pays `transfer_destination` (`compose` returns `(source, [(destination, None)], data)`), so the
+ * message is byte-for-byte a reissuance. Equality here covers every message field, and the output
+ * policy — which requires each output to be an address the request names — is what pins the
+ * ownership output to the requested destination, the same division of labor dispense relies on.
  */
 function packIssuance(params: Params, observed: Observed): PackedMessage | null {
   const asset = requireString(params, 'asset');
   const quantity = requireQuantity(params, 'quantity');
   if (!asset || quantity === null) return null;
-  // A transfer moves ownership via an output; equality on the message alone would not cover it.
-  if (requireString(params, 'transfer_destination')) return null;
-  // A dotted asset is a subasset request, which composes a different layout.
-  if (asset.includes('.')) return packSubassetIssuance(asset, quantity, params, observed);
+  // A dotted asset is a subasset request, which needs its asset id borrowed from the response.
+  if (asset.includes('.')) return packSubasset(asset, quantity, params, observed);
   // The ord-inscription path restructures the message, and a non-text MIME type makes core
   // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
   if (params.inscription) return null;
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
   if (mimeType !== '' && mimeType !== 'text/plain') return null;
-
-  // Divisibility is the user's choice on a first issuance and the ledger's on a reissuance, where
-  // the form omits it. Borrowing it from the response keeps reissuances — update description,
-  // transfer ownership — byte-verified in every other field. Safe to borrow: core requires a
-  // reissuance's divisibility to match the existing asset, so a substituted value yields a
-  // transaction consensus rejects rather than one that moves value.
-  const divisible = typeof params.divisible === 'boolean'
-    ? params.divisible
-    : typeof observed?.divisible === 'boolean' ? observed.divisible : null;
-  if (divisible === null) return null;
 
   let assetId: bigint;
   try {
@@ -162,6 +156,31 @@ function packIssuance(params: Params, observed: Observed): PackedMessage | null 
   } catch {
     return null;
   }
+
+  return packStandardIssuanceBody(assetId, quantity, mimeType, params, observed);
+}
+
+/**
+ * The standard issuance body, shared by named-asset issuances and subasset reissuances (whose
+ * borrowed asset id is resolved by the caller).
+ *
+ * Divisibility is the user's choice on a first issuance and the ledger's on a reissuance, where
+ * the form omits it. Borrowing it from the response keeps reissuances — update description,
+ * transfer ownership — byte-verified in every other field. Safe to borrow: core requires a
+ * reissuance's divisibility to match the existing asset, so a substituted value yields a
+ * transaction consensus rejects rather than one that moves value.
+ */
+function packStandardIssuanceBody(
+  assetId: bigint,
+  quantity: bigint,
+  mimeType: string,
+  params: Params,
+  observed: Observed
+): PackedMessage | null {
+  const divisible = typeof params.divisible === 'boolean'
+    ? params.divisible
+    : typeof observed?.divisible === 'boolean' ? observed.divisible : null;
+  if (divisible === null) return null;
 
   const description = typeof params.description === 'string' ? params.description : '';
 
@@ -207,45 +226,63 @@ function compactSubassetLongname(longname: string): Uint8Array | null {
 }
 
 /**
- * Initial subasset issuance: CBOR `[asset_id, quantity, divisible, lock, reset, compacted_length,
- * compacted_name, mime_type, description]` under LR_SUBASSET, since
- * `issuance_backwards_compatibility` is active on mainnet. The flags are packed as ints — core's
- * subasset branch writes `1 if divisible else 0` where the standard branch passes booleans
- * (`issuance.py`), and int versus bool is a byte-level difference in CBOR.
+ * Subasset issuance, initial or reissuance. Both need the numeric asset id borrowed from the
+ * composed message — core draws a random unused numeric asset for a new subasset
+ * (`assetnames.generate_random_asset`) and resolves an existing longname through the ledger for a
+ * reissuance — so the request cannot determine it either way.
  *
- * Only the *initial* issuance takes this layout. Core composes a reissuance of an existing
- * subasset as a standard-layout message whose asset id resolves through the ledger, so a response
- * that decodes to anything but a subasset layout is declined here and falls back to field
- * comparison.
+ * The borrow's blast radius sets the terms. A substituted id cannot pay an attacker: an id naming
+ * someone else's asset is consensus-rejected ("issued by another address"), and neither the field
+ * fallback nor any other verifier without an independent ledger view could detect the
+ * substitution anyway — the fallback compares the longname the user typed, which the response
+ * echoes faithfully. What a substituted id *can* do is land the operation on a different numeric
+ * asset the user owns, so the borrow is limited to operations that are recoverable when that
+ * happens: issue and describe, whose worst case is supply the user can destroy and a description
+ * they can rewrite. `lock`, `reset` and an ownership transfer are permanent against the wrong
+ * asset, so those decline to the field fallback — which is no blinder, but does not put this
+ * module's signature on the bytes. The range guard pins the id to the numeric space subassets
+ * live in.
  *
- * The asset id is borrowed from the composed message: core names a new subasset by drawing a
- * random unused numeric asset at compose time (`assetnames.generate_random_asset`), so the request
- * cannot determine it. Safe to borrow: the longname — which the user did author — is still
- * byte-compared through its compaction, and a substituted id cannot pay an attacker. An id naming
- * someone else's asset is consensus-rejected ("issued by another address"), and an id naming an
- * asset the source already owns degrades the transaction into a reissuance of the user's own asset
- * to themselves. The range guard pins the id to the numeric space core draws from.
+ * The layout follows the composed message, gated on its decoded type. An *initial* issuance
+ * (SUBASSET_ISSUANCE / LR_SUBASSET) carries the compacted longname:
+ * `[asset_id, quantity, divisible, lock, reset, compacted_length, compacted_name, mime_type,
+ * description]`, flags as ints — core's subasset branch writes `1 if divisible else 0` where the
+ * standard branch passes booleans, a byte-level difference in CBOR. A *reissuance* (ISSUANCE /
+ * LR_ISSUANCE) is the standard layout under the borrowed id.
  */
-function packSubassetIssuance(
+function packSubasset(
   longname: string,
   quantity: bigint,
   params: Params,
   observed: Observed
 ): PackedMessage | null {
-  const observedType = observed?.messageTypeId;
-  if (observedType !== MessageTypeId.SUBASSET_ISSUANCE && observedType !== MessageTypeId.LR_SUBASSET) {
-    return null;
-  }
-  // Divisibility is always the user's choice here: only a first issuance packs this layout.
-  if (typeof params.divisible !== 'boolean') return null;
   // The ord-inscription path restructures the message, and a non-text MIME type makes core
   // hex-decode the description (`helpers.content_to_bytes`); neither variant is packed here.
   if (params.inscription) return null;
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
   if (mimeType !== '' && mimeType !== 'text/plain') return null;
 
+  // Irreversible against a substituted id — see the borrow argument above.
+  if (params.lock === true || params.lock === 'true') return null;
+  if (params.reset === true || params.reset === 'true') return null;
+  if (requireString(params, 'transfer_destination')) return null;
+
   const assetId = typeof observed?.assetId === 'bigint' ? observed.assetId : null;
   if (assetId === null || assetId <= 26n ** 12n || assetId >= 1n << 64n) return null;
+
+  const observedType = observed?.messageTypeId;
+
+  if (observedType === MessageTypeId.ISSUANCE || observedType === MessageTypeId.LR_ISSUANCE) {
+    // Reissuance of an existing subasset: the standard layout under the borrowed id.
+    return packStandardIssuanceBody(assetId, quantity, mimeType, params, observed);
+  }
+
+  if (observedType !== MessageTypeId.SUBASSET_ISSUANCE && observedType !== MessageTypeId.LR_SUBASSET) {
+    return null;
+  }
+
+  // Divisibility is always the user's choice on a first issuance.
+  if (typeof params.divisible !== 'boolean') return null;
 
   const compacted = compactSubassetLongname(longname);
   if (!compacted) return null;
@@ -256,8 +293,8 @@ function packSubassetIssuance(
     assetId,
     quantity,
     params.divisible ? 1n : 0n,
-    params.lock === true ? 1n : 0n,
-    params.reset === true ? 1n : 0n,
+    0n, // lock — the borrow refuses irreversible operations, so these are always clear
+    0n, // reset
     BigInt(compacted.length),
     compacted,
     mimeType,
