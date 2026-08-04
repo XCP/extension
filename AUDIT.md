@@ -12,6 +12,8 @@ Self-reported security assessment based on industry checklists.
 
 **Internal Review:** July 2026 — code-verified review of the cryptography, session, storage, and secret-handling layers against this checklist. Findings were remediated and this document updated to match the code.
 
+August 2026 — review of the transaction construction, verification and signing path, ranked by how many files depend on each and by how often each has needed fixing. Findings were remediated and the Transaction Security section below rewritten to match: message verification is now byte equality against a locally rebuilt message rather than a field-by-field comparison against the request.
+
 **Automated Analysis:** The encryption module has been analyzed with Trail of Bits security tools:
 
 | Tool | Scope | Result |
@@ -185,7 +187,10 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and compared to the user's intent; multi-destination (MPMA) sends verified per recipient |
+| ✅ | Local message verification | On every compose carrying a Counterparty OP_RETURN, the payload is decrypted (ARC4, first-input-txid key) and the message the request should produce is rebuilt locally and required to match byte for byte — sends, broadcasts, issuances, subasset issuances, ownership transfers, reissuances and MPMA batches. Where a field cannot be predicted from the request (a reissuance's divisibility, a server-drawn subasset asset id, a wallet-stamped broadcast timestamp) it is borrowed from the decoded message and the comparison drops to field level for that type, which is reported as a weaker check rather than presented as byte equality. Verified against a live node by `coreOracle.test.ts` and against real on-chain messages by `onchainRoundTrip.test.ts` (ADR-019) |
+| ✅ | Signed-transaction integrity | The signer rebuilds the transaction rather than signing the parsed bytes, because it needs per-input prevout data the raw bytes do not carry. Version, lock time, per-input txid/index/sequence and per-output script/amount are compared against the parsed source before signing; a difference refuses to sign rather than producing a signature over bytes the user did not review (`transactionSigner.ts`) |
+| ✅ | Display derived from decoded bytes | Amounts, assets, destinations, memos and fees on the compose review and dapp approval screens are decoded from the transaction's own bytes rather than read back from the API's echo of the request, which cannot testify about the API. The fee shown is resolved independently of the compose response. Asset divisibility remains a ledger fact read from `asset_info`, so the decimal point retains that dependency (ADR-019) |
+| ✅ | Address display integrity | Output addresses on dapp approval screens are shown in full rather than abbreviated, so a lookalike address cannot match on a truncated prefix and suffix |
 | ✅ | Fee bounding | Miner fee recomputed locally (inputs − outputs) and rejected before signing if it exceeds the user's selected rate or an absolute ceiling, or if outputs exceed inputs |
 | ✅ | Broadcast txid integrity | Reported txid computed locally from the signed bytes, not the broadcast endpoint's echo |
 | ✅ | Replay prevention | Nonce tracking, txid deduplication |
@@ -348,14 +353,14 @@ This is not true constant-time code. For higher-security applications, constant-
 | Session | 6 | 0 | 0 | 2 |
 | Password | 3 | 2 | 1 | 0 |
 | Extension | 10 | 1 | 0 | 2 |
-| Provider API | 14 | 0 | 0 | 0 |
-| Transaction | 7 | 1 | 0 | 0 |
+| Provider API | 18 | 0 | 0 | 0 |
+| Transaction | 11 | 0 | 0 | 0 |
 | Input Validation | 5 | 0 | 0 | 0 |
 | UI/UX | 3 | 0 | 1 | 2 |
 | Error Handling | 4 | 0 | 0 | 0 |
 | Privacy & Analytics | 9 | 0 | 0 | 1 |
 | Supply Chain | 4 | 0 | 0 | 1 |
 | Hardware Wallet | 12 | 1 | 0 | 1 |
-| **Total** | **86** | **6** | **2** | **12** |
+| **Total** | **94** | **5** | **2** | **12** |
 
 **Gaps (❌):** Password strength meter, screenshot prevention (browser limitation)
