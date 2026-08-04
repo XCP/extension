@@ -84,11 +84,6 @@ export interface ApprovalMessage {
   updatedParams?: unknown;
 }
 
-interface KeychainLockMessage {
-  type: 'KEYCHAIN_LOCKED';
-  locked: boolean;
-}
-
 // Define the protocol map for type safety
 export interface MessageProtocol {
   // Keychain messages

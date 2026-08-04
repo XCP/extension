@@ -28,13 +28,6 @@ export interface ConnectionStatus {
   lastActive?: number;
 }
 
-interface ConnectionPermissionRequest {
-  origin: string;
-  address: string;
-  walletId: string;
-  timestamp: number;
-}
-
 interface ConnectionServiceState {
   connectionCache: Map<string, ConnectionStatus>;
   lastSecurityCheck: Map<string, number>;

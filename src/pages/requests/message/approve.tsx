@@ -19,7 +19,6 @@ export default function ApproveMessagePage() {
     error: loadError,
     handleSuccess,
     handleCancel,
-    isProviderRequest
   } = useSignMessageRequest();
   usePopupLifecycle(request?.id, 'sign-message');
 

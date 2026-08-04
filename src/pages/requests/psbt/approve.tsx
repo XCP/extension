@@ -46,7 +46,6 @@ export default function ApprovePsbtPage() {
     error: loadError,
     handleSuccess,
     handleCancel,
-    isProviderRequest
   } = useSignPsbtRequest(activeAddress?.address);
   usePopupLifecycle(request?.id, 'sign-psbt');
 

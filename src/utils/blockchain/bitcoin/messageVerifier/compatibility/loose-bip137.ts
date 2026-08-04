@@ -44,7 +44,7 @@ export async function verifyLooseBIP137(
     // Try ALL recovery combinations, ignoring what the flag says
     for (let recoveryId = 0; recoveryId <= 3; recoveryId++) {
       for (const compressed of [true, false]) {
-        const publicKey = recoverPublicKey(sigData, messageHash, recoveryId, compressed);
+        const publicKey = recoverPublicKey({ raw: sigData, recoveryId, compressed }, messageHash);
         if (!publicKey) continue;
 
         // Try to derive ALL possible address types from this public key

@@ -119,7 +119,7 @@ export function AmountWithMaxInput({
       setError(null);
 
       // Select UTXOs that are safe to spend (excludes those with Counterparty assets)
-      const { utxos, totalValue, excludedWithAssets, excludedValue } = await selectUtxosForTransaction(
+      const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
         sourceAddress.address,
         { allowUnconfirmed: true }
       );

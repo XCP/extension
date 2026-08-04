@@ -130,7 +130,6 @@ export default function ApproveTransactionPage() {
     error: loadError,
     handleSuccess,
     handleCancel,
-    isProviderRequest
   } = useSignTransactionRequest(activeAddress?.address);
   usePopupLifecycle(request?.id, 'sign-transaction');
 

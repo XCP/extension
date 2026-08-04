@@ -9,19 +9,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
+import type { DividendOptions } from "@/utils/blockchain/counterparty/compose";
 import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";
-
-interface DividendFormData {
-  quantity_per_unit: string;
-  dividend_asset: string;
-  sat_per_vbyte: number;
-  asset?: string;
-}
 
 interface DividendFormProps {
   formAction: (formData: FormData) => void;
   asset: string;
-  initialFormData: any;
+  initialFormData: DividendOptions | null;
 }
 
 
@@ -43,7 +37,7 @@ export function DividendForm({
   const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
   const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
-    initialFormData?.quantity_per_unit || ""
+    initialFormData?.quantity_per_unit != null ? String(initialFormData.quantity_per_unit) : ""
   );
   const [error, setError] = useState<string | null>(null);
 

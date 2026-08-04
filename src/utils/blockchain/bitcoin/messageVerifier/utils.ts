@@ -7,7 +7,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 // Initialize secp256k1
 import { hashes } from '@noble/secp256k1';
 import { recoverPublicKeyFromSignature } from '@/utils/blockchain/bitcoin/messageVerifier/secp-recovery';
-import type { AddressType } from '@/utils/blockchain/bitcoin/messageVerifier/types';
+import type { AddressType, SignatureInfo } from '@/utils/blockchain/bitcoin/messageVerifier/types';
 
 if (!hashes.hmacSha256) {
   hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
@@ -285,12 +285,10 @@ export function validateSignatureFormat(signature: string): {
  * Uses isolated recovery utility (currently tiny-secp256k1, will migrate to noble)
  */
 export function recoverPublicKey(
-  signature: Uint8Array,
-  messageHash: Uint8Array,
-  recoveryId: number,
-  compressed: boolean = true
+  signature: SignatureInfo,
+  messageHash: Uint8Array
 ): Uint8Array | null {
-  return recoverPublicKeyFromSignature(signature, messageHash, recoveryId, compressed);
+  return recoverPublicKeyFromSignature(signature, messageHash);
 }
 
 

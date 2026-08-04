@@ -82,7 +82,7 @@ export async function verifyBIP137(
     const sigData = sigBytes.slice(1);
 
     // Recover public key
-    const publicKey = recoverPublicKey(sigData, messageHash, recoveryId, compressed);
+    const publicKey = recoverPublicKey({ raw: sigData, recoveryId, compressed }, messageHash);
     if (!publicKey) {
       return { valid: false, details: 'Failed to recover public key from signature' };
     }
