@@ -49,23 +49,20 @@
     "webext-bridge": "6.0.1"
   },
   "overrides": {
-    "@vitejs/plugin-react": "5.2.0",
-    "postcss": "8.5.18",
     "protobufjs": "7.6.5",
-    "ws": "8.21.0",
-    "axios": "1.18.1"
+    "ws": "8.21.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.6",
-    "@playwright/test": "1.62.0",
+    "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.0",
     "@testing-library/react": "16.3.2",
-    "@testing-library/user-event": "14.6.1",
+    "@testing-library/user-event": "14.6.3",
     "@trezor/trezor-user-env-link": "1.0.0",
-    "@types/chrome": "0.2.2",
-    "@types/react": "19.2.17",
-    "@types/react-dom": "19.2.3",
+    "@types/chrome": "0.2.5",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
     "@vitest/coverage-v8": "4.1.10",
     "@wxt-dev/module-react": "1.2.2",
     "fast-check": "4.9.0",
@@ -74,6 +71,6 @@
     "typescript": "7.0.2",
     "vite": "7.3.6",
     "vitest": "4.1.10",
-    "wxt": "0.21.2"
+    "wxt": "0.21.3"
   }
 }
