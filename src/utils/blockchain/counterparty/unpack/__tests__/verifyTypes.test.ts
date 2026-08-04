@@ -53,6 +53,35 @@ describe('verifyTransaction activation per type', () => {
     });
   });
 
+  describe('unreadable quantities', () => {
+    const message = PREFIX + '6e' + u64(1n) + u64(100000000n); // destroy, XCP, 1 XCP
+
+    // toBigInt used to answer 0n for anything BigInt() could not parse, which conflated
+    // "could not read this" with "this is zero" and broke the comparison in both directions.
+
+    // The half that costs security: two unreadable values compared equal and certified each
+    // other, so a tampered message passed as verified.
+    it('does not let an unreadable request certify a message', () => {
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: 'not-a-number' });
+      expect(r.valid).toBe(false);
+      expect(r.criticalMismatches.some((m) => m.field === 'quantity')).toBe(true);
+    });
+
+    it('does not treat an unreadable value as zero', () => {
+      // Against a message carrying zero, the old sentinel made these compare equal.
+      const zeroMessage = PREFIX + '6e' + u64(1n) + u64(0n);
+      const r = verifyTransaction(zeroMessage, 'destroy', { asset: 'XCP', quantity: '1.5' });
+      expect(r.valid).toBe(false);
+    });
+
+    // The other half: a readable request must still verify normally, in either spelling.
+    it('still accepts a quantity given as a numeric string', () => {
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: '100000000' });
+      expect(r.errors).toHaveLength(0);
+      expect(r.valid).toBe(true);
+    });
+  });
+
   describe('dispenser', () => {
     // type 12: asset, give_quantity, escrow_quantity, mainchainrate, status
     const message = PREFIX + '0c' + u64(1n) + u64(100n) + u64(1000n) + u64(1000000n) + '00';
