@@ -72,7 +72,7 @@ export interface ComposeParams {
   address?: string;
   dispenser?: string;
   asset: string;
-  quantity: number;
+  quantity: string | number;
   memo: string | null;
   memo_is_hex: boolean;
   use_enhanced_send: boolean;
@@ -142,7 +142,7 @@ export interface BTCPayOptions extends BaseComposeOptions {
 }
 
 export interface BurnOptions extends BaseComposeOptions {
-  quantity: number;
+  quantity: string | number;
   overburn?: boolean;
 }
 
@@ -152,15 +152,15 @@ export interface CancelOptions extends BaseComposeOptions {
 
 export interface DestroyOptions extends BaseComposeOptions {
   asset: string;
-  quantity: number;
+  quantity: string | number;
   tag?: string;
 }
 
 export interface DispenserOptions extends BaseComposeOptions {
   asset: string;
-  give_quantity: number;
-  escrow_quantity: number;
-  mainchainrate: number;
+  give_quantity: string | number;
+  escrow_quantity: string | number;
+  mainchainrate: string | number;
   status?: string;
   open_address?: string;
   oracle_address?: string;
@@ -168,19 +168,19 @@ export interface DispenserOptions extends BaseComposeOptions {
 
 export interface DispenseOptions extends BaseComposeOptions {
   dispenser: string;
-  quantity: number;
+  quantity: string | number;
   pubkeys?: string;
 }
 
 export interface DividendOptions extends BaseComposeOptions {
   asset: string;
   dividend_asset: string;
-  quantity_per_unit: number;
+  quantity_per_unit: string | number;
 }
 
 export interface IssuanceOptions extends BaseComposeOptions {
   asset: string;
-  quantity: number;
+  quantity: string | number;
   divisible?: boolean;
   lock: boolean;
   reset: boolean;
@@ -206,9 +206,9 @@ export interface MPMAOptions extends BaseComposeOptions {
 
 export interface OrderOptions extends BaseComposeOptions {
   give_asset: string;
-  give_quantity: number;
+  give_quantity: string | number;
   get_asset: string;
-  get_quantity: number;
+  get_quantity: string | number;
   expiration: number;
   fee_required?: number;
 }
@@ -216,7 +216,7 @@ export interface OrderOptions extends BaseComposeOptions {
 export interface SendOptions extends BaseComposeOptions {
   destination: string;
   asset: string;
-  quantity: number;
+  quantity: string | number;
   memo?: string;
   memo_is_hex?: boolean;
   no_dispense?: boolean;
@@ -231,14 +231,14 @@ export interface SweepOptions extends BaseComposeOptions {
 export interface FairminterOptions extends BaseComposeOptions {
   asset: string;
   lot_price?: number;
-  lot_size?: number;
-  max_mint_per_tx?: number;
-  max_mint_per_address?: number;
-  hard_cap?: number;
-  premint_quantity?: number;
+  lot_size?: string | number;
+  max_mint_per_tx?: string | number;
+  max_mint_per_address?: string | number;
+  hard_cap?: string | number;
+  premint_quantity?: string | number;
   start_block?: number;
   end_block?: number;
-  soft_cap?: number;
+  soft_cap?: string | number;
   soft_cap_deadline_block?: number;
   minted_asset_commission?: number;
   burn_payment?: boolean;
@@ -255,7 +255,7 @@ export interface FairminterOptions extends BaseComposeOptions {
 
 export interface FairmintOptions extends BaseComposeOptions {
   asset: string;
-  quantity?: number;
+  quantity?: string | number;
 }
 
 export interface PoolDepositOptions extends BaseComposeOptions {
@@ -278,7 +278,7 @@ export interface PoolWithdrawOptions extends BaseComposeOptions {
 
 export interface AttachOptions extends BaseComposeOptions {
   asset: string;
-  quantity: number;
+  quantity: string | number;
   utxo_value?: number; // Optional value for the new UTXO (disabled after block 871900)
   destination_vout?: number; // Optional output to attach to
 }

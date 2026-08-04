@@ -35,9 +35,13 @@ const cache = new Map<string, CacheEntry<unknown>>();
  */
 function getCacheKey(url: string, params?: Record<string, string | number | boolean>): string {
   if (!params || Object.keys(params).length === 0) return url;
+  // Values are encoded so a value containing & or = cannot forge a separator. Without it
+  // { cursor: '1&limit=2' } and { cursor: '1', limit: '2' } produce the same key, and whichever
+  // ran first has its response served to the other. Cursors come from the API, so their contents
+  // are not ours to assume.
   const sortedParams = Object.entries(params)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([k, v]) => `${k}=${v}`)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
     .join('&');
   return `${url}?${sortedParams}`;
 }
@@ -56,9 +60,23 @@ function getFromCache<T>(key: string): T | null {
 }
 
 /**
+ * Largest number of entries kept. Expired entries are only dropped when their key is read again,
+ * so without a bound anything fetched once and never revisited stays for the life of the context.
+ */
+const MAX_CACHE_ENTRIES = 500;
+
+/**
  * Store data in cache.
  */
 function setInCache<T>(key: string, data: T): void {
+  // Re-setting an existing key must not count as growth, so delete first: Map preserves insertion
+  // order, and deleting then setting also moves the entry to the newest position.
+  cache.delete(key);
+  if (cache.size >= MAX_CACHE_ENTRIES) {
+    // Map iterates in insertion order, so the first key is the oldest.
+    const oldest = cache.keys().next();
+    if (!oldest.done) cache.delete(oldest.value);
+  }
   cache.set(key, { data, timestamp: Date.now() });
 }
 

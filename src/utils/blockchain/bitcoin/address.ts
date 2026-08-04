@@ -144,9 +144,18 @@ export function decodeAddressFromScript(scriptHex: string): string | null {
 }
 
 /**
- * Convert hex string to Uint8Array
+ * Convert hex string to Uint8Array.
+ *
+ * Throws on anything that is not clean hex rather than decoding it. `parseInt` returns NaN for a
+ * bad pair and Uint8Array stores NaN as 0, so without this a garbage hash decodes to zero bytes
+ * and `decodeAddressFromScript` hands back a valid-looking address instead of null. Output
+ * accounting treats null as the signal that a script cannot be attributed, so a wrong address is
+ * worse there than no address.
  */
 function hexToUint8Array(hex: string): Uint8Array {
+  if (hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
+    throw new Error('Invalid hex string');
+  }
   const bytes = new Uint8Array(hex.length / 2);
   for (let i = 0; i < hex.length; i += 2) {
     bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
