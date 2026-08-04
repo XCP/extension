@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { defineProxyService, isBackgroundScript, disconnectAllPorts } from '../proxy';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '../errors';
+import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
 
 // ---------------------------------------------------------------------------
 // Mock Chrome API

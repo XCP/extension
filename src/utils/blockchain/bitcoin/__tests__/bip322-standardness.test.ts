@@ -4,18 +4,18 @@
  * https://github.com/ACken2/bip322-js
  */
 
-import { describe, it, expect } from 'vitest';
-import { hex, base64 } from '@scure/base';
+import * as secp256k1 from '@noble/secp256k1';
+import { base64, hex } from '@scure/base';
+import * as btc from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
 import {
-  verifyBIP322Signature,
   signBIP322P2PKH,
-  signBIP322P2WPKH,
   signBIP322P2SH_P2WPKH,
-  signBIP322P2TR
+  signBIP322P2TR, 
+  signBIP322P2WPKH,
+  verifyBIP322Signature
 } from '../bip322';
 import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
-import * as secp256k1 from '@noble/secp256k1';
-import * as btc from '@scure/btc-signer';
 
 describe('BIP-322 Standardness Tests from bip322-js', () => {
   describe('Legacy P2PKH Signature Verification', () => {

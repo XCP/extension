@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, type ReactNode, type ReactElement } from 'react';
+import { type ReactElement, type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '@/components/layout/error-boundary';
 import { ApiStatusProvider } from '@/contexts/api-status-context';
 import { HeaderProvider } from '@/contexts/header-context';
-import { SettingsProvider } from '@/contexts/settings-context';
-import { WalletProvider } from '@/contexts/wallet-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { useSettings } from '@/contexts/settings-context';
+import { SettingsProvider, useSettings } from '@/contexts/settings-context';
+import { useWallet, WalletProvider } from '@/contexts/wallet-context';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { getAutoLockTimeoutMs } from '@/utils/settings';
 

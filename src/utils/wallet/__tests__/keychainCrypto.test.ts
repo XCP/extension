@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
-import { encryptKeychainRecord, decryptKeychain, KEYCHAIN_VERSION } from '../keychainCrypto';
-import { deriveKey } from '@/utils/encryption/encryption';
-import { generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { describe, expect, it } from 'vitest';
 import type { Keychain } from '@/types/wallet';
+import { bufferToBase64, generateRandomBytes } from '@/utils/encryption/buffer';
+import { deriveKey } from '@/utils/encryption/encryption';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '../keychainCrypto';
 
 const ITERATIONS = 500000; // deriveKey enforces a 500k minimum (ADR-014)
 

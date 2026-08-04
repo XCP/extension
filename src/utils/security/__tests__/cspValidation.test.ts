@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { 
   analyzeCSP, 
-  meetsSecurityRequirements,
-  getCSPSecurityAdvice 
+  getCSPSecurityAdvice, 
+  meetsSecurityRequirements
 } from '../cspValidation';
 
 // Mock fetch globally

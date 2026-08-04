@@ -1,7 +1,7 @@
 /**
  * Simple test to verify our validation functions work
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { validateAssetName, validateParentAsset } from '../asset';
 import { isHexMemo, validateMemo } from '../memo';
 

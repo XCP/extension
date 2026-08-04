@@ -4,7 +4,7 @@
  */
 
 import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
-import { validateSubasset, validateParentAsset, isNamedAsset, isNumericAsset } from '@/utils/validation/asset';
+import { validateParentAsset, } from '@/utils/validation/asset';
 
 export interface AssetOwnerLookupResult {
   isValid: boolean;
@@ -93,7 +93,7 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
       assetName: queryName
     };
 
-  } catch (error) {
+  } catch (_error) {
     return {
       isValid: false,
       error: 'Failed to lookup asset owner'

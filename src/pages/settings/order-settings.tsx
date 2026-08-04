@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import type { ReactElement } from 'react';
+import { useEffect, useState } from 'react';
 import { useSettings } from '@/contexts/settings-context';
+import { getCounterpartyFeatureStatus } from '@/utils/blockchain/counterparty/capabilities';
 import {
   DEFAULT_ORDER_EXPIRATION,
   LEGACY_MAX_ORDER_EXPIRATION,
   MAX_ORDER_EXPIRATION,
 } from '@/utils/settings';
-import { getCounterpartyFeatureStatus } from '@/utils/blockchain/counterparty/capabilities';
-import type { ReactElement } from 'react';
 
 interface OrderSettingsProps {
   customExpiration?: number;

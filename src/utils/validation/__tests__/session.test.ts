@@ -1,21 +1,21 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  validateWalletId,
-  validateSecret,
-  validateTimeout,
-  validateSessionMetadata,
   assertRateLimit,
-  clearRateLimit,
-  clearAllRateLimits,
   assertSecretLimit,
-  MAX_WALLET_ID_LENGTH,
+  clearAllRateLimits,
+  clearRateLimit,
+  MAX_OPERATIONS_PER_WINDOW, 
   MAX_SECRET_LENGTH,
   MAX_STORED_SECRETS,
-  MIN_TIMEOUT_MS,
   MAX_TIMEOUT_MS,
-  WALLET_ID_REGEX,
+  MAX_WALLET_ID_LENGTH,
+  MIN_TIMEOUT_MS,
   RATE_LIMIT_WINDOW_MS,
-  MAX_OPERATIONS_PER_WINDOW
+  validateSecret,
+  validateSessionMetadata,
+  validateTimeout,
+  validateWalletId,
+  WALLET_ID_REGEX
 } from '../session';
 
 describe('Session Validation Utilities', () => {

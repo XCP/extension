@@ -1,14 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FaCheckCircle, FaUpload, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
-import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
-import { validateSignatureJson, type SignatureJson } from "@/utils/validation/signatureJson";
-import type { ReactElement } from "react";
+import { validateSignatureJson } from "@/utils/validation/signatureJson";
 
 /**
  * VerifyMessage component for verifying Bitcoin message signatures
@@ -109,7 +109,7 @@ export default function VerifyMessagePage(): ReactElement {
         setVerificationResult(null);
         setVerificationMethod(null);
         setError(null);
-      } catch (err) {
+      } catch (_err) {
         setError("Failed to parse JSON file. Make sure it's valid JSON with address, message, and signature fields.");
       }
     };

@@ -284,7 +284,7 @@ export async function detectMaliciousContent(file: File): Promise<FileValidation
     }
 
     return { isValid: true };
-  } catch (error) {
+  } catch (_error) {
     // If we can't read the file, consider it suspicious
     return { isValid: false, error: 'Unable to validate file content' };
   }

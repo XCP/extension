@@ -16,8 +16,8 @@
  *   [short_address_bytes, flags, memo_bytes]
  */
 
+import { PACKED_ADDRESS_LENGTH, unpackAddress } from '@/utils/blockchain/counterparty/unpack/address';
 import { BinaryReader, bytesToHex } from '@/utils/blockchain/counterparty/unpack/binary';
-import { unpackAddress, PACKED_ADDRESS_LENGTH } from '@/utils/blockchain/counterparty/unpack/address';
 import { tryDecodeCborArray } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 /** Minimum length of sweep message (destination + flags) */

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { CounterpartyApiError, BlockchainError, isBlockchainError, DataFetchError, isDataFetchError } from '../errors';
+import { describe, expect, it } from 'vitest';
+import { BlockchainError, CounterpartyApiError, DataFetchError, isBlockchainError, isDataFetchError } from '../errors';
 
 describe('errors.ts', () => {
   describe('CounterpartyApiError', () => {

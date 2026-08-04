@@ -1,14 +1,13 @@
 /**
  * Unit tests for asset validation functions
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  validateAssetName,
-  validateParentAsset,
-  validateSubasset,
-  isNumericAsset,
+  generateRandomNumericAsset, 
   isNamedAsset,
-  generateRandomNumericAsset
+  isNumericAsset,
+  validateParentAsset,
+  validateSubasset
 } from '../asset';
 
 describe('Asset Validation', () => {

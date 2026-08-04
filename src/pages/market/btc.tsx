@@ -1,24 +1,24 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { FiRefreshCw, FaBitcoin, FiChevronDown } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
+import { FaBitcoin, FiChevronDown, FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useFeeRates } from "@/hooks/useFeeRates";
 import {
-  getBtcPriceHistory,
-  getBtc24hStats,
+  type BtcStats,
   CURRENCY_INFO,
+  type FiatCurrency,
+  getBtc24hStats,
+  getBtcPriceHistory,
   type PricePoint,
   type TimeRange,
-  type BtcStats,
-  type FiatCurrency,
 } from "@/utils/blockchain/bitcoin/price";
 import { getXCPPrice } from "@/utils/blockchain/counterparty/price";
 import { analytics } from "@/utils/fathom";
 import { formatAmount } from "@/utils/format";
-import type { ReactElement } from "react";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
 const TIME_RANGES: { id: TimeRange; label: string }[] = [

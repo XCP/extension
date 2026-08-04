@@ -1,16 +1,16 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { AddressHeader } from "@/components/ui/headers/address-header";
-import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
-import { useWallet } from "@/contexts/wallet-context";
-import { formatAmount } from "@/utils/format";
+import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import {
-  consolidationApi,
   type ConsolidationData,
+  consolidationApi,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
 import { analytics } from "@/utils/fathom";
+import { formatAmount } from "@/utils/format";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;

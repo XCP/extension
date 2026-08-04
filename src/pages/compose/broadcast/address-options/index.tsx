@@ -1,8 +1,8 @@
+import { Composer } from "@/components/composer/composer";
 import { AddressOptionsForm } from "@/pages/compose/broadcast/address-options/form";
 import { ReviewAddressOptions } from "@/pages/compose/broadcast/address-options/review";
-import { Composer } from "@/components/composer/composer";
-import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeBroadcastAddressOptionsPage() {
   return (

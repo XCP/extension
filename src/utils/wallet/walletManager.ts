@@ -1,57 +1,56 @@
 import { sha256 } from '@noble/hashes/sha2.js';
-import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as sessionManager from '@/utils/auth/sessionManager';
 import {
   assertUnlockAllowed,
-  recordFailedUnlockAttempt,
   clearUnlockAttempts,
+  recordFailedUnlockAttempt,
 } from '@/utils/auth/unlockRateLimiter';
+import { AddressFormat, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
+import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/utils/blockchain/bitcoin/privateKey';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
+import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
+import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/utils/encryption/buffer';
 import {
-  getKeychainRecord,
-  saveKeychainRecord,
-  deleteKeychain,
-} from '@/utils/storage/walletStorage';
-import {
+  DEFAULT_PBKDF2_ITERATIONS,
+  decryptWithKey,
   deriveKey,
   deriveKeyAsync,
   encryptWithKey,
-  decryptWithKey,
-  DEFAULT_PBKDF2_ITERATIONS,
 } from '@/utils/encryption/encryption';
-import { base64ToBuffer, generateRandomBytes, bufferToBase64 } from '@/utils/encryption/buffer';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat, AddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { getPrivateKeyFromMnemonic, getAddressFromPrivateKey, getPublicKeyFromPrivateKey, decodeWIF, isWIF, encodeWIF } from '@/utils/blockchain/bitcoin/privateKey';
-import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
-import { isValidCounterwalletMnemonic } from '@/utils/blockchain/counterwallet';
+import { type AppSettings, DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider } from '@/utils/settings';
 import {
+  deleteKeychain,
+  getKeychainRecord,
+  saveKeychainRecord,
+} from '@/utils/storage/walletStorage';
+import {
+  deriveAddressesFromSecret,
+  deriveMnemonicAddress,
   generateWalletId,
   generateWalletIdFromPrivateKey,
-  deriveMnemonicAddress,
-  deriveAddressFromPrivateKey,
-  deriveAddressesFromSecret,
   getPairedAddressFormats,
 } from '@/utils/wallet/addressDeriver';
-import { KEYCHAIN_VERSION, encryptKeychainRecord, decryptKeychain } from '@/utils/wallet/keychainCrypto';
-import { DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider, type AppSettings } from '@/utils/settings';
-import { signTransaction as btcSignTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
-import { broadcastTransaction as btcBroadcastTransaction } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
-import { signPSBT as btcSignPSBT, extractPsbtDetails, completePsbtWithInputValues } from '@/utils/blockchain/bitcoin/psbt';
+import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/utils/wallet/keychainCrypto';
 // Note: getTrezorAdapter is dynamically imported in createHardwareWalletWithDiscovery to avoid
 // loading @trezor/connect-webextension at extension startup (it auto-initializes)
 
 // Import types from centralized types module
-import type { Address, PairedAddresses, Wallet, Keychain, KeychainRecord, WalletRecord, HardwareWalletSecret, SignTransactionOptions } from '@/types/wallet';
+import type { Address, HardwareWalletSecret, Keychain, PairedAddresses, SignTransactionOptions, Wallet, WalletRecord } from '@/types/wallet';
 
 // Re-export types for backwards compatibility
 export type { Address, Wallet };
 
 // Import from constants for internal use
-import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/constants';
+import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/utils/wallet/constants';
 
 // Re-export from constants to maintain backwards compatibility
-export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };
+export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
 
 /**
  * WalletManager - Core wallet state management (ADR-015)

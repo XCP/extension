@@ -14,9 +14,9 @@
  * transaction that spends it, so it is left undefined for the caller to resolve from the chain.
  */
 
-import { Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 
 export interface LocalParsedInput {

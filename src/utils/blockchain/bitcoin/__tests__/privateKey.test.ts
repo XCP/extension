@@ -1,14 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import {
-  generateNewMnemonic,
   decodeWIF,
   encodeWIF,
-  isWIF,
-  getPublicKeyFromPrivateKey,
+  generateNewMnemonic,
   getAddressFromPrivateKey,
-  getPrivateKeyFromMnemonic
+  getPrivateKeyFromMnemonic, 
+  getPublicKeyFromPrivateKey,
+  isWIF
 } from '@/utils/blockchain/bitcoin/privateKey';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))

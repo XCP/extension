@@ -2,14 +2,15 @@
  * Fuzz tests for private key validation
  * Tests private key format validation with random inputs
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validatePrivateKeyFormat,
-  sanitizePrivateKey,
   containsDangerousChars,
-  validatePrivateKeyLength,
-  detectPrivateKeyFormat
+  detectPrivateKeyFormat, 
+  sanitizePrivateKey,
+  validatePrivateKeyFormat,
+  validatePrivateKeyLength
 } from '../privateKey';
 
 // Helper to generate hex strings since fc.hexaString doesn't exist
@@ -155,7 +156,7 @@ describe('Private Key Validation Fuzz Tests', () => {
           ),
           ([prefix, suffix]) => {
             const wif = prefix + suffix;
-            const result = validatePrivateKeyFormat(wif);
+            const _result = validatePrivateKeyFormat(wif);
             // We expect valid WIF format to pass basic validation
             // The actual WIF validation would need proper base58 checking
             expect(() => validatePrivateKeyFormat(wif)).not.toThrow();

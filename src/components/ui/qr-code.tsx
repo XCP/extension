@@ -1,6 +1,6 @@
-import { useEffect, useRef, memo } from 'react';
-import { generateQR } from '@/utils/qr-code';
+import { memo, useEffect, useRef } from 'react';
 import logo from '@/assets/qr-code.png';
+import { generateQR } from '@/utils/qr-code';
 
 interface QRCanvasProps {
   /**

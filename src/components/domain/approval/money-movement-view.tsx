@@ -1,6 +1,6 @@
+import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { formatAddress, formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
-import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 
 const btc = (sats: number) =>
   formatAmount({ value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8 });

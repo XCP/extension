@@ -3,23 +3,22 @@
  * Tests wallet ID, secret, timeout, and rate limiting validation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  validateWalletId,
-  validateSecret,
-  validateTimeout,
-  validateSessionMetadata,
   assertRateLimit,
-  clearRateLimit,
-  clearAllRateLimits,
   assertSecretLimit,
-  MAX_WALLET_ID_LENGTH,
+  clearAllRateLimits,
+  clearRateLimit,
   MAX_SECRET_LENGTH,
   MAX_STORED_SECRETS,
-  MIN_TIMEOUT_MS,
   MAX_TIMEOUT_MS,
-  WALLET_ID_REGEX,
+  MAX_WALLET_ID_LENGTH,
+  MIN_TIMEOUT_MS,
+  validateSecret,
+  validateSessionMetadata,
+  validateTimeout,
+  validateWalletId,
 } from '../session';
 
 // Valid SHA-256 hash (64 hex chars)

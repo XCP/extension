@@ -1,11 +1,11 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import { apiClient, withRetry, isApiError, type ApiResponse } from '@/utils/apiClient';
-import { getActiveSettings } from '@/utils/settings';
-import { clearApiCache } from '@/utils/blockchain/counterparty/api';
-import { clearBitcoinCaches } from '@/utils/blockchain/bitcoin/utxo';
+import { type ApiResponse, apiClient, isApiError, withRetry } from '@/utils/apiClient';
 import { clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
 import { recordSpentUtxos } from '@/utils/blockchain/bitcoin/spentUtxoCache';
+import { clearBitcoinCaches } from '@/utils/blockchain/bitcoin/utxo';
+import { clearApiCache } from '@/utils/blockchain/counterparty/api';
+import { getActiveSettings } from '@/utils/settings';
 
 export interface TransactionResponse {
   txid: string;
@@ -69,7 +69,7 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): Tra
       return txid ? { txid } : null;
     }
     return null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 };

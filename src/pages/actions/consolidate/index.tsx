@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
-import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
-import { ConsolidationReview } from "@/pages/actions/consolidate/review";
-import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useMultiBatchConsolidation } from "@/hooks/useMultiBatchConsolidation";
+import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
+import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
+import { ConsolidationReview } from "@/pages/actions/consolidate/review";
 
 function ConsolidatePage() {
   const navigate = useNavigate();

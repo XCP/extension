@@ -3,7 +3,7 @@
  * Handles fee rate validation, fee calculation, and fee-related checks
  */
 
-import { toBigNumber, BigNumber } from '@/utils/numeric';
+import { type BigNumber, toBigNumber } from '@/utils/numeric';
 
 // Fee rate constants (in sat/vB)
 export const MIN_FEE_RATE = 1;
@@ -59,7 +59,7 @@ export function validateFeeRate(
     // Convert to string first to handle decimals properly
     const feeRateStr = typeof feeRate === 'string' ? feeRate : feeRate.toString();
     rate = toBigNumber(feeRateStr);
-  } catch (e) {
+  } catch (_e) {
     return { isValid: false, error: 'Invalid fee rate format' };
   }
 

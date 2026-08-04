@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
+import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
-import type { ApiResponse } from '@/utils/blockchain/counterparty/compose';
-import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 
 // A real, parseable BTC-only transaction (1 input, one 95000-sat P2PKH output,
 // no OP_RETURN) so the composer's fee verification can decode it. Paired with

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { sanitizePath, getBtcBucket, classifyTransactionError } from '../fathom';
+import { describe, expect, it } from 'vitest';
+import { classifyTransactionError, getBtcBucket, sanitizePath } from '../fathom';
 
 describe('fathom sanitizePath', () => {
   // ═══════════════════════════════════════════════════════════════════════════

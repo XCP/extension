@@ -1,19 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import type { WalletRecord } from '@/types/wallet';
 import {
-  generateWalletId,
-  generateWalletIdFromPrivateKey,
-  deriveMnemonicAddress,
-  deriveAddressFromPrivateKey,
-  deriveAddressesFromSecret,
-  getPairedAddressFormats,
-} from '../addressDeriver';
-import {
+  AddressFormat,
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
-  AddressFormat,
 } from '@/utils/blockchain/bitcoin/address';
 import { getAddressFromPrivateKey } from '@/utils/blockchain/bitcoin/privateKey';
-import type { WalletRecord } from '@/types/wallet';
+import {
+  deriveAddressesFromSecret,
+  deriveAddressFromPrivateKey,
+  deriveMnemonicAddress,
+  generateWalletId,
+  generateWalletIdFromPrivateKey,
+  getPairedAddressFormats,
+} from '../addressDeriver';
 
 // Standard BIP39 test vector mnemonic.
 const MNEMONIC =

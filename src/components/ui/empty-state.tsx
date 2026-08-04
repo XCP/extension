@@ -1,4 +1,4 @@
-import { type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {

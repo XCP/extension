@@ -6,10 +6,10 @@
  */
 
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { getSignFlow, recordSignOutcome } from '@/utils/provider/signFlow';
 import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
 import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
 import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
-import { getSignFlow, recordSignOutcome } from '@/utils/provider/signFlow';
 
 type SignRequestKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
 

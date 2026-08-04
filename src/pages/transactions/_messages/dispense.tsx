@@ -1,6 +1,6 @@
-import { type ReactNode } from "react";
-import { formatAmount } from "@/utils/format";
+import type { ReactNode } from "react";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
+import { formatAmount } from "@/utils/format";
 
 /**
  * Renders detailed information for dispense transactions (when someone uses a dispenser)

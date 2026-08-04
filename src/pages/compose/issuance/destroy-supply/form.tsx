@@ -1,15 +1,15 @@
-import { useEffect, useState, useMemo } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useComposer } from "@/contexts/composer-context-object";
-import { validateQuantity } from "@/utils/validation/amount";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { DestroyOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
+import { validateQuantity } from "@/utils/validation/amount";
 
 /**
  * Props for the DestroySupplyForm component, aligned with Composer's formAction.

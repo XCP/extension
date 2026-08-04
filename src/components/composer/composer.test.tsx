@@ -1,17 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { MemoryRouter } from 'react-router';
-import type { ReactElement } from 'react';
-import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
-import { Transaction, p2wpkh } from '@scure/btc-signer';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
-import { arc4 } from '@/utils/blockchain/counterparty/unpack/binary';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
+import type { ReactElement } from 'react';
+import { MemoryRouter } from 'react-router';
+import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 import { encodeCbor } from '@/utils/blockchain/counterparty/pack/cbor';
-import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
 import { packAddress } from '@/utils/blockchain/counterparty/unpack/address';
+import { arc4 } from '@/utils/blockchain/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 /** Encode an enhanced send as counterparty-core does: CBOR [asset_id, quantity, address, memo]. */
 function encodeEnhancedSendCbor(
@@ -46,8 +45,8 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 
-import { Composer } from './composer';
 import { useComposer } from '@/contexts/composer-context-object';
+import { Composer } from './composer';
 
 // Mock dependencies
 const mockNavigate = vi.fn();

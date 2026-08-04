@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   getServiceState,
-  setServiceState,
   serviceKeepAlive,
+  setServiceState,
 } from '../serviceStateStorage';
 
 describe('serviceStateStorage.ts', () => {

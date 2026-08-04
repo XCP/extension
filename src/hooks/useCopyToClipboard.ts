@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { analytics } from "@/utils/fathom";
 
 const DEFAULT_FEEDBACK_MS = 2000;

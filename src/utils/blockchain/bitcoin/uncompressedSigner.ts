@@ -6,7 +6,7 @@
  * the internal preimageLegacy method directly.
  */
 
-import { Transaction, SigHash } from '@scure/btc-signer';
+import { SigHash, type Transaction } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
 
 /**
@@ -94,7 +94,7 @@ export function hybridSignTransaction(
       if (!checkForUncompressed) {
         return;
       }
-    } catch (e) {
+    } catch (_e) {
       // Standard signing failed, will try custom signing below
       console.log('Standard signing failed (expected for uncompressed keys), will use custom signing');
     }

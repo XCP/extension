@@ -3,11 +3,11 @@
  * Tests address validation with various inputs including edge cases and malicious inputs
  */
 
-import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { 
-  validateBitcoinAddress, 
-  isValidBitcoinAddress 
+  isValidBitcoinAddress, 
+  validateBitcoinAddress 
 } from '../bitcoin';
 
 describe('Bitcoin Address Validation Fuzz Tests', () => {

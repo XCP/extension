@@ -24,10 +24,10 @@
  *              compacted_length, compacted_name, mime_type, description]
  */
 
-import { BinaryReader, bytesToTextOrHex } from '@/utils/blockchain/counterparty/unpack/binary';
 import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { BinaryReader, bytesToTextOrHex } from '@/utils/blockchain/counterparty/unpack/binary';
+import { type CborValue, tryDecodeCborArray } from '@/utils/blockchain/counterparty/unpack/cbor';
 import { MessageTypeId } from '@/utils/blockchain/counterparty/unpack/messageTypes';
-import { tryDecodeCborArray, type CborValue } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 /** Minimum length of issuance (FORMAT_1) */
 const MIN_ISSUANCE_LENGTH = 17;

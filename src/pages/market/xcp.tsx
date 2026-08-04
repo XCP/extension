@@ -1,19 +1,19 @@
-import { useState, useEffect, useCallback } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
 import { PriceChart } from "@/components/ui/charts/price-chart";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
+import type { PricePoint } from "@/utils/blockchain/bitcoin/price";
 import {
-  getXcpStats,
   getXcpPriceHistory,
-  type XcpStats,
+  getXcpStats,
   type XcpPriceHistoryData,
+  type XcpStats,
 } from "@/utils/blockchain/counterparty/price";
 import { analytics } from "@/utils/fathom";
 import { formatAmount } from "@/utils/format";
-import type { PricePoint } from "@/utils/blockchain/bitcoin/price";
-import type { ReactElement } from "react";
 
 // Time range options over the daily history from api.xcp.io
 type XcpTimeRange = "7d" | "30d" | "1y" | "all";

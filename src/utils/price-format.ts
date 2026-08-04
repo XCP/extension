@@ -1,6 +1,6 @@
-import { formatAmount } from "@/utils/format";
 import { CURRENCY_INFO } from "@/utils/blockchain/bitcoin/price";
-import type { PriceUnit, FiatCurrency } from "@/utils/settings";
+import { formatAmount } from "@/utils/format";
+import type { FiatCurrency, PriceUnit } from "@/utils/settings";
 
 const SATS_PER_BTC = 100_000_000;
 

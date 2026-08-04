@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { usePool } from "@/hooks/usePool";
 import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
-import type { ReactElement } from "react";
 
 export default function PoolPage(): ReactElement {
   const { assetA, assetB } = useParams<{ assetA: string; assetB: string }>();

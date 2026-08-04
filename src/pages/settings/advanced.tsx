@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import { Description, Field, Label, RadioGroup } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
-import { Field, Label, Description, RadioGroup } from "@headlessui/react";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
-import { useHeader } from "@/contexts/header-context";
-import { useSettings } from "@/contexts/settings-context";
 import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { useHeader } from "@/contexts/header-context";
+import { useSettings } from "@/contexts/settings-context";
 import type { AutoLockTimer } from "@/utils/settings";
-import type { ReactElement } from "react";
 
 /**
  * Constants for navigation paths and auto-lock options.

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { UtxoList } from './utxo-list';
 import type { UtxoBalance } from '@/utils/blockchain/counterparty/api';
+import { UtxoList } from './utxo-list';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router', () => ({

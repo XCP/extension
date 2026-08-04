@@ -1,8 +1,8 @@
-import { type ReactElement } from "react";
-import { FaCopy, FaCheck } from "@/components/icons";
-import { formatAmount, formatTimeAgo } from "@/utils/format";
-import { getTradingPair, getMatchPricePerUnit } from "@/utils/trading-pair";
+import type { ReactElement } from "react";
+import { FaCheck, FaCopy } from "@/components/icons";
 import type { OrderMatch } from "@/utils/blockchain/counterparty/api";
+import { formatAmount, formatTimeAgo } from "@/utils/format";
+import { getMatchPricePerUnit, getTradingPair } from "@/utils/trading-pair";
 
 interface MarketMatchCardProps {
   match: OrderMatch;

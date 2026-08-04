@@ -1,5 +1,5 @@
-import { type ReactElement, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, Outlet, useLocation } from 'react-router';
+import { type ReactElement, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import { useWallet } from '@/contexts/wallet-context';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
 

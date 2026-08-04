@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
-import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lookupAssetOwner, shouldTriggerAssetLookup } from '@/utils/validation/assetOwner';
+import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
 
 // =============================================================================
 // Types

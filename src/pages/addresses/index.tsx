@@ -1,15 +1,15 @@
-import { useEffect, useState, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/constants";
-import { analytics } from "@/utils/fathom";
 import type { Address } from "@/types/wallet";
-import type { ReactElement } from "react";
+import { analytics } from "@/utils/fathom";
+import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/constants";
 
 /**
  * Constants for navigation paths.

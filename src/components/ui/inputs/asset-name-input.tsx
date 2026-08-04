@@ -1,9 +1,9 @@
-import { forwardRef, useEffect, useState, useRef } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
+import { Description, Field, Input, Label } from "@headlessui/react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { FiRefreshCw } from "@/components/icons";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { useWallet } from "@/contexts/wallet-context";
-import { validateAssetName, generateRandomNumericAsset } from "@/utils/validation/asset";
+import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
+import { generateRandomNumericAsset, validateAssetName } from "@/utils/validation/asset";
 
 interface AssetNameInputProps {
   value: string;
@@ -130,7 +130,7 @@ export const AssetNameInput = forwardRef<HTMLInputElement, AssetNameInputProps>(
               onValidationChange(true);
             }
           }
-        } catch (error) {
+        } catch (_error) {
           // Expected behavior: fetchAssetDetails returns null and logs a 404 error
           // when the asset doesn't exist, which means the name is available.
           // The console error is expected and indicates the asset name can be used.

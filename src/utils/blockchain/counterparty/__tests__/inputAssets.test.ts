@@ -1,11 +1,11 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import {
-  fetchInputsAttachedAssets,
-  classifySignedInputAssets,
-  MAX_ASSET_LOOKUP_INPUTS,
-  type InputAttachedAssets,
-} from '../inputAssets';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchUtxoBalances } from '@/utils/blockchain/counterparty/api';
+import {
+  classifySignedInputAssets,
+  fetchInputsAttachedAssets,
+  type InputAttachedAssets,
+  MAX_ASSET_LOOKUP_INPUTS,
+} from '../inputAssets';
 
 vi.mock('@/utils/blockchain/counterparty/api');
 

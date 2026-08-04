@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { formatAmount, formatAddress, formatAsset, formatDate } from '@/utils/format';
+import { describe, expect, it } from 'vitest';
+import { formatAddress, formatAmount, formatAsset, formatDate } from '@/utils/format';
 
 describe('format utilities', () => {
   describe('formatAmount', () => {

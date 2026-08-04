@@ -1,22 +1,22 @@
-import { useState, useEffect } from "react";
-import { useFormStatus } from "react-dom";
-import { FiChevronDown, FaCheck, FaCopy } from "@/components/icons";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import {
+  Description,
   Field,
   Label,
-  Description,
   Listbox,
   ListboxButton,
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context-object";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.

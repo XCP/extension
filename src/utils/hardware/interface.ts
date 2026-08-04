@@ -5,16 +5,16 @@
  * This ensures consistent API across different hardware wallet vendors.
  */
 
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import type {
-  HardwareDeviceInfo,
   HardwareAddress,
-  HardwareSignRequest,
-  HardwareSignResult,
+  HardwareConnectionStatus,
+  HardwareDeviceInfo,
   HardwareMessageSignRequest,
   HardwareMessageSignResult,
-  HardwareConnectionStatus,
   HardwarePsbtSignRequest,
+  HardwareSignRequest,
+  HardwareSignResult,
 } from '@/utils/hardware/types';
 
 /**

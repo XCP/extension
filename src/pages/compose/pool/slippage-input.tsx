@@ -1,6 +1,6 @@
-import { Field, Label, Description, Input } from "@headlessui/react";
-import { isFiniteNumber, isGreaterThan, isLessThan } from "@/utils/numeric";
+import { Description, Field, Input, Label } from "@headlessui/react";
 import type { ReactElement } from "react";
+import { isFiniteNumber, isGreaterThan, isLessThan } from "@/utils/numeric";
 
 export { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
 

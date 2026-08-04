@@ -1,4 +1,4 @@
-import { type ReactElement, type KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 
 interface OrderBookLevelCardProps {
   /** Formatted price string (e.g., "0.00300000" or "$1.50") */

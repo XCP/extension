@@ -20,9 +20,9 @@
  *   11 = CLOSING
  */
 
-import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
+import { PACKED_ADDRESS_LENGTH, unpackAddress } from '@/utils/blockchain/counterparty/unpack/address';
 import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
-import { unpackAddress, PACKED_ADDRESS_LENGTH } from '@/utils/blockchain/counterparty/unpack/address';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
 import { DispenserStatus } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 /** Fixed length of the dispenser struct (">QQQQB"), matching core's LENGTH=33. */

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { FeeRates } from '@/utils/blockchain/bitcoin/feeRate';
-import { apiClient } from '@/utils/apiClient';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResponse } from '@/utils/apiClient';
+import { apiClient } from '@/utils/apiClient';
+import type { FeeRates } from '@/utils/blockchain/bitcoin/feeRate';
 
 vi.mock('@/utils/apiClient');
 

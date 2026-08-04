@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 interface AssetInfoState {
   isLoading: boolean;

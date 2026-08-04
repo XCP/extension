@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { signMessage, getSigningCapabilities } from '@/utils/blockchain/bitcoin/messageSigner';
-import { verifyMessage } from '@/utils/blockchain/bitcoin/messageVerifier/verifier';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { hashes } from '@noble/secp256k1';
 import { hmac } from '@noble/hashes/hmac.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { hashes } from '@noble/secp256k1';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { getSigningCapabilities, signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
+import { verifyMessage } from '@/utils/blockchain/bitcoin/messageVerifier/verifier';
 
 // Initialize secp256k1 for tests
 beforeAll(() => {

@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { verifyMultiSend, type VerificationResult } from '../verify';
+import { describe, expect, it } from 'vitest';
 import type { MPMAData } from '../messages/mpma';
+import { type VerificationResult, verifyMultiSend } from '../verify';
 
 // Two real mainnet P2PKH addresses used only as destinations.
 const DEST_A = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';

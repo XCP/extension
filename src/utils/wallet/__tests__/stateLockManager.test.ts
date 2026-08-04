@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stateLockManager, withLock, withStateLock } from '../stateLockManager';
 
 describe('StateLockManager', () => {
@@ -32,7 +32,7 @@ describe('StateLockManager', () => {
     it('should queue multiple acquire requests for same resource', async () => {
       const resource = 'test-resource';
       let firstReleased = false;
-      let secondReleased = false;
+      let _secondReleased = false;
 
       // First acquire - should succeed immediately
       const firstPromise = stateLockManager.acquire(resource).then(release => {
@@ -59,7 +59,7 @@ describe('StateLockManager', () => {
 
       // Second should now acquire
       const secondRelease = await secondPromise;
-      secondReleased = true;
+      _secondReleased = true;
       expect(stateLockManager.isLocked(resource)).toBe(true);
 
       secondRelease();
@@ -73,7 +73,7 @@ describe('StateLockManager', () => {
       // Spy on console.warn to check timeout warning
       const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-      const releaseFn = await stateLockManager.acquire(resource, timeoutMs);
+      const _releaseFn = await stateLockManager.acquire(resource, timeoutMs);
       expect(stateLockManager.isLocked(resource)).toBe(true);
 
       // Advance time past timeout
@@ -137,7 +137,7 @@ describe('StateLockManager', () => {
       });
 
       // Wait for first lock to be acquired
-      const firstRelease = await firstPromise;
+      const _firstRelease = await firstPromise;
 
       // Check queue has built up
       expect(stateLockManager.getQueueLength(resource)).toBe(2);
@@ -146,7 +146,7 @@ describe('StateLockManager', () => {
       vi.advanceTimersByTime(100);
 
       // Wait for second lock
-      const secondRelease = await secondPromise;
+      const _secondRelease = await secondPromise;
       vi.advanceTimersByTime(100);
 
       // Wait for third lock
@@ -160,7 +160,7 @@ describe('StateLockManager', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // First lock
-      const firstRelease = await stateLockManager.acquire(resource, 500);
+      const _firstRelease = await stateLockManager.acquire(resource, 500);
 
       // Queue some locks - these should be rejected when timeout occurs
       const queuedPromise1 = stateLockManager.acquire(resource, 200);
@@ -459,7 +459,7 @@ describe('StateLockManager', () => {
       const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       // First lock with short timeout
-      const firstRelease = await stateLockManager.acquire(resource, 100);
+      const _firstRelease = await stateLockManager.acquire(resource, 100);
 
       // Queue some with longer timeouts - these will be rejected when first lock times out
       const queuedPromise1 = stateLockManager.acquire(resource, 500);

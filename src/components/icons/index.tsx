@@ -2,7 +2,7 @@
  * Inline SVG icons to replace react-icons dependency.
  * All icons render as 1em x 1em and inherit currentColor.
  */
-import type { SVGProps, ReactElement } from 'react';
+import type { ReactElement, SVGProps } from 'react';
 
 type IconProps = SVGProps<SVGSVGElement>;
 

@@ -56,7 +56,7 @@ function sendMessageToTabSafe<T = unknown>(
           resolve(response as T);
         }
       });
-    } catch (error) {
+    } catch (_error) {
       // Defensive: even catch block returns undefined instead of rejecting
       resolve(undefined);
     }
@@ -74,7 +74,7 @@ export async function broadcastToTabs(
   try {
     // Only get tabs where our content script can run
     const tabs = await listMessageableTabs(filter);
-    const results: { tabId: number; ok: boolean; error?: string }[] = [];
+    const _results: { tabId: number; ok: boolean; error?: string }[] = [];
 
     // Send to all tabs in parallel, let sendMessageToTabSafe handle errors
     const promises = tabs.map(async (tab) => {

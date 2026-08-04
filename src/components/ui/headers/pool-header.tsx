@@ -1,8 +1,8 @@
-import { type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { formatAmount } from "@/utils/format";
-import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import type { Pool, PoolPosition } from "@/utils/blockchain/counterparty/api";
+import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
+import { formatAmount } from "@/utils/format";
 
 interface PoolHeaderProps {
   pool: Pool | PoolPosition;

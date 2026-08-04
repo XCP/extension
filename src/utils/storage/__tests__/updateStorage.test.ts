@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
+  clearUpdateState,
   getUpdateState,
   setUpdateState,
-  clearUpdateState,
   type UpdateState,
 } from '../updateStorage';
 

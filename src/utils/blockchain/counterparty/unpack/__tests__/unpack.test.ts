@@ -2,19 +2,18 @@
  * Tests for Counterparty message unpacking
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  unpackCounterpartyMessage,
-  isCounterpartyData,
-  verifyTransaction,
-  assetNameToId,
   assetIdToName,
+  assetNameToId,
+  bytesToHex,
+  COUNTERPARTY_PREFIX_HEX,
+  hexToBytes,
+  isCounterpartyData,
   packAddress,
   unpackAddress,
-  hexToBytes,
-  bytesToHex,
-  MessageTypeId,
-  COUNTERPARTY_PREFIX_HEX,
+  unpackCounterpartyMessage,
+  verifyTransaction,
 } from '../index';
 
 describe('assetId', () => {

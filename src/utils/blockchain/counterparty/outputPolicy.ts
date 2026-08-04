@@ -52,8 +52,8 @@
  * why the added-recipient half is the half enforced here.
  */
 
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { isBareMultisigDataOutput } from '@/utils/blockchain/counterparty/unpack/multisig';
 

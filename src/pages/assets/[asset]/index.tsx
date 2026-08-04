@@ -1,16 +1,16 @@
-import { useEffect, useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
-import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
+import type { ReactElement } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount, formatTimeAgo, formatAddress } from "@/utils/format";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { fetchDividendsByAsset, type Dividend, type PaginatedResponse } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/ui/lists/action-list";
+import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/utils/blockchain/counterparty/api";
+import { formatAddress, formatAmount, formatTimeAgo } from "@/utils/format";
 
 
 /**

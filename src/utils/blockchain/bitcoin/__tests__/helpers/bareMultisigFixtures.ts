@@ -10,7 +10,7 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { hexToBytes, bytesToHex, concatBytes } from '@noble/hashes/utils.js';
+import { bytesToHex, concatBytes, hexToBytes } from '@noble/hashes/utils.js';
 
 export interface WireInput {
   txidLE: Uint8Array;

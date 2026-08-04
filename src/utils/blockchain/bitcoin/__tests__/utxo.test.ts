@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/utils/apiClient';
 import {
-  type UTXO,
+  clearBitcoinCaches, 
+  fetchBitcoinTransaction,
+  fetchPreviousRawTransaction,
   fetchUTXOs,
   formatInputsSet,
   getUtxoByTxid,
-  fetchPreviousRawTransaction,
-  fetchBitcoinTransaction,
-  clearBitcoinCaches
+  type UTXO
 } from '@/utils/blockchain/bitcoin/utxo';
-import { apiClient } from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 
 vi.mock('@/utils/apiClient', async (importOriginal) => {

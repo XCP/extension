@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { RadioGroup } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
-import { RadioGroup } from "@headlessui/react";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
@@ -9,7 +10,6 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/utils/blockchain/bitcoin/address';
 import { formatAddress } from "@/utils/format";
-import type { ReactElement } from "react";
 
 /**
  * Constants for navigation paths and address type options.

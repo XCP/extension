@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock hardware wallet module BEFORE importing WalletManager to avoid
 // @trezor/connect-webextension import side effects (Browser.runtime.onConnect.addListener)
@@ -8,18 +8,18 @@ vi.mock('@/utils/hardware/trezorAdapter', () => ({
   TrezorAdapter: vi.fn()
 }));
 
+import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { WalletManager } from '../walletManager';
 import {
-  createTestWallet,
-  createPrivateKeyWallet,
-  setupMocks,
-  mockWalletUnlocked,
   createMultipleWallets,
+  createPrivateKeyWallet,
   createTestKeychain,
   createTestKeychainRecord,
+  createTestWallet,
   mockKeychainUnlocked,
+  mockWalletUnlocked,
+  setupMocks,
 } from './helpers/testHelpers';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Mock all external dependencies
 vi.mock('@/utils/auth/sessionManager');
@@ -43,16 +43,16 @@ vi.mock('@noble/hashes/utils.js');
 vi.mock('@scure/bip32');
 vi.mock('@scure/bip39');
 
-// Import modules to get access to mocked functions
-import * as sessionManager from '@/utils/auth/sessionManager';
-import { getKeychainRecord, saveKeychainRecord } from '@/utils/storage/walletStorage';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { deriveKey, deriveKeyAsync, decryptJsonWithKey, decryptWithKey } from '@/utils/encryption/encryption';
-import { base64ToBuffer } from '@/utils/encryption/buffer';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { bytesToHex } from '@noble/hashes/utils.js';
+// Import modules to get access to mocked functions
+import * as sessionManager from '@/utils/auth/sessionManager';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { signPSBT } from '@/utils/blockchain/bitcoin/psbt';
+import { base64ToBuffer } from '@/utils/encryption/buffer';
+import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync } from '@/utils/encryption/encryption';
+import { getKeychainRecord, saveKeychainRecord } from '@/utils/storage/walletStorage';
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;

@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useLpAssetPool } from '../useLpAssetPool';
 import { fetchAddressPoolByLpAsset } from '@/utils/blockchain/counterparty/api';
+import { useLpAssetPool } from '../useLpAssetPool';
 
 const mocks = vi.hoisted(() => ({
   activeAddress: { address: 'bc1qtest123' },

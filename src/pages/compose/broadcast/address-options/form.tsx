@@ -1,12 +1,12 @@
+import { Field, Label } from "@headlessui/react";
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 

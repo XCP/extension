@@ -1,6 +1,6 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { FiUser, FaLock } from '@/components/icons';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FaLock, FiUser } from '@/components/icons';
 import { ActionList, type ActionSection } from './action-list';
 
 // Mock the ActionCard component

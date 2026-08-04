@@ -1,16 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { composeOrder, composeCancel, composeDispenser, composeDispense } from '../compose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/utils/apiClient';
-import { getActiveSettings } from '@/utils/settings';
 import { requireCounterpartyFeature } from '@/utils/blockchain/counterparty/capabilities';
+import { getActiveSettings } from '@/utils/settings';
+import { composeCancel, composeDispense, composeDispenser, composeOrder } from '../compose';
 import {
-  mockAddress,
-  mockApiBase,
-  mockSettings,
-  mockSatPerVbyte,
-  createMockComposeResult,
-  createMockApiResponse,
   assertComposeUrlCalled,
+  createMockApiResponse,
+  createMockComposeResult,
+  mockAddress,
+  mockSatPerVbyte,
+  mockSettings,
   testAssets,
   testQuantities,
 } from './helpers/composeTestHelpers';

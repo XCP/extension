@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactElement } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
+import { Description, Field, Input, Label } from "@headlessui/react";
+import { type ReactElement, useEffect, useState } from "react";
 import { DispenserList, type DispenserOption } from "@/components/ui/lists/dispenser-list";
 import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";

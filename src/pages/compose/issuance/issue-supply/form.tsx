@@ -1,16 +1,16 @@
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { toBigNumber } from "@/utils/numeric";
-import { formatAmount } from "@/utils/format";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
+import { formatAmount } from "@/utils/format";
+import { toBigNumber } from "@/utils/numeric";
 
 /**
  * Props for the IssueSupplyForm component, aligned with Composer's formAction.

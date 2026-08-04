@@ -1,9 +1,9 @@
-import { useCallback, type ReactElement } from 'react';
-import { useNavigate } from 'react-router';
-import { BsThreeDots, FaCoins, FaLockOpen, FaPen, FaExchangeAlt } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
-import { BaseMenu } from '@/components/ui/menus/base-menu';
+import { type ReactElement, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import { BsThreeDots, FaCoins, FaExchangeAlt, FaLockOpen, FaPen } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { BaseMenu } from '@/components/ui/menus/base-menu';
 
 /**
  * Props for the AssetMenu component

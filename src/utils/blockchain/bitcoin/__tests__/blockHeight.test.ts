@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/utils/apiClient';
 import {
-  fetchFromBlockstream,
-  fetchFromMempoolSpace,
-  fetchFromBlockchainInfo,
+  clearBlockHeightCache, 
   fetchBlockHeightRace,
   fetchBlockHeightSequential,
-  getCurrentBlockHeight,
-  clearBlockHeightCache
+  fetchFromBlockchainInfo,
+  fetchFromBlockstream,
+  fetchFromMempoolSpace,
+  getCurrentBlockHeight
 } from '@/utils/blockchain/bitcoin/blockHeight';
-import { apiClient } from '@/utils/apiClient';
 
 vi.mock('@/utils/apiClient');
 

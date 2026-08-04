@@ -9,15 +9,15 @@
  * - Connection security analysis
  */
 
+import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
-import { getApprovalService, type ApprovalResult } from '@/services/approvalService';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
+import { analytics } from '@/utils/fathom';
+import { generateRequestId } from '@/utils/id';
 import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
 import { analyzeCSP } from '@/utils/security/cspValidation';
-import { analytics } from '@/utils/fathom';
-import { eventEmitterService } from '@/services/eventEmitterService';
-import { generateRequestId } from '@/utils/id';
-import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
 
 export interface ConnectionStatus {
   origin: string;
@@ -26,13 +26,6 @@ export interface ConnectionStatus {
   connectedWallet?: string;
   connectionTime?: number;
   lastActive?: number;
-}
-
-interface ConnectionPermissionRequest {
-  origin: string;
-  address: string;
-  walletId: string;
-  timestamp: number;
 }
 
 interface ConnectionServiceState {

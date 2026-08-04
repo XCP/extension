@@ -1,16 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, } from 'vitest';
+import { generateRandomBytes } from '../buffer';
 import {
+  DEFAULT_PBKDF2_ITERATIONS,
+  decryptJsonWithKey,
+  decryptWithKey,
   deriveKey,
   deriveKeyAsync,
+  encryptJsonWithKey,
+  encryptWithKey,
   exportKey,
   importKey,
-  encryptWithKey,
-  decryptWithKey,
-  encryptJsonWithKey,
-  decryptJsonWithKey,
-  DEFAULT_PBKDF2_ITERATIONS,
 } from '../encryption';
-import { generateRandomBytes } from '../buffer';
 
 // Test constants matching encryption.ts security requirements
 const VALID_PASSWORD = 'SecureP@ss1'; // 11 chars, meets 8 char minimum

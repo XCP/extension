@@ -1,35 +1,35 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { FaChevronRight, FaClipboard, FaCheck, FaLock, FiGlobe, FiUser } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
-import { SearchInput } from "@/components/ui/inputs/search-input";
-import { MarketDispenserCard } from "@/components/ui/cards/market-dispenser-card";
-import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { PriceTicker } from "@/components/domain/price/price-ticker";
+import { FaCheck, FaChevronRight, FaClipboard, FaLock, FiGlobe, FiUser } from "@/components/icons";
 import { ManageDispenserCard } from "@/components/ui/cards/manage-dispenser-card";
 import { ManageOrderCard } from "@/components/ui/cards/manage-order-card";
+import { MarketDispenserCard } from "@/components/ui/cards/market-dispenser-card";
+import { MarketOrderCard } from "@/components/ui/cards/market-order-card";
 import { PoolCard } from "@/components/ui/cards/pool-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SearchInput } from "@/components/ui/inputs/search-input";
+import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
-import { PriceTicker } from "@/components/domain/price/price-ticker";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useInView } from "@/hooks/useInView";
 import { useMarketData } from "@/hooks/useMarketData";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import {
+  type DispenserDetails,
+  fetchAddressPools,
+  fetchPools,
+  type OrderDetails,
+  type Pool,
+  type PoolPosition,
+} from "@/utils/blockchain/counterparty/api";
 import { formatAddress } from "@/utils/format";
 import { formatPrice } from "@/utils/price-format";
 import { getTradingPair } from "@/utils/trading-pair";
-import {
-  fetchAddressPools,
-  fetchPools,
-  type Pool,
-  type PoolPosition,
-  type DispenserDetails,
-  type OrderDetails,
-} from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
 
 // Constants
 const COPY_FEEDBACK_MS = 2000;

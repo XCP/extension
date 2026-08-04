@@ -1,10 +1,10 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { WalletProvider, useWallet } from '../wallet-context';
-import { walletManager } from '@/utils/wallet/walletManager';
-import * as sessionManager from '@/utils/auth/sessionManager';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
+import * as sessionManager from '@/utils/auth/sessionManager';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { useWallet, WalletProvider } from '../wallet-context';
 
 // Mock webext-bridge first with comprehensive mocking
 vi.mock('webext-bridge/popup', () => ({
@@ -130,7 +130,7 @@ describe('WalletContext', () => {
     }
   ];
 
-  const mockSettings = {
+  const _mockSettings = {
     lastActiveWalletId: 'wallet1',
     lastActiveAddress: undefined,
     connectedWebsites: [],

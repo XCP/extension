@@ -2,13 +2,14 @@
  * Fuzz tests for signature JSON validation
  * Tests for malformed input, boundary conditions, and security edge cases
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validateSignatureJson,
-  validateJsonText,
   parseAndValidateSignatureJson,
   SIGNATURE_JSON_LIMITS,
+  validateJsonText,
+  validateSignatureJson,
 } from '../signatureJson';
 
 describe('signatureJson fuzz tests', () => {

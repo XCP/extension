@@ -5,18 +5,18 @@
  * and type constraints to catch accidental changes.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_SETTINGS,
+  AUTO_LOCK_TIMEOUT_MS,
+  type AutoLockTimer,
   DEFAULT_ORDER_EXPIRATION,
+  DEFAULT_SETTINGS,
+  getAutoLockTimeoutMs,
   INDEFINITE_ORDER_EXPIRATION,
   LEGACY_MAX_ORDER_EXPIRATION,
   MAX_ORDER_EXPIRATION,
   SETTINGS_VERSION,
-  AUTO_LOCK_TIMEOUT_MS,
   VALID_AUTO_LOCK_TIMERS,
-  getAutoLockTimeoutMs,
-  type AutoLockTimer,
 } from '../settings';
 
 describe('SETTINGS_VERSION', () => {

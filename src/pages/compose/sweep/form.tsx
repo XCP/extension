@@ -1,25 +1,25 @@
-import { useEffect, useState, useRef } from "react";
-import { useFormStatus } from "react-dom";
 import { 
+  Description,
   Field, 
   Label, 
-  Description,
   Listbox,
   ListboxButton,
   ListboxOption,
   ListboxOptions
 } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
-import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
 import { formatMoreOutputs } from "@/utils/format";
 import { validateAmount } from "@/utils/validation/amount";
-import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 // Define sweep type options
 // Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content

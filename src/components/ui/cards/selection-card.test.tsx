@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
 import { RadioGroup } from '@headlessui/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FiSettings } from '@/components/icons';
 import { SelectionCard, SelectionCardGroup } from './selection-card';
-import { useState } from 'react';
 
 // Test wrapper component with RadioGroup
 function TestWrapper({ 

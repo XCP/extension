@@ -3,8 +3,8 @@ import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { ResetSupplyForm } from "@/pages/compose/issuance/reset-supply/form";
 import { ReviewIssuanceResetSupply } from "@/pages/compose/issuance/reset-supply/review";
-import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeResetSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();

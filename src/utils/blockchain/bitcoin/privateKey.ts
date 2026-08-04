@@ -1,11 +1,11 @@
-import { getPublicKey } from '@noble/secp256k1';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
 import { createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { generateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { encodeAddress, getSeedFromMnemonic, AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { type AddressFormat, encodeAddress, getSeedFromMnemonic } from '@/utils/blockchain/bitcoin/address';
 
 // Create a base58check encoder instance for WIF usage.
 const base58check = createBase58check(sha256);

@@ -5,16 +5,15 @@
  * messages against API-decoded messages to detect tampering.
  */
 
-import { describe, it, expect } from 'vitest';
-import {
-  verifyProviderTransaction,
-  type ApiCounterpartyMessage,
-  type ProviderVerificationResult,
-} from '../providerVerify';
+import { describe, expect, it } from 'vitest';
 import {
   COUNTERPARTY_PREFIX_HEX,
   MessageTypeId,
 } from '../messageTypes';
+import {
+  type ApiCounterpartyMessage,
+  verifyProviderTransaction,
+} from '../providerVerify';
 
 /**
  * Helper: build a hex-encoded Counterparty message.
@@ -40,7 +39,7 @@ const XCP_ID = 1n;
 const TEST_HASH = '4838d8b3588c4c7ba7c1d06f866e9b3739c63037';
 // Mainnet P2PKH addresses for the test hashes (version byte 0x00)
 const TEST_ADDR = '17askaM3RknEAw8AFwdiP9ffSNtZyfzFBw';
-const TEST_HASH2 = '8d6ae8a3b381663118b4e1eff4cfc7d0954dd6ec';
+const _TEST_HASH2 = '8d6ae8a3b381663118b4e1eff4cfc7d0954dd6ec';
 const TEST_ADDR2 = '1DsXBDMiCGMW8GpLv4YRbnFBNQHjTsMYdo';
 
 // ── Helper function tests ───────────────────────────────────────────
@@ -844,7 +843,7 @@ describe('verifyProviderTransaction', () => {
 
   describe('send (legacy) verification', () => {
     // Send binary: asset_id(8) + quantity(8)
-    function makeSend(assetId: bigint, quantity: bigint): string {
+    function _makeSend(assetId: bigint, quantity: bigint): string {
       return buildMessage(MessageTypeId.SEND, bigintHex(assetId) + bigintHex(quantity));
     }
 

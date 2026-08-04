@@ -1,6 +1,6 @@
-import { type ReactElement } from 'react';
-import { useNavigate, useLocation } from 'react-router';
-import { FaWallet, FaUniversity, FaTools, FaCog } from '@/components/icons';
+import type { ReactElement } from 'react';
+import { useLocation, useNavigate } from 'react-router';
+import { FaCog, FaTools, FaUniversity, FaWallet } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';

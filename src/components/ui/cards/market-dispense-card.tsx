@@ -1,8 +1,8 @@
-import { type ReactElement } from "react";
-import { FaCopy } from "@/components/icons";
+import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { formatAmount, formatTxid } from "@/utils/format";
+import { FaCopy } from "@/components/icons";
 import type { Dispense } from "@/utils/blockchain/counterparty/api";
+import { formatAmount, formatTxid } from "@/utils/format";
 
 interface MarketDispenseCardProps {
   dispense: Dispense;

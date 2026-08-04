@@ -8,11 +8,11 @@
  * screen.
  */
 
-import { describe, it, expect } from 'vitest';
-import { unpackCounterpartyMessage } from '../index';
-import { verifyTransaction } from '../verify';
-import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
+import { describe, expect, it } from 'vitest';
 import { bytesToHex } from '../binary';
+import { unpackCounterpartyMessage } from '../index';
+import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
+import { verifyTransaction } from '../verify';
 
 const SOURCE_UTXO = 'aa'.repeat(32) + ':0';
 const DESTINATION = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';

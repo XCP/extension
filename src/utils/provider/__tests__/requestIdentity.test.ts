@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { getIdentityMismatchError, getPsbtPermissionError } from '../requestIdentity';
+import { describe, expect, it } from 'vitest';
 import type { AuthorizedRequest } from '@/utils/storage/requestStorage';
+import { getIdentityMismatchError, getPsbtPermissionError } from '../requestIdentity';
 
 const req = (over?: Partial<AuthorizedRequest>): AuthorizedRequest => ({
   id: 'r1',

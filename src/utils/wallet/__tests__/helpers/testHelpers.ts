@@ -1,6 +1,6 @@
-import { vi, expect } from 'vitest';
+import { expect, vi } from 'vitest';
+import type { Address, Keychain, KeychainRecord, Wallet } from '@/types/wallet';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { Wallet, Address, KeychainRecord, Keychain } from '@/types/wallet';
 
 /**
  * Test data factory for creating wallet objects

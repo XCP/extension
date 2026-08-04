@@ -1,30 +1,30 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
-import { TbRepeat, FiRefreshCw } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CopyableStat } from "@/components/ui/copyable-stat";
-import { TabButton } from "@/components/ui/tab-button";
-import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { FiRefreshCw, TbRepeat } from "@/components/icons";
 import { AssetDispenseCard } from "@/components/ui/cards/asset-dispense-card";
+import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
+import { CopyableStat } from "@/components/ui/copyable-stat";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { Spinner } from "@/components/ui/spinner";
+import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { formatPrice, getRawPrice, getNextPriceUnit } from "@/utils/price-format";
-import { formatAmount } from "@/utils/format";
-import type { PriceUnit } from "@/utils/settings";
+import { useInView } from "@/hooks/useInView";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 import {
+  type AssetInfo,
+  type Dispense,
+  type DispenserDetails,
+  fetchAssetDetails,
   fetchAssetDispensers,
   fetchAssetDispenses,
-  fetchAssetDetails,
-  type DispenserDetails,
-  type Dispense,
-  type AssetInfo,
 } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
+import { formatAmount } from "@/utils/format";
+import { formatPrice, getNextPriceUnit, getRawPrice } from "@/utils/price-format";
+import type { PriceUnit } from "@/utils/settings";
 
 // Constants
 const FETCH_LIMIT = 20;

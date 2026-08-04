@@ -1,22 +1,23 @@
 /**
  * Tests for PSBT utilities
  */
-import { describe, it, expect } from 'vitest';
-import { Transaction, p2wpkh, p2pkh } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
+import { p2pkh, p2wpkh, Transaction } from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
+import { AddressFormat } from '../address';
 import {
   committedOutputIndices,
+  completePsbtWithInputValues,
+  extractPsbtDetails,
+  finalizePSBT,
   normalizePsbtToHex,
   parsePSBT,
-  extractPsbtDetails,
-  validateSignInputs,
-  signPSBT,
   resolvePsbtSighashType,
-  finalizePSBT,
-  completePsbtWithInputValues,
+  signPSBT,
+  validateSignInputs,
 } from '../psbt';
-import { AddressFormat } from '../address';
 
 // Test private key (DO NOT USE IN PRODUCTION)
 const TEST_PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b917c8436b35';
@@ -25,7 +26,7 @@ const TEST_PRIVATE_KEY = 'e8f32e723decf4051aefac8e2c93c9c5b214313817cdb01a1494b9
 const REAL_BASE64_PSBT = 'cHNidP8BAIsCAAAAAfenzbA/xu3VDRlYuH8butApRC5TWmdACFtFtFJY4rbLAAAAAAD/////AgAAAAAAAAAAMGou91NEQhwmK/eEu8p4IuIeXnrNctzd68uypEohxWsegKVm4JyRI51E6MKOCvnm1BAZBioBAAAAFgAUjVCFq5uFyn2l1qBY7mY3iuyvdiIAAAAAAAAAAA==';
 
 // The same PSBT in hex format (pre-computed for verification)
-const REAL_HEX_PSBT = '70736274ff01008b020000000177a7cdb03fc6edd50d1958b87f1bbad029442e535a674008' +
+const _REAL_HEX_PSBT = '70736274ff01008b020000000177a7cdb03fc6edd50d1958b87f1bbad029442e535a674008' +
   '5b45b45258e2b6cb0000000000ffffffff020000000000000000306a2ef7534442' +
   '1c262bf784bbca7822e21e5e7acd72dcddebcbb2a44a21c56b1e80a566e09c9123' +
   '9d44e8c28e0af9e6d4101906260a0100000016001488d5085ab9b85ca7da5d6a05' +

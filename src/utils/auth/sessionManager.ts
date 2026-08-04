@@ -47,28 +47,28 @@
  * - Accept current design: Chosen approach
  */
 
+import { exportKey, importKey } from '@/utils/encryption/encryption';
 import {
-  validateWalletId,
-  validateSecret,
-  validateTimeout,
-  validateSessionMetadata,
-  assertRateLimit,
-  clearRateLimit,
-  clearAllRateLimits,
-  assertSecretLimit,
-} from '@/utils/validation/session';
-import {
-  getSessionMetadata,
-  setSessionMetadata,
-  clearSessionMetadata,
-  type SessionMetadata,
-} from '@/utils/storage/sessionMetadataStorage';
-import {
+  clearCachedKeychainMasterKey,
   getCachedKeychainMasterKey,
   setCachedKeychainMasterKey,
-  clearCachedKeychainMasterKey,
 } from '@/utils/storage/keyStorage';
-import { importKey, exportKey } from '@/utils/encryption/encryption';
+import {
+  clearSessionMetadata,
+  getSessionMetadata,
+  type SessionMetadata,
+  setSessionMetadata,
+} from '@/utils/storage/sessionMetadataStorage';
+import {
+  assertRateLimit,
+  assertSecretLimit,
+  clearAllRateLimits,
+  clearRateLimit,
+  validateSecret,
+  validateSessionMetadata,
+  validateTimeout,
+  validateWalletId,
+} from '@/utils/validation/session';
 
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};

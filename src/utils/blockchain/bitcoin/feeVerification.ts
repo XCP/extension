@@ -17,8 +17,8 @@
  * reasoned about. See ADR-019.
  */
 
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 
 /**
  * A fee rate above this (sat/vByte) is treated as never legitimate, and *blocks* on the compose

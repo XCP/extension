@@ -11,12 +11,12 @@
  * equality" — never as agreement.
  */
 
-import { encodeCbor, type CborEncodable } from '@/utils/blockchain/counterparty/pack/cbor';
-import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
-import { packAddress, packAddressLegacy } from '@/utils/blockchain/counterparty/unpack/address';
-import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
-import { hexToBytes } from '@/utils/blockchain/counterparty/unpack/binary';
 import { isTextualMimeType } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
+import { type CborEncodable, encodeCbor } from '@/utils/blockchain/counterparty/pack/cbor';
+import { packAddress, packAddressLegacy } from '@/utils/blockchain/counterparty/unpack/address';
+import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { hexToBytes } from '@/utils/blockchain/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX, MessageTypeId } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 /** The message types this module can construct. */
 export type PackableComposeType =

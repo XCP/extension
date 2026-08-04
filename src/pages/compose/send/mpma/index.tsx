@@ -1,8 +1,8 @@
+import { Composer } from "@/components/composer/composer";
 import { MPMAForm } from "@/pages/compose/send/mpma/form";
 import { ReviewMPMA } from "@/pages/compose/send/mpma/review";
-import { Composer } from "@/components/composer/composer";
+import type { ApiResponse, MPMAOptions } from "@/utils/blockchain/counterparty/compose";
 import { composeMPMA } from "@/utils/blockchain/counterparty/compose";
-import type { MPMAOptions, ApiResponse } from "@/utils/blockchain/counterparty/compose";
 
 interface MPMAData {
   sourceAddress: string;

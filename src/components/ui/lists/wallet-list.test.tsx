@@ -1,8 +1,8 @@
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { WalletList } from './wallet-list';
 import type { Wallet } from '@/types/wallet';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { WalletList } from './wallet-list';
 
 // Mock WalletCard component
 vi.mock('@/components/ui/cards/wallet-card', () => ({

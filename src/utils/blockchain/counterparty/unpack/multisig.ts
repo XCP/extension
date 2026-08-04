@@ -16,7 +16,7 @@
  * output is encrypted with its own keystream, so each decrypts independently.
  */
 
-import { arc4, hexToBytes, bytesToHex } from '@/utils/blockchain/counterparty/unpack/binary';
+import { arc4, bytesToHex, hexToBytes } from '@/utils/blockchain/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 /** Byte length of a bare-multisig data output script. */

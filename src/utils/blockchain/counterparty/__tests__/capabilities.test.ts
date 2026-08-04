@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/utils/apiClient';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import { getActiveSettings } from '@/utils/settings';
 import {
   clearCounterpartyCapabilityCache,
   getCounterpartyFeatureStatus,
   isVersionAtLeast,
   requireCounterpartyFeature,
 } from '../capabilities';
-import { apiClient } from '@/utils/apiClient';
-import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { getActiveSettings } from '@/utils/settings';
 
 vi.mock('@/utils/apiClient');
 vi.mock('@/utils/settings', async (importOriginal) => ({

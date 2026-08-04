@@ -2,17 +2,17 @@
  * Comprehensive BIP-322 test to ensure no cheating
  */
 
-import { describe, it, expect } from 'vitest';
+import * as secp256k1 from '@noble/secp256k1';
 import { hex } from '@scure/base';
+import * as btc from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
 import {
   signBIP322P2PKH,
-  signBIP322P2WPKH,
   signBIP322P2SH_P2WPKH,
   signBIP322P2TR,
+  signBIP322P2WPKH,
   verifyBIP322Signature
 } from '../bip322';
-import * as secp256k1 from '@noble/secp256k1';
-import * as btc from '@scure/btc-signer';
 
 describe('BIP-322 Comprehensive Tests - No Cheating', () => {
   const privateKey1 = hex.decode('0000000000000000000000000000000000000000000000000000000000000001');

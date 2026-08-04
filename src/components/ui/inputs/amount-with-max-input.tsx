@@ -1,11 +1,11 @@
-import { useState, type ChangeEvent, type ReactElement, type ReactNode } from "react";
-import { Field, Input, Label, Description } from "@headlessui/react";
+import { Description, Field, Input, Label } from "@headlessui/react";
+import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
+import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
 import { formatAmount } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { isDustAmount } from "@/utils/validation/amount";
-import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
-import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 
 // Known safe error messages that can be shown to users
 // These are intentionally user-friendly and don't leak internal details
@@ -119,7 +119,7 @@ export function AmountWithMaxInput({
       setError(null);
 
       // Select UTXOs that are safe to spend (excludes those with Counterparty assets)
-      const { utxos, totalValue, excludedWithAssets, excludedValue } = await selectUtxosForTransaction(
+      const { utxos, totalValue, excludedWithAssets } = await selectUtxosForTransaction(
         sourceAddress.address,
         { allowUnconfirmed: true }
       );

@@ -2,23 +2,24 @@
  * Fuzz tests for fee validation functions
  * Tests fee rate validation, calculation, and related functions with random inputs
  */
-import { describe, it, expect } from 'vitest';
-import fc from 'fast-check';
+
 import BigNumber from 'bignumber.js';
-import {
-  validateFeeRate,
-  calculateTransactionFee,
-  validateFeeWithBalance,
-  estimateFeeRate,
-  validateCPFPFee,
-  isReasonableFeeRate,
-  MIN_FEE_RATE,
-  MAX_FEE_RATE,
-  DEFAULT_FEE_RATE,
-  TYPICAL_INPUT_SIZE,
-  TYPICAL_OUTPUT_SIZE
-} from '@/utils/validation/fee';
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { formatFee } from '@/utils/format';
+import {
+  calculateTransactionFee,
+  DEFAULT_FEE_RATE,
+  estimateFeeRate,
+  isReasonableFeeRate,
+  MAX_FEE_RATE,
+  MIN_FEE_RATE,
+  TYPICAL_INPUT_SIZE,
+  TYPICAL_OUTPUT_SIZE, 
+  validateCPFPFee,
+  validateFeeRate,
+  validateFeeWithBalance
+} from '@/utils/validation/fee';
 
 describe('Fee Validation Fuzz Tests', () => {
   describe('validateFeeRate', () => {

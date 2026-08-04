@@ -7,9 +7,9 @@
 
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { openPopupWindow, type PopupWindow } from '@/utils/popup';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 import { analytics } from '@/utils/fathom';
+import { openPopupWindow, type PopupWindow } from '@/utils/popup';
 
 export type { ApprovalRequestOptions, ApprovalResult };
 

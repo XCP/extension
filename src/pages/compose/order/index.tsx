@@ -1,9 +1,9 @@
 import { useParams, useSearchParams } from "react-router";
+import { Composer } from "@/components/composer/composer";
 import { OrderForm } from "@/pages/compose/order/form";
 import { ReviewOrder } from "@/pages/compose/order/review";
-import { Composer } from "@/components/composer/composer";
-import { composeOrder } from "@/utils/blockchain/counterparty/compose";
 import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeOrder } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeOrderPage() {
   const { asset } = useParams<{ asset?: string }>();

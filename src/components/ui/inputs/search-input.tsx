@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, forwardRef } from "react";
-import { Field, Label, Input, Description } from "@headlessui/react";
+import { Description, Field, Input, Label } from "@headlessui/react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { FaSearch, FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 

@@ -1,11 +1,11 @@
-import { useActionState, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import { Input as HeadlessInput } from "@headlessui/react";
 import { validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { FaEye, FaEyeSlash } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { FaEye, FaEyeSlash } from "@/components/icons";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";

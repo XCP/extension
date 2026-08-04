@@ -7,9 +7,9 @@
  * This follows the same approach as Horizon Wallet.
  */
 
+import { isUtxoRecentlySpent } from '@/utils/blockchain/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/utils/blockchain/bitcoin/utxo';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
-import { isUtxoRecentlySpent } from '@/utils/blockchain/bitcoin/spentUtxoCache';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).

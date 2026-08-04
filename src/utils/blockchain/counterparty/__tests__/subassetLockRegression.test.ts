@@ -9,12 +9,12 @@
  * is ever reached.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { packComposeMessage } from '../pack/messages';
-import { verifyTransaction } from '../unpack/verify';
 import { unpackCounterpartyMessage } from '../unpack';
 import { bytesToHex } from '../unpack/binary';
 import { MessageTypeId } from '../unpack/messageTypes';
+import { verifyTransaction } from '../unpack/verify';
 
 /**
  * A real locked subasset issuance from mainnet (PINKSHIRTGUY.5368): LR_SUBASSET, lock set,

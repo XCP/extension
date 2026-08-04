@@ -1,5 +1,5 @@
-import { type ReactElement } from 'react';
 import { RadioGroup } from '@headlessui/react';
+import type { ReactElement } from 'react';
 import type { Address } from '@/types/wallet';
 import { formatAddress } from '@/utils/format';
 

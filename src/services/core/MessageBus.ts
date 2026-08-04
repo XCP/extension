@@ -38,11 +38,11 @@
  * ```
  */
 
-import { 
-  sendMessage as bridgeSendMessage, 
-  onMessage as bridgeOnMessage 
-} from 'webext-bridge/background';
 import type { ProtocolWithReturn } from 'webext-bridge';
+import { 
+  onMessage as bridgeOnMessage, 
+  sendMessage as bridgeSendMessage 
+} from 'webext-bridge/background';
 
 export type MessageTarget = 'background' | 'popup' | 'content-script' | 'devtools' | 'options';
 
@@ -82,11 +82,6 @@ export interface ApprovalMessage {
   requestId: string;
   approved: boolean;
   updatedParams?: unknown;
-}
-
-interface KeychainLockMessage {
-  type: 'KEYCHAIN_LOCKED';
-  locked: boolean;
 }
 
 // Define the protocol map for type safety
@@ -163,7 +158,7 @@ export class MessageBus {
             resolve(true);
             return;
           }
-        } catch (error) {
+        } catch (_error) {
           // Background not ready yet
         }
 

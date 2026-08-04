@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
-import { BalanceCard } from "./balance-card";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
+import { BalanceCard } from "./balance-card";
 
 // Mock the BalanceMenu component
 vi.mock("@/components/ui/menus/balance-menu", () => ({

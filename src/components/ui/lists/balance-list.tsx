@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback, type ReactElement } from "react";
-import { useInView } from "@/hooks/useInView";
-import { Spinner } from "@/components/ui/spinner";
-import { SearchInput } from "@/components/ui/inputs/search-input";
+import { type ReactElement, useCallback, useEffect, useState } from "react";
 import { BalanceCard } from "@/components/ui/cards/balance-card";
 import { SearchResultCard } from "@/components/ui/cards/search-result-card";
-import { useWallet } from "@/contexts/wallet-context";
+import { SearchInput } from "@/components/ui/inputs/search-input";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
-import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
-import { fromSatoshis } from "@/utils/numeric";
-import { useSearchQuery } from "@/hooks/useSearchQuery";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { useInView } from "@/hooks/useInView";
+import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
+import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
+import { fromSatoshis } from "@/utils/numeric";
 
 
 

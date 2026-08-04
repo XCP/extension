@@ -2,16 +2,16 @@
  * Fuzz tests for CSV parsing and validation
  * Tests for injection attacks, malformed data, and edge cases
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  parseCSVLine,
-  isHeaderRow,
-  validateBitcoinAddressFormat,
-  validateCSVQuantity,
   detectCSVInjection,
   parseCSV,
-  sanitizeCSVValue
+  parseCSVLine,
+  sanitizeCSVValue, 
+  validateBitcoinAddressFormat,
+  validateCSVQuantity
 } from '@/utils/validation/csv';
 
 describe('CSV Parser Fuzz Tests', () => {

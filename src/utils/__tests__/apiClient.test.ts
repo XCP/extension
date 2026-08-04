@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { withRetry, isApiError } from '../apiClient';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { isApiError, withRetry } from '../apiClient';
 
 describe('apiClient.ts', () => {
   describe('isApiError', () => {

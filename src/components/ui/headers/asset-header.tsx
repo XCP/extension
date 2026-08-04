@@ -1,10 +1,10 @@
-import { useEffect, type ReactElement } from 'react';
-import { useHeader } from '@/contexts/header-context';
+import { type ReactElement, useEffect } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { AssetInfoPopover } from '@/components/domain/asset/asset-info-popover';
+import { useHeader } from '@/contexts/header-context';
+import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
-import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
 
 /**
  * Props for the AssetHeader component.

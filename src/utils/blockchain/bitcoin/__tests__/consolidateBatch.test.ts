@@ -6,12 +6,12 @@
  * cryptographic verification of the produced signatures.
  */
 
-import { describe, it, expect } from 'vitest';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as secp from '@noble/secp256k1';
 import { getPublicKey } from '@noble/secp256k1';
-import { sha256 } from '@noble/hashes/sha2.js';
 import { base58check } from '@scure/base';
+import { describe, expect, it } from 'vitest';
 import { consolidateBareMultisigBatch } from '../consolidateBatch';
 import type { ConsolidationData, ConsolidationUTXO } from '../consolidationApi';
 import {

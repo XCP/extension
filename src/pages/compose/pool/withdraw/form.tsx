@@ -1,6 +1,7 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
@@ -9,12 +10,11 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
+import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
+import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
 import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/utils/numeric";
-import { FaCog } from "@/components/icons";
-import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
-import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;

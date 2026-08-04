@@ -1,15 +1,14 @@
+import type { ReactElement } from "react";
 import { useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
-import { Spinner } from "@/components/ui/spinner";
+import { useNavigate, useParams } from "react-router";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
-
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/ui/lists/action-list";
 
 
 /**

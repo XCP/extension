@@ -7,37 +7,37 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { defineProxyService } from '@/utils/proxy';
-import { getWalletService } from '@/services/walletService';
-import { eventEmitterService } from '@/services/eventEmitterService';
-import { getConnectionService } from '@/services/connectionService';
 import { getApprovalService } from '@/services/approvalService';
-import type { ApprovalRequest } from '@/types/provider';
-import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
-import { analytics } from '@/utils/fathom';
-import { analyzeCSP } from '@/utils/security/cspValidation';
-import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
+import { getConnectionService } from '@/services/connectionService';
+import { eventEmitterService } from '@/services/eventEmitterService';
 import { getUpdateService } from '@/services/updateService';
+import { getWalletService } from '@/services/walletService';
+import type { ApprovalRequest } from '@/types/provider';
+import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
+import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
+import { extractPsbtDetails, validateSignInputs } from '@/utils/blockchain/bitcoin/psbt';
+import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
+import { analytics } from '@/utils/fathom';
+import { generateRequestId } from '@/utils/id';
+import { openExtensionPopup } from '@/utils/popup';
+import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/utils/provider/rateLimiter';
 import {
-  computeRequestKey,
   beginSignFlow,
+  computeRequestKey,
   findActiveFlowByKey,
   getSignFlow,
   removeSignFlow,
 } from '@/utils/provider/signFlow';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
-import { extractPsbtDetails, validateSignInputs } from '@/utils/blockchain/bitcoin/psbt';
-import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
-import { checkReplayAttempt, recordTransaction, markTransactionBroadcasted } from '@/utils/security/replayPrevention';
-import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
-import { openExtensionPopup } from '@/utils/popup';
-import { generateRequestId } from '@/utils/id';
+import { defineProxyService } from '@/utils/proxy';
+import { analyzeCSP } from '@/utils/security/cspValidation';
+import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/utils/security/replayPrevention';
+import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
+import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
 import { keychainExists } from '@/utils/storage/walletStorage';
-import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
 import { getPairedAddressFormats } from '@/utils/wallet/addressDeriver';
-import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();
@@ -484,7 +484,7 @@ export function createProviderService(): ProviderService {
           const isUnlocked = await walletService.isKeychainUnlocked();
           if (!isUnlocked) {
             // Open popup for unlock and store the pending request
-            const approvalService = getApprovalService();
+            const _approvalService = getApprovalService();
             const requestId = generateRequestId(`${origin}-unlock`);
 
             // Store the pending connection request

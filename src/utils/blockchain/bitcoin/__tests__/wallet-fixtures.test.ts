@@ -3,7 +3,7 @@
  * Test signatures from various wallet implementations to ensure cross-platform compatibility
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('Wallet Implementation Test Fixtures', () => {

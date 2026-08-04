@@ -5,9 +5,9 @@
  * For Counterparty message decoding, see counterparty/transaction.ts
  */
 
-import { Transaction, p2wpkh, SigHash } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
+import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
 import { SigningError, ValidationError } from '@/utils/blockchain/errors';
 

@@ -3,8 +3,8 @@
  * Tests asset name detection and lookup trigger logic
  */
 
-import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
   looksLikeAssetName,
   shouldTriggerAssetLookup,
@@ -17,7 +17,7 @@ const validParentAssetArb = fc.array(
 ).map(arr => arr.join('')).filter((s: string) => /^[B-Z][A-Z]{3,11}$/.test(s));
 
 // Valid numeric asset names (A + digits)
-const validNumericAssetArb = fc.integer({ min: 0, max: 999999999 })
+const _validNumericAssetArb = fc.integer({ min: 0, max: 999999999 })
   .map(n => `A${n}`);
 
 describe('Asset Owner Validation Fuzz Tests', () => {

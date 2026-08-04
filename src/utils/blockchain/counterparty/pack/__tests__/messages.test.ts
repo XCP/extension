@@ -10,14 +10,14 @@
  * 16-byte LANDMARKS issuance.
  */
 
-import { describe, it, expect } from 'vitest';
-import { packComposeMessage } from '../messages';
-import { encodeCbor } from '../cbor';
+import { describe, expect, it } from 'vitest';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { packAddress } from '../../unpack/address';
 import { assetNameToId } from '../../unpack/assetId';
 import { bytesToHex, hexToBytes } from '../../unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
+import { encodeCbor } from '../cbor';
+import { packComposeMessage } from '../messages';
 
 const TAPROOT_DESTINATION = 'bc1pcm9gfgcy8q45y4m0ryskyc5nczex8yn9jc5r0tpuacz897y5rlfqn2u02z';
 

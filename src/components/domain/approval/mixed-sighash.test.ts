@@ -9,7 +9,7 @@
  * risk, not as change.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { committedOutputIndices } from '@/utils/blockchain/bitcoin/psbt';
 import { computeMoneyMovement } from './money-movement';
 

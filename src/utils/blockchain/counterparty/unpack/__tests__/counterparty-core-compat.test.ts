@@ -7,14 +7,14 @@
  * Source: counterparty-core/counterpartycore/test/units/messages/
  */
 
-import { describe, it, expect } from 'vitest';
-import { unpackEnhancedSend } from '../messages/enhancedSend';
-import { unpackOrder } from '../messages/order';
-import { unpackDispenser } from '../messages/dispenser';
+import { describe, expect, it } from 'vitest';
 import { unpackCancel } from '../messages/cancel';
 import { unpackDestroy } from '../messages/destroy';
-import { unpackSweep } from '../messages/sweep';
+import { unpackDispenser } from '../messages/dispenser';
+import { unpackEnhancedSend } from '../messages/enhancedSend';
 import { unpackIssuance } from '../messages/issuance';
+import { unpackOrder } from '../messages/order';
+import { unpackSweep } from '../messages/sweep';
 import { MessageTypeId } from '../messageTypes';
 
 /**
@@ -60,7 +60,7 @@ function bigintToHex8(value: bigint): string {
  * Convert Python byte literal to hex string
  * e.g., b"\x84\x01" -> "8401"
  */
-function pythonBytesToHex(pyBytes: string): string {
+function _pythonBytesToHex(pyBytes: string): string {
   // Remove b" prefix and " suffix
   let s = pyBytes.replace(/^b["']|["']$/g, '');
   // Handle escape sequences
@@ -450,14 +450,14 @@ describe('Asset ID to Name Conversion', () => {
   });
 });
 
+import { unpackAttach } from '../messages/attach';
+import { unpackBroadcast } from '../messages/broadcast';
 // Import additional unpackers for testing
 import { unpackBTCPay } from '../messages/btcpay';
 import { unpackDispense } from '../messages/dispense';
-import { unpackBroadcast } from '../messages/broadcast';
 import { unpackDividend } from '../messages/dividend';
 import { unpackFairmint } from '../messages/fairmint';
 import { unpackFairminter } from '../messages/fairminter';
-import { unpackAttach } from '../messages/attach';
 import { unpackPoolDeposit, unpackPoolWithdraw } from '../messages/pool';
 
 describe('BTCPay', () => {

@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   assertUnlockAllowed,
-  recordFailedUnlockAttempt,
   clearUnlockAttempts,
+  recordFailedUnlockAttempt,
 } from '@/utils/auth/unlockRateLimiter';
 
 describe('unlockRateLimiter', () => {

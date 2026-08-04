@@ -1,8 +1,9 @@
 /**
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
-import { fromSatoshis, toSatoshis } from '@/utils/numeric';
+
 import { CURRENCY_INFO, type FiatCurrency } from '@/utils/blockchain/bitcoin/price';
+import { fromSatoshis, toSatoshis } from '@/utils/numeric';
 
 export interface AmountFormatterOptions {
   value: number | null | undefined;

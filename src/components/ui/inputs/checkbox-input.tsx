@@ -1,5 +1,5 @@
 import { Checkbox, Field, Label } from '@headlessui/react';
-import { useEffect, useState, type ReactElement } from 'react';
+import { type ReactElement, useEffect, useState } from 'react';
 
 interface CheckboxInputProps {
   name: string;

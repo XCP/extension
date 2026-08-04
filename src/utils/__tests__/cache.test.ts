@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TTLCache, KeyedTTLCache, CacheTTL } from '../cache';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CacheTTL, KeyedTTLCache, TTLCache } from '../cache';
 
 describe('TTLCache', () => {
   beforeEach(() => {

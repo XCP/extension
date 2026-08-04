@@ -1,4 +1,4 @@
-import { type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { FaCheck } from "@/components/icons";
 
 interface CopyableStatProps {

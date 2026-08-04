@@ -1,6 +1,6 @@
-import { useState, useEffect, type ReactElement } from "react";
-import { Field, Label, Textarea, Description } from "@headlessui/react";
-import { FaCopy, FaCheck } from "@/components/icons";
+import { Description, Field, Label, Textarea } from "@headlessui/react";
+import { type ReactElement, useEffect, useState } from "react";
+import { FaCheck, FaCopy } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 
 interface HashInputProps {

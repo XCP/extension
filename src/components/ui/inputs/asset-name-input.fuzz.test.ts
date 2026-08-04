@@ -2,8 +2,9 @@
  * Fuzz tests for Asset Name validation
  * Tests the ACTUAL validation functions from the component
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { validateAssetName, validateParentAsset } from '@/utils/validation/asset';
 
 describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {

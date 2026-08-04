@@ -1,11 +1,11 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { MemoryRouter } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
 import { DEFAULT_SETTINGS } from '@/utils/settings';
 import { UtxoDetachForm } from '../form';
-import { MemoryRouter } from 'react-router';
-import { ComposerProvider } from '@/contexts/composer-context';
 
 // CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
 // This must be at the very top before any other mocks that might indirectly import it

@@ -1,8 +1,8 @@
-import { type KeyboardEvent, type ReactElement } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { formatAmount } from "@/utils/format";
-import { getCanonicalPoolAssets } from "@/utils/blockchain/counterparty/pool";
 import type { Pool, PoolPosition } from "@/utils/blockchain/counterparty/api";
+import { getCanonicalPoolAssets } from "@/utils/blockchain/counterparty/pool";
+import { formatAmount } from "@/utils/format";
 
 interface PoolCardProps {
   pool: Pool | PoolPosition;

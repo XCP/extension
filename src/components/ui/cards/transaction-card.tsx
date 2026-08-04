@@ -1,6 +1,6 @@
-import { type ReactElement } from "react";
+import type { ReactElement } from "react";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
-import { formatTimeAgo, formatDate } from "@/utils/format";
+import { formatDate, formatTimeAgo } from "@/utils/format";
 
 /**
  * Props interface for the TransactionCard component

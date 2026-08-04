@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useAssetDetails } from '../useAssetDetails';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AssetInfo, fetchTokenUtxos } from '@/utils/blockchain/counterparty/api';
+import { useAssetDetails } from '../useAssetDetails';
 import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 // Mock the API and contexts

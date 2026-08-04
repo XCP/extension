@@ -1,10 +1,10 @@
+import type { ReactElement } from "react";
 import { useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { HashInput } from "@/components/ui/inputs/hash-input";
 import { AddressHeader } from "@/components/ui/headers/address-header";
+import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { CancelOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 /**
  * Props for the CancelForm component, aligned with Composer's formAction.

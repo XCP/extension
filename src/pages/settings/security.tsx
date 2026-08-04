@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
-import type { ReactElement } from "react";
 
 const PATHS = {
   BACK: "/settings",

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { checkTransactionFee, type InputValueResolver } from '../feeVerification';
 
 // A real composed order: 1 input, an OP_RETURN output (0 sats) and a change

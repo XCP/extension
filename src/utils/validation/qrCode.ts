@@ -132,7 +132,7 @@ function validateQRCodeURL(url: string): QRCodeValidationResult {
       warnings: warnings.length > 0 ? warnings : undefined 
     };
     
-  } catch (error) {
+  } catch (_error) {
     return { isValid: false, error: 'Invalid URL format in QR code' };
   }
 }
@@ -278,7 +278,7 @@ function validateDataURL(dataURL: string): QRCodeValidationResult {
       }
     }
     
-  } catch (error) {
+  } catch (_error) {
     return { isValid: false, error: 'Failed to validate data URL' };
   }
   

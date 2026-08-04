@@ -1,4 +1,4 @@
-import { Component, type ComponentType, type ReactNode, type ErrorInfo } from 'react';
+import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
 import { BiError, FiRefreshCw } from '@/components/icons';
 
 interface Props {

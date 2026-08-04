@@ -3,16 +3,16 @@
  * Tests our custom QR code parsing and validation logic
  */
 
-import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validateQRCodeText,
+  checkQRCodePerformance,
+  estimateQRCodeMemory, 
+  sanitizeQRCodeText,
   validateQRCodeDimensions,
   validateQRCodeLogo,
   validateQRCodeParams,
-  sanitizeQRCodeText,
-  checkQRCodePerformance,
-  estimateQRCodeMemory
+  validateQRCodeText
 } from '../qrCode';
 
 describe('QR Code Validation Fuzz Testing', () => {
@@ -94,10 +94,10 @@ describe('QR Code Validation Fuzz Testing', () => {
         fc.property(
           fc.oneof(
             // WIF private key pattern
-            fc.string().map(s => '5' + 'K'.repeat(51)),
-            fc.string().map(s => 'L' + '1'.repeat(51)),
+            fc.string().map(_s => '5' + 'K'.repeat(51)),
+            fc.string().map(_s => 'L' + '1'.repeat(51)),
             // Hex private key
-            fc.string().map(s => 'A'.repeat(64))
+            fc.string().map(_s => 'A'.repeat(64))
           ),
           (privateKey) => {
             const result = validateQRCodeText(privateKey);
@@ -385,9 +385,9 @@ describe('QR Code Validation Fuzz Testing', () => {
       fc.assert(
         fc.property(
           fc.oneof(
-            fc.string().map(s => 'A'.repeat(3000)), // Long text
+            fc.string().map(_s => 'A'.repeat(3000)), // Long text
             fc.tuple(fc.string(), fc.constant(2000)), // Large width
-            fc.string().map(s => '😀'.repeat(200)) // Many unicode chars
+            fc.string().map(_s => '😀'.repeat(200)) // Many unicode chars
           ),
           (input) => {
             const [text, width] = Array.isArray(input) ? input : [input, 270];

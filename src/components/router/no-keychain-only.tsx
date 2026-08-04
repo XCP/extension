@@ -1,5 +1,5 @@
 import { type ReactElement, useEffect } from 'react';
-import { useNavigate, Outlet } from 'react-router';
+import { Outlet, useNavigate } from 'react-router';
 import { useWallet } from '@/contexts/wallet-context';
 
 /**

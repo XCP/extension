@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
+import { Composer } from "@/components/composer/composer";
 import { UtxoMoveForm } from "@/pages/compose/utxo/move/form";
 import { ReviewUtxoMove } from "@/pages/compose/utxo/move/review";
-import { Composer } from "@/components/composer/composer";
-import { composeMove } from "@/utils/blockchain/counterparty/compose";
 import type { MoveOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeMove } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeUtxoMovePage() {
   const { txId } = useParams<{ txId: string }>();

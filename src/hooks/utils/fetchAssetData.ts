@@ -4,7 +4,7 @@
  */
 
 import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
-import { fetchAssetDetails, fetchTokenBalance, type AssetInfo } from '@/utils/blockchain/counterparty/api';
+import { type AssetInfo, fetchAssetDetails, fetchTokenBalance } from '@/utils/blockchain/counterparty/api';
 import { formatAmount } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 

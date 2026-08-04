@@ -2,16 +2,17 @@
  * Fuzz tests for memo validation functions
  * Tests REAL validation logic
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
+  getMemoByteLength,
+  hexToText,
   isHexMemo,
   stripHexPrefix,
-  validateMemoLength,
-  getMemoByteLength,
+  textToHex, 
   validateMemo,
-  hexToText,
-  textToHex
+  validateMemoLength
 } from '../memo';
 
 describe('Memo Validation Fuzz Tests', () => {

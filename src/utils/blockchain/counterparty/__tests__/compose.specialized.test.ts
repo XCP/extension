@@ -1,26 +1,26 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  composeBroadcast,
-  composeBTCPay,
-  composeMPMA,
-  composeFairminter,
-  composeFairmint,
-  composePoolDeposit,
-  composePoolWithdraw,
-  composeAttach,
-  composeDetach,
-  composeTransaction
-} from '../compose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 import {
+  composeAttach,
+  composeBroadcast,
+  composeBTCPay,
+  composeDetach,
+  composeFairmint,
+  composeFairminter,
+  composeMPMA,
+  composePoolDeposit,
+  composePoolWithdraw,
+  composeTransaction
+} from '../compose';
+import {
+  assertComposeUrlCalled,
+  createMockApiResponse,
+  createMockComposeResult,
   mockAddress,
   mockApiBase,
-  mockSettings,
   mockSatPerVbyte,
-  createMockComposeResult,
-  createMockApiResponse,
-  assertComposeUrlCalled,
+  mockSettings,
   testQuantities,
 } from './helpers/composeTestHelpers';
 
@@ -320,7 +320,7 @@ describe('Compose Specialized Operations', () => {
       const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
-      const actualParams = Object.fromEntries(urlParams.entries());
+      const _actualParams = Object.fromEntries(urlParams.entries());
       expect(url).toContain('burn_payment=true');
       expect(url).toContain('lock_description=false');
       expect(url).toContain('lock_quantity=true');
@@ -394,7 +394,7 @@ describe('Compose Specialized Operations', () => {
         const actualCall = mockedApiClient.get.mock.calls[0]!;
       const url = actualCall[0] as string;
       const urlParams = new URLSearchParams(url.split('?')[1]);
-      const actualParams = Object.fromEntries(urlParams.entries());
+      const _actualParams = Object.fromEntries(urlParams.entries());
         expect(url).toContain(`quantity=${quantity}`);
       }
     });

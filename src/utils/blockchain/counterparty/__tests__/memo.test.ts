@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isHexMemo, stripHexPrefix, getMemoByteLength, isValidMemoLength } from '../memo';
+import { describe, expect, it } from 'vitest';
+import { getMemoByteLength, isHexMemo, isValidMemoLength, stripHexPrefix } from '../memo';
 
 describe('Memo Utilities', () => {
   describe('isHexMemo', () => {

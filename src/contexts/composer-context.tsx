@@ -36,44 +36,41 @@
  * ```
  */
 import {
-  createContext,
-  use,
+  type ReactElement,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactElement,
-  type ReactNode,
 } from "react";
 import { useNavigate } from "react-router";
-import { isApiError } from "@/utils/apiClient";
+import {
+  ComposerContext,
+  type ComposerState,
+  type DecodedMessage,
+} from "@/contexts/composer-context-object";
+import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useHeader } from "@/contexts/header-context";
-import { getComposeType, normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
+import { isApiError } from "@/utils/apiClient";
+import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
 import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
-import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
-import { verifyTransaction } from "@/utils/blockchain/counterparty/unpack/verify";
-import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpack/opReturn";
-import { packAddress } from "@/utils/blockchain/counterparty/unpack/address";
-import { checkOutputPolicy, type IntendedDestination } from "@/utils/blockchain/counterparty/outputPolicy";
-import { packComposeMessage } from "@/utils/blockchain/counterparty/pack/messages";
 import {
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
 } from "@/utils/blockchain/counterparty/inscriptionEnvelope";
-import { unpackCounterpartyMessage } from "@/utils/blockchain/counterparty/unpack";
-import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
-import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
+import { normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
+import { checkOutputPolicy, type IntendedDestination } from "@/utils/blockchain/counterparty/outputPolicy";
+import { packComposeMessage } from "@/utils/blockchain/counterparty/pack/messages";
 import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
-import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
-import {
-  ComposerContext,
-  type ComposerContextType,
-  type ComposerState,
-  type DecodedMessage,
-} from "@/contexts/composer-context-object";
+import { unpackCounterpartyMessage } from "@/utils/blockchain/counterparty/unpack";
+import { packAddress } from "@/utils/blockchain/counterparty/unpack/address";
+import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
+import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpack/opReturn";
+import { verifyTransaction } from "@/utils/blockchain/counterparty/unpack/verify";
+import { analytics, classifyTransactionError, getBtcBucket } from "@/utils/fathom";
+import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
 
 
 /**
@@ -145,7 +142,7 @@ function freshComposerState<T>(): ComposerState<T> {
  * Props for ComposerProvider component.
  * @template T - Type of the form data
  */
-interface ComposerProviderProps<T> {
+interface ComposerProviderProps<_T> {
   /** Child components (form, review screen, etc.) */
   children: ReactNode;
   /** Transaction type identifier (e.g., "send", "order", "issuance") */

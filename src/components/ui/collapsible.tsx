@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
+import type { ReactNode } from 'react';
 import { FiChevronDown } from '@/components/icons';
 
 interface CollapsibleProps {

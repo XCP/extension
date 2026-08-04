@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  storeUnlockedSecret,
-  getUnlockedSecret,
-  clearUnlockedSecret,
   clearAllUnlockedSecrets,
-  setLastActiveTime,
+  clearUnlockedSecret,
   getLastActiveTime,
+  getUnlockedSecret,
   MAX_SESSION_DURATION_MS,
+  setLastActiveTime,
+  storeUnlockedSecret,
 } from '../sessionManager';
 
 describe('sessionManager', () => {

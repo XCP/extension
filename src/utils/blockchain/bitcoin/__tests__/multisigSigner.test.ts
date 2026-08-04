@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { Transaction, OutScript } from '@scure/btc-signer';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import * as secp from '@noble/secp256k1';
 import { getPublicKey } from '@noble/secp256k1';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { OutScript, Transaction } from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
 import {
-  parseBareMultisig,
   assertSignableBareMultisig,
+  parseBareMultisig,
   signAndFinalizeBareMultisig,
 } from '@/utils/blockchain/bitcoin/multisigSigner';
 import {

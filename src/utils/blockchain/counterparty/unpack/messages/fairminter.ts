@@ -1,5 +1,5 @@
 import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
-import { decodeCbor, type CborValue } from '@/utils/blockchain/counterparty/unpack/cbor';
+import { type CborValue, decodeCbor } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 export interface FairminterData {
   asset: string;

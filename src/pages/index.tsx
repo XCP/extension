@@ -1,14 +1,15 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router";
 import { Radio, RadioGroup } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import {
+  FaCheck,
   FaChevronRight,
   FaClipboard,
-  FaCheck,
-  FaPaperPlane,
-  FaQrcode,
   FaHistory,
   FaLock,
+  FaPaperPlane,
+  FaQrcode,
   TbPinned
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,6 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 import { formatAddress } from "@/utils/format";
-import type { ReactElement } from "react";
 
 const COPY_FEEDBACK_DURATION = 2000;
 const PATHS = {

@@ -1,6 +1,6 @@
-import { TTLCache, CacheTTL } from '@/utils/cache';
-import { DataFetchError } from '@/utils/blockchain/errors';
 import { apiClient } from '@/utils/apiClient';
+import { DataFetchError } from '@/utils/blockchain/errors';
+import { CacheTTL, TTLCache } from '@/utils/cache';
 
 export interface FeeRates {
   fastestFee: number;

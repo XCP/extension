@@ -8,7 +8,7 @@
  * API is unchanged: defineProxyService(name, factory) => [register, getService]
  */
 
-import { ProviderError, PROVIDER_ERROR_CODES } from '@/utils/errors';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
 
 type ServiceFactory<T> = () => T;
 

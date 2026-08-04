@@ -1,20 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  composeIssuance,
-  composeDestroy,
-  composeDividend,
-  composeBurn
-} from '../compose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 import {
-  mockAddress,
-  mockApiBase,
-  mockSettings,
-  mockSatPerVbyte,
-  createMockComposeResult,
-  createMockApiResponse,
+  composeBurn, 
+  composeDestroy,
+  composeDividend,
+  composeIssuance
+} from '../compose';
+import {
   assertComposeUrlCalled,
+  createMockApiResponse,
+  createMockComposeResult,
+  mockAddress,
+  mockSatPerVbyte,
+  mockSettings,
   testAssets,
   testQuantities,
 } from './helpers/composeTestHelpers';
@@ -286,7 +285,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const actualUrl = actualCall[0];
+      const _actualUrl = actualCall[0];
     });
 
     it('should handle BTC dividends', async () => {
@@ -354,7 +353,7 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const actualUrl = actualCall[0];
+      const _actualUrl = actualCall[0];
     });
 
     it('should handle different burn amounts', async () => {

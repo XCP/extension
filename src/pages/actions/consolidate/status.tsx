@@ -1,11 +1,11 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { FiRefreshCw, FiExternalLink } from "@/components/icons";
+import { FiExternalLink, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { type ConsolidationStatusResponse, consolidationApi } from "@/utils/blockchain/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/utils/format";
-import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
 function ConsolidateStatusPage() {
   const navigate = useNavigate();

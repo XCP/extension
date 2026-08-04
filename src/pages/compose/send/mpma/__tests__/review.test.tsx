@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import { ReviewMPMA } from '../review';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
+import { ReviewMPMA } from '../review';
 
 // Mock the ReviewScreen component
 vi.mock('@/components/screens/review-screen', () => ({

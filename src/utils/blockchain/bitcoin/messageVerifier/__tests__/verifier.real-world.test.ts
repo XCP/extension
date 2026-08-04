@@ -7,7 +7,7 @@
  * Design principle: Test against existing verification order without polluting specs
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { verifyMessage } from '../verifier';
 
 describe('Real-World Bitcoin Signature Compatibility', () => {

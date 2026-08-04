@@ -2,17 +2,18 @@
  * Fuzz tests for file upload validation
  * Tests for path traversal, MIME spoofing, and malicious content
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validateFileSize,
-  validateFileType,
-  validateFileName,
-  sanitizeFileName,
-  validateFileExtension,
   detectMaliciousContent,
+  fileToBase64, 
+  sanitizeFileName,
   validateFile,
-  fileToBase64
+  validateFileExtension,
+  validateFileName,
+  validateFileSize,
+  validateFileType
 } from '../file';
 
 describe('File Upload Security Tests', () => {

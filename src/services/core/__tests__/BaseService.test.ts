@@ -4,7 +4,7 @@
  * Tests the base service functionality including lifecycle, persistence, and health monitoring
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BaseService } from '../BaseService';
 
 // Create a concrete test implementation of BaseService

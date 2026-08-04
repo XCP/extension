@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
-  computeRequestKey,
   beginSignFlow,
-  recordSignOutcome,
+  computeRequestKey,
   findActiveFlowByKey,
   getSignFlow,
+  recordSignOutcome,
   removeSignFlow,
 } from '../signFlow';
 

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
-import { getDerivationPathForAddressFormat, encodeAddress, getAddressFromMnemonic, isCounterwalletFormat, AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
-import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import { describe, expect, it, vi } from 'vitest';
+import { AddressFormat, decodeAddressFromScript, encodeAddress, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/utils/blockchain/bitcoin/address';
+import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
 
 vi.mock('@/utils/blockchain/counterwallet', () => ({
   getCounterwalletSeed: vi.fn(() => new Uint8Array(64).fill(1))
@@ -297,7 +297,7 @@ describe('Bitcoin Address Utilities', () => {
 
       // Create the P2PKH script (would normally come from a transaction)
       // This is a simplified test - in reality we'd derive the hash from the pubkey
-      const script = '76a914' + originalAddress.slice(1, 41).padEnd(40, '0') + '88ac';
+      const _script = '76a914' + originalAddress.slice(1, 41).padEnd(40, '0') + '88ac';
 
       // The address we decode won't match because the script hash doesn't match the address
       // This just tests that decoding produces a valid P2PKH address

@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { normalizeFormData, getComposeType } from '../normalize';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as numeric from '@/utils/numeric';
 import type { AssetInfo } from '../api';
 import * as api from '../api';
-import * as numeric from '@/utils/numeric';
+import { getComposeType, normalizeFormData } from '../normalize';
 
 // Mock the API module
 vi.mock('../api', () => ({

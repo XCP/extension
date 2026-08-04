@@ -1,19 +1,18 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { composeSend, composeSendOrMPMA, composeMPMA, composeSweep, composeMove } from '../compose';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
+import { composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
 import {
+  assertComposeUrlCalled,
+  createMockApiResponse,
+  createMockComposeResult,
   mockAddress,
   mockDestAddress,
-  mockApiBase,
-  mockSettings,
   mockSatPerVbyte,
-  createMockComposeResult,
-  createMockApiResponse,
-  assertComposeUrlCalled,
+  mockSettings,
   testAssets,
-  testQuantities,
   testMemos,
+  testQuantities,
 } from './helpers/composeTestHelpers';
 
 // Mock dependencies
