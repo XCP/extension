@@ -78,7 +78,11 @@ export function ReviewSend({
               <div className="font-medium">
                 {tx.quantity} {tx.asset}
               </div>
-              <div className="text-gray-600 truncate" title={tx.destination}>
+              {/* Wrapped rather than truncated. These recipients are read from the transaction's
+                  own bytes above so a substituted one cannot hide behind the echo — clipping the
+                  address to a prefix would give that back, since the start of a bech32 address is
+                  the part that does not vary. */}
+              <div className="text-gray-600 break-all font-mono" title={tx.destination}>
                 → {tx.destination}
               </div>
               {tx.memo && (

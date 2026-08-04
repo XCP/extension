@@ -1,7 +1,7 @@
 import { type ReactElement, type ReactNode, useCallback, useEffect, useRef } from 'react';
 import { ErrorBoundary } from '@/components/layout/error-boundary';
 import { ApiStatusProvider } from '@/contexts/api-status-context';
-import { HeaderProvider } from '@/contexts/header-context';
+import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import { SettingsProvider, useSettings } from '@/contexts/settings-context';
 import { useWallet, WalletProvider } from '@/contexts/wallet-context';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
@@ -12,6 +12,29 @@ import { getAutoLockTimeoutMs } from '@/utils/settings';
  */
 interface AppProvidersProps {
   children: ReactNode;
+}
+
+/**
+ * Drops the header caches when the keychain locks.
+ *
+ * They hold balances, owned assets and the addresses holding them. Locking is meant to drop that —
+ * wallet-context nulls activeWallet and activeAddress on the same event — but HeaderProvider sits
+ * above the routes and does not unmount when the UI returns to the unlock screen, so the holdings
+ * would otherwise stay in memory across an explicit lock.
+ *
+ * This lives here rather than inside HeaderProvider so that header-context stays independent of
+ * wallet-context: the wallet imports webext-bridge, which opens a runtime port at module load and
+ * cannot be imported under jsdom.
+ */
+function ClearHeaderCachesOnLock(): null {
+  const { keychainLocked } = useWallet();
+  const { clearAllCaches } = useHeader();
+
+  useEffect(() => {
+    if (keychainLocked) clearAllCaches();
+  }, [keychainLocked, clearAllCaches]);
+
+  return null;
 }
 
 /**
@@ -128,6 +151,7 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
                 <IdleTimerWrapper>
                   <ApiStatusProvider>
                     <HeaderProvider>
+                      <ClearHeaderCachesOnLock />
                       {children}
                     </HeaderProvider>
                   </ApiStatusProvider>

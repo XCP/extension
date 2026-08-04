@@ -160,6 +160,21 @@ export function setSettingsProvider(provider: () => AppSettings): void {
   settingsProvider = provider;
 }
 
+/**
+ * Note what the fallback means for anything read here while the keychain is locked.
+ *
+ * Settings live inside the encrypted keychain, so they cannot be read without the key —
+ * `walletManager.getSettings()` returns DEFAULT_SETTINGS when no keychain is loaded, and so does
+ * this when no provider is registered yet. For the security flags that fails safe:
+ * `strictTransactionVerification` defaults to true and `trezorEmulatorMode` to undefined.
+ *
+ * `counterpartyApiBase` is the exception. It falls back to the public node, so a user who pointed
+ * the wallet at their own node has any request issued before unlock go somewhere they did not
+ * choose. `IdleTimerWrapper` re-reads settings once the keychain is confirmed loaded, which closes
+ * the window after unlock but not before it. Closing it entirely means storing the API base
+ * outside the encrypted keychain — a deliberate trade, since it then becomes readable without the
+ * password, rather than something to change quietly here.
+ */
 export function getActiveSettings(): AppSettings {
   return settingsProvider ? settingsProvider() : DEFAULT_SETTINGS;
 }
