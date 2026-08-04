@@ -7,6 +7,11 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAssetDetails } from "@/core/counterparty/api";
 import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
+import { parseCSV } from "@/core/validation/csv";
+import { validateFile } from "@/core/validation/file";
+
+/** Bounds the CSV read; parseCSV caps rows at 10000, which is well under this. */
+const MAX_CSV_SIZE_KB = 2048;
 
 interface ParsedRow {
   address: string;
@@ -48,54 +53,26 @@ export function MPMAForm({
     setValidationError(null);
     
     try {
-      const lines = text.trim().split('\n');
+      // parseCSV owns turning text into rows: it normalises line endings, parses quoted values
+      // properly, caps the row count and rejects spreadsheet formula injection - none of which the
+      // hand-rolled loop here did. Address checking is left off so the checksum-validating
+      // validateBitcoinAddress below runs instead of the module's format-only test.
+      const parsed = parseCSV(text, { validateAddresses: false });
+      if (!parsed.success || !parsed.rows) {
+        throw new Error(parsed.errorLine ? `Line ${parsed.errorLine}: ${parsed.error}` : parsed.error ?? 'Invalid CSV');
+      }
+
       const parsedRows: ParsedRow[] = [];
       const assetCache: { [key: string]: boolean } = {};
-      
-      // Check if first line is a header and skip it
-      let startIndex = 0;
-      if (lines.length > 0) {
-        const firstLine = lines[0]!.toLowerCase().replace(/["\s]/g, '');
-        if (firstLine.includes('address') && firstLine.includes('asset') && firstLine.includes('quantity')) {
-          startIndex = 1; // Skip header row
-        }
-      }
-      
-      for (let i = startIndex; i < lines.length; i++) {
-        const line = lines[i]!.trim();
-        if (!line) continue; // Skip empty lines
-        
-        // Parse CSV line (handle quoted values with commas)
-        const parts = line.match(/(".*?"|[^,]+)(?=\s*,|\s*$)/g)?.map(part => 
-          part.replace(/^"|"$/g, '').trim()
-        ) || [];
-        
-        // Calculate actual line number for error messages (accounting for header if skipped)
-        const lineNum = startIndex > 0 ? i : i + 1;
-        
-        if (parts.length < 3) {
-          throw new Error(`Line ${lineNum}: Invalid format. Expected at least Address, Asset, Quantity`);
-        }
-        
-        const [address, asset, quantity, memo] = parts;
-        
-        // Validate address
-        const addressValidation = validateBitcoinAddress(address!);
+
+      for (const row of parsed.rows) {
+        const { address, asset, quantity, memo, lineNumber } = row;
+
+        const addressValidation = validateBitcoinAddress(address);
         if (!addressValidation.isValid) {
-          throw new Error(`Line ${lineNum}: Invalid Bitcoin address: ${address}. ${addressValidation.error || ''}`);
+          throw new Error(`Line ${lineNumber}: Invalid Bitcoin address: ${address}. ${addressValidation.error || ''}`);
         }
-        
-        // Validate asset
-        if (!asset || asset.length === 0) {
-          throw new Error(`Line ${lineNum}: Asset is required`);
-        }
-        
-        // Validate quantity
-        const quantityNum = parseFloat(quantity!);
-        if (isNaN(quantityNum) || quantityNum <= 0) {
-          throw new Error(`Line ${lineNum}: Invalid quantity: ${quantity}`);
-        }
-        
+
         // Check asset divisibility (cache results)
         let isDivisible = true;
         if (asset !== 'BTC') {
@@ -104,30 +81,29 @@ export function MPMAForm({
               const assetInfo = await fetchAssetDetails(asset);
               assetCache[asset] = assetInfo?.divisible ?? false;
             } catch (_e) {
-              // If we can't get asset info, assume divisible for now
-              // The API will validate properly later
+              // If we cannot get asset info, assume divisible; the API validates properly later
               assetCache[asset] = true;
             }
           }
           isDivisible = assetCache[asset]!;
         }
-        
+
         // Validate memo length if provided
         if (memo) {
           const isHex = isHexMemo(memo);
           const memoToValidate = isHex ? stripHexPrefix(memo) : memo;
           if (!isValidMemoLength(memoToValidate, isHex)) {
-            throw new Error(`Line ${lineNum}: Memo exceeds 34 bytes`);
+            throw new Error(`Line ${lineNumber}: Memo exceeds 34 bytes`);
           }
         }
-        
+
         parsedRows.push({
-          address: address!,
+          address,
           asset,
-          quantity: quantity!,
+          quantity,
           memo,
           isDivisible,
-          originalQuantity: quantity!
+          originalQuantity: quantity
         });
       }
       
@@ -150,8 +126,17 @@ export function MPMAForm({
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (!file.name.endsWith('.csv')) {
-      setValidationError('Please select a CSV file');
+    // Bounded before the whole file is read into memory. parseCSV caps rows, but that only
+    // applies once the text exists, and nothing capped the bytes. detectMaliciousPatterns is left
+    // off deliberately: parseCSV already screens every field for injection, which covers the whole
+    // file rather than the first kilobyte, and a scan for script markers could trip on a memo.
+    const fileCheck = await validateFile(file, {
+      maxSizeKB: MAX_CSV_SIZE_KB,
+      allowedExtensions: ['.csv'],
+      detectMaliciousPatterns: false,
+    });
+    if (!fileCheck.isValid) {
+      setValidationError(fileCheck.error ?? 'Please select a CSV file');
       return;
     }
     

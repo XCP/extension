@@ -185,7 +185,42 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText(/Invalid quantity/)).toBeInTheDocument();
+      // parseCSV reports why rather than just that it is invalid
+      expect(screen.getByText(/Quantity must be a number/)).toBeInTheDocument();
+    });
+  });
+
+  // These are what routing the parse through parseCSV buys: the hand-rolled loop it replaced
+  // accepted both without comment.
+  it('rejects a row carrying a spreadsheet formula', async () => {
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    fireEvent.paste(textArea, {
+      clipboardData: {
+        getData: () => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,=cmd|calc,1'
+      }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/injection/i)).toBeInTheDocument();
+    });
+  });
+
+  it('parses a quoted memo containing a comma as one field', async () => {
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    fireEvent.paste(textArea, {
+      clipboardData: {
+        getData: () => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1,"a,b"'
+      }
+    });
+
+    // A memo split on the comma would have produced a fourth column and a different memo;
+    // reaching the review table at all means the quoted field survived intact.
+    await waitFor(() => {
+      expect(screen.queryByText(/Invalid|error/i)).not.toBeInTheDocument();
     });
   });
 
