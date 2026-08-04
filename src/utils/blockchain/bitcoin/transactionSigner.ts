@@ -30,6 +30,70 @@ interface TransactionInputData {
 }
 
 /**
+ * Sequence used when the parsed transaction does not carry one. Shared by the rebuild and the
+ * check below so the two cannot disagree about what "unset" means.
+ */
+const DEFAULT_SEQUENCE = 0xfffffffd;
+
+/**
+ * Require the transaction being signed to be structurally identical to the one that was reviewed.
+ *
+ * signTransaction does not sign the bytes it parsed — it builds a fresh Transaction and copies
+ * fields across, because the signer needs per-input prevout data the raw bytes do not carry. Any
+ * field missed in that copy is silently substituted by @scure's defaults, and the user ends up
+ * signing something other than what they approved. That has happened twice: version and lockTime
+ * were dropped (a timelocked transaction signed as immediately spendable), and sequence was
+ * overwritten with 0xfffffffd (a final transaction signed as replaceable). Both were found in the
+ * field rather than by the code.
+ *
+ * Everything a Bitcoin transaction serialises is compared here — version, lockTime, and per input
+ * and output the fields that are not the signature itself — so a third omission fails loudly
+ * instead of producing a signature over bytes nobody saw.
+ */
+function assertRebuildMatchesReviewed(signed: Transaction, reviewed: Transaction): void {
+  const mismatch = (what: string, expected: unknown, actual: unknown): never => {
+    throw new SigningError(
+      `Refusing to sign: rebuilt transaction differs from the reviewed one (${what}: expected ${expected}, got ${actual})`,
+      { userMessage: 'The transaction changed while being prepared, so it was not signed.' }
+    );
+  };
+
+  if (signed.version !== reviewed.version) mismatch('version', reviewed.version, signed.version);
+  if (signed.lockTime !== reviewed.lockTime) mismatch('lockTime', reviewed.lockTime, signed.lockTime);
+  if (signed.inputsLength !== reviewed.inputsLength) {
+    mismatch('input count', reviewed.inputsLength, signed.inputsLength);
+  }
+  if (signed.outputsLength !== reviewed.outputsLength) {
+    mismatch('output count', reviewed.outputsLength, signed.outputsLength);
+  }
+
+  for (let i = 0; i < reviewed.inputsLength; i++) {
+    const a = reviewed.getInput(i);
+    const b = signed.getInput(i);
+    if (bytesToHex(a.txid!) !== bytesToHex(b.txid!)) {
+      mismatch(`input ${i} txid`, bytesToHex(a.txid!), bytesToHex(b.txid!));
+    }
+    if (a.index !== b.index) mismatch(`input ${i} index`, a.index, b.index);
+    // Compared through the same default the rebuild applies. @scure omits sequence when it is
+    // absent, and the rebuild fills 0xfffffffd there — reading the raw fields would call that a
+    // mismatch and refuse a transaction that is fine. The check that matters is that a sequence
+    // the composer *did* set survives, not that the field was spelled out.
+    const seqA = a.sequence ?? DEFAULT_SEQUENCE;
+    const seqB = b.sequence ?? DEFAULT_SEQUENCE;
+    if (seqA !== seqB) mismatch(`input ${i} sequence`, seqA, seqB);
+  }
+
+  for (let i = 0; i < reviewed.outputsLength; i++) {
+    const a = reviewed.getOutput(i);
+    const b = signed.getOutput(i);
+    if (a.amount !== b.amount) mismatch(`output ${i} amount`, a.amount, b.amount);
+    if (bytesToHex(a.script!) !== bytesToHex(b.script!)) {
+      mismatch(`output ${i} script`, bytesToHex(a.script!), bytesToHex(b.script!));
+    }
+  }
+}
+
+/**
  * Sign a Bitcoin transaction.
  *
  * For SegWit transactions, can optionally use API-provided input data (inputValues + lockScripts)
@@ -146,7 +210,7 @@ export async function signTransaction(
         index: input.index,
         // Preserve the sequence the reviewed transaction carried. Forcing 0xfffffffd overrode any
         // relative timelock (BIP68) and re-enabled RBF on a transaction presented as final.
-        sequence: input.sequence ?? 0xfffffffd,
+        sequence: input.sequence ?? DEFAULT_SEQUENCE,
         sighashType: SigHash.ALL,
       };
 
@@ -177,8 +241,11 @@ export async function signTransaction(
         }
 
         inputData.nonWitnessUtxo = hexToBytes(rawPrevTx);
+        // Assigned by index, not pushed. hybridSignTransaction reads prevOutputScripts[i] for
+        // input i, so a conditional push would shift every later entry and sign an input against
+        // another input's scriptPubKey — a valid-looking signature over the wrong preimage.
         if (prevOutput.script) {
-          prevOutputScripts.push(prevOutput.script);
+          prevOutputScripts[i] = prevOutput.script;
         }
       } else if (hasApiData) {
         // SegWit with API-provided data - use directly, no fetch needed
@@ -237,6 +304,10 @@ export async function signTransaction(
         amount: output.amount,
       });
     }
+
+    // Checked before signing, so a mismatch costs nothing and no signature over the wrong bytes
+    // is ever produced.
+    assertRebuildMatchesReviewed(tx, parsedTx);
 
     // Sign and finalize the transaction
     try {
