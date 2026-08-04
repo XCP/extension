@@ -9,10 +9,10 @@
  * - Connection security analysis
  */
 
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/errors';
 import { generateRequestId } from '@/core/id';
-import { analyzeCSP } from '@/core/security/cspValidation';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
+import { analyzeCSP } from '@/platform/provider/csp';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';

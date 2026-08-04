@@ -61,7 +61,7 @@ vi.mock('@/contexts/loading-context', () => ({
 }));
 
 // Mock API call
-vi.mock('@/core/blockchain/counterparty/api', () => ({
+vi.mock('@/core/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
       { asset: 'TESTTOKEN', quantity_normalized: '100' },
@@ -71,7 +71,7 @@ vi.mock('@/core/blockchain/counterparty/api', () => ({
 }));
 
 // Mock address validation and fee rates
-vi.mock('@/core/blockchain/bitcoin', () => ({
+vi.mock('@/core/bitcoin', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     // Allow test addresses
     return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
@@ -100,7 +100,7 @@ vi.mock('@/hooks/useAssetOwnerLookup', () => ({
 }));
 
 // Mock getFeeRates from blockchain utils
-vi.mock('@/core/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 3,
     halfHourFee: 2,
@@ -277,7 +277,7 @@ describe('UtxoMoveForm', () => {
   });
 
   it('should handle single balance correctly', async () => {
-    const { fetchUtxoBalances } = await import('@/core/blockchain/counterparty/api');
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: [{ asset: 'TESTTOKEN', quantity_normalized: '100' }]
     });
@@ -294,7 +294,7 @@ describe('UtxoMoveForm', () => {
   });
 
   it('should handle empty balances', async () => {
-    const { fetchUtxoBalances } = await import('@/core/blockchain/counterparty/api');
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: []
     });

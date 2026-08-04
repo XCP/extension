@@ -11,8 +11,8 @@ import {
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
   getSeedFromMnemonic,
-} from '@/core/blockchain/bitcoin/address';
-import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/blockchain/bitcoin/privateKey';
+} from '@/core/bitcoin/address';
+import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {

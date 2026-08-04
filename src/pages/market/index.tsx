@@ -23,7 +23,7 @@ import {
   type OrderDetails,
   type Pool,
   type PoolPosition,
-} from "@/core/blockchain/counterparty/api";
+} from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 import { formatPrice } from "@/core/price-format";
 import { getTradingPair } from "@/core/trading-pair";

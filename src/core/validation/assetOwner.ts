@@ -3,7 +3,7 @@
  * Allows users to enter asset names and automatically resolve to owner addresses
  */
 
-import { fetchAssetDetails } from '@/core/blockchain/counterparty/api';
+import { fetchAssetDetails } from '@/core/counterparty/api';
 import { validateParentAsset, } from '@/core/validation/asset';
 
 export interface AssetOwnerLookupResult {

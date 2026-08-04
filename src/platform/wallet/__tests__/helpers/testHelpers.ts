@@ -1,5 +1,5 @@
 import { expect, vi } from 'vitest';
-import { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import type { Address, Keychain, KeychainRecord, Wallet } from '@/types/wallet';
 
 /**

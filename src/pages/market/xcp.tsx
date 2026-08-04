@@ -5,13 +5,13 @@ import { FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import type { PricePoint } from "@/core/blockchain/bitcoin/price";
+import type { PricePoint } from "@/core/bitcoin/price";
 import {
   getXcpPriceHistory,
   getXcpStats,
   type XcpPriceHistoryData,
   type XcpStats,
-} from "@/core/blockchain/counterparty/price";
+} from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
 import { analytics } from "@/platform/fathom";
 

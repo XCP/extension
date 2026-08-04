@@ -8,8 +8,8 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBitcoinTransaction } from "@/core/blockchain/bitcoin/utxo";
-import { fetchUtxoBalances, type UtxoBalance } from "@/core/blockchain/counterparty/api";
+import { fetchBitcoinTransaction } from "@/core/bitcoin/utxo";
+import { fetchUtxoBalances, type UtxoBalance } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo, formatTxid } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 

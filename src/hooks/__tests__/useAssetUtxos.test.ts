@@ -1,10 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchTokenUtxos } from '@/core/blockchain/counterparty/api';
+import { fetchTokenUtxos } from '@/core/counterparty/api';
 import { useAssetUtxos } from '../useAssetUtxos';
 
 // Mock the blockchain utilities
-vi.mock('@/core/blockchain/counterparty/api');
+vi.mock('@/core/counterparty/api');
 
 // Mock the wallet context
 vi.mock('@/contexts/wallet-context', () => ({

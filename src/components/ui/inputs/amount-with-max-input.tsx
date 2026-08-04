@@ -1,8 +1,8 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { estimateVsize } from "@/core/blockchain/bitcoin/fee-estimation";
-import { selectUtxosForTransaction } from "@/core/blockchain/counterparty/utxo-selection";
+import { estimateVsize } from "@/core/bitcoin/fee-estimation";
+import { selectUtxosForTransaction } from "@/core/counterparty/utxo-selection";
 import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";

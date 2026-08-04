@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat, decodeAddressFromScript } from '@/core/blockchain/bitcoin/address';
-import type { ApiResponse } from '@/core/blockchain/counterparty/compose';
+import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
+import type { ApiResponse } from '@/core/counterparty/compose';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -29,14 +29,14 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 // Mock the API module
-vi.mock('@/core/blockchain/counterparty/api', () => ({
+vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue(null),
 }));
 
 // Fee verification always resolves input values independently of the compose response (ADR-019),
 // so every compose consults this resolver. Stub it rather than reaching the network.
-vi.mock('@/core/blockchain/counterparty/transaction', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/core/blockchain/counterparty/transaction')>()),
+vi.mock('@/core/counterparty/transaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/counterparty/transaction')>()),
   fetchInputValues: vi.fn(async (inputs: Array<{ txid: string; vout: number }>) =>
     new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000]))),
 }));

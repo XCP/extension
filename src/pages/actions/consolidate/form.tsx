@@ -8,7 +8,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import {
   type ConsolidationData,
   consolidationApi,
-} from "@/core/blockchain/bitcoin/consolidationApi";
+} from "@/core/bitcoin/consolidationApi";
 import { formatAmount } from "@/core/format";
 import { analytics } from "@/platform/fathom";
 

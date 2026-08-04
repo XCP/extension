@@ -26,7 +26,7 @@ vi.mock("@/contexts/wallet-context", () => ({
   }),
 }));
 
-vi.mock("@/core/blockchain/bitcoin/privateKey", () => ({
+vi.mock("@/core/bitcoin/privateKey", () => ({
   generateNewMnemonic: () => mockGenerateNewMnemonic(),
 }));
 

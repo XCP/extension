@@ -4,7 +4,7 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { CancelOptions } from "@/core/blockchain/counterparty/compose";
+import type { CancelOptions } from "@/core/counterparty/compose";
 
 /**
  * Props for the CancelForm component, aligned with Composer's formAction.

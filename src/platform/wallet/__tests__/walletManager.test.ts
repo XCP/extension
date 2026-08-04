@@ -8,7 +8,7 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
   TrezorAdapter: vi.fn()
 }));
 
-import { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import { WalletManager } from '../walletManager';
 import {
   createMultipleWallets,
@@ -27,17 +27,17 @@ vi.mock('@/platform/storage/walletStorage');
 vi.mock('@/core/encryption/encryption');
 vi.mock('@/core/encryption/settings');
 vi.mock('@/core/encryption/buffer');
-vi.mock('@/core/blockchain/bitcoin/address');
-vi.mock('@/core/blockchain/bitcoin/privateKey');
-vi.mock('@/core/blockchain/bitcoin/messageSigner');
-vi.mock('@/core/blockchain/bitcoin/transactionSigner');
-vi.mock('@/core/blockchain/bitcoin/transactionBroadcaster');
-vi.mock('@/core/blockchain/bitcoin/psbt', () => ({
+vi.mock('@/core/bitcoin/address');
+vi.mock('@/core/bitcoin/privateKey');
+vi.mock('@/core/bitcoin/messageSigner');
+vi.mock('@/core/bitcoin/transactionSigner');
+vi.mock('@/core/bitcoin/transactionBroadcaster');
+vi.mock('@/core/bitcoin/psbt', () => ({
   signPSBT: vi.fn().mockReturnValue('signed-psbt'),
   extractPsbtDetails: vi.fn(),
   completePsbtWithInputValues: vi.fn(),
 }));
-vi.mock('@/core/blockchain/counterwallet');
+vi.mock('@/core/counterwallet');
 vi.mock('@noble/hashes/sha2.js');
 vi.mock('@noble/hashes/utils.js');
 vi.mock('@scure/bip32');
@@ -46,8 +46,8 @@ vi.mock('@scure/bip39');
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/blockchain/bitcoin/address';
-import { signPSBT } from '@/core/blockchain/bitcoin/psbt';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
 import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync } from '@/core/encryption/encryption';
 // Import modules to get access to mocked functions

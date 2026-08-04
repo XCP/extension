@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBTCBalance } from "@/core/blockchain/bitcoin/balance";
-import type { AssetInfo } from "@/core/blockchain/counterparty/api";
+import { fetchBTCBalance } from "@/core/bitcoin/balance";
+import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {

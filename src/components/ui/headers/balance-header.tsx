@@ -1,7 +1,7 @@
 import { type ReactElement, useEffect } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { useHeader } from '@/contexts/header-context';
-import type { TokenBalance } from '@/core/blockchain/counterparty/api';
+import type { TokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 
 /**

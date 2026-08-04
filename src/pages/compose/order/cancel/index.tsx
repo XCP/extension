@@ -1,7 +1,7 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import type { CancelOptions } from "@/core/blockchain/counterparty/compose";
-import { composeCancel } from "@/core/blockchain/counterparty/compose";
+import type { CancelOptions } from "@/core/counterparty/compose";
+import { composeCancel } from "@/core/counterparty/compose";
 import { CancelForm } from "@/pages/compose/order/cancel/form";
 import { ReviewCancel } from "@/pages/compose/order/cancel/review";
 

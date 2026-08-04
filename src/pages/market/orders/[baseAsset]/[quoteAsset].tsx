@@ -17,7 +17,7 @@ import {
   fetchOrdersByPair,
   type Order,
   type OrderMatch,
-} from "@/core/blockchain/counterparty/api";
+} from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import {
   getMatchPricePerUnit,

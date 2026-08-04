@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useWallet } from "@/contexts/wallet-context";
-import { isStaleInputsError } from "@/core/blockchain/bitcoin/broadcastErrors";
+import { isStaleInputsError } from "@/core/bitcoin/broadcastErrors";
 import {
   type ConsolidationData,
   type ConsolidationReport,
   consolidationApi,
-} from "@/core/blockchain/bitcoin/consolidationApi";
+} from "@/core/bitcoin/consolidationApi";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getWalletService } from "@/services/walletService";
 

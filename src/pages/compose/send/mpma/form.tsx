@@ -4,8 +4,8 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchAssetDetails } from "@/core/blockchain/counterparty/api";
-import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/blockchain/counterparty/memo";
+import { fetchAssetDetails } from "@/core/counterparty/api";
+import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/core/counterparty/memo";
 import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 
 interface ParsedRow {

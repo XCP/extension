@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { FiInfo, FiX } from "@/components/icons";
-import type { AssetInfo } from "@/core/blockchain/counterparty/api";
+import type { AssetInfo } from "@/core/counterparty/api";
 import { formatAddress, formatTimeAgo } from "@/core/format";
 import { isNumericAsset } from "@/core/validation/asset";
 

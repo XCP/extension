@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { Dispenser } from "@/core/blockchain/counterparty/api";
+import type { Dispenser } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, roundDown, toNumber } from "@/core/numeric";
 

@@ -7,8 +7,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchUtxoBalances, type UtxoBalance } from "@/core/blockchain/counterparty/api";
-import type { DetachOptions } from "@/core/blockchain/counterparty/compose";
+import { fetchUtxoBalances, type UtxoBalance } from "@/core/counterparty/api";
+import type { DetachOptions } from "@/core/counterparty/compose";
 import { formatTxid } from "@/core/format";
 
 /**

@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import type { DispenserOptions } from "@/core/blockchain/counterparty/compose";
-import { composeDispenser } from "@/core/blockchain/counterparty/compose";
+import type { DispenserOptions } from "@/core/counterparty/compose";
+import { composeDispenser } from "@/core/counterparty/compose";
 import { DispenserForm } from "@/pages/compose/dispenser/form";
 import { ReviewDispenser } from "@/pages/compose/dispenser/review";
 

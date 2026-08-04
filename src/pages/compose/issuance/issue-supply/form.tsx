@@ -7,7 +7,7 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";

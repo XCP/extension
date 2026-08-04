@@ -10,13 +10,13 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { TokenBalance } from "@/core/blockchain/counterparty/api";
-import type { PoolDepositOptions } from "@/core/blockchain/counterparty/compose";
+import type { TokenBalance } from "@/core/counterparty/api";
+import type { PoolDepositOptions } from "@/core/counterparty/compose";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
-} from "@/core/blockchain/counterparty/pool";
+} from "@/core/counterparty/pool";
 import {
   fromSatoshis,
   isEqualTo,

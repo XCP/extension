@@ -10,8 +10,8 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, detectAddressFormat } from "@/core/blockchain/bitcoin/address";
-import { isValidCounterwalletMnemonic } from "@/core/blockchain/counterwallet";
+import { AddressFormat, detectAddressFormat } from "@/core/bitcoin/address";
+import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { analytics } from "@/platform/fathom";
 

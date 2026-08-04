@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import type { TokenBalance } from "@/core/blockchain/counterparty/api";
+import type { TokenBalance } from "@/core/counterparty/api";
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies
@@ -37,13 +37,13 @@ vi.mock("@/contexts/header-context", () => ({
 }));
 
 const mockFetchBTCBalance = vi.fn();
-vi.mock("@/core/blockchain/bitcoin/balance", () => ({
+vi.mock("@/core/bitcoin/balance", () => ({
   fetchBTCBalance: (...args: any[]) => mockFetchBTCBalance(...args),
 }));
 
 const mockFetchTokenBalance = vi.fn();
 const mockFetchTokenBalances = vi.fn();
-vi.mock("@/core/blockchain/counterparty/api", () => ({
+vi.mock("@/core/counterparty/api", () => ({
   fetchTokenBalance: (...args: any[]) => mockFetchTokenBalance(...args),
   fetchTokenBalances: (...args: any[]) => mockFetchTokenBalances(...args),
 }));

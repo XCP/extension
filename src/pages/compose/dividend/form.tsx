@@ -7,8 +7,8 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchTokenBalance } from "@/core/blockchain/counterparty/api";
-import type { DividendOptions } from "@/core/blockchain/counterparty/compose";
+import { fetchTokenBalance } from "@/core/counterparty/api";
+import type { DividendOptions } from "@/core/counterparty/compose";
 import { calculateMaxDividendPerUnit, formatDecimal } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 

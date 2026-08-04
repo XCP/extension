@@ -14,8 +14,8 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchAddressDispensers } from "@/core/blockchain/counterparty/api";
-import type { DispenserOptions } from "@/core/blockchain/counterparty/compose";
+import { fetchAddressDispensers } from "@/core/counterparty/api";
+import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 
 /**

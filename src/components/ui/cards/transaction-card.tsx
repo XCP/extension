@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import type { Transaction } from "@/core/blockchain/counterparty/api";
+import type { Transaction } from "@/core/counterparty/api";
 import { formatDate, formatTimeAgo } from "@/core/format";
 
 /**

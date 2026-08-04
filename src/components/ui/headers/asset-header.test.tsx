@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import type { AssetInfo } from '@/core/blockchain/counterparty/api';
+import type { AssetInfo } from '@/core/counterparty/api';
 import { AssetHeader } from './asset-header';
 
 // Mock dependencies

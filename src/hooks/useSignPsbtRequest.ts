@@ -12,25 +12,25 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { extractPsbtDetails, type PsbtDetails } from '@/core/blockchain/bitcoin/psbt';
+import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
-} from '@/core/blockchain/counterparty/inputAssets';
+} from '@/core/counterparty/inputAssets';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
   decodeRawTransaction
-} from '@/core/blockchain/counterparty/transaction';
+} from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
-} from '@/core/blockchain/counterparty/transactionSafety';
+} from '@/core/counterparty/transactionSafety';
 import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
-} from '@/core/blockchain/counterparty/unpack';
-import { extractPayloadFromOutputs } from '@/core/blockchain/counterparty/unpack/opReturn';
+} from '@/core/counterparty/unpack';
+import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
 import { type SignPsbtRequest, signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
 

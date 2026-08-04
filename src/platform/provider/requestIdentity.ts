@@ -1,4 +1,4 @@
-import { normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 
 /**

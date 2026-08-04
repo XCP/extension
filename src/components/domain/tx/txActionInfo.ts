@@ -1,5 +1,5 @@
-import type { CounterpartyMessage } from '@/core/blockchain/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/core/blockchain/counterparty/unpack';
+import type { CounterpartyMessage } from '@/core/counterparty/transaction';
+import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { fromSatoshis } from '@/core/numeric';
 
 /**

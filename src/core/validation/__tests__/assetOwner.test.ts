@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import * as counterpartyApi from '@/core/blockchain/counterparty/api';
+import * as counterpartyApi from '@/core/counterparty/api';
 import { 
   looksLikeAssetName, 
   lookupAssetOwner, 
@@ -7,7 +7,7 @@ import {
 } from '../assetOwner';
 
 // Mock the counterparty API
-vi.mock('@/core/blockchain/counterparty/api');
+vi.mock('@/core/counterparty/api');
 
 const mockFetchAssetDetails = counterpartyApi.fetchAssetDetails as any;
 

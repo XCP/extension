@@ -1,214 +1,201 @@
 /**
- * Standard JSON-RPC 2.0 and Web3 Error Codes
- * 
- * This file contains standardized error codes used throughout the extension
- * for consistent error handling with dApps and Web3 applications.
+ * Blockchain Error Types
+ *
+ * Structured error hierarchy for blockchain operations.
+ * Enables consistent error handling and user-friendly messaging.
  */
 
 /**
- * Standard JSON-RPC 2.0 error codes
- * @see https://www.jsonrpc.org/specification#error_object
+ * Error codes for blockchain operations.
+ * Used for programmatic error handling.
  */
-export const JSON_RPC_ERROR_CODES = {
-  /**
-   * Invalid JSON was received by the server.
-   * An error occurred on the server while parsing the JSON text.
-   */
-  PARSE_ERROR: -32700,
-
-  /**
-   * The JSON sent is not a valid Request object.
-   */
-  INVALID_REQUEST: -32600,
-
-  /**
-   * The method does not exist / is not available.
-   */
-  METHOD_NOT_FOUND: -32601,
-
-  /**
-   * Invalid method parameter(s).
-   */
-  INVALID_PARAMS: -32602,
-
-  /**
-   * Internal JSON-RPC error.
-   * Generic error when something goes wrong internally.
-   */
-  INTERNAL_ERROR: -32603,
-
-  /**
-   * Reserved for implementation-defined server-errors.
-   * -32000 to -32099
-   */
-  SERVER_ERROR: -32000,
-} as const;
+export type BlockchainErrorCode =
+  // Network errors
+  | 'NETWORK_ERROR'
+  | 'TIMEOUT'
+  | 'API_UNAVAILABLE'
+  // Validation errors
+  | 'INVALID_ADDRESS'
+  | 'INVALID_PRIVATE_KEY'
+  | 'INVALID_TRANSACTION'
+  | 'INVALID_PSBT'
+  | 'INVALID_SIGNATURE'
+  // State errors
+  | 'NO_UTXOS'
+  | 'INSUFFICIENT_FUNDS'
+  | 'UTXO_NOT_FOUND'
+  | 'WALLET_LOCKED'
+  // Transaction errors
+  | 'SIGNING_FAILED'
+  | 'BROADCAST_FAILED'
+  | 'COMPOSE_FAILED'
+  // General
+  | 'UNKNOWN';
 
 /**
- * Ethereum Provider Error Codes (EIP-1193, EIP-1474)
- * @see https://eips.ethereum.org/EIPS/eip-1193
- * @see https://eips.ethereum.org/EIPS/eip-1474
+ * Base error class for all blockchain-related errors.
+ * Provides structured error information for handling and display.
  */
-export const PROVIDER_ERROR_CODES = {
-  /**
-   * User rejected the request.
-   * E.g., user denied transaction signature, account access, etc.
-   */
-  USER_REJECTED: 4001,
+export class BlockchainError extends Error {
+  readonly code: BlockchainErrorCode;
+  readonly userMessage: string;
+  override readonly cause?: Error;
 
-  /**
-   * The requested method and/or account has not been authorized by the user.
-   */
-  UNAUTHORIZED: 4100,
-
-  /**
-   * The Provider does not support the requested method.
-   */
-  UNSUPPORTED_METHOD: 4200,
-
-  /**
-   * The Provider is disconnected from all chains.
-   */
-  DISCONNECTED: 4900,
-
-  /**
-   * The Provider is not connected to the requested chain.
-   */
-  CHAIN_DISCONNECTED: 4901,
-
-  /**
-   * The requested chains have not been added to the provider.
-   */
-  CHAINS_NOT_ADDED: 4902,
-} as const;
-
-/**
- * Custom XCP Wallet Error Codes
- * Application-specific error codes for the XCP Wallet extension
- */
-// TODO: Update error handling to use these constants instead of string literals
-// Currently unused but should be used for consistent error codes
-// export const XCP_ERROR_CODES = {
-//   /**
-//    * Wallet is locked and requires unlocking
-//    */
-//   WALLET_LOCKED: -32001,
-//
-//   /**
-//    * No wallet exists, user needs to create or import one
-//    */
-//   NO_WALLET: -32002,
-//
-//   /**
-//    * Transaction creation or composition failed
-//    */
-//   TRANSACTION_FAILED: -32003,
-//
-//   /**
-//    * Insufficient balance for the requested operation
-//    */
-//   INSUFFICIENT_BALANCE: -32004,
-//
-//   /**
-//    * Rate limit exceeded for the origin
-//    */
-//   RATE_LIMITED: -32005,
-//
-//   /**
-//    * Invalid address format or checksum
-//    */
-//   INVALID_ADDRESS: -32006,
-//
-//   /**
-//    * Asset not found or invalid
-//    */
-//   ASSET_NOT_FOUND: -32007,
-//
-//   /**
-//    * Network error when communicating with blockchain APIs
-//    */
-//   NETWORK_ERROR: -32008,
-//
-//   /**
-//    * Origin/domain is not connected to the wallet
-//    */
-//   NOT_CONNECTED: -32009,
-//
-//   /**
-//    * Operation timed out
-//    */
-//   TIMEOUT: -32010,
-// } as const;
-
-/**
- * Error carrying a JSON-RPC / EIP-1193 code. Throwing this at a provider boundary
- * is the author's signal that the message is dApp-safe and should be surfaced with
- * the given code — no string matching required downstream.
- */
-export class ProviderError extends Error {
-  readonly code: number;
-  constructor(code: number, message: string) {
+  constructor(
+    code: BlockchainErrorCode,
+    message: string,
+    options?: {
+      userMessage?: string;
+      cause?: Error;
+    }
+  ) {
     super(message);
-    this.name = 'ProviderError';
+    this.name = 'BlockchainError';
     this.code = code;
+    this.userMessage = options?.userMessage ?? message;
+    this.cause = options?.cause;
+
+    // Maintain proper stack trace in V8 environments
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, BlockchainError);
+    }
   }
 }
 
 /**
- * Map a thrown provider error to the code and message a dApp should receive.
- * User-facing states (rejection, not-connected/locked/setup) are surfaced with a
- * structured code so dApps can branch; everything else is masked to a generic
- * message so internals don't leak. Used at every dApp-facing boundary so the
- * classification can't drift out of sync with the messages the wallet throws.
+ * Validation errors (invalid addresses, keys, etc.)
  */
-/**
- * Codes whose accompanying message is safe to surface to a dApp. A carried code
- * outside this set (an internal error, or an accidental numeric `.code` on an
- * unexpected throw) is masked so internals never leak.
- */
-const SURFACEABLE_CODES: ReadonlySet<number> = new Set([
-  PROVIDER_ERROR_CODES.USER_REJECTED,
-  PROVIDER_ERROR_CODES.UNAUTHORIZED,
-  PROVIDER_ERROR_CODES.UNSUPPORTED_METHOD,
-  PROVIDER_ERROR_CODES.DISCONNECTED,
-  PROVIDER_ERROR_CODES.CHAIN_DISCONNECTED,
-  PROVIDER_ERROR_CODES.CHAINS_NOT_ADDED,
-  JSON_RPC_ERROR_CODES.METHOD_NOT_FOUND,
-  JSON_RPC_ERROR_CODES.INVALID_PARAMS,
-]);
-
-export function classifyProviderError(error: unknown): { code: number; message: string } {
-  // A recognized code carried from the throw site (a ProviderError) means the
-  // message is intentional and dApp-safe — surface both. Anything else is masked
-  // so internals never leak. dApp-facing errors must be thrown as ProviderError.
-  const carried = (error as { code?: unknown })?.code;
-  if (typeof carried === 'number' && SURFACEABLE_CODES.has(carried)) {
-    return { code: carried, message: error instanceof Error ? error.message : String(error) };
+export class ValidationError extends BlockchainError {
+  constructor(
+    code: Extract<BlockchainErrorCode, 'INVALID_ADDRESS' | 'INVALID_PRIVATE_KEY' | 'INVALID_TRANSACTION' | 'INVALID_PSBT' | 'INVALID_SIGNATURE'>,
+    message: string,
+    options?: { userMessage?: string; cause?: Error }
+  ) {
+    super(code, message, options);
+    this.name = 'ValidationError';
   }
-  return { code: JSON_RPC_ERROR_CODES.INTERNAL_ERROR, message: 'Request failed' };
 }
 
 /**
- * Helper function to create a JSON-RPC error object
+ * UTXO-related errors
  */
-export function createJsonRpcError(
-  code: number,
-  message: string,
-  data?: unknown
-): {
-  code: number;
-  message: string;
-  data?: unknown;
-} {
-  const error: any = {
-    code,
-    message,
-  };
-  
-  if (data !== undefined) {
-    error.data = data;
+export class UtxoError extends BlockchainError {
+  readonly address?: string;
+  readonly txid?: string;
+
+  constructor(
+    code: Extract<BlockchainErrorCode, 'NO_UTXOS' | 'UTXO_NOT_FOUND'>,
+    message: string,
+    options?: { address?: string; txid?: string; userMessage?: string }
+  ) {
+    super(code, message, {
+      userMessage: options?.userMessage ?? 'Unable to find transaction outputs. Please try again.',
+    });
+    this.name = 'UtxoError';
+    this.address = options?.address;
+    this.txid = options?.txid;
   }
-  
-  return error;
 }
 
+/**
+ * Transaction signing errors
+ */
+export class SigningError extends BlockchainError {
+  constructor(message: string, options?: { userMessage?: string; cause?: Error }) {
+    super('SIGNING_FAILED', message, {
+      userMessage: options?.userMessage ?? 'Failed to sign transaction. Please try again.',
+      cause: options?.cause,
+    });
+    this.name = 'SigningError';
+  }
+}
+
+/**
+ * Type guard to check if an error is a BlockchainError
+ */
+export function isBlockchainError(error: unknown): error is BlockchainError {
+  return error instanceof BlockchainError;
+}
+
+/**
+ * Sanitizes API error messages for user display.
+ * Truncates long messages and provides fallback for overly technical errors.
+ */
+function sanitizeApiMessage(message: string): string {
+  // Truncate very long messages
+  const maxLength = 200;
+  if (message.length > maxLength) {
+    return message.substring(0, maxLength) + '...';
+  }
+
+  // Check for overly technical patterns that shouldn't be shown to users
+  const technicalPatterns = [
+    /internal server error/i,
+    /stack trace/i,
+    /exception/i,
+    /traceback/i,
+    /^\s*at\s+/m, // Stack trace lines
+  ];
+
+  for (const pattern of technicalPatterns) {
+    if (pattern.test(message)) {
+      return 'The API encountered an error. Please try again later.';
+    }
+  }
+
+  return message;
+}
+
+/**
+ * Generic data fetch error for any external API or data source.
+ * Use this for errors from Bitcoin explorers, price feeds, and other external sources.
+ */
+export class DataFetchError extends BlockchainError {
+  readonly source: string;
+  readonly endpoint?: string;
+  readonly statusCode?: number;
+
+  constructor(
+    message: string,
+    source: string,
+    options?: { endpoint?: string; statusCode?: number; userMessage?: string; cause?: Error }
+  ) {
+    super('NETWORK_ERROR', message, {
+      userMessage: options?.userMessage ?? `Failed to fetch data from ${source}. Please try again.`,
+      cause: options?.cause,
+    });
+    this.name = 'DataFetchError';
+    this.source = source;
+    this.endpoint = options?.endpoint;
+    this.statusCode = options?.statusCode;
+  }
+}
+
+/**
+ * Type guard to check if an error is a DataFetchError
+ */
+export function isDataFetchError(error: unknown): error is DataFetchError {
+  return error instanceof DataFetchError;
+}
+
+/**
+ * Counterparty API errors - sanitizes API error messages for user display
+ */
+export class CounterpartyApiError extends BlockchainError {
+  readonly endpoint: string;
+  readonly statusCode?: number;
+
+  constructor(
+    message: string,
+    endpoint: string,
+    options?: { statusCode?: number; cause?: Error }
+  ) {
+    super('API_UNAVAILABLE', message, {
+      userMessage: sanitizeApiMessage(message),
+      cause: options?.cause,
+    });
+    this.name = 'CounterpartyApiError';
+    this.endpoint = endpoint;
+    this.statusCode = options?.statusCode;
+  }
+}

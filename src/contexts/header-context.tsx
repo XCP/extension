@@ -7,7 +7,7 @@ import {
   useMemo,
   useReducer,
 } from "react";
-import type { AssetInfo, TokenBalance } from "@/core/blockchain/counterparty/api";
+import type { AssetInfo, TokenBalance } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 
 /**

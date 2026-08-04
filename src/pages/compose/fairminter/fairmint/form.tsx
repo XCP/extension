@@ -6,7 +6,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { type Fairminter, FairminterSelectInput } from "@/components/ui/inputs/fairminter-select-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { FairmintOptions } from "@/core/blockchain/counterparty/compose";
+import type { FairmintOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
 import { divide, multiply, roundDownToMultiple, toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";

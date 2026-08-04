@@ -1,6 +1,6 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import type { Order, OrderDetails } from "@/core/blockchain/counterparty/api";
+import type { Order, OrderDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { getOrderBaseAmount, getOrderPricePerUnit, getTradingPair, isBuyOrder } from "@/core/trading-pair";
 

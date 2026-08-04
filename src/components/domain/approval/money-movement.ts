@@ -1,4 +1,4 @@
-import { normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 
 export interface MovementDestination {
   /** Destination address, or null if the decode couldn't resolve it. */

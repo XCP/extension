@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { type FiatCurrency, getBtc24hStats, getBtcPrice } from '@/core/blockchain/bitcoin/price';
-import { getXCPPrice } from '@/core/blockchain/counterparty/price';
+import { type FiatCurrency, getBtc24hStats, getBtcPrice } from '@/core/bitcoin/price';
+import { getXCPPrice } from '@/core/counterparty/price';
 
 interface MarketPrices {
   btc: number | null;

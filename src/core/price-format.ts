@@ -1,4 +1,4 @@
-import { CURRENCY_INFO } from "@/core/blockchain/bitcoin/price";
+import { CURRENCY_INFO } from "@/core/bitcoin/price";
 import { formatAmount } from "@/core/format";
 import type { FiatCurrency, PriceUnit } from "@/core/settings";
 

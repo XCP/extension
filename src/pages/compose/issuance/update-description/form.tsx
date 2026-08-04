@@ -8,8 +8,8 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/blockchain/bitcoin/address';
-import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**

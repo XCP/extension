@@ -77,7 +77,7 @@ vi.mock('@/platform/provider/rateLimiter', () => ({
 }));
 
 // Mock security utilities
-vi.mock('@/core/security/cspValidation', () => ({
+vi.mock('@/platform/provider/csp', () => ({
   analyzeCSP: vi.fn().mockResolvedValue({
     hasCSP: true,
     isSecure: true,

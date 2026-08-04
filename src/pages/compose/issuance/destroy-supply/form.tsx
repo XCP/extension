@@ -7,7 +7,7 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { DestroyOptions } from "@/core/blockchain/counterparty/compose";
+import type { DestroyOptions } from "@/core/counterparty/compose";
 import { validateQuantity } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 

@@ -3,8 +3,8 @@ import {
   AddressFormat,
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
-} from '@/core/blockchain/bitcoin/address';
-import { getAddressFromPrivateKey } from '@/core/blockchain/bitcoin/privateKey';
+} from '@/core/bitcoin/address';
+import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import type { WalletRecord } from '@/types/wallet';
 import {
   deriveAddressesFromSecret,

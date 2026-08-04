@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import type { Order } from "@/core/blockchain/counterparty/api";
+import type { Order } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { getOrderBaseAmount, getTradingPair, isBuyOrder } from "@/core/trading-pair";
 

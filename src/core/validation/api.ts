@@ -1,7 +1,7 @@
 import {
   isVersionAtLeast,
   MIN_COUNTERPARTY_API_VERSION,
-} from '@/core/blockchain/counterparty/capabilities';
+} from '@/core/counterparty/capabilities';
 
 /**
  * Interface for Counterparty API validation result

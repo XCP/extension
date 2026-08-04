@@ -2,7 +2,7 @@ import { type ReactElement, useEffect } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { AssetInfoPopover } from '@/components/domain/asset/asset-info-popover';
 import { useHeader } from '@/contexts/header-context';
-import type { AssetInfo } from '@/core/blockchain/counterparty/api';
+import type { AssetInfo } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 

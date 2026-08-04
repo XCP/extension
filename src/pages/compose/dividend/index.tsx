@@ -1,7 +1,7 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import type { DividendOptions } from "@/core/blockchain/counterparty/compose";
-import { composeDividend } from "@/core/blockchain/counterparty/compose";
+import type { DividendOptions } from "@/core/counterparty/compose";
+import { composeDividend } from "@/core/counterparty/compose";
 import { DividendForm } from "@/pages/compose/dividend/form";
 import { ReviewDividend } from "@/pages/compose/dividend/review";
 

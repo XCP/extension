@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/core/blockchain/counterparty/api";
+import type { Transaction } from "@/core/counterparty/api";
 
 /**
  * Renders detailed information for broadcast transactions

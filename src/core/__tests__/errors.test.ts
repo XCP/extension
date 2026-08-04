@@ -4,7 +4,7 @@ import {
   JSON_RPC_ERROR_CODES,
   PROVIDER_ERROR_CODES,
   ProviderError,
-} from '@/core/errors';
+} from '@/core/rpcErrors';
 
 describe('ProviderError', () => {
   it('carries a code alongside the message', () => {

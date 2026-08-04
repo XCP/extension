@@ -9,7 +9,7 @@ import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useWallet } from "@/contexts/wallet-context";
-import type { SendOptions } from "@/core/blockchain/counterparty/compose";
+import type { SendOptions } from "@/core/counterparty/compose";
 import { formatMoreOutputs } from "@/core/format";
 import { validateAmount, validateQuantity } from "@/core/validation/amount";
 import type { Destination } from "@/core/validation/destinations";

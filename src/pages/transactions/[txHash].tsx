@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { fetchTransaction, type Transaction } from "@/core/blockchain/counterparty/api";
+import { fetchTransaction, type Transaction } from "@/core/counterparty/api";
 import { formatAmount, formatDate, formatTimeAgo } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { getMessageHandler } from "@/pages/transactions/_messages";

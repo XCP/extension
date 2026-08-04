@@ -2,7 +2,7 @@
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
 
-import { CURRENCY_INFO, type FiatCurrency } from '@/core/blockchain/bitcoin/price';
+import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { fromSatoshis, toSatoshis } from '@/core/numeric';
 
 export interface AmountFormatterOptions {

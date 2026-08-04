@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
-import { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { walletManager } from '@/platform/wallet/walletManager';
 import { useWallet, WalletProvider } from '../wallet-context';

@@ -27,10 +27,10 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 }));
 
 
-import * as cspValidation from '@/core/security/cspValidation';
-import * as replayPrevention from '@/core/security/replayPrevention';
+import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as approvalQueue from '@/platform/provider/approvalQueue';
+import * as cspValidation from '@/platform/provider/csp';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
 import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
@@ -58,7 +58,7 @@ vi.mock('@/platform/wallet/walletManager', () => ({
   },
 }));
 vi.mock('@/platform/storage/signMessageRequestStorage');
-vi.mock('@/core/blockchain/bitcoin/messageSigner', () => ({
+vi.mock('@/core/bitcoin/messageSigner', () => ({
   signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qtest123' }),
 }));
 vi.mock('@/platform/storage/signPsbtRequestStorage');
@@ -76,8 +76,8 @@ vi.mock('@/platform/fathom', () => ({
     page: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock('@/core/security/replayPrevention');
-vi.mock('@/core/security/cspValidation');
+vi.mock('@/core/replayPrevention');
+vi.mock('@/platform/provider/csp');
 vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
 }));

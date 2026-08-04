@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import type { PricePoint } from '@/core/blockchain/bitcoin/price';
+import type { PricePoint } from '@/core/bitcoin/price';
 
 interface PriceChartProps {
   data: PricePoint[];

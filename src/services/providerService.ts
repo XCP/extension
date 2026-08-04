@@ -7,18 +7,18 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
-import { fetchBTCBalance } from '@/core/blockchain/bitcoin/balance';
-import { signMessage as signMessageDirect } from '@/core/blockchain/bitcoin/messageSigner';
-import { extractPsbtDetails, validateSignInputs } from '@/core/blockchain/bitcoin/psbt';
-import { fetchTokenBalances } from '@/core/blockchain/counterparty/api';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/errors';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { fetchBTCBalance } from '@/core/bitcoin/balance';
+import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
+import { extractPsbtDetails, validateSignInputs } from '@/core/bitcoin/psbt';
+import { fetchTokenBalances } from '@/core/counterparty/api';
 import { generateRequestId } from '@/core/id';
-import { analyzeCSP } from '@/core/security/cspValidation';
-import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/security/replayPrevention';
+import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { analytics } from '@/platform/fathom';
 import { openExtensionPopup } from '@/platform/popup';
+import { analyzeCSP } from '@/platform/provider/csp';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import {
   beginSignFlow,

@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
-import { composeIssuance } from "@/core/blockchain/counterparty/compose";
+import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { composeIssuance } from "@/core/counterparty/compose";
 import { TransferOwnershipForm } from "@/pages/compose/issuance/transfer-ownership/form";
 import { ReviewIssuanceTransferOwnership } from "@/pages/compose/issuance/transfer-ownership/review";
 

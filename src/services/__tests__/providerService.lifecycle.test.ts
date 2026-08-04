@@ -24,7 +24,7 @@ vi.mock('@/platform/wallet/walletManager', () => ({
   },
 }));
 // Mock CSP validation to avoid network calls
-vi.mock('@/core/security/cspValidation', () => ({
+vi.mock('@/platform/provider/csp', () => ({
   analyzeCSP: vi.fn(() => Promise.resolve({
     hasCSP: true,
     isSecure: true,

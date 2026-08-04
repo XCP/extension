@@ -1,6 +1,6 @@
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
-import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/errors';
+import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
 import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { broadcastToTabs } from '@/platform/browser';
 import { requestCleanup } from '@/platform/provider/requestCleanup';

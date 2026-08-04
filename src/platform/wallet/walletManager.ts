@@ -2,13 +2,13 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { AddressFormat, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
-import { signMessage } from '@/core/blockchain/bitcoin/messageSigner';
-import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/blockchain/bitcoin/privateKey';
-import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/core/blockchain/bitcoin/psbt';
-import { broadcastTransaction as btcBroadcastTransaction } from '@/core/blockchain/bitcoin/transactionBroadcaster';
-import { signTransaction as btcSignTransaction } from '@/core/blockchain/bitcoin/transactionSigner';
-import { isValidCounterwalletMnemonic } from '@/core/blockchain/counterwallet';
+import { AddressFormat, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { signMessage } from '@/core/bitcoin/messageSigner';
+import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/core/bitcoin/psbt';
+import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
+import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
+import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
 import {
   DEFAULT_PBKDF2_ITERATIONS,

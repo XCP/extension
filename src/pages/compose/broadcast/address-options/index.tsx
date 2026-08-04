@@ -1,6 +1,6 @@
 import { Composer } from "@/components/composer/composer";
-import type { BroadcastOptions } from "@/core/blockchain/counterparty/compose";
-import { composeBroadcast } from "@/core/blockchain/counterparty/compose";
+import type { BroadcastOptions } from "@/core/counterparty/compose";
+import { composeBroadcast } from "@/core/counterparty/compose";
 import { AddressOptionsForm } from "@/pages/compose/broadcast/address-options/form";
 import { ReviewAddressOptions } from "@/pages/compose/broadcast/address-options/review";
 

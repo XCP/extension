@@ -9,7 +9,7 @@ import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { DispenserOptions } from "@/core/blockchain/counterparty/compose";
+import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 

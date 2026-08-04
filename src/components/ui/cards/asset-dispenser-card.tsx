@@ -1,6 +1,6 @@
 import type { KeyboardEvent, MouseEvent, ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
-import type { DispenserDetails } from "@/core/blockchain/counterparty/api";
+import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAddress, formatAmount } from "@/core/format";
 import { isNumericAsset } from "@/core/validation/asset";
 

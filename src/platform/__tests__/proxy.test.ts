@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@/core/errors';
+import { ProviderError } from '@/core/rpcErrors';
 import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/core/blockchain/counterparty/api";
+import type { Transaction } from "@/core/counterparty/api";
 import { attach } from "@/pages/transactions/_messages/attach";
 import { broadcast } from "@/pages/transactions/_messages/broadcast";
 import { btcpay } from "@/pages/transactions/_messages/btcpay";

@@ -1,0 +1,469 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as apiClientUtils from '@/core/api/client';
+import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { getActiveSettings } from '@/core/settings';
+import { composeCancel, composeDispense, composeDispenser, composeOrder } from '../compose';
+import {
+  assertComposeUrlCalled,
+  createMockApiResponse,
+  createMockComposeResult,
+  mockAddress,
+  mockSatPerVbyte,
+  mockSettings,
+  testAssets,
+  testQuantities,
+} from './helpers/composeTestHelpers';
+
+// Mock dependencies
+vi.mock('@/core/api/client');
+vi.mock('@/core/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/settings')>();
+  return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
+});
+
+vi.mock('@/core/counterparty/capabilities', () => ({
+  requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
+}));
+
+// Mock UTXO selection to prevent real API calls to mempool.space
+vi.mock('@/core/counterparty/utxo-selection', () => ({
+  selectUtxosForTransaction: vi.fn().mockResolvedValue({
+    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: 'mock-txid:0',
+    totalValue: 100000,
+    excludedWithAssets: 0,
+  }),
+}));
+
+const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
+const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedRequireCounterpartyFeature = vi.mocked(requireCounterpartyFeature);
+
+describe('Compose Trading Operations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedGetSettings.mockReturnValue(mockSettings as any);
+    // Mock both get and post methods since different functions may use different HTTP methods
+    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+  });
+
+  describe('composeOrder', () => {
+    const defaultParams = {
+      give_asset: testAssets.XCP,
+      give_quantity: testQuantities.MEDIUM,
+      get_asset: testAssets.BTC,
+      get_quantity: 10000000, // 0.1 BTC
+      expiration: 100,
+      fee_required: 0,
+    };
+
+    it('should compose order transaction with required parameters', async () => {
+      const result = await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'order', defaultParams);
+    });
+
+    it('should include optional parameters', async () => {
+      const optionalParams = {
+        fee_provided: 1000,
+        use_fee_decimal_format: true,
+        skip_validation: true,
+      };
+
+      const result = await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        ...optionalParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle sell orders (give XCP, get BTC)', async () => {
+      const sellParams = {
+        give_asset: testAssets.XCP,
+        give_quantity: 100000000,
+        get_asset: testAssets.BTC,
+        get_quantity: 10000000,
+        expiration: 100,
+        fee_required: 0,
+      };
+
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...sellParams,
+      });
+      assertComposeUrlCalled(mockedApiClient, 'order', sellParams);
+    });
+
+    it('should handle buy orders (give BTC, get XCP)', async () => {
+      const buyParams = {
+        give_asset: testAssets.BTC,
+        give_quantity: 10000000,
+        get_asset: testAssets.XCP,
+        get_quantity: 100000000,
+        expiration: 100,
+        fee_required: 0,
+      };
+
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...buyParams,
+      });
+      assertComposeUrlCalled(mockedApiClient, 'order', buyParams);
+    });
+
+    it('should handle asset-to-asset trades', async () => {
+      const assetTradeParams = {
+        give_asset: testAssets.DIVISIBLE,
+        give_quantity: 50000000,
+        get_asset: testAssets.INDIVISIBLE,
+        get_quantity: 10,
+        expiration: 200,
+        fee_required: 0,
+      };
+
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...assetTradeParams,
+      });
+      assertComposeUrlCalled(mockedApiClient, 'order', assetTradeParams);
+    });
+
+    it('should handle zero expiration as an indefinite order', async () => {
+      const indefiniteParams = {
+        ...defaultParams,
+        expiration: 0,
+      };
+
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...indefiniteParams,
+      });
+      
+      // Check if apiClient.get was called with query parameters
+      const actualUrl = mockedApiClient.get.mock.calls[0]![0];
+      const url = new URL(actualUrl);
+      expect(url.searchParams.get('expiration')).toBe('0');
+      expect(mockedRequireCounterpartyFeature).toHaveBeenCalledWith('indefiniteOrders');
+    });
+
+    it('requires indefinite order support for expirations above the legacy max', async () => {
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 65535,
+      });
+
+      expect(mockedRequireCounterpartyFeature).toHaveBeenCalledWith('indefiniteOrders');
+    });
+
+    it('does not require indefinite order support for legacy expirations', async () => {
+      await composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 8064,
+      });
+
+      expect(mockedRequireCounterpartyFeature).not.toHaveBeenCalled();
+    });
+
+    it('rejects expirations above the uint16 protocol limit', async () => {
+      await expect(composeOrder({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        expiration: 65536,
+      })).rejects.toThrow('Order expiration must be between 0 and 65535 blocks.');
+
+      expect(mockedRequireCounterpartyFeature).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('composeCancel', () => {
+    const defaultParams = {
+      offer_hash: 'abc123def456...',
+    };
+
+    it('should compose cancel transaction', async () => {
+      const result = await composeCancel({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'cancel', defaultParams);
+    });
+
+    it('should include optional parameters', async () => {
+      const optionalParams = {
+        skip_validation: true,
+      };
+
+      const result = await composeCancel({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        ...optionalParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle multiple offer hashes', async () => {
+      const hashes = ['hash1', 'hash2', 'hash3'];
+
+      for (const offer_hash of hashes) {
+        vi.clearAllMocks();
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
+        const result = await composeCancel({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          offer_hash,
+        });
+
+        expect(result).toEqual(createMockComposeResult());
+        expect(mockedApiClient.get).toHaveBeenCalled();
+      }
+    });
+
+    it('should handle invalid offer hash error', async () => {
+      // Clear previous mocks and set up error mock
+      vi.clearAllMocks();
+      mockedGetSettings.mockReturnValue(mockSettings as any);
+      const error = new Error('Invalid offer hash');
+      mockedApiClient.get.mockRejectedValueOnce(error);
+
+      await expect(
+        composeCancel({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...defaultParams,
+        })
+      ).rejects.toThrow('Invalid offer hash');
+    });
+  });
+
+  describe('composeDispenser', () => {
+    const defaultParams = {
+      asset: testAssets.XCP,
+      give_quantity: 1000000,
+      escrow_quantity: 100000000,
+      mainchainrate: 100,
+      status: '0', // 0 = open, 10 = close
+    };
+
+    it('should compose dispenser transaction', async () => {
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'dispenser', defaultParams);
+    });
+
+    it('should include optional parameters', async () => {
+      const optionalParams = {
+        open_address: 'bc1qopenaddress',
+        oracle_address: 'bc1qoracleaddress',
+        skip_validation: true,
+      };
+
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        ...optionalParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle opening a dispenser', async () => {
+      const openParams = {
+        ...defaultParams,
+        status: '0', // Open
+      };
+
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...openParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle closing a dispenser', async () => {
+      const closeParams = {
+        ...defaultParams,
+        status: '10', // Close
+      };
+
+      const result = await composeDispenser({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...closeParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle different mainchain rates', async () => {
+      const rates = [100, 1000, 10000, 100000];
+
+      for (const mainchainrate of rates) {
+        vi.clearAllMocks();
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
+        const params = { ...defaultParams, mainchainrate };
+        const result = await composeDispenser({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...params,
+        });
+
+        expect(result).toEqual(createMockComposeResult());
+        expect(mockedApiClient.get).toHaveBeenCalled();
+      }
+    });
+  });
+
+  describe('composeDispense', () => {
+    const defaultParams = {
+      dispenser: 'bc1qdispenser123',
+      quantity: 1000000,
+    };
+
+    it('should compose dispense transaction', async () => {
+      const result = await composeDispense({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      assertComposeUrlCalled(mockedApiClient, 'dispense', defaultParams);
+    });
+
+    it('preserves the dispense response descriptors', async () => {
+      const upstream = createMockComposeResult({
+        name: 'dispense',
+        params: {
+          address: mockAddress,
+          dispenser: defaultParams.dispenser,
+          quantity: defaultParams.quantity,
+          quantity_normalized: '0.01000000',
+        } as any,
+      });
+      mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: upstream }));
+
+      const response = await composeDispense({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+      });
+
+      expect(response.result.params.address).toBe(mockAddress);
+      expect(response.result.params.dispenser).toBe(defaultParams.dispenser);
+      expect(response.result.params.source).toBeUndefined();
+      expect(response.result.params.destination).toBeUndefined();
+    });
+
+    it('should include optional parameters', async () => {
+      const optionalParams = {
+        skip_validation: true,
+      };
+
+      const result = await composeDispense({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        ...optionalParams,
+      });
+
+      expect(result).toEqual(createMockComposeResult());
+      expect(mockedApiClient.get).toHaveBeenCalled();
+    });
+
+    it('should handle different quantities', async () => {
+      const quantities = [100, 1000, 10000, 100000];
+
+      for (const quantity of quantities) {
+        vi.clearAllMocks();
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
+        const params = { ...defaultParams, quantity };
+        const result = await composeDispense({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...params,
+        });
+
+        expect(result).toEqual(createMockComposeResult());
+        expect(mockedApiClient.get).toHaveBeenCalled();
+      }
+    });
+
+    it('should handle dispense from different addresses', async () => {
+      const dispensers = ['bc1qdispenser1', 'bc1qdispenser2', 'bc1qdispenser3'];
+
+      for (const dispenser of dispensers) {
+        vi.clearAllMocks();
+        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+
+        const params = { ...defaultParams, dispenser };
+        const result = await composeDispense({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...params,
+        });
+
+        expect(result).toEqual(createMockComposeResult());
+        expect(mockedApiClient.get).toHaveBeenCalled();
+      }
+    });
+
+    it('should handle insufficient BTC error', async () => {
+      // Clear previous mocks and set up error mock
+      vi.clearAllMocks();
+      mockedGetSettings.mockReturnValue(mockSettings as any);
+      const error = new Error('Insufficient BTC for dispense');
+      mockedApiClient.get.mockRejectedValueOnce(error);
+
+      await expect(
+        composeDispense({
+          sourceAddress: mockAddress,
+          sat_per_vbyte: mockSatPerVbyte,
+          ...defaultParams,
+        })
+      ).rejects.toThrow('Insufficient BTC for dispense');
+    });
+  });
+});

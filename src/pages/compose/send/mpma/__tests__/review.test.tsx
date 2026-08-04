@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchAssetDetails } from '@/core/blockchain/counterparty/api';
+import { fetchAssetDetails } from '@/core/counterparty/api';
 import { ReviewMPMA } from '../review';
 
 // Mock the ReviewScreen component
@@ -24,7 +24,7 @@ vi.mock('@/components/screens/review-screen', () => ({
 
 // The review must NOT independently re-fetch divisibility; it renders the
 // server-normalized quantities echoed in the (signed) compose response.
-vi.mock('@/core/blockchain/counterparty/api', () => ({
+vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: vi.fn(() => Promise.resolve({ divisible: true })),
 }));
 

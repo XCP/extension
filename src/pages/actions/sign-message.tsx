@@ -7,8 +7,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AddressFormat } from "@/core/blockchain/bitcoin/address";
-import { getSigningCapabilities, signMessage } from "@/core/blockchain/bitcoin/messageSigner";
+import type { AddressFormat } from "@/core/bitcoin/address";
+import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
 import { analytics } from "@/platform/fathom";
 
 /**

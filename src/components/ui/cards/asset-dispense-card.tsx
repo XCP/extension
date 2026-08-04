@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
-import type { Dispense } from "@/core/blockchain/counterparty/api";
+import type { Dispense } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo } from "@/core/format";
 
 const SATS_PER_BTC = 100_000_000;

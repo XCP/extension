@@ -6,7 +6,7 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import type { BroadcastOptions } from "@/core/blockchain/counterparty/compose";
+import type { BroadcastOptions } from "@/core/counterparty/compose";
 
 const ADDRESS_OPTION_REQUIRE_MEMO = 1;
 

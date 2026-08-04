@@ -6,7 +6,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import type { TokenBalance } from "@/core/blockchain/counterparty/api";
+import type { TokenBalance } from "@/core/counterparty/api";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 

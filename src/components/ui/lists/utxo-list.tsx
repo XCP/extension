@@ -3,8 +3,8 @@ import { UtxoCard } from "@/components/ui/cards/utxo-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useWallet } from "@/contexts/wallet-context";
-import type { UtxoBalance } from "@/core/blockchain/counterparty/api";
-import { fetchTokenBalances } from "@/core/blockchain/counterparty/api";
+import type { UtxoBalance } from "@/core/counterparty/api";
+import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 
 const PAGE_SIZE = 20;

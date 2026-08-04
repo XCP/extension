@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import type { DispenseOptions } from "@/core/blockchain/counterparty/compose";
-import { composeDispense } from "@/core/blockchain/counterparty/compose";
+import type { DispenseOptions } from "@/core/counterparty/compose";
+import { composeDispense } from "@/core/counterparty/compose";
 import { DispenseForm } from "@/pages/compose/dispenser/dispense/form";
 import { ReviewDispense } from "@/pages/compose/dispenser/dispense/review";
 

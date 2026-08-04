@@ -3,7 +3,7 @@ import { FaBitcoin } from "@/components/icons";
 import {
   CURRENCY_INFO,
   type FiatCurrency,
-} from "@/core/blockchain/bitcoin/price";
+} from "@/core/bitcoin/price";
 import { formatAmount } from "@/core/format";
 
 interface PriceTickerProps {

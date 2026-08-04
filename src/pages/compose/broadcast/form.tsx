@@ -7,9 +7,9 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/blockchain/bitcoin/address';
-import type { BroadcastOptions } from "@/core/blockchain/counterparty/compose";
-import { encodeInscriptionContent } from '@/core/blockchain/counterparty/inscriptionEnvelope';
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { BroadcastOptions } from "@/core/counterparty/compose";
+import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 
 /**
  * Props for the BroadcastForm component, aligned with Composer's formAction.

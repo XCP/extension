@@ -74,7 +74,7 @@ August 2026 — review of the transaction construction, verification and signing
 The compose API is inside the untrusted band deliberately. Counterparty transactions are composed
 remotely, so the composer is a party to every transaction; the endpoint is user-configurable and may
 be infrastructure this project does not run. Verification is therefore structural rather than
-field-enumerated — see ADR-019 in [verify.ts](src/core/blockchain/counterparty/unpack/verify.ts).
+field-enumerated — see ADR-019 in [verify.ts](src/core/counterparty/unpack/verify.ts).
 
 ---
 
@@ -341,7 +341,7 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/platform/fathom.ts) |
 | ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/core/hardware/trezorAdapter.ts) |
 | ADR-018 | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
-| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/core/blockchain/counterparty/unpack/verify.ts) |
+| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/core/counterparty/unpack/verify.ts) |
 
 ---
 

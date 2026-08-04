@@ -8,12 +8,12 @@
  * - Provider event emission for dApp integration
  */
 
-import type { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/address';
 import {
   type ConsolidationResult as BatchConsolidationResult,
   consolidateBareMultisigBatch,
-} from '@/core/blockchain/bitcoin/consolidateBatch';
-import type { ConsolidationData } from '@/core/blockchain/bitcoin/consolidationApi';
+} from '@/core/bitcoin/consolidateBatch';
+import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { registerSessionExpiredHandler } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
 import { walletManager } from '@/platform/wallet/walletManager';

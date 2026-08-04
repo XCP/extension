@@ -32,7 +32,7 @@ vi.mock('../connectionService');
 vi.mock('../approvalService');
 
 // Mock CSP validation to avoid timeout issues
-vi.mock('@/core/security/cspValidation', () => ({
+vi.mock('@/platform/provider/csp', () => ({
   analyzeCSP: vi.fn(() => Promise.resolve({
     hasCSP: true,
     isSecure: true,
@@ -258,13 +258,13 @@ describe('ProviderService Security Tests', () => {
       });
       
       // Mock the API responses
-      const apiModule = await import('@/core/blockchain/counterparty/api');
+      const apiModule = await import('@/core/counterparty/api');
       vi.spyOn(apiModule, 'fetchTokenBalances').mockResolvedValue({ 
         result: [],
         result_count: 0
       } as any);
       
-      const balanceModule = await import('@/core/blockchain/bitcoin/balance');
+      const balanceModule = await import('@/core/bitcoin/balance');
       vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue({ 
         confirmed: 0, 
         unconfirmed: 0 

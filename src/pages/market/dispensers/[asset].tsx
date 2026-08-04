@@ -18,7 +18,7 @@ import {
   fetchAssetDetails,
   fetchAssetDispensers,
   fetchAssetDispenses,
-} from "@/core/blockchain/counterparty/api";
+} from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/price-format";
 import type { PriceUnit } from "@/core/settings";

@@ -5,7 +5,7 @@
  * This ensures consistent API across different hardware wallet vendors.
  */
 
-import type { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/address';
 import type {
   HardwareAddress,
   HardwareConnectionStatus,

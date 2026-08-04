@@ -14,8 +14,8 @@ import {
   getBtcPriceHistory,
   type PricePoint,
   type TimeRange,
-} from "@/core/blockchain/bitcoin/price";
-import { getXCPPrice } from "@/core/blockchain/counterparty/price";
+} from "@/core/bitcoin/price";
+import { getXCPPrice } from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
 import { useFeeRates } from "@/hooks/useFeeRates";
 import { analytics } from "@/platform/fathom";

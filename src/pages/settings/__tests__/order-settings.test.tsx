@@ -12,7 +12,7 @@ vi.mock('@/contexts/settings-context', () => ({
 }));
 
 const mockGetStatus = vi.fn();
-vi.mock('@/core/blockchain/counterparty/capabilities', () => ({
+vi.mock('@/core/counterparty/capabilities', () => ({
   getCounterpartyFeatureStatus: (...args: unknown[]) => mockGetStatus(...args),
 }));
 

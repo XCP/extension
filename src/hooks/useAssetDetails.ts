@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { AssetInfo } from "@/core/blockchain/counterparty/api";
+import type { AssetInfo } from "@/core/counterparty/api";
 import { useAssetBalance } from "@/hooks/useAssetBalance";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useAssetUtxos } from "@/hooks/useAssetUtxos";

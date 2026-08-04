@@ -63,8 +63,8 @@
  */
 
 import TrezorConnect, { DEVICE, DEVICE_EVENT } from '@trezor/connect-webextension';
-import { AddressFormat, decodeAddressFromScript } from '@/core/blockchain/bitcoin/address';
-import { extractPsbtDetails } from '@/core/blockchain/bitcoin/psbt';
+import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
+import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import type { IHardwareWalletAdapter } from '@/core/hardware/interface';
 import {
   DerivationPaths,

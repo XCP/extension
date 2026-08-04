@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import { HardwareWalletError } from '../types';
 
 // Create hoisted mocks using vi.hoisted()
@@ -57,7 +57,7 @@ vi.mock('@trezor/connect-webextension', () => ({
 
 // Mock extractPsbtDetails for signPsbt tests
 const mockExtractPsbtDetails = vi.fn();
-vi.mock('@/core/blockchain/bitcoin/psbt', () => ({
+vi.mock('@/core/bitcoin/psbt', () => ({
   extractPsbtDetails: (...args: unknown[]) => mockExtractPsbtDetails(...args),
 }));
 

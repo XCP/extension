@@ -16,7 +16,7 @@
  * This generates deterministic addresses we can verify against.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 
 // Port configuration matching Trezor's official test setup
 // Reference: https://github.com/trezor/connect/blob/develop/.github/workflows/test_with_trezor-user-env.yml

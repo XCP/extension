@@ -7,7 +7,7 @@ import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/core/blockchain/counterparty/pool";
+import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/core/counterparty/pool";
 import { usePool } from "@/hooks/usePool";
 
 export default function PoolPage(): ReactElement {

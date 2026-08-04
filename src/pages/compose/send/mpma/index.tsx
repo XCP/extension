@@ -1,6 +1,6 @@
 import { Composer } from "@/components/composer/composer";
-import type { ApiResponse, MPMAOptions } from "@/core/blockchain/counterparty/compose";
-import { composeMPMA } from "@/core/blockchain/counterparty/compose";
+import type { ApiResponse, MPMAOptions } from "@/core/counterparty/compose";
+import { composeMPMA } from "@/core/counterparty/compose";
 import { MPMAForm } from "@/pages/compose/send/mpma/form";
 import { ReviewMPMA } from "@/pages/compose/send/mpma/review";
 

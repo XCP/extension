@@ -1,6 +1,6 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
-import { classifyProviderError } from '@/core/errors';
+import { classifyProviderError } from '@/core/rpcErrors';
 import { disconnectAllPorts } from '@/platform/proxy';
 
 // Always include localhost for local dApp testing (safe - only accessible locally)

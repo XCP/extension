@@ -1,6 +1,6 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import type { DispenserDetails } from "@/core/blockchain/counterparty/api";
+import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 
 interface MarketDispenserCardProps {

@@ -22,8 +22,8 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/core/blockchain/bitcoin/address';
-import type { FairminterOptions } from "@/core/blockchain/counterparty/compose";
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { FairminterOptions } from "@/core/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 const FAIRMINTER_MODELS = {

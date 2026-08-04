@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AssetInfo } from "@/core/blockchain/counterparty/api";
+import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface AssetInfoState {

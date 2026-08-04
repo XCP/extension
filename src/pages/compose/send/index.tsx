@@ -1,7 +1,7 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import type { SendOrMPMAOptions } from "@/core/blockchain/counterparty/compose";
-import { composeSendOrMPMA } from "@/core/blockchain/counterparty/compose";
+import type { SendOrMPMAOptions } from "@/core/counterparty/compose";
+import { composeSendOrMPMA } from "@/core/counterparty/compose";
 import { SendForm } from "@/pages/compose/send/form";
 import { ReviewSend } from "@/pages/compose/send/review";
 

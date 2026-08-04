@@ -11,25 +11,25 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { parseRawTransactionLocally } from '@/core/blockchain/bitcoin/localTransactionParse';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
-} from '@/core/blockchain/counterparty/inputAssets';
+} from '@/core/counterparty/inputAssets';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
   fetchInputValues
-} from '@/core/blockchain/counterparty/transaction';
+} from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
-} from '@/core/blockchain/counterparty/transactionSafety';
+} from '@/core/counterparty/transactionSafety';
 import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
-} from '@/core/blockchain/counterparty/unpack';
-import { extractCounterpartyPayload } from '@/core/blockchain/counterparty/unpack/opReturn';
+} from '@/core/counterparty/unpack';
+import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
 import { type SignTransactionRequest, signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
 

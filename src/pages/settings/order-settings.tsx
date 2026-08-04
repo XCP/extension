@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useSettings } from '@/contexts/settings-context';
-import { getCounterpartyFeatureStatus } from '@/core/blockchain/counterparty/capabilities';
+import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
 import {
   DEFAULT_ORDER_EXPIRATION,
   LEGACY_MAX_ORDER_EXPIRATION,

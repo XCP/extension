@@ -15,7 +15,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from "@/core/blockchain/bitcoin/address";
+import { AddressFormat } from "@/core/bitcoin/address";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { validatePrivateKeyFormat } from "@/core/validation/privateKey";
 import { analytics } from "@/platform/fathom";

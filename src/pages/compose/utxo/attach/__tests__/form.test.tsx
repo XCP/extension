@@ -28,7 +28,7 @@ vi.mock('webext-bridge/popup', () => ({
 global.fetch = vi.fn();
 
 // Mock getFeeRates from blockchain utils
-vi.mock('@/core/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 3,
     halfHourFee: 2,

@@ -45,7 +45,7 @@ import {
   useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
-import type { AddressFormat } from '@/core/blockchain/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/address';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";

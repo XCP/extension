@@ -9,7 +9,7 @@ import {
   fetchOrders,
   type Order,
   type OrderDetails,
-} from "@/core/blockchain/counterparty/api";
+} from "@/core/counterparty/api";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 // Key extractors for deduplication
