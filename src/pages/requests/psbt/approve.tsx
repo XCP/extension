@@ -377,9 +377,12 @@ export default function ApprovePsbtPage() {
                           </span>
                           <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
                         </div>
+                        {/* Shown in full and allowed to wrap - see the matching note in the
+                            transaction approval screen. Outputs are where a site's transaction
+                            sends money, so the whole address has to be comparable. */}
                         {output.address && (
-                          <div className="text-gray-500 truncate" title={output.address}>
-                            {formatAddress(output.address, true)}
+                          <div className="text-gray-500 break-all font-mono" title={output.address}>
+                            {formatAddress(output.address, false)}
                           </div>
                         )}
                       </div>
