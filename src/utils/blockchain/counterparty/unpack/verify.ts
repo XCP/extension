@@ -184,15 +184,21 @@ export interface VerificationResult {
 /**
  * Normalize quantity to bigint for comparison
  */
-function toBigInt(value: number | string | bigint | boolean | undefined | null): bigint {
+function toBigInt(value: number | string | bigint | boolean | undefined | null): bigint | null {
   if (value === undefined || value === null) return 0n;
   if (typeof value === 'boolean') return value ? 1n : 0n;
   if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') return BigInt(Math.floor(value));
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? BigInt(Math.floor(value)) : null;
+  }
   try {
     return BigInt(value);
   } catch {
-    return 0n;
+    // null, not 0n. Returning zero here conflated "could not read this" with "this is zero", and
+    // that broke the comparison in both directions: one unreadable side produced a spurious
+    // critical mismatch against a real quantity, and two unreadable sides compared equal and
+    // certified each other as verified. A value we cannot read must never stand in for one we can.
+    return null;
   }
 }
 
@@ -237,7 +243,11 @@ function valuesEqual(a: unknown, b: unknown): boolean {
   // Handle numbers/bigints/strings that represent quantities
   if (typeof a === 'bigint' || typeof b === 'bigint' ||
       typeof a === 'number' || typeof b === 'number') {
-    return toBigInt(a as string | number | bigint) === toBigInt(b as string | number | bigint);
+    // Same shape as the boolean branch above: an unreadable value is never equal to anything,
+    // including another unreadable one, so it is reported as a mismatch rather than a match.
+    const numA = toBigInt(a as string | number | bigint);
+    const numB = toBigInt(b as string | number | bigint);
+    return numA !== null && numB !== null && numA === numB;
   }
 
   // Handle strings (addresses, assets, etc.)
