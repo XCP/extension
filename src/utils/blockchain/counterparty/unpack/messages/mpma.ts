@@ -24,8 +24,8 @@
  *    - Final 0 bit signals end
  */
 
-import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
-import { assetIdToName } from '../assetId';
+import { unpackAddress, PACKED_ADDRESS_LENGTH } from '@/utils/blockchain/counterparty/unpack/address';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
 
 /**
  * Single send within an MPMA transaction

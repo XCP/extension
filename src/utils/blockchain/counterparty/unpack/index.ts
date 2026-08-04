@@ -12,28 +12,28 @@
  *   }
  */
 
-import { BinaryReader, hexToBytes, bytesEqual } from './binary';
-import { COUNTERPARTY_PREFIX, MessageTypeId, MessageTypeName } from './messageTypes';
+import { BinaryReader, hexToBytes, bytesEqual } from '@/utils/blockchain/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX, MessageTypeId, MessageTypeName } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 // Import message-specific unpackers
-import { unpackEnhancedSend, type EnhancedSendData } from './messages/enhancedSend';
-import { unpackOrder, type OrderData } from './messages/order';
-import { unpackDispenser, type DispenserData } from './messages/dispenser';
-import { unpackCancel, type CancelData } from './messages/cancel';
-import { unpackDestroy, type DestroyData } from './messages/destroy';
-import { unpackSweep, type SweepData } from './messages/sweep';
-import { unpackSend, type SendData } from './messages/send';
-import { unpackIssuance, type IssuanceData } from './messages/issuance';
-import { unpackMPMA, type MPMAData, type MPMASend } from './messages/mpma';
-import { unpackBTCPay, type BTCPayData } from './messages/btcpay';
-import { unpackDispense, type DispenseData } from './messages/dispense';
-import { unpackBroadcast, type BroadcastData } from './messages/broadcast';
-import { unpackBet, type BetData } from './messages/bet';
-import { unpackDividend, type DividendData } from './messages/dividend';
-import { unpackFairminter, type FairminterData } from './messages/fairminter';
-import { unpackFairmint, type FairmintData } from './messages/fairmint';
-import { unpackAttach, unpackDetach, unpackMove, type AttachData, type DetachData, type MoveData } from './messages/attach';
-import { unpackPoolDeposit, unpackPoolWithdraw, type PoolDepositData, type PoolWithdrawData } from './messages/pool';
+import { unpackEnhancedSend, type EnhancedSendData } from '@/utils/blockchain/counterparty/unpack/messages/enhancedSend';
+import { unpackOrder, type OrderData } from '@/utils/blockchain/counterparty/unpack/messages/order';
+import { unpackDispenser, type DispenserData } from '@/utils/blockchain/counterparty/unpack/messages/dispenser';
+import { unpackCancel, type CancelData } from '@/utils/blockchain/counterparty/unpack/messages/cancel';
+import { unpackDestroy, type DestroyData } from '@/utils/blockchain/counterparty/unpack/messages/destroy';
+import { unpackSweep, type SweepData } from '@/utils/blockchain/counterparty/unpack/messages/sweep';
+import { unpackSend, type SendData } from '@/utils/blockchain/counterparty/unpack/messages/send';
+import { unpackIssuance, type IssuanceData } from '@/utils/blockchain/counterparty/unpack/messages/issuance';
+import { unpackMPMA, type MPMAData, type MPMASend } from '@/utils/blockchain/counterparty/unpack/messages/mpma';
+import { unpackBTCPay, type BTCPayData } from '@/utils/blockchain/counterparty/unpack/messages/btcpay';
+import { unpackDispense, type DispenseData } from '@/utils/blockchain/counterparty/unpack/messages/dispense';
+import { unpackBroadcast, type BroadcastData } from '@/utils/blockchain/counterparty/unpack/messages/broadcast';
+import { unpackBet, type BetData } from '@/utils/blockchain/counterparty/unpack/messages/bet';
+import { unpackDividend, type DividendData } from '@/utils/blockchain/counterparty/unpack/messages/dividend';
+import { unpackFairminter, type FairminterData } from '@/utils/blockchain/counterparty/unpack/messages/fairminter';
+import { unpackFairmint, type FairmintData } from '@/utils/blockchain/counterparty/unpack/messages/fairmint';
+import { unpackAttach, unpackDetach, unpackMove, type AttachData, type DetachData, type MoveData } from '@/utils/blockchain/counterparty/unpack/messages/attach';
+import { unpackPoolDeposit, unpackPoolWithdraw, type PoolDepositData, type PoolWithdrawData } from '@/utils/blockchain/counterparty/unpack/messages/pool';
 
 /**
  * Union type of all possible unpacked message data
@@ -284,29 +284,29 @@ export function isCounterpartyData(data: string | Uint8Array): boolean {
 }
 
 // Re-export types and utilities
-export * from './messageTypes';
-export * from './assetId';
-export * from './address';
-export * from './binary';
+export * from '@/utils/blockchain/counterparty/unpack/messageTypes';
+export * from '@/utils/blockchain/counterparty/unpack/assetId';
+export * from '@/utils/blockchain/counterparty/unpack/address';
+export * from '@/utils/blockchain/counterparty/unpack/binary';
 
 // Re-export message-specific types
-export type { EnhancedSendData } from './messages/enhancedSend';
-export type { OrderData } from './messages/order';
-export type { DispenserData } from './messages/dispenser';
-export type { CancelData } from './messages/cancel';
-export type { DestroyData } from './messages/destroy';
-export type { SweepData } from './messages/sweep';
-export type { SendData } from './messages/send';
-export type { IssuanceData } from './messages/issuance';
-export type { MPMAData, MPMASend } from './messages/mpma';
-export type { BTCPayData } from './messages/btcpay';
-export type { DispenseData } from './messages/dispense';
-export type { BroadcastData } from './messages/broadcast';
-export type { DividendData } from './messages/dividend';
-export type { FairminterData } from './messages/fairminter';
-export type { FairmintData } from './messages/fairmint';
-export type { AttachData, MoveData } from './messages/attach';
-export type { PoolDepositData, PoolWithdrawData } from './messages/pool';
+export type { EnhancedSendData } from '@/utils/blockchain/counterparty/unpack/messages/enhancedSend';
+export type { OrderData } from '@/utils/blockchain/counterparty/unpack/messages/order';
+export type { DispenserData } from '@/utils/blockchain/counterparty/unpack/messages/dispenser';
+export type { CancelData } from '@/utils/blockchain/counterparty/unpack/messages/cancel';
+export type { DestroyData } from '@/utils/blockchain/counterparty/unpack/messages/destroy';
+export type { SweepData } from '@/utils/blockchain/counterparty/unpack/messages/sweep';
+export type { SendData } from '@/utils/blockchain/counterparty/unpack/messages/send';
+export type { IssuanceData } from '@/utils/blockchain/counterparty/unpack/messages/issuance';
+export type { MPMAData, MPMASend } from '@/utils/blockchain/counterparty/unpack/messages/mpma';
+export type { BTCPayData } from '@/utils/blockchain/counterparty/unpack/messages/btcpay';
+export type { DispenseData } from '@/utils/blockchain/counterparty/unpack/messages/dispense';
+export type { BroadcastData } from '@/utils/blockchain/counterparty/unpack/messages/broadcast';
+export type { DividendData } from '@/utils/blockchain/counterparty/unpack/messages/dividend';
+export type { FairminterData } from '@/utils/blockchain/counterparty/unpack/messages/fairminter';
+export type { FairmintData } from '@/utils/blockchain/counterparty/unpack/messages/fairmint';
+export type { AttachData, MoveData } from '@/utils/blockchain/counterparty/unpack/messages/attach';
+export type { PoolDepositData, PoolWithdrawData } from '@/utils/blockchain/counterparty/unpack/messages/pool';
 
 // Re-export verification utilities
 export {
@@ -317,7 +317,7 @@ export {
   type VerificationResult,
   type VerificationMismatch,
   type VerifiableComposeType,
-} from './verify';
+} from '@/utils/blockchain/counterparty/unpack/verify';
 
 // Re-export param schema
 export {
@@ -329,11 +329,11 @@ export {
   type Criticality,
   type ParamDefinition,
   type MessageSchema,
-} from './paramSchema';
+} from '@/utils/blockchain/counterparty/unpack/paramSchema';
 
 // Re-export provider verification utilities
 export {
   verifyProviderTransaction,
   type ApiCounterpartyMessage,
   type ProviderVerificationResult,
-} from './providerVerify';
+} from '@/utils/blockchain/counterparty/unpack/providerVerify';

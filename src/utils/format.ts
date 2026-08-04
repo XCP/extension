@@ -1,7 +1,7 @@
 /**
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
-import { fromSatoshis, toSatoshis } from './numeric';
+import { fromSatoshis, toSatoshis } from '@/utils/numeric';
 import { CURRENCY_INFO, type FiatCurrency } from '@/utils/blockchain/bitcoin/price';
 
 export interface AmountFormatterOptions {

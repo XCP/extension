@@ -15,7 +15,7 @@ import type {
   HardwareMessageSignResult,
   HardwareConnectionStatus,
   HardwarePsbtSignRequest,
-} from './types';
+} from '@/utils/hardware/types';
 
 /**
  * Interface for hardware wallet adapters

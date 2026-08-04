@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
-import { ConsolidationForm, type ConsolidationFormData } from "./form";
-import { ConsolidationReview } from "./review";
-import { ConsolidationHistory } from "./history";
+import { ConsolidationForm, type ConsolidationFormData } from "@/pages/actions/consolidate/form";
+import { ConsolidationReview } from "@/pages/actions/consolidate/review";
+import { ConsolidationHistory } from "@/pages/actions/consolidate/history";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";

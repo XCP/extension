@@ -8,8 +8,8 @@
  * Uses virtual transactions for verification
  */
 
-import type { VerificationResult } from '../types';
-import { getAddressType } from '../utils';
+import type { VerificationResult } from '@/utils/blockchain/bitcoin/messageVerifier/types';
+import { getAddressType } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
 
 // Import from our existing BIP-322 implementation
 import {

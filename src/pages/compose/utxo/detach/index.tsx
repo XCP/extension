@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { UtxoDetachForm } from "./form";
-import { ReviewUtxoDetach } from "./review";
+import { UtxoDetachForm } from "@/pages/compose/utxo/detach/form";
+import { ReviewUtxoDetach } from "@/pages/compose/utxo/detach/review";
 import { Composer } from "@/components/composer/composer";
 import { composeDetach } from "@/utils/blockchain/counterparty/compose";
 import type { DetachOptions } from "@/utils/blockchain/counterparty/compose";

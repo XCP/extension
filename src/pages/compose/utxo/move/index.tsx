@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { UtxoMoveForm } from "./form";
-import { ReviewUtxoMove } from "./review";
+import { UtxoMoveForm } from "@/pages/compose/utxo/move/form";
+import { ReviewUtxoMove } from "@/pages/compose/utxo/move/review";
 import { Composer } from "@/components/composer/composer";
 import { composeMove } from "@/utils/blockchain/counterparty/compose";
 import type { MoveOptions } from "@/utils/blockchain/counterparty/compose";

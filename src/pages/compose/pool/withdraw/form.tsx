@@ -14,7 +14,7 @@ import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber
 import { FaCog } from "@/components/icons";
 import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
-import { PoolSlippageSettings } from "../pool-slippage-settings";
+import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;

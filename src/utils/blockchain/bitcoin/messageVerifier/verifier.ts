@@ -6,16 +6,16 @@
  * 2. Compatibility layer (if not strict mode)
  */
 
-import type { VerificationResult, VerificationOptions } from './types';
-import { validateMessage, detectAndNormalizeSignature, validateSignatureFormat } from './utils';
+import type { VerificationResult, VerificationOptions } from '@/utils/blockchain/bitcoin/messageVerifier/types';
+import { validateMessage, detectAndNormalizeSignature, validateSignatureFormat } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
 
 // Spec-compliant verifiers
-import { verifyBIP322 } from './specs/bip322';
-import { verifyBIP137 } from './specs/bip137';
-import { verifyLegacy } from './specs/legacy';
+import { verifyBIP322 } from '@/utils/blockchain/bitcoin/messageVerifier/specs/bip322';
+import { verifyBIP137 } from '@/utils/blockchain/bitcoin/messageVerifier/specs/bip137';
+import { verifyLegacy } from '@/utils/blockchain/bitcoin/messageVerifier/specs/legacy';
 
 // Compatibility layer
-import { verifyLooseBIP137 } from './compatibility/loose-bip137';
+import { verifyLooseBIP137 } from '@/utils/blockchain/bitcoin/messageVerifier/compatibility/loose-bip137';
 
 /**
  * Main verification function

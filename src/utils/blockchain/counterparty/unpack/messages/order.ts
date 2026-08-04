@@ -11,8 +11,8 @@
  *   - fee_required (Q): 8 bytes - BTC fee required (for BTC orders)
  */
 
-import { BinaryReader } from '../binary';
-import { assetIdToName } from '../assetId';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
 
 /** Expected length of order message payload */
 // FORMAT = ">QQQQHQ" = 8+8+8+8+2+8 = 42 bytes

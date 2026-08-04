@@ -5,7 +5,7 @@
  * here so the popup can retrieve them and show the approval UI.
  */
 
-import { RequestStorage, type AuthorizedRequest } from './requestStorage';
+import { RequestStorage, type AuthorizedRequest } from '@/utils/storage/requestStorage';
 
 /**
  * Sign transaction request from a dApp.

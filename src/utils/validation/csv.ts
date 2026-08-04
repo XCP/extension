@@ -3,7 +3,7 @@
  * Pure functions with no external dependencies
  */
 
-import { validateBitcoinAddress } from './bitcoin';
+import { validateBitcoinAddress } from '@/utils/validation/bitcoin';
 
 export interface CSVRow {
   address: string;

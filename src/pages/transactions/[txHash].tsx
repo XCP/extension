@@ -8,7 +8,7 @@ import { useHeader } from "@/contexts/header-context";
 import { fetchTransaction, type Transaction } from "@/utils/blockchain/counterparty/api";
 import { formatDate, formatAmount, formatTimeAgo } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
-import { getMessageHandler } from "./_messages";
+import { getMessageHandler } from "@/pages/transactions/_messages";
 import type { ReactElement } from "react";
 
 /**

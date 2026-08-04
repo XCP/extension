@@ -64,7 +64,7 @@
 
 import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
-import type { IHardwareWalletAdapter } from './interface';
+import type { IHardwareWalletAdapter } from '@/utils/hardware/interface';
 import {
   type HardwareDeviceInfo,
   type HardwareAddress,
@@ -78,7 +78,7 @@ import {
   type HardwarePsbtSignRequest,
   type InputScriptType,
   type OutputScriptType,
-} from './types';
+} from '@/utils/hardware/types';
 import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import { getActiveSettings } from '@/utils/settings';
 

@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { UtxoAttachForm } from "./form";
-import { ReviewUtxoAttach } from "./review";
+import { UtxoAttachForm } from "@/pages/compose/utxo/attach/form";
+import { ReviewUtxoAttach } from "@/pages/compose/utxo/attach/review";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { composeAttach } from "@/utils/blockchain/counterparty/compose";

@@ -3,7 +3,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { useHeader } from "@/contexts/header-context";
 import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
 import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
-import { fetchAssetDetailsAndBalance } from "./utils/fetchAssetData";
+import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {
   isLoading: boolean;

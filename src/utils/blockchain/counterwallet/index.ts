@@ -1,1 +1,1 @@
-export * from './mnemonic';
+export * from '@/utils/blockchain/counterwallet/mnemonic';

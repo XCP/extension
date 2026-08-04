@@ -69,25 +69,25 @@
  * Uses compose.ts types directly and paramSchema.ts for criticality levels.
  */
 
-import { unpackCounterpartyMessage, type UnpackedMessageData, MessageTypeId } from './index';
-import type { EnhancedSendData } from './messages/enhancedSend';
-import type { OrderData } from './messages/order';
-import type { DispenserData } from './messages/dispenser';
-import type { CancelData } from './messages/cancel';
-import type { DestroyData } from './messages/destroy';
-import type { SweepData } from './messages/sweep';
-import type { SendData } from './messages/send';
-import type { MPMAData } from './messages/mpma';
-import type { IssuanceData } from './messages/issuance';
-import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
-import type { DividendData } from './messages/dividend';
-import type { FairmintData } from './messages/fairmint';
-import type { BTCPayData } from './messages/btcpay';
-import type { AttachData, DetachData, MoveData } from './messages/attach';
-import type { BroadcastData } from './messages/broadcast';
-import type { FairminterData } from './messages/fairminter';
-import { addressesEqual } from './address';
-import { getMessageSchema, type Criticality } from './paramSchema';
+import { unpackCounterpartyMessage, type UnpackedMessageData, MessageTypeId } from '@/utils/blockchain/counterparty/unpack/index';
+import type { EnhancedSendData } from '@/utils/blockchain/counterparty/unpack/messages/enhancedSend';
+import type { OrderData } from '@/utils/blockchain/counterparty/unpack/messages/order';
+import type { DispenserData } from '@/utils/blockchain/counterparty/unpack/messages/dispenser';
+import type { CancelData } from '@/utils/blockchain/counterparty/unpack/messages/cancel';
+import type { DestroyData } from '@/utils/blockchain/counterparty/unpack/messages/destroy';
+import type { SweepData } from '@/utils/blockchain/counterparty/unpack/messages/sweep';
+import type { SendData } from '@/utils/blockchain/counterparty/unpack/messages/send';
+import type { MPMAData } from '@/utils/blockchain/counterparty/unpack/messages/mpma';
+import type { IssuanceData } from '@/utils/blockchain/counterparty/unpack/messages/issuance';
+import type { PoolDepositData, PoolWithdrawData } from '@/utils/blockchain/counterparty/unpack/messages/pool';
+import type { DividendData } from '@/utils/blockchain/counterparty/unpack/messages/dividend';
+import type { FairmintData } from '@/utils/blockchain/counterparty/unpack/messages/fairmint';
+import type { BTCPayData } from '@/utils/blockchain/counterparty/unpack/messages/btcpay';
+import type { AttachData, DetachData, MoveData } from '@/utils/blockchain/counterparty/unpack/messages/attach';
+import type { BroadcastData } from '@/utils/blockchain/counterparty/unpack/messages/broadcast';
+import type { FairminterData } from '@/utils/blockchain/counterparty/unpack/messages/fairminter';
+import { addressesEqual } from '@/utils/blockchain/counterparty/unpack/address';
+import { getMessageSchema, type Criticality } from '@/utils/blockchain/counterparty/unpack/paramSchema';
 
 // Import compose types directly
 import type {

@@ -11,7 +11,7 @@
  * equality" — never as agreement.
  */
 
-import { encodeCbor, type CborEncodable } from './cbor';
+import { encodeCbor, type CborEncodable } from '@/utils/blockchain/counterparty/pack/cbor';
 import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
 import { packAddress, packAddressLegacy } from '@/utils/blockchain/counterparty/unpack/address';
 import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';

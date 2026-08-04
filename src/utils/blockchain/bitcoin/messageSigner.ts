@@ -10,13 +10,13 @@ import { hmac } from '@noble/hashes/hmac.js';
 import { hex } from '@scure/base';
 import * as secp256k1 from '@noble/secp256k1';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { encodeAddress } from './address';
+import { encodeAddress } from '@/utils/blockchain/bitcoin/address';
 import {
   signBIP322P2PKH,
   signBIP322P2WPKH,
   signBIP322P2SH_P2WPKH,
   signBIP322P2TR,
-} from './bip322';
+} from '@/utils/blockchain/bitcoin/bip322';
 
 // Required initialization for @noble/secp256k1 v3
 // Set up the HMAC and SHA256 functions needed for deterministic signatures

@@ -10,7 +10,7 @@
  * The order_match_id is formed as: tx0_hash_tx1_hash
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
 
 /** Length of BTCPay message payload */
 const BTCPAY_LENGTH = 64; // 32 + 32

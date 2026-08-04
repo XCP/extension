@@ -6,7 +6,7 @@
  *   - offer_hash (32s): 32 bytes - Hash of order or bet to cancel
  */
 
-import { BinaryReader, bytesToHex } from '../binary';
+import { BinaryReader, bytesToHex } from '@/utils/blockchain/counterparty/unpack/binary';
 
 /** Expected length of cancel message payload */
 const CANCEL_LENGTH = 32;

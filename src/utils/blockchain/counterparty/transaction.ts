@@ -8,7 +8,7 @@
 import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
 import { fromSatoshis } from '@/utils/numeric';
-import { fetchAssetDetails } from './api';
+import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
 
 /**
  * Counterparty message decoded from OP_RETURN

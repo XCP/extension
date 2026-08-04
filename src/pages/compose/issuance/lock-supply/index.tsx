@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { LockSupplyForm } from "./form";
-import { ReviewIssuanceLockSupply } from "./review";
+import { LockSupplyForm } from "@/pages/compose/issuance/lock-supply/form";
+import { ReviewIssuanceLockSupply } from "@/pages/compose/issuance/lock-supply/review";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
