@@ -6,7 +6,8 @@ import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { formatAddress, formatAmount, formatPriceRatio } from '@/utils/format';
 import { fromSatoshis } from '@/utils/numeric';
 import { useWallet } from '@/contexts/wallet-context';
-import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { getIdentityMismatchError, getConnectionRevokedError } from '@/utils/provider/requestIdentity';
+import { getConnectionService } from '@/services/connectionService';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSettings } from '@/contexts/settings-context';
 import { useHeader } from '@/contexts/header-context';
@@ -150,6 +151,15 @@ export default function ApproveTransactionPage() {
     const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet?.id);
     if (identityError) {
       setError(identityError);
+      return;
+    }
+
+    // A request stays open for up to ten minutes, so the site's grant is rechecked here rather
+    // than trusted from when the request was created — revoking a site in Settings must take
+    // effect on an approval already on screen. The PSBT path has always done this.
+    const revokedError = await getConnectionRevokedError(request, getConnectionService());
+    if (revokedError) {
+      setError(revokedError);
       return;
     }
 

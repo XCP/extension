@@ -27,6 +27,24 @@ interface ProviderPermissionReader {
   hasPairedAddressPermission(origin: string, walletId: string, address: string): Promise<boolean>;
 }
 
+/**
+ * Revalidate that the requesting site is still connected, immediately before signing.
+ *
+ * Identity checks answer "is this still the authorized wallet"; this answers "is this still an
+ * authorized site". They are different questions, and an approval flow lives long enough — up to
+ * ten minutes — for a user to revoke the site in Settings and then approve a request that was
+ * already open. Signing would hand the result to an origin that no longer has permission.
+ */
+export async function getConnectionRevokedError(
+  request: AuthorizedRequest,
+  permissions: Pick<ProviderPermissionReader, 'hasPermission'>,
+): Promise<string | null> {
+  if (!await permissions.hasPermission(request.origin)) {
+    return 'This site is no longer connected. Reconnect it before signing.';
+  }
+  return null;
+}
+
 /** Revalidate provider grants immediately before a stored PSBT request is signed. */
 export async function getPsbtPermissionError(
   request: PsbtAuthorizationRequest,

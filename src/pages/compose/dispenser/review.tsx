@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { useComposerOptional } from "@/contexts/composer-context";
 import { formatAmount, formatAsset } from "@/utils/format";
 import { fromSatoshis } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -33,9 +34,19 @@ export function ReviewDispenser({
   const { settings } = useSettings();
   const { btc: btcPrice } = useMarketPrices(settings.fiat);
 
-  // Asset label from the signed params, not the route prop (empty on the
-  // in-form asset-select path); fall back to the prop only if params omit it.
-  const displayAsset = formatAsset(result.params.asset ?? asset, {
+  // A dispenser has no local packer, so its params were an unverified echo. The asset and the
+  // BTC price per dispense are stated by the transaction itself, so they are read from the decoded
+  // message: a composer that opened a dispenser on a different asset, or at a different price,
+  // cannot then display the requested one (ADR-019). Quantities keep using the response's
+  // normalized strings, since converting the decoded base units needs the asset's divisibility —
+  // a ledger fact rather than a property of this transaction.
+  const decoded = useComposerOptional()?.state.decodedMessage?.data as
+    | { asset?: string; mainchainrate?: bigint; escrowQuantity?: bigint; giveQuantity?: bigint }
+    | undefined;
+
+  // Asset label from the transaction, else the signed params, else the route prop (empty on the
+  // in-form asset-select path).
+  const displayAsset = formatAsset(decoded?.asset ?? result.params.asset ?? asset, {
     assetInfo: { asset_longname: result.params.asset_longname ?? null },
   });
 
@@ -44,9 +55,18 @@ export function ReviewDispenser({
   const giveQuantity = result.params.give_quantity_normalized;
 
   // Calculate BTC values for USD display
-  const perDispenseBtc = fromSatoshis(result.params.mainchainrate, true);
-  const bitcoinTotalBtc = (Number(result.params.escrow_quantity) / Number(result.params.give_quantity)) *
-                          fromSatoshis(result.params.mainchainrate, true);
+  const mainchainrate = decoded?.mainchainrate !== undefined
+    ? Number(decoded.mainchainrate)
+    : result.params.mainchainrate;
+  const escrowForRatio = decoded?.escrowQuantity !== undefined
+    ? Number(decoded.escrowQuantity)
+    : Number(result.params.escrow_quantity);
+  const giveForRatio = decoded?.giveQuantity !== undefined
+    ? Number(decoded.giveQuantity)
+    : Number(result.params.give_quantity);
+
+  const perDispenseBtc = fromSatoshis(mainchainrate, true);
+  const bitcoinTotalBtc = (escrowForRatio / giveForRatio) * fromSatoshis(mainchainrate, true);
 
   // Format USD values
   const perDispenseUsd = btcPrice !== null

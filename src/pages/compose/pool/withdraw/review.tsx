@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { useComposerOptional } from "@/contexts/composer-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { fromSatoshis } from "@/utils/numeric";
@@ -20,8 +21,17 @@ export function ReviewPoolWithdraw({
 }: ReviewPoolWithdrawProps) {
   const { result } = apiResponse;
   const params = result.params;
-  const { data: assetAInfo, isLoading: isLoadingAssetA } = useAssetInfo(params.asset_a || "");
-  const { data: assetBInfo, isLoading: isLoadingAssetB } = useAssetInfo(params.asset_b || "");
+  // Pool withdrawals have no local packer, so these params were an unverified echo. Which pool is
+  // being withdrawn from is stated by the transaction, so the pair comes from the decoded message
+  // (ADR-019). Quantities keep the response's normalized strings, since converting decoded base
+  // units needs each asset's divisibility — a ledger fact rather than part of this transaction.
+  const decoded = useComposerOptional()?.state.decodedMessage?.data as
+    | { assetA?: string; assetB?: string }
+    | undefined;
+  const assetA = decoded?.assetA ?? params.asset_a;
+  const assetB = decoded?.assetB ?? params.asset_b;
+  const { data: assetAInfo, isLoading: isLoadingAssetA } = useAssetInfo(assetA || "");
+  const { data: assetBInfo, isLoading: isLoadingAssetB } = useAssetInfo(assetB || "");
   const formatMinimum = (
     normalized: string | undefined,
     raw: string | number | undefined,
@@ -41,7 +51,7 @@ export function ReviewPoolWithdraw({
   const customFields = [
     {
       label: "Pool",
-      value: params.asset_a && params.asset_b ? getCanonicalPoolPair(params.asset_a, params.asset_b) : params.lp_asset,
+      value: assetA && assetB ? getCanonicalPoolPair(assetA, assetB) : params.lp_asset,
     },
     {
       label: "Withdraw",
@@ -50,7 +60,7 @@ export function ReviewPoolWithdraw({
     ...(params.min_quantity_a || params.min_quantity_b
       ? [{
           label: "Minimum Receive",
-          value: `${minQuantityADisplay} ${params.asset_a ?? ""}\n${minQuantityBDisplay} ${params.asset_b ?? ""}`,
+          value: `${minQuantityADisplay} ${assetA ?? ""}\n${minQuantityBDisplay} ${assetB ?? ""}`,
         }]
       : []),
   ];
