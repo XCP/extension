@@ -4,8 +4,8 @@ import {
   fetchPoolWithdrawQuote,
   type PoolDepositQuote,
   type PoolWithdrawQuote,
-} from "@/utils/blockchain/counterparty/api";
-import { roundDown, toSatoshis } from "@/utils/numeric";
+} from "@/core/blockchain/counterparty/api";
+import { roundDown, toSatoshis } from "@/core/numeric";
 
 interface PoolQuoteState<T> {
   data: T | null;

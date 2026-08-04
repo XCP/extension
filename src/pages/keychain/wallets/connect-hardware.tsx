@@ -37,7 +37,7 @@ export default function ConnectHardware(): ReactElement {
 
     try {
       // Reset adapter before connecting to ensure clean state
-      const { resetTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
+      const { resetTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
       await resetTrezorAdapter();
 
       // Use account discovery - Trezor will show account selection UI

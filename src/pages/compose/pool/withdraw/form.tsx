@@ -7,14 +7,14 @@ import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { PoolWithdrawOptions } from "@/core/blockchain/counterparty/compose";
+import { applyPoolSlippage } from "@/core/blockchain/counterparty/pool";
+import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/core/numeric";
+import { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
 import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
-import type { PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
-import { applyPoolSlippage } from "@/utils/blockchain/counterparty/pool";
-import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/utils/numeric";
-import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
 
 interface PoolWithdrawFormProps {
   formAction: (formData: FormData) => void;

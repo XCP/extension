@@ -14,17 +14,17 @@ import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
+import { normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
+import { exceedsSaneFeeRate } from '@/core/blockchain/bitcoin/feeVerification';
+import { committedOutputIndices, resolvePsbtSighashType } from '@/core/blockchain/bitcoin/psbt';
+import { classifySignedInputAssets } from '@/core/blockchain/counterparty/inputAssets';
+import { formatAddress, formatAmount } from '@/core/format';
+import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
+import { getIdentityMismatchError, getPsbtPermissionError } from '@/platform/provider/requestIdentity';
 import { getConnectionService } from '@/services/connectionService';
 import { getWalletService } from '@/services/walletService';
-import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { exceedsSaneFeeRate } from '@/utils/blockchain/bitcoin/feeVerification';
-import { committedOutputIndices, resolvePsbtSighashType } from '@/utils/blockchain/bitcoin/psbt';
-import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
-import { formatAddress, formatAmount } from '@/utils/format';
-import { fromSatoshis } from '@/utils/numeric';
-import { getIdentityMismatchError, getPsbtPermissionError } from '@/utils/provider/requestIdentity';
 
 function formatSighashType(sighashType: number): string {
   switch (sighashType) {

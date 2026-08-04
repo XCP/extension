@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { getPairedAddressFormats } from "@/core/wallet/addressDeriver";
 import { getApprovalService } from "@/services/approvalService";
 import { getWalletService } from "@/services/walletService";
 import type { ApprovalRequest } from "@/types/provider";
 import type { PairedAddresses } from "@/types/wallet";
-import { getPairedAddressFormats } from "@/utils/wallet/addressDeriver";
 
 function getApprovalIdentityError(
   approval: ApprovalRequest | null,

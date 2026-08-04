@@ -9,7 +9,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
-import { analytics } from "@/utils/fathom";
+import { analytics } from "@/platform/fathom";
 
 /**
  * Constants for navigation paths.

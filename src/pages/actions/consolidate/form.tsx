@@ -8,9 +8,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import {
   type ConsolidationData,
   consolidationApi,
-} from "@/utils/blockchain/bitcoin/consolidationApi";
-import { analytics } from "@/utils/fathom";
-import { formatAmount } from "@/utils/format";
+} from "@/core/blockchain/bitcoin/consolidationApi";
+import { formatAmount } from "@/core/format";
+import { analytics } from "@/platform/fathom";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;

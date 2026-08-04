@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { UtxoBalance } from "@/utils/blockchain/counterparty/api";
+import type { UtxoBalance } from "@/core/blockchain/counterparty/api";
 import { UtxoCard } from "./utxo-card";
 
 vi.mock("@/components/ui/menus/utxo-menu", () => ({
@@ -21,7 +21,7 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
   ),
 }));
 
-vi.mock("@/utils/format", () => ({
+vi.mock("@/core/format", () => ({
   formatAmount: ({ value }: { value: number }) => value.toFixed(8),
   formatAsset: (asset: string) => asset,
   formatTxid: (txid: string) => `${txid.slice(0, 8)}...${txid.slice(-6)}`,

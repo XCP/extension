@@ -20,22 +20,22 @@ vi.mock('webext-bridge/content-script', () => ({
 }));
 
 // Mock hardware wallet module to avoid @trezor/connect-webextension import side effects
-vi.mock('@/utils/hardware/trezorAdapter', () => ({
+vi.mock('@/core/hardware/trezorAdapter', () => ({
   getTrezorAdapter: vi.fn(),
   resetTrezorAdapter: vi.fn(),
   TrezorAdapter: vi.fn()
 }));
 
 
+import * as cspValidation from '@/core/security/cspValidation';
+import * as replayPrevention from '@/core/security/replayPrevention';
+import { DEFAULT_SETTINGS } from '@/core/settings';
+import * as approvalQueue from '@/platform/provider/approvalQueue';
+import * as rateLimiter from '@/platform/provider/rateLimiter';
+import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
+import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
+import { walletManager } from '@/platform/wallet/walletManager';
 import * as updateService from '@/services/updateService';
-import * as approvalQueue from '@/utils/provider/approvalQueue';
-import * as rateLimiter from '@/utils/provider/rateLimiter';
-import * as cspValidation from '@/utils/security/cspValidation';
-import * as replayPrevention from '@/utils/security/replayPrevention';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
-import * as signMessageRequestStorage from '@/utils/storage/signMessageRequestStorage';
-import * as signPsbtRequestStorage from '@/utils/storage/signPsbtRequestStorage';
-import { walletManager } from '@/utils/wallet/walletManager';
 import * as approvalService from '../approvalService';
 import * as connectionService from '../connectionService';
 import { createProviderService } from '../providerService';
@@ -47,7 +47,7 @@ const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa300
 vi.mock('../walletService');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
@@ -57,15 +57,15 @@ vi.mock('@/utils/wallet/walletManager', () => ({
     updateSettings: vi.fn(),
   },
 }));
-vi.mock('@/utils/storage/signMessageRequestStorage');
-vi.mock('@/utils/blockchain/bitcoin/messageSigner', () => ({
+vi.mock('@/platform/storage/signMessageRequestStorage');
+vi.mock('@/core/blockchain/bitcoin/messageSigner', () => ({
   signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qtest123' }),
 }));
-vi.mock('@/utils/storage/signPsbtRequestStorage');
+vi.mock('@/platform/storage/signPsbtRequestStorage');
 vi.mock('@/services/updateService');
-vi.mock('@/utils/provider/approvalQueue');
-vi.mock('@/utils/provider/rateLimiter');
-vi.mock('@/utils/fathom', () => ({
+vi.mock('@/platform/provider/approvalQueue');
+vi.mock('@/platform/provider/rateLimiter');
+vi.mock('@/platform/fathom', () => ({
   sanitizePath: vi.fn((path: string) => path),
   fathom: vi.fn(() => ({
     name: 'fathom',
@@ -76,9 +76,9 @@ vi.mock('@/utils/fathom', () => ({
     page: vi.fn().mockResolvedValue(undefined),
   },
 }));
-vi.mock('@/utils/security/replayPrevention');
-vi.mock('@/utils/security/cspValidation');
-vi.mock('@/utils/storage/walletStorage', () => ({
+vi.mock('@/core/security/replayPrevention');
+vi.mock('@/core/security/cspValidation');
+vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
 }));
 // Setup fake browser with required APIs

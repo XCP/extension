@@ -10,8 +10,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { recordSignOutcome } from '@/utils/provider/signFlow';
-import { type SignMessageRequest, signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
+import { recordSignOutcome } from '@/platform/provider/signFlow';
+import { type SignMessageRequest, signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
 
 /**
  * Send an event to the background script's EventEmitterService.

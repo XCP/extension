@@ -1,8 +1,8 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import type { DispenserDetails } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
+import type { DispenserDetails } from "@/core/blockchain/counterparty/api";
+import { formatAmount } from "@/core/format";
 
 interface ManageDispenserCardProps {
   dispenser: DispenserDetails;

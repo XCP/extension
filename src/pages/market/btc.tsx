@@ -6,7 +6,6 @@ import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { useFeeRates } from "@/hooks/useFeeRates";
 import {
   type BtcStats,
   CURRENCY_INFO,
@@ -15,10 +14,11 @@ import {
   getBtcPriceHistory,
   type PricePoint,
   type TimeRange,
-} from "@/utils/blockchain/bitcoin/price";
-import { getXCPPrice } from "@/utils/blockchain/counterparty/price";
-import { analytics } from "@/utils/fathom";
-import { formatAmount } from "@/utils/format";
+} from "@/core/blockchain/bitcoin/price";
+import { getXCPPrice } from "@/core/blockchain/counterparty/price";
+import { formatAmount } from "@/core/format";
+import { useFeeRates } from "@/hooks/useFeeRates";
+import { analytics } from "@/platform/fathom";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
 const TIME_RANGES: { id: TimeRange; label: string }[] = [

@@ -4,8 +4,8 @@ import { FiExternalLink, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { type ConsolidationStatusResponse, consolidationApi } from "@/utils/blockchain/bitcoin/consolidationApi";
-import { formatAddress, formatAmount } from "@/utils/format";
+import { type ConsolidationStatusResponse, consolidationApi } from "@/core/blockchain/bitcoin/consolidationApi";
+import { formatAddress, formatAmount } from "@/core/format";
 
 function ConsolidateStatusPage() {
   const navigate = useNavigate();

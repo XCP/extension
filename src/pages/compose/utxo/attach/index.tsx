@@ -1,10 +1,10 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import type { AttachOptions } from "@/core/blockchain/counterparty/compose";
+import { composeAttach } from "@/core/blockchain/counterparty/compose";
 import { UtxoAttachForm } from "@/pages/compose/utxo/attach/form";
 import { ReviewUtxoAttach } from "@/pages/compose/utxo/attach/review";
-import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeAttach } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeUtxoAttachPage() {
   const { asset } = useParams<{ asset?: string }>();

@@ -18,8 +18,8 @@ import { BalanceList } from "@/components/ui/lists/balance-list";
 import { UtxoList } from "@/components/ui/lists/utxo-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
-import { formatAddress } from "@/utils/format";
+import { fetchTokenBalances } from "@/core/blockchain/counterparty/api";
+import { formatAddress } from "@/core/format";
 
 const COPY_FEEDBACK_DURATION = 2000;
 const PATHS = {

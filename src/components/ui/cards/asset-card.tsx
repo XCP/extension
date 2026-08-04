@@ -2,8 +2,8 @@ import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { AssetMenu } from "@/components/ui/menus/asset-menu";
-import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
-import { formatAmount, formatAsset } from "@/utils/format";
+import type { OwnedAsset } from "@/core/blockchain/counterparty/api";
+import { formatAmount, formatAsset } from "@/core/format";
 
 /**
  * Props interface for the AssetCard component

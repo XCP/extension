@@ -14,7 +14,7 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 // Mock wallet manager
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
@@ -69,7 +69,7 @@ vi.mock('@/services/eventEmitterService', () => ({
 }));
 
 // Mock rate limiter
-vi.mock('@/utils/provider/rateLimiter', () => ({
+vi.mock('@/platform/provider/rateLimiter', () => ({
   connectionRateLimiter: {
     isAllowed: vi.fn().mockReturnValue(true),
     getResetTime: vi.fn().mockReturnValue(30000),
@@ -77,7 +77,7 @@ vi.mock('@/utils/provider/rateLimiter', () => ({
 }));
 
 // Mock security utilities
-vi.mock('@/utils/security/cspValidation', () => ({
+vi.mock('@/core/security/cspValidation', () => ({
   analyzeCSP: vi.fn().mockResolvedValue({
     hasCSP: true,
     isSecure: true,
@@ -86,7 +86,7 @@ vi.mock('@/utils/security/cspValidation', () => ({
 }));
 
 // Mock fathom analytics provider
-vi.mock('@/utils/fathom', () => ({
+vi.mock('@/platform/fathom', () => ({
   sanitizePath: vi.fn((path: string) => path),
   fathom: vi.fn(() => ({
     name: 'fathom',
@@ -99,7 +99,7 @@ vi.mock('@/utils/fathom', () => ({
 }));
 
 // Mock approval queue
-vi.mock('@/utils/provider/approvalQueue', async () => {
+vi.mock('@/platform/provider/approvalQueue', async () => {
   const mockApprovalQueue = {
     add: vi.fn(),
     remove: vi.fn(),
@@ -121,8 +121,8 @@ vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => mockApprovalService,
 }));
 
+import { walletManager } from '@/platform/wallet/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { walletManager } from '@/utils/wallet/walletManager';
 import { ConnectionService } from '../connectionService';
 
 // Type the mocked functions
@@ -131,7 +131,7 @@ const mockUpdateSettings = walletManager.updateSettings as ReturnType<typeof vi.
 const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
-import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
+import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 
 // Mock browser.runtime.connect for analytics
 (global as any).browser = fakeBrowser;

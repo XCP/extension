@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
+import type { OwnedAsset } from "@/core/blockchain/counterparty/api";
 import { AssetCard } from "./asset-card";
 
 // Mock the AssetMenu component
@@ -38,7 +38,7 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
 }));
 
 // Mock the format utils
-vi.mock("@/utils/format", () => ({
+vi.mock("@/core/format", () => ({
   formatAmount: ({ value }: { value: number }) => value.toFixed(8),
   formatAsset: (
     asset: string,

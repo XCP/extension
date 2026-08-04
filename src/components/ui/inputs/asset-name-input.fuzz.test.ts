@@ -5,7 +5,7 @@
 
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { validateAssetName, validateParentAsset } from '@/utils/validation/asset';
+import { validateAssetName, validateParentAsset } from '@/core/validation/asset';
 
 describe('Asset Name Validation Fuzz Tests - Testing Real Functions', () => {
   describe('validateAssetName function', () => {

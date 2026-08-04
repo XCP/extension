@@ -5,7 +5,7 @@ import type { Address } from '@/types/wallet';
 import { AddressList } from './address-list';
 
 // Mock dependencies
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAddress: vi.fn((address: string) => {
     // Simple mock - return shortened address
     if (address.length > 10) {

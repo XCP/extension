@@ -1,11 +1,11 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
-import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
-import { isDustAmount } from "@/utils/validation/amount";
+import { estimateVsize } from "@/core/blockchain/bitcoin/fee-estimation";
+import { selectUtxosForTransaction } from "@/core/blockchain/counterparty/utxo-selection";
+import { formatAmount } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
+import { isDustAmount } from "@/core/validation/amount";
 
 // Known safe error messages that can be shown to users
 // These are intentionally user-friendly and don't leak internal details

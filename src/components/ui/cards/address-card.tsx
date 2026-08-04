@@ -1,7 +1,7 @@
 import { RadioGroup } from '@headlessui/react';
 import type { ReactElement } from 'react';
+import { formatAddress } from '@/core/format';
 import type { Address } from '@/types/wallet';
-import { formatAddress } from '@/utils/format';
 
 interface AddressCardProps {
   address: Address;

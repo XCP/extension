@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { Transaction } from "@/core/blockchain/counterparty/api";
 import { attach } from "@/pages/transactions/_messages/attach";
 import { broadcast } from "@/pages/transactions/_messages/broadcast";
 import { btcpay } from "@/pages/transactions/_messages/btcpay";
@@ -16,7 +17,6 @@ import { mpma } from "@/pages/transactions/_messages/mpma";
 import { order } from "@/pages/transactions/_messages/order";
 import { send } from "@/pages/transactions/_messages/send";
 import { sweep } from "@/pages/transactions/_messages/sweep";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Type for a message handler function

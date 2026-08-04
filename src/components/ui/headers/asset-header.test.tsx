@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
+import type { AssetInfo } from '@/core/blockchain/counterparty/api';
 import { AssetHeader } from './asset-header';
 
 // Mock dependencies
@@ -25,7 +25,7 @@ vi.mock('@/components/domain/asset/asset-icon', () => ({
   )
 }));
 
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
       return value.toFixed(8);
@@ -34,7 +34,7 @@ vi.mock('@/utils/format', () => ({
   })
 }));
 
-vi.mock('@/utils/numeric', () => ({
+vi.mock('@/core/numeric', () => ({
   fromSatoshis: vi.fn((value, options) => {
     const numValue = typeof value === 'string' ? parseInt(value) : value;
     const result = numValue / 100000000;

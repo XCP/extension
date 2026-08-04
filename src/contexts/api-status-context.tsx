@@ -1,5 +1,5 @@
 import { createContext, type ReactElement, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import { type ApiStatusEvent, type ApiStatusType, clearApiStatus, subscribeApiStatus } from '@/utils/api-status';
+import { type ApiStatusEvent, type ApiStatusType, clearApiStatus, subscribeApiStatus } from '@/core/api-status';
 
 interface ApiStatusContextValue {
   status: ApiStatusType;

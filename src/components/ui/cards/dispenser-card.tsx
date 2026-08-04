@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import type { Dispenser } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
-import { divide, roundDown, toNumber } from "@/utils/numeric";
+import type { Dispenser } from "@/core/blockchain/counterparty/api";
+import { formatAmount } from "@/core/format";
+import { divide, roundDown, toNumber } from "@/core/numeric";
 
 /**
  * Extended dispenser option interface for selection

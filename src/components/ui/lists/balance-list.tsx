@@ -6,12 +6,12 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { fetchBTCBalance } from "@/core/blockchain/bitcoin/balance";
+import type { TokenBalance } from "@/core/blockchain/counterparty/api";
+import { fetchTokenBalance, fetchTokenBalances } from "@/core/blockchain/counterparty/api";
+import { fromSatoshis } from "@/core/numeric";
 import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
-import { fetchBTCBalance } from "@/utils/blockchain/bitcoin/balance";
-import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
-import { fetchTokenBalance, fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
-import { fromSatoshis } from "@/utils/numeric";
 
 
 

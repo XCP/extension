@@ -7,10 +7,10 @@ import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
+import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/core/blockchain/counterparty/pool";
+import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
-import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
-import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/utils/numeric";
 
 export default function PoolPositionPage(): ReactElement {
   const { lpAsset } = useParams<{ lpAsset: string }>();

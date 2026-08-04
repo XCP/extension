@@ -11,9 +11,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useInView } from "@/hooks/useInView";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
 import {
   type AssetInfo,
   type Dispense,
@@ -21,10 +18,13 @@ import {
   fetchAssetDetails,
   fetchAssetDispensers,
   fetchAssetDispenses,
-} from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
-import { formatPrice, getNextPriceUnit, getRawPrice } from "@/utils/price-format";
-import type { PriceUnit } from "@/utils/settings";
+} from "@/core/blockchain/counterparty/api";
+import { formatAmount } from "@/core/format";
+import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/price-format";
+import type { PriceUnit } from "@/core/settings";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useInView } from "@/hooks/useInView";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 // Constants
 const FETCH_LIMIT = 20;

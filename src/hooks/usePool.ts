@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchPool, type Pool } from "@/utils/blockchain/counterparty/api";
+import { fetchPool, type Pool } from "@/core/blockchain/counterparty/api";
 
 interface PoolState {
   data: Pool | null;

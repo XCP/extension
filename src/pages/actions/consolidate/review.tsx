@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import type { ConsolidationData } from "@/core/blockchain/bitcoin/consolidationApi";
+import { formatAddress, formatAmount } from "@/core/format";
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
-import type { ConsolidationData } from "@/utils/blockchain/bitcoin/consolidationApi";
-import { formatAddress, formatAmount } from "@/utils/format";
 
 interface ConsolidationReviewProps {
   apiResponse: {

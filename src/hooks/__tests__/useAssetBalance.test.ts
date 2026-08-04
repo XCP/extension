@@ -1,11 +1,11 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
+import { fetchBTCBalance } from '@/core/blockchain/bitcoin/balance';
 import { useAssetBalance } from '../useAssetBalance';
 import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
 // Mock the blockchain utilities
-vi.mock('@/utils/blockchain/bitcoin/balance', () => ({
+vi.mock('@/core/blockchain/bitcoin/balance', () => ({
   fetchBTCBalance: vi.fn()
 }));
 

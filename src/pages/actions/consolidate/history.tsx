@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
-import { type ConsolidationStatusResponse, consolidationApi } from "@/utils/blockchain/bitcoin/consolidationApi";
-import { formatAmount } from "@/utils/format";
+import { type ConsolidationStatusResponse, consolidationApi } from "@/core/blockchain/bitcoin/consolidationApi";
+import { formatAmount } from "@/core/format";
 
 interface ConsolidationHistoryProps {
   address: string;

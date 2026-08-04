@@ -1,10 +1,10 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { useWallet } from "@/contexts/wallet-context";
+import type { SweepOptions } from "@/core/blockchain/counterparty/compose";
+import { composeSweep } from "@/core/blockchain/counterparty/compose";
 import { SweepForm } from "@/pages/compose/sweep/form";
 import { ReviewSweep } from "@/pages/compose/sweep/review";
-import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeSweep } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeSweepPage() {
   const {} = useParams<{ address?: string }>();

@@ -7,8 +7,8 @@ import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the LockDescriptionForm component, aligned with Composer's formAction.

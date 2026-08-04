@@ -16,7 +16,7 @@ vi.mock('@/contexts/header-context', () => ({
   })
 }));
 
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAddress: vi.fn((address, useFullAddress) => {
     if (useFullAddress) {
       return address;

@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
-import { getDisplayVersion } from "@/utils/version";
+import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
   SUCCESS: "/index",

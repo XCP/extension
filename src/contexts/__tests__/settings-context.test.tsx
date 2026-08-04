@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AppSettings } from '@/utils/settings';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import type { AppSettings } from '@/core/settings';
+import { DEFAULT_SETTINGS } from '@/core/settings';
 import { SettingsProvider, useSettings } from '../settings-context';
 
 // Mock walletService

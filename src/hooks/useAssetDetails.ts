@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
+import type { AssetInfo } from "@/core/blockchain/counterparty/api";
 import { useAssetBalance } from "@/hooks/useAssetBalance";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useAssetUtxos } from "@/hooks/useAssetUtxos";
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Represents the details of an asset, including balance and UTXO information.

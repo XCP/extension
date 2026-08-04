@@ -2,8 +2,8 @@ import { Description, Field, Input, Label } from "@headlessui/react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { FiRefreshCw } from "@/components/icons";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
-import { generateRandomNumericAsset, validateAssetName } from "@/utils/validation/asset";
+import { fetchAssetDetails } from "@/core/blockchain/counterparty/api";
+import { generateRandomNumericAsset, validateAssetName } from "@/core/validation/asset";
 
 interface AssetNameInputProps {
   value: string;

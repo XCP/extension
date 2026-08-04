@@ -7,8 +7,8 @@ import {
   useMemo,
   useReducer,
 } from "react";
-import type { AssetInfo, TokenBalance } from "@/utils/blockchain/counterparty/api";
-import { formatAddress } from "@/utils/format";
+import type { AssetInfo, TokenBalance } from "@/core/blockchain/counterparty/api";
+import { formatAddress } from "@/core/format";
 
 /**
  * Props for a button in the header.

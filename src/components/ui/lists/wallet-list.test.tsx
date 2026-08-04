@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AddressFormat } from '@/core/blockchain/bitcoin/address';
 import type { Wallet } from '@/types/wallet';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { WalletList } from './wallet-list';
 
 // Mock WalletCard component

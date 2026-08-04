@@ -5,7 +5,7 @@ import type { Wallet } from '@/types/wallet';
 import { WalletCard } from './wallet-card';
 
 // Mock the format utils
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAddress: (address: string, shorten: boolean = true) => {
     if (shorten && address.length > 20) {
       return `${address.substring(0, 8)}...${address.substring(address.length - 8)}`;

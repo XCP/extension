@@ -6,11 +6,11 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import type { ReactElement } from 'react';
 import { MemoryRouter } from 'react-router';
-import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
-import { encodeCbor } from '@/utils/blockchain/counterparty/pack/cbor';
-import { packAddress } from '@/utils/blockchain/counterparty/unpack/address';
-import { arc4 } from '@/utils/blockchain/counterparty/unpack/binary';
-import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
+import { AddressFormat, decodeAddressFromScript } from '@/core/blockchain/bitcoin/address';
+import { encodeCbor } from '@/core/blockchain/counterparty/pack/cbor';
+import { packAddress } from '@/core/blockchain/counterparty/unpack/address';
+import { arc4 } from '@/core/blockchain/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX } from '@/core/blockchain/counterparty/unpack/messageTypes';
 
 /** Encode an enhanced send as counterparty-core does: CBOR [asset_id, quantity, address, memo]. */
 function encodeEnhancedSendCbor(
@@ -60,14 +60,14 @@ vi.mock('react-router', async () => {
 
 // Fee verification always resolves input values independently of the compose response (ADR-019),
 // so every compose consults this resolver. Stub it rather than reaching the network.
-vi.mock('@/utils/blockchain/counterparty/transaction', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/utils/blockchain/counterparty/transaction')>()),
+vi.mock('@/core/blockchain/counterparty/transaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/blockchain/counterparty/transaction')>()),
   fetchInputValues: vi.fn(async (inputs: Array<{ txid: string; vout: number }>) =>
     new Map(inputs.map((input) => [`${input.txid}:${input.vout}`, 100_000]))),
 }));
 
 // Mock fee rates to prevent network calls
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/blockchain/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 10,
     halfHourFee: 5,

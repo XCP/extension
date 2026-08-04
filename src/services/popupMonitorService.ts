@@ -5,11 +5,11 @@
  * when the popup closes unexpectedly (user closes it, walks away, etc.)
  */
 
+import { getSignFlow, recordSignOutcome } from '@/platform/provider/signFlow';
+import { signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
+import { signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { getSignFlow, recordSignOutcome } from '@/utils/provider/signFlow';
-import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
 
 type SignRequestKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
 

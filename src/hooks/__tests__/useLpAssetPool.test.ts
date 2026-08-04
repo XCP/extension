@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchAddressPoolByLpAsset } from '@/utils/blockchain/counterparty/api';
+import { fetchAddressPoolByLpAsset } from '@/core/blockchain/counterparty/api';
 import { useLpAssetPool } from '../useLpAssetPool';
 
 const mocks = vi.hoisted(() => ({
@@ -13,7 +13,7 @@ vi.mock('@/contexts/wallet-context', () => ({
   }),
 }));
 
-vi.mock('@/utils/blockchain/counterparty/api', () => ({
+vi.mock('@/core/blockchain/counterparty/api', () => ({
   fetchAddressPoolByLpAsset: vi.fn(),
 }));
 

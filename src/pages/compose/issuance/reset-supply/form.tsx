@@ -3,8 +3,8 @@ import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the ResetSupplyForm component, aligned with Composer's formAction.

@@ -4,12 +4,12 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoAttachForm } from '../form';
 
 // CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
 // This must be at the very top before any other mocks that might indirectly import it
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
     isUnlocked: vi.fn().mockReturnValue(true),
@@ -28,7 +28,7 @@ vi.mock('webext-bridge/popup', () => ({
 global.fetch = vi.fn();
 
 // Mock getFeeRates from blockchain utils
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/blockchain/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 3,
     halfHourFee: 2,

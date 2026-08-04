@@ -2,8 +2,8 @@ import { RadioGroup } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { FiShield } from '@/components/icons';
 import { WalletMenu } from '@/components/ui/menus/wallet-menu';
+import { formatAddress } from '@/core/format';
 import type { Address, Wallet } from '@/types/wallet';
-import { formatAddress } from '@/utils/format';
 
 interface WalletCardProps {
   wallet: Wallet;

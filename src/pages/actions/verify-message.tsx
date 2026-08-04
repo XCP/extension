@@ -7,8 +7,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
-import { verifyMessageWithMethod } from "@/utils/blockchain/bitcoin/messageVerifier";
-import { validateSignatureJson } from "@/utils/validation/signatureJson";
+import { verifyMessageWithMethod } from "@/core/blockchain/bitcoin/messageVerifier";
+import { validateSignatureJson } from "@/core/validation/signatureJson";
 
 /**
  * VerifyMessage component for verifying Bitcoin message signatures

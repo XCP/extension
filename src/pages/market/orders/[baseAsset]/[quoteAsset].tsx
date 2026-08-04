@@ -10,8 +10,6 @@ import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useInView } from "@/hooks/useInView";
 import {
   type AssetInfo,
   fetchAssetDetails,
@@ -19,14 +17,16 @@ import {
   fetchOrdersByPair,
   type Order,
   type OrderMatch,
-} from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
+} from "@/core/blockchain/counterparty/api";
+import { formatAmount } from "@/core/format";
 import {
   getMatchPricePerUnit,
   getOrderBaseAmount,
   getOrderPricePerUnit,
   getOrderQuoteAmount,
-} from "@/utils/trading-pair";
+} from "@/core/trading-pair";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useInView } from "@/hooks/useInView";
 
 // Constants
 const FETCH_LIMIT = 20;

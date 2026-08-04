@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { type FeeRates, getFeeRates } from '@/utils/blockchain/bitcoin/feeRate';
+import { type FeeRates, getFeeRates } from '@/core/blockchain/bitcoin/feeRate';
 
 export type FeeRateOption = 'fast' | 'medium' | 'slow';
 

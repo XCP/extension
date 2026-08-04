@@ -1,7 +1,7 @@
 import { type ReactElement, useEffect } from 'react';
 import logo from '@/assets/logo.png';
 import { useHeader } from '@/contexts/header-context';
-import { formatAddress } from '@/utils/format';
+import { formatAddress } from '@/core/format';
 
 /**
  * Props for the AddressHeader component.

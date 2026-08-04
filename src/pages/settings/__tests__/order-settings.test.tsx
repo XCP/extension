@@ -1,6 +1,6 @@
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { LEGACY_MAX_ORDER_EXPIRATION } from '@/utils/settings';
+import { LEGACY_MAX_ORDER_EXPIRATION } from '@/core/settings';
 import { OrderSettings } from '../order-settings';
 
 const mockUpdateSettings = vi.fn();
@@ -12,7 +12,7 @@ vi.mock('@/contexts/settings-context', () => ({
 }));
 
 const mockGetStatus = vi.fn();
-vi.mock('@/utils/blockchain/counterparty/capabilities', () => ({
+vi.mock('@/core/blockchain/counterparty/capabilities', () => ({
   getCounterpartyFeatureStatus: (...args: unknown[]) => mockGetStatus(...args),
 }));
 

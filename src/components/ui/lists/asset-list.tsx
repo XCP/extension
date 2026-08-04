@@ -5,9 +5,9 @@ import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { fetchOwnedAssets, type OwnedAsset } from "@/core/blockchain/counterparty/api";
 import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
-import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
 
 const PAGE_SIZE = 20;
 

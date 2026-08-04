@@ -1,10 +1,10 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
+import { composeIssuance } from "@/core/blockchain/counterparty/compose";
 import { ResetSupplyForm } from "@/pages/compose/issuance/reset-supply/form";
 import { ReviewIssuanceResetSupply } from "@/pages/compose/issuance/reset-supply/review";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeResetSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();

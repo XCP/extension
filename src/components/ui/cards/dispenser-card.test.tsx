@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DispenserCard, type DispenserOption } from "./dispenser-card";
 
 // Mock the format and numeric utils
-vi.mock("@/utils/format", () => ({
+vi.mock("@/core/format", () => ({
   formatAmount: ({
     value,
     maximumFractionDigits = 8,
@@ -17,7 +17,7 @@ vi.mock("@/utils/format", () => ({
   },
 }));
 
-vi.mock("@/utils/numeric", () => ({
+vi.mock("@/core/numeric", () => ({
   divide: (a: string, b: string) =>
     parseFloat((parseFloat(a) / parseFloat(b)).toString()),
   roundDown: (value: number) => Math.floor(value),

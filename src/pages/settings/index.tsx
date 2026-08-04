@@ -7,7 +7,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { AddressFormat } from '@/core/blockchain/bitcoin/address';
 import packageJson from "../../../package.json";
 
 

@@ -16,9 +16,6 @@ import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { useInView } from "@/hooks/useInView";
-import { useMarketData } from "@/hooks/useMarketData";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
 import {
   type DispenserDetails,
   fetchAddressPools,
@@ -26,10 +23,13 @@ import {
   type OrderDetails,
   type Pool,
   type PoolPosition,
-} from "@/utils/blockchain/counterparty/api";
-import { formatAddress } from "@/utils/format";
-import { formatPrice } from "@/utils/price-format";
-import { getTradingPair } from "@/utils/trading-pair";
+} from "@/core/blockchain/counterparty/api";
+import { formatAddress } from "@/core/format";
+import { formatPrice } from "@/core/price-format";
+import { getTradingPair } from "@/core/trading-pair";
+import { useInView } from "@/hooks/useInView";
+import { useMarketData } from "@/hooks/useMarketData";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 // Constants
 const COPY_FEEDBACK_MS = 2000;

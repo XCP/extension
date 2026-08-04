@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import type { UtxoBalance } from '@/utils/blockchain/counterparty/api';
+import type { UtxoBalance } from '@/core/blockchain/counterparty/api';
 import { UtxoList } from './utxo-list';
 
 const mockNavigate = vi.fn();
@@ -19,11 +19,11 @@ vi.mock('@/contexts/wallet-context', () => ({
 }));
 
 const mockFetchTokenBalances = vi.fn();
-vi.mock('@/utils/blockchain/counterparty/api', () => ({
+vi.mock('@/core/blockchain/counterparty/api', () => ({
   fetchTokenBalances: (...args: any[]) => mockFetchTokenBalances(...args)
 }));
 
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAmount: vi.fn(({ value }: { value: number }) => value.toFixed(8)),
   formatAsset: vi.fn((asset: string) => asset),
   formatTxid: vi.fn((txid: string) => `${txid.slice(0, 8)}...`)

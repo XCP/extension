@@ -7,9 +7,9 @@ import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { DestroyOptions } from "@/core/blockchain/counterparty/compose";
+import { validateQuantity } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { DestroyOptions } from "@/utils/blockchain/counterparty/compose";
-import { validateQuantity } from "@/utils/validation/amount";
 
 /**
  * Props for the DestroySupplyForm component, aligned with Composer's formAction.

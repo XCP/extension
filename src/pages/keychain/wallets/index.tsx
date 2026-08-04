@@ -6,8 +6,8 @@ import { ErrorAlert } from '@/components/ui/error-alert';
 import { WalletList } from '@/components/ui/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
+import { MAX_WALLETS } from '@/core/wallet/constants';
 import type { Wallet } from '@/types/wallet';
-import { MAX_WALLETS } from '@/utils/wallet/constants';
 
 /** Check if we're running in the sidepanel (vs popup) */
 const isSidepanel = () => document.body.dataset.context === 'sidepanel';

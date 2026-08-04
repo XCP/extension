@@ -7,7 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { ComposerProvider } from "@/contexts/composer-context"
 import { useComposer } from "@/contexts/composer-context-object";
 import { useHeader } from "@/contexts/header-context";
-import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
+import type { ApiResponse } from "@/core/blockchain/counterparty/compose";
 
 /**
  * Compose operation types for internal wallet use

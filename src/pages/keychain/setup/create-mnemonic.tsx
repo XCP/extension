@@ -8,9 +8,9 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { generateNewMnemonic } from "@/utils/blockchain/bitcoin/privateKey";
-import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
-import { analytics } from "@/utils/fathom";
+import { generateNewMnemonic } from "@/core/blockchain/bitcoin/privateKey";
+import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { analytics } from "@/platform/fathom";
 
 function CreateMnemonicPage() {
   const navigate = useNavigate();

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
-import { getDisplayVersion } from "@/utils/version";
+import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
   CREATE_WALLET: "/keychain/setup/create-mnemonic",

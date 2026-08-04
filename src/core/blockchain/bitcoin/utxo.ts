@@ -1,0 +1,288 @@
+import { apiClient, isCancel } from '@/core/apiClient';
+import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/core/cache';
+import { getActiveSettings } from '@/core/settings';
+
+// UTXOs can change with each block but short cache prevents API spam
+const utxoCache = new KeyedTTLCache<string, UTXO[]>(CacheTTL.MEDIUM);
+const inflightUtxoRequests = new Map<string, Promise<UTXO[]>>();
+
+// Confirmed transactions are immutable - use long TTL
+const txCache = new KeyedTTLCache<string, BitcoinTransactionWithStatus | null>(CacheTTL.VERY_LONG);
+const inflightTxRequests = new Map<string, Promise<BitcoinTransactionWithStatus | null>>();
+
+// Transaction hex is immutable once fetched - use long TTL
+const rawTxCache = new KeyedTTLCache<string, string | null>(CacheTTL.VERY_LONG);
+const inflightRawTxRequests = new Map<string, Promise<string | null>>();
+
+/**
+ * Clears the UTXO cache for a specific address or all addresses.
+ * Call this after broadcasting a transaction to ensure fresh data.
+ */
+export function clearUtxoCache(address?: string): void {
+  if (address) {
+    utxoCache.invalidate(address);
+  } else {
+    utxoCache.invalidateAll();
+  }
+}
+
+/**
+ * Clears all Bitcoin-related caches (UTXOs, transactions, raw tx hex).
+ * Call this after broadcasting a transaction to ensure fresh data.
+ */
+export function clearBitcoinCaches(): void {
+  utxoCache.invalidateAll();
+  txCache.invalidateAll();
+  rawTxCache.invalidateAll();
+}
+
+/**
+ * Bitcoin transaction details from the Counterparty API.
+ */
+export interface BitcoinTransaction {
+  hex: string;
+  txid: string;
+  version: number;
+  locktime: number;
+  size: number;
+  vsize: number;
+  weight: number;
+  vin: Array<{
+    txid: string;
+    vout: number;
+    scriptSig?: { asm: string; hex: string };
+    txinwitness?: string[];
+    sequence: number;
+  }>;
+  vout: Array<{
+    value: number;
+    n: number;
+    scriptPubKey: {
+      asm: string;
+      hex: string;
+      type: string;
+      address?: string;
+    };
+  }>;
+}
+
+/**
+ * Interface representing an Unspent Transaction Output (UTXO).
+ */
+export interface UTXO {
+  txid: string;
+  vout: number;
+  status: {
+    confirmed: boolean;
+    block_height: number;
+    block_hash: string;
+    block_time: number;
+  };
+  value: number;
+}
+
+/**
+ * Transaction status from mempool.space.
+ */
+interface MempoolTxStatus {
+  confirmed: boolean;
+  block_height?: number;
+  block_hash?: string;
+  block_time?: number;
+}
+
+/**
+ * Extended Bitcoin transaction with status information.
+ */
+export interface BitcoinTransactionWithStatus extends BitcoinTransaction {
+  status?: MempoolTxStatus;
+  blocktime?: number;
+}
+
+/**
+ * Type guard to validate UTXO array structure.
+ */
+function isValidUtxoArray(data: unknown): data is UTXO[] {
+  if (!Array.isArray(data)) {
+    return false;
+  }
+  // Validate first item if array is not empty (avoid checking all items for performance)
+  if (data.length > 0) {
+    const first = data[0];
+    return (
+      typeof first === 'object' &&
+      first !== null &&
+      typeof first.txid === 'string' &&
+      typeof first.vout === 'number' &&
+      typeof first.value === 'number'
+    );
+  }
+  return true;
+}
+
+/**
+ * Fetches the UTXOs for a given Bitcoin address.
+ * Uses mempool.space API with fallback to blockstream.info for reliability.
+ * Results are cached for 30 seconds to reduce API load.
+ * Note: We use external explorers instead of the Counterparty Bitcoin proxy
+ * because the proxy may not index all UTXOs (only those with Counterparty activity).
+ *
+ * @param address - The Bitcoin address to fetch UTXOs for.
+ * @param signal - Optional AbortSignal for cancelling the request.
+ *                 Note: If a cached result exists, signal is ignored (instant return).
+ *                 If another request is in-flight, signal won't cancel the shared request.
+ * @returns A promise that resolves to an array of UTXO objects.
+ */
+export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
+  return cachedFetch(
+    utxoCache,
+    inflightUtxoRequests,
+    address,
+    async () => {
+      const endpoints = [
+        `https://mempool.space/api/address/${address}/utxo`,
+        `https://blockstream.info/api/address/${address}/utxo`,
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          const response = await apiClient.get<unknown>(endpoint, { retries: 0, signal });
+          const utxos = response.data;
+
+          if (!isValidUtxoArray(utxos)) {
+            continue;
+          }
+
+          return utxos;
+        } catch (error) {
+          if (isCancel(error)) {
+            throw error; // Re-throw cancellation errors
+          }
+          // Try next endpoint
+          continue;
+        }
+      }
+
+      throw new Error('Failed to fetch UTXOs.');
+    }
+  );
+}
+
+/**
+ * Formats the `inputs_set` parameter for the Counterparty API from a list of UTXOs.
+ *
+ * @param utxos - An array of UTXO objects.
+ * @returns A string representing the `inputs_set`, formatted as "txid:vout,txid:vout,..."
+ */
+export function formatInputsSet(utxos: UTXO[]): string {
+  return utxos.map((utxo) => `${utxo.txid}:${utxo.vout}`).join(',');
+}
+
+/**
+ * Gets a specific UTXO by its transaction ID and output index from a list of UTXOs.
+ *
+ * @param utxos - Array of UTXOs to search through
+ * @param txid - The transaction ID to look for
+ * @param vout - The output index within the transaction
+ * @returns The matching UTXO or undefined if not found
+ */
+export function getUtxoByTxid(utxos: UTXO[], txid: string, vout: number): UTXO | undefined {
+  return utxos.find((utxo) => utxo.txid === txid && utxo.vout === vout);
+}
+
+/**
+ * Fetches the raw transaction hex for a given txid.
+ * Tries Counterparty API first, falls back to mempool.space for unconfirmed txs.
+ * Results are cached for 10 minutes (transactions are immutable once fetched).
+ *
+ * @param txid - Transaction ID in hex.
+ * @returns A promise that resolves to the raw transaction hex string or null if not found.
+ */
+export async function fetchPreviousRawTransaction(txid: string): Promise<string | null> {
+  return cachedFetch(
+    rawTxCache,
+    inflightRawTxRequests,
+    txid,
+    async () => {
+      // Try Counterparty API first
+      try {
+        const settings = getActiveSettings();
+        const response = await apiClient.get<{ result: BitcoinTransaction }>(
+          `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
+        );
+
+        if (typeof response.data?.result?.hex === 'string') {
+          return response.data.result.hex;
+        }
+      } catch {
+        // Fall through to mempool.space
+      }
+
+      // Fallback to mempool.space (handles unconfirmed txs better)
+      try {
+        const response = await apiClient.get<string>(`https://mempool.space/api/tx/${txid}/hex`, { retries: 0 });
+        const data = String(response.data).trim();
+        if (data.length > 0) {
+          return data;
+        }
+      } catch {
+        // Both sources failed
+      }
+
+      return null;
+    },
+    // Only cache non-null results
+    (result) => result !== null
+  );
+}
+
+/**
+ * Fetches detailed Bitcoin transaction information for a given txid.
+ * Includes confirmation status and block time from mempool.space.
+ * Results are cached for 10 minutes (transactions are immutable once confirmed).
+ *
+ * @param txid - Transaction ID in hex.
+ * @returns A promise that resolves to the Bitcoin transaction details or null if not found.
+ */
+export async function fetchBitcoinTransaction(txid: string): Promise<BitcoinTransactionWithStatus | null> {
+  return cachedFetch(
+    txCache,
+    inflightTxRequests,
+    txid,
+    async () => {
+      try {
+        const settings = getActiveSettings();
+
+        // Fetch from both Counterparty API and mempool.space in parallel
+        const [counterpartyResponse, mempoolResponse] = await Promise.all([
+          apiClient.get<{ result: BitcoinTransaction }>(
+            `${settings.counterpartyApiBase}/v2/bitcoin/transactions/${txid}`
+          ),
+          apiClient.get<MempoolTxStatus>(`https://mempool.space/api/tx/${txid}/status`, { retries: 0 })
+            .then(r => r.data)
+            .catch(() => null) // Don't fail if mempool.space is unavailable
+        ]);
+
+        if (counterpartyResponse.data && counterpartyResponse.data.result) {
+          const result: BitcoinTransactionWithStatus = counterpartyResponse.data.result;
+
+          // Add status info from mempool.space if available
+          if (mempoolResponse) {
+            result.status = mempoolResponse;
+            result.blocktime = mempoolResponse.block_time;
+          }
+
+          return result;
+        } else {
+          console.error(`Transaction details not found for txid: ${txid}`);
+          return null;
+        }
+      } catch (error) {
+        console.error(`Error fetching Bitcoin transaction for txid ${txid}:`, error);
+        return null;
+      }
+    },
+    // Only cache non-null results
+    (result) => result !== null
+  );
+}

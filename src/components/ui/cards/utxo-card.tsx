@@ -2,8 +2,8 @@ import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { UtxoMenu } from "@/components/ui/menus/utxo-menu";
-import type { UtxoBalance } from "@/utils/blockchain/counterparty/api";
-import { formatAmount, formatAsset, formatTxid } from "@/utils/format";
+import type { UtxoBalance } from "@/core/blockchain/counterparty/api";
+import { formatAmount, formatAsset, formatTxid } from "@/core/format";
 
 interface UtxoCardProps {
   token: UtxoBalance;

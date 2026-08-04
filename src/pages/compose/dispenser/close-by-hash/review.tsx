@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
+import type { ApiResponse } from "@/core/blockchain/counterparty/compose";
 
 /**
  * Props for the ReviewDispenserCloseByHash component.

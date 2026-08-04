@@ -7,16 +7,16 @@ import { AddressHeader } from "@/components/ui/headers/address-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
-import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
-import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
-import { formatAmount } from "@/utils/format";
+import { estimateVsize } from "@/core/blockchain/bitcoin/fee-estimation";
+import type { DispenseOptions } from "@/core/blockchain/counterparty/compose";
+import { selectUtxosForTransaction } from "@/core/blockchain/counterparty/utxo-selection";
+import { formatAmount } from "@/core/format";
 import { 
   divide,fromSatoshis, 
   isLessThanOrEqualToZero,
   roundDown,
   subtract,
-  toNumber} from "@/utils/numeric";
+  toNumber} from "@/core/numeric";
 
 // ============================================================================
 // Types & Interfaces

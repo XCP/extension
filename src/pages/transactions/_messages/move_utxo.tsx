@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
+import type { Transaction } from "@/core/blockchain/counterparty/api";
 
 /**
  * Renders detailed information for move_utxo transactions

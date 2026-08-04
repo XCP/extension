@@ -2,10 +2,10 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
+import { fetchAddressDispensers, fetchMempoolDispenses } from "@/core/blockchain/counterparty/api";
+import { formatAmount } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { fetchAddressDispensers, fetchMempoolDispenses } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewDispense component.

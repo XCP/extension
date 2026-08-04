@@ -8,7 +8,7 @@ import {
 import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAmount } from "@/utils/format";
+import { formatAmount } from "@/core/format";
 
 export interface Fairminter {
   tx_hash: string;

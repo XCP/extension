@@ -5,8 +5,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { AttachOptions } from "@/core/blockchain/counterparty/compose";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the UtxoAttachForm component, aligned with Composer's formAction.

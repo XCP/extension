@@ -90,7 +90,7 @@ import ConnectedSitesPage from '@/pages/settings/connected-sites';
 import PinnedAssetsPage from '@/pages/settings/pinned-assets';
 import SecuritySettingsPage from '@/pages/settings/security';
 import TransactionPage from '@/pages/transactions/[txHash]';
-import { analytics, sanitizePath } from '@/utils/fathom';
+import { analytics, sanitizePath } from '@/platform/fathom';
 
 function FullscreenLoading() {
   return (

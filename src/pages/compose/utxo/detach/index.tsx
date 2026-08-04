@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
+import type { DetachOptions } from "@/core/blockchain/counterparty/compose";
+import { composeDetach } from "@/core/blockchain/counterparty/compose";
 import { UtxoDetachForm } from "@/pages/compose/utxo/detach/form";
 import { ReviewUtxoDetach } from "@/pages/compose/utxo/detach/review";
-import type { DetachOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeDetach } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeUtxoDetachPage() {
   const { txId } = useParams<{ txId: string }>();

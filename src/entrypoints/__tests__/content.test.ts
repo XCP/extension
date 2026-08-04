@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/errors';
 
 // Mock WXT injectScript function
 const mockInjectScript = vi.fn();

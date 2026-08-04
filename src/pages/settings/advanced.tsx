@@ -8,7 +8,7 @@ import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import type { AutoLockTimer } from "@/utils/settings";
+import type { AutoLockTimer } from "@/core/settings";
 
 /**
  * Constants for navigation paths and auto-lock options.

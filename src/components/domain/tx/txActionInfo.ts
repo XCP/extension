@@ -1,6 +1,6 @@
-import type { CounterpartyMessage } from '@/utils/blockchain/counterparty/transaction';
-import type { ProviderVerificationResult } from '@/utils/blockchain/counterparty/unpack';
-import { fromSatoshis } from '@/utils/numeric';
+import type { CounterpartyMessage } from '@/core/blockchain/counterparty/transaction';
+import type { ProviderVerificationResult } from '@/core/blockchain/counterparty/unpack';
+import { fromSatoshis } from '@/core/numeric';
 
 /**
  * Shared action-summary logic for the transaction and PSBT approval screens.

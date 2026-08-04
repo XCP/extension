@@ -1,10 +1,10 @@
 import './setup'; // Must be first to setup browser mocks
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { requestCleanup } from '@/utils/provider/requestCleanup';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/core/settings';
+import { approvalQueue } from '@/platform/provider/approvalQueue';
+import { requestCleanup } from '@/platform/provider/requestCleanup';
+import { walletManager } from '@/platform/wallet/walletManager';
 import { createProviderService } from '../providerService';
 
 // Mock dependencies
@@ -13,7 +13,7 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 vi.mock('../walletService');
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/wallet/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
@@ -24,7 +24,7 @@ vi.mock('@/utils/wallet/walletManager', () => ({
   },
 }));
 // Mock CSP validation to avoid network calls
-vi.mock('@/utils/security/cspValidation', () => ({
+vi.mock('@/core/security/cspValidation', () => ({
   analyzeCSP: vi.fn(() => Promise.resolve({
     hasCSP: true,
     isSecure: true,

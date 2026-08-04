@@ -1,8 +1,8 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import type { ReactElement } from "react";
-import { isFiniteNumber, isGreaterThan, isLessThan } from "@/utils/numeric";
+import { isFiniteNumber, isGreaterThan, isLessThan } from "@/core/numeric";
 
-export { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
+export { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 
 // Presets skew slightly above fast-chain DEXs: Counterparty's ~10-min blocks leave
 // more time for someone else to move the pool before a deposit/withdraw confirms.

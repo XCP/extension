@@ -3,16 +3,16 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
-import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
-import * as utxoSelection from '@/utils/blockchain/counterparty/utxo-selection';
+import * as counterpartyApi from '@/core/blockchain/counterparty/api';
+import * as utxoSelection from '@/core/blockchain/counterparty/utxo-selection';
 import { DispenseForm } from '../form';
 
 // Mock the API modules
-vi.mock('@/utils/blockchain/counterparty/api');
-vi.mock('@/utils/blockchain/counterparty/utxo-selection');
+vi.mock('@/core/blockchain/counterparty/api');
+vi.mock('@/core/blockchain/counterparty/utxo-selection');
 
 // Mock fee rates to prevent network calls
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/blockchain/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 10,
     halfHourFee: 5,

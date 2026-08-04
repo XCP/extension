@@ -14,9 +14,9 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context-object";
+import { fetchAddressDispensers } from "@/core/blockchain/counterparty/api";
+import type { DispenserOptions } from "@/core/blockchain/counterparty/compose";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.

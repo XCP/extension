@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/utils/blockchain/counterparty/api";
+import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/core/blockchain/counterparty/api";
 
 /**
  * Constants for transaction pagination and navigation paths.

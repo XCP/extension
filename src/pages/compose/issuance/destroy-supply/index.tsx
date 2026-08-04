@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
+import type { DestroyOptions } from "@/core/blockchain/counterparty/compose";
+import { composeDestroy } from "@/core/blockchain/counterparty/compose";
 import { DestroySupplyForm } from "@/pages/compose/issuance/destroy-supply/form";
 import { ReviewDestroy } from "@/pages/compose/issuance/destroy-supply/review";
-import type { DestroyOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeDestroy } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeDestroySupplyPage() {
   const { asset } = useParams<{ asset?: string }>();

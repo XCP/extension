@@ -1,10 +1,10 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { FiMinus, FiPlus } from "@/components/icons";
+import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
+import { validateBitcoinAddress } from "@/core/validation/bitcoin";
+import { type Destination, isMPMASupported, parseMultiLineDestinations, validateDestinations } from "@/core/validation/destinations";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
-import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
-import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
-import { type Destination, isMPMASupported, parseMultiLineDestinations, validateDestinations } from "@/utils/validation/destinations";
 
 interface DestinationsInputProps {
   destinations: Destination[];

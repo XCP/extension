@@ -10,10 +10,10 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, detectAddressFormat } from "@/utils/blockchain/bitcoin/address";
-import { isValidCounterwalletMnemonic } from "@/utils/blockchain/counterwallet";
-import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
-import { analytics } from "@/utils/fathom";
+import { AddressFormat, detectAddressFormat } from "@/core/blockchain/bitcoin/address";
+import { isValidCounterwalletMnemonic } from "@/core/blockchain/counterwallet";
+import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { analytics } from "@/platform/fathom";
 
 function ImportMnemonicPage() {
   const navigate = useNavigate();

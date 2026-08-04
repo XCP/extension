@@ -7,9 +7,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
-import type { MoveOptions } from "@/utils/blockchain/counterparty/compose";
-import { formatTxid } from "@/utils/format";
+import { fetchUtxoBalances, type UtxoBalance } from "@/core/blockchain/counterparty/api";
+import type { MoveOptions } from "@/core/blockchain/counterparty/compose";
+import { formatTxid } from "@/core/format";
 
 /**
  * Props for the UtxoMoveForm component, aligned with Composer's formAction.

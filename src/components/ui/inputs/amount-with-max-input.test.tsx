@@ -4,15 +4,15 @@ import '@testing-library/jest-dom/vitest';
 import { AmountWithMaxInput } from './amount-with-max-input';
 
 // Mock the validation utilities
-vi.mock('@/utils/validation/bitcoin', () => ({
+vi.mock('@/core/validation/bitcoin', () => ({
   isValidBitcoinAddress: vi.fn((addr) => addr && addr.startsWith('bc1'))
 }));
 
-vi.mock('@/utils/blockchain/counterparty/utxo-selection', () => ({
+vi.mock('@/core/blockchain/counterparty/utxo-selection', () => ({
   selectUtxosForTransaction: vi.fn()
 }));
 
-vi.mock('@/utils/numeric', () => ({
+vi.mock('@/core/numeric', () => ({
   fromSatoshis: vi.fn((sats) => (parseInt(sats) / 100000000).toFixed(8)),
 }));
 
@@ -178,7 +178,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show loading state aria-label while selecting UTXOs', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise(() => {})); // Never resolves
 
     render(<AmountWithMaxInput {...defaultProps} asset="BTC" />);
@@ -192,7 +192,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should calculate BTC max from spendable UTXOs with fee estimation', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     // Mock 2 spendable UTXOs totaling 10,000,000 sats (0.1 BTC)
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [
@@ -227,7 +227,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should use fee rate in vsize calculation for BTC max', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
       totalValue: 1000000,
@@ -258,7 +258,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should calculate different fees for different UTXO counts', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     // Mock 5 spendable UTXOs
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [
@@ -296,7 +296,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should fallback to 0.1 feeRate when feeRate is null', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
       totalValue: 1000000,
@@ -327,7 +327,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show error when no spendable UTXOs available', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [],
       totalValue: 0,
@@ -351,7 +351,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show message when all UTXOs have attached assets', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [],
       totalValue: 0,
@@ -375,7 +375,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show error when fee exceeds balance', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     // Mock 1 UTXO with only 100 sats (too small)
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 100)],
@@ -401,7 +401,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should show error when result is dust', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     // Mock 1 UTXO with 600 sats (after fee, will be below dust)
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 600)],
@@ -427,7 +427,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should handle UTXO selection error with generic message', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
     const setError = vi.fn();
@@ -446,7 +446,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should divide max by destination count for multi-destination BTC sends', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
       totalValue: 1000000,
@@ -528,7 +528,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should use larger input size for legacy P2PKH addresses', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
       totalValue: 1000000,
@@ -561,7 +561,7 @@ describe('AmountWithMaxInput', () => {
   });
 
   it('should use taproot input size for bc1p addresses', async () => {
-    const { selectUtxosForTransaction } = await import('@/utils/blockchain/counterparty/utxo-selection');
+    const { selectUtxosForTransaction } = await import('@/core/blockchain/counterparty/utxo-selection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
       totalValue: 1000000,

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
+import type { OwnedAsset } from "@/core/blockchain/counterparty/api";
 import { AssetList } from "./asset-list";
 
 // Mock dependencies
@@ -24,11 +24,11 @@ vi.mock("@/contexts/header-context", () => ({
 }));
 
 const mockFetchOwnedAssets = vi.fn();
-vi.mock("@/utils/blockchain/counterparty/api", () => ({
+vi.mock("@/core/blockchain/counterparty/api", () => ({
   fetchOwnedAssets: (...args: any[]) => mockFetchOwnedAssets(...args),
 }));
 
-vi.mock("@/utils/format", () => ({
+vi.mock("@/core/format", () => ({
   formatAsset: vi.fn((asset, options) => {
     if (options?.assetInfo?.asset_longname) {
       return options.assetInfo.asset_longname;

@@ -22,9 +22,9 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
+import { isSegwitFormat } from '@/core/blockchain/bitcoin/address';
+import type { FairminterOptions } from "@/core/blockchain/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";
 
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",

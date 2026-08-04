@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { DestinationsInput } from './destinations-input';
 
 // Mock the bitcoin validation
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/core/blockchain/bitcoin', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     // Simple mock validation - just check if it's non-empty and starts with valid prefix
     return address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1'));
@@ -12,7 +12,7 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
 }));
 
 // Mock validation utilities that the component might use
-vi.mock('@/utils/validation', () => ({
+vi.mock('@/core/validation', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     return address && (address.startsWith('1') || address.startsWith('3') || address.startsWith('bc1'));
   }),

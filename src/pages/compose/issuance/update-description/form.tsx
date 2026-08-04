@@ -8,9 +8,9 @@ import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import { isSegwitFormat } from '@/core/blockchain/bitcoin/address';
+import type { IssuanceOptions } from "@/core/blockchain/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.

@@ -8,8 +8,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/utils/blockchain/bitcoin/address';
-import { formatAddress } from "@/utils/format";
+import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/blockchain/bitcoin/address';
+import { formatAddress } from "@/core/format";
 
 /**
  * Constants for navigation paths and address type options.

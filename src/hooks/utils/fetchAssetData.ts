@@ -3,10 +3,10 @@
  * Used by useAssetBalance and useAssetInfo hooks.
  */
 
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
-import { type AssetInfo, fetchAssetDetails, fetchTokenBalance } from '@/utils/blockchain/counterparty/api';
-import { formatAmount } from '@/utils/format';
-import { fromSatoshis } from '@/utils/numeric';
+import { fetchBTCBalance } from '@/core/blockchain/bitcoin/balance';
+import { type AssetInfo, fetchAssetDetails, fetchTokenBalance } from '@/core/blockchain/counterparty/api';
+import { formatAmount } from '@/core/format';
+import { fromSatoshis } from '@/core/numeric';
 
 export async function fetchAssetDetailsAndBalance(
   asset: string,

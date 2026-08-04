@@ -8,9 +8,9 @@ import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/blockchain/counterparty/api";
+import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/utils/blockchain/counterparty/api";
-import { formatAddress, formatAmount, formatTimeAgo } from "@/utils/format";
 
 
 /**

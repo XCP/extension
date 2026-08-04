@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
+import { composePoolDeposit, type PoolDepositOptions } from "@/core/blockchain/counterparty/compose";
 import { PoolDepositForm } from "@/pages/compose/pool/deposit/form";
 import { ReviewPoolDeposit } from "@/pages/compose/pool/deposit/review";
-import { composePoolDeposit, type PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 
 export default function ComposePoolDepositPage() {
   const { assetA, assetB } = useParams<{ assetA?: string; assetB?: string }>();

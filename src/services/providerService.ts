@@ -7,37 +7,37 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { getApprovalService } from '@/services/approvalService';
-import { getConnectionService } from '@/services/connectionService';
-import { eventEmitterService } from '@/services/eventEmitterService';
-import { getUpdateService } from '@/services/updateService';
-import { getWalletService } from '@/services/walletService';
-import type { ApprovalRequest } from '@/types/provider';
-import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { fetchBTCBalance } from '@/utils/blockchain/bitcoin/balance';
-import { signMessage as signMessageDirect } from '@/utils/blockchain/bitcoin/messageSigner';
-import { extractPsbtDetails, validateSignInputs } from '@/utils/blockchain/bitcoin/psbt';
-import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
-import { analytics } from '@/utils/fathom';
-import { generateRequestId } from '@/utils/id';
-import { openExtensionPopup } from '@/utils/popup';
-import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/utils/provider/rateLimiter';
+import { normalizeAddressForComparison } from '@/core/blockchain/bitcoin/address';
+import { fetchBTCBalance } from '@/core/blockchain/bitcoin/balance';
+import { signMessage as signMessageDirect } from '@/core/blockchain/bitcoin/messageSigner';
+import { extractPsbtDetails, validateSignInputs } from '@/core/blockchain/bitcoin/psbt';
+import { fetchTokenBalances } from '@/core/blockchain/counterparty/api';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/errors';
+import { generateRequestId } from '@/core/id';
+import { analyzeCSP } from '@/core/security/cspValidation';
+import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/security/replayPrevention';
+import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
+import { analytics } from '@/platform/fathom';
+import { openExtensionPopup } from '@/platform/popup';
+import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import {
   beginSignFlow,
   computeRequestKey,
   findActiveFlowByKey,
   getSignFlow,
   removeSignFlow,
-} from '@/utils/provider/signFlow';
-import { defineProxyService } from '@/utils/proxy';
-import { analyzeCSP } from '@/utils/security/cspValidation';
-import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/utils/security/replayPrevention';
-import { signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
-import { keychainExists } from '@/utils/storage/walletStorage';
-import { getPairedAddressFormats } from '@/utils/wallet/addressDeriver';
+} from '@/platform/provider/signFlow';
+import { defineProxyService } from '@/platform/proxy';
+import { signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
+import { signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
+import { signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
+import { keychainExists } from '@/platform/storage/walletStorage';
+import { getApprovalService } from '@/services/approvalService';
+import { getConnectionService } from '@/services/connectionService';
+import { eventEmitterService } from '@/services/eventEmitterService';
+import { getUpdateService } from '@/services/updateService';
+import { getWalletService } from '@/services/walletService';
+import type { ApprovalRequest } from '@/types/provider';
 
 // In-memory storage for active requests (primary storage, fast access)
 const activeSignRequests = new Map<string, any>();

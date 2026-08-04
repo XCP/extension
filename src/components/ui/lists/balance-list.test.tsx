@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
+import type { TokenBalance } from "@/core/blockchain/counterparty/api";
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies
@@ -37,18 +37,18 @@ vi.mock("@/contexts/header-context", () => ({
 }));
 
 const mockFetchBTCBalance = vi.fn();
-vi.mock("@/utils/blockchain/bitcoin/balance", () => ({
+vi.mock("@/core/blockchain/bitcoin/balance", () => ({
   fetchBTCBalance: (...args: any[]) => mockFetchBTCBalance(...args),
 }));
 
 const mockFetchTokenBalance = vi.fn();
 const mockFetchTokenBalances = vi.fn();
-vi.mock("@/utils/blockchain/counterparty/api", () => ({
+vi.mock("@/core/blockchain/counterparty/api", () => ({
   fetchTokenBalance: (...args: any[]) => mockFetchTokenBalance(...args),
   fetchTokenBalances: (...args: any[]) => mockFetchTokenBalances(...args),
 }));
 
-vi.mock("@/utils/format", () => ({
+vi.mock("@/core/format", () => ({
   formatAmount: vi.fn(
     ({ value, minimumFractionDigits, maximumFractionDigits }) => {
       if (minimumFractionDigits === 8 || maximumFractionDigits === 8) {
