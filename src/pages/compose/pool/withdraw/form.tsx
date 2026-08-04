@@ -5,7 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { Spinner } from "@/components/ui/spinner";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";

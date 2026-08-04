@@ -7,7 +7,7 @@ import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { toBigNumber } from "@/utils/numeric";

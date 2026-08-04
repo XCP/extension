@@ -261,16 +261,10 @@ function packSubasset(
   // of an OP_RETURN), so it is packed normally and `inscriptionEnvelope.ts` checks the envelope.
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
 
-  // A previous revision declined lock, reset and transfer here, reasoning that a substituted
-  // asset id does irreversible harm for those. That was wrong twice over. It did not prevent the
-  // substitution, because the field-comparison fallback cannot see the asset id either — nothing
-  // local can, which is the whole reason the id is borrowed. And it broke the most common
-  // issuance on the chain: declining sent locked subassets to a fallback that compares the
-  // request's longname against the message's numeric asset name and calls the difference a
-  // critical mismatch, so locking a subasset failed outright.
-  //
-  // Byte equality is strictly better here. It proves the quantity, flags, description, MIME type
-  // and the compacted longname, leaving only the id — which no local check could have covered.
+  // Lock, reset and transfer are packed like any other operation. Declining them was tried and
+  // reverted: it did not stop a substituted asset id, since the field-comparison fallback cannot
+  // see the id either, and it broke locked subassets — the fallback reports the request's longname
+  // against the message's numeric asset name as a critical mismatch.
 
   const assetId = typeof observed?.assetId === 'bigint' ? observed.assetId : null;
   if (assetId === null || assetId <= 26n ** 12n || assetId >= 1n << 64n) return null;

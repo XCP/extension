@@ -5,7 +5,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useWallet } from "@/contexts/wallet-context";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { validateAmount, validateQuantity } from "@/utils/validation/amount";

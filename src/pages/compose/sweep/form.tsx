@@ -14,7 +14,7 @@ import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatMoreOutputs } from "@/utils/format";
 import { validateAmount } from "@/utils/validation/amount";

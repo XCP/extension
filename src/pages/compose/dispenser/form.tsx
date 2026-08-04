@@ -7,7 +7,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";

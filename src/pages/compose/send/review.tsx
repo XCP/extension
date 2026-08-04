@@ -1,7 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
 import { formatAmount } from "@/utils/format";
 import type { ReactElement, ReactNode } from "react";

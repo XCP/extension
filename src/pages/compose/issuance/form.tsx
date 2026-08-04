@@ -9,7 +9,7 @@ import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { AddressHeader } from "@/components/ui/headers/address-header";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { toBigNumber } from "@/utils/numeric";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';

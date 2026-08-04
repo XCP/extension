@@ -174,10 +174,8 @@ export function analyzeTransactionSafety(
     if (output.address) {
       suspiciousOutputs.push({ address: output.address, value: output.value });
     } else {
-      // A script no decoder could attribute. It was previously dropped here, so a non-dust output
-      // to a bare-multisig or P2WSH script raised nothing at all and appeared only as "Unknown
-      // address" in the movement list. Value leaving to a script nobody can name deserves at
-      // least the same warning as value leaving to one that can be.
+      // A script no decoder could attribute — bare multisig, P2WSH. Previously dropped here, so
+      // such an output raised nothing and showed only as "Unknown address" in the movement list.
       unattributableOutputs.push({ value: output.value });
     }
   }

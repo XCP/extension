@@ -5,7 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";

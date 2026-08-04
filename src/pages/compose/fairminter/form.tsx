@@ -20,7 +20,7 @@ import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";

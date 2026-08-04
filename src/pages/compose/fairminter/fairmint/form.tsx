@@ -5,7 +5,7 @@ import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { FairminterSelectInput, type Fairminter } from "@/components/ui/inputs/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { formatAmount } from "@/utils/format";
 import { toBigNumber, multiply, divide, roundDownToMultiple } from "@/utils/numeric";

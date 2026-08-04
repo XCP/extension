@@ -8,7 +8,7 @@ import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";

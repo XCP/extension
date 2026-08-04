@@ -2,7 +2,7 @@ import { type ReactElement, type ReactNode, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 
 /**
  * Props for the ComposerForm component

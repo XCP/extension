@@ -5,7 +5,7 @@ import { AddressHeader } from "@/components/ui/headers/address-header";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { TextField } from "@/components/ui/inputs/text-field";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
