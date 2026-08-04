@@ -3,9 +3,9 @@
  * Implements caching and fallback mechanisms similar to fee rate fetching.
  */
 
-import { TTLCache, CacheTTL } from '@/utils/cache';
-import { DataFetchError } from '@/utils/blockchain/errors';
 import { apiClient } from '@/utils/apiClient';
+import { DataFetchError } from '@/utils/blockchain/errors';
+import { CacheTTL, TTLCache } from '@/utils/cache';
 
 /**
  * Cache for block height with request deduplication.

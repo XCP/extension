@@ -1,6 +1,6 @@
 import { apiClient, isCancel } from '@/utils/apiClient';
+import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/utils/cache';
 import { getActiveSettings } from '@/utils/settings';
-import { KeyedTTLCache, CacheTTL, cachedFetch } from '@/utils/cache';
 
 // UTXOs can change with each block but short cache prevents API spam
 const utxoCache = new KeyedTTLCache<string, UTXO[]>(CacheTTL.MEDIUM);

@@ -23,8 +23,8 @@
  * bytes, so emitting the legacy form here would differ from core on the first byte alone.
  */
 
-import { bech32, bech32m, base58 } from '@scure/base';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { base58, bech32, bech32m } from '@scure/base';
 
 /** Length of a legacy packed address in bytes */
 export const PACKED_ADDRESS_LENGTH = 21;

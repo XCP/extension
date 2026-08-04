@@ -5,7 +5,7 @@
  * here so the popup can retrieve them and show the approval UI.
  */
 
-import { RequestStorage, type AuthorizedRequest } from '@/utils/storage/requestStorage';
+import { type AuthorizedRequest, RequestStorage } from '@/utils/storage/requestStorage';
 
 /**
  * Sign PSBT request from a dApp.

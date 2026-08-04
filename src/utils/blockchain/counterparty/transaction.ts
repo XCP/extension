@@ -5,10 +5,10 @@
  * unpacking Counterparty protocol messages from OP_RETURN data.
  */
 
-import { apiClient, API_TIMEOUTS } from '@/utils/apiClient';
-import { getActiveSettings } from '@/utils/settings';
-import { fromSatoshis } from '@/utils/numeric';
+import { API_TIMEOUTS, apiClient } from '@/utils/apiClient';
 import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
+import { fromSatoshis } from '@/utils/numeric';
+import { getActiveSettings } from '@/utils/settings';
 
 /**
  * Counterparty message decoded from OP_RETURN
@@ -90,7 +90,7 @@ export async function decodeRawTransaction(
  * Fetch the satoshi value of a specific transaction output.
  * Uses mempool.space with blockstream.info fallback.
  */
-async function fetchOutputValue(txid: string, vout: number): Promise<number | null> {
+async function _fetchOutputValue(txid: string, vout: number): Promise<number | null> {
   const endpoints = [
     `https://mempool.space/api/tx/${txid}`,
     `https://blockstream.info/api/tx/${txid}`,
@@ -219,7 +219,7 @@ export function describeCounterpartyMessage(
     if (raw == null) return '?';
 
     // 2. Check verbose asset_info for divisibility
-    const assetName = assetField ? String(messageData[assetField] ?? '') : '';
+    const _assetName = assetField ? String(messageData[assetField] ?? '') : '';
     const infoKey = assetField ? `${assetField}_info` : 'asset_info';
     const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
 

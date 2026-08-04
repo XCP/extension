@@ -8,12 +8,12 @@
  * These tests are fully offline — no API needed.
  */
 
-import { describe, it, expect } from 'vitest';
-import { arc4, hexToBytes, bytesToHex, BinaryReader } from '../unpack/binary';
-import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
+import { describe, expect, it } from 'vitest';
 import { packAddress } from '../unpack/address';
-import { unpackCounterpartyMessage, isCounterpartyData } from '../unpack/index';
-import { extractOpReturnPayload, decryptOpReturnData, extractCounterpartyPayload } from '../unpack/opReturn';
+import { arc4, bytesToHex, hexToBytes } from '../unpack/binary';
+import { isCounterpartyData, unpackCounterpartyMessage } from '../unpack/index';
+import { COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
+import { decryptOpReturnData, extractCounterpartyPayload, } from '../unpack/opReturn';
 import { verifyTransaction } from '../unpack/verify';
 
 // Fake txid used as ARC4 key
@@ -54,7 +54,7 @@ function uint64hex(n: bigint): string {
 /**
  * Helper: pack a number as 4-byte big-endian hex.
  */
-function uint32hex(n: number): string {
+function _uint32hex(n: number): string {
   return n.toString(16).padStart(8, '0');
 }
 
@@ -90,7 +90,7 @@ describe('enhanced_send round-trip', () => {
   });
 
   it('should decrypt and unpack PEPECASH send with memo', () => {
-    const assetId = uint64hex(26n ** 3n * (15n + 1n) + 26n ** 2n * (4n + 1n) + 26n * (15n + 1n) + (4n + 1n)); // a rough ID
+    const _assetId = uint64hex(26n ** 3n * (15n + 1n) + 26n ** 2n * (4n + 1n) + 26n * (15n + 1n) + (4n + 1n)); // a rough ID
     // Use a known named asset: use assetNameToId to get the right ID
     // Actually let's just use XCP for simplicity
     const xcpId = uint64hex(1n);

@@ -27,10 +27,10 @@
  * equality is fail-closed, so drift blocks composes — this is the check that catches it first.
  */
 
-import { describe, it, expect } from 'vitest';
-import { packComposeMessage } from '../messages';
+import { describe, expect, it } from 'vitest';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
+import { packComposeMessage } from '../messages';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /** A funded mainnet address is only needed to satisfy the endpoint's shape; nothing is broadcast. */

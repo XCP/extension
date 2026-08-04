@@ -31,12 +31,12 @@
  * outputs are checked separately (`verifyRevealTransaction`).
  */
 
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { p2tr, Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import { encodeCbor, type CborEncodable } from '@/utils/blockchain/counterparty/pack/cbor';
+import { decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
+import { type CborEncodable, encodeCbor } from '@/utils/blockchain/counterparty/pack/cbor';
 import { decodeCbor } from '@/utils/blockchain/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
-import { decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 
 /** Core chunks both metadata and content at this size (`helpers.chunkify`). */
 const CHUNK_SIZE = 520;

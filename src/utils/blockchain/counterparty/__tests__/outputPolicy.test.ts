@@ -5,12 +5,12 @@
  * having enumerated the field or message type that produced it.
  */
 
-import { describe, it, expect } from 'vitest';
-import { Transaction, p2wpkh, p2pkh } from '@scure/btc-signer';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
+import { AddressFormat, encodeAddress } from '@/utils/blockchain/bitcoin/address';
 import { checkOutputPolicy } from '../outputPolicy';
-import { encodeAddress, AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 const OWNER_KEY = hexToBytes('11'.repeat(32));
 const OWNER_PUBKEY = getPublicKey(OWNER_KEY, true);

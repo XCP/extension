@@ -2,13 +2,13 @@
  * Tests for OP_RETURN extraction, ARC4 decryption, and Counterparty data decoding
  */
 
-import { describe, it, expect } from 'vitest';
-import { extractOpReturnPayload, decryptOpReturnData } from '../unpack/opReturn';
+import { describe, expect, it } from 'vitest';
 import {
-  hasCounterpartyPrefix,
   COUNTERPARTY_PREFIX_HEX,
+  hasCounterpartyPrefix,
 } from '../transaction';
-import { arc4, hexToBytes, bytesToHex } from '../unpack/binary';
+import { arc4, bytesToHex, hexToBytes } from '../unpack/binary';
+import { decryptOpReturnData, extractOpReturnPayload } from '../unpack/opReturn';
 
 // ── ARC4 cipher ──────────────────────────────────────────────────────
 

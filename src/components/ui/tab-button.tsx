@@ -1,4 +1,4 @@
-import { type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
 interface TabButtonProps {
   children: ReactNode;

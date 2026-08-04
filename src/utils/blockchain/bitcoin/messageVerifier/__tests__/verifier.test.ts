@@ -2,8 +2,8 @@
  * Test the clean architecture verifier
  */
 
-import { describe, it, expect } from 'vitest';
-import { verifyMessage, isSpecCompliant, getVerificationReport } from '../verifier';
+import { describe, expect, it } from 'vitest';
+import { getVerificationReport, isSpecCompliant, verifyMessage } from '../verifier';
 
 describe('Clean Architecture Verifier', () => {
   // FreeWallet signature - we know this works with bitcoinjs-message

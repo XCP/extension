@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import {
-  ApprovalExpired, ApprovalSiteBar, ApprovalFooter,
+  ApprovalExpired, ApprovalFooter,ApprovalSiteBar, 
 } from './approval-chrome';
 
 vi.mock('@/components/icons', () => ({

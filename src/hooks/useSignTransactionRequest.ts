@@ -9,29 +9,29 @@
  * - Cleaning up storage
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { signTransactionRequestStorage, type SignTransactionRequest } from '@/utils/storage/signTransactionRequestStorage';
-import { recordSignOutcome } from '@/utils/provider/signFlow';
-import {
-  decodeCounterpartyMessage,
-  fetchInputValues,
-  type CounterpartyMessage
-} from '@/utils/blockchain/counterparty/transaction';
-import { extractCounterpartyPayload } from '@/utils/blockchain/counterparty/unpack/opReturn';
 import { parseRawTransactionLocally } from '@/utils/blockchain/bitcoin/localTransactionParse';
 import {
-  verifyProviderTransaction,
-  type ProviderVerificationResult
-} from '@/utils/blockchain/counterparty/unpack';
+  fetchInputsAttachedAssets,
+  type InputAttachedAssets,
+} from '@/utils/blockchain/counterparty/inputAssets';
+import {
+  type CounterpartyMessage, 
+  decodeCounterpartyMessage,
+  fetchInputValues
+} from '@/utils/blockchain/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
 } from '@/utils/blockchain/counterparty/transactionSafety';
 import {
-  fetchInputsAttachedAssets,
-  type InputAttachedAssets,
-} from '@/utils/blockchain/counterparty/inputAssets';
+  type ProviderVerificationResult, 
+  verifyProviderTransaction
+} from '@/utils/blockchain/counterparty/unpack';
+import { extractCounterpartyPayload } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { recordSignOutcome } from '@/utils/provider/signFlow';
+import { type SignTransactionRequest, signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
 
 /**
  * Decoded transaction details

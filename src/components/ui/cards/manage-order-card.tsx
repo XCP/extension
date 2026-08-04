@@ -1,9 +1,9 @@
-import { type ReactElement, type KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { formatAmount } from "@/utils/format";
-import { getTradingPair, getOrderBaseAmount, isBuyOrder } from "@/utils/trading-pair";
 import type { Order } from "@/utils/blockchain/counterparty/api";
+import { formatAmount } from "@/utils/format";
+import { getOrderBaseAmount, getTradingPair, isBuyOrder } from "@/utils/trading-pair";
 
 interface ManageOrderCardProps {
   order: Order;

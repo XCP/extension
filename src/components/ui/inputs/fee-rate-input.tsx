@@ -1,16 +1,16 @@
-import { useState, useEffect, useRef, type ReactElement } from "react";
 import {
-  Field,
-  Label,
   Description,
+  Field,
   Input,
+  Label,
   Listbox,
   ListboxButton,
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { useFeeRates, type FeeRateOption } from "@/hooks/useFeeRates";
+import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
 import { formatAmount } from "@/utils/format";
 import { validateFeeRate } from "@/utils/validation/fee";
 

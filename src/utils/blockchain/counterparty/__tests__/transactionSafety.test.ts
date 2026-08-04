@@ -2,10 +2,10 @@
  * Tests for transaction safety analysis
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  analyzeTransactionSafety,
   type AnalyzableOutput,
+  analyzeTransactionSafety,
 } from '../transactionSafety';
 
 const SIGNER = '1MySignerAddressXXXXXXXXXXXXXXabc123';

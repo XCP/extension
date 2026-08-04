@@ -1,17 +1,16 @@
+import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { ActionList } from "@/components/ui/lists/action-list";
+import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/utils/numeric";
-
-import type { ReactElement } from "react";
 
 export default function PoolPositionPage(): ReactElement {
   const { lpAsset } = useParams<{ lpAsset: string }>();

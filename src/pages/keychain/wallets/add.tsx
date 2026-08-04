@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
+import { FaEye, FaPlus, FiDownload, FiShield, FiX, VscKey } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { FaEye, FaPlus, FiDownload, FiX, VscKey, FiShield } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MAX_WALLETS } from "@/utils/wallet/constants";

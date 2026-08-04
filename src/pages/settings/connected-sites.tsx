@@ -1,12 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { FiHelpCircle, FiGlobe, FiRefreshCw } from "@/components/icons";
+import { FiGlobe, FiHelpCircle, FiRefreshCw } from "@/components/icons";
 import { ConnectedSiteCard } from "@/components/ui/cards/connected-site-card";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { getWalletService } from "@/services/walletService";
 import { getProviderService } from "@/services/providerService";
-import type { ReactElement } from "react";
+import { getWalletService } from "@/services/walletService";
 
 /**
  * Constants for navigation paths.

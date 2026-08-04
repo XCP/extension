@@ -13,10 +13,10 @@
  * to double as a parseable legacy struct.
  */
 
-import { describe, it, expect } from 'vitest';
-import { unpackEnhancedSend } from '../messages/enhancedSend';
+import { describe, expect, it } from 'vitest';
 import { unpackAddress } from '../address';
 import { assetIdToName } from '../assetId';
+import { unpackEnhancedSend } from '../messages/enhancedSend';
 
 describe('CBOR-first precedence on an ambiguous enhanced send', () => {
   // A CBOR enhanced send [asset_id, quantity, address, memo], hand-laid so the

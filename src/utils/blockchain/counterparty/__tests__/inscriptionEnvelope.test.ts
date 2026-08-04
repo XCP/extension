@@ -8,8 +8,8 @@
  * are the same assertion core makes about its own output in `check_transaction_sanity`.
  */
 
-import { describe, it, expect } from 'vitest';
 import { hexToBytes } from '@noble/hashes/utils.js';
+import { describe, expect, it } from 'vitest';
 import { verifyInscriptionEnvelope, verifyRevealTransaction } from '../inscriptionEnvelope';
 
 const SOURCE = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';

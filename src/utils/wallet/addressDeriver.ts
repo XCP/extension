@@ -4,16 +4,16 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { utf8ToBytes, bytesToHex } from '@noble/hashes/utils.js';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
+import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 import {
+  type AddressFormat,
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
   getSeedFromMnemonic,
-  type AddressFormat,
 } from '@/utils/blockchain/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/utils/blockchain/bitcoin/privateKey';
-import type { Address, WalletRecord, HardwareWalletSecret } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
   legacy: AddressFormat;

@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { FileUploadInput, CSVUploadInput, InscriptionUploadInput } from './file-upload-input';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CSVUploadInput, FileUploadInput, InscriptionUploadInput } from './file-upload-input';
 
 describe('FileUploadInput', () => {
   const mockOnFileChange = vi.fn();

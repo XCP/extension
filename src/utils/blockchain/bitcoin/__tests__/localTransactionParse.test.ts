@@ -4,7 +4,7 @@
  * showing that a lying decode cannot change what is displayed.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { parseRawTransactionLocally } from '../localTransactionParse';
 
 /**

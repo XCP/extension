@@ -3,15 +3,15 @@
  * Tests multi-destination validation, parsing, and limits
  */
 
-import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validateDestinations,
   areDestinationsComplete,
-  validateDestinationCount,
-  parseMultiLineDestinations,
-  isMPMASupported,
   type Destination,
+  isMPMASupported,
+  parseMultiLineDestinations,
+  validateDestinationCount,
+  validateDestinations,
 } from '../destinations';
 
 // Valid Bitcoin addresses for testing

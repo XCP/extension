@@ -35,21 +35,21 @@
  */
 import {
   createContext,
+  type ReactElement,
+  type ReactNode,
+  use, 
   useCallback,
   useEffect,
   useMemo,
-  useState,
   useRef,
-  type ReactElement,
-  type ReactNode,
-  use
+  useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import { getWalletService } from "@/services/walletService";
+import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
+import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { withStateLock } from "@/utils/wallet/stateLockManager";
-import type { Wallet, Address, SignTransactionOptions } from "@/types/wallet";
 
 /**
  * Authentication state enum.

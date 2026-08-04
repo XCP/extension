@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchBTCBalance, hasAddressActivity, clearBalanceCache } from '@/utils/blockchain/bitcoin/balance';
-import { apiClient } from '@/utils/apiClient';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ApiResponse } from '@/utils/apiClient';
+import { apiClient } from '@/utils/apiClient';
+import { clearBalanceCache, fetchBTCBalance, hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';
 
 vi.mock('@/utils/apiClient', () => ({
   apiClient: {

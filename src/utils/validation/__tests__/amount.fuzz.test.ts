@@ -2,21 +2,22 @@
  * Fuzz tests for amount validation functions
  * Tests amount and quantity validation with random inputs
  */
-import { describe, it, expect } from 'vitest';
-import fc from 'fast-check';
+
 import BigNumber from 'bignumber.js';
-import {
-  validateAmount,
-  validateQuantity,
-  isValidNumber,
-  validateBalance,
-  btcToSatoshis,
-  isDustAmount,
-  DUST_LIMIT,
-  MAX_SATOSHIS,
-  SATOSHIS_PER_BTC
-} from '@/utils/validation/amount';
+import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { fromSatoshis } from '@/utils/numeric';
+import {
+  btcToSatoshis,
+  DUST_LIMIT,
+  isDustAmount,
+  isValidNumber,
+  MAX_SATOSHIS,
+  SATOSHIS_PER_BTC, 
+  validateAmount,
+  validateBalance,
+  validateQuantity
+} from '@/utils/validation/amount';
 
 describe('Amount Validation Fuzz Tests', () => {
   describe('validateAmount', () => {

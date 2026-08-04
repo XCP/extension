@@ -1,8 +1,8 @@
 /**
  * Unit tests for ApprovalQueue - tests the actual exported module
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { approvalQueue, getApprovalBadgeText, ApprovalQueueFullError, type ApprovalRequest } from '../approvalQueue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApprovalQueueFullError, approvalQueue, getApprovalBadgeText } from '../approvalQueue';
 
 describe('ApprovalQueue', () => {
   beforeEach(() => {

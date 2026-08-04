@@ -2,13 +2,12 @@
  * Utility functions for message verification
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
-import type { AddressType } from '@/utils/blockchain/bitcoin/messageVerifier/types';
-import { recoverPublicKeyFromSignature } from '@/utils/blockchain/bitcoin/messageVerifier/secp-recovery';
-
+import { sha256 } from '@noble/hashes/sha2.js';
 // Initialize secp256k1
 import { hashes } from '@noble/secp256k1';
+import { recoverPublicKeyFromSignature } from '@/utils/blockchain/bitcoin/messageVerifier/secp-recovery';
+import type { AddressType } from '@/utils/blockchain/bitcoin/messageVerifier/types';
 
 if (!hashes.hmacSha256) {
   hashes.hmacSha256 = (key, msg) => new Uint8Array(hmac(sha256, key, msg));
@@ -196,7 +195,7 @@ export function detectAndNormalizeSignature(signature: string): {
         normalized: base64,
         valid: true
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         format: 'hex',
         normalized: trimmed,
@@ -218,7 +217,7 @@ export function detectAndNormalizeSignature(signature: string): {
       normalized,
       valid: true
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       format: 'unknown',
       normalized: trimmed,
@@ -269,7 +268,7 @@ export function validateSignatureFormat(signature: string): {
       } else {
         issues.push(`Invalid signature length: ${length} bytes (expected 65)`);
       }
-    } catch (error) {
+    } catch (_error) {
       issues.push('Failed to decode signature');
     }
   }

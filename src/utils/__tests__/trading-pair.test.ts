@@ -1,12 +1,12 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
+  getMatchPricePerUnit,
+  getOrderBaseAmount,
+  getOrderPricePerUnit,
+  getOrderQuoteAmount,
   getTradingPair,
   isBuyOrder,
   isQuoteAsset,
-  getOrderPricePerUnit,
-  getOrderBaseAmount,
-  getOrderQuoteAmount,
-  getMatchPricePerUnit,
 } from '../trading-pair';
 
 describe('trading-pair utilities', () => {

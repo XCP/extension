@@ -1,16 +1,15 @@
-import { useState, useCallback } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { FaCopy, FaCheck, FaLock, FaCheckCircle, FiRefreshCw } from "@/components/icons";
+import { FaCheck, FaCheckCircle, FaLock, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { signMessage, getSigningCapabilities } from "@/utils/blockchain/bitcoin/messageSigner";
-import { analytics } from "@/utils/fathom";
-import type { ReactElement } from "react";
 import type { AddressFormat } from "@/utils/blockchain/bitcoin/address";
-import { useEffect } from "react";
+import { getSigningCapabilities, signMessage } from "@/utils/blockchain/bitcoin/messageSigner";
+import { analytics } from "@/utils/fathom";
 
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -153,7 +152,7 @@ export default function SignMessagePage(): ReactElement {
         setCopiedField(field);
         setTimeout(() => setCopiedField(null), 1500);
       }
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to perform action");
     }
   };

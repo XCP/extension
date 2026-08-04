@@ -8,18 +8,18 @@
  * - Provider event emission for dApp integration
  */
 
-import { defineProxyService } from '@/utils/proxy';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { walletManager } from '@/utils/wallet/walletManager';
+import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
 import { registerSessionExpiredHandler } from '@/utils/auth/sessionManager';
+import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import {
-  consolidateBareMultisigBatch,
   type ConsolidationResult as BatchConsolidationResult,
+  consolidateBareMultisigBatch,
 } from '@/utils/blockchain/bitcoin/consolidateBatch';
 import type { ConsolidationData } from '@/utils/blockchain/bitcoin/consolidationApi';
-import type { Wallet, Address, PairedAddresses, SignTransactionOptions } from '@/types/wallet';
+import { defineProxyService } from '@/utils/proxy';
+import { walletManager } from '@/utils/wallet/walletManager';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
@@ -295,4 +295,4 @@ function getWalletService(): WalletService {
   return getWalletServiceRaw();
 }
 
-export { registerWalletService, getWalletService };
+export { getWalletService, registerWalletService };

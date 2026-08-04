@@ -1,4 +1,4 @@
-import { type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { ActionCard } from "@/components/ui/cards/action-card";
 
 /**

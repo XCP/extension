@@ -2,8 +2,9 @@
  * Fuzz tests for Memo Input validation
  * Tests hex vs text detection, length validation, and encoding edge cases
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 
 // Helper functions for memo validation
 const isHexMemo = (value: string): boolean => {

@@ -4,14 +4,13 @@
  * No dependency on btc-signer's transaction handling
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
-import { hex, base64 } from '@scure/base';
+import { sha256 } from '@noble/hashes/sha2.js';
 import * as secp256k1 from '@noble/secp256k1';
-import * as btc from '@scure/btc-signer';
-
 // Required initialization for @noble/secp256k1 v3
 import { hashes } from '@noble/secp256k1';
+import { base64, hex } from '@scure/base';
+import * as btc from '@scure/btc-signer';
 
 // Ensure secp256k1 hashes are properly initialized
 if (!hashes.sha256) {
@@ -812,8 +811,7 @@ function parseDERSignature(der: Uint8Array): Uint8Array | null {
 }
 
 // Compatibility exports
-export { serializeToSpend as createToSpendTransaction };
-export { serializeToSignUnsigned as createToSignTransaction };
+export { serializeToSignUnsigned as createToSignTransaction, serializeToSpend as createToSpendTransaction };
 
 
 // Simple verification (just delegates to main)

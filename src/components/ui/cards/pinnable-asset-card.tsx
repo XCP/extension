@@ -1,7 +1,6 @@
-import { type ReactElement } from "react";
-import { TbPinned, TbPinnedFilled } from "@/components/icons";
-import { FiChevronUp, FiChevronDown } from "@/components/icons";
+import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { FiChevronDown, FiChevronUp, TbPinned, TbPinnedFilled } from "@/components/icons";
 
 /**
  * Props interface for the PinnableAssetCard component

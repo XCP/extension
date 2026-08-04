@@ -1,11 +1,11 @@
 import './setup'; // Must be first to setup browser mocks
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { createProviderService } from '../providerService';
 import { approvalQueue } from '@/utils/provider/approvalQueue';
 import { requestCleanup } from '@/utils/provider/requestCleanup';
-import { walletManager } from '@/utils/wallet/walletManager';
 import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { createProviderService } from '../providerService';
 
 // Mock dependencies
 vi.mock('webext-bridge/background', () => ({
@@ -38,7 +38,7 @@ vi.mock('@/utils/security/cspValidation', () => ({
 
 
 describe('Provider Service Lifecycle Tests', () => {
-  let providerService: ReturnType<typeof createProviderService>;
+  let _providerService: ReturnType<typeof createProviderService>;
   beforeEach(() => {
     vi.clearAllMocks();
     fakeBrowser.reset();
@@ -75,7 +75,7 @@ describe('Provider Service Lifecycle Tests', () => {
       pinnedAssets: [], // Clear pinned assets for testing
     } as any);
     
-    providerService = createProviderService();
+    _providerService = createProviderService();
     // Store reference for potential future use in tests
   });
 

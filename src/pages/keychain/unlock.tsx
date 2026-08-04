@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Button } from "@/components/ui/button";
 import { FiHelpCircle } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";

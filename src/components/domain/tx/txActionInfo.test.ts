@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { getTxActionInfo, normalizeQuantity, isAssetDivisible } from './txActionInfo';
+import { describe, expect, it } from 'vitest';
+import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from './txActionInfo';
 
 // Minimal localUnpack source both approval screens pass in.
 const fromUnpack = (messageType: string, data: Record<string, unknown>) => ({

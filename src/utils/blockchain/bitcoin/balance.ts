@@ -1,6 +1,6 @@
-import { toSatoshis } from '@/utils/numeric';
-import { KeyedTTLCache, CacheTTL, cachedFetch } from '@/utils/cache';
 import { apiClient } from '@/utils/apiClient';
+import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/utils/cache';
+import { toSatoshis } from '@/utils/numeric';
 
 // Balance can change with each block but short cache prevents API spam
 const balanceCache = new KeyedTTLCache<string, number>(CacheTTL.MEDIUM);

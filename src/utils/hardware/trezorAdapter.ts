@@ -62,24 +62,24 @@
  * - No trust in extension: Compromised extension cannot sign without device
  */
 
-import TrezorConnect, { DEVICE_EVENT, DEVICE } from '@trezor/connect-webextension';
+import TrezorConnect, { DEVICE, DEVICE_EVENT } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
+import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import type { IHardwareWalletAdapter } from '@/utils/hardware/interface';
 import {
-  type HardwareDeviceInfo,
+  DerivationPaths,
   type HardwareAddress,
-  type HardwareSignRequest,
-  type HardwareSignResult,
+  type HardwareConnectionStatus,
+  type HardwareDeviceInfo,
   type HardwareMessageSignRequest,
   type HardwareMessageSignResult,
-  type HardwareConnectionStatus,
-  HardwareWalletError,
-  DerivationPaths,
   type HardwarePsbtSignRequest,
+  type HardwareSignRequest,
+  type HardwareSignResult,
+  HardwareWalletError,
   type InputScriptType,
   type OutputScriptType,
 } from '@/utils/hardware/types';
-import { extractPsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import { getActiveSettings } from '@/utils/settings';
 
 // ============================================================================
@@ -208,7 +208,7 @@ function getInputScriptType(addressFormat: AddressFormat): InputScriptType {
 /**
  * Get output script type for address format
  */
-function getOutputScriptType(addressFormat: AddressFormat): OutputScriptType {
+function _getOutputScriptType(addressFormat: AddressFormat): OutputScriptType {
   switch (addressFormat) {
     case AddressFormat.P2PKH:
     case AddressFormat.Counterwallet:

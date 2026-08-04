@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 
 /**
  * Props for the AssetIcon component.

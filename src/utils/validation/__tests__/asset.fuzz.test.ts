@@ -2,14 +2,15 @@
  * Fuzz tests for asset validation functions
  * Tests REAL validation logic with no mocks
  */
-import { describe, it, expect } from 'vitest';
+
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
+  isNamedAsset, 
+  isNumericAsset,
   validateAssetName,
   validateParentAsset,
-  validateSubasset,
-  isNumericAsset,
-  isNamedAsset
+  validateSubasset
 } from '../asset';
 
 describe('Asset Validation Fuzz Tests', () => {

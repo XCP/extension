@@ -1,23 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import * as fc from 'fast-check';
 import { BigNumber } from 'bignumber.js';
+import * as fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  toBigNumber,
-  isValidPositiveNumber,
-  roundDownToMultiple,
-  toSatoshis,
-  fromSatoshis,
-  subtractSatoshis,
-  divideSatoshis,
-  isLessThanSatoshis,
-  isLessThanOrEqualToSatoshis,
-  multiply,
-  subtract,
   divide,
-  roundUp,
-  roundDown,
+  divideSatoshis,
+  fromSatoshis,
+  isLessThanOrEqualToSatoshis,
   isLessThanOrEqualToZero,
+  isLessThanSatoshis,
+  isValidPositiveNumber,
+  multiply,
+  roundDown,
+  roundDownToMultiple,
+  roundUp,
+  subtract,
+  subtractSatoshis,
+  toBigNumber,
   toNumber,
+  toSatoshis,
 } from '../numeric';
 
 describe('Numeric Utilities Fuzz Tests', () => {

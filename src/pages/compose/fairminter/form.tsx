@@ -1,30 +1,30 @@
-import { useEffect, useState } from "react";
-import { useFormStatus } from "react-dom";
-import { Collapsible } from "@/components/ui/collapsible";
 import {
+  Description,
   Field,
   Label,
-  Description,
-  Textarea,
   Listbox,
   ListboxButton,
   ListboxOption,
   ListboxOptions,
+  Textarea,
 } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
-import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
-import { TextField } from "@/components/ui/inputs/text-field";
-import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
-import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { Collapsible } from "@/components/ui/collapsible";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { ErrorAlert } from "@/components/ui/error-alert";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",

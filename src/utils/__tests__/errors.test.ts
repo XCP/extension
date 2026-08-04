@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  ProviderError,
   classifyProviderError,
-  PROVIDER_ERROR_CODES,
   JSON_RPC_ERROR_CODES,
+  PROVIDER_ERROR_CODES,
+  ProviderError,
 } from '@/utils/errors';
 
 describe('ProviderError', () => {

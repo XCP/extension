@@ -3,8 +3,8 @@
  * stays with the caller so the unlock path can use the off-thread worker.
  */
 
-import { encryptJsonWithKey, decryptJsonWithKey } from '@/utils/encryption/encryption';
 import type { Keychain, KeychainRecord } from '@/types/wallet';
+import { decryptJsonWithKey, encryptJsonWithKey } from '@/utils/encryption/encryption';
 
 /** Keychain blob schema version. */
 export const KEYCHAIN_VERSION = 1;

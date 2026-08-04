@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function useInView(options?: IntersectionObserverInit) {
   const [inView, setInView] = useState(false);

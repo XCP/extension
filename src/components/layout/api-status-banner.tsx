@@ -1,4 +1,4 @@
-import { type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { FaTimes } from '@/components/icons';
 import { useApiStatus } from '@/contexts/api-status-context';
 

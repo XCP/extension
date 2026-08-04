@@ -21,19 +21,19 @@
  */
 import {
   createContext,
+  type ReactElement,
+  type ReactNode,
+  use,
   useCallback,
   useEffect,
   useMemo,
-  use,
   useState,
-  type ReactElement,
-  type ReactNode,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
-import { DEFAULT_SETTINGS, type AppSettings } from "@/utils/settings";
 import { getWalletService } from "@/services/walletService";
-import { withStateLock } from "@/utils/wallet/stateLockManager";
 import { analytics } from "@/utils/fathom";
+import { type AppSettings, DEFAULT_SETTINGS } from "@/utils/settings";
+import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
  * Public API for settings management.

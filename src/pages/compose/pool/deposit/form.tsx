@@ -1,7 +1,8 @@
-import { useMemo, useState, type ReactElement } from "react";
+import { Description, Field } from "@headlessui/react";
+import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Description } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
@@ -12,6 +13,9 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
+import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
+import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
+import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
@@ -27,11 +31,7 @@ import {
   roundDown,
   toSatoshis,
 } from "@/utils/numeric";
-import { FaCog } from "@/components/icons";
-import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
-import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
-import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;

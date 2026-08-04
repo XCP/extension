@@ -1,20 +1,20 @@
 /**
  * Unit tests for fee validation functions
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  validateFeeRate,
   calculateTransactionFee,
-  validateFeeWithBalance,
-  estimateFeeRate,
-  validateCPFPFee,
-  isReasonableFeeRate,
-  MIN_FEE_RATE,
-  MAX_FEE_RATE,
   DEFAULT_FEE_RATE,
+  estimateFeeRate,
+  isReasonableFeeRate,
+  MAX_FEE_RATE,
+  MIN_FEE_RATE,
+  TRANSACTION_OVERHEAD, 
   TYPICAL_INPUT_SIZE,
   TYPICAL_OUTPUT_SIZE,
-  TRANSACTION_OVERHEAD
+  validateCPFPFee,
+  validateFeeRate,
+  validateFeeWithBalance
 } from '../fee';
 
 describe('validateFeeRate', () => {

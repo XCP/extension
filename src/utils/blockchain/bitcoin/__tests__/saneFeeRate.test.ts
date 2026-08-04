@@ -7,7 +7,7 @@
  * small the transaction was — roughly 1,500x a sane rate on an ordinary send.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { exceedsSaneFeeRate, HIGH_FEE_RATE_WARNING } from '../feeVerification';
 
 describe('exceedsSaneFeeRate', () => {

@@ -1,13 +1,13 @@
+import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { FaLock } from "@/components/icons";
+import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
-import { useWallet } from "@/contexts/wallet-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { ReactElement } from "react";
-import type { ActionSection } from "@/components/ui/lists/action-list";
 
 /**
  * Constants for navigation paths.

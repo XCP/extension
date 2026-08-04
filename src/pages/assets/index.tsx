@@ -1,15 +1,13 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router";
-import { FaSearch } from "@/components/icons";
-import { FiHelpCircle } from "@/components/icons";
-import { TbPinned, TbPinnedFilled } from "@/components/icons";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { FaSearch, FiHelpCircle, TbPinned, TbPinnedFilled } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { ReactElement } from "react";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 
 /**
  * Interface for an asset object returned from the search API.

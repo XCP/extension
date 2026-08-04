@@ -1,15 +1,15 @@
+import { Description, Field, Label, Textarea } from "@headlessui/react";
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
-import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
+import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 
 /**
  * Props for the BroadcastForm component, aligned with Composer's formAction.
@@ -90,7 +90,7 @@ export function BroadcastForm({
               formData.set("inscription", "true");
               formData.set("mime_type", selectedFile.type || "application/octet-stream");
               formData.set("encoding", "taproot");
-            } catch (error) {
+            } catch (_error) {
               setFileError("Failed to process file");
               return;
             }

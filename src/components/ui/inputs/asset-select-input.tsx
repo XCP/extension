@@ -1,13 +1,12 @@
-import { useState, useEffect, type ReactElement } from "react";
 import {
   Combobox,
-  ComboboxInput,
   ComboboxButton,
-  ComboboxOptions,
+  ComboboxInput,
   ComboboxOption,
+  ComboboxOptions,
 } from "@headlessui/react";
-import { FiChevronDown, FaCheck } from "@/components/icons";
-import { FaSpinner } from "@/components/icons";
+import { type ReactElement, useEffect, useState } from "react";
+import { FaCheck, FaSpinner, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 
 interface Asset {

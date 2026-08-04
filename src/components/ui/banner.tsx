@@ -1,5 +1,5 @@
-import { memo, type ComponentType, type ReactNode } from 'react';
-import { FiAlertTriangle, FiShieldOff, FiInfo, FaCheckCircle } from '@/components/icons';
+import { type ComponentType, memo, type ReactNode } from 'react';
+import { FaCheckCircle, FiAlertTriangle, FiInfo, FiShieldOff } from '@/components/icons';
 
 export type BannerSeverity = 'danger' | 'warning' | 'info' | 'success';
 

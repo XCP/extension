@@ -1,11 +1,11 @@
 /**
  * Unit tests for rate limiter - tests the actual exported instances
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  apiRateLimiter, 
   connectionRateLimiter,
-  transactionRateLimiter,
-  apiRateLimiter
+  transactionRateLimiter
 } from '../rateLimiter';
 
 describe('RateLimiter', () => {

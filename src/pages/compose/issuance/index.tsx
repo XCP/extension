@@ -1,9 +1,9 @@
 import { useParams } from 'react-router';
+import { Composer } from "@/components/composer/composer";
 import { IssuanceForm } from "@/pages/compose/issuance/form";
 import { ReviewIssuance } from "@/pages/compose/issuance/review";
-import { Composer } from "@/components/composer/composer";
-import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeIssuancePage() {
   const { asset } = useParams<{ asset?: string }>();

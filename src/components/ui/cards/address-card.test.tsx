@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
 import { RadioGroup } from '@headlessui/react';
-import { AddressCard } from './address-card';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Address } from '@/types/wallet';
+import { AddressCard } from './address-card';
 
 // Mock the format utils
 vi.mock('@/utils/format', () => ({

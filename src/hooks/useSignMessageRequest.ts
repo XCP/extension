@@ -8,10 +8,10 @@
  * - Cleaning up storage
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { signMessageRequestStorage, type SignMessageRequest } from '@/utils/storage/signMessageRequestStorage';
 import { recordSignOutcome } from '@/utils/provider/signFlow';
+import { type SignMessageRequest, signMessageRequestStorage } from '@/utils/storage/signMessageRequestStorage';
 
 /**
  * Send an event to the background script's EventEmitterService.

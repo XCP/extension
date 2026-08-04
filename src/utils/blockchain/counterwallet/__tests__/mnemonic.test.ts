@@ -1,8 +1,8 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
-  isValidCounterwalletMnemonic,
   CounterwalletMnemonic,
   getCounterwalletSeed,
+  isValidCounterwalletMnemonic,
 } from '../mnemonic';
 
 // Mock @noble/hashes/utils

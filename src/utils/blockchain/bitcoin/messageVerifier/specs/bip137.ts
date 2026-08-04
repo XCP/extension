@@ -16,10 +16,10 @@
  * - 39-42: P2WPKH (native SegWit)
  */
 
-import * as btc from '@scure/btc-signer';
 import { base64 } from '@scure/base';
+import * as btc from '@scure/btc-signer';
 import type { VerificationResult } from '@/utils/blockchain/bitcoin/messageVerifier/types';
-import { hashMessage, recoverPublicKey, parseSignatureFlag, getAddressType } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
+import { getAddressType, hashMessage, parseSignatureFlag, recoverPublicKey } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
 
 /**
  * Verify a BIP-137 signature according to the specification

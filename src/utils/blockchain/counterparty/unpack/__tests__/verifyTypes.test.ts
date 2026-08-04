@@ -5,9 +5,9 @@
  * message encodings match counterparty-core; the params use the Counterparty
  * API field names that normalizeFormData produces.
  */
-import { describe, it, expect } from 'vitest';
-import { verifyTransaction } from '../verify';
+import { describe, expect, it } from 'vitest';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
+import { verifyTransaction } from '../verify';
 
 const PREFIX = COUNTERPARTY_PREFIX_HEX;
 const u64 = (n: bigint) => n.toString(16).padStart(16, '0');

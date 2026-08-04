@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { FiHelpCircle, FiShield } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
-import { FiHelpCircle, FiShield } from "@/components/icons";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { ReactElement } from "react";
 
 export default function ConnectHardware(): ReactElement {
   const navigate = useNavigate();

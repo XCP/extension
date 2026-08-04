@@ -3,8 +3,8 @@
  * Uses @scure/base for proper base58 and bech32 validation
  */
 
-import { createBase58check, bech32, bech32m } from '@scure/base';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { bech32, bech32m, createBase58check } from '@scure/base';
 
 const base58check = createBase58check(sha256);
 
@@ -51,7 +51,7 @@ function validateBase58Address(address: string): AddressValidationResult {
     }
     
     return { isValid: false, error: 'Unknown address version' };
-  } catch (error) {
+  } catch (_error) {
     return { isValid: false, error: 'Invalid base58 encoding or checksum' };
   }
 }
@@ -157,7 +157,7 @@ function validateBech32Address(address: string): AddressValidationResult {
     }
     
     return { isValid: false, error: 'Invalid witness version' };
-  } catch (error) {
+  } catch (_error) {
     return { isValid: false, error: 'Invalid bech32 address' };
   }
 }

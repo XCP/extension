@@ -1,6 +1,7 @@
+import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useParams, useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { Banner } from "@/components/ui/banner";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -8,7 +9,6 @@ import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
-import type { ReactElement } from "react";
 
 const PATHS = {
   BACK: "/keychain/wallets",

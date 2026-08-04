@@ -1,15 +1,15 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
-import { FaExternalLinkAlt, FaChevronLeft } from "@/components/icons";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import { FaChevronLeft, FaExternalLinkAlt } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { fetchTransaction, type Transaction } from "@/utils/blockchain/counterparty/api";
-import { formatDate, formatAmount, formatTimeAgo } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 import { getMessageHandler } from "@/pages/transactions/_messages";
-import type { ReactElement } from "react";
+import { fetchTransaction, type Transaction } from "@/utils/blockchain/counterparty/api";
+import { formatAmount, formatDate, formatTimeAgo } from "@/utils/format";
+import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * ViewTransaction component displays the details of a specific transaction.

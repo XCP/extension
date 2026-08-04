@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import { HardwareWalletError } from '../types';
 
@@ -62,7 +62,7 @@ vi.mock('@/utils/blockchain/bitcoin/psbt', () => ({
 }));
 
 // Import after mocking
-import { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from '../trezorAdapter';
+import { getTrezorAdapter, resetTrezorAdapter, TrezorAdapter } from '../trezorAdapter';
 
 describe('TrezorAdapter', () => {
   let adapter: TrezorAdapter;

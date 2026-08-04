@@ -6,9 +6,9 @@
  * the wallet context finished loading.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 const approvalMocks = vi.hoisted(() => ({
@@ -62,9 +62,9 @@ vi.mock('react-router', async () => {
   };
 });
 
+import { useWallet } from '@/contexts/wallet-context';
 // Now import the component and mocked dependencies
 import ApproveConnection from '../approve';
-import { useWallet } from '@/contexts/wallet-context';
 
 // Type for our mock wallet context
 interface MockWalletContext {

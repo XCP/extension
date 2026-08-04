@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, type ReactElement } from "react";
-import { Field, Label, Description, Input } from "@headlessui/react";
-import { FiPlus, FiMinus } from "@/components/icons";
-import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
-import { validateDestinations, parseMultiLineDestinations, isMPMASupported, type Destination } from "@/utils/validation/destinations";
-import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
+import { Description, Field, Input, Label } from "@headlessui/react";
+import { type ReactElement, useEffect, useRef, useState } from "react";
+import { FiMinus, FiPlus } from "@/components/icons";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
+import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
+import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
+import { type Destination, isMPMASupported, parseMultiLineDestinations, validateDestinations } from "@/utils/validation/destinations";
 
 interface DestinationsInputProps {
   destinations: Destination[];
@@ -119,7 +119,7 @@ export function DestinationsInput({
             } else {
               resolvedLines.push(line); // Keep original if can't resolve
             }
-          } catch (error) {
+          } catch (_error) {
             resolvedLines.push(line); // Keep original on error
           }
         } else {

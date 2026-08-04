@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FaCheck, FaClipboard, FaList } from "@/components/icons";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,6 @@ import { QRCode } from "@/components/ui/qr-code";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { ReactElement } from "react";
 
 /**
  * Constants for navigation paths.

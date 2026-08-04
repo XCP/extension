@@ -1,8 +1,8 @@
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { MoneyMovementView } from './money-movement-view';
 import type { MoneyMovement } from './money-movement';
+import { MoneyMovementView } from './money-movement-view';
 
 const movement = (over: Partial<MoneyMovement>): MoneyMovement => ({
   spent: 0, backToYou: 0, atRisk: 0, external: [], fee: 0, net: 0, incomplete: false, ...over,

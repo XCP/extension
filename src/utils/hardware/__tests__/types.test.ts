@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { DerivationPaths, HardwareWalletError } from '../types';
+import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { DerivationPaths, HardwareWalletError } from '../types';
 
 describe('DerivationPaths', () => {
   describe('HARDENED constant', () => {

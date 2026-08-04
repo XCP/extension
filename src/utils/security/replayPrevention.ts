@@ -327,7 +327,7 @@ export async function checkReplayAttempt(
     const recentThreshold = 5 * 60 * 1000; // 5 minutes
     const now = Date.now();
     
-    for (const [txid, record] of store['transactions'].entries()) {
+    for (const [_txid, record] of store['transactions'].entries()) {
       if (
         record.origin === origin &&
         record.method === method &&
@@ -448,7 +448,7 @@ export function getTransactionStats(): {
 } {
   const transactions = Array.from(store['transactions'].values());
   const now = Date.now();
-  const hourAgo = now - (60 * 60 * 1000);
+  const _hourAgo = now - (60 * 60 * 1000);
   
   return {
     total: transactions.length,

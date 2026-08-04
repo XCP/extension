@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { ApprovalSummaryCard } from './approval-summary-card';
 import type { MoneyMovement } from './money-movement';

@@ -5,9 +5,9 @@
  */
 
 import { createContext, use } from "react";
-import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 import type { useSettings } from "@/contexts/settings-context";
 import type { useWallet } from "@/contexts/wallet-context";
+import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
 
 export interface DecodedMessage {
   messageType: string;

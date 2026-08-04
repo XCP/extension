@@ -1,14 +1,14 @@
 import {
   createContext,
+  type ReactElement,
+  type ReactNode,
+  use,
   useCallback,
   useMemo,
   useReducer,
-  use,
-  type ReactElement,
-  type ReactNode,
 } from "react";
-import { formatAddress } from "@/utils/format";
 import type { AssetInfo, TokenBalance } from "@/utils/blockchain/counterparty/api";
+import { formatAddress } from "@/utils/format";
 
 /**
  * Props for a button in the header.

@@ -12,9 +12,9 @@
  * valid pubkeys.
  */
 
-import { Transaction, SigHash } from '@scure/btc-signer';
-import { signECDSA } from '@scure/btc-signer/utils.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { SigHash, type Transaction } from '@scure/btc-signer';
+import { signECDSA } from '@scure/btc-signer/utils.js';
 
 export interface ParsedBareMultisig {
   requiredSignatures: number;

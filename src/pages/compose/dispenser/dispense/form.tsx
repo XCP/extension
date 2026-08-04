@@ -1,4 +1,5 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { ErrorAlert } from "@/components/ui/error-alert";
@@ -6,19 +7,16 @@ import { AddressHeader } from "@/components/ui/headers/address-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
 import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
+import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
 import { formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
-import {
-  subtract,
-  divide,
-  roundDown,
+import { 
+  divide,fromSatoshis, 
   isLessThanOrEqualToZero,
-  toNumber
-} from "@/utils/numeric";
-import type { ReactElement } from "react";
+  roundDown,
+  subtract,
+  toNumber} from "@/utils/numeric";
 
 // ============================================================================
 // Types & Interfaces

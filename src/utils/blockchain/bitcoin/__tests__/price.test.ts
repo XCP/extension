@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ApiResponse } from '@/utils/apiClient';
+import { apiClient } from '@/utils/apiClient';
 import {
   fetchFromCoinbase,
   fetchFromKraken,
@@ -6,8 +8,6 @@ import {
   getBtcPrice,
   type PriceData
 } from '@/utils/blockchain/bitcoin/price';
-import { apiClient } from '@/utils/apiClient';
-import type { ApiResponse } from '@/utils/apiClient';
 
 vi.mock('@/utils/apiClient');
 

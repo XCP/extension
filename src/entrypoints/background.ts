@@ -1,19 +1,19 @@
-import { registerWalletService, getWalletService } from '@/services/walletService';
-import { registerProviderService, getProviderService } from '@/services/providerService';
-import { registerConnectionService } from '@/services/connectionService';
-import { registerApprovalService } from '@/services/approvalService';
-import { eventEmitterService } from '@/services/eventEmitterService';
-import { ServiceRegistry } from '@/services/core/ServiceRegistry';
-import { MessageBus, type ProviderMessage, type ApprovalMessage, type EventMessage } from '@/services/core/MessageBus';
-import { checkSessionRecovery, SessionRecoveryState, rearmSessionExpiry } from '@/utils/auth/sessionManager';
-import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
-import { JSON_RPC_ERROR_CODES, createJsonRpcError, classifyProviderError } from '@/utils/errors';
-import { broadcastToTabs } from '@/utils/browser';
-import { getUpdateService } from '@/services/updateService';
-import { getPopupMonitorService } from '@/services/popupMonitorService';
-import { requestCleanup } from '@/utils/provider/requestCleanup';
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
+import { registerApprovalService } from '@/services/approvalService';
+import { registerConnectionService } from '@/services/connectionService';
+import { MessageBus, } from '@/services/core/MessageBus';
+import { ServiceRegistry } from '@/services/core/ServiceRegistry';
+import { eventEmitterService } from '@/services/eventEmitterService';
+import { getPopupMonitorService } from '@/services/popupMonitorService';
+import { getProviderService, registerProviderService } from '@/services/providerService';
+import { getUpdateService } from '@/services/updateService';
+import { getWalletService, registerWalletService } from '@/services/walletService';
+import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/utils/auth/sessionManager';
+import { broadcastToTabs } from '@/utils/browser';
+import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/utils/errors';
+import { requestCleanup } from '@/utils/provider/requestCleanup';
+import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
 
 // Track which tabs have content scripts ready
 const readyTabs = new Set<number>();

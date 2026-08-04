@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
-  getSessionMetadata,
-  setSessionMetadata,
   clearSessionMetadata,
+  getSessionMetadata,
   type SessionMetadata,
+  setSessionMetadata,
 } from '../sessionMetadataStorage';
 
 describe('sessionMetadataStorage.ts', () => {

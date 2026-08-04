@@ -15,13 +15,13 @@
  * The emulator uses a standard test seed: "all all all all all all all all all all all all"
  * This generates deterministic addresses we can verify against.
  */
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 
 // Port configuration matching Trezor's official test setup
 // Reference: https://github.com/trezor/connect/blob/develop/.github/workflows/test_with_trezor-user-env.yml
-const EMULATOR_BRIDGE_URL = 'http://localhost:21325';
-const EMULATOR_WS_URL = 'ws://localhost:21326';
+const _EMULATOR_BRIDGE_URL = 'http://localhost:21325';
+const _EMULATOR_WS_URL = 'ws://localhost:21326';
 const EMULATOR_CONTROL_URL = 'http://localhost:9001';
 
 /**

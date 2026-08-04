@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { signTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Address, Wallet } from '@/types/wallet';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
-import type { Wallet, Address } from '@/types/wallet';
+import { signTransaction } from '@/utils/blockchain/bitcoin/transactionSigner';
 
 // Import the functions we're mocking
-import { fetchUTXOs, getUtxoByTxid, fetchPreviousRawTransaction, type UTXO } from '@/utils/blockchain/bitcoin/utxo';
+import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid, type UTXO } from '@/utils/blockchain/bitcoin/utxo';
 
 // Mock the module
 vi.mock('@/utils/blockchain/bitcoin/utxo', () => ({
@@ -21,8 +21,8 @@ const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
-import { hash160 } from '@scure/btc-signer/utils.js';
 import { p2tr, Transaction } from '@scure/btc-signer';
+import { hash160 } from '@scure/btc-signer/utils.js';
 
 describe('Transaction Signer Utilities', () => {
   // Use a valid secp256k1 private key

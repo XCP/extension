@@ -1,7 +1,7 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
-import { disconnectAllPorts } from '@/utils/proxy';
 import { classifyProviderError } from '@/utils/errors';
+import { disconnectAllPorts } from '@/utils/proxy';
 
 // Always include localhost for local dApp testing (safe - only accessible locally)
 // HTTPS for all other sites
@@ -23,7 +23,7 @@ export default defineContentScript({
           // Expected during extension startup - background might not be ready yet
         }
       });
-    } catch (e) {
+    } catch (_e) {
       // Ignore errors during initial handshake
     }
     /**

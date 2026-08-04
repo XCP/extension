@@ -1,5 +1,5 @@
-import { DataFetchError } from "@/utils/blockchain/errors";
 import type { PricePoint } from "@/utils/blockchain/bitcoin/price";
+import { DataFetchError } from "@/utils/blockchain/errors";
 
 /**
  * Interface for XCP price data response from xcp.io API.

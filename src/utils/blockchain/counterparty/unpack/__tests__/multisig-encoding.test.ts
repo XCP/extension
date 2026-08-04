@@ -8,14 +8,14 @@
  * and classified, so the block applies regardless of encoding.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { analyzeTransactionSafety } from '../../transactionSafety';
+import { packAddress } from '../address';
+import { arc4, bytesToHex, hexToBytes } from '../binary';
+import { unpackCounterpartyMessage } from '../index';
+import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
 import { extractMultisigPayload } from '../multisig';
 import { extractPayloadFromOutputs } from '../opReturn';
-import { unpackCounterpartyMessage } from '../index';
-import { packAddress } from '../address';
-import { arc4, hexToBytes, bytesToHex } from '../binary';
-import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
-import { analyzeTransactionSafety } from '../../transactionSafety';
 import { verifyTransaction } from '../verify';
 
 const FIRST_INPUT_TXID = 'a'.repeat(64);
@@ -205,7 +205,7 @@ describe('a message type with no unpacker is not a successful decode', () => {
 
 describe('compose types with no field-level verifier', () => {
   // A broadcast message: type id 30, then the CBOR body. Only the type id matters here.
-  const broadcastPayload = COUNTERPARTY_PREFIX_HEX + '1e' + '850001006040';
+  const _broadcastPayload = COUNTERPARTY_PREFIX_HEX + '1e' + '850001006040';
 
   it('accepts a response whose message type is the one requested', () => {
     // Dispense has no field-level verifier, so it exercises the type-only path. (Broadcast used to

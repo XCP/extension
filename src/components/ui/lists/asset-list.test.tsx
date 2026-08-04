@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
-import { AssetList } from "./asset-list";
 import type { OwnedAsset } from "@/utils/blockchain/counterparty/api";
+import { AssetList } from "./asset-list";
 
 // Mock dependencies
 const mockNavigate = vi.fn();

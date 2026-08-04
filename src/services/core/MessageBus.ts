@@ -38,11 +38,11 @@
  * ```
  */
 
-import { 
-  sendMessage as bridgeSendMessage, 
-  onMessage as bridgeOnMessage 
-} from 'webext-bridge/background';
 import type { ProtocolWithReturn } from 'webext-bridge';
+import { 
+  onMessage as bridgeOnMessage, 
+  sendMessage as bridgeSendMessage 
+} from 'webext-bridge/background';
 
 export type MessageTarget = 'background' | 'popup' | 'content-script' | 'devtools' | 'options';
 
@@ -163,7 +163,7 @@ export class MessageBus {
             resolve(true);
             return;
           }
-        } catch (error) {
+        } catch (_error) {
           // Background not ready yet
         }
 

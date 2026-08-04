@@ -1,5 +1,5 @@
-import { type ReactElement, type ReactNode } from "react";
 import { RadioGroup } from "@headlessui/react";
+import type { ReactElement, ReactNode } from "react";
 import { FaCheck } from "@/components/icons";
 
 /**

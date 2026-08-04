@@ -1,42 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { apiClient } from '@/utils/apiClient';
+import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import * as formatUtils from '@/utils/format';
+import { getActiveSettings } from '@/utils/settings';
 import {
-  fetchTokenBalances,
-  fetchTokenBalance,
-  fetchTokenUtxos,
-  fetchAssetDetails,
-  fetchUtxoBalances,
-  fetchOrders,
-  fetchOrder,
-  fetchTransaction,
-  fetchTransactions,
+  type AssetInfo,
+  clearApiCache,
+  type Dispenser,
   fetchAddressDispensers,
+  fetchAddressPoolByLpAsset,
+  fetchAddressPools,
+  fetchAssetDetails,
   fetchDispenserByHash,
   fetchMempoolDispenses,
-  fetchOwnedAssets,
-  fetchOrdersByPair,
+  fetchOrder,
   fetchOrderMatches,
-  fetchPools,
+  fetchOrders,
+  fetchOrdersByPair,
+  fetchOwnedAssets,
   fetchPool,
-  fetchPoolQuote,
   fetchPoolDepositQuote,
+  fetchPoolQuote,
+  fetchPools,
   fetchPoolWithdrawQuote,
-  fetchAddressPools,
-  fetchAddressPoolByLpAsset,
   fetchServerInfo,
-  clearApiCache,
-  type AssetInfo,
-  type TokenBalance,
+  fetchTokenBalance,
+  fetchTokenBalances,
+  fetchTokenUtxos,
+  fetchTransaction,
+  fetchTransactions,
+  fetchUtxoBalances,
   type Order,
   type OrderDetails,
-  type Transaction,
-  type Dispenser,
   type OwnedAsset,
+  type TokenBalance,
+  type Transaction,
 } from '../api';
-import * as formatUtils from '@/utils/format';
-import * as bitcoinBalance from '@/utils/blockchain/bitcoin/balance';
-import { apiClient } from '@/utils/apiClient';
-import { CounterpartyApiError } from '@/utils/blockchain/errors';
-import { getActiveSettings } from '@/utils/settings';
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');
@@ -53,8 +53,8 @@ vi.mock('@/utils/settings', async (importOriginal) => ({
 }));
 
 const mockedApiClient = vi.mocked(apiClient, true);
-const mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
-const mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
+const _mockedFormatAmount = vi.mocked(formatUtils.formatAmount);
+const _mockedFetchBTCBalance = vi.mocked(bitcoinBalance.fetchBTCBalance);
 const mockedGetSettings = vi.mocked(getActiveSettings);
 
 // Test data

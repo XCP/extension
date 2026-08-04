@@ -1,8 +1,8 @@
-import { useEffect, type ReactElement } from 'react';
-import { useHeader } from '@/contexts/header-context';
+import { type ReactElement, useEffect } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
-import { formatAmount } from '@/utils/format';
+import { useHeader } from '@/contexts/header-context';
 import type { TokenBalance } from '@/utils/blockchain/counterparty/api';
+import { formatAmount } from '@/utils/format';
 
 /**
  * Props for the BalanceHeader component.

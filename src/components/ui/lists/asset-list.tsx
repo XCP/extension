@@ -1,13 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
-import { useInView } from "@/hooks/useInView";
-import { SearchInput } from "@/components/ui/inputs/search-input";
+import { useCallback, useEffect, useState } from "react";
 import { AssetCard } from "@/components/ui/cards/asset-card";
 import { SearchResultCard } from "@/components/ui/cards/search-result-card";
-import { useWallet } from "@/contexts/wallet-context";
-import { useHeader } from "@/contexts/header-context";
-import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
+import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
+import { fetchOwnedAssets, type OwnedAsset } from "@/utils/blockchain/counterparty/api";
 
 const PAGE_SIZE = 20;
 

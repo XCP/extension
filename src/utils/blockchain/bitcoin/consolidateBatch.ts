@@ -3,11 +3,11 @@
  * Builds and signs recovery transactions from xcp.io recovery API batch data.
  */
 
-import { Transaction } from '@scure/btc-signer';
-import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { type ConsolidationData, type ConsolidationUTXO } from '@/utils/blockchain/bitcoin/consolidationApi';
+import { Transaction } from '@scure/btc-signer';
+import type { ConsolidationData, ConsolidationUTXO } from '@/utils/blockchain/bitcoin/consolidationApi';
 import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/utils/blockchain/bitcoin/multisigSigner';
 
 // RBF-enabled sequence number

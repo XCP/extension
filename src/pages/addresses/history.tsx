@@ -1,14 +1,14 @@
-import { useState, useEffect } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { FiRefreshCw, FaChevronLeft, FaChevronRight } from "@/components/icons";
+import { FaChevronLeft, FaChevronRight, FiRefreshCw } from "@/components/icons";
 import { Button } from "@/components/ui/button";
+import { TransactionCard } from "@/components/ui/cards/transaction-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
-import { TransactionCard } from "@/components/ui/cards/transaction-card";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchTransactions, type PaginatedResponse, type Transaction } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
 
 /**
  * Constants for transaction pagination and navigation paths.

@@ -13,8 +13,8 @@
  *   - dividend_asset_id (Q): 8 bytes
  */
 
-import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
 import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
 
 /** Length of legacy dividend message */
 const DIVIDEND_LENGTH_1 = 16; // 8 + 8

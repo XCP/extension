@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Field, Label, Description, Switch } from "@headlessui/react";
-import { FiInfo } from "@/components/icons";
+import { Description, Field, Label, Switch } from "@headlessui/react";
 import type { ReactElement } from "react";
+import { useState } from "react";
+import { FiInfo } from "@/components/icons";
 
 /**
  * Props for the SettingSwitch component

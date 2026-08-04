@@ -1,17 +1,17 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  generateNonce,
-  validateNonce,
-  generateIdempotencyKey,
+  _testStore, 
   checkReplayAttempt,
-  recordTransaction,
+  clearReplayPreventionData,
+  generateIdempotencyKey,
+  generateNonce,
+  getTransactionStats,
+  isTransactionBroadcasted,
   markTransactionBroadcasted,
   markTransactionFailed,
-  isTransactionBroadcasted,
-  withReplayPrevention,
-  getTransactionStats,
-  clearReplayPreventionData,
-  _testStore
+  recordTransaction,
+  validateNonce,
+  withReplayPrevention
 } from '../replayPrevention';
 
 // Mock fathom tracking

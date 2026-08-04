@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  bufferToBase64,
   base64ToBuffer,
-  generateRandomBytes,
+  bufferToBase64,
   combineBuffers,
+  generateRandomBytes,
 } from '../buffer';
 
 describe('buffer.ts', () => {

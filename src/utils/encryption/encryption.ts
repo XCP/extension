@@ -9,7 +9,7 @@
  * - sessionManager.ts: manages the cached master key
  */
 
-import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from '@/utils/encryption/buffer';
+import { base64ToBuffer, bufferToBase64, combineBuffers, generateRandomBytes } from '@/utils/encryption/buffer';
 
 // Crypto constants
 const IV_BYTES = 12;
@@ -327,7 +327,7 @@ export async function deriveKeyAsync(
           );
           keyBytes.fill(0);
           resolve(extractableKey);
-        } catch (err) {
+        } catch (_err) {
           reject(new Error('Failed to import derived key'));
         }
       } else {

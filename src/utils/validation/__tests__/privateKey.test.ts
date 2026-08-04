@@ -1,13 +1,12 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
 import {
-  validatePrivateKeyFormat,
-  sanitizePrivateKey,
   containsDangerousChars,
-  validatePrivateKeyLength,
   detectPrivateKeyFormat,
-  type PrivateKeyValidationResult,
+  sanitizePrivateKey,
+  validatePrivateKeyFormat,
+  validatePrivateKeyLength,
 } from '../privateKey';
 
 describe('Private Key Validation Security Tests', () => {

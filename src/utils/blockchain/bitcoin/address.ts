@@ -1,13 +1,13 @@
 import { ripemd160 } from '@noble/hashes/legacy.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bech32, bech32m, base58, createBase58check } from '@scure/base';
+import { bech32, bech32m, createBase58check } from '@scure/base';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToEntropy, mnemonicToSeedSync } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as btc from '@scure/btc-signer';
-import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
-import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
 import { hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';
+import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
+import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 
 /**
  * Bitcoin address formats supported by the wallet.

@@ -4,13 +4,9 @@
  */
 
 import {
-  isHexMemo as _isHexMemo,
-  stripHexPrefix as _stripHexPrefix,
   getMemoByteLength as _getMemoByteLength,
-  validateMemoLength as _validateMemoLength,
-  validateMemo as _validateMemo,
-  hexToText as _hexToText,
-  textToHex as _textToHex
+  isHexMemo as _isHexMemo,
+  validateMemoLength as _validateMemoLength
 } from '@/utils/validation/memo';
 
 // Re-export most utilities unchanged

@@ -1,23 +1,22 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
-
+import { attach } from "@/pages/transactions/_messages/attach";
+import { broadcast } from "@/pages/transactions/_messages/broadcast";
+import { btcpay } from "@/pages/transactions/_messages/btcpay";
+import { cancel } from "@/pages/transactions/_messages/cancel";
+import { detach } from "@/pages/transactions/_messages/detach";
+import { dispense } from "@/pages/transactions/_messages/dispense";
 // Import all message type handlers
 import { dispenser } from "@/pages/transactions/_messages/dispenser";
-import { dispense } from "@/pages/transactions/_messages/dispense";
+import { dividend } from "@/pages/transactions/_messages/dividend";
+import { fairmint } from "@/pages/transactions/_messages/fairmint";
+import { fairminter } from "@/pages/transactions/_messages/fairminter";
+import { issuance } from "@/pages/transactions/_messages/issuance";
+import { move_utxo } from "@/pages/transactions/_messages/move_utxo";
+import { mpma } from "@/pages/transactions/_messages/mpma";
 import { order } from "@/pages/transactions/_messages/order";
 import { send } from "@/pages/transactions/_messages/send";
-import { mpma } from "@/pages/transactions/_messages/mpma";
-import { issuance } from "@/pages/transactions/_messages/issuance";
-import { cancel } from "@/pages/transactions/_messages/cancel";
-import { dividend } from "@/pages/transactions/_messages/dividend";
-import { broadcast } from "@/pages/transactions/_messages/broadcast";
-import { fairminter } from "@/pages/transactions/_messages/fairminter";
-import { fairmint } from "@/pages/transactions/_messages/fairmint";
 import { sweep } from "@/pages/transactions/_messages/sweep";
-import { attach } from "@/pages/transactions/_messages/attach";
-import { detach } from "@/pages/transactions/_messages/detach";
-import { btcpay } from "@/pages/transactions/_messages/btcpay";
-import { move_utxo } from "@/pages/transactions/_messages/move_utxo";
+import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 /**
  * Type for a message handler function

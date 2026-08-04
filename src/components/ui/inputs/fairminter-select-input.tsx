@@ -1,11 +1,11 @@
-import { useState, useEffect, type ReactElement } from "react";
 import {
   Combobox,
-  ComboboxInput,
   ComboboxButton,
-  ComboboxOptions,
+  ComboboxInput,
   ComboboxOption,
+  ComboboxOptions,
 } from "@headlessui/react";
+import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/utils/format";

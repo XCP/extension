@@ -1,32 +1,32 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import type { ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
-import { Spinner } from "@/components/ui/spinner";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { EmptyState } from "@/components/ui/empty-state";
-import { CopyableStat } from "@/components/ui/copyable-stat";
-import { TabButton } from "@/components/ui/tab-button";
-import { OrderBookLevelCard } from "@/components/ui/cards/order-book-level-card";
 import { MarketMatchCard } from "@/components/ui/cards/market-match-card";
+import { OrderBookLevelCard } from "@/components/ui/cards/order-book-level-card";
+import { CopyableStat } from "@/components/ui/copyable-stat";
+import { EmptyState } from "@/components/ui/empty-state";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { Spinner } from "@/components/ui/spinner";
+import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
-import { useInView } from "@/hooks/useInView";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { formatAmount } from "@/utils/format";
+import { useInView } from "@/hooks/useInView";
 import {
-  getOrderPricePerUnit,
-  getOrderBaseAmount,
-  getOrderQuoteAmount,
-  getMatchPricePerUnit,
-} from "@/utils/trading-pair";
-import {
-  fetchOrdersByPair,
-  fetchOrderMatchesByPair,
+  type AssetInfo,
   fetchAssetDetails,
+  fetchOrderMatchesByPair,
+  fetchOrdersByPair,
   type Order,
   type OrderMatch,
-  type AssetInfo,
 } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
+import { formatAmount } from "@/utils/format";
+import {
+  getMatchPricePerUnit,
+  getOrderBaseAmount,
+  getOrderPricePerUnit,
+  getOrderQuoteAmount,
+} from "@/utils/trading-pair";
 
 // Constants
 const FETCH_LIMIT = 20;

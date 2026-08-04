@@ -1,13 +1,13 @@
-import { useEffect, useState, useRef } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
+import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
 
 /**
  * Props for the TransferOwnershipForm component, aligned with Composer's formAction.

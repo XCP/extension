@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { broadcastTransaction, computeTxid } from '@/utils/blockchain/bitcoin/transactionBroadcaster';
 import { DEFAULT_SETTINGS, getActiveSettings } from '@/utils/settings';
 
@@ -25,6 +25,7 @@ vi.mock('@/utils/apiClient', () => ({
 
 // Import the mocked modules
 import { apiClient } from '@/utils/apiClient';
+
 const mockApiClient = apiClient as any;
 const mockGetSettings = vi.mocked(getActiveSettings);
 

@@ -1,5 +1,3 @@
-import { useActionState, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import {
   Field,
   Label,
@@ -8,9 +6,11 @@ import {
   ListboxOption,
   ListboxOptions,
 } from "@headlessui/react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { FiX } from "@/components/icons";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";

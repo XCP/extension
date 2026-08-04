@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
-import { FiGlobe, FiClock } from '@/components/icons';
+import { useEffect, useState } from 'react';
+import { FiClock, FiGlobe } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
-import { useWallet } from '@/contexts/wallet-context';
-import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
-import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useHeader } from '@/contexts/header-context';
+import { useWallet } from '@/contexts/wallet-context';
+import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
-import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
 import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
+import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
 
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet, getPrivateKey } = useWallet();

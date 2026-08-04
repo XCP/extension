@@ -3,10 +3,10 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
+import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
 import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
 import { isHexMemo, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
-import { toSatoshis, toBigNumber } from "@/utils/numeric";
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
+import { toBigNumber, toSatoshis } from "@/utils/numeric";
 
 /**
  * Converts form string values to proper booleans.

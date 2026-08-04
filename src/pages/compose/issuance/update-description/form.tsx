@@ -1,16 +1,16 @@
-import { useEffect, useState, useRef } from "react";
+import { Description, Field, Label, Textarea } from "@headlessui/react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { Field, Label, Description, Textarea } from "@headlessui/react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { Spinner } from "@/components/ui/spinner";
-import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import type { ReactElement } from "react";
 
 /**
  * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.

@@ -1,9 +1,9 @@
-import { useState, type ReactElement } from 'react';
-import { FaCheck } from '@/components/icons';
 import { RadioGroup } from '@headlessui/react';
-import { formatAddress } from '@/utils/format';
+import { type ReactElement, useState } from 'react';
+import { FaCheck } from '@/components/icons';
 import { AddressMenu } from '@/components/ui/menus/address-menu';
 import type { Address } from '@/types/wallet';
+import { formatAddress } from '@/utils/format';
 
 interface AddressListProps {
   addresses: Address[];

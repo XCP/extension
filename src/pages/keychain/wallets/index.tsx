@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { FaPlus } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { ErrorAlert } from '@/components/ui/error-alert';
 import { WalletList } from '@/components/ui/lists/wallet-list';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import { ErrorAlert } from '@/components/ui/error-alert';
-import { MAX_WALLETS } from '@/utils/wallet/constants';
 import type { Wallet } from '@/types/wallet';
+import { MAX_WALLETS } from '@/utils/wallet/constants';
 
 /** Check if we're running in the sidepanel (vs popup) */
 const isSidepanel = () => document.body.dataset.context === 'sidepanel';

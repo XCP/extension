@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { signMessageRequestStorage, type SignMessageRequest } from '../signMessageRequestStorage';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type SignMessageRequest, signMessageRequestStorage } from '../signMessageRequestStorage';
 
 // Mock chrome.storage.session
 const mockStorage: Record<string, any> = {};

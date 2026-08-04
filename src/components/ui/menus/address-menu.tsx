@@ -1,9 +1,9 @@
-import { useCallback, type ReactElement } from 'react';
-import { useNavigate } from 'react-router';
-import { FaCopy, GiBroom, VscKey, HiDotsHorizontal } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
-import { BaseMenu } from '@/components/ui/menus/base-menu';
+import { type ReactElement, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import { FaCopy, GiBroom, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+import { BaseMenu } from '@/components/ui/menus/base-menu';
 import type { Address } from '@/types/wallet';
 
 /**

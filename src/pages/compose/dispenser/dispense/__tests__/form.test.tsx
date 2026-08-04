@@ -1,11 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router';
-import { DispenseForm } from '../form';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
 import * as utxoSelection from '@/utils/blockchain/counterparty/utxo-selection';
+import { DispenseForm } from '../form';
 
 // Mock the API modules
 vi.mock('@/utils/blockchain/counterparty/api');

@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useAssetUtxos } from '../useAssetUtxos';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchTokenUtxos } from '@/utils/blockchain/counterparty/api';
+import { useAssetUtxos } from '../useAssetUtxos';
 
 // Mock the blockchain utilities
 vi.mock('@/utils/blockchain/counterparty/api');

@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
-import { UtxoCard } from "./utxo-card";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UtxoBalance } from "@/utils/blockchain/counterparty/api";
+import { UtxoCard } from "./utxo-card";
 
 vi.mock("@/components/ui/menus/utxo-menu", () => ({
   UtxoMenu: ({ utxo }: { utxo: string }) => (

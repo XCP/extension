@@ -1,15 +1,15 @@
-import { useEffect, useState, useRef } from "react";
+import type { ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { FaSpinner } from "@/components/icons";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FaSpinner } from "@/components/icons";
+import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { ErrorAlert } from "@/components/ui/error-alert";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
-import { formatTxid } from "@/utils/format";
 import type { MoveOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
+import { formatTxid } from "@/utils/format";
 
 /**
  * Props for the UtxoMoveForm component, aligned with Composer's formAction.

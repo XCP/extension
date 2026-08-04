@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
 import { 
   looksLikeAssetName, 
-  shouldTriggerAssetLookup, 
-  lookupAssetOwner 
+  lookupAssetOwner, 
+  shouldTriggerAssetLookup 
 } from '../assetOwner';
-import * as counterpartyApi from '@/utils/blockchain/counterparty/api';
 
 // Mock the counterparty API
 vi.mock('@/utils/blockchain/counterparty/api');

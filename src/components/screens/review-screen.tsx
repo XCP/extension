@@ -1,12 +1,12 @@
-import { type ReactElement, type ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { formatAddress, formatAmount } from "@/utils/format";
-import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useSettings } from "@/contexts/settings-context";
 import { useComposerOptional } from "@/contexts/composer-context-object";
+import { useSettings } from "@/contexts/settings-context";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { formatAddress, formatAmount } from "@/utils/format";
+import { formatFeeRate, fromSatoshis } from "@/utils/numeric";
 
 /**
  * Transaction result from API response

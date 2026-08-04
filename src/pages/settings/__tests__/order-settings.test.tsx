@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import { OrderSettings } from '../order-settings';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_MAX_ORDER_EXPIRATION } from '@/utils/settings';
+import { OrderSettings } from '../order-settings';
 
 const mockUpdateSettings = vi.fn();
 vi.mock('@/contexts/settings-context', () => ({

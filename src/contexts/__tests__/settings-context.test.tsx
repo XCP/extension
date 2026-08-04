@@ -1,8 +1,8 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, act, waitFor } from '@testing-library/react';
-import { SettingsProvider, useSettings } from '../settings-context';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AppSettings } from '@/utils/settings';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { SettingsProvider, useSettings } from '../settings-context';
 
 // Mock walletService
 const mockGetSettings = vi.fn();
@@ -132,7 +132,7 @@ describe('SettingsContext', () => {
       await act(async () => {
         try {
           await result.current.updateSettings({ autoLockTimer: '15m' });
-        } catch (error) {
+        } catch (_error) {
           // Error expected
         }
       });
@@ -158,7 +158,7 @@ describe('SettingsContext', () => {
       await act(async () => {
         try {
           await result.current.updateSettings({ autoLockTimer: '30m' });
-        } catch (error) {
+        } catch (_error) {
           // Error expected
         }
       });

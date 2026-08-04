@@ -6,6 +6,6 @@
  * Designed to be extensible for future Ledger support.
  */
 
-export * from '@/utils/hardware/types';
 export * from '@/utils/hardware/interface';
-export { TrezorAdapter, getTrezorAdapter, resetTrezorAdapter } from '@/utils/hardware/trezorAdapter';
+export { getTrezorAdapter, resetTrezorAdapter, TrezorAdapter } from '@/utils/hardware/trezorAdapter';
+export * from '@/utils/hardware/types';

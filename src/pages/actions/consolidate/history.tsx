@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { FiChevronDown, FaChevronRight, FaHistory } from "@/components/icons";
+import { useEffect, useState } from "react";
+import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
+import { type ConsolidationStatusResponse, consolidationApi } from "@/utils/blockchain/bitcoin/consolidationApi";
 import { formatAmount } from "@/utils/format";
-import { consolidationApi, type ConsolidationStatusResponse } from "@/utils/blockchain/bitcoin/consolidationApi";
 
 interface ConsolidationHistoryProps {
   address: string;
@@ -46,7 +46,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
         try {
           const data = await consolidationApi.getConsolidationStatus(address);
           setStatus(data);
-        } catch (err) {
+        } catch (_err) {
           // Silently fail for refresh
         }
       }

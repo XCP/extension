@@ -20,11 +20,11 @@
  * Skipped unless `COUNTERPARTY_API_URL` is set. Runs nightly — see nightly-tests.yml.
  */
 
-import { describe, it, expect } from 'vitest';
-import { packComposeMessage } from '../messages';
+import { describe, expect, it } from 'vitest';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
+import { packComposeMessage } from '../messages';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /**

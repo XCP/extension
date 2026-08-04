@@ -3,7 +3,7 @@
  * Handles validation for Bitcoin amounts, token quantities, and numeric inputs
  */
 
-import { toBigNumber, BigNumber } from '@/utils/numeric';
+import { BigNumber, toBigNumber } from '@/utils/numeric';
 
 // Constants
 export const DUST_LIMIT = 546; // satoshis

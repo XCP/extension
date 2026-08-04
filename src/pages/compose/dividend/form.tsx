@@ -1,16 +1,15 @@
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { Spinner } from "@/components/ui/spinner";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { formatAmount } from "@/utils/format";
-import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";
 import { fetchTokenBalance } from "@/utils/blockchain/counterparty/api";
-import type { ReactElement } from "react";
+import { calculateMaxDividendPerUnit, formatDecimal } from "@/utils/numeric";
 
 interface DividendFormData {
   quantity_per_unit: string;

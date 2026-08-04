@@ -1,6 +1,6 @@
+import { Description, Field, Input, Label } from '@headlessui/react';
 import { useState } from 'react';
 import { FaEye, FaEyeSlash } from '@/components/icons';
-import { Field, Input, Label, Description } from '@headlessui/react';
 import { Button } from '@/components/ui/button';
 
 interface PasswordInputProps {

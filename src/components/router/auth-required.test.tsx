@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 // Mock webext-bridge before any imports that might use it
@@ -30,10 +30,10 @@ vi.mock('react-router', async () => {
   };
 });
 
-// Now import the component and mocked dependencies
-import { AuthRequired } from './auth-required';
 import { useWallet } from '@/contexts/wallet-context';
 import { useAuthGuard } from '@/hooks/useAuthGuard';
+// Now import the component and mocked dependencies
+import { AuthRequired } from './auth-required';
 
 // Type for our mock wallet context
 interface MockWalletContext {

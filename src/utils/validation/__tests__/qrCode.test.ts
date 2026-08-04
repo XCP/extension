@@ -1,14 +1,13 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 import {
-  validateQRCodeText,
+  checkQRCodePerformance,
+  estimateQRCodeMemory,
+  sanitizeQRCodeText,
   validateQRCodeDimensions,
   validateQRCodeLogo,
   validateQRCodeParams,
-  sanitizeQRCodeText,
-  estimateQRCodeMemory,
-  checkQRCodePerformance,
-  type QRCodeValidationResult
+  validateQRCodeText
 } from '../qrCode';
 
 describe('QR Code Validation Security Tests', () => {

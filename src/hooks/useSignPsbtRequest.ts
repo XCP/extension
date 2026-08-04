@@ -10,29 +10,29 @@
  * - Cleaning up storage
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { signPsbtRequestStorage, type SignPsbtRequest } from '@/utils/storage/signPsbtRequestStorage';
-import { recordSignOutcome } from '@/utils/provider/signFlow';
 import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
 import {
-  decodeRawTransaction,
-  decodeCounterpartyMessage,
-  type CounterpartyMessage
-} from '@/utils/blockchain/counterparty/transaction';
-import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
+  fetchInputsAttachedAssets,
+  type InputAttachedAssets,
+} from '@/utils/blockchain/counterparty/inputAssets';
 import {
-  verifyProviderTransaction,
-  type ProviderVerificationResult
-} from '@/utils/blockchain/counterparty/unpack';
+  type CounterpartyMessage, 
+  decodeCounterpartyMessage,
+  decodeRawTransaction
+} from '@/utils/blockchain/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
 } from '@/utils/blockchain/counterparty/transactionSafety';
 import {
-  fetchInputsAttachedAssets,
-  type InputAttachedAssets,
-} from '@/utils/blockchain/counterparty/inputAssets';
+  type ProviderVerificationResult, 
+  verifyProviderTransaction
+} from '@/utils/blockchain/counterparty/unpack';
+import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
+import { recordSignOutcome } from '@/utils/provider/signFlow';
+import { type SignPsbtRequest, signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message

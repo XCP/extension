@@ -1,15 +1,14 @@
 import './setup'; // Must be first to setup browser mocks
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import { approvalQueue } from '@/utils/provider/approvalQueue';
+import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/utils/provider/rateLimiter';
+import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { getApprovalService } from '../approvalService';
+import { getConnectionService } from '../connectionService';
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
-import * as connectionService from '../connectionService';
-import { walletManager } from '@/utils/wallet/walletManager';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
-import { connectionRateLimiter, transactionRateLimiter, apiRateLimiter } from '@/utils/provider/rateLimiter';
-import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { getConnectionService } from '../connectionService';
-import { getApprovalService } from '../approvalService';
 
 // Mock the dependencies
 vi.mock('webext-bridge/background', () => ({

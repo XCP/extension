@@ -5,19 +5,19 @@
  * describeCounterpartyMessage, hasCounterpartyPrefix, and enrichWithAssetInfo.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  decodeRawTransaction,
-  fetchInputValues,
-  decodeCounterpartyMessage,
-  describeCounterpartyMessage,
-  hasCounterpartyPrefix,
-  COUNTERPARTY_PREFIX_HEX,
-  type DecodedBitcoinTransaction,
-  type UnpackedCounterpartyData,
-} from '../transaction';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiClient } from '@/utils/apiClient';
 import { getActiveSettings } from '@/utils/settings';
+import {
+  COUNTERPARTY_PREFIX_HEX,
+  type DecodedBitcoinTransaction,
+  decodeCounterpartyMessage,
+  decodeRawTransaction,
+  describeCounterpartyMessage,
+  fetchInputValues,
+  hasCounterpartyPrefix,
+  type UnpackedCounterpartyData,
+} from '../transaction';
 
 // Mock dependencies
 vi.mock('@/utils/apiClient');

@@ -7,9 +7,9 @@
  * 3. Indicate when normalization was applied
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { detectAndNormalizeSignature, normalizeMessage, validateMessage } from '../utils';
 import { verifyMessage } from '../verifier';
-import { normalizeMessage, detectAndNormalizeSignature, validateMessage } from '../utils';
 
 describe('Message and Signature Normalization', () => {
 

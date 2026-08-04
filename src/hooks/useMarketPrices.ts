@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { getBtcPrice, getBtc24hStats, type FiatCurrency } from '@/utils/blockchain/bitcoin/price';
+import { useEffect, useState } from 'react';
+import { type FiatCurrency, getBtc24hStats, getBtcPrice } from '@/utils/blockchain/bitcoin/price';
 import { getXCPPrice } from '@/utils/blockchain/counterparty/price';
 
 interface MarketPrices {
@@ -67,7 +67,7 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
         loading: false,
         error: null,
       });
-    } catch (error) {
+    } catch (_error) {
       setState(prev => ({
         ...prev,
         loading: false,

@@ -1,10 +1,10 @@
-import { type ReactElement, type KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactElement } from "react";
 import { FaBitcoin } from "@/components/icons";
-import { formatAmount } from "@/utils/format";
 import {
   CURRENCY_INFO,
   type FiatCurrency,
 } from "@/utils/blockchain/bitcoin/price";
+import { formatAmount } from "@/utils/format";
 
 interface PriceTickerProps {
   btc: number | null;

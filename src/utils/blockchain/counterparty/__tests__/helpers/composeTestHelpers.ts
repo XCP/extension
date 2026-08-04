@@ -1,4 +1,4 @@
-import { vi, expect, beforeEach, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import type { ComposeResult } from '../../compose';
 
 /**
@@ -7,6 +7,7 @@ import type { ComposeResult } from '../../compose';
 export const mockAddress = 'bc1qtest123address';
 export const mockDestAddress = 'bc1qdest456address';
 export const mockApiBase = 'https://api.counterparty.io:4000';
+
 import { DEFAULT_SETTINGS } from '@/utils/settings';
 
 export const mockSettings = {
@@ -143,7 +144,7 @@ export const testOptionalParameters = (
   return async () => {
     await composeFn(mockAddress, requiredParams, optionalParams);
     
-    const expectedUrl = `${mockApiBase}/api/v2/addresses/${mockAddress}/compose/${endpoint}`;
+    const _expectedUrl = `${mockApiBase}/api/v2/addresses/${mockAddress}/compose/${endpoint}`;
     const actualCall = mockedAxios.post.mock.calls[0];
     const actualParams = actualCall[1];
     

@@ -9,10 +9,10 @@
  * - Flags 27-30 (uncompressed) and 31-34 (compressed)
  */
 
-import * as btc from '@scure/btc-signer';
 import { base64 } from '@scure/base';
+import * as btc from '@scure/btc-signer';
 import type { VerificationResult } from '@/utils/blockchain/bitcoin/messageVerifier/types';
-import { hashMessage, recoverPublicKey, getAddressType } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
+import { getAddressType, hashMessage, recoverPublicKey } from '@/utils/blockchain/bitcoin/messageVerifier/utils';
 
 /**
  * Verify a legacy Bitcoin message signature

@@ -1,7 +1,7 @@
-import { type ReactNode, type MouseEvent, type ReactElement, useCallback } from 'react';
-import type { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
-import { Button } from '@/components/ui/button';
+import { type MouseEvent, type ReactElement, type ReactNode, useCallback } from 'react';
 import logo from '@/assets/logo.png';
+import { Button } from '@/components/ui/button';
+import type { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
 
 /**
  * Header component renders a navigation bar with optional left and right buttons.

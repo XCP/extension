@@ -2,18 +2,18 @@
  * Tests for BIP-322 Generic Signed Message Format
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { hex } from '@scure/base';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   bip322MessageHash,
-  createToSpendTransaction,
   createToSignTransaction,
-  verifyBIP322Signature,
-  verifySimpleBIP322,
+  createToSpendTransaction,
   formatTaprootSignature,
   parseBIP322Signature,
   supportsBIP322,
+  verifyBIP322Signature,
+  verifySimpleBIP322,
 } from '../bip322';
-import { hex } from '@scure/base';
 
 describe('BIP-322 Implementation', () => {
   describe('bip322MessageHash', () => {

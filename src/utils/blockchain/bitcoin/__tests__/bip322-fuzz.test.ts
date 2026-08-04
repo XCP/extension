@@ -3,23 +3,22 @@
  * Generates random mnemonics, creates addresses of all types, signs with BIP-322, and verifies
  */
 
-import { describe, it, expect } from 'vitest';
-import { hex, base64 } from '@scure/base';
-import * as secp256k1 from '@noble/secp256k1';
-import * as btc from '@scure/btc-signer';
-import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
+import { sha256 } from '@noble/hashes/sha2.js';
 import { randomBytes } from '@noble/hashes/utils.js';
-import {
-  signBIP322P2PKH,
-  signBIP322P2WPKH,
-  signBIP322P2SH_P2WPKH,
-  signBIP322P2TR,
-  verifyBIP322Signature
-} from '../bip322';
-
+import * as secp256k1 from '@noble/secp256k1';
 // Required initialization for @noble/secp256k1 v3
 import { hashes } from '@noble/secp256k1';
+import { base64, hex } from '@scure/base';
+import * as btc from '@scure/btc-signer';
+import { describe, expect, it } from 'vitest';
+import {
+  signBIP322P2PKH,
+  signBIP322P2SH_P2WPKH,
+  signBIP322P2TR,
+  signBIP322P2WPKH,
+  verifyBIP322Signature
+} from '../bip322';
 
 if (!hashes.sha256) {
   hashes.sha256 = (msg) => new Uint8Array(sha256(msg));
@@ -325,7 +324,7 @@ describe('BIP-322 Fuzz Testing', () => {
 
         expect(isValid).toBe(false);
         console.log(`✓ Correctly rejected: ${description}`);
-      } catch (error) {
+      } catch (_error) {
         // If it throws an error, that's also fine (signature format invalid)
         console.log(`✓ Correctly rejected (error): ${description}`);
       }

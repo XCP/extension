@@ -1,21 +1,21 @@
+import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
-import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
-import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
+import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
+import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
+import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { toBigNumber } from "@/utils/numeric";
 import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import type { ReactElement } from "react";
+import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
+import { toBigNumber } from "@/utils/numeric";
 
 /** Maximum file size for inscriptions in KB */
 const INSCRIPTION_MAX_SIZE_KB = 400;
@@ -124,7 +124,7 @@ export function IssuanceForm({
           formData.set("inscription", "true");
           formData.set("mime_type", mimeType);
           formData.set("encoding", "taproot");
-        } catch (error) {
+        } catch (_error) {
           setFileError("Failed to process file");
           return;
         }

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
+import { isLessThanOrEqualTo, isValidPositiveNumber } from '@/utils/numeric';
 import {
-  getCanonicalPoolAssets,
-  getCanonicalPoolPair,
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
+  getCanonicalPoolAssets,
+  getCanonicalPoolPair,
 } from '../pool';
-import { isValidPositiveNumber, isLessThanOrEqualTo } from '@/utils/numeric';
 
 // 21,000,000 BTC expressed in satoshis — an upper bound on any on-chain quantity.
 const SAT_MAX = 2_100_000_000_000_000n;

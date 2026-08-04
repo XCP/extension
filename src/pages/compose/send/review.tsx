@@ -1,10 +1,10 @@
-import { ReviewScreen } from "@/components/screens/review-screen";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { useSettings } from "@/contexts/settings-context";
-import { useComposer } from "@/contexts/composer-context-object";
-import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
-import { formatAmount } from "@/utils/format";
 import type { ReactElement, ReactNode } from "react";
+import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
+import { ReviewScreen } from "@/components/screens/review-screen";
+import { useComposer } from "@/contexts/composer-context-object";
+import { useSettings } from "@/contexts/settings-context";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { formatAmount } from "@/utils/format";
 
 /**
  * Props for the ReviewSend component.

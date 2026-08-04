@@ -1,15 +1,15 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import {
+  type DispenserDetails,
+  fetchAddressDispensers,
   fetchAllDispensers,
   fetchAllOrders,
   fetchAssetDispensers,
   fetchAssetOrders,
-  fetchAddressDispensers,
   fetchOrders,
-  type DispenserDetails,
-  type OrderDetails,
   type Order,
+  type OrderDetails,
 } from "@/utils/blockchain/counterparty/api";
 
 // Key extractors for deduplication

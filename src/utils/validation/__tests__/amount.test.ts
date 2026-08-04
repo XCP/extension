@@ -1,17 +1,17 @@
 /**
  * Unit tests for amount validation functions
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  validateAmount,
-  validateQuantity,
-  isValidNumber,
-  validateBalance,
   btcToSatoshis,
-  isDustAmount,
   DUST_LIMIT,
+  isDustAmount,
+  isValidNumber,
   MAX_SATOSHIS,
-  SATOSHIS_PER_BTC
+  SATOSHIS_PER_BTC, 
+  validateAmount,
+  validateBalance,
+  validateQuantity
 } from '../amount';
 
 describe('validateAmount', () => {

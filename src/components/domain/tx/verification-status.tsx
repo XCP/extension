@@ -7,7 +7,7 @@
  */
 
 import type { ReactElement } from 'react';
-import { FiShield, FiShieldOff, FiInfo } from '@/components/icons';
+import { FiInfo, FiShield, FiShieldOff } from '@/components/icons';
 
 /*
  * The passed state is intentionally low-weight — a small inline badge, not a

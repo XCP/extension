@@ -1,6 +1,6 @@
+import type { ReactElement } from "react";
 import { useSettings } from "@/contexts/settings-context";
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
-import type { ReactElement } from "react";
 
 interface PoolSlippageSettingsProps {
   value: string;

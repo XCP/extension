@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { AssetIcon, AssetIconWithFallback } from "./asset-icon";
 
@@ -7,7 +7,7 @@ import { AssetIcon, AssetIconWithFallback } from "./asset-icon";
 let fc: any;
 try {
   fc = require("fast-check");
-} catch (e) {
+} catch (_e) {
   console.warn("fast-check not available, skipping property-based tests");
 }
 

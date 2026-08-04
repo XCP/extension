@@ -1,8 +1,8 @@
-import { type ReactElement, type KeyboardEvent, type MouseEvent } from "react";
-import { FaCopy, FaCheck } from "@/components/icons";
-import { formatAmount, formatAddress } from "@/utils/format";
-import { isNumericAsset } from "@/utils/validation/asset";
+import type { KeyboardEvent, MouseEvent, ReactElement } from "react";
+import { FaCheck, FaCopy } from "@/components/icons";
 import type { DispenserDetails } from "@/utils/blockchain/counterparty/api";
+import { formatAddress, formatAmount } from "@/utils/format";
+import { isNumericAsset } from "@/utils/validation/asset";
 
 interface AssetDispenserCardProps {
   dispenser: DispenserDetails;

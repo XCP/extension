@@ -1,24 +1,24 @@
-import { describe, it, expect, vi } from 'vitest';
 import BigNumber from 'bignumber.js';
+import { describe, expect, it, vi } from 'vitest';
 import {
-  toBigNumber,
-  formatBigNumber,
-  isValidPositiveNumber,
-  roundDownToMultiple,
-  toSatoshis,
-  fromSatoshis,
-  subtractSatoshis,
+  calculateMaxDividendPerUnit,
   divideSatoshis,
-  isLessThanSatoshis,
-  isLessThanOrEqualToSatoshis,
-  isFiniteNumber,
+  formatBigNumber,
+  fromSatoshis,
   isEqualTo,
-  isLessThan,
+  isFiniteNumber,
   isGreaterThan,
   isGreaterThanOrEqualTo,
+  isLessThan,
   isLessThanOrEqualTo,
+  isLessThanOrEqualToSatoshis,
+  isLessThanSatoshis,
+  isValidPositiveNumber,
   normalizeAssetSupply,
-  calculateMaxDividendPerUnit,
+  roundDownToMultiple,
+  subtractSatoshis,
+  toBigNumber,
+  toSatoshis,
 } from '../numeric';
 
 describe('numeric utilities', () => {

@@ -1,7 +1,7 @@
-import { type ReactElement, type KeyboardEvent, type MouseEvent } from "react";
-import { FaCopy, FaCheck } from "@/components/icons";
-import { formatAmount, formatAddress } from "@/utils/format";
+import type { KeyboardEvent, MouseEvent, ReactElement } from "react";
+import { FaCheck, FaCopy } from "@/components/icons";
 import type { Order, OrderDetails } from "@/utils/blockchain/counterparty/api";
+import { formatAddress, formatAmount } from "@/utils/format";
 
 interface AssetOrderCardProps {
   order: Order | OrderDetails;

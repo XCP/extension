@@ -1,11 +1,11 @@
-import { useState, useMemo, useEffect, type ReactElement } from "react";
-import { useInView } from "@/hooks/useInView";
-import { Spinner } from "@/components/ui/spinner";
-import { SearchInput } from "@/components/ui/inputs/search-input";
+import { type ReactElement, useEffect, useMemo, useState } from "react";
 import { UtxoCard } from "@/components/ui/cards/utxo-card";
+import { SearchInput } from "@/components/ui/inputs/search-input";
+import { Spinner } from "@/components/ui/spinner";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
+import { useInView } from "@/hooks/useInView";
 import type { UtxoBalance } from "@/utils/blockchain/counterparty/api";
+import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
 
 const PAGE_SIZE = 20;
 

@@ -1,8 +1,8 @@
 import { apiClient } from '@/utils/apiClient';
-import { CounterpartyApiError } from '@/utils/blockchain/errors';
 import { requireCounterpartyFeature } from '@/utils/blockchain/counterparty/capabilities';
-import { LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION, getActiveSettings } from '@/utils/settings';
 import { selectUtxosForTransaction } from '@/utils/blockchain/counterparty/utxo-selection';
+import { CounterpartyApiError } from '@/utils/blockchain/errors';
+import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/utils/settings';
 
 /**
  * Type guard to check if an error has a response with data

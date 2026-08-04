@@ -11,11 +11,11 @@
  *   npm test -- --run integration.test.ts
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  MessageTypeId,
   unpackCounterpartyMessage,
   verifyTransaction,
-  MessageTypeId,
 } from '../index';
 
 // API base URL

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { AssetHeader } from './asset-header';
 import type { AssetInfo } from '@/utils/blockchain/counterparty/api';
+import { AssetHeader } from './asset-header';
 
 // Mock dependencies
 const mockSetAssetHeader = vi.fn();

@@ -4,7 +4,7 @@
  * Tests the user approval workflow management functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 // No RequestManager mock needed - new ApprovalService manages pending approval directly

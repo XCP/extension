@@ -1,8 +1,8 @@
-import { type ReactElement } from 'react';
+import type { ReactElement } from 'react';
 import { Outlet } from 'react-router';
-import { Header } from '@/components/layout/header';
-import { Footer } from '@/components/layout/footer';
 import { ApiStatusBanner } from '@/components/layout/api-status-banner';
+import { Footer } from '@/components/layout/footer';
+import { Header } from '@/components/layout/header';
 import { useHeader } from '@/contexts/header-context';
 
 interface LayoutProps {

@@ -1,14 +1,14 @@
 import { useState } from "react";
-import { useWallet } from "@/contexts/wallet-context";
 import { useNavigate } from "react-router";
+import { useWallet } from "@/contexts/wallet-context";
+import { getWalletService } from "@/services/walletService";
+import { isStaleInputsError } from "@/utils/blockchain/bitcoin/broadcastErrors";
 import {
-  consolidationApi,
   type ConsolidationData,
   type ConsolidationReport,
+  consolidationApi,
 } from "@/utils/blockchain/bitcoin/consolidationApi";
-import { isStaleInputsError } from "@/utils/blockchain/bitcoin/broadcastErrors";
-import { getWalletService } from "@/services/walletService";
-import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
+import { analytics, classifyTransactionError, getBtcBucket } from "@/utils/fathom";
 
 export interface ConsolidationResult {
   batchNumber: number;

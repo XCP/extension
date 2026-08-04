@@ -1,8 +1,8 @@
+import { Composer } from '@/components/composer/composer';
 import { BTCPayForm } from '@/pages/compose/order/btcpay/form';
 import { ReviewBTCPay } from '@/pages/compose/order/btcpay/review';
-import { Composer } from '@/components/composer/composer';
-import { composeBTCPay } from '@/utils/blockchain/counterparty/compose';
 import type { BTCPayOptions } from '@/utils/blockchain/counterparty/compose';
+import { composeBTCPay } from '@/utils/blockchain/counterparty/compose';
 
 function ComposeOrderBtcPayPage() {
   return (

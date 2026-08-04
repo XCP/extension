@@ -1,9 +1,9 @@
-import { useCallback, type ReactElement } from 'react';
+import { MenuItem } from '@headlessui/react';
+import { type ReactElement, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { BsThreeDots, FaExchangeAlt, FaPlus } from '@/components/icons';
-import { MenuItem } from '@headlessui/react';
-import { BaseMenu } from '@/components/ui/menus/base-menu';
 import { Button } from '@/components/ui/button';
+import { BaseMenu } from '@/components/ui/menus/base-menu';
 
 interface UtxoMenuProps {
   utxo: string;

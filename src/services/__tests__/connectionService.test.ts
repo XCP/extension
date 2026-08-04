@@ -4,7 +4,7 @@
  * Tests the dApp connection and permission management functionality
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
 // Mock webext-bridge to prevent browser API issues  
@@ -121,9 +121,9 @@ vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => mockApprovalService,
 }));
 
-import { ConnectionService } from '../connectionService';
-import { walletManager } from '@/utils/wallet/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { walletManager } from '@/utils/wallet/walletManager';
+import { ConnectionService } from '../connectionService';
 
 // Type the mocked functions
 const mockGetSettings = walletManager.getSettings as ReturnType<typeof vi.fn>;

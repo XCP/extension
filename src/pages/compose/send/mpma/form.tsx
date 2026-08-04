@@ -1,12 +1,12 @@
-import { useState, useRef } from "react";
+import type { ReactElement } from "react";
+import { useRef, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { useComposer } from "@/contexts/composer-context-object";
-import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
-import { isHexMemo, stripHexPrefix, isValidMemoLength } from "@/utils/blockchain/counterparty/memo";
-import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
-import type { ReactElement } from "react";
+import { useComposer } from "@/contexts/composer-context-object";
+import { fetchAssetDetails } from "@/utils/blockchain/counterparty/api";
+import { isHexMemo, isValidMemoLength, stripHexPrefix } from "@/utils/blockchain/counterparty/memo";
+import { validateBitcoinAddress } from "@/utils/validation/bitcoin";
 
 interface ParsedRow {
   address: string;
@@ -103,7 +103,7 @@ export function MPMAForm({
             try {
               const assetInfo = await fetchAssetDetails(asset);
               assetCache[asset] = assetInfo?.divisible ?? false;
-            } catch (e) {
+            } catch (_e) {
               // If we can't get asset info, assume divisible for now
               // The API will validate properly later
               assetCache[asset] = true;

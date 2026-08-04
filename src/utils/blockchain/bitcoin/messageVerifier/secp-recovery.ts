@@ -59,7 +59,7 @@ export function recoverPublicKeyFromSignature(
     }
 
     return publicKeyBytes;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

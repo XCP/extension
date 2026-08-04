@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
-import { composePoolWithdraw, type PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 import { PoolWithdrawForm } from "@/pages/compose/pool/withdraw/form";
 import { ReviewPoolWithdraw } from "@/pages/compose/pool/withdraw/review";
+import { composePoolWithdraw, type PoolWithdrawOptions } from "@/utils/blockchain/counterparty/compose";
 
 export default function ComposePoolWithdrawPage() {
   const { lpAsset } = useParams<{ lpAsset: string }>();

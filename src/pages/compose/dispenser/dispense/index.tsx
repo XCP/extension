@@ -1,10 +1,10 @@
-import { useSearchParams } from "react-router";
 import { useMemo } from "react";
+import { useSearchParams } from "react-router";
+import { Composer } from "@/components/composer/composer";
 import { DispenseForm } from "@/pages/compose/dispenser/dispense/form";
 import { ReviewDispense } from "@/pages/compose/dispenser/dispense/review";
-import { Composer } from "@/components/composer/composer";
-import { composeDispense } from "@/utils/blockchain/counterparty/compose";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
+import { composeDispense } from "@/utils/blockchain/counterparty/compose";
 
 // Extended type for initial form data with asset pre-selection
 interface DispenseInitialData extends Partial<DispenseOptions> {

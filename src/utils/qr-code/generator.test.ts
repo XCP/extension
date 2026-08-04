@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { generateBitcoinQR, generateBitcoinURIQR, generateQR } from '@/utils/qr-code';
+import { describe, expect, it } from 'vitest';
+import { generateBitcoinQR, generateBitcoinURIQR, } from '@/utils/qr-code';
 
 describe('Bitcoin QR Code Generator', () => {
   // Test addresses from the codebase

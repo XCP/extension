@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  validateSignatureJson,
-  validateJsonText,
   parseAndValidateSignatureJson,
   SIGNATURE_JSON_LIMITS,
   type SignatureJson,
+  validateJsonText,
+  validateSignatureJson,
 } from '../signatureJson';
 
 describe('signatureJson validation', () => {

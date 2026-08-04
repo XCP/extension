@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 vi.mock('webext-bridge', () => ({
@@ -22,8 +22,8 @@ vi.mock('react-router', async () => {
   };
 });
 
-import { KeychainOpenOrNew } from './keychain-open-or-new';
 import { useWallet } from '@/contexts/wallet-context';
+import { KeychainOpenOrNew } from './keychain-open-or-new';
 
 interface MockWalletContext {
   authState: 'UNLOCKED' | 'LOCKED' | 'ONBOARDING_NEEDED';
