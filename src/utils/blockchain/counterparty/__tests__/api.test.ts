@@ -123,6 +123,38 @@ describe('counterparty/api.ts', () => {
     mockedGetSettings.mockReturnValue(mockSettings as any);
   });
 
+  describe('response cache', () => {
+    const ok = (data: unknown) => ({
+      data, status: 200, statusText: 'OK', headers: {}, config: {},
+    }) as any;
+
+    // Keys used to be built as `${k}=${v}` joined by '&', so a value containing '&' or '=' could
+    // forge a separator: { cursor: '1&limit=2' } and { cursor: '1', limit: '2' } collided, and
+    // whichever ran first had its response served to the other. Cursors come from the API.
+    it('does not let a param value forge a separator', async () => {
+      // Params are sorted then joined as `k=v` with '&'. Unencoded, a sort value carrying
+      // '&type=' produces the exact key that a separate `type` param would, so the two requests
+      // collide and the first one's response is served to the second.
+      mockedApiClient.get.mockResolvedValue(ok({ result: [mockTokenBalance] }));
+      await fetchTokenBalances(mockAddress, { sort: 'x&type=y' });
+
+      mockedApiClient.get.mockResolvedValue(ok({ result: [] }));
+      const second = await fetchTokenBalances(mockAddress, { sort: 'x', type: 'y' as any });
+
+      expect(second).toEqual([]);
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('still serves a genuine repeat from cache', async () => {
+      mockedApiClient.get.mockResolvedValue(ok({ result: [mockTokenBalance] }));
+      const first = await fetchTokenBalances(mockAddress, { cursor: 'abc' } as any);
+      const second = await fetchTokenBalances(mockAddress, { cursor: 'abc' } as any);
+
+      expect(second).toEqual(first);
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('fetchTokenBalances', () => {
     it('should return token balances array on valid response', async () => {
       const mockData = {

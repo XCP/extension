@@ -260,7 +260,15 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
   const walletStateRef = useRef(walletState);
   walletStateRef.current = walletState;
 
-  // Track lock state version to prevent stale updates from overriding lock events
+  // Track lock state version to prevent stale updates from overriding lock events.
+  //
+  // This looks redundant and is not. `refreshWalletState` and the lock handler both take the
+  // 'wallet-refresh' lock, so they cannot normally interleave — but `stateLockManager` force-
+  // releases a lock after 30s while its holder is still running. A refresh that decrypts a wallet
+  // and derives addresses can reach that, and then a lock event runs *concurrently* with a refresh
+  // that is about to write an unlocked state. The version check below is what discards it.
+  //
+  // Removing either this or the force-release without the other reintroduces that fail-open.
   const lockStateVersionRef = useRef(0);
 
   const refreshWalletState = useCallback(async () => {

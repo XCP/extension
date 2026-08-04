@@ -266,6 +266,27 @@ describe('Bitcoin Address Utilities', () => {
       expect(address?.length).toBe(62); // bech32m P2TR is 62 chars
     });
 
+    // A script with a valid prefix and length but a non-hex hash used to decode to zero bytes,
+    // because parseInt returns NaN for a bad pair and Uint8Array stores NaN as 0. That handed back
+    // a real, wrong address instead of null - and output accounting reads null as "cannot be
+    // attributed", so a wrong address is worse there than no address.
+    it.each([
+      ['0014' + 'z'.repeat(40), 'P2WPKH with a non-hex hash'],
+      ['76a914' + 'z'.repeat(40) + '88ac', 'P2PKH with a non-hex hash'],
+      ['a914' + 'z'.repeat(40) + '87', 'P2SH with a non-hex hash'],
+      ['5120' + 'z'.repeat(64), 'P2TR with a non-hex key'],
+    ])('returns null for %s (%s)', (script) => {
+      expect(decodeAddressFromScript(script)).toBeNull();
+    });
+
+    it('does not decode a malformed hash to the all-zeros address', () => {
+      const zeros = decodeAddressFromScript('0014' + '0'.repeat(40));
+      const garbage = decodeAddressFromScript('0014' + 'z'.repeat(40));
+      expect(zeros).not.toBeNull();
+      expect(garbage).toBeNull();
+      expect(garbage).not.toBe(zeros);
+    });
+
     it('should return null for OP_RETURN script', () => {
       // OP_RETURN script: 6a<data>
       const script = '6a0f68656c6c6f20776f726c64';
