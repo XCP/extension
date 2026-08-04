@@ -98,17 +98,25 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
     mime_type: data.mimeType,
     description: data.description,
   }),
-  issuance: (data) => ({
-    // A subasset issuance composes from the longname; the numeric asset id it carries is the
-    // random draw the packer borrows from the decoded message, which the harness already passes.
-    asset: data.subassetLongname ?? data.asset,
-    quantity: data.quantity,
-    divisible: data.divisible,
-    lock: data.isLock,
-    reset: data.isReset,
-    description: data.description ?? '',
-    mime_type: data.mimeType ?? '',
-  }),
+  issuance: (data) => {
+    // Core distinguishes an absent description (CBOR null) from an empty one (empty byte string),
+    // and `composeIssuance` drops an empty description from the request — so the wallet can only
+    // ever produce the null form. A message carrying empty bytes was composed by something else
+    // and is not a shape this build can rebuild.
+    if (data.description === '') return null;
+    return {
+      // A subasset issuance composes from the longname; the numeric asset id it carries is the
+      // random draw the packer borrows from the decoded message, which the harness already passes.
+      asset: data.subassetLongname ?? data.asset,
+      quantity: data.quantity,
+      divisible: data.divisible,
+      lock: data.isLock,
+      reset: data.isReset,
+      // Passed through rather than defaulted, so "absent" is not silently turned into "empty".
+      description: data.description,
+      mime_type: data.mimeType ?? '',
+    };
+  },
   broadcast: (data) => {
     // The wire stores the scaled integer; undo it so the packer can redo core's arithmetic. Skip
     // the rare value whose double round-trip does not survive — a mismatch there would be

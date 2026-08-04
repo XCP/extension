@@ -588,9 +588,16 @@ function verifyIssuance(
   params: Record<string, unknown>,
   result: VerificationResult
 ): void {
-  // Asset - critical
-  if (!valuesEqual(data.asset, params.asset)) {
-    addMismatch(result, 'asset', params.asset, data.asset, 'critical',
+  // Asset - critical.
+  //
+  // A subasset message names its asset twice: `asset` is the numeric name the id resolves to
+  // (A123…), and `subassetLongname` is the PARENT.child the user actually typed. Comparing the
+  // request's longname against the numeric name flags every honest subasset issuance as a
+  // critical mismatch, so the longname is what gets compared when the message carries one.
+  const requested = params.asset;
+  const composed = data.subassetLongname ?? data.asset;
+  if (!valuesEqual(composed, requested)) {
+    addMismatch(result, 'asset', requested, composed, 'critical',
       'Wrong asset name = creating/modifying wrong asset');
   }
 
