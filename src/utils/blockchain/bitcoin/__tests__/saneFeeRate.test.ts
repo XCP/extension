@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { exceedsSaneFeeRate, MAX_SANE_FEE_RATE } from '../feeVerification';
+import { exceedsSaneFeeRate, HIGH_FEE_RATE_WARNING } from '../feeVerification';
 
 describe('exceedsSaneFeeRate', () => {
   it('flags a fee that slips under the absolute ceiling but drains a small transaction', () => {
@@ -20,14 +20,21 @@ describe('exceedsSaneFeeRate', () => {
     expect(exceedsSaneFeeRate(2_000, 200)).toBe(false); // 10 sat/vB
   });
 
-  it('accepts a fee that is expensive but not absurd', () => {
-    // Well above normal, still far below the bound — congestion must not block signing.
-    expect(exceedsSaneFeeRate(200_000, 200)).toBe(false); // 1,000 sat/vB
+  it('accepts a fee that is expensive but plausible', () => {
+    // A fee bump or a time-sensitive CPFP can be well above a normal day's rate without being a
+    // mistake, and this only warns — so the threshold has to clear ordinary urgency.
+    expect(exceedsSaneFeeRate(20_000, 200)).toBe(false); // 100 sat/vB
+  });
+
+  it('warns on a rate no ordinary transaction reaches', () => {
+    // 1,000 sat/vB is roughly a hundred times a busy-day rate. It used to pass unremarked, because
+    // the threshold sat at 5,000 — far enough above reality that the warning almost never fired.
+    expect(exceedsSaneFeeRate(200_000, 200)).toBe(true);
   });
 
   it('sits exactly at the bound without firing', () => {
-    expect(exceedsSaneFeeRate(MAX_SANE_FEE_RATE * 200, 200)).toBe(false);
-    expect(exceedsSaneFeeRate(MAX_SANE_FEE_RATE * 200 + 200, 200)).toBe(true);
+    expect(exceedsSaneFeeRate(HIGH_FEE_RATE_WARNING * 200, 200)).toBe(false);
+    expect(exceedsSaneFeeRate(HIGH_FEE_RATE_WARNING * 200 + 200, 200)).toBe(true);
   });
 
   it('says nothing when the fee or size is unknown', () => {

@@ -309,3 +309,52 @@ describe('real-world scenarios', () => {
     expect(result.warnings[0]!.severity).toBe('danger');
   });
 });
+
+// ── Outputs with no attributable address ─────────────────────────────
+
+describe('outputs whose destination cannot be determined', () => {
+  it('warns when non-dust value leaves to an unrecognized script', () => {
+    // A bare-multisig or P2WSH output decodes to no address. It used to be dropped from the
+    // suspicious list entirely — appearing only as "Unknown address" in the movement summary —
+    // so value leaving to a script nobody can name raised nothing at all.
+    const result = analyzeTransactionSafety(
+      'enhanced_send',
+      makeOutputs(
+        { value: 0, type: 'op_return' },
+        { value: 50_000_000, type: 'unknown' },
+      ),
+      SIGNER
+    );
+
+    const warning = result.warnings.find(w => w.title === 'BTC Sent to an Unrecognized Script');
+    expect(warning).toBeDefined();
+    expect(warning!.severity).toBe('danger');
+    expect(warning!.message).toContain('0.50000000');
+  });
+
+  it('leaves dust alone, since Counterparty encodings use it routinely', () => {
+    const result = analyzeTransactionSafety(
+      'enhanced_send',
+      makeOutputs(
+        { value: 0, type: 'op_return' },
+        { value: 546, type: 'unknown' },
+      ),
+      SIGNER
+    );
+
+    expect(result.warnings.some(w => w.title === 'BTC Sent to an Unrecognized Script')).toBe(false);
+  });
+
+  it('does not fire when every output can be attributed', () => {
+    const result = analyzeTransactionSafety(
+      'enhanced_send',
+      makeOutputs(
+        { value: 0, type: 'op_return' },
+        { value: 50_000, address: SIGNER },
+      ),
+      SIGNER
+    );
+
+    expect(result.warnings.some(w => w.title === 'BTC Sent to an Unrecognized Script')).toBe(false);
+  });
+});

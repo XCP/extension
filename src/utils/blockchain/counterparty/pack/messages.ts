@@ -236,11 +236,14 @@ function compactSubassetLongname(longname: string): Uint8Array | null {
  *
  * Borrow safety: a substituted id cannot pay an attacker — an id naming someone else's asset is
  * consensus-rejected ("issued by another address") — but it can land the operation on a different
- * numeric asset the user owns. The borrow is therefore limited to operations recoverable in that
- * case (issue, describe); `lock`, `reset` and ownership transfer are permanent against the wrong
- * asset and decline to the field fallback. The range guard restricts the id to the numeric space
- * subassets live in. No verifier without an independent ledger view can detect the substitution
- * itself; the fallback compares the longname, which the response echoes.
+ * numeric asset the user already owns, whose divisibility happens to match. That is vandalism
+ * with no profit motive, and it is **not detectable locally by any means**: the id is precisely
+ * the field no local check can predict, which is why it is borrowed. Declining to pack does not
+ * avoid it, because the field-comparison fallback is equally blind. Closing it needs an
+ * independent ledger view — a second API source or a local index — or local composition.
+ *
+ * The range guard restricts the id to the numeric space subassets live in, which bounds the
+ * substitution to assets of that kind rather than any named asset.
  *
  * Layout follows the composed message's decoded type. Initial (SUBASSET_ISSUANCE / LR_SUBASSET):
  * `[asset_id, quantity, divisible, lock, reset, compacted_length, compacted_name, mime_type,
@@ -258,10 +261,16 @@ function packSubasset(
   // of an OP_RETURN), so it is packed normally and `inscriptionEnvelope.ts` checks the envelope.
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
 
-  // Irreversible against a substituted id — see the borrow argument above.
-  if (params.lock === true || params.lock === 'true') return null;
-  if (params.reset === true || params.reset === 'true') return null;
-  if (requireString(params, 'transfer_destination')) return null;
+  // A previous revision declined lock, reset and transfer here, reasoning that a substituted
+  // asset id does irreversible harm for those. That was wrong twice over. It did not prevent the
+  // substitution, because the field-comparison fallback cannot see the asset id either — nothing
+  // local can, which is the whole reason the id is borrowed. And it broke the most common
+  // issuance on the chain: declining sent locked subassets to a fallback that compares the
+  // request's longname against the message's numeric asset name and calls the difference a
+  // critical mismatch, so locking a subasset failed outright.
+  //
+  // Byte equality is strictly better here. It proves the quantity, flags, description, MIME type
+  // and the compacted longname, leaving only the id — which no local check could have covered.
 
   const assetId = typeof observed?.assetId === 'bigint' ? observed.assetId : null;
   if (assetId === null || assetId <= 26n ** 12n || assetId >= 1n << 64n) return null;
@@ -289,8 +298,8 @@ function packSubasset(
     assetId,
     quantity,
     params.divisible ? 1n : 0n,
-    0n, // lock — the borrow refuses irreversible operations, so these are always clear
-    0n, // reset
+    params.lock === true || params.lock === 'true' ? 1n : 0n,
+    params.reset === true || params.reset === 'true' ? 1n : 0n,
     BigInt(compacted.length),
     compacted,
     mimeType,

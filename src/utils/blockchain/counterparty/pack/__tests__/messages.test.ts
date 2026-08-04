@@ -467,22 +467,22 @@ describe('refusing to pack is not the same as agreeing', () => {
     expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();
   });
 
-  it('refuses the subasset borrow for operations irreversible against a substituted id', () => {
-    // A wrong borrowed id lands the operation on a different numeric asset the user owns. Issue
-    // and describe are recoverable there; lock, reset and an ownership transfer are not, so the
-    // borrow refuses them and those flows stay on the field fallback.
-    const irreversible: Array<Record<string, unknown>> = [
-      { asset: 'PEPE.rare', quantity: 1, divisible: false, lock: true },
-      { asset: 'PEPE.rare', quantity: 0, divisible: false, reset: true },
-      { asset: 'PEPE.rare', quantity: 0, divisible: false, transfer_destination: TAPROOT_DESTINATION },
-    ];
-    for (const params of irreversible) {
-      for (const messageTypeId of [22, 23]) {
-        expect(packComposeMessage(
-          'issuance', params, { messageTypeId, assetId: 95428956661682177n, divisible: false }
-        )).toBeNull();
-      }
-    }
+  it('packs a locked subasset, the most common issuance shape on the chain', () => {
+    // Declining this once sent it to a fallback that compared "PARENT.child" against the numeric
+    // asset name and called the difference critical, so locking a subasset failed outright. Byte
+    // equality covers the flags, quantity, longname and description; only the borrowed id is
+    // beyond any local check, and declining never changed that.
+    const packed = packComposeMessage(
+      'issuance',
+      { asset: 'JPJA.HELLOKITTY', quantity: 1000, divisible: false, lock: true },
+      { messageTypeId: 23, assetId: 95428956661682177n }
+    );
+
+    expect(packed).not.toBeNull();
+    const decoded = unpackCounterpartyMessage(packed!.bytes);
+    const data = decoded.data as { subassetLongname?: string; isLock?: boolean };
+    expect(data.subassetLongname).toBe('JPJA.HELLOKITTY');
+    expect(data.isLock).toBe(true);
   });
 });
 

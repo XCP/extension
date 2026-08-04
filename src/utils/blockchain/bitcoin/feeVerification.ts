@@ -20,21 +20,41 @@
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 
-/** A fee rate above this (sat/vByte) is treated as never legitimate. */
+/**
+ * A fee rate above this (sat/vByte) is treated as never legitimate, and *blocks* on the compose
+ * path — where the wallet built the transaction, so an absurd fee means the response misbehaved.
+ */
 export const MAX_SANE_FEE_RATE = 5000;
+
+/**
+ * A fee rate above this (sat/vByte) is worth *warning* about on a transaction the wallet did not
+ * build.
+ *
+ * Kept separate from the blocking threshold because the two answer different questions. Blocking
+ * asks "could this ever be legitimate", so it sits far above any rate the network has demanded.
+ * Warning asks "should someone look at this", and at 5000 the answer arrived far too late: a
+ * 250-vByte transaction at 4,999 sat/vB burns about 0.0125 BTC while staying under both that rate
+ * and the 0.1 BTC absolute ceiling, so it drew no signal at all.
+ *
+ * 500 is roughly fifty times a busy-day rate — high enough that legitimate urgency (a fee bump, a
+ * time-sensitive CPFP) does not trip it routinely, low enough to catch a fee nobody intended. It
+ * only ever warns: a site-built transaction can be expensive for reasons the wallet cannot see,
+ * which is why this path does not block (see the note at `transaction/approve.tsx`).
+ */
+export const HIGH_FEE_RATE_WARNING = 500;
 /** When the user chose a fee rate, reject fees beyond this multiple of it. */
 export const USER_FEE_RATE_TOLERANCE = 10;
 /** Absolute floor so tiny transactions aren't rejected by rate rounding. */
 const MIN_BOUND_SATS = 10_000;
 
 /**
- * Whether a fee is absurd for the size of the transaction carrying it.
+ * Whether a fee is high enough for the transaction's size to be worth flagging to the user.
  *
  * The compose path bounds fees by recomputing them from resolved input values, but a transaction
  * handed over by a connected site is already built, and its fee only had an absolute ceiling — so a
  * fee just under that ceiling passed unremarked however small the transaction was. This is the rate
  * bound for those paths: it needs no network, since a decoded transaction already yields both
- * numbers, and `MAX_SANE_FEE_RATE` sits far above any rate the network has ever demanded.
+ * numbers.
  *
  * @param fee - Miner fee in sats, or null when it could not be established.
  * @param vsize - Transaction virtual size in vbytes.
@@ -42,7 +62,7 @@ const MIN_BOUND_SATS = 10_000;
 export function exceedsSaneFeeRate(fee: number | null | undefined, vsize: number | undefined): boolean {
   if (fee == null || !Number.isFinite(fee) || fee <= 0) return false;
   if (!vsize || !Number.isFinite(vsize) || vsize <= 0) return false;
-  return fee / vsize > MAX_SANE_FEE_RATE;
+  return fee / vsize > HIGH_FEE_RATE_WARNING;
 }
 
 export interface FeeCheckInput {

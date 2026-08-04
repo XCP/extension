@@ -157,6 +157,8 @@ export function analyzeTransactionSafety(
       .map(normalizeAddressForComparison)
   );
   const suspiciousOutputs: Array<{ address: string; value: number }> = [];
+  /** Non-dust outputs whose script could not be resolved to any address. */
+  const unattributableOutputs: Array<{ value: number }> = [];
 
   for (const output of outputs) {
     // Skip OP_RETURN — that's the Counterparty data, no BTC is sent
@@ -171,6 +173,12 @@ export function analyzeTransactionSafety(
     // This is a non-dust output to a different address — suspicious
     if (output.address) {
       suspiciousOutputs.push({ address: output.address, value: output.value });
+    } else {
+      // A script no decoder could attribute. It was previously dropped here, so a non-dust output
+      // to a bare-multisig or P2WSH script raised nothing at all and appeared only as "Unknown
+      // address" in the movement list. Value leaving to a script nobody can name deserves at
+      // least the same warning as value leaving to one that can be.
+      unattributableOutputs.push({ value: output.value });
     }
   }
 
@@ -186,6 +194,22 @@ export function analyzeTransactionSafety(
         `This transaction sends ${btcAmount} BTC to ${addresses.length === 1 ? 'an address' : `${addresses.length} addresses`} ` +
         `that ${addresses.length === 1 ? 'is' : 'are'} not yours: ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}. ` +
         'Normal Counterparty transactions only send BTC back to your own address as change.',
+    });
+  }
+
+  if (unattributableOutputs.length > 0) {
+    const totalSats = unattributableOutputs.reduce((sum, o) => sum + o.value, 0);
+    const btcAmount = (totalSats / 100_000_000).toFixed(8);
+    const count = unattributableOutputs.length;
+
+    warnings.push({
+      severity: 'danger',
+      title: 'BTC Sent to an Unrecognized Script',
+      message:
+        `This transaction sends ${btcAmount} BTC to ${count === 1 ? 'an output' : `${count} outputs`} `
+        + `whose destination could not be determined, so ${count === 1 ? 'it' : 'they'} cannot be `
+        + 'shown as an address or confirmed to be yours. Do not sign unless you know what this '
+        + 'script does.',
     });
   }
 
