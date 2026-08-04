@@ -178,13 +178,17 @@ export function hexToBytes(hex: string): Uint8Array {
     throw new BinaryReadError('Invalid hex string: odd length');
   }
 
+  // Checked up front rather than per byte. `parseInt('9z', 16)` returns 9 instead of NaN —
+  // it stops at the first character it cannot read — so a per-pair isNaN check only catches a
+  // bad *leading* nibble and silently decodes the rest to a different byte.
+  const invalid = cleanHex.search(/[^0-9a-fA-F]/);
+  if (invalid !== -1) {
+    throw new BinaryReadError(`Invalid hex character at position ${invalid}`);
+  }
+
   const bytes = new Uint8Array(cleanHex.length / 2);
   for (let i = 0; i < bytes.length; i++) {
-    const byte = parseInt(cleanHex.slice(i * 2, i * 2 + 2), 16);
-    if (isNaN(byte)) {
-      throw new BinaryReadError(`Invalid hex character at position ${i * 2}`);
-    }
-    bytes[i] = byte;
+    bytes[i] = parseInt(cleanHex.slice(i * 2, i * 2 + 2), 16);
   }
   return bytes;
 }
