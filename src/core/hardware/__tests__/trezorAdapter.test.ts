@@ -6,23 +6,19 @@ import { HardwareWalletError } from '../types';
 const {
   mockInit,
   mockDispose,
-  mockOn,
   mockGetFeatures,
-  mockPingDevice,
   mockGetAddress,
   mockGetPublicKey,
-  mockGetAccountInfo,
+  mockSelectAccount,
   mockSignTransaction,
   mockSignMessage,
 } = vi.hoisted(() => ({
   mockInit: vi.fn(),
   mockDispose: vi.fn(),
-  mockOn: vi.fn(),
   mockGetFeatures: vi.fn(),
-  mockPingDevice: vi.fn(),
   mockGetAddress: vi.fn(),
   mockGetPublicKey: vi.fn(),
-  mockGetAccountInfo: vi.fn(),
+  mockSelectAccount: vi.fn(),
   mockSignTransaction: vi.fn(),
   mockSignMessage: vi.fn(),
 }));
@@ -32,26 +28,12 @@ vi.mock('@trezor/connect-webextension', () => ({
   default: {
     init: mockInit,
     dispose: mockDispose,
-    on: mockOn,
-    off: vi.fn(),
     getFeatures: mockGetFeatures,
-    pingDevice: mockPingDevice,
     getAddress: mockGetAddress,
     getPublicKey: mockGetPublicKey,
-    getAccountInfo: mockGetAccountInfo,
+    selectAccount: mockSelectAccount,
     signTransaction: mockSignTransaction,
     signMessage: mockSignMessage,
-    uiResponse: vi.fn(),
-  },
-  DEVICE_EVENT: 'DEVICE_EVENT',
-  DEVICE: {
-    CONNECT: 'device-connect',
-    DISCONNECT: 'device-disconnect',
-  },
-  UI: {
-    REQUEST_BUTTON: 'ui-request_button',
-    REQUEST_CONFIRMATION: 'ui-request_confirmation',
-    RECEIVE_CONFIRMATION: 'ui-receive_confirmation',
   },
 }));
 
@@ -82,14 +64,12 @@ describe('TrezorAdapter', () => {
 
       await adapter.init();
 
-      // Production mode: popup=true, no explicit transports (auto-detect)
       expect(mockInit).toHaveBeenCalledWith({
         manifest: {
           appName: 'XCP Wallet',
           email: 'support@xcpwallet.com',
           appUrl: 'https://xcpwallet.com',
         },
-        popup: true,
         debug: expect.any(Boolean),
       });
     });
@@ -117,21 +97,13 @@ describe('TrezorAdapter', () => {
       await expect(adapter.init()).rejects.toThrow(HardwareWalletError);
     });
 
-    it('should register device event listener', async () => {
+    // Connect 10 accepts only manifest/version/env/debug/enabledNetworks/
+    // requestedPermissions/coreMode. The transport settings that used to drive the emulator
+    // are not part of the public surface, so there is no longer a mode to assert.
+    it('should init with only the settings Connect 10 accepts', async () => {
       mockInit.mockResolvedValue(undefined);
 
       await adapter.init();
-
-      expect(mockOn).toHaveBeenCalledWith(
-        'DEVICE_EVENT',
-        expect.any(Function)
-      );
-    });
-
-    it('should initialize in test mode with BridgeTransport', async () => {
-      mockInit.mockResolvedValue(undefined);
-
-      await adapter.init({ testMode: true });
 
       expect(mockInit).toHaveBeenCalledWith({
         manifest: {
@@ -139,39 +111,8 @@ describe('TrezorAdapter', () => {
           email: 'support@xcpwallet.com',
           appUrl: 'https://xcpwallet.com',
         },
-        popup: false,
         debug: expect.any(Boolean),
-        transports: ['BridgeTransport'],
-        pendingTransportEvent: true,
-        transportReconnect: false,
       });
-    });
-
-    it('should register UI event listeners in test mode', async () => {
-      mockInit.mockResolvedValue(undefined);
-
-      await adapter.init({ testMode: true });
-
-      // Should register for REQUEST_CONFIRMATION events
-      expect(mockOn).toHaveBeenCalledWith(
-        'ui-request_confirmation',
-        expect.any(Function)
-      );
-    });
-
-    it('should use custom connectSrc in test mode', async () => {
-      mockInit.mockResolvedValue(undefined);
-
-      await adapter.init({
-        testMode: true,
-        connectSrc: 'http://localhost:8088/',
-      });
-
-      expect(mockInit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          connectSrc: 'http://localhost:8088/',
-        })
-      );
     });
   });
 
@@ -218,27 +159,26 @@ describe('TrezorAdapter', () => {
       await adapter.init();
     });
 
-    it('should return true and mark connected when ping succeeds', async () => {
-      mockPingDevice.mockResolvedValue({
+    // pingDevice moved into the management API, which Connect 10 omits from the public
+    // surface. getFeatures answers the same question without a device confirmation.
+    it('should return true and mark connected when the device answers', async () => {
+      mockGetFeatures.mockResolvedValue({
         success: true,
-        payload: { message: 'XCP Wallet connection check' },
+        payload: { model: 'T', label: 'My Trezor', major_version: 2, minor_version: 5, patch_version: 3 },
       });
 
       const result = await adapter.pingDevice();
 
       expect(result).toBe(true);
       expect(adapter.getConnectionStatus()).toBe('connected');
-      expect(mockPingDevice).toHaveBeenCalledWith({
-        message: 'XCP Wallet connection check',
-        button_protection: false,
-      });
+      expect(mockGetFeatures).toHaveBeenCalled();
     });
 
-    it('should return false and mark disconnected when ping fails', async () => {
-      mockPingDevice.mockResolvedValue({
+    it('should return false and mark disconnected when the device does not answer', async () => {
+      mockGetFeatures.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'Device disconnected',
+        error: {
+          message: 'Device disconnected',
           code: 'Device_Disconnected',
         },
       });
@@ -260,16 +200,13 @@ describe('TrezorAdapter', () => {
           patch_version: 3,
         },
       });
-      mockPingDevice.mockResolvedValue({
-        success: true,
-        payload: { message: 'XCP Wallet connection check' },
-      });
 
       await adapter.getDeviceInfo();
       const result = await adapter.reconnect();
 
       expect(result).toBe(true);
-      expect(mockPingDevice).toHaveBeenCalledTimes(1);
+      // once for getDeviceInfo, once for the reconnect check
+      expect(mockGetFeatures).toHaveBeenCalledTimes(2);
       expect(mockDispose).not.toHaveBeenCalled();
     });
   });
@@ -377,8 +314,8 @@ describe('TrezorAdapter', () => {
     it('should throw HardwareWalletError on failure', async () => {
       mockGetAddress.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'Device disconnected',
+        error: {
+          message: 'Device disconnected',
           code: 'Device_Disconnected',
         },
       });
@@ -433,7 +370,7 @@ describe('TrezorAdapter', () => {
       expect(mockGetPublicKey).toHaveBeenCalledWith({
         path: "m/84'/0'/0'", // String path format
         coin: 'btc',
-        useEmptyPassphrase: true,
+        device: { useEmptyPassphrase: true },
       });
     });
 
@@ -602,8 +539,8 @@ describe('TrezorAdapter', () => {
     it('should throw on signing failure', async () => {
       mockSignTransaction.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'User cancelled',
+        error: {
+          message: 'User cancelled',
           code: 'Failure_ActionCancelled',
         },
       });
@@ -657,7 +594,7 @@ describe('TrezorAdapter', () => {
       expect(mockSignMessage).toHaveBeenCalledWith({
         path: expect.any(Array),
         message: 'test',
-        coin: 'Bitcoin',
+        coin: 'btc',
       });
     });
   });
@@ -803,8 +740,8 @@ describe('TrezorAdapter', () => {
     it('should throw on signing failure', async () => {
       mockSignTransaction.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'User rejected',
+        error: {
+          message: 'User rejected',
           code: 'Failure_ActionCancelled',
         },
       });
@@ -968,82 +905,49 @@ describe('TrezorAdapter', () => {
       await adapter.init();
     });
 
-    it('should discover account and extract xpub from descriptor', async () => {
-      // Mock getAccountInfo response with a real-looking descriptor
-      mockGetAccountInfo.mockResolvedValue({
+    // getAccountInfo no longer discovers - it rejects a request carrying neither path nor
+    // descriptor. selectAccount replaces it and returns the xpub directly, so there is no
+    // descriptor left to parse.
+    it('should discover an account and take the xpub from the response', async () => {
+      mockSelectAccount.mockResolvedValue({
         success: true,
-        payload: {
+        payload: [{
+          symbol: 'btc',
           path: "m/84'/0'/0'",
-          descriptor: "wpkh([d34db33f/84'/0'/0']xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq/0/*)",
-          balance: '100000',
-          addresses: {
-            unused: [{ address: 'bc1qtest123456789' }],
-            used: [],
-            change: [],
-          },
-        },
+          address: 'bc1qtest123456789',
+          xpub: 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq',
+        }],
       });
 
       const result = await adapter.discoverAccount(false);
 
       expect(result).toEqual({
         path: "m/84'/0'/0'",
-        descriptor: expect.stringContaining('wpkh'),
-        balance: '100000',
         address: 'bc1qtest123456789',
-        addressFormat: 'p2wpkh', // Lowercase - matches AddressFormat.P2WPKH
+        addressFormat: 'p2wpkh',
         accountIndex: 0,
-        xpub: 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq', // Extracted from descriptor!
+        xpub: 'xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6FKNUjPqBvnsFGUr3CX7RWVLx7YJKS3MsqHp7GJ8rSv8DFGGq',
       });
-
-      // Verify getAccountInfo was called, NOT getPublicKey
-      expect(mockGetAccountInfo).toHaveBeenCalledTimes(1);
-      // xpub is extracted from descriptor, no separate getPublicKey call needed
+      expect(mockSelectAccount).toHaveBeenCalledTimes(1);
+      expect(mockGetPublicKey).not.toHaveBeenCalled();
     });
 
-    it('should extract xpub from P2TR (Taproot) descriptor', async () => {
-      mockGetAccountInfo.mockResolvedValue({
+    it('should derive the address format from the account path', async () => {
+      mockSelectAccount.mockResolvedValue({
         success: true,
-        payload: {
-          path: "m/86'/0'/0'",
-          descriptor: "tr([d34db33f/86'/0'/0']xpub6Dk5AGsQw8Vqk8kqD1NbQ8Pm6zJkPnVZ4d6r9LMBvpKHofDLc5bVxM4pkxYVgSrT/0/*)",
-          balance: '0',
-          addresses: {
-            unused: [{ address: 'bc1ptest789' }],
-          },
-        },
+        payload: [{ symbol: 'btc', path: "m/86'/0'/0'", address: 'bc1ptest789', xpub: 'xpub6Dk5AGsQw8Vqk' }],
       });
 
       const result = await adapter.discoverAccount(false);
 
-      expect(result.xpub).toBe('xpub6Dk5AGsQw8Vqk8kqD1NbQ8Pm6zJkPnVZ4d6r9LMBvpKHofDLc5bVxM4pkxYVgSrT');
-      expect(result.addressFormat).toBe('p2tr'); // Lowercase - matches AddressFormat.P2TR
-    });
-
-    it('should extract xpub from P2PKH (Legacy) descriptor', async () => {
-      mockGetAccountInfo.mockResolvedValue({
-        success: true,
-        payload: {
-          path: "m/44'/0'/0'",
-          descriptor: "pkh([d34db33f/44'/0'/0']xpub6BsLYthLEycvnxBVfGqZ4S5pchR7yDBN/0/*)",
-          balance: '50000',
-          addresses: {
-            used: [{ address: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' }],
-          },
-        },
-      });
-
-      const result = await adapter.discoverAccount(false);
-
-      expect(result.xpub).toBe('xpub6BsLYthLEycvnxBVfGqZ4S5pchR7yDBN');
-      expect(result.addressFormat).toBe('p2pkh'); // Lowercase - matches AddressFormat.P2PKH
+      expect(result.addressFormat).toBe('p2tr');
     });
 
     it('should throw specific error when user cancels', async () => {
-      mockGetAccountInfo.mockResolvedValue({
+      mockSelectAccount.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'User cancelled the action',
+        error: {
+          message: 'User cancelled the action',
           code: 'Failure_ActionCancelled',
         },
       });
@@ -1053,10 +957,10 @@ describe('TrezorAdapter', () => {
     });
 
     it('should throw specific error when device is disconnected', async () => {
-      mockGetAccountInfo.mockResolvedValue({
+      mockSelectAccount.mockResolvedValue({
         success: false,
-        payload: {
-          error: 'Session not found',
+        error: {
+          message: 'Session not found',
           code: 'Device_SessionNotFound',
         },
       });
@@ -1064,75 +968,33 @@ describe('TrezorAdapter', () => {
       await expect(adapter.discoverAccount(false)).rejects.toThrow(HardwareWalletError);
     });
 
-    it('should fall back to getAddress if no addresses returned', async () => {
-      mockGetAccountInfo.mockResolvedValue({
+    it('should reject an account with no xpub rather than returning a partial result', async () => {
+      mockSelectAccount.mockResolvedValue({
         success: true,
-        payload: {
-          path: "m/84'/0'/0'",
-          descriptor: "wpkh([d34db33f/84'/0'/0']xpub6CUGRUonZSQ4TWtT/0/*)",
-          balance: '0',
-          addresses: {}, // No addresses
-        },
+        payload: [{ symbol: 'btc', path: "m/84'/0'/0'", address: 'bc1qtest' }],
       });
 
-      // Mock the fallback getAddress call
+      await expect(adapter.discoverAccount(false)).rejects.toThrow(HardwareWalletError);
+    });
+
+    it('should derive the address when the device returns none', async () => {
+      mockSelectAccount.mockResolvedValue({
+        success: true,
+        payload: [{ symbol: 'btc', path: "m/84'/0'/0'", xpub: 'xpub6CUGRUonZSQ4TWtT' }],
+      });
       mockGetAddress.mockResolvedValue({
         success: true,
-        payload: {
-          address: 'bc1qfallback',
-        },
+        payload: { address: 'bc1qfallback' },
       });
 
       const result = await adapter.discoverAccount(false);
 
       expect(result.address).toBe('bc1qfallback');
       expect(mockGetAddress).toHaveBeenCalledWith(
-        expect.objectContaining({
-          path: "m/84'/0'/0'/0/0",
-        })
+        expect.objectContaining({ path: "m/84'/0'/0'/0/0" })
       );
     });
-
-    it('should extract xpub using fallback regex for simpler descriptor formats', async () => {
-      // Some descriptors may not have the [fingerprint/path] format
-      // The fallback regex handles this case
-      mockGetAccountInfo.mockResolvedValue({
-        success: true,
-        payload: {
-          path: "m/84'/0'/0'",
-          descriptor: "wpkh(xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6/0/*)",
-          balance: '0',
-          addresses: {
-            unused: [{ address: 'bc1qsimple' }],
-          },
-        },
-      });
-
-      const result = await adapter.discoverAccount(false);
-
-      // The fallback regex should still extract the xpub correctly
-      expect(result.xpub).toBe('xpub6CUGRUonZSQ4TWtTMmzXdrXDtypWZiD6');
-    });
-
-    it('should handle testnet pubkey variants (tpub)', async () => {
-      mockGetAccountInfo.mockResolvedValue({
-        success: true,
-        payload: {
-          path: "m/84'/1'/0'",
-          descriptor: "wpkh([d34db33f/84'/1'/0']tpub6CUGRUonZSQ4TWtTMmzTestnet/0/*)",
-          balance: '0',
-          addresses: {
-            unused: [{ address: 'tb1qtestnet' }],
-          },
-        },
-      });
-
-      const result = await adapter.discoverAccount(false);
-
-      expect(result.xpub).toBe('tpub6CUGRUonZSQ4TWtTMmzTestnet');
-    });
   });
-
   describe('getTrezorAdapter (singleton)', () => {
     it('should return same instance', () => {
       const adapter1 = getTrezorAdapter();

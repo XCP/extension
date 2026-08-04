@@ -92,7 +92,6 @@ export default function SignMessagePage(): ReactElement {
         const hwResult = await trezor.signMessage({
           path: DerivationPaths.stringToPath(activeAddress.path),
           message: message,
-          coin: 'Bitcoin',
         });
 
         resultSignature = hwResult.signature;

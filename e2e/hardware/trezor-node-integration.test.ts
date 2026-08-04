@@ -15,11 +15,10 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-// Quarantined: @trezor/connect (the Node SDK) was dropped in the connect-webextension
-// 10.x-alpha migration, so this Node-direct suite can no longer resolve it.
-// TODO(trezor): re-add @trezor/connect as a devDep (regenerate the lockfile on Linux)
-// or port these to connect-webextension, then un-skip the describe below.
-const TrezorConnect: any = undefined;
+// @trezor/connect is the privileged Node SDK: init() takes the full ConnectSettings, so it
+// still accepts transports: ['BridgeTransport']. connect-webextension exposes only the public
+// API, which does not - which is why the emulator is driven from here rather than the browser.
+import TrezorConnect from '@trezor/connect';
 
 // Use HTTP-based emulator control instead of WebSocket-based trezor-user-env-link
 // This avoids TypeScript errors in the trezor-user-env-link package
@@ -49,7 +48,7 @@ const EXPECTED_ADDRESSES = {
 // Skip if emulator is not available
 const SKIP_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
 
-describe.skip('Trezor Node.js Integration Tests', () => {
+describe('Trezor Node.js Integration Tests', () => {
   // Skip entire suite if emulator not available
   if (SKIP_TESTS) {
     it.skip('Trezor emulator not available', () => {});

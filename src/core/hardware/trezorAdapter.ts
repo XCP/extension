@@ -4,10 +4,6 @@
  * Implementation of IHardwareWalletAdapter for Trezor devices.
  * Uses @trezor/connect-webextension for browser extension service worker communication.
  *
- * Supports two modes:
- * - Production mode (popup: true): Opens Trezor Connect popup for user interaction
- * - Test/Emulator mode (popup: false): Direct communication with Trezor Bridge for automated testing
- *
  * ---
  * ADR-017: Hardware Wallet Integration Architecture
  * ---
@@ -40,11 +36,6 @@
  *    - Extracts inputs/outputs from PSBT for Trezor SDK format
  *    - Reference transactions fetched for non-SegWit inputs (Trezor requirement)
  *
- * 5. **Two Operational Modes**
- *    - **Production (popup: true)**: User interacts via Trezor Connect popup
- *    - **Testing (popup: false)**: Direct Bridge communication for emulator testing
- *    - Mode controlled via settings, not hardcoded
- *
  * **Alternatives Considered**:
  * - Direct USB communication: Blocked by browser security model
  * - WebUSB API: Limited browser support, not in Firefox
@@ -52,7 +43,6 @@
  *
  * **Trade-offs**:
  * - Trezor popup UX adds friction (but user expects this for hardware wallets)
- * - Bridge dependency for testing (mitigated by Docker-based Trezor emulator)
  * - @trezor/connect-webextension pulls large dependency tree (mitigated by build-time tree shaking)
  *
  * **Security Properties**:
@@ -62,7 +52,7 @@
  * - No trust in extension: Compromised extension cannot sign without device
  */
 
-import TrezorConnect, { DEVICE, DEVICE_EVENT } from '@trezor/connect-webextension';
+import TrezorConnect from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import { extractPsbtDetails } from '@/core/bitcoin/psbt';
 import type { IHardwareWalletAdapter } from '@/core/hardware/interface';
@@ -80,7 +70,6 @@ import {
   type InputScriptType,
   type OutputScriptType,
 } from '@/core/hardware/types';
-import { getActiveSettings } from '@/core/settings';
 
 // ============================================================================
 // Internal Types for Trezor SDK Compatibility
@@ -129,7 +118,7 @@ interface TrezorSignOutput {
 interface TrezorSignTransactionRequest {
   inputs: TrezorSignInput[];
   outputs: TrezorSignOutput[];
-  coin: string;
+  coin: 'btc';
   push: boolean;
   refTxs?: TrezorRefTransaction[];
 }
@@ -173,14 +162,8 @@ function toTrezorScriptType<T extends TrezorScriptType>(scriptType: T): any {
  * Configuration options for TrezorAdapter initialization
  */
 export interface TrezorAdapterOptions {
-  /** Use test/emulator mode (no popup, direct bridge communication) */
-  testMode?: boolean;
-  /** Custom connect source URL (for local development/testing) */
-  connectSrc?: string;
   /** Enable debug logging */
   debug?: boolean;
-  /** Callback for UI button requests (for auto-confirm in tests) */
-  onButtonRequest?: (code: string) => void;
 }
 
 /**
@@ -246,44 +229,6 @@ function getScriptTypeFromPurpose(purpose: number): InputScriptType {
 }
 
 /**
- * Extract xpub from a Bitcoin descriptor string.
- *
- * Trezor's getAccountInfo returns a descriptor like:
- * - wpkh([fingerprint/path]xpub6ABC.../0/*)
- * - pkh([fingerprint/path]xpub6ABC.../0/*)
- * - tr([fingerprint/path]xpub6ABC.../0/*)
- * - sh(wpkh([fingerprint/path]ypub6ABC.../0/*))
- *
- * This function extracts the extended public key from the descriptor,
- * eliminating the need for a separate getPublicKey() call.
- *
- * @param descriptor - Bitcoin descriptor from getAccountInfo
- * @returns Extracted xpub/ypub/zpub string
- * @throws Error if xpub cannot be extracted
- */
-function extractXpubFromDescriptor(descriptor: string): string {
-  // Match xpub, ypub, zpub, tpub, upub, vpub (mainnet and testnet variants)
-  // The pattern looks for ]xpub... or similar, followed by the key characters
-  const match = descriptor.match(/\]([xyztuv]pub[a-zA-HJ-NP-Z0-9]+)/);
-  if (match && match[1]) {
-    return match[1];
-  }
-
-  // Fallback: try to match xpub anywhere in the string (for simpler descriptors)
-  const fallbackMatch = descriptor.match(/([xyztuv]pub[a-zA-HJ-NP-Z0-9]+)/);
-  if (fallbackMatch && fallbackMatch[1]) {
-    return fallbackMatch[1];
-  }
-
-  throw new HardwareWalletError(
-    `Could not extract xpub from descriptor: ${descriptor.substring(0, 50)}...`,
-    'XPUB_EXTRACTION_FAILED',
-    'trezor',
-    'Failed to extract public key from account descriptor.'
-  );
-}
-
-/**
  * Trezor Hardware Wallet Adapter
  */
 export class TrezorAdapter implements IHardwareWalletAdapter {
@@ -291,11 +236,6 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   private connectionStatus: HardwareConnectionStatus = 'disconnected';
   private deviceInfo: HardwareDeviceInfo | null = null;
   private options: TrezorAdapterOptions = {};
-
-  // Event handler references for cleanup
-  private deviceEventHandler: ((event: unknown) => void) | null = null;
-  private buttonRequestHandler: ((event: unknown) => void) | null = null;
-  private confirmationHandler: ((event: unknown) => void) | null = null;
 
   /**
    * Initialize Trezor Connect
@@ -314,32 +254,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     try {
       this.connectionStatus = 'connecting';
 
-      // Determine test mode from multiple sources:
-      // 1. Build-time flag (set via TREZOR_TEST_MODE env var during build)
-      // 2. Explicit option passed to init()
-      // 3. Settings trezorEmulatorMode flag (explicit developer setting)
-      // @ts-expect-error - __TREZOR_TEST_MODE__ is defined by vite at build time
-      let isTestMode = typeof __TREZOR_TEST_MODE__ !== 'undefined' && __TREZOR_TEST_MODE__ === true;
-
-      if (!isTestMode && this.options.testMode === true) {
-        isTestMode = true;
-      }
-
-      if (!isTestMode) {
-        // Check settings for trezorEmulatorMode (explicit emulator setting)
-        // Note: This is intentionally separate from transactionDryRun to prevent
-        // accidental security weakening when users just want to preview transactions
-        try {
-          const settings = getActiveSettings();
-          isTestMode = settings.trezorEmulatorMode === true;
-        } catch {
-          // Settings not available (keychain locked), use production mode
-        }
-      }
-
       const debug = this.options.debug ?? process.env.NODE_ENV === 'development';
 
-      // Build init configuration
+      // Connect 10 accepts only manifest, version, env, debug, enabledNetworks,
+      // requestedPermissions and coreMode. The transport settings that used to drive the
+      // emulator (popup, transports, pendingTransportEvent, transportReconnect, connectSrc)
+      // live in the privileged ConnectSettings, which this package does not expose - see
+      // TREZOR-CONNECT-10.md. `testMode` and `connectSrc` are accepted and ignored so callers
+      // do not have to change.
       const initConfig: Parameters<typeof TrezorConnect.init>[0] = {
         manifest: {
           appName: 'XCP Wallet',
@@ -349,84 +271,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         debug,
       };
 
-      if (isTestMode) {
-        // Test/Emulator mode: Direct bridge communication
-        // This allows automated testing against the Trezor emulator
-        initConfig.popup = false;
-        initConfig.transports = ['BridgeTransport'];
-        initConfig.pendingTransportEvent = true;
-        initConfig.transportReconnect = false;
-
-        // Allow custom connect source for local testing
-        if (this.options.connectSrc) {
-          initConfig.connectSrc = this.options.connectSrc;
-        }
-      } else {
-        // Production mode: Use popup for user interactions
-        // Don't specify transports - let @trezor/connect-webextension auto-detect
-        // The popup window handles USB/Bridge communication
-        initConfig.popup = true;
-      }
-
       console.log('[TrezorAdapter] Calling TrezorConnect.init with config:', JSON.stringify(initConfig, null, 2));
       await TrezorConnect.init(initConfig);
       console.log('[TrezorAdapter] TrezorConnect.init completed successfully');
 
-      // Create and store device event handler for cleanup
-      this.deviceEventHandler = (rawEvent: unknown) => {
-        const event = rawEvent as { type: string; payload: { features?: { model?: string; label?: string | null; major_version?: number; minor_version?: number; patch_version?: number } } };
-        if (event.type === DEVICE.CONNECT) {
-          this.connectionStatus = 'connected';
-          this.deviceInfo = {
-            vendor: 'trezor',
-            model: event.payload.features?.model,
-            label: event.payload.features?.label ?? undefined,
-            firmwareVersion: event.payload.features
-              ? `${event.payload.features.major_version}.${event.payload.features.minor_version}.${event.payload.features.patch_version}`
-              : undefined,
-            connected: true,
-          };
-        } else if (event.type === DEVICE.DISCONNECT) {
-          this.connectionStatus = 'disconnected';
-          if (this.deviceInfo) {
-            this.deviceInfo.connected = false;
-          }
-        }
-      };
-      TrezorConnect.on(DEVICE_EVENT, this.deviceEventHandler);
-
-      // In test mode, listen for button requests for auto-confirm
-      // Use string literals to avoid bundling issues with UI constants
-      if (isTestMode && this.options.onButtonRequest) {
-        this.buttonRequestHandler = (rawEvent: unknown) => {
-          const event = rawEvent as { payload?: { code?: string } };
-          const code = event.payload?.code ?? 'unknown';
-          this.options.onButtonRequest?.(code);
-        };
-        try {
-          TrezorConnect.on('ui-button', this.buttonRequestHandler);
-        } catch {
-          // Event listener not supported in this context
-        }
-      }
-
-      // Handle confirmation dialogs in test mode
-      if (isTestMode) {
-        this.confirmationHandler = () => {
-          TrezorConnect.uiResponse({
-            type: 'ui-receive_confirmation',
-            payload: true,
-          });
-        };
-        try {
-          TrezorConnect.on('ui-request_confirmation', this.confirmationHandler);
-        } catch {
-          // Event listener not supported in this context
-        }
-      }
-
       this.initialized = true;
-      this.connectionStatus = 'disconnected'; // Will change to connected when device connects
+      // Connect 10 removed the device event stream, so there is nothing to subscribe to.
+      // Connection state is established by the first getDeviceInfo() or pingDevice() call.
+      this.connectionStatus = 'disconnected';
     } catch (error) {
       this.connectionStatus = 'error';
       throw new HardwareWalletError(
@@ -482,10 +334,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   async pingDevice(): Promise<boolean> {
     this.ensureInitialized();
 
-    const result = await TrezorConnect.pingDevice({
-      message: 'XCP Wallet connection check',
-      button_protection: false,
-    });
+    // pingDevice moved into the management API, which the public surface omits. getFeatures
+    // answers the same question - is the device reachable - without a device confirmation.
+    const result = await TrezorConnect.getFeatures();
 
     if (result.success) {
       this.connectionStatus = 'connected';
@@ -525,13 +376,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       coin: 'btc',
       showOnTrezor: showOnDevice,
       scriptType: toTrezorScriptType(scriptType),
-      useEmptyPassphrase: !usePassphrase,
+      device: { useEmptyPassphrase: !usePassphrase },
     });
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get address: ${result.payload?.error}`,
-        result.payload?.code ?? 'GET_ADDRESS_FAILED',
+        `Failed to get address: ${result.error.message}`,
+        result.error.code ?? 'GET_ADDRESS_FAILED',
         'trezor',
         'Failed to get address from Trezor. Please check your device and try again.'
       );
@@ -577,12 +428,12 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       };
     });
 
-    const result = await TrezorConnect.getAddress({ bundle, useEmptyPassphrase: !usePassphrase });
+    const result = await TrezorConnect.getAddress({ bundle, device: { useEmptyPassphrase: !usePassphrase } });
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get addresses: ${result.payload?.error}`,
-        result.payload?.code ?? 'GET_ADDRESSES_FAILED',
+        `Failed to get addresses: ${result.error.message}`,
+        result.error.code ?? 'GET_ADDRESSES_FAILED',
         'trezor',
         'Failed to get addresses from Trezor. Please check your device and try again.'
       );
@@ -623,13 +474,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const result = await TrezorConnect.getPublicKey({
       path,
       coin: 'btc',
-      useEmptyPassphrase: !usePassphrase,
+      device: { useEmptyPassphrase: !usePassphrase },
     });
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to get xpub: ${result.payload?.error}`,
-        result.payload?.code ?? 'GET_XPUB_FAILED',
+        `Failed to get xpub: ${result.error.message}`,
+        result.error.code ?? 'GET_XPUB_FAILED',
         'trezor',
         'Failed to get extended public key from Trezor.'
       );
@@ -655,8 +506,6 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    */
   async discoverAccount(usePassphrase: boolean = false): Promise<{
     path: string;
-    descriptor: string;
-    balance: string;
     address: string;
     addressFormat: AddressFormat;
     accountIndex: number;
@@ -665,19 +514,22 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     this.ensureInitialized();
     console.log('[TrezorAdapter] discoverAccount called, usePassphrase:', usePassphrase);
 
-    // Use getAccountInfo with just coin parameter for BIP-44 discovery
-    // This triggers Trezor's account selection UI
-    console.log('[TrezorAdapter] Calling TrezorConnect.getAccountInfo...');
-    const result = await TrezorConnect.getAccountInfo({
+    // getAccountInfo no longer discovers - it rejects a request with neither path nor
+    // descriptor. selectAccount is the replacement, and it returns the address and xpub
+    // directly, so the descriptor no longer has to be parsed for the xpub.
+    console.log('[TrezorAdapter] Calling TrezorConnect.selectAccount...');
+    const result = await TrezorConnect.selectAccount({
       coin: 'btc',
-      useEmptyPassphrase: !usePassphrase,
+      selectionType: 'single',
+      addressSelection: 'firstFresh',
+      device: { useEmptyPassphrase: !usePassphrase },
     });
-    console.log('[TrezorAdapter] getAccountInfo result:', JSON.stringify(result, null, 2));
+    console.log('[TrezorAdapter] selectAccount result:', JSON.stringify(result, null, 2));
 
     if (!result.success) {
-      const errorMsg = result.payload?.error?.toLowerCase() || '';
-      console.error('[TrezorAdapter] Discovery failed:', result.payload);
-      const errorCode = result.payload?.code ?? 'DISCOVERY_FAILED';
+      const errorMsg = result.error.message?.toLowerCase() || '';
+      console.error('[TrezorAdapter] Discovery failed:', result.error);
+      const errorCode = result.error.code ?? 'DISCOVERY_FAILED';
 
       // Provide specific error messages for common failure modes
       if (errorMsg.includes('cancelled') || errorMsg.includes('cancel')) {
@@ -718,14 +570,15 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       // Default error
       throw new HardwareWalletError(
-        `Account discovery failed: ${result.payload?.error}`,
+        `Account discovery failed: ${result.error.message}`,
         errorCode,
         'trezor',
         'Failed to discover accounts. Please check your device and try again.'
       );
     }
 
-    const account = result.payload;
+    // selectionType 'single' still returns an array.
+    const account = result.payload[0];
     if (!account?.path) {
       throw new HardwareWalletError(
         'Device returned incomplete account information (missing path)',
@@ -746,23 +599,27 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       );
     }
 
+    if (!account.xpub) {
+      throw new HardwareWalletError(
+        'Device returned no extended public key for the selected account',
+        'INVALID_RESPONSE',
+        'trezor',
+        'The device returned incomplete account information. Please try again.'
+      );
+    }
+
     const addressFormat = parsedPath.addressFormat;
-
-    // Resolve the first address from account info or derive it
-    const firstAddress = await this.resolveFirstAddress(account, usePassphrase);
-
-    // Extract xpub from descriptor - no separate getPublicKey() call needed!
-    // This is the key optimization: one TrezorConnect call instead of two.
-    const xpub = extractXpubFromDescriptor(account.descriptor);
+    // addressSelection 'firstFresh' asks for an address, but the field is optional -
+    // derive it when the device does not supply one.
+    const address = account.address
+      ?? (await this.getAddress(addressFormat, parsedPath.accountIndex, 0, false, usePassphrase)).address;
 
     return {
       path: account.path,
-      descriptor: account.descriptor,
-      balance: account.balance,
-      address: firstAddress,
+      address,
       addressFormat,
       accountIndex: parsedPath.accountIndex,
-      xpub,
+      xpub: account.xpub,
     };
   }
 
@@ -841,8 +698,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to sign transaction: ${result.payload?.error}`,
-        result.payload?.code ?? 'SIGN_TX_FAILED',
+        `Failed to sign transaction: ${result.error.message}`,
+        result.error.code ?? 'SIGN_TX_FAILED',
         'trezor',
         'Failed to sign transaction. Please check your Trezor and try again.'
       );
@@ -883,24 +740,24 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
     const result = await TrezorConnect.signMessage({
       path: request.path,
       message: request.message,
-      coin: request.coin ?? 'Bitcoin',
+      coin: 'btc',
     });
 
     if (!result.success) {
       // Provide better error message for script type errors
-      const errorMsg = result.payload?.error?.toLowerCase() || '';
+      const errorMsg = result.error.message?.toLowerCase() || '';
       if (errorMsg.includes('script type') || errorMsg.includes('unsupported')) {
         throw new HardwareWalletError(
-          `Failed to sign message: ${result.payload?.error}`,
-          result.payload?.code ?? 'SIGN_MESSAGE_FAILED',
+          `Failed to sign message: ${result.error.message}`,
+          result.error.code ?? 'SIGN_MESSAGE_FAILED',
           'trezor',
           'This address type is not supported for message signing on Trezor. Try using a Native SegWit (bc1q...) address.'
         );
       }
 
       throw new HardwareWalletError(
-        `Failed to sign message: ${result.payload?.error}`,
-        result.payload?.code ?? 'SIGN_MESSAGE_FAILED',
+        `Failed to sign message: ${result.error.message}`,
+        result.error.code ?? 'SIGN_MESSAGE_FAILED',
         'trezor',
         'Failed to sign message. Please check your Trezor and try again.'
       );
@@ -1031,8 +888,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     if (!result.success) {
       throw new HardwareWalletError(
-        `Failed to sign PSBT: ${result.payload?.error}`,
-        result.payload?.code ?? 'SIGN_PSBT_FAILED',
+        `Failed to sign PSBT: ${result.error.message}`,
+        result.error.code ?? 'SIGN_PSBT_FAILED',
         'trezor',
         'Failed to sign transaction. Please check your Trezor and try again.'
       );
@@ -1050,28 +907,6 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
    */
   async dispose(): Promise<void> {
     if (this.initialized) {
-      // Remove event listeners to prevent memory leaks
-      if (this.deviceEventHandler) {
-        TrezorConnect.off(DEVICE_EVENT, this.deviceEventHandler);
-        this.deviceEventHandler = null;
-      }
-      if (this.buttonRequestHandler) {
-        try {
-          TrezorConnect.off('ui-button', this.buttonRequestHandler);
-        } catch {
-          // Event listener not supported
-        }
-        this.buttonRequestHandler = null;
-      }
-      if (this.confirmationHandler) {
-        try {
-          TrezorConnect.off('ui-request_confirmation', this.confirmationHandler);
-        } catch {
-          // Event listener not supported
-        }
-        this.confirmationHandler = null;
-      }
-
       TrezorConnect.dispose();
       this.initialized = false;
       this.connectionStatus = 'disconnected';
@@ -1113,54 +948,6 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       console.warn('Trezor reconnection failed:', error instanceof Error ? error.message : 'Unknown error');
       return false;
     }
-  }
-
-  /**
-   * Resolve the first receiving address from account info or derive it.
-   *
-   * Trezor's getAccountInfo may or may not include address arrays depending
-   * on the account's transaction history. This helper centralizes the logic
-   * to extract the first address from available data, or fall back to
-   * deriving it via getAddress if needed.
-   *
-   * @param account - Account info from getAccountInfo
-   * @param usePassphrase - Whether passphrase is enabled
-   * @returns The first receiving address for this account
-   */
-  private async resolveFirstAddress(
-    account: { path: string; addresses?: { unused?: Array<{ address: string }>; used?: Array<{ address: string }> } },
-    usePassphrase: boolean
-  ): Promise<string> {
-    // Try to get address from account info (preferred - no extra call)
-    const addresses = account.addresses;
-    if (addresses?.unused && addresses.unused.length > 0) {
-      return addresses.unused[0]!.address;
-    }
-    if (addresses?.used && addresses.used.length > 0) {
-      return addresses.used[0]!.address;
-    }
-
-    // Fall back to explicit getAddress call if account has no address history
-    // This happens for new/empty accounts
-    const parsedPath = DerivationPaths.parseAccountPath(account.path);
-    if (!parsedPath) {
-      throw new HardwareWalletError(
-        `Invalid account path: ${account.path}`,
-        'INVALID_PATH',
-        'trezor',
-        'Cannot derive address from invalid account path.'
-      );
-    }
-
-    const addressResult = await this.getAddress(
-      parsedPath.addressFormat,
-      parsedPath.accountIndex,
-      0, // First address
-      false, // Don't show on device
-      usePassphrase
-    );
-
-    return addressResult.address;
   }
 
   /**

@@ -1,82 +1,96 @@
-# Trezor Connect 10 migration — findings
+# Trezor Connect 10 migration
 
-Spike branch. **Not mergeable**: `tsc` fails by design, and the change would remove our only
-automated verification of the hardware signing path. Written up so the work is ready when
-v10 goes stable.
-
-Measured against `@trezor/connect-webextension@10.0.0-beta.1` (`latest` is still `9.7.3`).
+Migration to `@trezor/connect-webextension@10.0.0-beta.1`, done so it can land as soon as a
+stable v10 ships. Everything compiles, lints, builds and passes unit tests today. What it cannot
+do from this machine is exercise a physical device, so the emulator suites are the gate.
 
 ## What it buys
 
-`npm audit` goes from 11 low advisories to **zero**. All 11 are one root cause — `elliptic`
-GHSA-848j-6mx2-7j84 — counted once per package in the chain. v10 drops the dependency that
-carried it:
+`npm audit` goes from 11 low advisories to **zero**. All 11 were one root cause — `elliptic`
+GHSA-848j-6mx2-7j84 — counted once per package in the chain. v10 drops `@trezor/connect` from
+connect-webextension's dependency list, and with it `crypto-browserify` → `elliptic` and
+`utxo-lib` → `tiny-secp256k1` → `elliptic`.
 
-| | 9.7.3 | 10.0.0-beta.1 |
-|---|---|---|
-| direct deps | `@trezor/connect`, `@trezor/connect-web`, `@trezor/connect-common` | `@trezor/connect-common`, `@trezor/connect-web` |
-| pulls | `blockchain-link` → `crypto-browserify` → `elliptic`, `utxo-lib` → `tiny-secp256k1` → `elliptic` | none of it |
+The shipped bundle is also smaller: 2.46 MB → 2.38 MB.
 
-The `@trezor/connect` package is gone from the tree, and with it the whole vulnerable subtree.
+To be clear about the size of the win: `elliptic` never reached the shipped extension under 9.x
+either. It was tree-shaken out, and our signing uses `@noble/secp256k1` and `@scure/btc-signer`.
+So this cleans up the advisory list and the build graph, not a live exposure.
 
-## What it costs
+## The emulator
 
-`elliptic` never reaches the shipped extension. Grepping every JS file in `.output/chrome-mv3`
-for `elliptic`, `tiny-secp256k1`, `browserify-sign` and `create-ecdh` returns nothing — it is a
-build-graph artifact, tree-shaken out. Our signing uses `@noble/secp256k1` and
-`@scure/btc-signer`; the Trezor path signs on-device and `trezorAdapter` is transport only,
-pointing at `connect.trezor.io`.
+**It keeps working, through `@trezor/connect` rather than `connect-webextension`.**
 
-So the advisory count improves and the shipped attack surface does not change.
+v10 splits the API in two. `connect-webextension` exposes `TrezorConnectPublicAPI`, whose
+`init()` takes only `manifest`, `version`, `env`, `debug`, `enabledNetworks`,
+`requestedPermissions` and `coreMode` — no `transports`, so it cannot be pointed at a bridge.
+`@trezor/connect` exposes `TrezorConnectPrivilegedAPI`, which is
+`TrezorConnectCore<ConnectSettings> & TrezorConnectInternal & TrezorConnectCallable`: the full
+settings type including `transports: ['BridgeTransport']`, plus `on`, `uiResponse`,
+`updateConnectSettings` and the management methods.
 
-## Breakage
+That maps onto how the emulator was already being driven. `e2e/hardware/trezor-node-integration.test.ts`
+is the suite that verifies device communication, address derivation and message signing, and it
+drives `@trezor/connect` directly over the Bridge. The browser-side operations tests were already
+documented in `trezor-emulator-tests.yml` as "Limited (expected)", because connect-webextension's
+popup architecture cannot talk to BridgeTransport — that was true under 9.x too.
 
-68 `tsc` errors, all in `src/utils/hardware/trezorAdapter.ts`. Nothing else in the codebase
-touches the Trezor API. Reproduce with:
+So this change **un-quarantines** that suite. It was skipped in 215f8c54 when the earlier
+10.x-alpha attempt dropped `@trezor/connect`; re-adding it at `10.0.0-beta.1` as a devDependency
+restores it, and `npm audit` still reports zero — the v10 `utxo-lib` no longer carries
+`tiny-secp256k1`.
 
-```
-npm install @trezor/connect-webextension@10.0.0-beta.1 --save-exact
-rm src/types/trezor-connect.d.ts     # v10 ships real types; ours is a hand-written stub
-npx tsc --noEmit
-```
+`e2e/trezor-emulator.ts` needed no changes at all: it controls the emulator over plain HTTP
+(`localhost:21325/enumerate`, the emulator's own HTTP API), independent of Connect.
 
-That stub is why none of this was visible before: we declared the v9 surface ourselves, so the
-compiler could not tell us when it stopped existing.
+Still open: `trezor.spec.ts` → "shows Trezor popup when connecting" stays `test.fixme`'d. It was
+disabled because 10.x-alpha threw during connect in headless CI. Whether beta.1 fixes that can
+only be settled by running the emulator workflow, so it is left as-is rather than flipped blind.
 
-### Mechanical — safe, and `tsc` confirms each one
+## The change
 
-- **Result shape (29 sites).** `Err` no longer carries `payload`:
-  v9 `{ success: false, payload: { error, code } }` → v10 `{ success: false, error: { message, code } }`.
-  So `result.payload.error` becomes `result.error.message`.
-- **`pingDevice` → `getFeatures`.** `pingDevice` moved into `TrezorConnectManagement`, which the
-  public API `Omit`s. `getFeatures` survives and already backs `getDeviceInfo()`.
-- **`getAddress` / `getPublicKey` param shapes.** `path` and `bundle` are now separate overloads
-  rather than one permissive object, and `useEmptyPassphrase` is gone from the bundled form.
-- **`getAccountInfo`** requires an explicit `path` or `descriptor`; `coin` alone no longer works.
-- **`coin: 'Bitcoin'`** at `trezorAdapter.ts:886` must become `'btc'`. Every other call site
-  already passes `'btc'`.
+All API breakage was contained in `src/utils/hardware/trezorAdapter.ts`. Deleting
+`src/types/trezor-connect.d.ts` is what exposed it — that file was a hand-written stub of the v9
+surface, so the compiler could never report that the surface had changed. v10 ships real types.
 
-### Design decisions — not mechanical, and untestable without a device
+**Mechanical**
+
+- `Err` no longer carries `payload`. v9 `{ success: false, payload: { error, code } }` became
+  v10 `{ success: false, error: { message, code } }` — 29 sites.
+- `useEmptyPassphrase` moved under `device`: `{ device: { useEmptyPassphrase } }`.
+- `pingDevice` moved into `TrezorConnectManagement`, which the public API omits. `getFeatures`
+  answers the same question — is the device reachable — without a device confirmation.
+- `getAddress` / `getPublicKey` split `path` and `bundle` into separate overloads.
+
+**Structural**
 
 - **Device events are gone.** `on`, `off`, `removeAllListeners` and `uiResponse` are absent from
-  `TrezorConnectPublicAPI`. We use them to keep `connectionStatus` and `deviceInfo` current from
-  `DEVICE.CONNECT` / `DEVICE.DISCONNECT`. There is no subscription API to replace them, so that
-  state has to be derived by polling `getFeatures`. The `DEVICE_EVENT` constant still exports,
-  but nothing consumes it.
-- **The emulator transport cannot be configured.** This is the blocker. `init()` on
-  connect-webextension v10 takes `ConnectDynamicSettings = Partial<ConnectImplSettings>`, which is
-  only `manifest`, `version`, `env`, `debug`, `enabledNetworks`, `requestedPermissions`, `coreMode`.
-  Our emulator mode sets `popup`, `transports: ['BridgeTransport']`, `pendingTransportEvent`,
-  `transportReconnect` and `connectSrc` — none of which that type accepts. They live in
-  `ConnectSettings`, reachable only through the privileged API. The package exports a single
-  entrypoint with no escape hatch.
+  the public API, and there is no subscription API to replace them. `connectionStatus` and
+  `deviceInfo` are now established by the first `getDeviceInfo()` / `pingDevice()` call instead of
+  being pushed from `DEVICE.CONNECT` / `DEVICE.DISCONNECT`.
+- **Discovery moved to `selectAccount`.** `getAccountInfo` now rejects a request carrying neither
+  `path` nor `descriptor`, so it can no longer start discovery. `selectAccount` returns `path`,
+  `address` and `xpub` directly — which also retires `extractXpubFromDescriptor`, since the xpub
+  no longer has to be parsed out of a descriptor string.
+- **`coin` is a typed symbol union.** Two call sites passed the v9 long name `'Bitcoin'`, which is
+  not in that union and would have failed on-device. Since this wallet only ever signs Bitcoin,
+  `coin` was dropped from `HardwareMessageSignRequest` and pinned to `'btc'` in the adapter.
+- **`events` polyfill added.** v10's `@trezor/utils` imports `EventEmitter` from Node's `events`,
+  which vite resolves to `__vite-browser-external` and fails the background build. The `events`
+  package (pure JS, no dependencies) supplies it.
+- `TrezorAdapterOptions` lost `testMode`, `connectSrc` and `onButtonRequest` — all three only
+  configured transport settings or event subscriptions that no longer exist.
 
-## Why this should wait
+## Verification
 
-`trezor-emulator-tests.yml` verifies device communication, address derivation and message signing
-against the emulator, using exactly the settings v10 removes. Migrating now means rewriting the
-hardware signing path and deleting its automated verification in the same change — against a beta,
-to fix advisories that never ship.
+- `tsc --noEmit` clean
+- `biome check src` clean across 678 files
+- `wxt build` succeeds; bundle 2.46 MB → 2.38 MB
+- `vitest run src/utils/hardware src/utils/wallet` — 139 passed, 11 skipped (the emulator suite,
+  which needs a local emulator on port 9001)
+- `playwright test e2e/pages/compose/broadcast/index.spec.ts` — 10 passed
+- No `elliptic`, `tiny-secp256k1` or `browserify-sign` in any file under `.output/chrome-mv3`
 
-Revisit when v10 is stable and there is a supported way to point it at the emulator. The mechanical
-list above still applies and is the bulk of the work.
+Not verified here, and the reason this waits for a stable release: nothing in the above touches a
+real device. The emulator workflow (`trezor-emulator-tests.yml`) is what proves signing still
+works, and it has to pass before this merges.

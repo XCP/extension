@@ -138,8 +138,6 @@ export interface HardwareSignResult {
 export interface HardwareMessageSignRequest {
   message: string;
   path: number[];
-  /** Coin name for the signing (default: 'Bitcoin') */
-  coin?: string;
 }
 
 /**
