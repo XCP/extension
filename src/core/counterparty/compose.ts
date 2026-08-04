@@ -3,6 +3,7 @@ import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import { isMultisigAddress } from '@/core/validation/bitcoin';
 
 /**
  * Type guard to check if an error has a response with data
@@ -450,6 +451,37 @@ async function executeWithUtxoFallback(
 // ============================================================================
 
 /**
+ * Adjust compose params when a destination is a multisig address.
+ * Only checks destination-related fields (not memos or other values).
+ *
+ * - 'send': falls back to legacy send and strips memo (enhanced send
+ *   can't pack multisig destinations; legacy sends don't support memos)
+ * - 'sweep': rejects (sweep packs destination in the protocol message)
+ */
+function adjustParamsForMultisig(
+  params: Record<string, unknown>,
+  endpoint: string
+): Record<string, unknown> {
+  const dest = params.destination ?? params.transfer_destination;
+  if (typeof dest !== 'string' || !isMultisigAddress(dest)) {
+    return params;
+  }
+
+  if (endpoint === 'send') {
+    const { memo, memo_is_hex, ...rest } = params;
+    return { ...rest, use_enhanced_send: 'false' };
+  }
+  if (endpoint === 'sweep') {
+    throw new CounterpartyApiError(
+      'Sweep does not support multisig destinations',
+      endpoint,
+      {}
+    );
+  }
+  return params;
+}
+
+/**
  * Compose a transaction via the Counterparty API.
  */
 export async function composeTransaction<T extends Record<string, unknown>>(
@@ -463,9 +495,11 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
 
+  const finalParams = adjustParamsForMultisig(paramsObj, endpoint);
+
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
-      ...paramsObj,
+      ...finalParams,
       sat_per_vbyte: sat_per_vbyte.toString(),
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
