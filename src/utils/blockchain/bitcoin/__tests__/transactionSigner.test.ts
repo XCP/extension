@@ -211,6 +211,40 @@ describe('Transaction Signer Utilities', () => {
       expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
     });
 
+    // signTransaction rebuilds the transaction rather than signing the parsed bytes, so anything
+    // not copied across is replaced by @scure's defaults. That has shipped twice: version and
+    // lockTime were dropped, then sequence was overwritten with 0xfffffffd. These pin all three
+    // against a transaction whose values are deliberately not the defaults.
+    describe('preserves what the user reviewed', () => {
+      // version 1, sequence 0xfffffffe, lockTime 800000 - none of them @scure's default.
+      const distinctiveTx = '01000000' + '01' + mockTxid + '00000000' + '00' + 'feffffff'
+        + '01' + 'a086010000000000' + '19' + '76a914' + '0'.repeat(40) + '88ac' + '00350c00';
+
+      beforeEach(() => {
+        mockFetchUTXOs.mockResolvedValue([mockUtxo]);
+        mockGetUtxoByTxid.mockReturnValue(mockUtxo);
+        mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+      });
+
+      // Asserted on the serialised bytes rather than by re-parsing: version is the first four
+      // bytes and lockTime the last four, which is exactly what each historical bug changed.
+      it('keeps version and lockTime', async () => {
+        const signed = await signTransaction(distinctiveTx, mockWallet, mockTargetAddress, mockPrivateKey);
+
+        // '02000000' here would mean the rebuild silently renumbered the transaction.
+        expect(signed.slice(0, 8)).toBe('01000000');
+        // '00000000' would mean a timelocked transaction was signed as immediately spendable.
+        expect(signed.slice(-8)).toBe('00350c00');
+      });
+
+      it('refuses to sign when the rebuild would differ', async () => {
+        // The guard runs before signing, so an unparseable or altered input never reaches the key.
+        await expect(
+          signTransaction('00', mockWallet, mockTargetAddress, mockPrivateKey)
+        ).rejects.toThrow();
+      });
+    });
+
     it('should successfully sign P2WPKH transaction', async () => {
       const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
       
