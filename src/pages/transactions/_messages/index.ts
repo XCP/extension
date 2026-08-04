@@ -2,22 +2,22 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/utils/blockchain/counterparty/api";
 
 // Import all message type handlers
-import { dispenser } from "./dispenser";
-import { dispense } from "./dispense";
-import { order } from "./order";
-import { send } from "./send";
-import { mpma } from "./mpma";
-import { issuance } from "./issuance";
-import { cancel } from "./cancel";
-import { dividend } from "./dividend";
-import { broadcast } from "./broadcast";
-import { fairminter } from "./fairminter";
-import { fairmint } from "./fairmint";
-import { sweep } from "./sweep";
-import { attach } from "./attach";
-import { detach } from "./detach";
-import { btcpay } from "./btcpay";
-import { move_utxo } from "./move_utxo";
+import { dispenser } from "@/pages/transactions/_messages/dispenser";
+import { dispense } from "@/pages/transactions/_messages/dispense";
+import { order } from "@/pages/transactions/_messages/order";
+import { send } from "@/pages/transactions/_messages/send";
+import { mpma } from "@/pages/transactions/_messages/mpma";
+import { issuance } from "@/pages/transactions/_messages/issuance";
+import { cancel } from "@/pages/transactions/_messages/cancel";
+import { dividend } from "@/pages/transactions/_messages/dividend";
+import { broadcast } from "@/pages/transactions/_messages/broadcast";
+import { fairminter } from "@/pages/transactions/_messages/fairminter";
+import { fairmint } from "@/pages/transactions/_messages/fairmint";
+import { sweep } from "@/pages/transactions/_messages/sweep";
+import { attach } from "@/pages/transactions/_messages/attach";
+import { detach } from "@/pages/transactions/_messages/detach";
+import { btcpay } from "@/pages/transactions/_messages/btcpay";
+import { move_utxo } from "@/pages/transactions/_messages/move_utxo";
 
 /**
  * Type for a message handler function

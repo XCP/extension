@@ -2,7 +2,7 @@
  * Handles cleanup of orphaned provider requests
  */
 
-import { approvalQueue } from './approvalQueue';
+import { approvalQueue } from '@/utils/provider/approvalQueue';
 
 class RequestCleanupManager {
   private cleanupInterval: NodeJS.Timeout | null = null;

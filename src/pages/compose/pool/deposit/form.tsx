@@ -31,7 +31,7 @@ import { FaCog } from "@/components/icons";
 import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
 import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
 import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
-import { PoolSlippageSettings } from "../pool-slippage-settings";
+import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;

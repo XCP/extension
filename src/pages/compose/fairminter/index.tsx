@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { FairminterForm } from "./form";
-import { ReviewFairminter } from "./review";
+import { FairminterForm } from "@/pages/compose/fairminter/form";
+import { ReviewFairminter } from "@/pages/compose/fairminter/review";
 import { Composer } from "@/components/composer/composer";
 import { composeFairminter } from "@/utils/blockchain/counterparty/compose";
 import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";

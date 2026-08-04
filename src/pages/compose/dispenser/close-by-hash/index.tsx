@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
-import { DispenserCloseByHashForm } from "./form";
-import { ReviewDispenserCloseByHash } from "./review";
+import { DispenserCloseByHashForm } from "@/pages/compose/dispenser/close-by-hash/form";
+import { ReviewDispenserCloseByHash } from "@/pages/compose/dispenser/close-by-hash/review";
 import { Composer } from "@/components/composer/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty/compose";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";

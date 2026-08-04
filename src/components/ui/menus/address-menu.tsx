@@ -2,7 +2,7 @@ import { useCallback, type ReactElement } from 'react';
 import { useNavigate } from 'react-router';
 import { FaCopy, GiBroom, VscKey, HiDotsHorizontal } from '@/components/icons';
 import { MenuItem } from '@headlessui/react';
-import { BaseMenu } from './base-menu';
+import { BaseMenu } from '@/components/ui/menus/base-menu';
 import { Button } from '@/components/ui/button';
 import type { Address } from '@/types/wallet';
 

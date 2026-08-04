@@ -23,7 +23,7 @@
  * ```
  */
 
-import { BaseService } from './BaseService';
+import { BaseService } from '@/services/core/BaseService';
 
 export class ServiceRegistry {
   private static instance: ServiceRegistry | null = null;

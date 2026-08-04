@@ -4,7 +4,7 @@
  */
 
 import { fetchAssetDetails } from '@/utils/blockchain/counterparty/api';
-import { validateSubasset, validateParentAsset, isNamedAsset, isNumericAsset } from './asset';
+import { validateSubasset, validateParentAsset, isNamedAsset, isNumericAsset } from '@/utils/validation/asset';
 
 export interface AssetOwnerLookupResult {
   isValid: boolean;

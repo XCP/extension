@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { DispenserCloseForm } from "./form";
-import { ReviewDispenserClose } from "./review";
+import { DispenserCloseForm } from "@/pages/compose/dispenser/close/form";
+import { ReviewDispenserClose } from "@/pages/compose/dispenser/close/review";
 import { Composer } from "@/components/composer/composer";
 import { composeDispenser } from "@/utils/blockchain/counterparty/compose";
 import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";

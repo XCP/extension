@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Banner, type BannerSeverity } from './banner';
+import { Banner, type BannerSeverity } from '@/components/ui/banner';
 
 export interface WarningItem {
   key: string;

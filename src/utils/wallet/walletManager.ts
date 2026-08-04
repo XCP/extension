@@ -48,7 +48,7 @@ import type { Address, PairedAddresses, Wallet, Keychain, KeychainRecord, Wallet
 export type { Address, Wallet };
 
 // Import from constants for internal use
-import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from './constants';
+import { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET } from '@/utils/wallet/constants';
 
 // Re-export from constants to maintain backwards compatibility
 export { MAX_WALLETS, MAX_ADDRESSES_PER_WALLET };

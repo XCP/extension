@@ -1,5 +1,5 @@
-import { BinaryReader } from '../binary';
-import { assetIdToName } from '../assetId';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
 
 // Exact payload lengths, matching counterparty-core (pooldeposit.py ">QQQQQQ",
 // poolwithdraw.py ">QQQQQ"). Core rejects any other length, so the verifier must too.

@@ -55,7 +55,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { isBareMultisigDataOutput } from './unpack/multisig';
+import { isBareMultisigDataOutput } from '@/utils/blockchain/counterparty/unpack/multisig';
 
 /** An output the user's request accounts for. */
 export interface IntendedDestination {

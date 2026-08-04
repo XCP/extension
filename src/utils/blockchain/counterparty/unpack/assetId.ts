@@ -13,7 +13,7 @@
  * Numeric assets must be in range [26^12 + 1, 2^64 - 1].
  */
 
-import { PROTOCOL } from './messageTypes';
+import { PROTOCOL } from '@/utils/blockchain/counterparty/unpack/messageTypes';
 
 /** Base26 digits for asset name encoding */
 const B26_DIGITS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';

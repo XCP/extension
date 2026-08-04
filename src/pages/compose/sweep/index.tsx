@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { SweepForm } from "./form";
-import { ReviewSweep } from "./review";
+import { SweepForm } from "@/pages/compose/sweep/form";
+import { ReviewSweep } from "@/pages/compose/sweep/review";
 import { Composer } from "@/components/composer/composer";
 import { composeSweep } from "@/utils/blockchain/counterparty/compose";
 import { useWallet } from "@/contexts/wallet-context";

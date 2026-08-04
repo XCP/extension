@@ -10,8 +10,8 @@
  *   asset|quantity
  */
 
-import { assetIdToName } from '../assetId';
-import { tryDecodeCborArray } from '../cbor';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { tryDecodeCborArray } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 /**
  * Unpacked Fairmint data

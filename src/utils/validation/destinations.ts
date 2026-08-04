@@ -2,7 +2,7 @@
  * Validation utilities for destination addresses and multi-destination inputs
  */
 
-import { validateBitcoinAddress } from './bitcoin';
+import { validateBitcoinAddress } from '@/utils/validation/bitcoin';
 
 export interface Destination {
   id: number;

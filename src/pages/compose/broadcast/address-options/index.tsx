@@ -1,5 +1,5 @@
-import { AddressOptionsForm } from "./form";
-import { ReviewAddressOptions } from "./review";
+import { AddressOptionsForm } from "@/pages/compose/broadcast/address-options/form";
+import { ReviewAddressOptions } from "@/pages/compose/broadcast/address-options/review";
 import { Composer } from "@/components/composer/composer";
 import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";

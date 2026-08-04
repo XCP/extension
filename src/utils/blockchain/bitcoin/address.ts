@@ -7,7 +7,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import * as btc from '@scure/btc-signer';
 import { getCounterwalletSeed } from '@/utils/blockchain/counterwallet';
 import { fetchTokenBalances } from '@/utils/blockchain/counterparty/api';
-import { hasAddressActivity } from './balance';
+import { hasAddressActivity } from '@/utils/blockchain/bitcoin/balance';
 
 /**
  * Bitcoin address formats supported by the wallet.

@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { UpdateDescriptionForm } from "./form";
-import { ReviewIssuanceUpdateDescription } from "./review";
+import { UpdateDescriptionForm } from "@/pages/compose/issuance/update-description/form";
+import { ReviewIssuanceUpdateDescription } from "@/pages/compose/issuance/update-description/review";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { composeIssuance } from "@/utils/blockchain/counterparty/compose";

@@ -14,10 +14,10 @@
  * The unpacker attempts CBOR2 first, then falls back to legacy format.
  */
 
-import { BinaryReader, bytesToTextOrHex } from '../binary';
-import { assetIdToName } from '../assetId';
-import { unpackAddress, PACKED_ADDRESS_LENGTH } from '../address';
-import { tryDecodeCborArray } from '../cbor';
+import { BinaryReader, bytesToTextOrHex } from '@/utils/blockchain/counterparty/unpack/binary';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { unpackAddress, PACKED_ADDRESS_LENGTH } from '@/utils/blockchain/counterparty/unpack/address';
+import { tryDecodeCborArray } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 /** Minimum length of legacy enhanced send (without memo) */
 const MIN_LEGACY_LENGTH = 8 + 8 + 21; // 37 bytes

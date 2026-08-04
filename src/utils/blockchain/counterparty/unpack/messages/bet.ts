@@ -14,7 +14,7 @@
  * The feed address is a transaction output, not part of this payload.
  */
 
-import { BinaryReader } from '../binary';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
 
 /** Exact length of a bet payload; core rejects any other size. */
 const BET_LENGTH = 2 + 4 + 8 + 8 + 8 + 4 + 4;

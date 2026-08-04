@@ -10,9 +10,9 @@
  */
 
 import { Transaction } from '@scure/btc-signer';
-import { arc4, hexToBytes, bytesToHex } from './binary';
-import { COUNTERPARTY_PREFIX_HEX } from './messageTypes';
-import { extractMultisigPayload } from './multisig';
+import { arc4, hexToBytes, bytesToHex } from '@/utils/blockchain/counterparty/unpack/binary';
+import { COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
+import { extractMultisigPayload } from '@/utils/blockchain/counterparty/unpack/multisig';
 
 /**
  * Strip the OP_RETURN opcode (0x6a) and push-data length prefix from an

@@ -4,8 +4,8 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { hmac } from '@noble/hashes/hmac.js';
-import type { AddressType } from './types';
-import { recoverPublicKeyFromSignature } from './secp-recovery';
+import type { AddressType } from '@/utils/blockchain/bitcoin/messageVerifier/types';
+import { recoverPublicKeyFromSignature } from '@/utils/blockchain/bitcoin/messageVerifier/secp-recovery';
 
 // Initialize secp256k1
 import { hashes } from '@noble/secp256k1';

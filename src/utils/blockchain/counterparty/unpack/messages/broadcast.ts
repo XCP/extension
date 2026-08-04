@@ -14,8 +14,8 @@
  * Legacy format uses Pascal strings or variable-length encoding.
  */
 
-import { BinaryReader, bytesToTextOrHex } from '../binary';
-import { tryDecodeCborArray } from '../cbor';
+import { BinaryReader, bytesToTextOrHex } from '@/utils/blockchain/counterparty/unpack/binary';
+import { tryDecodeCborArray } from '@/utils/blockchain/counterparty/unpack/cbor';
 
 /** Minimum length of legacy broadcast message (timestamp + value + fee_fraction) */
 const BROADCAST_MIN_LENGTH = 16; // 4 + 8 + 4

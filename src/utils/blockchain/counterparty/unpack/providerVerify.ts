@@ -6,24 +6,24 @@
  * tampering or mismatches.
  */
 
-import { unpackCounterpartyMessage, isCounterpartyData, type UnpackResult } from './index';
-import { addressesEqual } from './address';
-import type { EnhancedSendData } from './messages/enhancedSend';
-import type { OrderData } from './messages/order';
-import type { DispenserData } from './messages/dispenser';
-import type { CancelData } from './messages/cancel';
-import type { SendData } from './messages/send';
-import type { DestroyData } from './messages/destroy';
-import type { SweepData } from './messages/sweep';
-import type { IssuanceData } from './messages/issuance';
-import type { MPMAData } from './messages/mpma';
-import type { BTCPayData } from './messages/btcpay';
-import type { BroadcastData } from './messages/broadcast';
-import type { DividendData } from './messages/dividend';
-import type { FairminterData } from './messages/fairminter';
-import type { FairmintData } from './messages/fairmint';
-import type { AttachData, DetachData } from './messages/attach';
-import type { PoolDepositData, PoolWithdrawData } from './messages/pool';
+import { unpackCounterpartyMessage, isCounterpartyData, type UnpackResult } from '@/utils/blockchain/counterparty/unpack/index';
+import { addressesEqual } from '@/utils/blockchain/counterparty/unpack/address';
+import type { EnhancedSendData } from '@/utils/blockchain/counterparty/unpack/messages/enhancedSend';
+import type { OrderData } from '@/utils/blockchain/counterparty/unpack/messages/order';
+import type { DispenserData } from '@/utils/blockchain/counterparty/unpack/messages/dispenser';
+import type { CancelData } from '@/utils/blockchain/counterparty/unpack/messages/cancel';
+import type { SendData } from '@/utils/blockchain/counterparty/unpack/messages/send';
+import type { DestroyData } from '@/utils/blockchain/counterparty/unpack/messages/destroy';
+import type { SweepData } from '@/utils/blockchain/counterparty/unpack/messages/sweep';
+import type { IssuanceData } from '@/utils/blockchain/counterparty/unpack/messages/issuance';
+import type { MPMAData } from '@/utils/blockchain/counterparty/unpack/messages/mpma';
+import type { BTCPayData } from '@/utils/blockchain/counterparty/unpack/messages/btcpay';
+import type { BroadcastData } from '@/utils/blockchain/counterparty/unpack/messages/broadcast';
+import type { DividendData } from '@/utils/blockchain/counterparty/unpack/messages/dividend';
+import type { FairminterData } from '@/utils/blockchain/counterparty/unpack/messages/fairminter';
+import type { FairmintData } from '@/utils/blockchain/counterparty/unpack/messages/fairmint';
+import type { AttachData, DetachData } from '@/utils/blockchain/counterparty/unpack/messages/attach';
+import type { PoolDepositData, PoolWithdrawData } from '@/utils/blockchain/counterparty/unpack/messages/pool';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)

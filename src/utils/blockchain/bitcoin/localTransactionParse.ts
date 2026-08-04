@@ -17,7 +17,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
-import { decodeAddressFromScript } from './address';
+import { decodeAddressFromScript } from '@/utils/blockchain/bitcoin/address';
 
 export interface LocalParsedInput {
   txid: string;

@@ -7,8 +7,8 @@ import { Transaction } from '@scure/btc-signer';
 import { hexToBytes, bytesToHex } from '@noble/hashes/utils.js';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { type ConsolidationData, type ConsolidationUTXO } from './consolidationApi';
-import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from './multisigSigner';
+import { type ConsolidationData, type ConsolidationUTXO } from '@/utils/blockchain/bitcoin/consolidationApi';
+import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/utils/blockchain/bitcoin/multisigSigner';
 
 // RBF-enabled sequence number
 const RBF_SEQUENCE = 0xfffffffd;

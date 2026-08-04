@@ -8,18 +8,18 @@
  */
 
 // Main verifier - clean architecture
-export * from './verifier';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/verifier';
 
 // Types
-export * from './types';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/types';
 
 // Spec-compliant implementations
-export * from './specs/bip322';
-export * from './specs/bip137';
-export * from './specs/legacy';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/specs/bip322';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/specs/bip137';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/specs/legacy';
 
 // Compatibility layer
-export * from './compatibility/loose-bip137';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/compatibility/loose-bip137';
 
 // Utilities
-export * from './secp-recovery';
+export * from '@/utils/blockchain/bitcoin/messageVerifier/secp-recovery';

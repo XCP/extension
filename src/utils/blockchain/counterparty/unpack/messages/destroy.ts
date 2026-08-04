@@ -8,8 +8,8 @@
  *   - tag: 0-34 bytes - Optional tag/reason
  */
 
-import { BinaryReader } from '../binary';
-import { assetIdToName } from '../assetId';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
 
 /** Minimum length of destroy message (without tag) */
 const DESTROY_MIN_LENGTH = 16;

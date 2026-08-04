@@ -10,8 +10,8 @@
  * the destination is the first non-OP_RETURN output address.
  */
 
-import { BinaryReader } from '../binary';
-import { assetIdToName } from '../assetId';
+import { BinaryReader } from '@/utils/blockchain/counterparty/unpack/binary';
+import { assetIdToName } from '@/utils/blockchain/counterparty/unpack/assetId';
 
 /** Expected length of send message payload */
 const SEND_LENGTH = 16;

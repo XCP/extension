@@ -1,6 +1,6 @@
 import { useParams } from "react-router";
-import { DividendForm } from "./form";
-import { ReviewDividend } from "./review";
+import { DividendForm } from "@/pages/compose/dividend/form";
+import { ReviewDividend } from "@/pages/compose/dividend/review";
 import { Composer } from "@/components/composer/composer";
 import { composeDividend } from "@/utils/blockchain/counterparty/compose";
 import type { DividendOptions } from "@/utils/blockchain/counterparty/compose";

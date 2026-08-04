@@ -27,7 +27,7 @@
  * - `save*()`: Alias for set (used in settings)
  */
 
-import { createWriteLock, isExpired } from './mutex';
+import { createWriteLock, isExpired } from '@/utils/storage/mutex';
 
 /**
  * Base interface for all request types.

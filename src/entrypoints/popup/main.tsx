@@ -1,5 +1,5 @@
-import './style.css';
-import App from './app';
+import '@/entrypoints/popup/style.css';
+import App from '@/entrypoints/popup/app';
 import { StrictMode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter as Router } from 'react-router';

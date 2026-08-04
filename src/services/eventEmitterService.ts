@@ -36,7 +36,7 @@
  * - Aligns with Chrome extension single-background-worker model
  */
 
-import { BaseService } from './core/BaseService';
+import { BaseService } from '@/services/core/BaseService';
 
 type EventCallback = (...args: unknown[]) => void;
 type PendingRequestResolver = (value: unknown) => void;

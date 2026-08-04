@@ -9,7 +9,7 @@
  * - sessionManager.ts: manages the cached master key
  */
 
-import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from './buffer';
+import { bufferToBase64, base64ToBuffer, generateRandomBytes, combineBuffers } from '@/utils/encryption/buffer';
 
 // Crypto constants
 const IV_BYTES = 12;
