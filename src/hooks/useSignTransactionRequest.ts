@@ -11,27 +11,27 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { parseRawTransactionLocally } from '@/utils/blockchain/bitcoin/localTransactionParse';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
-} from '@/utils/blockchain/counterparty/inputAssets';
+} from '@/core/counterparty/inputAssets';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
   fetchInputValues
-} from '@/utils/blockchain/counterparty/transaction';
+} from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
-} from '@/utils/blockchain/counterparty/transactionSafety';
+} from '@/core/counterparty/transactionSafety';
 import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
-} from '@/utils/blockchain/counterparty/unpack';
-import { extractCounterpartyPayload } from '@/utils/blockchain/counterparty/unpack/opReturn';
-import { recordSignOutcome } from '@/utils/provider/signFlow';
-import { type SignTransactionRequest, signTransactionRequestStorage } from '@/utils/storage/signTransactionRequestStorage';
+} from '@/core/counterparty/unpack';
+import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
+import { recordSignOutcome } from '@/platform/provider/signFlow';
+import { type SignTransactionRequest, signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
 
 /**
  * Decoded transaction details

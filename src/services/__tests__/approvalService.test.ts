@@ -21,7 +21,7 @@ vi.mock('@/services/eventEmitterService', () => ({
 }));
 
 // Mock fathom analytics
-vi.mock('@/utils/fathom', () => ({
+vi.mock('@/platform/fathom', () => ({
   sanitizePath: vi.fn((path: string) => path),
   analytics: {
     track: vi.fn().mockResolvedValue(undefined),
@@ -30,7 +30,7 @@ vi.mock('@/utils/fathom', () => ({
 }));
 
 // Mock popup utility
-vi.mock('@/utils/popup', () => ({
+vi.mock('@/platform/popup', () => ({
   openPopupWindow: vi.fn().mockResolvedValue({
     id: 12345,
     close: vi.fn().mockResolvedValue(undefined),

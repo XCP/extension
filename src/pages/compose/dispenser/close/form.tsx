@@ -11,12 +11,12 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
-import { AddressHeader } from "@/components/ui/headers/address-header";
 import { useComposer } from "@/contexts/composer-context-object";
+import { fetchAddressDispensers } from "@/core/counterparty/api";
+import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { fetchAddressDispensers } from "@/utils/blockchain/counterparty/api";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the DispenserCloseForm component, aligned with Composer's formAction.

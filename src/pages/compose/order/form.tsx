@@ -1,21 +1,21 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { OrderOptions } from "@/core/counterparty/compose";
+import { formatAmount } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
+import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { OrderSettings } from "@/pages/settings/order-settings";
-import type { OrderOptions } from "@/utils/blockchain/counterparty/compose";
-import { formatAmount } from "@/utils/format";
-import { toBigNumber } from "@/utils/numeric";
-import { DEFAULT_ORDER_EXPIRATION } from "@/utils/settings";
 
 // Extended type for form data that includes user-facing fields
 interface OrderFormData extends OrderOptions {

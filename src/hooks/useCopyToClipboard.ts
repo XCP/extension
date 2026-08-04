@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { analytics } from "@/utils/fathom";
+import { analytics } from "@/platform/fathom";
 
 const DEFAULT_FEEDBACK_MS = 2000;
 const DEFAULT_AUTO_CLEAR_MS = 30000; // 30 seconds

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchAddressPoolByLpAsset, type PoolPosition } from "@/utils/blockchain/counterparty/api";
+import { fetchAddressPoolByLpAsset, type PoolPosition } from "@/core/counterparty/api";
 
 interface LpAssetPoolState {
   data: PoolPosition | null;

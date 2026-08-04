@@ -4,12 +4,12 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
+import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoDetachForm } from '../form';
 
 // CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
 // This must be at the very top before any other mocks that might indirectly import it
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
     isUnlocked: vi.fn().mockReturnValue(true),
@@ -61,7 +61,7 @@ vi.mock('@/contexts/loading-context', () => ({
 }));
 
 // Mock API call
-vi.mock('@/utils/blockchain/counterparty/api', () => ({
+vi.mock('@/core/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
       { asset: 'TESTTOKEN', quantity_normalized: '100' }
@@ -70,7 +70,7 @@ vi.mock('@/utils/blockchain/counterparty/api', () => ({
 }));
 
 // Mock address validation and fee rates
-vi.mock('@/utils/blockchain/bitcoin', () => ({
+vi.mock('@/core/bitcoin', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     // Allow test addresses
     return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
@@ -78,7 +78,7 @@ vi.mock('@/utils/blockchain/bitcoin', () => ({
 }));
 
 // Mock validation utilities to prevent async issues
-vi.mock('@/utils/validation', () => ({
+vi.mock('@/core/validation', () => ({
   isValidBitcoinAddress: vi.fn((address) => {
     // Allow test addresses - same logic as the bitcoin mock
     return address.startsWith('bc1q') || address.startsWith('1') || address.startsWith('3');
@@ -99,7 +99,7 @@ vi.mock('@/hooks/useAssetOwnerLookup', () => ({
 }));
 
 // Mock getFeeRates from blockchain utils
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 3,
     halfHourFee: 2,
@@ -274,7 +274,7 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should handle multiple balances correctly', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
       result: [
         { asset: 'TESTTOKEN', quantity_normalized: '100' },
@@ -378,7 +378,7 @@ describe('UtxoDetachForm', () => {
   });
 
   it('should handle API fetch error gracefully', async () => {
-    const { fetchUtxoBalances } = await import('@/utils/blockchain/counterparty/api');
+    const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockRejectedValueOnce(new Error('API Error'));
 
     render(

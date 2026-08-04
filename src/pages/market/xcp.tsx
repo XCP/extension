@@ -5,15 +5,15 @@ import { FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import type { PricePoint } from "@/utils/blockchain/bitcoin/price";
+import type { PricePoint } from "@/core/bitcoin/price";
 import {
   getXcpPriceHistory,
   getXcpStats,
   type XcpPriceHistoryData,
   type XcpStats,
-} from "@/utils/blockchain/counterparty/price";
-import { analytics } from "@/utils/fathom";
-import { formatAmount } from "@/utils/format";
+} from "@/core/counterparty/price";
+import { formatAmount } from "@/core/format";
+import { analytics } from "@/platform/fathom";
 
 // Time range options over the daily history from api.xcp.io
 type XcpTimeRange = "7d" | "30d" | "1y" | "all";

@@ -3,8 +3,8 @@ import { useLocation, useNavigate } from "react-router";
 import { FaCheckCircle, FaCopy, FiExternalLink, FiX } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
+import { formatAddress } from "@/core/format";
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
-import { formatAddress } from "@/utils/format";
 
 interface LocationState {
   results: ConsolidationResult[];

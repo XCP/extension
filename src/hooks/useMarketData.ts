@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import {
   type DispenserDetails,
   fetchAddressDispensers,
@@ -10,7 +9,8 @@ import {
   fetchOrders,
   type Order,
   type OrderDetails,
-} from "@/utils/blockchain/counterparty/api";
+} from "@/core/counterparty/api";
+import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 // Key extractors for deduplication
 const getDispenserKey = (d: DispenserDetails) => d.tx_hash;

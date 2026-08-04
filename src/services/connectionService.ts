@@ -9,15 +9,15 @@
  * - Connection security analysis
  */
 
+import { generateRequestId } from '@/core/id';
+import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { analytics } from '@/platform/fathom';
+import { analyzeCSP } from '@/platform/provider/csp';
+import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getWalletService } from '@/services/walletService';
-import { PROVIDER_ERROR_CODES, ProviderError } from '@/utils/errors';
-import { analytics } from '@/utils/fathom';
-import { generateRequestId } from '@/utils/id';
-import { connectionRateLimiter } from '@/utils/provider/rateLimiter';
-import { analyzeCSP } from '@/utils/security/cspValidation';
 
 export interface ConnectionStatus {
   origin: string;
@@ -515,7 +515,7 @@ export class ConnectionService extends BaseService {
 }
 
 // Proxy for cross-context communication
-import { defineProxyService } from '@/utils/proxy';
+import { defineProxyService } from '@/platform/proxy';
 
 export const [registerConnectionService, getConnectionService] = defineProxyService(
   'ConnectionService',

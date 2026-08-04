@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { parseMoreOutputs } from "@/utils/format";
+import { parseMoreOutputs } from "@/core/format";
 
 /**
  * Props for the ReviewSweep component.

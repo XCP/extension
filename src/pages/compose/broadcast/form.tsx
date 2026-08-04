@@ -2,14 +2,14 @@ import { Description, Field, Label, Textarea } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
-import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { BroadcastOptions } from "@/core/counterparty/compose";
+import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 
 /**
  * Props for the BroadcastForm component, aligned with Composer's formAction.

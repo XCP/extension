@@ -26,11 +26,11 @@ vi.mock("@/contexts/wallet-context", () => ({
   }),
 }));
 
-vi.mock("@/utils/blockchain/bitcoin/privateKey", () => ({
+vi.mock("@/core/bitcoin/privateKey", () => ({
   generateNewMnemonic: () => mockGenerateNewMnemonic(),
 }));
 
-vi.mock("@/utils/fathom", () => ({
+vi.mock("@/platform/fathom", () => ({
   analytics: {
     track: vi.fn(),
   },

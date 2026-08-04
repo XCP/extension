@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
+import type { FairmintOptions } from "@/core/counterparty/compose";
+import { composeFairmint } from "@/core/counterparty/compose";
 import { FairmintForm } from "@/pages/compose/fairminter/fairmint/form";
 import { ReviewFairmint } from "@/pages/compose/fairminter/fairmint/review";
-import type { FairmintOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeFairmint } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeFairmintPage() {
   const { asset } = useParams<{ asset?: string }>();

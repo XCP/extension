@@ -53,24 +53,24 @@ import {
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { isApiError } from "@/utils/apiClient";
-import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
-import type { ApiResponse } from "@/utils/blockchain/counterparty/compose";
+import { isApiError } from "@/core/api/client";
+import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
+import type { ApiResponse } from "@/core/counterparty/compose";
 import {
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
-} from "@/utils/blockchain/counterparty/inscriptionEnvelope";
-import { normalizeFormData } from "@/utils/blockchain/counterparty/normalize";
-import { checkOutputPolicy, type IntendedDestination } from "@/utils/blockchain/counterparty/outputPolicy";
-import { packComposeMessage } from "@/utils/blockchain/counterparty/pack/messages";
-import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
-import { unpackCounterpartyMessage } from "@/utils/blockchain/counterparty/unpack";
-import { packAddress } from "@/utils/blockchain/counterparty/unpack/address";
-import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
-import { extractCounterpartyPayload } from "@/utils/blockchain/counterparty/unpack/opReturn";
-import { verifyTransaction } from "@/utils/blockchain/counterparty/unpack/verify";
-import { analytics, classifyTransactionError, getBtcBucket } from "@/utils/fathom";
-import { checkReplayAttempt, recordTransaction } from "@/utils/security/replayPrevention";
+} from "@/core/counterparty/inscriptionEnvelope";
+import { normalizeFormData } from "@/core/counterparty/normalize";
+import { checkOutputPolicy, type IntendedDestination } from "@/core/counterparty/outputPolicy";
+import { packComposeMessage } from "@/core/counterparty/pack/messages";
+import { fetchInputValues } from "@/core/counterparty/transaction";
+import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
+import { packAddress } from "@/core/counterparty/unpack/address";
+import { bytesToHex } from "@/core/counterparty/unpack/binary";
+import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
+import { verifyTransaction } from "@/core/counterparty/unpack/verify";
+import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
+import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
 
 /**

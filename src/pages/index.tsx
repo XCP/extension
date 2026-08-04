@@ -2,6 +2,9 @@ import { Radio, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
+import { AssetList } from "@/components/domain/asset/asset-list";
+import { BalanceList } from "@/components/domain/balance/balance-list";
+import { UtxoList } from "@/components/domain/utxo/utxo-list";
 import {
   FaCheck,
   FaChevronRight,
@@ -13,13 +16,10 @@ import {
   TbPinned
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { AssetList } from "@/components/ui/lists/asset-list";
-import { BalanceList } from "@/components/ui/lists/balance-list";
-import { UtxoList } from "@/components/ui/lists/utxo-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchTokenBalances } from "@/utils/blockchain/counterparty/api";
-import { formatAddress } from "@/utils/format";
+import { fetchTokenBalances } from "@/core/counterparty/api";
+import { formatAddress } from "@/core/format";
 
 const COPY_FEEDBACK_DURATION = 2000;
 const PATHS = {

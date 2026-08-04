@@ -2,11 +2,11 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchDispenserByHash } from "@/utils/blockchain/counterparty/api";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
+import { fetchDispenserByHash } from "@/core/counterparty/api";
+import type { DispenserOptions } from "@/core/counterparty/compose";
 
 interface DispenserCloseByHashFormProps {
   formAction: (formData: FormData) => void;

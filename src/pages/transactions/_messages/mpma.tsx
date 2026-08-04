@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
-import { formatAddress, formatAmount } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import type { Transaction } from "@/core/counterparty/api";
+import { formatAddress, formatAmount } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 
 /**
  * Renders detailed information for MPMA (Multi-Peer Multi-Asset) transactions

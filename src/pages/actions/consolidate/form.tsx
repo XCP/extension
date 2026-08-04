@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { Button } from "@/components/ui/button";
-import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useSettings } from "@/contexts/settings-context";
@@ -8,9 +8,9 @@ import { useWallet } from "@/contexts/wallet-context";
 import {
   type ConsolidationData,
   consolidationApi,
-} from "@/utils/blockchain/bitcoin/consolidationApi";
-import { analytics } from "@/utils/fathom";
-import { formatAmount } from "@/utils/format";
+} from "@/core/bitcoin/consolidationApi";
+import { formatAmount } from "@/core/format";
+import { analytics } from "@/platform/fathom";
 
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;

@@ -1,8 +1,8 @@
 import { Description, Field, Label } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { Button } from '@/components/ui/button';
-import { formatAmount } from '@/utils/format';
-import { isValidPositiveNumber } from '@/utils/numeric';
+import { formatAmount } from '@/core/format';
+import { isValidPositiveNumber } from '@/core/numeric';
 
 interface PriceWithSuggestInputProps {
   value: string;

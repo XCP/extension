@@ -2,21 +2,21 @@ import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { DispenserInput, type DispenserOption } from "@/components/domain/dispenser/dispenser-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
-import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";
-import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
-import { formatAmount } from "@/utils/format";
+import { estimateVsize } from "@/core/bitcoin/feeEstimation";
+import type { DispenseOptions } from "@/core/counterparty/compose";
+import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
+import { formatAmount } from "@/core/format";
 import { 
   divide,fromSatoshis, 
   isLessThanOrEqualToZero,
   roundDown,
   subtract,
-  toNumber} from "@/utils/numeric";
+  toNumber} from "@/core/numeric";
 
 // ============================================================================
 // Types & Interfaces

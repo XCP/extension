@@ -1,10 +1,10 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { ErrorAlert } from "@/components/ui/error-alert";
+import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { composeIssuance } from "@/core/counterparty/compose";
 import { IssueSupplyForm } from "@/pages/compose/issuance/issue-supply/form";
 import { ReviewIssuanceIssueSupply } from "@/pages/compose/issuance/issue-supply/review";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeIssueSupplyPage() {
   const { asset } = useParams<{ asset?: string }>();

@@ -10,9 +10,9 @@ import {
 } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { formatAmount } from "@/core/format";
+import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
-import { formatAmount } from "@/utils/format";
-import { validateFeeRate } from "@/utils/validation/fee";
 
 interface FeeRateInputProps {
   showHelpText?: boolean;

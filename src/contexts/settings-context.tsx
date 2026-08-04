@@ -30,10 +30,10 @@ import {
   useState,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
+import { type AppSettings, DEFAULT_SETTINGS } from "@/core/settings";
+import { withStateLock } from "@/core/wallet/stateLockManager";
+import { analytics } from "@/platform/fathom";
 import { getWalletService } from "@/services/walletService";
-import { analytics } from "@/utils/fathom";
-import { type AppSettings, DEFAULT_SETTINGS } from "@/utils/settings";
-import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
  * Public API for settings management.

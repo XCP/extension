@@ -1,8 +1,8 @@
 import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import type { Order, OrderDetails } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
-import { getOrderBaseAmount, getOrderPricePerUnit, getTradingPair, isBuyOrder } from "@/utils/trading-pair";
+import type { Order, OrderDetails } from "@/core/counterparty/api";
+import { formatAmount } from "@/core/format";
+import { getOrderBaseAmount, getOrderPricePerUnit, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
 interface MarketOrderCardProps {
   order: Order | OrderDetails;

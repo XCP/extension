@@ -2,8 +2,8 @@ import { RadioGroup } from '@headlessui/react';
 import { type ReactElement, useState } from 'react';
 import { FaCheck } from '@/components/icons';
 import { AddressMenu } from '@/components/ui/menus/address-menu';
+import { formatAddress } from '@/core/format';
 import type { Address } from '@/types/wallet';
-import { formatAddress } from '@/utils/format';
 
 interface AddressListProps {
   addresses: Address[];

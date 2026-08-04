@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { FiInfo, FiX } from "@/components/icons";
-import type { AssetInfo } from "@/utils/blockchain/counterparty/api";
-import { formatAddress, formatTimeAgo } from "@/utils/format";
-import { isNumericAsset } from "@/utils/validation/asset";
+import type { AssetInfo } from "@/core/counterparty/api";
+import { formatAddress, formatTimeAgo } from "@/core/format";
+import { isNumericAsset } from "@/core/validation/asset";
 
 interface AssetInfoPopoverProps {
   assetInfo: AssetInfo | null;

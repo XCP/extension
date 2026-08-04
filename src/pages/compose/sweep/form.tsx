@@ -11,15 +11,15 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { SweepOptions } from "@/core/counterparty/compose";
+import { formatMoreOutputs } from "@/core/format";
+import { validateAmount } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { SweepOptions } from "@/utils/blockchain/counterparty/compose";
-import { formatMoreOutputs } from "@/utils/format";
-import { validateAmount } from "@/utils/validation/amount";
 
 // Define sweep type options
 // Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content

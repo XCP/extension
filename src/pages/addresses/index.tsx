@@ -7,9 +7,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { MAX_ADDRESSES_PER_WALLET } from "@/core/wallet/constants";
+import { analytics } from "@/platform/fathom";
 import type { Address } from "@/types/wallet";
-import { analytics } from "@/utils/fathom";
-import { MAX_ADDRESSES_PER_WALLET } from "@/utils/wallet/constants";
 
 /**
  * Constants for navigation paths.

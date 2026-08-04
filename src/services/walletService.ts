@@ -8,23 +8,23 @@
  * - Provider event emission for dApp integration
  */
 
-import { MessageBus } from '@/services/core/MessageBus';
-import { eventEmitterService } from '@/services/eventEmitterService';
-import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
-import { registerSessionExpiredHandler } from '@/utils/auth/sessionManager';
-import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
+import type { AddressFormat } from '@/core/bitcoin/address';
 import {
   type ConsolidationResult as BatchConsolidationResult,
   consolidateBareMultisigBatch,
-} from '@/utils/blockchain/bitcoin/consolidateBatch';
-import type { ConsolidationData } from '@/utils/blockchain/bitcoin/consolidationApi';
-import { defineProxyService } from '@/utils/proxy';
-import { walletManager } from '@/utils/wallet/walletManager';
+} from '@/core/bitcoin/consolidateBatch';
+import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
+import { registerSessionExpiredHandler } from '@/platform/auth/sessionManager';
+import { defineProxyService } from '@/platform/proxy';
+import { walletManager } from '@/platform/walletManager';
+import { MessageBus } from '@/services/core/MessageBus';
+import { eventEmitterService } from '@/services/eventEmitterService';
+import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';
 
 interface WalletService {
   refreshWallets: () => Promise<void>;
-  getSettings: () => Promise<import('@/utils/settings').AppSettings>;
-  updateSettings: (updates: Partial<import('@/utils/settings').AppSettings>) => Promise<void>;
+  getSettings: () => Promise<import('@/core/settings').AppSettings>;
+  updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
   addConnectedWebsite: (origin: string) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
   clearConnectedWebsites: () => Promise<void>;

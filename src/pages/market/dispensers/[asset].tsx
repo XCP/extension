@@ -1,19 +1,16 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
+import { AssetDispenserCard } from "@/components/domain/dispenser/asset-dispenser-card";
 import { FiRefreshCw, TbRepeat } from "@/components/icons";
 import { AssetDispenseCard } from "@/components/ui/cards/asset-dispense-card";
-import { AssetDispenserCard } from "@/components/ui/cards/asset-dispenser-card";
 import { CopyableStat } from "@/components/ui/copyable-stat";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
-import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useInView } from "@/hooks/useInView";
-import { useMarketPrices } from "@/hooks/useMarketPrices";
 import {
   type AssetInfo,
   type Dispense,
@@ -21,10 +18,13 @@ import {
   fetchAssetDetails,
   fetchAssetDispensers,
   fetchAssetDispenses,
-} from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
-import { formatPrice, getNextPriceUnit, getRawPrice } from "@/utils/price-format";
-import type { PriceUnit } from "@/utils/settings";
+} from "@/core/counterparty/api";
+import { formatAmount } from "@/core/format";
+import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
+import type { PriceUnit } from "@/core/settings";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useInView } from "@/hooks/useInView";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 // Constants
 const FETCH_LIMIT = 20;

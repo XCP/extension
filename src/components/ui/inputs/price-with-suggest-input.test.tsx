@@ -4,7 +4,7 @@ import '@testing-library/jest-dom/vitest';
 import { PriceWithSuggestInput } from './price-with-suggest-input';
 
 // Mock utilities
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatAmount: vi.fn((options) => {
     const value = options.value;
     if (typeof value === 'number') {
@@ -14,7 +14,7 @@ vi.mock('@/utils/format', () => ({
   })
 }));
 
-vi.mock('@/utils/numeric', () => ({
+vi.mock('@/core/numeric', () => ({
   toBigNumber: vi.fn((v) => v),
   isValidPositiveNumber: vi.fn((value, options) => {
     if (value === '') return true;

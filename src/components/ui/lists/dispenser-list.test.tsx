@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DispenserList, type DispenserOption } from './dispenser-list';
 
 // Mock the DispenserCard component
-vi.mock('@/components/ui/cards/dispenser-card', () => ({
+vi.mock('@/components/domain/dispenser/dispenser-card', () => ({
   DispenserCard: ({ option, isSelected, onSelect, disabled }: any) => (
     <div
       data-testid={`dispenser-card-${option.index}`}

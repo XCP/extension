@@ -37,7 +37,7 @@ import {
   getServiceState,
   serviceKeepAlive,
   setServiceState,
-} from '@/utils/storage/serviceStateStorage';
+} from '@/platform/storage/serviceStateStorage';
 
 export abstract class BaseService {
   protected readonly serviceName: string;

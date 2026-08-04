@@ -1,7 +1,7 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
-import { formatAmount } from '@/utils/format';
-import { fromSatoshis } from '@/utils/numeric';
+import { formatAmount } from '@/core/format';
+import { fromSatoshis } from '@/core/numeric';
 
 interface ApprovalSummaryCardProps {
   /** Decoded Counterparty action, if any — the "what kind" headline. */

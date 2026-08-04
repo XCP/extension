@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
+import type { Transaction } from "@/core/counterparty/api";
+import { formatAmount } from "@/core/format";
 
 /**
  * Renders detailed information for fairminter creation transactions

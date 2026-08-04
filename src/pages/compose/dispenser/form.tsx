@@ -2,16 +2,16 @@ import type { ReactElement } from "react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
-import type { DispenserOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the DispenserForm component, aligned with Composer's formAction.
