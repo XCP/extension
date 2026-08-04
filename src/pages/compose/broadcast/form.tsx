@@ -2,7 +2,7 @@ import { Description, Field, Label, Textarea } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";

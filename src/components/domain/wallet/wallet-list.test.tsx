@@ -5,7 +5,7 @@ import type { Wallet } from '@/types/wallet';
 import { WalletList } from './wallet-list';
 
 // Mock WalletCard component
-vi.mock('@/components/ui/cards/wallet-card', () => ({
+vi.mock('@/components/domain/wallet/wallet-card', () => ({
   WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet, disabled, disabledMessage }: any) => (
     <div
       data-testid={`wallet-card-${wallet.id}`}

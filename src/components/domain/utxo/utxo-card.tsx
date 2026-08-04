@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
-import { UtxoMenu } from "@/components/ui/menus/utxo-menu";
+import { UtxoMenu } from "@/components/domain/utxo/utxo-menu";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset, formatTxid } from "@/core/format";
 

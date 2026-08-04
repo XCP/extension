@@ -5,7 +5,7 @@ import type { OwnedAsset } from "@/core/counterparty/api";
 import { AssetCard } from "./asset-card";
 
 // Mock the AssetMenu component
-vi.mock("@/components/ui/menus/asset-menu", () => ({
+vi.mock("@/components/domain/asset/asset-menu", () => ({
   AssetMenu: ({ ownedAsset }: { ownedAsset: OwnedAsset }) => (
     <button data-testid={`asset-menu-${ownedAsset.asset}`}>Menu</button>
   ),

@@ -44,7 +44,7 @@ vi.mock("@/components/ui/spinner", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/menus/asset-menu", () => ({
+vi.mock("@/components/domain/asset/asset-menu", () => ({
   AssetMenu: ({ ownedAsset }: { ownedAsset: any }) => (
     <div data-testid="asset-menu" data-asset={ownedAsset.asset}>
       Menu

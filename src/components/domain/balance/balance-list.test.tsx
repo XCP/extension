@@ -79,7 +79,7 @@ vi.mock("@/components/ui/spinner", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/menus/balance-menu", () => ({
+vi.mock("@/components/domain/balance/balance-menu", () => ({
   BalanceMenu: ({ asset }: { asset: string }) => (
     <div data-testid="balance-menu" data-asset={asset}>
       Menu

@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";

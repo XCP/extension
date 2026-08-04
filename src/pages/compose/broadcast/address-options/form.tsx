@@ -3,7 +3,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { BroadcastOptions } from "@/core/counterparty/compose";

@@ -1,6 +1,6 @@
 import { type ReactElement, useCallback, useEffect, useState } from "react";
-import { BalanceCard } from "@/components/ui/cards/balance-card";
-import { SearchResultCard } from "@/components/ui/cards/search-result-card";
+import { SearchResultCard } from "@/components/domain/asset/search-result-card";
+import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";

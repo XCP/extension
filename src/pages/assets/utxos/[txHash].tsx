@@ -1,9 +1,9 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { FiCheck, FiCopy } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { AddressHeader } from "@/components/ui/headers/address-header";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";

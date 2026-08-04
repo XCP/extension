@@ -1,12 +1,12 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { FiRefreshCw } from "@/components/icons";
 import { MarketMatchCard } from "@/components/ui/cards/market-match-card";
 import { OrderBookLevelCard } from "@/components/ui/cards/order-book-level-card";
 import { CopyableStat } from "@/components/ui/copyable-stat";
 import { EmptyState } from "@/components/ui/empty-state";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { Spinner } from "@/components/ui/spinner";
 import { TabButton } from "@/components/ui/tab-button";
 import { useHeader } from "@/contexts/header-context";

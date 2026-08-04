@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { DispenserCard, type DispenserOption } from "@/components/ui/cards/dispenser-card";
+import { DispenserCard, type DispenserOption } from "@/components/domain/dispenser/dispenser-card";
 
 // ============================================================================
 // Types

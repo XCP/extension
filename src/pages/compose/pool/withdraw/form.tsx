@@ -1,10 +1,10 @@
 import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { PoolWithdrawOptions } from "@/core/counterparty/compose";

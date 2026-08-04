@@ -1,5 +1,5 @@
 import { type ReactElement, useEffect, useMemo, useState } from "react";
-import { UtxoCard } from "@/components/ui/cards/utxo-card";
+import { UtxoCard } from "@/components/domain/utxo/utxo-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useWallet } from "@/contexts/wallet-context";

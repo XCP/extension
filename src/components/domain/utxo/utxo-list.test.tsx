@@ -35,7 +35,7 @@ vi.mock('@/components/ui/spinner', () => ({
   )
 }));
 
-vi.mock('@/components/ui/menus/utxo-menu', () => ({
+vi.mock('@/components/domain/utxo/utxo-menu', () => ({
   UtxoMenu: ({ utxo }: { utxo: string }) => (
     <div data-testid="utxo-menu" data-utxo={utxo}>Menu</div>
   )

@@ -1,8 +1,8 @@
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";

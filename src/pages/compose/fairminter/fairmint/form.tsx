@@ -1,10 +1,10 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { type Fairminter, FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { type Fairminter, FairminterSelectInput } from "@/components/ui/inputs/fairminter-select-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";

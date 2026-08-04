@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { AssetCard } from "@/components/ui/cards/asset-card";
-import { SearchResultCard } from "@/components/ui/cards/search-result-card";
+import { AssetCard } from "@/components/domain/asset/asset-card";
+import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";

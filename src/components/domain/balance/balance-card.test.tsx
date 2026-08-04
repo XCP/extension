@@ -5,7 +5,7 @@ import type { TokenBalance } from "@/core/counterparty/api";
 import { BalanceCard } from "./balance-card";
 
 // Mock the BalanceMenu component
-vi.mock("@/components/ui/menus/balance-menu", () => ({
+vi.mock("@/components/domain/balance/balance-menu", () => ({
   BalanceMenu: ({ asset }: { asset: string }) => (
     <button data-testid={`balance-menu-${asset}`}>Menu</button>
   ),

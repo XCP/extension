@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { UtxoCard } from "./utxo-card";
 
-vi.mock("@/components/ui/menus/utxo-menu", () => ({
+vi.mock("@/components/domain/utxo/utxo-menu", () => ({
   UtxoMenu: ({ utxo }: { utxo: string }) => (
     <button data-testid={`utxo-menu-${utxo}`}>Menu</button>
   ),

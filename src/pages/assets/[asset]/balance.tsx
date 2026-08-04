@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
