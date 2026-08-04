@@ -10,6 +10,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { validatePubkey } from "@/core/bitcoin/buildBareMultisigFunding";
+import { verifyMultisigSignatures } from "@/core/bitcoin/multisigSignatures";
 
 type MultisigType = "2-of-2" | "2-of-3";
 type CopiedField = "combined" | null;
@@ -152,6 +153,22 @@ export default function CombineSignaturesPage(): ReactElement {
         throw new Error(
           `Input index ${idx} out of range (transaction has ${parsed.inputs.length} inputs)`
         );
+      }
+
+      // Refuse to combine anything that does not verify. Each signature commits to the legacy
+      // sighash of this input of this transaction, so checking it against the claimed public key
+      // is what separates "someone pasted a blob" from "this key signed exactly this" - which is
+      // the whole claim a jointly-issued asset is meant to carry. Doing it here also means an
+      // ordering or key mistake is reported plainly rather than as a network rejection later.
+      const signatureCheck = verifyMultisigSignatures(
+        rawTxHex.trim(),
+        idx,
+        [hexToBytes(pubkeyHexes[0]!.trim()), hexToBytes(pubkeyHexes[1]!.trim())],
+        [sigBytes1, sigBytes2],
+        2
+      );
+      if (!signatureCheck.ok) {
+        throw new Error(signatureCheck.error ?? 'Signatures could not be verified.');
       }
 
       // Build scriptSig: OP_0 <sig1> <sig2>
