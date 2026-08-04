@@ -41,7 +41,7 @@
     "@scure/bip32": "2.2.0",
     "@scure/bip39": "2.2.0",
     "@scure/btc-signer": "2.2.0",
-    "@trezor/connect-webextension": "9.7.3",
+    "@trezor/connect-webextension": "10.0.0-beta.1",
     "bignumber.js": "11.1.5",
     "react": "19.2.8",
     "react-dom": "19.2.8",
