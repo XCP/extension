@@ -12,11 +12,11 @@
  */
 
 import { encodeCbor, type CborEncodable } from './cbor';
-import { assetNameToId } from '../unpack/assetId';
-import { packAddress, packAddressLegacy } from '../unpack/address';
-import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '../unpack/messageTypes';
-import { hexToBytes } from '../unpack/binary';
-import { isTextualMimeType } from '../inscriptionEnvelope';
+import { assetNameToId } from '@/utils/blockchain/counterparty/unpack/assetId';
+import { packAddress, packAddressLegacy } from '@/utils/blockchain/counterparty/unpack/address';
+import { MessageTypeId, COUNTERPARTY_PREFIX_HEX } from '@/utils/blockchain/counterparty/unpack/messageTypes';
+import { hexToBytes } from '@/utils/blockchain/counterparty/unpack/binary';
+import { isTextualMimeType } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
 
 /** The message types this module can construct. */
 export type PackableComposeType =

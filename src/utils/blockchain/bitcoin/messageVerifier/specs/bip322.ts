@@ -15,7 +15,7 @@ import { getAddressType } from '../utils';
 import {
   verifyBIP322Signature as verifyBIP322Full,
   verifySimpleBIP322
-} from '../../bip322';
+} from '@/utils/blockchain/bitcoin/bip322';
 
 /**
  * Verify a BIP-322 signature according to the specification
