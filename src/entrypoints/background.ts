@@ -1,5 +1,10 @@
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
+import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
+import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { broadcastToTabs } from '@/platform/browser';
+import { requestCleanup } from '@/platform/provider/requestCleanup';
+import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
 import { registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
@@ -9,11 +14,6 @@ import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
-import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/utils/auth/sessionManager';
-import { broadcastToTabs } from '@/utils/browser';
-import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/utils/errors';
-import { requestCleanup } from '@/utils/provider/requestCleanup';
-import { serviceKeepAlive } from '@/utils/storage/serviceStateStorage';
 
 // Track which tabs have content scripts ready
 const readyTabs = new Set<number>();

@@ -5,11 +5,11 @@ import '@testing-library/jest-dom/vitest';
 import { DestinationInput } from './destination-input';
 
 // Mock the bitcoin validation utility
-vi.mock('@/utils/validation/bitcoin', () => ({
+vi.mock('@/core/validation/bitcoin', () => ({
   isValidBitcoinAddress: vi.fn()
 }));
 
-vi.mock('@/utils/validation/assetOwner', () => ({
+vi.mock('@/core/validation/assetOwner', () => ({
   lookupAssetOwner: vi.fn().mockResolvedValue({ isValid: false, ownerAddress: null, error: null }),
   shouldTriggerAssetLookup: vi.fn().mockReturnValue(false)
 }));
@@ -25,7 +25,7 @@ vi.mock('@/hooks/useAssetOwnerLookup', () => ({
   }))
 }));
 
-import { isValidBitcoinAddress } from '@/utils/validation/bitcoin';
+import { isValidBitcoinAddress } from '@/core/validation/bitcoin';
 
 describe('DestinationInput', () => {
   const mockIsValidBitcoinAddress = isValidBitcoinAddress as any;

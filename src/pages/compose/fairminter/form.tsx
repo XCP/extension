@@ -12,19 +12,19 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
+import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
 import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
 import { BlockHeightInput } from "@/components/ui/inputs/block-height-input";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { FairminterOptions } from "@/core/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { FairminterOptions } from "@/utils/blockchain/counterparty/compose";
 
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",

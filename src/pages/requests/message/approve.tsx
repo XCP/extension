@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
+import type { AddressFormat } from '@/core/bitcoin/address';
+import { signMessage } from '@/core/bitcoin/messageSigner';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
-import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { signMessage } from '@/utils/blockchain/bitcoin/messageSigner';
-import { getIdentityMismatchError } from '@/utils/provider/requestIdentity';
+import { getIdentityMismatchError } from '@/platform/provider/requestIdentity';
 
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet, getPrivateKey } = useWallet();
@@ -65,8 +65,8 @@ export default function ApproveMessagePage() {
 
       if (activeWallet.type === 'hardware') {
         // Use TrezorAdapter for hardware wallet signing
-        const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
-        const { DerivationPaths } = await import('@/utils/hardware/types');
+        const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
+        const { DerivationPaths } = await import('@/core/hardware/types');
         const trezor = getTrezorAdapter();
         await trezor.init();
 

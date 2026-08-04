@@ -2,20 +2,20 @@ import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AddressHeader } from "@/components/ui/headers/address-header";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
+import { AddressHeader } from "@/components/domain/address/address-header";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
+import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useComposer } from "@/contexts/composer-context-object";
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
+import { toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { encodeInscriptionContent } from '@/utils/blockchain/counterparty/inscriptionEnvelope';
-import { toBigNumber } from "@/utils/numeric";
 
 /** Maximum file size for inscriptions in KB */
 const INSCRIPTION_MAX_SIZE_KB = 400;

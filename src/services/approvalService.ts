@@ -5,11 +5,11 @@
  * Auto-rejects when user closes the popup window.
  */
 
+import { analytics } from '@/platform/fathom';
+import { openPopupWindow, type PopupWindow } from '@/platform/popup';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
-import { analytics } from '@/utils/fathom';
-import { openPopupWindow, type PopupWindow } from '@/utils/popup';
 
 export type { ApprovalRequestOptions, ApprovalResult };
 
@@ -323,7 +323,7 @@ export class ApprovalService extends BaseService {
 }
 
 // Proxy for cross-context communication
-import { defineProxyService } from '@/utils/proxy';
+import { defineProxyService } from '@/platform/proxy';
 
 export const [registerApprovalService, getApprovalService] = defineProxyService(
   'ApprovalService',

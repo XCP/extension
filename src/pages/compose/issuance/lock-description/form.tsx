@@ -3,12 +3,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the LockDescriptionForm component, aligned with Composer's formAction.

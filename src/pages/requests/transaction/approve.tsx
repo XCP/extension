@@ -5,7 +5,7 @@ import {ApprovalExpired, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
-import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/txActionInfo';
+import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { FiArrowDown } from '@/components/icons';
 import { Collapsible } from '@/components/ui/collapsible';
@@ -14,17 +14,17 @@ import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
 import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
+import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
+import { formatAddress, formatAmount, formatPriceRatio } from '@/core/format';
+import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
+import { getConnectionRevokedError, getIdentityMismatchError } from '@/platform/provider/requestIdentity';
 import { getConnectionService } from '@/services/connectionService';
 import { getWalletService } from '@/services/walletService';
-import { normalizeAddressForComparison } from '@/utils/blockchain/bitcoin/address';
-import { exceedsSaneFeeRate } from '@/utils/blockchain/bitcoin/feeVerification';
-import { classifySignedInputAssets } from '@/utils/blockchain/counterparty/inputAssets';
-import { formatAddress, formatAmount, formatPriceRatio } from '@/utils/format';
-import { fromSatoshis } from '@/utils/numeric';
-import { getConnectionRevokedError, getIdentityMismatchError } from '@/utils/provider/requestIdentity';
 
 /**
  * Structured data for per-type visual renderers.

@@ -12,27 +12,27 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { extractPsbtDetails, type PsbtDetails } from '@/utils/blockchain/bitcoin/psbt';
+import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
-} from '@/utils/blockchain/counterparty/inputAssets';
+} from '@/core/counterparty/inputAssets';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
   decodeRawTransaction
-} from '@/utils/blockchain/counterparty/transaction';
+} from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
   type SafetyAnalysis,
-} from '@/utils/blockchain/counterparty/transactionSafety';
+} from '@/core/counterparty/transactionSafety';
 import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
-} from '@/utils/blockchain/counterparty/unpack';
-import { extractPayloadFromOutputs } from '@/utils/blockchain/counterparty/unpack/opReturn';
-import { recordSignOutcome } from '@/utils/provider/signFlow';
-import { type SignPsbtRequest, signPsbtRequestStorage } from '@/utils/storage/signPsbtRequestStorage';
+} from '@/core/counterparty/unpack';
+import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import { recordSignOutcome } from '@/platform/provider/signFlow';
+import { type SignPsbtRequest, signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message

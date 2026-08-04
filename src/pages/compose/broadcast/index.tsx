@@ -1,8 +1,8 @@
 import { Composer } from "@/components/composer/composer";
+import type { BroadcastOptions } from "@/core/counterparty/compose";
+import { composeBroadcast } from "@/core/counterparty/compose";
 import { BroadcastForm } from "@/pages/compose/broadcast/form";
 import { ReviewBroadcast } from "@/pages/compose/broadcast/review";
-import type { BroadcastOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeBroadcast } from "@/utils/blockchain/counterparty/compose";
 
 function ComposeBroadcastPage() {
   return (

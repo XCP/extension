@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatPriceRatio } from "@/utils/format";
-import { DEFAULT_ORDER_EXPIRATION } from "@/utils/settings";
+import { formatPriceRatio } from "@/core/format";
+import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 
 const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);

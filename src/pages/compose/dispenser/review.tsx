@@ -1,9 +1,9 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import { formatAmount, formatAsset } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatAmount, formatAsset } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
 
 /**
  * Props for the ReviewDispenser component.

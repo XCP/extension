@@ -6,8 +6,8 @@
  * type-only imports without pulling in implementation.
  */
 
-import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import type { AppSettings } from '@/utils/settings';
+import type { AddressFormat } from '@/core/bitcoin/address';
+import type { AppSettings } from '@/core/settings';
 
 /**
  * Represents a derived address within a wallet.

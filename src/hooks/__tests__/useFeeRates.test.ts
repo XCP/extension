@@ -1,10 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { getFeeRates } from '@/utils/blockchain/bitcoin/feeRate';
+import { getFeeRates } from '@/core/bitcoin/feeRate';
 import { useFeeRates } from '../useFeeRates';
 
 // Mock the fee rate fetching
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn()
 }));
 

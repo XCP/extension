@@ -4,8 +4,8 @@ import { ApiStatusProvider } from '@/contexts/api-status-context';
 import { HeaderProvider, useHeader } from '@/contexts/header-context';
 import { SettingsProvider, useSettings } from '@/contexts/settings-context';
 import { useWallet, WalletProvider } from '@/contexts/wallet-context';
+import { getAutoLockTimeoutMs } from '@/core/settings';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
-import { getAutoLockTimeoutMs } from '@/utils/settings';
 
 /**
  * Props for the AppProviders component.

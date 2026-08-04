@@ -45,11 +45,11 @@ import {
   useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
+import type { AddressFormat } from '@/core/bitcoin/address';
+import { withStateLock } from "@/core/wallet/stateLockManager";
+import { keychainExists as checkKeychainExists } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
-import type { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { keychainExists as checkKeychainExists } from "@/utils/storage/walletStorage";
-import { withStateLock } from "@/utils/wallet/stateLockManager";
 
 /**
  * Authentication state enum.

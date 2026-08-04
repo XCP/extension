@@ -1,15 +1,15 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { PinnableAssetCard } from "@/components/domain/asset/pinnable-asset-card";
 import { FiHelpCircle } from "@/components/icons";
-import { PinnableAssetCard } from "@/components/ui/cards/pinnable-asset-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
-import { analytics } from "@/utils/fathom";
+import { analytics } from "@/platform/fathom";
 
 /**
  * Constants for navigation paths.

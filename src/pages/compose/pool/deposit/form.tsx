@@ -2,25 +2,21 @@ import { Description, Field } from "@headlessui/react";
 import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
+import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { AssetNameInput } from "@/components/ui/inputs/asset-name-input";
-import { AssetSelectInput } from "@/components/ui/inputs/asset-select-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { useAssetDetails } from "@/hooks/useAssetDetails";
-import { usePool } from "@/hooks/usePool";
-import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
-import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
-import type { TokenBalance } from "@/utils/blockchain/counterparty/api";
-import type { PoolDepositOptions } from "@/utils/blockchain/counterparty/compose";
+import type { TokenBalance } from "@/core/counterparty/api";
+import type { PoolDepositOptions } from "@/core/counterparty/compose";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
-} from "@/utils/blockchain/counterparty/pool";
+} from "@/core/counterparty/pool";
 import {
   fromSatoshis,
   isEqualTo,
@@ -30,8 +26,12 @@ import {
   isValidPositiveNumber,
   roundDown,
   toSatoshis,
-} from "@/utils/numeric";
-import { DEFAULT_POOL_SLIPPAGE } from "@/utils/settings";
+} from "@/core/numeric";
+import { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
+import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { usePool } from "@/hooks/usePool";
+import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
+import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;

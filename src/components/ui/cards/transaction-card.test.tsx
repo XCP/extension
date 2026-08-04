@@ -1,10 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Transaction } from '@/utils/blockchain/counterparty/api';
+import type { Transaction } from '@/core/counterparty/api';
 import { TransactionCard } from './transaction-card';
 
 // Mock the format utilities
-vi.mock('@/utils/format', () => ({
+vi.mock('@/core/format', () => ({
   formatTimeAgo: (timestamp: number) => `${Math.floor((Date.now() - timestamp * 1000) / 60000)} minutes ago`,
   formatDate: (timestamp: number) => new Date(timestamp * 1000).toISOString()
 }));

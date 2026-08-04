@@ -1,8 +1,8 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, forwardRef, type ReactNode, useCallback, useEffect } from "react";
+import { shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
+import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 import { useAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
-import { shouldTriggerAssetLookup } from "@/utils/validation/assetOwner";
-import { isValidBitcoinAddress } from "@/utils/validation/bitcoin";
 
 interface DestinationInputProps {
   value: string;

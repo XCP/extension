@@ -3,14 +3,14 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
-import { AssetHeader } from "@/components/ui/headers/asset-header";
+import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { InscriptionUploadInput } from "@/components/ui/inputs/file-upload-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import { isSegwitFormat } from '@/core/bitcoin/address';
+import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { isSegwitFormat } from '@/utils/blockchain/bitcoin/address';
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * Props for the UpdateDescriptionForm component, aligned with Composer's formAction.

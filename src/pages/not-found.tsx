@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { analytics } from '@/utils/fathom';
+import { analytics } from '@/platform/fathom';
 
 const NotFound = () => {
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatAmount } from "@/utils/format";
+import { formatAmount } from "@/core/format";
 
 interface ReviewIssuanceIssueSupplyProps {
   apiResponse: any;

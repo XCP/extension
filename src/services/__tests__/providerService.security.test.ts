@@ -1,10 +1,10 @@
 import './setup'; // Must be first to setup browser mocks
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
-import { approvalQueue } from '@/utils/provider/approvalQueue';
-import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/utils/provider/rateLimiter';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { DEFAULT_SETTINGS } from '@/core/settings';
+import { approvalQueue } from '@/platform/provider/approvalQueue';
+import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
+import { walletManager } from '@/platform/walletManager';
 import { getApprovalService } from '../approvalService';
 import { getConnectionService } from '../connectionService';
 import { createProviderService } from '../providerService';
@@ -17,7 +17,7 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 vi.mock('../walletService');
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
@@ -27,12 +27,12 @@ vi.mock('@/utils/wallet/walletManager', () => ({
     updateSettings: vi.fn(),
   },
 }));
-vi.mock('@/utils/provider/rateLimiter');
+vi.mock('@/platform/provider/rateLimiter');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
 
 // Mock CSP validation to avoid timeout issues
-vi.mock('@/utils/security/cspValidation', () => ({
+vi.mock('@/platform/provider/csp', () => ({
   analyzeCSP: vi.fn(() => Promise.resolve({
     hasCSP: true,
     isSecure: true,
@@ -258,13 +258,13 @@ describe('ProviderService Security Tests', () => {
       });
       
       // Mock the API responses
-      const apiModule = await import('@/utils/blockchain/counterparty/api');
+      const apiModule = await import('@/core/counterparty/api');
       vi.spyOn(apiModule, 'fetchTokenBalances').mockResolvedValue({ 
         result: [],
         result_count: 0
       } as any);
       
-      const balanceModule = await import('@/utils/blockchain/bitcoin/balance');
+      const balanceModule = await import('@/core/bitcoin/balance');
       vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue({ 
         confirmed: 0, 
         unconfirmed: 0 

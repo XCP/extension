@@ -1,7 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
-import type { Transaction } from "@/utils/blockchain/counterparty/api";
-import { formatAmount } from "@/utils/format";
+import type { Transaction } from "@/core/counterparty/api";
+import { formatAmount } from "@/core/format";
 
 /**
  * Interactive price display component for orders

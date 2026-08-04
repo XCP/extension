@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
+import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { composeIssuance } from "@/core/counterparty/compose";
 import { LockDescriptionForm } from "@/pages/compose/issuance/lock-description/form";
 import { ReviewLockDescription } from "@/pages/compose/issuance/lock-description/review";
-import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
-import { composeIssuance } from "@/utils/blockchain/counterparty/compose";
 
 /**
  * ComposeLockDescription handles the lock description flow for an asset.

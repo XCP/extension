@@ -1,10 +1,10 @@
 import type { ReactElement, ReactNode } from "react";
-import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
+import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
+import { formatAmount } from "@/core/format";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
-import { formatAmount } from "@/utils/format";
 
 /**
  * Props for the ReviewSend component.

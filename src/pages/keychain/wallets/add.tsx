@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MAX_WALLETS } from "@/utils/wallet/constants";
+import { MAX_WALLETS } from "@/core/wallet/constants";
 
 /** Check if we're running in the sidepanel (vs popup) */
 const isSidepanel = () => document.body.dataset.context === 'sidepanel';

@@ -1,7 +1,7 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { validateMemo as validateMemoUtil } from "@/utils/validation/memo";
+import { validateMemo as validateMemoUtil } from "@/core/validation/memo";
 
 interface MemoInputProps {
   value?: string;

@@ -5,12 +5,12 @@ import { ComposerProvider } from '@/contexts/composer-context';
 import { MPMAForm } from '../form';
 
 // Mock the counterparty API functions
-vi.mock('@/utils/blockchain/counterparty/api', () => ({
+vi.mock('@/core/counterparty/api', () => ({
   fetchAssetDetails: vi.fn().mockResolvedValue({ divisible: true }),
 }));
 
 // Mock the counterparty memo functions
-vi.mock('@/utils/blockchain/counterparty/memo', () => ({
+vi.mock('@/core/counterparty/memo', () => ({
   isHexMemo: vi.fn((memo: string) => {
     if (!memo) return false;
     const cleanMemo = memo.startsWith('0x') ? memo.slice(2) : memo;
@@ -26,7 +26,7 @@ vi.mock('@/utils/blockchain/counterparty/memo', () => ({
 }));
 
 // Mock fee rates to prevent network calls
-vi.mock('@/utils/blockchain/bitcoin/feeRate', () => ({
+vi.mock('@/core/bitcoin/feeRate', () => ({
   getFeeRates: vi.fn().mockResolvedValue({
     fastestFee: 10,
     halfHourFee: 5,
@@ -185,7 +185,42 @@ describe('MPMAForm', () => {
     });
     
     await waitFor(() => {
-      expect(screen.getByText(/Invalid quantity/)).toBeInTheDocument();
+      // parseCSV reports why rather than just that it is invalid
+      expect(screen.getByText(/Quantity must be a number/)).toBeInTheDocument();
+    });
+  });
+
+  // These are what routing the parse through parseCSV buys: the hand-rolled loop it replaced
+  // accepted both without comment.
+  it('rejects a row carrying a spreadsheet formula', async () => {
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    fireEvent.paste(textArea, {
+      clipboardData: {
+        getData: () => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,=cmd|calc,1'
+      }
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/injection/i)).toBeInTheDocument();
+    });
+  });
+
+  it('parses a quoted memo containing a comma as one field', async () => {
+    renderWithProvider();
+
+    const textArea = screen.getByPlaceholderText('Paste CSV data here…');
+    fireEvent.paste(textArea, {
+      clipboardData: {
+        getData: () => 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq,XCP,1,"a,b"'
+      }
+    });
+
+    // A memo split on the comma would have produced a fourth column and a different memo;
+    // reaching the review table at all means the quoted field survived intact.
+    await waitFor(() => {
+      expect(screen.queryByText(/Invalid|error/i)).not.toBeInTheDocument();
     });
   });
 

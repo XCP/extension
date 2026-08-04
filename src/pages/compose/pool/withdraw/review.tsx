@@ -1,8 +1,8 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposerOptional } from "@/contexts/composer-context-object";
+import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { fromSatoshis } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
-import { fromSatoshis } from "@/utils/numeric";
 
 interface ReviewPoolWithdrawProps {
   apiResponse: any;

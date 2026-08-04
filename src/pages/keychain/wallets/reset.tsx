@@ -7,7 +7,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MIN_PASSWORD_LENGTH } from "@/utils/encryption/encryption";
+import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 
 const PATHS = {
   BACK: "/settings",

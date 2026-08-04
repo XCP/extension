@@ -13,7 +13,7 @@ import {
   getUpdateState,
   setUpdateState,
   type UpdateState,
-} from '@/utils/storage/updateStorage';
+} from '@/platform/storage/updateStorage';
 
 class UpdateService {
   private readonly CHECK_INTERVAL = 1000 * 60 * 15; // 15 minutes

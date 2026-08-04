@@ -1,8 +1,8 @@
 import { Input } from '@headlessui/react';
 import { useEffect, useState } from 'react';
 import { FiRotateCcw } from '@/components/icons';
-import { DEFAULT_SETTINGS } from '@/utils/settings';
-import { validateCounterpartyApi } from '@/utils/validation/api';
+import { DEFAULT_SETTINGS } from '@/core/settings';
+import { validateCounterpartyApi } from '@/core/validation/api';
 
 interface ApiUrlInputProps {
   value: string;

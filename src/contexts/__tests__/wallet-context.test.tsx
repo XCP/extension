@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
-import * as sessionManager from '@/utils/auth/sessionManager';
-import { AddressFormat } from '@/utils/blockchain/bitcoin/address';
-import { walletManager } from '@/utils/wallet/walletManager';
+import { AddressFormat } from '@/core/bitcoin/address';
+import * as sessionManager from '@/platform/auth/sessionManager';
+import { walletManager } from '@/platform/walletManager';
 import { useWallet, WalletProvider } from '../wallet-context';
 
 // Mock webext-bridge first with comprehensive mocking
@@ -19,8 +19,8 @@ vi.mock('webext-bridge/background', () => ({
 
 
 // Mock withStateLock to execute functions immediately without locking
-vi.mock('@/utils/wallet/stateLockManager', async () => {
-  const actual = await vi.importActual('@/utils/wallet/stateLockManager');
+vi.mock('@/core/wallet/stateLockManager', async () => {
+  const actual = await vi.importActual('@/core/wallet/stateLockManager');
   return {
     ...actual,
     withStateLock: vi.fn(async (key: string, fn: () => Promise<any>) => {
@@ -31,7 +31,7 @@ vi.mock('@/utils/wallet/stateLockManager', async () => {
 });
 
 // Mock dependencies
-vi.mock('@/utils/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     refreshWallets: vi.fn(),
     createWallet: vi.fn(),
@@ -58,7 +58,7 @@ vi.mock('@/utils/wallet/walletManager', () => ({
     updateSettings: vi.fn(),
   }
 }));
-vi.mock('@/utils/auth/sessionManager', () => ({
+vi.mock('@/platform/auth/sessionManager', () => ({
   getUnlockedSecret: vi.fn(),
   storeUnlockedSecret: vi.fn(),
   clearAllUnlockedSecrets: vi.fn(),
@@ -69,7 +69,7 @@ vi.mock('@/utils/auth/sessionManager', () => ({
 
 // Mock keychainExists from walletStorage - defaults to true (wallets exist)
 const mockKeychainExists = vi.fn().mockResolvedValue(true);
-vi.mock('@/utils/storage/walletStorage', () => ({
+vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: () => mockKeychainExists(),
 }));
 

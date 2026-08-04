@@ -7,9 +7,9 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { TextAreaInput } from "@/components/ui/inputs/textarea-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import type { AddressFormat } from "@/utils/blockchain/bitcoin/address";
-import { getSigningCapabilities, signMessage } from "@/utils/blockchain/bitcoin/messageSigner";
-import { analytics } from "@/utils/fathom";
+import type { AddressFormat } from "@/core/bitcoin/address";
+import { getSigningCapabilities, signMessage } from "@/core/bitcoin/messageSigner";
+import { analytics } from "@/platform/fathom";
 
 /**
  * SignMessage component for signing messages with Bitcoin addresses.
@@ -84,8 +84,8 @@ export default function SignMessagePage(): ReactElement {
       // Check if this is a hardware wallet
       if (activeWallet.type === 'hardware') {
         // Use TrezorAdapter for hardware wallet signing
-        const { getTrezorAdapter } = await import('@/utils/hardware/trezorAdapter');
-        const { DerivationPaths } = await import('@/utils/hardware/types');
+        const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
+        const { DerivationPaths } = await import('@/core/hardware/types');
         const trezor = getTrezorAdapter();
         await trezor.init();
 

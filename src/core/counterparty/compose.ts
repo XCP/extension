@@ -1,0 +1,1170 @@
+import { apiClient } from '@/core/api/client';
+import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
+import { CounterpartyApiError } from '@/core/errors';
+import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+
+/**
+ * Type guard to check if an error has a response with data
+ */
+function isApiErrorWithResponse(error: unknown): error is {
+  response?: { data?: { error?: string } };
+  code?: string;
+  message?: string;
+} {
+  return typeof error === 'object' && error !== null;
+}
+
+/**
+ * Convert a params object to a string record for URLSearchParams.
+ * All values are explicitly converted to strings.
+ */
+function toStringParams(obj: Record<string, unknown>): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined && value !== null) {
+      result[key] = String(value);
+    }
+  }
+  return result;
+}
+
+/**
+ * Attempt to select UTXOs from mempool.space for better reliability.
+ * Falls back gracefully if selection fails, allowing the Counterparty API to handle it.
+ *
+ * @param sourceAddress - The address to select UTXOs from
+ * @param allowUnconfirmed - Whether to include unconfirmed UTXOs
+ * @returns The inputs_set string if successful, undefined otherwise
+ */
+async function trySelectUtxos(
+  sourceAddress: string,
+  allowUnconfirmed: boolean
+): Promise<string | undefined> {
+  try {
+    const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
+    return selection.inputsSet;
+  } catch {
+    return undefined;
+  }
+}
+
+export interface SignedTxEstimatedSize {
+  vsize: number;
+  adjusted_vsize: number;
+  sigops_count: number;
+}
+
+export interface ComposeAssetInfo {
+  asset_longname: string | null;
+  description: string;
+  issuer: string;
+  divisible: boolean;
+  locked: boolean;
+  owner: string;
+  supply?: string;
+  supply_normalized?: string;
+}
+
+export interface ComposeParams {
+  source?: string;
+  destination?: string;
+  address?: string;
+  dispenser?: string;
+  asset: string;
+  quantity: string | number;
+  memo: string | null;
+  memo_is_hex: boolean;
+  use_enhanced_send: boolean;
+  no_dispense: boolean;
+  skip_validation: boolean;
+  asset_info: ComposeAssetInfo;
+  quantity_normalized: string;
+  more_outputs?: string;
+  lp_asset?: string;
+}
+
+export interface ComposeResult {
+  rawtransaction: string;
+  btc_in: number;
+  btc_out: number;
+  btc_change: number;
+  btc_fee: number;
+  xcp_fee?: number;
+  data: string;
+  lock_scripts: string[];
+  inputs_values: number[];
+  signed_tx_estimated_size: SignedTxEstimatedSize;
+  psbt: string;
+  /**
+   * Present only for `encoding=taproot` composes. The ord envelope script carrying the message,
+   * and the reveal transaction — already signed by the composer's ephemeral key — that spends the
+   * commit output and publishes the content. `rawtransaction` is only the commit, so an
+   * inscription is not complete until the reveal is broadcast too.
+   */
+  envelope_script?: string;
+  signed_reveal_rawtransaction?: string;
+  params: ComposeParams & {
+    asset_dest_quant_list?: [string, string, string | number][];
+    memos?: string[];
+  };
+  name: string;
+}
+
+export interface ApiResponse {
+  result: ComposeResult;
+}
+
+// Base options shared across all transaction types
+export interface BaseComposeOptions {
+  sourceAddress: string;
+  sat_per_vbyte: number;
+  max_fee?: number;
+  encoding?: 'auto' | 'opreturn' | 'multisig' | 'pubkeyhash' | 'taproot';
+  change_address?: string;
+  more_outputs?: string;
+  use_all_inputs_set?: boolean;
+  multisig_pubkey?: string;
+}
+
+// Transaction-specific options
+export interface BroadcastOptions extends BaseComposeOptions {
+  text: string;
+  value?: string;
+  fee_fraction?: string;
+  timestamp?: string;
+  inscription?: string;  // Base64 encoded inscription data
+  mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
+}
+
+export interface BTCPayOptions extends BaseComposeOptions {
+  order_match_id: string;
+}
+
+export interface BurnOptions extends BaseComposeOptions {
+  quantity: string | number;
+  overburn?: boolean;
+}
+
+export interface CancelOptions extends BaseComposeOptions {
+  offer_hash: string;
+}
+
+export interface DestroyOptions extends BaseComposeOptions {
+  asset: string;
+  quantity: string | number;
+  tag?: string;
+}
+
+export interface DispenserOptions extends BaseComposeOptions {
+  asset: string;
+  give_quantity: string | number;
+  escrow_quantity: string | number;
+  mainchainrate: string | number;
+  status?: string;
+  open_address?: string;
+  oracle_address?: string;
+}
+
+export interface DispenseOptions extends BaseComposeOptions {
+  dispenser: string;
+  quantity: string | number;
+  pubkeys?: string;
+}
+
+export interface DividendOptions extends BaseComposeOptions {
+  asset: string;
+  dividend_asset: string;
+  quantity_per_unit: string | number;
+}
+
+export interface IssuanceOptions extends BaseComposeOptions {
+  asset: string;
+  quantity: string | number;
+  divisible?: boolean;
+  lock: boolean;
+  reset: boolean;
+  transfer_destination?: string;
+  description?: string;
+  pubkeys?: string;
+  inscription?: string;  // Base64 encoded inscription data
+  mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
+}
+
+export interface MPMAOptions extends BaseComposeOptions {
+  assets: string[];
+  destinations: string[];
+  quantities: string[];
+  /** Per-send memos, one entry per send; empty string means no memo for that send. */
+  memos?: string[];
+  /** Hex flags for `memos`. Core applies a single flag to every memo, so these must agree. */
+  memos_are_hex?: boolean[];
+  /** Whole-send memo, used for every send when `memos` is not given; encoded once. */
+  memo?: string;
+  memo_is_hex?: boolean;
+}
+
+export interface OrderOptions extends BaseComposeOptions {
+  give_asset: string;
+  give_quantity: string | number;
+  get_asset: string;
+  get_quantity: string | number;
+  expiration: number;
+  fee_required?: number;
+}
+
+export interface SendOptions extends BaseComposeOptions {
+  destination: string;
+  asset: string;
+  quantity: string | number;
+  memo?: string;
+  memo_is_hex?: boolean;
+  no_dispense?: boolean;
+}
+
+export interface SweepOptions extends BaseComposeOptions {
+  destination: string;
+  flags: number;
+  memo?: string;
+}
+
+export interface FairminterOptions extends BaseComposeOptions {
+  asset: string;
+  lot_price?: number;
+  lot_size?: string | number;
+  max_mint_per_tx?: string | number;
+  max_mint_per_address?: string | number;
+  hard_cap?: string | number;
+  premint_quantity?: string | number;
+  start_block?: number;
+  end_block?: number;
+  soft_cap?: string | number;
+  soft_cap_deadline_block?: number;
+  minted_asset_commission?: number;
+  burn_payment?: boolean;
+  lock_description?: boolean;
+  lock_quantity?: boolean;
+  divisible?: boolean;
+  description?: string;
+  pubkeys?: string;
+  inscription?: string;  // Base64 encoded inscription data
+  mime_type?: string;   // MIME type for inscription (e.g., 'image/png', 'text/plain')
+  pool_quantity?: number;
+  lp_asset?: string;
+}
+
+export interface FairmintOptions extends BaseComposeOptions {
+  asset: string;
+  quantity?: string | number;
+}
+
+export interface PoolDepositOptions extends BaseComposeOptions {
+  asset_a: string;
+  asset_b: string;
+  quantity_a: number | string;
+  quantity_b: number | string;
+  min_lp_quantity?: number | string;
+  lp_asset?: string;
+}
+
+export interface PoolWithdrawOptions extends BaseComposeOptions {
+  asset_a?: string;
+  asset_b?: string;
+  quantity: number | string;
+  min_quantity_a?: number | string;
+  min_quantity_b?: number | string;
+  lp_asset?: string;
+}
+
+export interface AttachOptions extends BaseComposeOptions {
+  asset: string;
+  quantity: string | number;
+  utxo_value?: number; // Optional value for the new UTXO (disabled after block 871900)
+  destination_vout?: number; // Optional output to attach to
+}
+
+export interface DetachOptions extends BaseComposeOptions {
+  sourceUtxo: string; // The UTXO to detach from (txid:vout)
+  destination?: string; // Optional destination address (defaults to UTXO's address)
+}
+
+export interface MoveOptions extends BaseComposeOptions {
+  sourceUtxo: string; // The UTXO to move from (txid:vout)
+  destination: string; // Address to create new UTXO at
+}
+
+async function getApiBase() {
+  const settings = getActiveSettings();
+  return settings.counterpartyApiBase;
+}
+
+// ============================================================================
+// UTXO Fallback Logic
+// ============================================================================
+//
+// When composing transactions, we fetch UTXOs from mempool.space for better
+// reliability. However, the Counterparty API may reject some UTXOs if:
+// - The transaction was dropped from mempool (RBF, low fee, etc.)
+// - Different Bitcoin nodes have different mempool views
+// - The UTXO was spent between our fetch and the API call
+//
+// We handle this with a 3-attempt fallback strategy:
+// 1. Try with all UTXOs from mempool.space
+// 2. If "invalid UTXOs" error, remove those UTXOs and retry
+// 3. If still failing, let Counterparty API select UTXOs itself
+
+/**
+ * Extract error message from error (handles Axios errors and CounterpartyApiError).
+ */
+function getApiErrorMessage(error: unknown): string | undefined {
+  if (error instanceof CounterpartyApiError) {
+    return error.message;
+  }
+  if (isApiErrorWithResponse(error)) {
+    return error.response?.data?.error;
+  }
+  return undefined;
+}
+
+/**
+ * Check if error message indicates a UTXO-related failure that we should retry.
+ * Handles multiple error formats from the Counterparty API:
+ * - "invalid UTXOs: txid:vout (transaction not found)"
+ * - "UTXO not found for input 0: txid:vout"
+ */
+function isUtxoError(errorMessage: string | undefined): boolean {
+  if (!errorMessage) return false;
+  return (
+    errorMessage.includes('invalid UTXOs') ||
+    errorMessage.includes('UTXO not found') ||
+    errorMessage.includes('transaction not found')
+  );
+}
+
+/**
+ * Parse UTXO references from error message.
+ * Extracts any txid:vout patterns found in the message.
+ */
+function parseUtxosFromError(errorMessage: string): string[] {
+  const utxoPattern = /([a-f0-9]{64}:\d+)/gi;
+  return errorMessage.match(utxoPattern) || [];
+}
+
+/**
+ * Remove specific UTXOs from inputs_set string.
+ */
+function removeUtxosFromInputsSet(inputsSet: string, utxosToRemove: string[]): string | undefined {
+  const removeSet = new Set(utxosToRemove.map(u => u.toLowerCase()));
+  const filtered = inputsSet.split(',').filter(utxo => !removeSet.has(utxo.toLowerCase()));
+  return filtered.length > 0 ? filtered.join(',') : undefined;
+}
+
+/**
+ * Wrap errors in CounterpartyApiError.
+ */
+function wrapComposeError(error: unknown, endpoint: string): CounterpartyApiError {
+  if (error instanceof CounterpartyApiError) return error;
+
+  const message = getApiErrorMessage(error);
+  if (message) {
+    return new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
+  }
+
+  return new CounterpartyApiError(
+    error instanceof Error ? error.message : 'Transaction composition failed',
+    endpoint,
+    { cause: error instanceof Error ? error : undefined }
+  );
+}
+
+/**
+ * Options for making a compose request.
+ */
+interface ComposeRequestOptions {
+  inputsSet: string | undefined;
+  allowUnconfirmed: boolean;
+}
+
+/**
+ * Execute a compose request with automatic UTXO fallback.
+ *
+ * Strategy:
+ * 1. Try with inputs_set from mempool.space (respects user's unconfirmed setting)
+ * 2. If "invalid UTXOs" error, remove those UTXOs and retry
+ * 3. If still failing, retry without inputs_set but force confirmed-only
+ *    (avoids Counterparty selecting stale unconfirmed UTXOs from its mempool)
+ */
+async function executeWithUtxoFallback(
+  makeRequest: (options: ComposeRequestOptions) => Promise<ApiResponse>,
+  inputsSet: string | undefined,
+  allowUnconfirmed: boolean,
+  endpoint: string
+): Promise<ApiResponse> {
+  // No inputs_set - just make the request with confirmed-only for safety
+  if (!inputsSet) {
+    try {
+      return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
+    } catch (error) {
+      throw wrapComposeError(error, endpoint);
+    }
+  }
+
+  // Attempt 1: Try with full inputs_set (respects user's unconfirmed setting)
+  try {
+    return await makeRequest({ inputsSet, allowUnconfirmed });
+  } catch (error) {
+    const errorMessage = getApiErrorMessage(error);
+
+    // If it's a UTXO-related error, try fallbacks
+    if (isUtxoError(errorMessage)) {
+      const badUtxos = parseUtxosFromError(errorMessage || '');
+      const filteredInputsSet = removeUtxosFromInputsSet(inputsSet, badUtxos);
+
+      // Attempt 2: Try with filtered inputs_set (still respects user's setting)
+      if (filteredInputsSet) {
+        try {
+          return await makeRequest({ inputsSet: filteredInputsSet, allowUnconfirmed });
+        } catch {
+          // Fall through to attempt 3
+        }
+      }
+
+      // Attempt 3: Let Counterparty API select, but force confirmed-only
+      // This avoids issues where Counterparty's mempool has stale unconfirmed UTXOs
+      try {
+        return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
+      } catch (finalError) {
+        throw wrapComposeError(finalError, endpoint);
+      }
+    }
+
+    // Not a UTXO error - throw immediately
+    throw wrapComposeError(error, endpoint);
+  }
+}
+
+// ============================================================================
+// Compose Functions
+// ============================================================================
+
+/**
+ * Compose a transaction via the Counterparty API.
+ */
+export async function composeTransaction<T extends Record<string, unknown>>(
+  endpoint: string,
+  paramsObj: T,
+  sourceAddress: string,
+  sat_per_vbyte: number,
+  encoding?: string
+): Promise<ApiResponse> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  const settings = getActiveSettings();
+
+  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const params = new URLSearchParams(toStringParams({
+      ...paramsObj,
+      sat_per_vbyte: sat_per_vbyte.toString(),
+      exclude_utxos_with_balances: 'true',
+      allow_unconfirmed_inputs: allowUnconfirmed.toString(),
+      disable_utxo_locks: 'true',
+      verbose: 'true',
+      ...(encoding && { encoding }),
+      ...(inputsSet && { inputs_set: inputsSet }),
+    }));
+
+    const response = await apiClient.get<ApiResponse | { error: string }>(
+      `${apiUrl}?${params.toString()}`,
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    if ('error' in response.data) {
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    }
+    return response.data as ApiResponse;
+  };
+
+  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+}
+
+/**
+ * Compose a transaction with array parameters (e.g., MPMA sends).
+ */
+async function composeTransactionWithArrays<T extends Record<string, unknown>>(
+  endpoint: string,
+  paramsObj: T,
+  arrayParams: { [key: string]: (string | boolean | undefined)[] | undefined },
+  sourceAddress: string,
+  sat_per_vbyte: number,
+  encoding?: string
+): Promise<ApiResponse> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
+  const settings = getActiveSettings();
+
+  const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
+    const params = new URLSearchParams(toStringParams({
+      ...paramsObj,
+      sat_per_vbyte: sat_per_vbyte.toString(),
+      exclude_utxos_with_balances: 'true',
+      allow_unconfirmed_inputs: allowUnconfirmed.toString(),
+      disable_utxo_locks: 'true',
+      verbose: 'true',
+      ...(encoding && { encoding }),
+      ...(inputsSet && { inputs_set: inputsSet }),
+    }));
+
+    // Array params must be repeated plain keys: core's `query_params()` builds lists from
+    // repeated keys and treats a PHP-style `memos[]` as a different, ignored parameter.
+    let url = `${apiUrl}?${params.toString()}`;
+    for (const [key, values] of Object.entries(arrayParams)) {
+      if (Array.isArray(values)) {
+        for (const value of values) {
+          url += `&${key}=${encodeURIComponent(String(value ?? ''))}`;
+        }
+      }
+    }
+
+    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if ('error' in response.data) {
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    }
+    return response.data as ApiResponse;
+  };
+
+  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+}
+
+/**
+ * Compose a UTXO-based transaction (detach, move).
+ * These don't use inputs_set since the source UTXO is specified directly.
+ */
+export async function composeUtxoTransaction<T extends Record<string, unknown>>(
+  endpoint: string,
+  paramsObj: T,
+  sourceUtxo: string,
+  sat_per_vbyte: number,
+  encoding?: string
+): Promise<ApiResponse> {
+  const base = await getApiBase();
+  const apiUrl = `${base}/v2/utxos/${sourceUtxo}/compose/${endpoint}`;
+
+  // Get user's unconfirmed transaction preference
+  const settings = getActiveSettings();
+
+  const params = new URLSearchParams(toStringParams({
+    ...paramsObj,
+    sat_per_vbyte: sat_per_vbyte.toString(),
+    exclude_utxos_with_balances: 'true',
+    allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
+    disable_utxo_locks: 'true',
+    verbose: 'true',
+    ...(encoding && { encoding }),
+  }));
+
+  const url = `${apiUrl}?${params.toString()}`;
+
+  try {
+    // Use apiClient for automatic timeout (60s for /compose) and retry logic
+    const response = await apiClient.get<ApiResponse | { error: string }>(url, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    // Check if the API returned an error response
+    if ('error' in response.data) {
+      throw new CounterpartyApiError(response.data.error, endpoint, {});
+    }
+
+    return response.data as ApiResponse;
+  } catch (error: unknown) {
+    if (error instanceof CounterpartyApiError) throw error;
+
+    // Handle timeout errors specifically
+    if (isApiErrorWithResponse(error)) {
+      if (error.code === 'TIMEOUT') {
+        throw new CounterpartyApiError(
+          'Transaction composition timed out',
+          endpoint,
+          { cause: error instanceof Error ? error : undefined }
+        );
+      }
+      if (error.response?.data?.error) {
+        throw new CounterpartyApiError(error.response.data.error, endpoint, {
+          cause: error instanceof Error ? error : undefined,
+        });
+      }
+    }
+
+    const message = error instanceof Error ? error.message : 'Transaction composition failed';
+    throw new CounterpartyApiError(message, endpoint, {
+      cause: error instanceof Error ? error : undefined,
+    });
+  }
+}
+
+export async function composeBroadcast(options: BroadcastOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    text,
+    value = '0',
+    fee_fraction = '0',
+    timestamp = Math.floor(Date.now() / 1000).toString(),
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+    inscription,
+    mime_type,
+  } = options;
+  const paramsObj = {
+    text, value, fee_fraction, timestamp,
+    ...(inscription && { inscription }),
+    ...(mime_type && { mime_type }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    order_match_id,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    order_match_id,
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('btcpay', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeBurn(options: BurnOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    quantity,
+    overburn = false,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    quantity: quantity.toString(),
+    overburn: overburn.toString(),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('burn', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeCancel(options: CancelOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    offer_hash,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    offer_hash: offer_hash.trim(),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    quantity,
+    tag,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset,
+    quantity: quantity.toString(),
+    tag: tag || '',
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('destroy', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeDispenser(options: DispenserOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    give_quantity,
+    escrow_quantity,
+    mainchainrate,
+    status = '0',
+    open_address,
+    oracle_address,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset,
+    // When closing a dispenser (status != 0), these values may be undefined - default to 0
+    give_quantity: (give_quantity ?? 0).toString(),
+    escrow_quantity: (escrow_quantity ?? 0).toString(),
+    mainchainrate: (mainchainrate ?? 0).toString(),
+    status: status.toString(),
+    ...(open_address && { open_address }),
+    ...(oracle_address && { oracle_address }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('dispenser', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeDispense(options: DispenseOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    dispenser,
+    quantity,
+    encoding,
+    pubkeys,
+    sat_per_vbyte,
+    max_fee,
+  } = options;
+  const paramsObj = {
+    dispenser,
+    quantity: quantity.toString(),
+    ...(pubkeys && { pubkeys }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('dispense', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeDividend(options: DividendOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    dividend_asset,
+    quantity_per_unit,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset,
+    dividend_asset,
+    quantity_per_unit: quantity_per_unit.toString(),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('dividend', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeIssuance(options: IssuanceOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    quantity,
+    divisible,
+    lock,
+    reset,
+    transfer_destination,
+    description,
+    sat_per_vbyte,
+    max_fee,
+    pubkeys,
+    encoding,
+    inscription,
+    mime_type,
+  } = options;
+  // Boolean values are normalized upstream - convert to API string format
+  // Always include divisible to avoid API defaulting to true when we want false
+  const paramsObj = {
+    asset,
+    quantity: quantity.toString(),
+    divisible: divisible ? 'true' : 'false',
+    lock: lock ? 'true' : 'false',
+    reset: reset ? 'true' : 'false',
+    ...(transfer_destination && { transfer_destination }),
+    ...(description && { description }),
+    ...(pubkeys && { pubkeys }),
+    ...(inscription && { inscription }),
+    ...(mime_type && { mime_type }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('issuance', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeMPMA(options: MPMAOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    assets,
+    destinations,
+    quantities,
+    memos,
+    memos_are_hex,
+    memo,
+    memo_is_hex,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  if (
+    !Array.isArray(assets) ||
+    !Array.isArray(destinations) ||
+    !Array.isArray(quantities) ||
+    assets.length !== destinations.length ||
+    assets.length !== quantities.length
+  ) {
+    throw new Error('Assets, destinations, and quantities must be arrays of the same length.');
+  }
+
+  if (memos && memos.some((memo) => memo !== '')) {
+    // Core applies one `memos_are_hex` flag to every memo in the list, so a mix of hex and text
+    // memos cannot be expressed over the API and must be rejected before compose.
+    const hexFlags = new Set((memos_are_hex ?? []).filter((_, i) => memos[i] !== ''));
+    if (hexFlags.size > 1) {
+      throw new Error(
+        'MPMA memos must be all hex or all text: the API applies a single memos_are_hex flag to every memo.'
+      );
+    }
+    // Core requires exactly one memos entry per send; empty entries mean "no memo for this send".
+    if (memos.length !== assets.length) {
+      throw new Error('The number of memos must equal the number of sends.');
+    }
+    return composeTransactionWithArrays('mpma', {
+      assets: assets.join(','),
+      destinations: destinations.join(','),
+      quantities: quantities.join(','),
+      memos_are_hex: (hexFlags.values().next().value ?? false).toString(),
+      ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+    }, { memos }, sourceAddress, sat_per_vbyte, encoding);
+  }
+
+  const paramsObj = {
+    assets: assets.join(','),
+    destinations: destinations.join(','),
+    quantities: quantities.join(','),
+    ...(memo && { memo, memo_is_hex: (memo_is_hex ?? false).toString() }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('mpma', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeOrder(options: OrderOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    give_asset,
+    give_quantity,
+    get_asset,
+    get_quantity,
+    expiration,
+    fee_required = 0,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  if (expiration < 0 || expiration > MAX_ORDER_EXPIRATION) {
+    throw new Error(`Order expiration must be between 0 and ${MAX_ORDER_EXPIRATION} blocks.`);
+  }
+  // The v11.1 indefinite_orders gate covers both never-expiring orders and
+  // finite expirations above the old 8064-block policy cap.
+  if (expiration === 0 || expiration > LEGACY_MAX_ORDER_EXPIRATION) {
+    await requireCounterpartyFeature('indefiniteOrders');
+  }
+
+  const paramsObj = {
+    give_asset,
+    give_quantity: give_quantity.toString(),
+    get_asset,
+    get_quantity: get_quantity.toString(),
+    expiration: expiration.toString(),
+    fee_required: fee_required.toString(),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeSend(options: SendOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    destination,
+    asset,
+    quantity,
+    memo,
+    memo_is_hex,
+    no_dispense,
+    more_outputs,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    destination,
+    asset,
+    quantity: quantity.toString(),
+    ...(memo !== undefined ? { memo } : {}),
+    ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
+    ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
+    ...(more_outputs ? { more_outputs } : {}),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+/**
+ * Extended send options that support multiple destinations (MPMA convenience).
+ * When `destinations` contains multiple comma-separated addresses, automatically
+ * converts to an MPMA transaction with the same asset/quantity/memo for each.
+ */
+export interface SendOrMPMAOptions extends SendOptions {
+  destinations?: string; // Comma-separated list for MPMA
+}
+
+/**
+ * Compose a send transaction, automatically using MPMA when multiple destinations provided.
+ * This provides a convenient UX where users can add multiple destinations in the send form.
+ */
+export async function composeSendOrMPMA(options: SendOrMPMAOptions): Promise<ApiResponse> {
+  const { destinations, ...sendOptions } = options;
+
+  // Check if we have multiple destinations (MPMA)
+  if (destinations && destinations.includes(',')) {
+    const destArray = destinations.split(',').map((d: string) => d.trim());
+
+    // Same asset/quantity for each destination; a memo shared by every send travels once as the
+    // whole-send `memo` param.
+    const mpmaOptions: MPMAOptions = {
+      sourceAddress: options.sourceAddress,
+      assets: destArray.map(() => options.asset),
+      destinations: destArray,
+      quantities: destArray.map(() => options.quantity.toString()),
+      sat_per_vbyte: options.sat_per_vbyte,
+      ...(options.memo && {
+        memo: options.memo,
+        memo_is_hex: options.memo_is_hex ?? false,
+      })
+    };
+
+    const response = await composeMPMA(mpmaOptions);
+    response.result.name = 'mpma';
+    return response;
+  }
+
+  // Single destination - regular send
+  const response = await composeSend(sendOptions);
+  response.result.name = 'send';
+  // Preserve more_outputs in result for review page display
+  if (sendOptions.more_outputs) {
+    response.result.params.more_outputs = sendOptions.more_outputs;
+  }
+  return response;
+}
+
+export async function composeSweep(options: SweepOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    destination,
+    flags,
+    memo = '',
+    more_outputs,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    destination,
+    flags: flags.toString(),
+    memo,
+    ...(more_outputs ? { more_outputs } : {}),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  const response = await composeTransaction('sweep', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (more_outputs && response.result?.params) {
+    response.result.params.more_outputs = more_outputs;
+  }
+  return response;
+}
+
+export async function composeFairminter(options: FairminterOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    lot_price = 0,
+    lot_size = 1,
+    max_mint_per_tx = 0,
+    max_mint_per_address = 0,
+    hard_cap = 0,
+    premint_quantity = 0,
+    start_block = 0,
+    end_block = 0,
+    soft_cap = 0,
+    soft_cap_deadline_block = 0,
+    minted_asset_commission = 0.0,
+    burn_payment = false,
+    lock_description = false,
+    lock_quantity = false,
+    divisible = true,
+    description = '',
+    encoding = 'auto',
+    sat_per_vbyte,
+    max_fee,
+    pubkeys,
+    inscription,
+    mime_type,
+    pool_quantity = 0,
+    lp_asset,
+  } = options;
+  // Boolean values are normalized upstream - convert to API string format
+  const paramsObj = {
+    asset,
+    lot_price: lot_price.toString(),
+    lot_size: lot_size.toString(),
+    max_mint_per_tx: max_mint_per_tx.toString(),
+    max_mint_per_address: max_mint_per_address.toString(),
+    hard_cap: hard_cap.toString(),
+    premint_quantity: premint_quantity.toString(),
+    start_block: start_block.toString(),
+    end_block: end_block.toString(),
+    soft_cap: soft_cap.toString(),
+    soft_cap_deadline_block: soft_cap_deadline_block.toString(),
+    minted_asset_commission: minted_asset_commission.toString(),
+    burn_payment: burn_payment ? 'true' : 'false',
+    lock_description: lock_description ? 'true' : 'false',
+    lock_quantity: lock_quantity ? 'true' : 'false',
+    divisible: divisible ? 'true' : 'false',
+    ...(pool_quantity > 0 && { pool_quantity: pool_quantity.toString() }),
+    ...(lp_asset && { lp_asset }),
+    ...(description && { description }),
+    ...(pubkeys && { pubkeys }),
+    ...(inscription && { inscription }),
+    ...(mime_type && { mime_type }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('fairminter', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeFairmint(options: FairmintOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    quantity = 0,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset,
+    quantity: quantity.toString(),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('fairmint', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composePoolDeposit(options: PoolDepositOptions): Promise<ApiResponse> {
+  await requireCounterpartyFeature('ammPools');
+
+  const {
+    sourceAddress,
+    asset_a,
+    asset_b,
+    quantity_a,
+    quantity_b,
+    min_lp_quantity = 0,
+    lp_asset,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset_a,
+    asset_b,
+    quantity_a: quantity_a.toString(),
+    quantity_b: quantity_b.toString(),
+    min_lp_quantity: min_lp_quantity.toString(),
+    ...(lp_asset && { lp_asset }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('pooldeposit', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composePoolWithdraw(options: PoolWithdrawOptions): Promise<ApiResponse> {
+  await requireCounterpartyFeature('ammPools');
+
+  const {
+    sourceAddress,
+    asset_a,
+    asset_b,
+    quantity,
+    min_quantity_a = 0,
+    min_quantity_b = 0,
+    lp_asset,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    ...(asset_a && { asset_a }),
+    ...(asset_b && { asset_b }),
+    quantity: quantity.toString(),
+    min_quantity_a: min_quantity_a.toString(),
+    min_quantity_b: min_quantity_b.toString(),
+    ...(lp_asset && { lp_asset }),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  const response = await composeTransaction('poolwithdraw', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (lp_asset && response.result?.params) {
+    response.result.params.lp_asset = lp_asset;
+  }
+  return response;
+}
+
+export async function composeAttach(options: AttachOptions): Promise<ApiResponse> {
+  const {
+    sourceAddress,
+    asset,
+    quantity,
+    utxo_value, // Note: utxo_value is disabled after block 871900
+    destination_vout,
+    sat_per_vbyte,
+    max_fee,
+    encoding,
+  } = options;
+  const paramsObj = {
+    asset,
+    quantity: quantity.toString(),
+    ...(utxo_value !== undefined ? { utxo_value: utxo_value.toString() } : {}),
+    ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
+    ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
+  };
+  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+}
+
+export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+  } = options;
+  const paramsObj = {
+    ...(destination && { destination }),
+  };
+  return composeUtxoTransaction('detach', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+}
+
+export async function composeMove(options: MoveOptions): Promise<ApiResponse> {
+  const {
+    sourceUtxo,
+    destination,
+    sat_per_vbyte,
+    encoding,
+  } = options;
+  const paramsObj = {
+    destination,
+  };
+  return composeUtxoTransaction('movetoutxo', paramsObj, sourceUtxo, sat_per_vbyte, encoding);
+}

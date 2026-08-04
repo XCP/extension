@@ -2,18 +2,18 @@ import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { DestinationsInput } from "@/components/domain/address/destinations-input";
+import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { BalanceHeader } from "@/components/ui/headers/balance-header";
-import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { DestinationsInput } from "@/components/ui/inputs/destinations-input";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useWallet } from "@/contexts/wallet-context";
+import type { SendOptions } from "@/core/counterparty/compose";
+import { formatMoreOutputs } from "@/core/format";
+import { validateAmount, validateQuantity } from "@/core/validation/amount";
+import type { Destination } from "@/core/validation/destinations";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
-import type { SendOptions } from "@/utils/blockchain/counterparty/compose";
-import { formatMoreOutputs } from "@/utils/format";
-import { validateAmount, validateQuantity } from "@/utils/validation/amount";
-import type { Destination } from "@/utils/validation/destinations";
 
 interface SendFormProps {
   formAction: (formData: FormData) => void | Promise<void>;

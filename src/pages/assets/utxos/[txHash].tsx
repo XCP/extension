@@ -1,17 +1,17 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { AddressHeader } from "@/components/domain/address/address-header";
 import { FiCheck, FiCopy } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
-import { AddressHeader } from "@/components/ui/headers/address-header";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { fetchBitcoinTransaction } from "@/utils/blockchain/bitcoin/utxo";
-import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
-import { formatAmount, formatTimeAgo, formatTxid } from "@/utils/format";
-import { fromSatoshis } from "@/utils/numeric";
+import { fetchBitcoinTransaction } from "@/core/bitcoin/utxo";
+import { fetchUtxoBalances, type UtxoBalance } from "@/core/counterparty/api";
+import { formatAmount, formatTimeAgo, formatTxid } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 
 
 /**
