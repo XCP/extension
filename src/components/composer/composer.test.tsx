@@ -47,7 +47,7 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 import { Composer } from './composer';
-import { useComposer } from '@/contexts/composer-context';
+import { useComposer } from '@/contexts/composer-context-object';
 
 // Mock dependencies
 const mockNavigate = vi.fn();

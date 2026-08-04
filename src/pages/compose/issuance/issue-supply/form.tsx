@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { toBigNumber } from "@/utils/numeric";
 import { formatAmount } from "@/utils/format";

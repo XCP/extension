@@ -20,12 +20,6 @@ vi.mock('@/hooks/useMarketPrices', () => ({
   useMarketPrices: () => ({ btc: null }),
 }));
 
-// The screen prefers the decoded transaction when a compose flow provides one. Mocked because the
-// real module reaches for webext-bridge; null here means these cases exercise the params fallback.
-vi.mock('@/contexts/composer-context', () => ({
-  useComposerOptional: () => ({ state: { decodedMessage: null } }),
-}));
-
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({ settings: { fiat: 'USD' } }),
 }));

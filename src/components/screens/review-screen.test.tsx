@@ -23,12 +23,11 @@ vi.mock('@/hooks/useMarketPrices', () => ({
   })
 }));
 
-// The screen reads the decoded transaction when a compose flow provides one. Mocked rather than
-// wrapped in a real provider so this stays a component test — the real module reaches for
-// webext-bridge. `decodedMessage` is overwritten per test via `setDecodedMessage`.
+// The screen reads the decoded transaction when a compose flow provides one. Only the hook is
+// stubbed — the context object lives in a leaf module, so nothing here pulls in the provider.
 let mockDecodedMessage: { messageType: string; data: Record<string, unknown> } | null = null;
 const setDecodedMessage = (value: typeof mockDecodedMessage) => { mockDecodedMessage = value; };
-vi.mock('@/contexts/composer-context', () => ({
+vi.mock('@/contexts/composer-context-object', () => ({
   useComposerOptional: () => ({ state: { decodedMessage: mockDecodedMessage } }),
 }));
 

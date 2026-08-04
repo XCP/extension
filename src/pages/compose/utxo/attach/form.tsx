@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { BalanceHeader } from "@/components/ui/headers/balance-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import type { AttachOptions } from "@/utils/blockchain/counterparty/compose";

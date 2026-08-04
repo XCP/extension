@@ -68,6 +68,13 @@ import { bytesToHex } from "@/utils/blockchain/counterparty/unpack/binary";
 import { checkTransactionFee } from "@/utils/blockchain/bitcoin/feeVerification";
 import { fetchInputValues } from "@/utils/blockchain/counterparty/transaction";
 import { analytics, getBtcBucket, classifyTransactionError } from "@/utils/fathom";
+import {
+  ComposerContext,
+  type ComposerContextType,
+  type ComposerState,
+  type DecodedMessage,
+} from "@/contexts/composer-context-object";
+
 
 /**
  * Maximum age for a composed transaction before requiring recomposition (5 minutes).
@@ -91,12 +98,6 @@ const SERVER_DERIVED_DESTINATION_TYPES = new Set(['btcpay']);
  * are listed because both are provably unspendable.
  */
 const BURN_ADDRESSES = ['1CounterpartyXXXXXXXXXXXXXXXUWLpVr', 'mvCounterpartyXXXXXXXXXXXXXXW24Hef'];
-
-/** A Counterparty message read out of the composed transaction itself. */
-export interface DecodedMessage {
-  messageType: string;
-  data: Record<string, unknown>;
-}
 
 /**
  * Every Bitcoin address named anywhere in the request, regardless of field. The property being
@@ -122,41 +123,6 @@ function addressesNamedIn(params: Record<string, unknown>): string[] {
 }
 
 /**
- * Internal state for the composer workflow.
- * @template T - Type of the form data (varies by transaction type)
- */
-interface ComposerState<T> {
-  /** Current step in the workflow */
-  step: "form" | "review" | "success";
-  /** User's form input (preserved for back navigation) */
-  formData: T | null;
-  /** API response from compose endpoint */
-  apiResponse: ApiResponse | null;
-  /** Error message to display */
-  error: string | null;
-  /**
-   * Non-blocking differences between what was requested and what the API composed. Carried in
-   * state rather than logged: console output is stripped from production builds, so a logged
-   * warning reaches no user.
-   */
-  verificationWarnings: string[];
-  /**
-   * The Counterparty message decoded from the composed transaction's own bytes, or null when the
-   * transaction carries none. Review screens render from this rather than from the API's echo of
-   * the request, so what the user reads is what the transaction says (ADR-019).
-   */
-  decodedMessage: DecodedMessage | null;
-  /** True while calling compose API */
-  isComposing: boolean;
-  /** True while signing/broadcasting */
-  isSigning: boolean;
-  /** Timestamp when transaction was composed (for staleness detection) */
-  composedAt: number | null;
-  /** Current fee rate in sat/vB (null = use network default, set once user interacts or FeeRateInput initializes) */
-  feeRate: number | null;
-}
-
-/**
  * A fresh composer state — the single definition every reset path uses. A function rather than a
  * constant so each reset gets its own `verificationWarnings` array.
  */
@@ -176,48 +142,6 @@ function freshComposerState<T>(): ComposerState<T> {
 }
 
 /**
- * Public API for transaction composition workflow.
- * @template T - Type of the form data
- */
-interface ComposerContextType<T> {
-  // ─── State ─────────────────────────────────────────────────────────────────
-  /** Current composer state */
-  state: ComposerState<T>;
-
-  // ─── Workflow Actions ──────────────────────────────────────────────────────
-  /** Submit form data to compose a transaction */
-  composeTransaction: (formData: FormData) => Promise<void>;
-  /** Sign and broadcast the composed transaction */
-  signAndBroadcast: () => Promise<void>;
-  /** Navigate back one step (review→form, success→home) */
-  goBack: () => void;
-  /** Reset to initial form state */
-  reset: () => void;
-  /** Clear current error message */
-  clearError: () => void;
-
-  // ─── UI State ──────────────────────────────────────────────────────────────
-  /** Whether help text is visible */
-  showHelpText: boolean;
-  /** Toggle help text visibility */
-  toggleHelpText: () => void;
-
-  // ─── Fee Rate ─────────────────────────────────────────────────────────────
-  /** Current fee rate in sat/vB (null = use network default) */
-  feeRate: number | null;
-  /** Update the fee rate (called by FeeRateInput) */
-  setFeeRate: (rate: number) => void;
-
-  // ─── Wallet/Settings Access ────────────────────────────────────────────────
-  /** Currently active address */
-  activeAddress: ReturnType<typeof useWallet>["activeAddress"];
-  /** Currently active wallet */
-  activeWallet: ReturnType<typeof useWallet>["activeWallet"];
-  /** Current settings */
-  settings: ReturnType<typeof useSettings>["settings"];
-}
-
-/**
  * Props for ComposerProvider component.
  * @template T - Type of the form data
  */
@@ -230,32 +154,6 @@ interface ComposerProviderProps<T> {
   composeApi: (data: any) => Promise<ApiResponse>;
   /** Title shown in header during form step */
   initialTitle: string;
-}
-
-const ComposerContext = createContext<ComposerContextType<any> | undefined>(undefined);
-
-/**
- * Hook to access composer context.
- * @template T - Type of the form data
- * @returns Composer context value
- * @throws {Error} If used outside ComposerProvider
- */
-export function useComposer<T>(): ComposerContextType<T> {
-  const context = use(ComposerContext);
-  if (!context) {
-    throw new Error("useComposer must be used within a ComposerProvider");
-  }
-  return context as ComposerContextType<T>;
-}
-
-/**
- * The composer context if there is one, otherwise null.
- *
- * For shared components that are normally rendered inside a compose flow but must not require it —
- * they can prefer the decoded transaction when it is available and fall back when it is not.
- */
-export function useComposerOptional<T>(): ComposerContextType<T> | null {
-  return (use(ComposerContext) as ComposerContextType<T> | null) ?? null;
 }
 
 /**
@@ -484,12 +382,10 @@ export function ComposerProvider<T>({
         throw new Error(feeCheck.error || 'Transaction fee verification failed');
       }
 
-      // The fee the review screen shows must be the one just computed from the transaction's own
-      // inputs and outputs, not `btc_fee` as the response asserts it. The bound above is
-      // deliberately loose enough to accommodate legitimate composers, so a response can pass it
-      // while claiming a smaller fee than the transaction actually pays — and the user would sign
-      // against the claim. Replacing the field here fixes every review screen at once, since they
-      // all render `result.btc_fee`.
+      // Show the fee computed from the transaction's own inputs and outputs, not `btc_fee` as the
+      // response asserts it. The bound above is loose enough for legitimate composers, so a
+      // response can pass it while claiming a smaller fee than the transaction pays. Replacing the
+      // field here covers every review screen, since they all render `result.btc_fee`.
       if (feeCheck.computedFee !== undefined) {
         const reportedFee = response.result.btc_fee;
         // Contradicting a stated fee is worth telling the user about; filling in one the response
@@ -651,12 +547,11 @@ export function ComposerProvider<T>({
       );
     }
 
-    // An inscription is two transactions. The commit just went out; the reveal — already signed by
-    // the composer with the ephemeral key that owns the commit output, and checked at compose time
-    // to pay only us — is what actually publishes the content. Broadcasting it immediately is safe
-    // because it spends the commit's output, and the commit's txid is fixed before signing (its
-    // inputs are segwit, which is why taproot encoding requires a segwit source). Without this the
-    // content never lands and the committed sats are stranded.
+    // An inscription is two transactions: the commit just went out, and the reveal publishes the
+    // content. The reveal is already signed by the composer and was checked at compose time to pay
+    // only us. Broadcasting it immediately is safe because it spends the commit's output, whose
+    // txid is fixed before signing — its inputs are segwit, which is why taproot encoding requires
+    // a segwit source. Without this the content never lands and the committed sats are stranded.
     const revealHex = state.apiResponse.result.signed_reveal_rawtransaction;
     let revealBroadcast: { txid?: string } | undefined;
     if (typeof revealHex === 'string' && revealHex.length > 0) {

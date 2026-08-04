@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposerOptional } from "@/contexts/composer-context";
+import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { getCanonicalPoolPair } from "@/utils/blockchain/counterparty/pool";
 import { fromSatoshis } from "@/utils/numeric";

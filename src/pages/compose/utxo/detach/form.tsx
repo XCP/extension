@@ -4,7 +4,7 @@ import { FaSpinner } from "@/components/icons";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { fetchUtxoBalances, type UtxoBalance } from "@/utils/blockchain/counterparty/api";
 import { formatTxid } from "@/utils/format";

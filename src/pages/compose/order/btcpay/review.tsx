@@ -1,5 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { useComposerOptional } from "@/contexts/composer-context";
+import { useComposerOptional } from "@/contexts/composer-context-object";
 
 /**
  * Props for the ReviewBTCPay component.

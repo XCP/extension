@@ -6,7 +6,7 @@ import { formatAddress, formatAmount } from "@/utils/format";
 import { fromSatoshis, formatFeeRate } from "@/utils/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { useSettings } from "@/contexts/settings-context";
-import { useComposerOptional } from "@/contexts/composer-context";
+import { useComposerOptional } from "@/contexts/composer-context-object";
 
 /**
  * Transaction result from API response

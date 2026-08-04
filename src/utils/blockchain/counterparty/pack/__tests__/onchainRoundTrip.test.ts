@@ -29,7 +29,7 @@ import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /**
  * How many recent transactions of each type to check. Wide enough that a burst of same-shaped
- * traffic does not starve the comparison — see the note on principled declines below.
+ * traffic does not leave nothing to compare — see the note where `declined` is checked below.
  */
 const SAMPLE_SIZE = 25;
 
@@ -41,11 +41,12 @@ interface OnChainTransaction {
 }
 
 /**
- * Rebuild the compose params from what a message decodes to. This is the per-type glue: the packers
- * take a request, and a decoded message is not shaped like one.
+ * Rebuild the compose params from what a message decodes to, per message type. The packers take a
+ * request, and a decoded message is not shaped like one.
  *
- * Returning null means "this sample cannot be rebuilt" — an encoding variant the packer declines,
- * such as a hex memo or a subasset — and the sample is skipped rather than failed.
+ * Returning null means the sample cannot be rebuilt — an encoding variant the packer declines,
+ * such as a hex memo, or a shape the wallet's own compose path never produces — and it is skipped
+ * rather than failed.
  */
 const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<string, unknown> | null> = {
   enhanced_send: (data) => ({
@@ -106,7 +107,7 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
     if (data.description === '') return null;
     return {
       // A subasset issuance composes from the longname; the numeric asset id it carries is the
-      // random draw the packer borrows from the decoded message, which the harness already passes.
+      // random draw the packer borrows from the decoded message, passed below as `observed`.
       asset: data.subassetLongname ?? data.asset,
       quantity: data.quantity,
       divisible: data.divisible,
@@ -202,7 +203,12 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       const toParams = PARAMS_FROM_DECODED[unpacked.messageType];
       if (!toParams) continue;
       const params = toParams(unpacked.data as Record<string, any>);
-      if (!params) continue;
+      if (!params) {
+        // A shape the wallet's compose path never produces. Counts the same as a packer decline:
+        // nothing was compared, but nothing is wrong either.
+        declined += 1;
+        continue;
+      }
 
       // Real transactions are the reference, so the decoded message is also what a packer would
       // borrow unknowable fields from in production.
@@ -233,8 +239,9 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
     // writing all 100 most recent issuances were locked subassets, which the borrow guard declines
     // by design. That run is uninformative rather than wrong.
     //
-    // So when nothing was compared, the invariant is that *every* sample was a principled decline.
-    // A sample that was attempted and still could not be rebuilt means the packer is wrong.
+    // So when nothing was compared, the invariant is that *every* sample was one this build
+    // declines on purpose. A sample that was attempted and still could not be rebuilt means the
+    // packer is wrong.
     if (compared === 0) {
       expect(
         declined,

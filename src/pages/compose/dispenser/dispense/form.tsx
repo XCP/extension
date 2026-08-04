@@ -5,7 +5,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressHeader } from "@/components/ui/headers/address-header";
 import { AmountWithMaxInput } from "@/components/ui/inputs/amount-with-max-input";
 import { DispenserInput, type DispenserOption } from "@/components/ui/inputs/dispenser-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { selectUtxosForTransaction } from "@/utils/blockchain/counterparty/utxo-selection";
 import { estimateVsize } from "@/utils/blockchain/bitcoin/fee-estimation";
 import type { DispenseOptions } from "@/utils/blockchain/counterparty/compose";

@@ -5,7 +5,7 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { Spinner } from "@/components/ui/spinner";
 import { AssetHeader } from "@/components/ui/headers/asset-header";
 import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
-import { useComposer } from "@/contexts/composer-context";
+import { useComposer } from "@/contexts/composer-context-object";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import type { IssuanceOptions } from "@/utils/blockchain/counterparty/compose";
 import type { ReactElement } from "react";

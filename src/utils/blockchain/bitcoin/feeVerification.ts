@@ -30,16 +30,15 @@ export const MAX_SANE_FEE_RATE = 5000;
  * A fee rate above this (sat/vByte) is worth *warning* about on a transaction the wallet did not
  * build.
  *
- * Kept separate from the blocking threshold because the two answer different questions. Blocking
- * asks "could this ever be legitimate", so it sits far above any rate the network has demanded.
- * Warning asks "should someone look at this", and at 5000 the answer arrived far too late: a
- * 250-vByte transaction at 4,999 sat/vB burns about 0.0125 BTC while staying under both that rate
- * and the 0.1 BTC absolute ceiling, so it drew no signal at all.
+ * Separate from the blocking threshold because the two answer different questions. Blocking asks
+ * whether a rate could ever be legitimate, so it sits far above any the network has demanded.
+ * Warning asks whether someone should look, and at 5000 that arrived too late: a 250-vByte
+ * transaction at 4,999 sat/vB burns ~0.0125 BTC while staying under both that rate and the 0.1 BTC
+ * ceiling.
  *
- * 500 is roughly fifty times a busy-day rate — high enough that legitimate urgency (a fee bump, a
- * time-sensitive CPFP) does not trip it routinely, low enough to catch a fee nobody intended. It
- * only ever warns: a site-built transaction can be expensive for reasons the wallet cannot see,
- * which is why this path does not block (see the note at `transaction/approve.tsx`).
+ * 500 is roughly fifty times a busy-day rate — above ordinary urgency such as a fee bump or CPFP,
+ * below anything nobody intended. It only warns; a site-built transaction can be expensive for
+ * reasons the wallet cannot see (see `transaction/approve.tsx`).
  */
 export const HIGH_FEE_RATE_WARNING = 500;
 /** When the user chose a fee rate, reject fees beyond this multiple of it. */

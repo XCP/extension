@@ -1,20 +1,17 @@
 /**
  * Local structural parse of a raw transaction.
  *
- * A dapp hands over finished bytes to sign, and the approval screen has to describe them. Asking
- * the Counterparty API to decode those bytes and rendering its answer means the screen describes
- * what an untrusted party *says* the transaction is, while the signature commits to the bytes —
- * so a hostile or compromised API can show one transaction while another gets signed. ADR-019
- * requires the display to derive from the transaction itself, and this is what makes that possible
- * on the provider paths.
+ * A dapp hands over finished bytes to sign, and the approval screen must describe them. Rendering
+ * the Counterparty API's decode instead describes what an untrusted party says the bytes are,
+ * while the signature commits to the bytes themselves — so a hostile API could show one
+ * transaction while another is signed. ADR-019 requires the display to derive from the
+ * transaction, which is what this makes possible on the provider paths.
  *
- * The API decode is still worth having, but only as the *second* opinion in a comparison
- * (`providerVerify.ts`) and for facts a node must supply, such as which UTXOs carry assets. It
- * must not be the source of what the user reads.
+ * The API decode remains useful as the second opinion in `providerVerify.ts`, and for facts only a
+ * node has, such as which UTXOs carry assets. It must not be the source of what the user reads.
  *
- * Deliberately structural: this reports what the bytes say and nothing about intent. Values that
- * are genuinely not in the transaction — what each input was worth — are left undefined for the
- * caller to resolve from the chain, rather than filled in from whatever the response claimed.
+ * Structural only: this reports what the bytes say, never intent. An input's value is not in the
+ * transaction that spends it, so it is left undefined for the caller to resolve from the chain.
  */
 
 import { Transaction } from '@scure/btc-signer';

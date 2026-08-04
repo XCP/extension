@@ -7,17 +7,15 @@
  * (`lib/api/composer.py`, `generate_ordinal_envelope_script` / `prepare_taproot_output`). The
  * transaction the wallet signs is only the commit.
  *
- * That makes the ordinary checks inapplicable: there is no OP_RETURN to unpack, and the commit
- * output pays an address no request names. Rather than exempt the type — which would leave the
- * whole flow unverified — this rebuilds the envelope from the message the request should produce
- * and requires the composed one to match, then derives the commit address from that envelope and
- * requires the commit output to pay exactly it. counterparty-core applies the same test to its own
- * output in `check_transaction_sanity`, comparing a regenerated envelope script against the
- * composed one.
+ * The ordinary checks therefore do not apply: there is no OP_RETURN to unpack, and the commit
+ * output pays an address no request names. Instead of exempting the type, this rebuilds the
+ * envelope from the message the request should produce, requires the composed one to match, and
+ * derives the commit address from it so the output policy can require the commit to pay exactly
+ * that. counterparty-core applies the same test to its own output in `check_transaction_sanity`.
  *
- * Envelope layout, verified against the ord reference implementation (`src/inscriptions/tag.rs`:
- * ContentType = 1, Metadata = 5, Metaprotocol = 7, and Metadata is chunked so each 520-byte piece
- * repeats its tag) and against core's construction:
+ * Envelope layout, checked against the ord reference implementation (`src/inscriptions/tag.rs`:
+ * ContentType 1, Metadata 5, Metaprotocol 7; Metadata is chunked, so each 520-byte piece repeats
+ * its tag) as well as core's construction:
  *
  *   OP_FALSE OP_IF
  *     "ord" 0x07 "xcp"          — metaprotocol tag and identifier
@@ -27,11 +25,10 @@
  *   OP_ENDIF
  *   <32-byte x-only pubkey> OP_CHECKSIG
  *
- * The trailing pubkey is chosen randomly by the server per compose, so it cannot be predicted and
- * is read from the composed script — the same allowance core makes when it strips the last two
- * elements before comparing. It is safe to accept because it does not decide where value goes: the
- * commit address is derived from it *and* the verified envelope, and the reveal's outputs are
- * checked separately (`verifyRevealTransaction`).
+ * The trailing pubkey is drawn randomly per compose, so it is read from the composed script —
+ * the same allowance core makes when it strips the last two elements before comparing. It cannot
+ * redirect value: the commit address derives from it *and* the verified envelope, and the reveal's
+ * outputs are checked separately (`verifyRevealTransaction`).
  */
 
 import { p2tr, Transaction } from '@scure/btc-signer';
