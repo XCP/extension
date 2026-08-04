@@ -56,7 +56,7 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
           COUNTERPARTY_API_URL: ${{ vars.COUNTERPARTY_API_URL || 'https://api.counterparty.io:4000' }}
-        run: npx vitest run src/utils/blockchain/counterparty/pack
+        run: npx vitest run src/core/blockchain/counterparty/pack
 
       - name: Run fuzz tests
         timeout-minutes: 15

@@ -7,14 +7,14 @@ on:
   pull_request:
     branches: [ main, develop ]
     paths:
-      - 'src/utils/hardware/**'
+      - 'src/core/hardware/**'
       - 'src/pages/wallet/connect-hardware.tsx'
       - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
   push:
     branches: [ main, feature/trezor-hardware-wallet ]
     paths:
-      - 'src/utils/hardware/**'
+      - 'src/core/hardware/**'
       - 'e2e/hardware/init-trezor-emulator.js'
       - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
@@ -317,7 +317,7 @@ jobs:
       - name: Run hardware wallet unit tests
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-        run: npx vitest run src/utils/hardware --reporter=verbose
+        run: npx vitest run src/core/hardware --reporter=verbose
 
       - name: Upload test results
         if: always()
