@@ -418,9 +418,14 @@ export default function ApproveTransactionPage() {
                             </span>
                             <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
                           </div>
+                          {/* Shown in full and allowed to wrap. This is where the user checks
+                              where a site's transaction sends money, and 6 leading + 6 trailing
+                              characters is grindable for a lookalike - the prefix of a bech32
+                              address is fixed, so only a handful of characters are actually
+                              being compared. */}
                           {output.address && (
-                            <div className="text-gray-500 truncate" title={output.address}>
-                              {formatAddress(output.address, true)}
+                            <div className="text-gray-500 break-all font-mono" title={output.address}>
+                              {formatAddress(output.address, false)}
                             </div>
                           )}
                         </div>
