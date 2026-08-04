@@ -74,7 +74,7 @@ August 2026 — review of the transaction construction, verification and signing
 The compose API is inside the untrusted band deliberately. Counterparty transactions are composed
 remotely, so the composer is a party to every transaction; the endpoint is user-configurable and may
 be infrastructure this project does not run. Verification is therefore structural rather than
-field-enumerated — see ADR-019 in [verify.ts](src/utils/blockchain/counterparty/unpack/verify.ts).
+field-enumerated — see ADR-019 in [verify.ts](src/core/blockchain/counterparty/unpack/verify.ts).
 
 ---
 
@@ -323,25 +323,25 @@ This is not true constant-time code. For higher-security applications, constant-
 
 | ADR | Decision | Location |
 |-----|----------|----------|
-| ADR-001 | JavaScript memory clearing limitations | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
-| ADR-002 | No automatic key refresh during session | [sessionManager.ts](src/utils/auth/sessionManager.ts) |
+| ADR-001 | JavaScript memory clearing limitations | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
+| ADR-002 | No automatic key refresh during session | [sessionManager.ts](src/platform/auth/sessionManager.ts) |
 | ADR-003 | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
-| ADR-004 | Promise-based write mutex for storage | [mutex.ts](src/utils/storage/mutex.ts) |
+| ADR-004 | Promise-based write mutex for storage | [mutex.ts](src/platform/storage/mutex.ts) |
 | ADR-005 | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
 | ADR-006 | Request callbacks lost on service worker restart | [RequestManager.ts](src/services/core/RequestManager.ts) |
 | ADR-007 | Distributed request state design | [approvalService.ts](src/services/approvalService.ts) |
-| ADR-008 | Storage error handling pattern | [walletStorage.ts](src/utils/storage/walletStorage.ts) |
-| ADR-009 | Key derivation with HKDF domain separation — superseded by ADR-015 | [walletManager.ts](src/utils/wallet/walletManager.ts) |
-| ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/utils/storage/requestStorage.ts) |
-| ADR-011 | Isolated wallet and settings storage | [walletStorage.ts](src/utils/storage/walletStorage.ts) |
+| ADR-008 | Storage error handling pattern | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
+| ADR-009 | Key derivation with HKDF domain separation — superseded by ADR-015 | [walletManager.ts](src/platform/wallet/walletManager.ts) |
+| ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/platform/storage/requestStorage.ts) |
+| ADR-011 | Isolated wallet and settings storage | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
 | ADR-012 | Type organization and extraction strategy | [types/index.ts](src/types/index.ts) |
-| ADR-013 | Constants organization strategy | [wallet/constants.ts](src/utils/wallet/constants.ts) |
-| ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/utils/encryption/encryption.ts) |
-| ADR-015 | Unified keychain architecture | [walletManager.ts](src/utils/wallet/walletManager.ts) |
-| ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/utils/fathom.ts) |
-| ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/utils/hardware/trezorAdapter.ts) |
+| ADR-013 | Constants organization strategy | [wallet/constants.ts](src/core/wallet/constants.ts) |
+| ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/core/encryption/encryption.ts) |
+| ADR-015 | Unified keychain architecture | [walletManager.ts](src/platform/wallet/walletManager.ts) |
+| ADR-016 | Privacy-focused analytics with Fathom | [fathom.ts](src/platform/fathom.ts) |
+| ADR-017 | Hardware wallet integration architecture | [trezorAdapter.ts](src/core/hardware/trezorAdapter.ts) |
 | ADR-018 | Explicit, identity-bound paired-address provider capability | [providerService.ts](src/services/providerService.ts) |
-| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/utils/blockchain/counterparty/unpack/verify.ts) |
+| ADR-019 | Untrusted compose API; structural (deny-by-default) transaction verification | [verify.ts](src/core/blockchain/counterparty/unpack/verify.ts) |
 
 ---
 
