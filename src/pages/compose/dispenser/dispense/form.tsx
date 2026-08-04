@@ -7,9 +7,9 @@ import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-
 import { DispenserInput, type DispenserOption } from "@/components/domain/dispenser/dispenser-input";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
-import { estimateVsize } from "@/core/bitcoin/fee-estimation";
+import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import type { DispenseOptions } from "@/core/counterparty/compose";
-import { selectUtxosForTransaction } from "@/core/counterparty/utxo-selection";
+import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
 import { 
   divide,fromSatoshis, 

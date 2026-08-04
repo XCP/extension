@@ -16,7 +16,7 @@ import {
 import type { ConsolidationData } from '@/core/bitcoin/consolidationApi';
 import { registerSessionExpiredHandler } from '@/platform/auth/sessionManager';
 import { defineProxyService } from '@/platform/proxy';
-import { walletManager } from '@/platform/wallet/walletManager';
+import { walletManager } from '@/platform/walletManager';
 import { MessageBus } from '@/services/core/MessageBus';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import type { Address, PairedAddresses, SignTransactionOptions, Wallet } from '@/types/wallet';

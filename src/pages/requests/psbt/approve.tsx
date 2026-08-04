@@ -5,7 +5,7 @@ import {ApprovalExpired, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
-import { getTxActionInfo } from '@/components/domain/tx/txActionInfo';
+import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';

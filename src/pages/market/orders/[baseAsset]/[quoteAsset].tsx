@@ -24,7 +24,7 @@ import {
   getOrderBaseAmount,
   getOrderPricePerUnit,
   getOrderQuoteAmount,
-} from "@/core/trading-pair";
+} from "@/core/tradingPair";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 

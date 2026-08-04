@@ -4,12 +4,12 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/core/counterparty/api';
-import * as utxoSelection from '@/core/counterparty/utxo-selection';
+import * as utxoSelection from '@/core/counterparty/utxoSelection';
 import { DispenseForm } from '../form';
 
 // Mock the API modules
 vi.mock('@/core/counterparty/api');
-vi.mock('@/core/counterparty/utxo-selection');
+vi.mock('@/core/counterparty/utxoSelection');
 
 // Mock fee rates to prevent network calls
 vi.mock('@/core/bitcoin/feeRate', () => ({

@@ -34,7 +34,7 @@ import * as cspValidation from '@/platform/provider/csp';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
 import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
-import { walletManager } from '@/platform/wallet/walletManager';
+import { walletManager } from '@/platform/walletManager';
 import * as updateService from '@/services/updateService';
 import * as approvalService from '../approvalService';
 import * as connectionService from '../connectionService';
@@ -47,7 +47,7 @@ const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa300
 vi.mock('../walletService');
 vi.mock('../connectionService');
 vi.mock('../approvalService');
-vi.mock('@/platform/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],

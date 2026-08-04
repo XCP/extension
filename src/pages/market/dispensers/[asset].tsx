@@ -20,7 +20,7 @@ import {
   fetchAssetDispenses,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
-import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/price-format";
+import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
 import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";

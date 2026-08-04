@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
 import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
-import { walletManager } from '@/platform/wallet/walletManager';
+import { walletManager } from '@/platform/walletManager';
 import { useWallet, WalletProvider } from '../wallet-context';
 
 // Mock webext-bridge first with comprehensive mocking
@@ -31,7 +31,7 @@ vi.mock('@/core/wallet/stateLockManager', async () => {
 });
 
 // Mock dependencies
-vi.mock('@/platform/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     refreshWallets: vi.fn(),
     createWallet: vi.fn(),

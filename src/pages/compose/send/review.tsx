@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { normalizeQuantity } from "@/components/domain/tx/txActionInfo";
+import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";

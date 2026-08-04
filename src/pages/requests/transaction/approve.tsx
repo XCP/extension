@@ -5,7 +5,7 @@ import {ApprovalExpired, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
-import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/txActionInfo';
+import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { FiArrowDown } from '@/components/icons';
 import { Collapsible } from '@/components/ui/collapsible';

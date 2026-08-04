@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
 import * as counterpartyApi from '../api';
-import { selectUtxosForTransaction } from '../utxo-selection';
+import { selectUtxosForTransaction } from '../utxoSelection';
 
 // Mock dependencies
 vi.mock('@/core/bitcoin/utxo');

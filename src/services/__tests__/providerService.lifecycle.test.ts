@@ -4,7 +4,7 @@ import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { approvalQueue } from '@/platform/provider/approvalQueue';
 import { requestCleanup } from '@/platform/provider/requestCleanup';
-import { walletManager } from '@/platform/wallet/walletManager';
+import { walletManager } from '@/platform/walletManager';
 import { createProviderService } from '../providerService';
 
 // Mock dependencies
@@ -13,7 +13,7 @@ vi.mock('webext-bridge/background', () => ({
   onMessage: vi.fn(),
 }));
 vi.mock('../walletService');
-vi.mock('@/platform/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],

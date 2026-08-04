@@ -26,7 +26,7 @@ vi.mock('@/core/counterparty/capabilities', () => ({
 }));
 
 // Mock UTXO selection to prevent real API calls to mempool.space
-vi.mock('@/core/counterparty/utxo-selection', () => ({
+vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
     utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
     inputsSet: 'mock-txid:0',

@@ -9,7 +9,7 @@ import { UtxoMoveForm } from '../form';
 
 // CRITICAL: Mock walletManager FIRST to prevent loading heavy crypto dependencies
 // This must be at the very top before any other mocks that might indirectly import it
-vi.mock('@/platform/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({ counterpartyApiBase: 'https://api.counterparty.io' }),
     isUnlocked: vi.fn().mockReturnValue(true),

@@ -25,8 +25,8 @@ import {
   type PoolPosition,
 } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
-import { formatPrice } from "@/core/price-format";
-import { getTradingPair } from "@/core/trading-pair";
+import { formatPrice } from "@/core/priceFormat";
+import { getTradingPair } from "@/core/tradingPair";
 import { useInView } from "@/hooks/useInView";
 import { useMarketData } from "@/hooks/useMarketData";
 import { useMarketPrices } from "@/hooks/useMarketPrices";

@@ -14,7 +14,7 @@ vi.mock('webext-bridge/background', () => ({
 }));
 
 // Mock wallet manager
-vi.mock('@/platform/wallet/walletManager', () => ({
+vi.mock('@/platform/walletManager', () => ({
   walletManager: {
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
@@ -121,7 +121,7 @@ vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => mockApprovalService,
 }));
 
-import { walletManager } from '@/platform/wallet/walletManager';
+import { walletManager } from '@/platform/walletManager';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { ConnectionService } from '../connectionService';
 

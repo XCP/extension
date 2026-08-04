@@ -7,7 +7,7 @@ import {
   getTradingPair,
   isBuyOrder,
   isQuoteAsset,
-} from '../trading-pair';
+} from '../tradingPair';
 
 describe('trading-pair utilities', () => {
   describe('getTradingPair', () => {
