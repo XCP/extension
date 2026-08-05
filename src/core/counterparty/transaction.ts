@@ -248,7 +248,11 @@ export function describeCounterpartyMessage(
     case 'dispenser':
       return `Create Dispenser: ${q('give_quantity', 'asset')} ${displayName('asset')} per ${messageData.mainchainrate} sats`;
     case 'dispense':
-      return `Dispense from ${messageData.dispenser}`;
+      // The dispense payload is a marker byte — core's unpack returns only
+      // `data`. Which dispenser is triggered is decided by the BTC output, not
+      // the payload, so naming one here rendered "Dispense from undefined".
+      // The outputs are listed on the approval screen itself.
+      return 'Trigger a dispenser';
     case 'issuance':
       return `Issue Asset: ${displayName('asset')}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
     case 'dividend':

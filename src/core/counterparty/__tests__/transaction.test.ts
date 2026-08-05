@@ -129,6 +129,14 @@ describe('describeCounterpartyMessage', () => {
     expect(desc).toContain('BTC');
   });
 
+  it('describes dispense without inventing a dispenser field', () => {
+    // core's dispense.unpack returns only { data } — the marker byte. Reading a
+    // `dispenser` key rendered "Dispense from undefined" on every dispense.
+    const desc = describeCounterpartyMessage('dispense', { data: '0d' });
+    expect(desc).not.toContain('undefined');
+    expect(desc.toLowerCase()).toContain('dispenser');
+  });
+
   it('describes dispenser', () => {
     const desc = describeCounterpartyMessage('dispenser', {
       give_quantity: 1000,
