@@ -24,6 +24,7 @@ import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SendData } from '@/core/counterparty/unpack/messages/send';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
+import { proveByRepack } from '@/core/counterparty/unpack/repackVerify';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -50,6 +51,13 @@ export interface ProviderVerificationResult {
    * overstates it precisely when the least checking occurred, so the display distinguishes the two.
    */
   comparedAgainstApi: boolean;
+  /**
+   * Whether the decode was rebuilt into the exact payload being signed.
+   *
+   * A stronger and more relevant claim than the API comparison above, which reads the same bytes
+   * from a second decoder and so can only vouch for this project's unpacker. See repackVerify.ts.
+   */
+  repackProved: boolean;
   /** Warning message if verification failed or had issues */
   warning?: string;
   /** Detailed list of mismatches found */
@@ -634,6 +642,7 @@ export function verifyProviderTransaction(
     return {
       passed: undefined,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       warning: undefined,
     };
@@ -647,6 +656,7 @@ export function verifyProviderTransaction(
     return {
       passed: false,
       comparedAgainstApi: false,
+      repackProved: false,
       warning: localUnpack.error || 'Failed to unpack transaction locally',
       mismatches: ['Local unpack failed'],
       localUnpack,
@@ -659,6 +669,7 @@ export function verifyProviderTransaction(
     return {
       passed: true,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       localUnpack,
     };
@@ -788,9 +799,15 @@ export function verifyProviderTransaction(
 
   const passed = mismatches.length === 0;
 
+  // Independent of everything above: rebuild the decode into bytes and compare with the payload.
+  // Needs no network and cannot be swayed by any remote party, so it holds even when the API
+  // decode is missing entirely.
+  const repack = proveByRepack(localUnpack.messageType, localUnpack.data, opReturnData);
+
   return {
     passed,
     comparedAgainstApi: payloadCompared,
+    repackProved: repack.proved,
     warning: passed ? undefined : `Verification failed: ${mismatches.join('; ')}`,
     mismatches,
     localUnpack,

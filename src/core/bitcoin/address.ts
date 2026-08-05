@@ -115,7 +115,7 @@ const base58check = createBase58check(sha256);
 
 /**
  * Decode a Bitcoin address from a scriptPubKey hex string.
- * Supports P2PKH, P2WPKH, P2SH, and P2TR scripts.
+ * Supports P2PKH, P2WPKH, P2SH, P2WSH, and P2TR scripts.
  *
  * @param scriptHex - The scriptPubKey in hex format
  * @returns The decoded Bitcoin address, or null if unsupported script type

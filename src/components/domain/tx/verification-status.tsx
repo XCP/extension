@@ -26,6 +26,16 @@ export interface VerificationStatusProps {
    * detected" there asserts most where least was checked, so the two are shown differently.
    */
   comparedAgainstApi?: boolean;
+  /**
+   * Whether the decode was rebuilt into the exact bytes being signed.
+   *
+   * This, not the API comparison, is what justifies an affirmative message. Both decoders read the
+   * same input, so agreement between them can only ever mean this project's unpacker has no bug —
+   * never that the payload is honest. Rebuilding proves something the user actually cares about:
+   * that the summary above accounts for every byte, and nothing is hiding in a field the decode
+   * skipped. Absence of a proof is not evidence of tampering, so it is stated flatly.
+   */
+  repackProved?: boolean;
   /** Warning/error message to display */
   warning?: string;
   /** Whether strict mode is enabled (blocks signing on failure) */
@@ -43,6 +53,7 @@ export interface VerificationStatusProps {
 export function VerificationStatus({
   passed,
   comparedAgainstApi = true,
+  repackProved = false,
   warning,
   isStrict = true,
 }: VerificationStatusProps): ReactElement | null {
@@ -52,24 +63,29 @@ export function VerificationStatus({
     return null;
   }
 
-  // Decoded, but no payload field was actually compared — either no second
-  // source was available, or this message type carries nothing comparable.
-  // Neither an error nor a clean bill of health.
-  if (passed === true && !comparedAgainstApi) {
+  // Rebuilt into the exact bytes being signed. This is the only state that says something
+  // affirmative, and it describes what was done rather than issuing a verdict: "no tampering
+  // detected" was a promise this check cannot make, and a reassuring badge on every screen is
+  // what teaches people to click through the one screen that matters.
+  if (passed === true && repackProved) {
     return (
-      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600">
-        <FiInfo className="size-4 flex-shrink-0" aria-hidden="true" />
-        Decoded locally — nothing to compare it against
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-success-700">
+        <FiShield className="size-4 flex-shrink-0" aria-hidden="true" />
+        Rebuilt from these bytes — every byte accounted for
       </div>
     );
   }
 
-  // Verification passed — compact inline badge, not a full banner.
+  // Decoded, but nothing corroborated it: no adapter to rebuild this message type, or no payload
+  // field was comparable. Neither an error nor a clean bill of health, and said plainly so the
+  // absence of a proof is not mistaken for the presence of a problem.
   if (passed === true) {
     return (
-      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-success-700">
-        <FiShield className="size-4 flex-shrink-0" aria-hidden="true" />
-        Verified locally — no tampering detected
+      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600">
+        <FiInfo className="size-4 flex-shrink-0" aria-hidden="true" />
+        {comparedAgainstApi
+          ? 'Decoded locally — this type cannot be rebuilt to confirm'
+          : 'Decoded locally — nothing to compare it against'}
       </div>
     );
   }

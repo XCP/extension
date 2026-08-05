@@ -220,6 +220,7 @@ export default function ApproveTransactionPage() {
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationComparedAgainstApi = decodedInfo.verification?.comparedAgainstApi ?? false;
+  const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
   const verificationFailed = verificationPassed === false;
   const isStrictMode = settings?.strictTransactionVerification !== false;
@@ -504,6 +505,7 @@ export default function ApproveTransactionPage() {
           <VerificationStatus
             passed={verificationPassed}
             comparedAgainstApi={verificationComparedAgainstApi}
+            repackProved={verificationRepackProved}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
