@@ -1,13 +1,14 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { isCounterpartyDataScript } from '@/core/counterparty/transactionSafety';
 
 export interface MovementDestination {
   /** Destination address, or null if the decode couldn't resolve it. */
   address: string | null;
   /** Value in sats. */
   value: number;
+  /** True when the script is a Counterparty multisig data output (payload, recoverable). */
+  isData?: boolean;
 }
-
-import { isCounterpartyDataScript } from '@/core/counterparty/transactionSafety';
 
 export interface MoneyMovement {
   /** Sats spent from your addresses. */
@@ -42,6 +43,8 @@ interface MovementOutput {
   address?: string;
   value: number;
   type?: string;
+  /** Raw scriptPubKey hex, when the parser kept it. */
+  script?: string;
 }
 
 /**
@@ -95,11 +98,18 @@ export function computeMoneyMovement(params: {
       if (committed) backToYou += output.value;
       else atRisk += output.value;
     } else {
+      // Counterparty multisig data outputs are the message payload, not a payment to an unknown
+      // party, so they are classified rather than left as an unresolved destination.
+      const isData = output.address === undefined && isCounterpartyDataScript(output.script);
       // An output with no resolvable address can't be classified as yours or theirs, so the totals
       // below are a lower bound on what comes back to you.
-      if (output.address === undefined) incomplete = true;
+      if (output.address === undefined && !isData) incomplete = true;
       // Already leaving either way, so not also counted as at-risk.
-      external.push({ address: output.address ?? null, value: output.value });
+      external.push({
+        address: output.address ?? null,
+        value: output.value,
+        ...(isData ? { isData: true } : {}),
+      });
     }
   });
 
