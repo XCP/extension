@@ -251,12 +251,10 @@ export default function AssetPage(): ReactElement {
 
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
-      <div className="space-y-4">
-        <AssetHeader
-          className="mt-1 mb-5"
-          assetInfo={headerAssetInfo}
-        />
-      </div>
+      <AssetHeader
+        className="mt-1 mb-5"
+        assetInfo={headerAssetInfo}
+      />
       {/* Actions require full data for ownership checks */}
       <ActionList sections={getActionSections()} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">

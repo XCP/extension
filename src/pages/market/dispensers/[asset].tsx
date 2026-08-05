@@ -346,7 +346,7 @@ export default function AssetDispensersPage(): ReactElement {
         <div className="p-4 pb-0 flex-shrink-0">
           {/* Asset Header */}
           {assetInfo && (
-            <AssetHeader assetInfo={assetInfo} showInfoPopover className="mb-4" />
+            <AssetHeader assetInfo={assetInfo} showInfoPopover className="mt-1 mb-5" />
           )}
 
           {/* Stats Card - contextual based on tab */}

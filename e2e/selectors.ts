@@ -403,7 +403,7 @@ export const selectAddress = {
   // Use aria-label for stability, filter to the visible full-width one
   addAddressButton: (page: Page) => page.locator('button[aria-label="Add Address"]').filter({ hasText: 'Add Address' }),
   // Header Add button (icon only, no text)
-  headerAddButton: (page: Page) => page.locator('header button[aria-label="Add Address"]'),
+  headerAddressTypeButton: (page: Page) => page.locator('header button[aria-label="Change Address Type"]'),
   chevronButton: (page: Page) => page.locator('[aria-label="Select another address"]'),
   addressLabel: (page: Page, num: number) => page.locator(`text=Address ${num}`),
   copyButton: (page: Page) => page.locator('[title*="Copy"], [aria-label*="Copy"]').first(),
@@ -448,6 +448,7 @@ export const market = {
   xcpRange30d: (page: Page) => page.getByRole('button', { name: '30D' }),
   xcpRangeAll: (page: Page) => page.getByRole('button', { name: 'All' }),
   dexRate: (page: Page) => page.getByText(/DEX Rate/i),
+  floorPrice: (page: Page) => page.getByText(/Floor Price/i),
   allTimeHigh: (page: Page) => page.getByText(/All-Time High/i),
 
   // Asset dispensers/orders pages - main heading

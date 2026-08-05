@@ -1,14 +1,14 @@
 import { RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
 import { SelectionCard, SelectionCardGroup } from "@/components/ui/cards/selection-card";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
+import { AddressFormat, getAddressFormatLabel, isCounterwalletFormat, isFreewalletBIP39Format } from '@/core/bitcoin/address';
 import { formatAddress } from "@/core/format";
 
 /**
@@ -35,7 +35,9 @@ const AVAILABLE_ADDRESS_TYPES = Object.values(AddressFormat);
  */
 export default function AddressTypesPage(): ReactElement {
   const navigate = useNavigate();
+  const location = useLocation();
   const { setHeaderProps } = useHeader();
+  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
   const { activeWallet, updateWalletAddressFormat, getPreviewAddressForFormat } = useWallet();
   const [addresses, setAddresses] = useState<{ [key: string]: string }>({});
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -48,8 +50,11 @@ export default function AddressTypesPage(): ReactElement {
   // Configure header with dynamic back navigation and help button
   useEffect(() => {
     const handleBack = () => {
-      // If address type was changed, go to index
-      if (hasChangedType.current) {
+      // Return to the page that linked here (e.g. the address list)
+      if (returnTo) {
+        navigate(returnTo);
+      } else if (hasChangedType.current) {
+        // If address type was changed, go to index
         navigate("/index");
       } else {
         // Otherwise go back to settings
@@ -66,7 +71,7 @@ export default function AddressTypesPage(): ReactElement {
         ariaLabel: "Help",
       },
     });
-  }, [setHeaderProps, navigate]);
+  }, [setHeaderProps, navigate, returnTo]);
 
 
   // Load preview addresses
@@ -140,35 +145,6 @@ export default function AddressTypesPage(): ReactElement {
     }
   };
 
-  /**
-   * Gets a human-readable description for an address type.
-   * @param type - The address type.
-   * @returns {string} The description of the address type.
-   */
-  const getAddressFormatDescription = (type: AddressFormat): string => {
-    switch (type) {
-      case AddressFormat.P2PKH:
-        return "Legacy (P2PKH)";
-      case AddressFormat.P2WPKH:
-        return "Native SegWit (P2WPKH)";
-      case AddressFormat.P2SH_P2WPKH:
-        return "Nested SegWit (P2SH-P2WPKH)";
-      case AddressFormat.P2TR:
-        return "Taproot (P2TR)";
-      case AddressFormat.Counterwallet:
-          return "CounterWallet (P2PKH)";
-      case AddressFormat.CounterwalletSegwit:
-          return "CounterWallet SegWit (P2WPKH)";
-      case AddressFormat.FreewalletBIP39:
-          return "FreeWallet (P2PKH)";
-      case AddressFormat.FreewalletBIP39Segwit:
-          return "FreeWallet SegWit (P2WPKH)";
-      default:
-        return type;
-    }
-  };
-
-
   if (isInitialLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -225,7 +201,7 @@ export default function AddressTypesPage(): ReactElement {
 
             return true;
           }).map((type) => {
-            const typeLabel = getAddressFormatDescription(type);
+            const typeLabel = getAddressFormatLabel(type);
             // Use loaded address preview
             const address = addresses[type] || "";
             const addressPreview = address ? formatAddress(address) : "";

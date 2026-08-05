@@ -412,7 +412,7 @@ export default function AssetOrdersPage(): ReactElement {
         <div className="p-4 pb-0 flex-shrink-0">
           {/* Asset Header */}
           {baseAssetInfo && (
-            <AssetHeader assetInfo={baseAssetInfo} showInfoPopover className="mb-4" />
+            <AssetHeader assetInfo={baseAssetInfo} showInfoPopover className="mt-1 mb-5" />
           )}
 
           {/* Stats Card - contextual based on tab */}

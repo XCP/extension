@@ -155,6 +155,18 @@ export const FiRefreshCw = (props: IconProps): ReactElement => (
   </FeatherIcon>
 );
 
+// Lucide (Feather's maintained successor, same stroke style): vertical swap arrows
+export const LuArrowDownUp = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <>
+      <path d="m3 16 4 4 4-4" />
+      <path d="M7 20V4" />
+      <path d="m21 8-4-4-4 4" />
+      <path d="M17 4v16" />
+    </>
+  </FeatherIcon>
+);
+
 export const FiRotateCcw = (props: IconProps): ReactElement => (
   <FeatherIcon {...props}>
     <>

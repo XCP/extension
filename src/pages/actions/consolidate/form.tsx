@@ -3,7 +3,6 @@ import { AddressHeader } from "@/components/domain/address/address-header";
 import { Button } from "@/components/ui/button";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
-import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import {
   type ConsolidationData,
@@ -30,17 +29,16 @@ const DEFAULT_FORM_DATA: ConsolidationFormData = {
 
 interface ConsolidationFormProps {
   onSubmit: (data: ConsolidationFormData) => void;
+  showHelpText?: boolean;
 }
 
-export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
+export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormProps) {
   const { activeAddress, activeWallet } = useWallet();
   const [formData, setFormData] =
     useState<ConsolidationFormData>(DEFAULT_FORM_DATA);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { settings } = useSettings();
-  const shouldShowHelpText = settings?.showHelpText;
 
   // Fetch recovery data for the active address.
   useEffect(() => {
@@ -133,7 +131,7 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
         <AddressHeader
           address={activeAddress.address}
           walletName={activeWallet?.name}
-          className="mb-6"
+          className="mt-1 mb-5"
         />
       )}
       <form
@@ -266,13 +264,13 @@ export function ConsolidationForm({ onSubmit }: ConsolidationFormProps) {
           label="Destination Address (Optional)"
           placeholder="Leave empty to consolidate to source address"
           required={false}
-          showHelpText={shouldShowHelpText}
+          showHelpText={showHelpText}
           helpText="If left empty, UTXOs will be consolidated to your source address."
         />
 
         <FeeRateInput
           onFeeRateChange={handleFeeRateChange}
-          showHelpText={shouldShowHelpText}
+          showHelpText={showHelpText}
         />
 
         <Button

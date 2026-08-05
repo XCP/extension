@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { FaPlus } from "@/components/icons";
+import { FaCog, FaPlus } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { AddressList } from "@/components/ui/lists/address-list";
@@ -91,15 +91,15 @@ export default function AddressesPage(): ReactElement {
       title: "Addresses",
       onBack: () => navigate(returnTo, { replace: true }),
       rightButton:
-        activeWallet?.type === "mnemonic" && !isAddingAddress
+        activeWallet?.type === "mnemonic"
           ? {
-              icon: <FaPlus aria-hidden="true" />,
-              onClick: handleAddAddress,
-              ariaLabel: "Add Address",
+              icon: <FaCog aria-hidden="true" />,
+              onClick: () => navigate("/settings/address-types", { state: { returnTo: PATHS.SELECT } }),
+              ariaLabel: "Change Address Type",
             }
           : undefined,
     });
-  }, [setHeaderProps, navigate, returnTo, activeWallet?.type, handleAddAddress, isAddingAddress]);
+  }, [setHeaderProps, navigate, returnTo, activeWallet?.type]);
 
   if (!activeWallet) return <div className="p-4">No active wallet found</div>;
 

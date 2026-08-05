@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
@@ -14,6 +15,7 @@ import { formatAmount } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { usePool } from "@/hooks/usePool";
 import { useTradingPair } from "@/hooks/useTradingPair";
 import { OrderSettings } from "@/pages/settings/order-settings";
 
@@ -57,6 +59,7 @@ export function OrderForm({
 }: OrderFormProps): ReactElement {
   // Context hooks
   const { activeAddress, activeWallet, settings, showHelpText, feeRate } = useComposer();
+  const navigate = useNavigate();
 
   const initialBaseAsset = giveAsset || (
     initialFormData?.type === "buy"
@@ -75,6 +78,13 @@ export function OrderForm({
   const { data: giveAssetDetails } = useAssetDetails(baseAsset);
   const { data: quoteAssetDetails } = useAssetDetails(quoteAsset);
   const { data: getAssetDetails } = useAssetDetails(baseAsset);
+
+  // A pool for this pair unlocks the Swap tab (BTC pairs never have pools)
+  const hasBtcInPair = baseAsset === "BTC" || quoteAsset === "BTC";
+  const { data: pairPool } = usePool(
+    !hasBtcInPair && baseAsset ? baseAsset : undefined,
+    !hasBtcInPair && baseAsset ? quoteAsset : undefined,
+  );
   
   // Local error state management for form-specific errors
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -233,6 +243,15 @@ export function OrderForm({
           >
             Sell
           </button>
+          {pairPool && (
+            <button
+              type="button"
+              className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+              onClick={() => navigate(`/compose/swap/${encodeURIComponent(baseAsset)}/${encodeURIComponent(quoteAsset)}`)}
+            >
+              Swap
+            </button>
+          )}
         </div>
         <button
           type="button"

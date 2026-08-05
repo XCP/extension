@@ -39,10 +39,10 @@ walletTest.describe('View Balance Page (/assets/:asset/balance)', () => {
     await expect(swapAction).toBeVisible({ timeout: 10000 });
   });
 
-  walletTest('does not show Sell action for XCP', async ({ page }) => {
+  walletTest('shows Sell action for XCP', async ({ page }) => {
     await navigateToBalance(page, 'XCP');
 
-    await expect(page.locator('text="Sell"').first()).not.toBeVisible();
+    await expect(page.locator('text="Sell"').first()).toBeVisible({ timeout: 10000 });
   });
 
   walletTest('does not show Attach action for XCP', async ({ page }) => {

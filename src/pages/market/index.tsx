@@ -24,6 +24,7 @@ import {
   type Pool,
   type PoolPosition,
 } from "@/core/counterparty/api";
+import { normalizePoolPosition } from "@/core/counterparty/pool";
 import { formatAddress } from "@/core/format";
 import { formatPrice } from "@/core/priceFormat";
 import { getTradingPair } from "@/core/tradingPair";
@@ -162,7 +163,7 @@ export default function MarketPage(): ReactElement {
           }
           const response = await fetchAddressPools(activeAddress.address, { limit: POOL_PAGE_SIZE, offset: 0 });
           if (cancelled) return;
-          setUserPools(response.result);
+          setUserPools(response.result.map(normalizePoolPosition));
           setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && response.result.length < response.result_count);
         } else {
           const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: 0 });
@@ -205,7 +206,7 @@ export default function MarketPage(): ReactElement {
         if (viewMode === "manage") {
           const response = await fetchAddressPools(activeAddress!.address, { limit: POOL_PAGE_SIZE, offset: poolsOffset });
           if (cancelled) return;
-          appendUserPools(response.result);
+          appendUserPools(response.result.map(normalizePoolPosition));
           setPoolsHasMore(response.result.length === POOL_PAGE_SIZE && poolsOffset + response.result.length < response.result_count);
         } else {
           const response = await fetchPools({ limit: POOL_PAGE_SIZE, offset: poolsOffset });
