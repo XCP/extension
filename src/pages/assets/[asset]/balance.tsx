@@ -7,6 +7,8 @@ import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import type { TokenBalance } from "@/core/counterparty/api";
+import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 
@@ -94,6 +96,7 @@ export default function AssetBalancePage(): ReactElement {
       title: "Destroy",
       description: "Permanently burn this asset",
       onClick: () => navigate(`${PATHS.COMPOSE}/issuance/destroy/${encodedAsset}`),
+      className: "!border !border-red-500",
     };
 
     const items = isBTC
@@ -115,12 +118,11 @@ export default function AssetBalancePage(): ReactElement {
           },
         ]
       : isXCP
-      ? [sendAction, swapAction, mintAction, destroyAction]
+      ? [sendAction, sellAction, swapAction, mintAction, destroyAction]
       : [sendAction, sellAction, swapAction, destroyAction];
     if (lpPool) {
       return [
         {
-          title: "Liquidity Pool",
           items: [
             {
               id: "manage-pool",
@@ -128,9 +130,9 @@ export default function AssetBalancePage(): ReactElement {
               description: `${lpPool.asset_a} / ${lpPool.asset_b}`,
               onClick: () => navigate(`/pools/${encodeURIComponent(lpPool.lp_asset)}`),
             },
+            ...items,
           ],
         },
-        { items },
       ];
     }
     return [{ items }];
@@ -176,11 +178,60 @@ export default function AssetBalancePage(): ReactElement {
     return <div className="p-4 text-center text-gray-600">Failed to load balance information</div>;
   }
 
+  // Pool position details for LP asset balances, in the UTXO-details card style.
+  const poolDetails = (() => {
+    if (!lpPool) return null;
+    const lpBalance = toBigNumber(lpPool.quantity_normalized ?? 0);
+    const lpSupply = toBigNumber(assetDetails?.assetInfo?.supply_normalized);
+    const poolShare = isGreaterThan(lpSupply, 0) && isGreaterThan(lpBalance, 0)
+      ? divide(lpBalance, lpSupply)
+      : null;
+    return {
+      pair: getCanonicalPoolPair(lpPool.asset_a, lpPool.asset_b),
+      sharePercent: poolShare ? formatDecimal(multiply(poolShare, 100), 4) : null,
+      underlying: poolShare
+        ? [
+            { asset: lpPool.asset_a, amount: formatDecimal(multiply(poolShare, toBigNumber(lpPool.reserve_a_normalized ?? lpPool.reserve_a))) },
+            { asset: lpPool.asset_b, amount: formatDecimal(multiply(poolShare, toBigNumber(lpPool.reserve_b_normalized ?? lpPool.reserve_b))) },
+          ]
+        : null,
+    };
+  })();
+
   return (
     <div className="p-4 space-y-6" role="main" aria-labelledby="balance-title">
-      <div className="space-y-4">
-        <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
-      </div>
+      <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
+      {poolDetails && (
+        <div className="bg-white rounded-lg p-4 shadow-sm">
+          <h2 className="text-sm font-medium text-gray-900">Pool Position</h2>
+          <div className="mt-2 space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Pool</span>
+              <span className="text-sm text-gray-900">{poolDetails.pair}</span>
+            </div>
+            {poolDetails.sharePercent && (
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Pool Share</span>
+                <span className="text-sm text-gray-900">{poolDetails.sharePercent}%</span>
+              </div>
+            )}
+          </div>
+          {poolDetails.underlying && (
+            <>
+              <hr className="my-4 border-gray-200" />
+              <h2 className="text-sm font-medium text-gray-900">Underlying</h2>
+              <div className="mt-2 space-y-2">
+                {poolDetails.underlying.map(({ asset: underlyingAsset, amount }) => (
+                  <div key={underlyingAsset} className="flex justify-between">
+                    <span className="text-sm text-gray-500">{underlyingAsset}</span>
+                    <span className="text-sm text-gray-900">{amount}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       <ActionList sections={getActionSections()} />
     </div>
   );

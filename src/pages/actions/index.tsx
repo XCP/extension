@@ -105,6 +105,12 @@ const getActionSections = (
           onClick: () => navigate("/compose/order/cancel"),
         },
         {
+          id: "create-dispenser",
+          title: "Create Dispenser",
+          description: "Sell an asset at a fixed BTC price",
+          onClick: () => navigate("/compose/dispenser"),
+        },
+        {
           id: "close-dispenser",
           title: "Close Dispenser", 
           description: "Close an existing dispenser",
