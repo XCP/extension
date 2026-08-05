@@ -50,6 +50,8 @@ export interface DecodedTransactionInfo {
     address?: string;
     type: string;
     opReturnData?: string;
+    /** Raw scriptPubKey hex — lets the safety analyzer classify addressless scripts. */
+    script?: string;
   }>;
   totalInputValue: number;
   totalOutputValue: number;
@@ -117,6 +119,9 @@ export function useSignTransactionRequest(signerAddress?: string) {
       ...(output.address ? { address: output.address } : {}),
       type: output.type,
       ...(output.opReturnData ? { opReturnData: output.opReturnData } : {}),
+      // Carried through so bare-multisig data outputs can be recognized rather
+      // than flagged as unknown destinations.
+      ...(output.script ? { script: output.script } : {}),
     }));
 
     // An input's value is not in the transaction that spends it, so it has to be resolved from the
