@@ -18,7 +18,6 @@ import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { analytics } from '@/platform/fathom';
 import { openExtensionPopup } from '@/platform/popup';
-import { analyzeCSP } from '@/platform/provider/csp';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import {
   beginSignFlow,
@@ -540,29 +539,8 @@ export function createProviderService(): ProviderService {
             });
           }
 
-          // CSP analysis (warning mode only) runs just before a new connection.
-          return completeConnection(origin, pairedAddresses, async () => {
-            let cspHostname = origin;
-            try { cspHostname = new URL(origin).hostname; } catch { /* use raw origin */ }
+          return completeConnection(origin, pairedAddresses);
 
-            try {
-              const cspAnalysis = await analyzeCSP(origin);
-              if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-                console.warn('[ProviderService] Site has CSP security issues', {
-                  origin: cspHostname,
-                  hasCSP: cspAnalysis.hasCSP,
-                  isSecure: cspAnalysis.isSecure,
-                  warningCount: cspAnalysis.warnings.length,
-                  warnings: cspAnalysis.warnings.slice(0, 3)
-                });
-              }
-            } catch (error) {
-              console.warn('[ProviderService] CSP analysis failed', {
-                origin: cspHostname,
-                error: (error as Error).message
-              });
-            }
-          });
         }
         
         case 'xcp_accounts': {

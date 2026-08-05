@@ -32,16 +32,6 @@ vi.mock('../connectionService');
 vi.mock('../approvalService');
 
 // Mock CSP validation to avoid timeout issues
-vi.mock('@/platform/provider/csp', () => ({
-  analyzeCSP: vi.fn(() => Promise.resolve({
-    hasCSP: true,
-    isSecure: true,
-    recommendations: [],
-    warnings: [],
-    directives: {}
-  })),
-  meetsSecurityRequirements: vi.fn(() => Promise.resolve(true))
-}));
 
 // Browser mocks are already setup in ./setup.ts
 

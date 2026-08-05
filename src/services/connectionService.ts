@@ -12,7 +12,6 @@
 import { generateRequestId } from '@/core/id';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
-import { analyzeCSP } from '@/platform/provider/csp';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
@@ -410,29 +409,6 @@ export class ConnectionService extends BaseService {
     // Skip if checked recently
     if (now - lastCheck < ConnectionService.SECURITY_CHECK_INTERVAL) {
       return;
-    }
-
-    // CSP analysis (warning only)
-    // Safely extract hostname for logging
-    let hostname = origin;
-    try { hostname = new URL(origin).hostname; } catch { /* use raw origin */ }
-
-    try {
-      const cspAnalysis = await analyzeCSP(origin);
-      if (!cspAnalysis.hasCSP || cspAnalysis.warnings.length > 0) {
-        console.warn('[ConnectionService] Site has CSP security issues', {
-          origin: hostname,
-          hasCSP: cspAnalysis.hasCSP,
-          isSecure: cspAnalysis.isSecure,
-          warningCount: cspAnalysis.warnings.length,
-          warnings: cspAnalysis.warnings.slice(0, 3),
-        });
-      }
-    } catch (error) {
-      console.warn('[ConnectionService] CSP analysis failed', {
-        origin: hostname,
-        error: (error as Error).message,
-      });
     }
 
     // Update last check time

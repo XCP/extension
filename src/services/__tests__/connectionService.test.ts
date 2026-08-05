@@ -77,13 +77,6 @@ vi.mock('@/platform/provider/rateLimiter', () => ({
 }));
 
 // Mock security utilities
-vi.mock('@/platform/provider/csp', () => ({
-  analyzeCSP: vi.fn().mockResolvedValue({
-    hasCSP: true,
-    isSecure: true,
-    warnings: [],
-  }),
-}));
 
 // Mock fathom analytics provider
 vi.mock('@/platform/fathom', () => ({
