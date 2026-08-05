@@ -36,8 +36,10 @@ describe('isAssetDivisible', () => {
 
 describe('getTxActionInfo', () => {
   it('normalizes a send quantity (the drift bug: no raw satoshis)', () => {
+    // Both approval paths now run the same describer, so the local fallback states the action as
+    // well as the amount instead of emitting a bare quantity.
     const info = getTxActionInfo(fromUnpack('send', { quantity: asBaseUnits(100000000), asset: 'XCP' }));
-    expect(info).toEqual({ label: 'Send', description: '1.00000000 XCP' });
+    expect(info).toEqual({ label: 'Send', description: 'Send 1.00000000 XCP' });
   });
 
   it('prefers the API counterpartyMessage when present', () => {
@@ -47,11 +49,16 @@ describe('getTxActionInfo', () => {
     expect(info).toEqual({ label: 'Enhanced Send', description: '5 PEPECASH' });
   });
 
-  it('detach shows quantity when present, else the destination', () => {
-    expect(getTxActionInfo(fromUnpack('detach', { quantity: asBaseUnits(100000000), asset: 'XCP' }))?.description).toBe('1.00000000 XCP');
+  it('detach states that everything on the UTXO moves, and where', () => {
+    // A detach credits EVERY balance on the source UTXO to the destination (core detach.py), so
+    // there is no per-asset amount to state — DetachData carries only a destination. The old
+    // branch rendered a quantity as though it bounded the transfer, which no real payload can
+    // even produce.
+    expect(getTxActionInfo(fromUnpack('detach', { quantity: asBaseUnits(100000000), asset: 'XCP' }))?.description)
+      .toBe('Detach all assets from UTXO');
     expect(getTxActionInfo(fromUnpack('detach', { destination: 'bc1qexampleaddress0000' }))?.description)
-      .toBe('To bc1qexampleaddre…');
-    expect(getTxActionInfo(fromUnpack('detach', {}))?.description).toBe('Detach assets from UTXO');
+      .toBe('Detach all assets from UTXO to bc1qexampleaddress0000');
+    expect(getTxActionInfo(fromUnpack('detach', {}))?.description).toBe('Detach all assets from UTXO');
   });
 
   it('returns null when there is no message or unpack', () => {

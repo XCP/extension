@@ -1,5 +1,6 @@
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import { type DescribableMessage, describeMessage, labelFor } from '@/core/counterparty/describe';
 import { fromSatoshis } from '@/core/numeric';
 
 /**
@@ -77,67 +78,58 @@ export function normalizeLpQuantity(quantity: unknown): string {
  * Prefers the API counterpartyMessage, else falls back to the local unpack.
  */
 export function getTxActionInfo(decodedInfo: TxActionSource): { label: string; description: string } | null {
-  // Try API message first
+  // The API decode already carries a description built by the shared describer.
   if (decodedInfo.counterpartyMessage) {
     return {
-      label: decodedInfo.counterpartyMessage.messageType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      label: labelFor(decodedInfo.counterpartyMessage.messageType),
       description: decodedInfo.counterpartyMessage.description,
     };
   }
 
-  // Fall back to local unpack
+  // Otherwise describe from the local unpack, through the same switch rather than a parallel one.
   const unpack = decodedInfo.verification?.localUnpack;
   if (!unpack?.success || !unpack.messageType || !unpack.data) return null;
 
-  const data = unpack.data as Record<string, unknown>;
-  const label = unpack.messageType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const description = describeMessage(unpack.messageType, fromLocalUnpack(unpack.data));
+  return {
+    label: labelFor(unpack.messageType),
+    description: description ?? unpack.messageType,
+  };
+}
 
-  switch (unpack.messageType) {
-    case 'enhanced_send':
-    case 'send':
-      return { label: 'Send', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
-    case 'order':
-      return { label: 'Order', description: `Give ${normalizeQuantity(data.giveQuantity, data.giveAsset as string)} ${data.giveAsset} for ${normalizeQuantity(data.getQuantity, data.getAsset as string)} ${data.getAsset}` };
-    case 'cancel':
-      return { label: 'Cancel Order', description: `Cancel ${String(data.offerHash).slice(0, 16)}…` };
-    case 'issuance':
-    case 'subasset_issuance':
-    case 'lr_issuance':
-    case 'lr_subasset':
-      return { label: 'Issuance', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
-    case 'dispenser':
-      return { label: 'Dispenser', description: `${normalizeQuantity(data.escrowQuantity, data.asset as string)} ${data.asset}` };
-    case 'dispense':
-      return { label: 'Dispense', description: 'Dispense from dispenser' };
-    case 'sweep':
-      return { label: 'Sweep', description: `Sweep to ${String(data.destination).slice(0, 16)}…` };
-    case 'destroy':
-      return { label: 'Destroy', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
-    case 'dividend':
-      return { label: 'Dividend', description: `${normalizeQuantity(data.quantityPerUnit, data.dividendAsset as string)} ${data.dividendAsset} per ${data.asset}` };
-    case 'attach':
-      return { label: 'Attach', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
-    case 'detach':
-      // Detach may carry a quantity/asset or only a destination; handle both.
-      return {
-        label: 'Detach',
-        description: data.quantity != null
-          ? `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}`
-          : data.destination
-            ? `To ${String(data.destination).slice(0, 16)}…`
-            : 'Detach assets from UTXO',
-      };
-    case 'mpma_send':
-      return { label: 'Multi-Send', description: `${(data.sends as unknown[])?.length || 0} recipients` };
-    case 'fairminter':
-      return { label: 'Fairminter', description: `${data.asset}` };
-    case 'fairmint':
-      return { label: 'Fairmint', description: `${normalizeQuantity(data.quantity, data.asset as string)} ${data.asset}` };
-    case 'pooldeposit':
-      return { label: 'Pool Deposit', description: `${normalizeQuantity(data.quantityA, data.assetA as string)} ${data.assetA} + ${normalizeQuantity(data.quantityB, data.assetB as string)} ${data.assetB}` };
-    case 'poolwithdraw':
-      return { label: 'Pool Withdraw', description: `Burn ${normalizeLpQuantity(data.quantity)} LP tokens from ${data.assetA}/${data.assetB}` };
-    default:
-      return { label, description: unpack.messageType };
-  }
+/**
+ * Adapt a local unpack into the shared describer's view.
+ *
+ * The unpacker uses camelCase and carries asset names but no divisibility, so quantities are
+ * labelled as base units unless the asset is one whose divisibility is fixed by the protocol.
+ * That is the honest rendering: this path runs precisely when the API decode failed and the
+ * wallet is relying on its own bytes.
+ */
+function fromLocalUnpack(raw: unknown): DescribableMessage {
+  const data = raw as Record<string, unknown>;
+  const sends = data.sends as unknown[] | undefined;
+
+  return {
+    asset: data.asset as string | undefined,
+    quantity: data.quantity,
+    destination: data.destination as string | undefined,
+    giveAsset: data.giveAsset as string | undefined,
+    giveQuantity: data.giveQuantity,
+    getAsset: data.getAsset as string | undefined,
+    getQuantity: data.getQuantity,
+    expiration: data.expiration as number | undefined,
+    escrowQuantity: data.escrowQuantity,
+    mainchainrate: data.mainchainrate,
+    dividendAsset: data.dividendAsset as string | undefined,
+    quantityPerUnit: data.quantityPerUnit,
+    offerHash: data.offerHash as string | undefined,
+    text: data.text as string | undefined,
+    assetA: data.assetA as string | undefined,
+    quantityA: data.quantityA,
+    assetB: data.assetB as string | undefined,
+    quantityB: data.quantityB,
+    recipientCount: sends?.length,
+    subassetLongname: data.subassetLongname as string | undefined,
+    format: (quantity, asset) => normalizeQuantity(quantity, asset ?? ''),
+  };
 }
