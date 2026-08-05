@@ -52,3 +52,4 @@ MANUAL_TEST_PLAN.txt
 *.tsbuildinfo
 
 test-results.json
+test-results/

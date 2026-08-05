@@ -82,7 +82,7 @@ export default function XcpPricePage(): ReactElement {
       for (const dispenser of response.result) {
         const unitsPerDispense = Number(dispenser.give_quantity_normalized);
         if (unitsPerDispense <= 0) continue;
-        const satsPerXcp = dispenser.satoshirate / unitsPerDispense;
+        const satsPerXcp = Number(dispenser.satoshirate) / unitsPerDispense;
         if (!best || satsPerXcp < best.satsPerXcp) {
           best = { satsPerXcp, source: dispenser.source };
         }

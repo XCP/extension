@@ -40,7 +40,7 @@ const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
 function getSatsPerUnit(dispenser: DispenserDetails): number {
   const unitsPerDispense = Number(dispenser.give_quantity_normalized);
   if (unitsPerDispense <= 0) return Infinity;
-  return dispenser.satoshirate / unitsPerDispense;
+  return Number(dispenser.satoshirate) / unitsPerDispense;
 }
 
 /**
@@ -280,7 +280,7 @@ export default function AssetDispensersPage(): ReactElement {
       const remainingDispenses = Math.floor(
         Number(d.give_remaining_normalized) / Number(d.give_quantity_normalized)
       );
-      return sum + d.satoshirate * remainingDispenses;
+      return sum + Number(d.satoshirate) * remainingDispenses;
     }, 0);
     const totalBtc = totalBtcSats / SATS_PER_BTC;
 

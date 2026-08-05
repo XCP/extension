@@ -30,7 +30,7 @@ export function ManageDispenserCard({
     e.stopPropagation();
     // Navigate to create dispenser with same params for refill
     // Convert satoshirate to BTC (divide by 100,000,000)
-    const btcPrice = (dispenser.satoshirate / 100_000_000).toFixed(8);
+    const btcPrice = (Number(dispenser.satoshirate) / 100_000_000).toFixed(8);
     const params = new URLSearchParams({
       refill: "true",
       mainchainrate: btcPrice,

@@ -17,9 +17,12 @@ import {
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
 import {
-  type CounterpartyMessage, 
+  type CounterpartyMessage,
   decodeCounterpartyMessage,
-  fetchInputPrevouts
+  describeMpmaSend,
+  fetchInputPrevouts,
+  type MpmaRecipient,
+  resolveMpmaRecipients
 } from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
@@ -29,6 +32,7 @@ import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
 } from '@/core/counterparty/unpack';
+import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
 import { type SignTransactionRequest, signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
@@ -66,6 +70,12 @@ export interface DecodedTransactionInfo {
   safety: SafetyAnalysis;
   /** Inputs whose UTXOs carry Counterparty assets, or whose lookup failed. */
   attachedAssets: InputAttachedAssets[];
+  /**
+   * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
+   * These are carried in the payload rather than as outputs, so the approval screen has no other
+   * source for them.
+   */
+  mpmaRecipients: MpmaRecipient[];
 }
 
 /**
@@ -184,6 +194,22 @@ export function useSignTransactionRequest(signerAddress?: string) {
       ?? verification.localUnpack?.messageType;
     const safety = analyzeTransactionSafety(messageType, outputs, signerAddress || '');
 
+    // mpma_send is described from the bytes, not from the API's rendering of them — see
+    // resolveMpmaRecipients for why the API cannot be used for this type.
+    let mpmaRecipients: MpmaRecipient[] = [];
+    if (verification.localUnpack?.messageType === 'mpma_send' && verification.localUnpack.data) {
+      const sends = (verification.localUnpack.data as MPMAData).sends ?? [];
+      if (sends.length > 0) {
+        mpmaRecipients = await resolveMpmaRecipients(sends);
+        if (counterpartyMessage) {
+          counterpartyMessage = {
+            ...counterpartyMessage,
+            description: describeMpmaSend(mpmaRecipients),
+          };
+        }
+      }
+    }
+
     const attachedAssets = await attachedAssetsPromise;
 
     return {
@@ -199,6 +225,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       verification,
       safety,
       attachedAssets,
+      mpmaRecipients,
     };
   }, []);
 

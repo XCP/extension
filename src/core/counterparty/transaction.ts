@@ -251,10 +251,20 @@ export function describeCounterpartyMessage(
     const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
 
     if (assetInfo?.divisible === true) {
-      return fromSatoshis(Number(raw));
+      // String, not Number: quantities are unsigned 64-bit and doubles are exact only to 2^53-1,
+      // so a headline could state a different amount than the bytes carry.
+      return fromSatoshis(String(raw));
     }
 
-    return BigInt(String(raw)).toLocaleString();
+    // Known indivisible: the base-unit integer IS the amount.
+    if (assetInfo?.divisible === false) {
+      return BigInt(String(raw)).toLocaleString();
+    }
+
+    // Divisibility could not be established. Printing the bare integer here reads as a quantity
+    // and is off by 1e8 for any divisible asset — "150,000,000 XCP" for 1.5 XCP. Label it instead,
+    // the way resolveMpmaRecipients does, so an unknown is visibly an unknown.
+    return `${BigInt(String(raw)).toLocaleString()} base units`;
   };
 
   /**
@@ -302,10 +312,20 @@ export function describeCounterpartyMessage(
       return `Withdraw liquidity: burn ${q('quantity')} LP tokens from ${displayName('asset_a')}/${displayName('asset_b')}`;
     case 'attach':
       return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
-    case 'detach':
-      return `Detach assets from UTXO`;
+    case 'detach': {
+      // The payload carries exactly one field — the destination — and it was the one thing not
+      // shown. Detach moves every asset on the UTXO, so where they go is the whole decision.
+      const to = messageData.destination ?? messageData.address;
+      return to
+        ? `Detach all assets from UTXO to ${to}`
+        : `Detach all assets from UTXO`;
+    }
+    // Both the API and the local unpack call this type `utxo`; `utxo_move` matched neither, so
+    // every move fell through to "Counterparty utxo transaction" — no asset, quantity or
+    // destination. A test asserting the dead string is why this survived CI.
+    case 'utxo':
     case 'utxo_move':
-      return `Move UTXO to ${messageData.destination}`;
+      return `Move ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
     case 'destroy':
       return `Destroy ${q('quantity', 'asset')} ${displayName('asset')}`;
     default:
@@ -325,7 +345,13 @@ export function hasCounterpartyPrefix(opReturnData: string): boolean {
  * Fields are either 'asset' or end with '_asset' (e.g., 'give_asset', 'get_asset', 'dividend_asset').
  */
 function findAssetFields(data: Record<string, unknown>): string[] {
-  return Object.keys(data).filter(k => k === 'asset' || k.endsWith('_asset'));
+  // `asset_a` and `asset_b` (pool deposit and withdraw) match neither rule — they start with
+  // `asset_` rather than ending with `_asset` — so pool messages were enriched with nothing at
+  // all, not even the BTC/XCP shortcut below, and their quantities fell through to the raw-integer
+  // branch. A 1.5 XCP deposit read "150,000,000 XCP" on the signing screen.
+  return Object.keys(data).filter(
+    k => k === 'asset' || k.endsWith('_asset') || k === 'asset_a' || k === 'asset_b'
+  );
 }
 
 /**
@@ -370,6 +396,71 @@ async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void>
       }
     }
   }
+}
+
+/** A single mpma_send recipient, resolved from the local unpack. */
+export interface MpmaRecipient {
+  address: string;
+  asset: string;
+  /** Display quantity, or base units when divisibility could not be established. */
+  quantity: string;
+}
+
+/**
+ * Resolve the recipients of an mpma_send from locally decoded bytes.
+ *
+ * This type cannot be described from the API. `/v2/transactions/unpack` renders an mpma_send
+ * payload as a bare array rather than an object — so every keyed lookup misses and the headline
+ * fell through to "Counterparty mpma_send transaction" — and that array has been observed to
+ * carry only the first send of a multi-send message. Describing it from the API would therefore
+ * name one recipient and silently drop the rest.
+ *
+ * MPMA destinations travel inside the payload, not as BTC outputs, so unlike an ordinary send
+ * they never appear in the outputs list either. If the approval screen does not read them out of
+ * the bytes, nothing on it says who is being paid.
+ */
+export async function resolveMpmaRecipients(
+  sends: Array<{ asset: string; destination: string; quantity: bigint }>
+): Promise<MpmaRecipient[]> {
+  const unique = [...new Set(sends.map(s => s.asset))];
+  const divisibility = new Map<string, boolean | null>();
+
+  await Promise.all(
+    unique.map(async (asset) => {
+      const upper = asset.toUpperCase();
+      if (upper === 'XCP' || upper === 'BTC') {
+        divisibility.set(asset, true);
+        return;
+      }
+      const info = await fetchAssetDetails(asset).catch(() => null);
+      divisibility.set(asset, info ? info.divisible : null);
+    })
+  );
+
+  return sends.map((send) => {
+    const divisible = divisibility.get(send.asset);
+    return {
+      address: send.destination,
+      asset: send.asset,
+      // An unknown divisibility is labelled rather than guessed: rendering base units as a
+      // decimal (or the reverse) misstates the amount by eight orders of magnitude.
+      quantity:
+        divisible === true
+          ? fromSatoshis(send.quantity.toString())
+          : divisible === false
+            ? send.quantity.toLocaleString()
+            : `${send.quantity.toString()} base units`,
+    };
+  });
+}
+
+/** Headline for an mpma_send, built from {@link resolveMpmaRecipients}. */
+export function describeMpmaSend(recipients: MpmaRecipient[]): string {
+  if (recipients.length === 1) {
+    const only = recipients[0]!;
+    return `Send ${only.quantity} ${only.asset} to ${only.address}`;
+  }
+  return `Send to ${recipients.length} recipients`;
 }
 
 /**

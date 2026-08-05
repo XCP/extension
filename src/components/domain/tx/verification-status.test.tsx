@@ -1,7 +1,8 @@
 /**
- * The distinction under test is the point of the component: passing a comparison and having no
- * comparison to pass are different facts, and only the first justifies telling the user that no
- * tampering was detected.
+ * The component's whole job is restraint. Earlier versions announced what the checks had done —
+ * what was compared, what was rebuilt — which is machinery a person cannot act on and most people
+ * cannot read, and a reassurance shown on every screen is what teaches someone to approve without
+ * looking. It now speaks only when something is actually wrong.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -9,16 +10,9 @@ import { describe, expect, it } from 'vitest';
 import { VerificationStatus } from './verification-status';
 
 describe('VerificationStatus', () => {
-  it('claims no tampering only when a comparison actually happened', () => {
-    render(<VerificationStatus passed comparedAgainstApi />);
-    expect(screen.getByText(/no tampering detected/i)).toBeInTheDocument();
-  });
-
-  it('does not claim verification when there was nothing to compare against', () => {
-    render(<VerificationStatus passed comparedAgainstApi={false} />);
-
-    expect(screen.queryByText(/no tampering detected/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/nothing to compare/i)).toBeInTheDocument();
+  it('stays silent when nothing is wrong', () => {
+    const { container } = render(<VerificationStatus passed />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when verification was not attempted', () => {
@@ -38,5 +32,13 @@ describe('VerificationStatus', () => {
 
     expect(screen.getByText(/verification warning/i)).toBeInTheDocument();
     expect(screen.queryByText(/signing blocked/i)).not.toBeInTheDocument();
+  });
+
+  it('never claims verification, in any state', () => {
+    // The old copy promised "no tampering detected", which none of these checks can establish.
+    for (const props of [{ passed: true }, { passed: undefined }]) {
+      const { container } = render(<VerificationStatus {...props} />);
+      expect(container.textContent ?? '').not.toMatch(/tampering|verified/i);
+    }
   });
 });

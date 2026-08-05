@@ -324,6 +324,8 @@ export function FairminterForm({
                 showHelpText={showHelpText}
                 description="XCP required for each mint transaction."
               />
+              {/* Hidden field to indicate lot_price is always in XCP for normalization */}
+              <input type="hidden" name="lot_price_asset" value="XCP" />
             </>
           )}
           

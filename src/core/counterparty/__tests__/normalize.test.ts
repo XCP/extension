@@ -166,11 +166,30 @@ describe('normalize.ts', () => {
         expect(mockToSatoshis).not.toHaveBeenCalled();
         expect(result.normalizedData.mainchainrate).toBe('0.001');
       });
+
+      it('normalizes fairminter lot_price as XCP, not as the asset being minted', async () => {
+        // lot_price is denominated in XCP while every other fairminter quantity is denominated in
+        // the minted asset. It was absent from quantityFields entirely, so the figure reached the
+        // API as typed: core reads price as XCP base units, so '1' meant 0.00000001 XCP per mint
+        // and offered the whole supply for a hundred-millionth of the intended price. Byte
+        // equality could not catch it — the packer packs whatever the form produced.
+        const formData = new FormData();
+        formData.set('lot_price', '0.01');
+        formData.set('lot_price_asset', 'XCP');
+        formData.set('asset', 'MYTOKEN');
+
+        mockToSatoshis.mockReturnValue('1000000');
+
+        const result = await normalizeFormData(formData, 'fairminter');
+
+        expect(mockToSatoshis).toHaveBeenCalledWith('0.01');
+        expect(result.normalizedData.lot_price).toBe('1000000');
+      });
     });
 
     describe('Divisible asset normalization', () => {
       const mockDivisibleAsset: AssetInfo = {
-        asset: 'XCP',
+        asset: 'PEPECASH',
         asset_longname: null,
         divisible: true,
         locked: false,
@@ -180,28 +199,28 @@ describe('normalize.ts', () => {
       it('should normalize divisible asset amounts using toSatoshis', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         mockFetchAssetDetails.mockResolvedValue(mockDivisibleAsset);
         mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockFetchAssetDetails).toHaveBeenCalledWith('XCP');
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('PEPECASH');
         expect(mockToSatoshis).toHaveBeenCalledWith('1.5');
         expect(result.normalizedData.quantity).toBe('150000000');
-        expect(result.assetInfoCache.get('XCP')).toEqual(mockDivisibleAsset);
+        expect(result.assetInfoCache.get('PEPECASH')).toEqual(mockDivisibleAsset);
       });
 
       it('should handle multiple divisible assets in order', async () => {
         const formData = new FormData();
         formData.set('give_quantity', '2.5');
-        formData.set('give_asset', 'XCP');
+        formData.set('give_asset', 'PEPECASH');
         formData.set('get_quantity', '0.001');
-        formData.set('get_asset', 'PEPECASH');
+        formData.set('get_asset', 'BITCRYSTALS');
 
         const mockPepeCash: AssetInfo = {
-          asset: 'PEPECASH',
+          asset: 'BITCRYSTALS',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -218,8 +237,8 @@ describe('normalize.ts', () => {
 
         const result = await normalizeFormData(formData, 'order');
 
-        expect(mockFetchAssetDetails).toHaveBeenCalledWith('XCP');
         expect(mockFetchAssetDetails).toHaveBeenCalledWith('PEPECASH');
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('BITCRYSTALS');
         expect(result.normalizedData.give_quantity).toBe('250000000');
         expect(result.normalizedData.get_quantity).toBe('100000');
         expect(result.assetInfoCache.size).toBe(2);
@@ -227,7 +246,7 @@ describe('normalize.ts', () => {
 
       it('should normalize pool deposit asset quantities', async () => {
         const formData = new FormData();
-        formData.set('asset_a', 'XCP');
+        formData.set('asset_a', 'PEPECASH');
         formData.set('asset_b', 'POOLTEST');
         formData.set('quantity_a', '1.5');
         formData.set('quantity_b', '2');
@@ -251,7 +270,7 @@ describe('normalize.ts', () => {
 
         const result = await normalizeFormData(formData, 'pooldeposit');
 
-        expect(mockFetchAssetDetails).toHaveBeenCalledWith('XCP');
+        expect(mockFetchAssetDetails).toHaveBeenCalledWith('PEPECASH');
         expect(mockFetchAssetDetails).toHaveBeenCalledWith('POOLTEST');
         expect(result.normalizedData.quantity_a).toBe('150000000');
         expect(result.normalizedData.quantity_b).toBe('200000000');
@@ -317,7 +336,7 @@ describe('normalize.ts', () => {
         formData.set('get_asset', 'XCP');
 
         const mockDivisibleAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -397,7 +416,7 @@ describe('normalize.ts', () => {
       it('should skip normalization for undefined, null, or empty values', async () => {
         const formData = new FormData();
         formData.set('quantity', '');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -419,10 +438,10 @@ describe('normalize.ts', () => {
       it('should handle very large numbers', async () => {
         const formData = new FormData();
         formData.set('quantity', '999999999.99999999');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -441,10 +460,10 @@ describe('normalize.ts', () => {
       it('should handle zero values', async () => {
         const formData = new FormData();
         formData.set('quantity', '0');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -463,10 +482,10 @@ describe('normalize.ts', () => {
       it('should handle very small decimal numbers', async () => {
         const formData = new FormData();
         formData.set('quantity', '0.00000001');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -659,10 +678,10 @@ describe('normalize.ts', () => {
       it('should handle maximum precision for divisible assets', async () => {
         const formData = new FormData();
         formData.set('quantity', '0.99999999'); // 8 decimal places (max for divisible)
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -681,10 +700,10 @@ describe('normalize.ts', () => {
       it('should handle scientific notation in inputs', async () => {
         const formData = new FormData();
         formData.set('quantity', '1e-8'); // 0.00000001 in scientific notation
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: false,
@@ -726,10 +745,10 @@ describe('normalize.ts', () => {
       it('should handle XCP asset (historically important divisible asset)', async () => {
         const formData = new FormData();
         formData.set('quantity', '100.5');
-        formData.set('asset', 'XCP');
+        formData.set('asset', 'PEPECASH');
 
         const mockAsset: AssetInfo = {
-          asset: 'XCP',
+          asset: 'PEPECASH',
           asset_longname: null,
           divisible: true,
           locked: true,
@@ -742,7 +761,7 @@ describe('normalize.ts', () => {
         const result = await normalizeFormData(formData, 'send');
 
         expect(result.normalizedData.quantity).toBe('10050000000');
-        expect(result.assetInfoCache.get('XCP')).toEqual(mockAsset);
+        expect(result.assetInfoCache.get('PEPECASH')).toEqual(mockAsset);
       });
 
       it('should handle asset names with special characters', async () => {

@@ -74,7 +74,9 @@ function decodeCompactedSubasset(bytes: Uint8Array): string {
   // string and hang the popup's main thread for minutes. A real subasset longname is far under 255
   // bytes, so anything larger is malformed — throw, and the unpacker's caller treats it as a failed
   // decode (fail closed) rather than an ordinary transfer.
-  if (bytes.length > 255) {
+  // Core caps the compacted form at 200 bytes (utils/assetnames.py) and rejects anything longer,
+  // so 255 accepted names core voids.
+  if (bytes.length > 200) {
     throw new Error(`Subasset name too long: ${bytes.length} bytes`);
   }
 
@@ -202,32 +204,39 @@ export function unpackIssuance(payload: Uint8Array, messageTypeId: number): Issu
   const isSubasset = messageTypeId === MessageTypeId.SUBASSET_ISSUANCE ||
                      messageTypeId === MessageTypeId.LR_SUBASSET;
 
-  // Check for lock/reset format (ID 22 or 23)
-  const isLockReset = messageTypeId === MessageTypeId.LR_ISSUANCE ||
-                      messageTypeId === MessageTypeId.LR_SUBASSET;
+  // Mainnet's legacy serialization has been ">QQ???" (19 bytes: asset_id, quantity, divisible,
+  // lock, reset) for standard issuances and ">QQ???B" (20 bytes, name length last) for subassets
+  // since block 753500 — protocol_changes.json issuance_asset_serialization_format /
+  // issuance_subasset_serialization_format. The callable/call_date/call_price triple belongs to
+  // the pre-753500 ">QQ??If" format and has not been on the wire for years.
+  //
+  // Reading the old shape here consumed lock and reset plus the first seven bytes of the
+  // description as call fields, so the description was truncated and the call values were
+  // invented from unrelated bytes. lock and reset were taken from the message type id instead of
+  // from the wire, which is wrong in both directions: a type 20 carrying lock=1 reported false,
+  // and a type 22 carrying lock=0 reported true. For subassets the name-length byte was read at
+  // offset 17 — the lock byte — rather than at 19.
+  const lockByte = reader.remaining > 0 ? reader.readUint8() : 0;
+  const resetByte = reader.remaining > 0 ? reader.readUint8() : 0;
+  result.isLock = lockByte !== 0;
+  result.isReset = resetByte !== 0;
 
-  result.isLock = isLockReset;
-  result.isReset = isLockReset;
-
-  if (isSubasset && reader.remaining > 0) {
-    // Read subasset compacted name length
+  if (isSubasset) {
+    // Length of the compacted name, then the name itself. Core treats a length that overruns the
+    // payload as invalid (description_length < 0 raises UnpackError), so it is refused here too
+    // rather than silently skipped.
+    if (reader.remaining < 1) {
+      throw new Error('Subasset issuance missing compacted name length');
+    }
     const compactedLength = reader.readUint8();
-    if (compactedLength > 0 && reader.remaining >= compactedLength) {
+    if (compactedLength > reader.remaining) {
+      throw new Error(
+        `Subasset compacted name length ${compactedLength} exceeds ${reader.remaining} remaining bytes`
+      );
+    }
+    if (compactedLength > 0) {
       const compactedBytes = reader.readBytes(compactedLength);
       result.subassetLongname = decodeCompactedSubasset(compactedBytes);
-    }
-  } else if (!isSubasset && reader.remaining > 0) {
-    // Try to read callable fields (FORMAT_2)
-    // callable (1 byte), call_date (4 bytes), call_price (4 bytes float)
-    if (reader.remaining >= 9) {
-      const callableByte = reader.readUint8();
-      result.callable = callableByte !== 0;
-      result.callDate = reader.readUint32BE();
-
-      // Read call_price as 4-byte float
-      const callPriceBytes = reader.readBytes(4);
-      const view = new DataView(callPriceBytes.buffer, callPriceBytes.byteOffset, 4);
-      result.callPrice = view.getFloat32(0, false); // big-endian
     }
   }
 

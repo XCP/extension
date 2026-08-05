@@ -4,6 +4,7 @@
  * Drop-in replacement for axios with compatible API
  */
 
+import { parseJsonLossless } from '@/core/api/losslessJson';
 import { emitApiStatus, getStatusTypeFromCode } from '@/core/api/status';
 
 /**
@@ -171,7 +172,11 @@ async function fetchWithTimeout<T>(
 
     if (contentType?.includes('application/json')) {
       try {
-        data = await response.json();
+        // Not response.json(): JSON.parse rounds any integer above 2^53-1 while parsing, so a
+        // 64-bit Counterparty quantity loses digits before application code sees it and no
+        // BigNumber discipline downstream can recover them. Oversized integers arrive as strings,
+        // which numeric.ts handles exactly. See losslessJson.ts.
+        data = parseJsonLossless<T>(await response.text());
       } catch {
         // Wrap JSON parse errors with generic message to avoid leaking response details
         throw createApiError('Failed to parse API response as JSON', 'NETWORK_ERROR');

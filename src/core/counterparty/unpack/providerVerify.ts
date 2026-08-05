@@ -24,6 +24,7 @@ import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SendData } from '@/core/counterparty/unpack/messages/send';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
+import { proveByRepack } from '@/core/counterparty/unpack/repackVerify';
 
 /**
  * API-decoded Counterparty message (from decodeCounterpartyMessage)
@@ -50,6 +51,13 @@ export interface ProviderVerificationResult {
    * overstates it precisely when the least checking occurred, so the display distinguishes the two.
    */
   comparedAgainstApi: boolean;
+  /**
+   * Whether the decode was rebuilt into the exact payload being signed.
+   *
+   * A stronger and more relevant claim than the API comparison above, which reads the same bytes
+   * from a second decoder and so can only vouch for this project's unpacker. See repackVerify.ts.
+   */
+  repackProved: boolean;
   /** Warning message if verification failed or had issues */
   warning?: string;
   /** Detailed list of mismatches found */
@@ -332,23 +340,36 @@ function verifyIssuance(
 /**
  * Verify an MPMA send message
  */
+/**
+ * Returns null when the API payload offers nothing to compare against, which is different from
+ * comparing and finding nothing wrong. Previously both cases returned an empty mismatch list, so
+ * an mpma_send that was never checked reported the same "no tampering detected" as one that
+ * passed every field.
+ */
 function verifyMPMA(
   local: MPMAData,
   api: Record<string, unknown>
-): string[] {
+): string[] | null {
   const mismatches: string[] = [];
 
-  // API may return sends as an array
-  const apiSends = getApiValue(api, 'sends', 'destinations') as Array<Record<string, unknown>> | undefined;
+  // `/v2/transactions/unpack` returns mpma_send message_data as a bare array of sends rather than
+  // an object, so the keyed lookup finds nothing; an array is still read here for API shapes that
+  // do wrap it.
+  const apiSends = (Array.isArray(api)
+    ? api
+    : getApiValue(api, 'sends', 'destinations')) as Array<Record<string, unknown>> | undefined;
 
-  if (!apiSends || !Array.isArray(apiSends)) {
-    // Can't verify individual sends without API data
-    return mismatches;
+  if (!apiSends || !Array.isArray(apiSends) || apiSends.length === 0) {
+    return null;
   }
 
+  // The endpoint returns exactly one send no matter how many the message carries — a two-send and
+  // a three-send MPMA both come back with the first send alone. Treating that as a count mismatch
+  // would block every legitimate multi-destination send, so a short list is reported as "nothing
+  // compared" rather than as tampering. The API can only ever add confidence here: the recipients
+  // on screen are read from the bytes, not from this response.
   if (local.sends.length !== apiSends.length) {
-    mismatches.push(`Send count: local=${local.sends.length}, API=${apiSends.length}`);
-    return mismatches;
+    return null;
   }
 
   // Verify each send
@@ -569,6 +590,13 @@ function verifyPoolDeposit(
     mismatches.push(`Min LP quantity: local=${local.minLpQuantity}, API=${apiMinLp}`);
   }
 
+  // The LP asset decides which token the deposit pays out, so leaving it uncompared meant the one
+  // field naming what you receive was the one field never checked.
+  const apiLpAsset = getApiValue(api, 'lp_asset', 'lpAsset') as string | undefined;
+  if (apiLpAsset && local.lpAsset && !assetsEqual(local.lpAsset, apiLpAsset)) {
+    mismatches.push(`LP asset: local="${local.lpAsset}", API="${apiLpAsset}"`);
+  }
+
   return mismatches;
 }
 
@@ -621,6 +649,7 @@ export function verifyProviderTransaction(
     return {
       passed: undefined,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       warning: undefined,
     };
@@ -634,6 +663,7 @@ export function verifyProviderTransaction(
     return {
       passed: false,
       comparedAgainstApi: false,
+      repackProved: false,
       warning: localUnpack.error || 'Failed to unpack transaction locally',
       mismatches: ['Local unpack failed'],
       localUnpack,
@@ -646,6 +676,7 @@ export function verifyProviderTransaction(
     return {
       passed: true,
       comparedAgainstApi: false,
+      repackProved: false,
       mismatches: [],
       localUnpack,
     };
@@ -713,9 +744,15 @@ export function verifyProviderTransaction(
       mismatches.push(...verifyIssuance(localUnpack.data as IssuanceData, apiData));
       break;
 
-    case 'mpma_send':
-      mismatches.push(...verifyMPMA(localUnpack.data as MPMAData, apiData));
+    case 'mpma_send': {
+      const mpmaMismatches = verifyMPMA(localUnpack.data as MPMAData, apiData);
+      if (mpmaMismatches === null) {
+        payloadCompared = false;
+      } else {
+        mismatches.push(...mpmaMismatches);
+      }
       break;
+    }
 
     case 'btcpay':
       mismatches.push(...verifyBTCPay(localUnpack.data as BTCPayData, apiData));
@@ -769,9 +806,15 @@ export function verifyProviderTransaction(
 
   const passed = mismatches.length === 0;
 
+  // Independent of everything above: rebuild the decode into bytes and compare with the payload.
+  // Needs no network and cannot be swayed by any remote party, so it holds even when the API
+  // decode is missing entirely.
+  const repack = proveByRepack(localUnpack.messageType, localUnpack.data, opReturnData);
+
   return {
     passed,
     comparedAgainstApi: payloadCompared,
+    repackProved: repack.proved,
     warning: passed ? undefined : `Verification failed: ${mismatches.join('; ')}`,
     mismatches,
     localUnpack,

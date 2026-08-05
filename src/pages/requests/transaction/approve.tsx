@@ -37,10 +37,14 @@ type TxActionData =
       giveAsset: string;
       getAmount: string;
       getAsset: string;
-      /** Normalized give quantity (for price ratio formatting) */
-      normalizedGive: number;
-      /** Normalized get quantity (for price ratio formatting) */
-      normalizedGet: number;
+      /**
+       * Give/get quantities in display units, for the price ratio — or null when divisibility
+       * could not be established for both assets, in which case no ratio is shown. A ratio of raw
+       * base units is wrong by 1e8 for a mixed-divisibility pair, and silently right for a
+       * matched one, which is what hid it.
+       */
+      normalizedGive: number | null;
+      normalizedGet: number | null;
       expiration: number;
     }
   | { type: 'fallback'; label: string; description: string }
@@ -50,6 +54,20 @@ type TxActionData =
  * Extract structured action data for visual rendering.
  * Returns typed discriminated union per message type.
  */
+/**
+ * Split a trailing address off a headline so the two can be set differently.
+ *
+ * Deliberately anchored to the end and to address shapes: only the destination a send, sweep or
+ * UTXO move ends with should be pulled out. A description with no trailing address comes back
+ * whole, so every other message type renders exactly as before.
+ */
+function splitTrailingAddress(description: string): { sentence: string; address?: string } {
+  const match = description.match(
+    /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
+  );
+  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
+}
+
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
   // --- Try API message first (for 'order') ---
   if (decodedInfo.counterpartyMessage) {
@@ -99,14 +117,29 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
     const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
     const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
 
+    /** 1e8 for a known-divisible asset, 1 for a known-indivisible one, null when unknown. */
+    const divisorFor = (asset: string): number | null => {
+      const divisible = isAssetDivisible(asset);
+      return divisible === undefined ? null : divisible ? 1e8 : 1;
+    };
+    const localGiveDivisor = divisorFor(data.giveAsset);
+    const localGetDivisor = divisorFor(data.getAsset);
+
     return {
       type: 'order',
       giveAmount,
       giveAsset: data.giveAsset,
       getAmount,
       getAsset: data.getAsset,
-      normalizedGive: Number(data.giveQuantity),
-      normalizedGet: Number(data.getQuantity),
+      // Divisibility is not available on this path — the local unpack carries asset names, not
+      // asset_info — so it can only be established for BTC and XCP. Rather than dividing by a
+      // guess, the ratio is withheld unless both sides are known.
+      normalizedGive: localGiveDivisor === null
+        ? null
+        : Number(data.giveQuantity) / localGiveDivisor,
+      normalizedGet: localGetDivisor === null
+        ? null
+        : Number(data.getQuantity) / localGetDivisor,
       expiration: data.expiration,
     };
   }
@@ -205,9 +238,16 @@ export default function ApproveTransactionPage() {
   const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
-  const verificationComparedAgainstApi = decodedInfo.verification?.comparedAgainstApi ?? false;
+  const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
-  const verificationFailed = verificationPassed === false;
+  // A disagreement with the decode API is only grounds to stop when we cannot vouch for the bytes
+  // ourselves. Once the rebuild has reproduced the payload exactly, our reading of it is provably
+  // complete, so an API that reports something different is the one that is wrong — and under
+  // ADR-019 that endpoint is untrusted and user-configurable, which means letting it veto a
+  // signature hands an untrusted party a way to block transactions that are demonstrably fine.
+  // This is not hypothetical: until the JSON boundary was fixed, every quantity above 2^53 was
+  // rounded on arrival and blocked signing over a disagreement our own parsing had manufactured.
+  const verificationFailed = verificationPassed === false && !verificationRepackProved;
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
@@ -311,13 +351,15 @@ export default function ApproveTransactionPage() {
                     className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
                     title="Click to flip price"
                   >
-                    {formatPriceRatio(
-                      txAction.normalizedGive,
-                      txAction.normalizedGet,
-                      txAction.giveAsset,
-                      txAction.getAsset,
-                      priceFlipped,
-                    )}
+                    {txAction.normalizedGive === null || txAction.normalizedGet === null
+                      ? 'Price unavailable'
+                      : formatPriceRatio(
+                          txAction.normalizedGive,
+                          txAction.normalizedGet,
+                          txAction.giveAsset,
+                          txAction.getAsset,
+                          priceFlipped,
+                        )}
                   </button>
                 </div>
 
@@ -341,7 +383,29 @@ export default function ApproveTransactionPage() {
               /* Counterparty action — flat label + description */
               <div className="text-center mb-3">
                 <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
+                {(() => {
+                  // A send or sweep headline ends in an address: a long, unbreakable token that
+                  // set in 18px bold ran to three lines and dominated the card, shouting the
+                  // least readable part of the sentence. It is split off and set like the
+                  // outputs list — smaller, monospace, not bold — so the sentence carries the
+                  // weight and the address stays scannable.
+                  //
+                  // It is still shown whole and allowed to wrap. Truncating here would repeat
+                  // the lookalike-grinding problem the outputs list deliberately avoids, and for
+                  // an enhanced send the destination lives in the payload, so this headline is
+                  // the only place it appears at all.
+                  const { sentence, address } = splitTrailingAddress(txAction.description);
+                  return (
+                    <>
+                      <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                      {address && (
+                        <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
+                          {address}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             ) : null}
             <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
@@ -432,6 +496,46 @@ export default function ApproveTransactionPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Recipients of a multi-destination send. These live in the Counterparty
+                      payload rather than in BTC outputs, so the outputs list above cannot show
+                      them and this is the only place they appear. Addresses are shown in full for
+                      the same reason as the outputs above. */}
+                  {decodedInfo.mpmaRecipients.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                        Recipients ({decodedInfo.mpmaRecipients.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {decodedInfo.mpmaRecipients.map((recipient, idx) => (
+                          <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-gray-600 truncate">{recipient.asset}</span>
+                              <span className="text-gray-900 font-medium flex-shrink-0">
+                                {recipient.quantity}
+                              </span>
+                            </div>
+                            <div className="text-gray-500 break-all font-mono" title={recipient.address}>
+                              {recipient.address}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* The outcome of the local checks, in plain words and only for someone who
+                      opened this panel. It stays off the main screen because a person cannot act
+                      on it and a permanent reassurance there would only teach them to stop
+                      reading. */}
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
+                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
+                      {verificationRepackProved
+                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
+                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
+                    </div>
+                  </div>
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
@@ -439,8 +543,7 @@ export default function ApproveTransactionPage() {
 
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
-            passed={verificationPassed}
-            comparedAgainstApi={verificationComparedAgainstApi}
+            passed={verificationRepackProved ? true : verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />

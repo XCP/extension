@@ -71,6 +71,19 @@ const DANGEROUS_MESSAGE_TYPES = new Set([
 ]);
 
 /**
+ * Types that move everything they touch, so the amount is not stated in the message.
+ *
+ * `detach` credits EVERY balance on the source UTXO to the destination (core detach.py iterates
+ * `get_utxo_balances` and debits each one), which is sweep semantics scoped to a UTXO. It sat in
+ * the safe list, so a message that empties a UTXO to an address of the sender's choosing raised
+ * nothing at all — while `sweep`, the same idea at address scope, is blocked outright. Blocking is
+ * too strong here because the scope is one UTXO and a detach with no valid destination simply
+ * credits back to the UTXO's own address; a warning that names the destination is the right
+ * treatment.
+ */
+const MOVES_EVERYTHING_MESSAGE_TYPES = new Set(['detach']);
+
+/**
  * Message types considered safe/normal for provider signing.
  */
 const SAFE_MESSAGE_TYPES = new Set([
@@ -88,9 +101,7 @@ const SAFE_MESSAGE_TYPES = new Set([
   'fairmint',
   'dividend',
   'broadcast',
-  'bet',
   'attach',
-  'detach',
   'mpma_send',
   'btcpay',
   'pooldeposit',
@@ -151,6 +162,14 @@ export function analyzeTransactionSafety(
         message:
           'This transaction permanently destroys assets. This action is irreversible. ' +
           'Make sure you understand exactly what is being destroyed.',
+      });
+    } else if (MOVES_EVERYTHING_MESSAGE_TYPES.has(messageType)) {
+      warnings.push({
+        severity: 'warning',
+        title: 'Moves Everything on the UTXO',
+        message:
+          'Detaching transfers every asset attached to this UTXO, not a stated amount. ' +
+          'Check the destination in the transaction details before signing.',
       });
     } else if (!SAFE_MESSAGE_TYPES.has(messageType)) {
       warnings.push({

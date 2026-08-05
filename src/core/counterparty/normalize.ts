@@ -94,10 +94,18 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   fairminter: {
-    quantityFields: ['premint_quantity', 'lot_size', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap'],
+    // lot_price is priced in XCP, not in the asset being minted, so it takes its divisibility
+    // from a hidden form field the way mainchainrate takes BTC above. Leaving it out of this list
+    // entirely — which it was — sent the user's figure through untouched: core reads `price` as
+    // XCP base units (messages/fairmint.py computes quantity / quantity_by_price * price against
+    // a base-unit balance), so "1" composed a price of 0.00000001 XCP and offered the whole
+    // supply for a hundred-millionth of what was intended. Byte-equality verification cannot
+    // catch this, because the packer packs the same wrong number the form produced.
+    quantityFields: ['premint_quantity', 'lot_size', 'lot_price', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap'],
     assetFields: {
       premint_quantity: 'asset',
       lot_size: 'asset',
+      lot_price: 'lot_price_asset',  // hidden form field with value 'XCP'
       max_mint_per_tx: 'asset',
       max_mint_per_address: 'asset',
       hard_cap: 'asset',
@@ -288,8 +296,10 @@ export async function normalizeFormData(
       continue;
     }
     
-    // Skip normalization for BTC (always divisible)
-    if (assetName === 'BTC') {
+    // BTC and XCP are divisible by protocol definition, so their divisibility is not a fact to
+    // look up — the MPMA branch above already treats both that way. Requiring a lookup for XCP
+    // would also make a fairminter's lot_price depend on a network call to learn something fixed.
+    if (assetName === 'BTC' || assetName === 'XCP') {
       normalizedData[quantityField] = toSatoshis(value.toString());
       continue;
     }

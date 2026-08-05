@@ -9,6 +9,7 @@
 
 import { apiClient } from '@/core/api/client';
 import { CounterpartyApiError } from '@/core/errors';
+import { toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
 // =============================================================================
@@ -118,6 +119,16 @@ export type DispenserStatusType = (typeof DispenserStatus)[keyof typeof Dispense
 // TYPES - Generic
 // =============================================================================
 
+/**
+ * An integer field the API may return above JavaScript's safe range.
+ *
+ * Counterparty quantities are unsigned 64-bit. Values above 2^53-1 arrive as strings so that no
+ * digits are lost in parsing (see core/api/losslessJson.ts); smaller ones stay numbers. Pass these
+ * to numeric.ts — toBigNumber and fromSatoshis accept either and are exact with both — rather than
+ * doing arithmetic on them directly, where a string would concatenate instead of add.
+ */
+export type ApiQuantity = number | string;
+
 export interface PaginatedResponse<T> {
   result: T[];
   result_count: number;
@@ -161,7 +172,7 @@ export interface TokenBalance {
     locked: boolean;
     supply?: number | string;
   };
-  quantity?: number;
+  quantity?: ApiQuantity;
   quantity_normalized: string;
   address?: string | null;
   utxo?: string | null;
@@ -201,8 +212,8 @@ export interface Order {
 
 export interface OrderDetails extends Order {
   source: string;
-  give_quantity: number;
-  get_quantity: number;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
   fee_required: number;
   fee_provided: number;
   fee_required_remaining: number;
@@ -281,7 +292,7 @@ export interface Pool {
 }
 
 export interface PoolPosition extends Pool {
-  quantity: number;
+  quantity: ApiQuantity;
   quantity_normalized?: string;
 }
 
@@ -290,7 +301,7 @@ export interface PoolQuote {
   pool_output?: number;
   book_output?: number;
   book_orders_matched?: number;
-  give_remaining?: number;
+  give_remaining?: ApiQuantity;
   effective_price?: number;
   price_impact?: number;
   pool_exists?: boolean;
@@ -315,8 +326,8 @@ export interface PoolWithdrawQuote {
   pool_exists: boolean;
   asset_a?: string;
   asset_b?: string;
-  quantity?: number;
-  supply?: number;
+  quantity?: ApiQuantity;
+  supply?: ApiQuantity;
   quantity_a_estimate?: number;
   quantity_b_estimate?: number;
   reserve_a?: number;
@@ -334,7 +345,7 @@ export interface Dispenser {
   source: string;
   asset: string;
   status: number;
-  give_remaining: number;
+  give_remaining: ApiQuantity;
   give_remaining_normalized: string;
   asset_info?: {
     asset_longname: string | null;
@@ -346,16 +357,16 @@ export interface Dispenser {
 }
 
 export interface DispenserDetails extends Dispenser {
-  give_quantity: number;
+  give_quantity: ApiQuantity;
   give_quantity_normalized: string;
-  satoshirate: number;
+  satoshirate: ApiQuantity;
   satoshirate_normalized: string;
-  escrow_quantity: number;
+  escrow_quantity: ApiQuantity;
   escrow_quantity_normalized: string;
   block_index: number;
   block_time: number;
   confirmed?: boolean;
-  price: number;
+  price: ApiQuantity;
   satoshi_price: number;
 }
 
@@ -423,7 +434,7 @@ export interface Dividend {
   source: string;
   asset: string;
   dividend_asset: string;
-  quantity_per_unit: number;
+  quantity_per_unit: ApiQuantity;
   quantity_per_unit_normalized: string;
   total_distributed: number;
   total_distributed_normalized: string;
@@ -591,11 +602,14 @@ export async function fetchTokenBalance(
 
   return {
     asset,
-    quantity: balances.reduce((sum, b) => sum + (b.quantity || 0), 0),
-    quantity_normalized: balances.reduce((sum, b) => {
-      const val = parseFloat(b.quantity_normalized);
-      return sum + (Number.isNaN(val) ? 0 : val);
-    }, 0).toString(),
+    // Summed as BigNumber and kept as a string: these are 64-bit asset quantities, and adding
+    // them as doubles loses digits for exactly the large balances where the total matters most.
+    quantity: balances
+      .reduce((sum, b) => sum.plus(toBigNumber(b.quantity ?? 0)), toBigNumber(0))
+      .toFixed(0),
+    quantity_normalized: balances
+      .reduce((sum, b) => sum.plus(toBigNumber(b.quantity_normalized)), toBigNumber(0))
+      .toString(),
     asset_info: balances[0]!.asset_info,
   };
 }

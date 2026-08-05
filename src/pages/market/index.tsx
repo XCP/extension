@@ -427,7 +427,7 @@ export default function MarketPage(): ReactElement {
                             <MarketDispenserCard
                               key={d.tx_hash}
                               dispenser={d}
-                              formattedPrice={formatPrice(d.satoshirate, settings.priceUnit, btc, settings.fiat)}
+                              formattedPrice={formatPrice(Number(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
                               onClick={() => handleDispenserClick(d)}
                             />
                           ))}
@@ -455,7 +455,7 @@ export default function MarketPage(): ReactElement {
                           <MarketDispenserCard
                             key={d.tx_hash}
                             dispenser={d}
-                            formattedPrice={formatPrice(d.satoshirate, settings.priceUnit, btc, settings.fiat)}
+                            formattedPrice={formatPrice(Number(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
                             onClick={() => handleDispenserClick(d)}
                           />
                         ))}

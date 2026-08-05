@@ -130,15 +130,21 @@ export function ReviewDispense({
   if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
     // Calculate what will be received from all dispensers
     const receivedAssets = allTriggeredDispensers.map(dispenser => {
-      const isDivisible = dispenser.asset_info?.divisible ?? false;
+      // `?? false` treated an unresolved asset as indivisible, overstating "You Receive" by 1e8
+      // for a divisible one. asset_info is normally present (these are verbose lookups); when it
+      // is not, the amount is unknowable rather than assumable, so it is omitted below.
+      const isDivisible = dispenser.asset_info?.divisible;
       const satoshirate = dispenser.satoshirate || 0;
       const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
       // For divisible assets, give_quantity is in satoshis; for indivisible, it's the raw count
+      const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
+      if (isDivisible === undefined) {
+        return `Amount unavailable (${assetName})`;
+      }
       const giveQuantity = isDivisible
         ? fromSatoshis(dispenser.give_quantity || 0, true)
         : (dispenser.give_quantity || 0);
       const totalReceived = giveQuantity * numberOfDispenses;
-      const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
 
       return `${formatAmount({
         value: totalReceived,

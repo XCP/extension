@@ -396,17 +396,21 @@ describe('Counterparty-Core Compatibility', () => {
       const assetId = '0000000000000001'; // Would be invalid for issuance, but testing format
       const quantity = '0000000005f5e100';
       const divisible = '01';
-      // Legacy format has callable (1), call_date (4), call_price (4) before description
-      const callable = '00';
-      const callDate = '00000000';
-      const callPrice = '00000000';
+      // Mainnet serialization is ">QQ???" — asset_id, quantity, divisible, lock, reset — since
+      // block 753500 (protocol_changes.json issuance_asset_serialization_format). This case
+      // previously encoded the superseded ">QQ??If" layout with callable/call_date/call_price,
+      // which pinned a shape core stopped writing in 2022 and kept the decoder wrong.
+      const lock = '00';
+      const reset = '00';
       const description = Buffer.from('My Token').toString('hex');
 
-      const payload = hexToBytes(assetId + quantity + divisible + callable + callDate + callPrice + description);
+      const payload = hexToBytes(assetId + quantity + divisible + lock + reset + description);
 
       const result = unpackIssuance(payload, MessageTypeId.ISSUANCE);
 
       expect(result.divisible).toBe(true);
+      expect(result.isLock).toBe(false);
+      expect(result.isReset).toBe(false);
       expect(result.description).toBe('My Token');
     });
   });
