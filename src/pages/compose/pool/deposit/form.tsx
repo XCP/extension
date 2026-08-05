@@ -1,6 +1,7 @@
 import { Description, Field } from "@headlessui/react";
 import { type ReactElement, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AssetNameInput } from "@/components/domain/asset/asset-name-input";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
@@ -48,6 +49,7 @@ export function PoolDepositForm({
 }: PoolDepositFormProps): ReactElement {
   const { activeAddress, showHelpText, feeRate, settings } = useComposer<PoolDepositOptions>();
   const { pending } = useFormStatus();
+  const navigate = useNavigate();
   const [assetA, setAssetA] = useState(initialFormData?.asset_a || initialAssetA || "XCP");
   const [assetB, setAssetB] = useState(initialFormData?.asset_b || initialAssetB || "");
   const [quantityA, setQuantityA] = useState(initialFormData?.quantity_a?.toString() || "");
@@ -153,176 +155,194 @@ export function PoolDepositForm({
     formAction(formData);
   };
 
-  if (showSettings) {
-    return (
-      <PoolSlippageSettings
-        value={slippage}
-        onChange={setSlippage}
-        onBack={() => setShowSettings(false)}
-        showHelpText={showHelpText}
-      />
-    );
-  }
-
   return (
-    <ComposerForm
-      formAction={handleFormAction}
-      header={
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            {pool ? (
-              <PoolHeader pool={pool} className="mt-1 mb-5" />
-            ) : assetABalanceHeader ? (
-              <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
-            ) : null}
-          </div>
+    <div className="space-y-4">
+      {pool ? (
+        <PoolHeader pool={pool} className="mt-1 mb-5" />
+      ) : assetABalanceHeader ? (
+        <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
+      ) : null}
+      {/* Deposit/Withdraw tabs with the settings cog, mirroring the DEX order form */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="flex space-x-4">
           <button
             type="button"
-            onClick={() => setShowSettings(true)}
-            aria-label="Pool settings"
-            className="mt-1 shrink-0 p-2 rounded-full hover:bg-gray-100 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded underline"
+            onClick={() => setShowSettings(false)}
           >
-            <FaCog className="size-4 text-gray-600" aria-hidden="true" />
+            Deposit
+          </button>
+          <button
+            type="button"
+            disabled={!pool?.lp_asset}
+            onClick={() => pool?.lp_asset && navigate(`/compose/pool/withdraw/${encodeURIComponent(pool.lp_asset)}`)}
+            className={`text-lg font-semibold bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded ${
+              pool?.lp_asset ? "cursor-pointer" : "text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            Withdraw
           </button>
         </div>
-      }
-      submitText="Review Deposit"
-      submitDisabled={pending || submitDisabled}
-    >
-      {localError && <ErrorAlert message={localError} onClose={() => setLocalError(null)} />}
+        <button
+          type="button"
+          onClick={() => setShowSettings(!showSettings)}
+          aria-label="Pool Settings"
+          className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            showSettings ? "bg-gray-100" : ""
+          }`}
+        >
+          <FaCog className="size-4 text-gray-600" aria-hidden="true" />
+        </button>
+      </div>
+      {showSettings ? (
+        <PoolSlippageSettings
+          value={slippage}
+          onChange={setSlippage}
+          onBack={() => setShowSettings(false)}
+          showHelpText={showHelpText}
+        />
+      ) : (
+        <ComposerForm
+          formAction={handleFormAction}
+          submitText="Review Deposit"
+          submitDisabled={pending || submitDisabled}
+        >
+          {localError && <ErrorAlert message={localError} onClose={() => setLocalError(null)} />}
 
-      <AssetSelectInput
-        selectedAsset={assetA}
-        onChange={setAssetA}
-        label="Asset A"
-        required
-        showHelpText={showHelpText}
-      />
-
-      <AmountWithMaxInput
-        asset={assetA}
-        availableBalance={assetADetails?.availableBalance || "0"}
-        value={quantityA}
-        onChange={setQuantityA}
-        feeRate={feeRate}
-        setError={setLocalError}
-        showHelpText={showHelpText}
-        sourceAddress={activeAddress}
-        maxAmount={assetADetails?.availableBalance || "0"}
-        label="Amount"
-        name="quantity_a_display"
-        disabled={pending || !assetA}
-        isDivisible={isAssetADivisible}
-      />
-
-      <AssetSelectInput
-        selectedAsset={assetB}
-        onChange={setAssetB}
-        label="Asset B"
-        required
-        showHelpText={showHelpText}
-      />
-
-      <AmountWithMaxInput
-        asset={assetB}
-        availableBalance={assetBDetails?.availableBalance || "0"}
-        value={quantityB}
-        onChange={setQuantityB}
-        feeRate={feeRate}
-        setError={setLocalError}
-        showHelpText={showHelpText}
-        sourceAddress={activeAddress}
-        maxAmount={assetBDetails?.availableBalance || "0"}
-        label="Amount"
-        name="quantity_b_display"
-        disabled={pending || !assetB}
-        isDivisible={isAssetBDivisible}
-        labelRight={
-          partnerQuantity && !isFirstDeposit ? (
-            <button
-              type="button"
-              className="text-xs text-blue-600 hover:text-blue-800"
-              onClick={() => setQuantityB(partnerQuantity.toString())}
-            >
-              Use quote
-            </button>
-          ) : null
-        }
-      />
-
-      {isLoadingQuote && (
-        <p className="text-sm text-gray-500">Loading pool quote...</p>
-      )}
-
-      {quoteError && (
-        <ErrorAlert message={quoteError} />
-      )}
-
-      {quote?.message && (
-        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-          {quote.message}
-        </div>
-      )}
-
-      {partnerQuantity && !isFirstDeposit && (
-        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-          Quoted partner amount: {partnerQuantity.toString()} {assetB}
-        </div>
-      )}
-
-      {partnerQuantity && !isFirstDeposit && !partnerQuantityMatches && (
-        <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-          {partnerQuantityIsHigh
-            ? "Only the pool-ratio amount will be deposited; extra is left unused."
-            : partnerQuantityIsLow
-              ? "This deposits less than the quoted ratio allows."
-              : "Pool deposits use the current pool ratio."}
-        </div>
-      )}
-
-      {isZeroSupplyRestart && (
-        <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-          LP supply is zero. This deposit restarts the pool and may claim existing reserves.
-        </div>
-      )}
-
-      {hasLpMinimum && (
-        <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-          Minimum LP tokens:{" "}
-          <span className="font-medium text-gray-900">
-            {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
-          </span>{" "}
-          after {slippage || "0"}% slippage.
-        </div>
-      )}
-
-      {isNewPool && (
-        <Field>
-          <AssetNameInput
-            value={lpAsset}
-            onChange={setLpAsset}
-            onValidationChange={setIsLpAssetValid}
-            label="LP Asset"
-            required={false}
-            showRandomNumeric
+          <AssetSelectInput
+            selectedAsset={assetA}
+            onChange={setAssetA}
+            label="Asset A"
+            required
             showHelpText={showHelpText}
-            helpText="Optional. Leave blank to auto-generate the LP asset."
           />
-          {showHelpText && (
-            <Description className="mt-2 text-sm text-gray-500">
-              The LP asset represents your share of the pool.
-            </Description>
-          )}
-        </Field>
-      )}
 
-      <input type="hidden" name="asset_a" value={assetA} />
-      <input type="hidden" name="asset_b" value={assetB} />
-      <input type="hidden" name="quantity_a" value={quantityA} />
-      <input type="hidden" name="quantity_b" value={quantityB} />
-      <input type="hidden" name="min_lp_quantity" value={minLpQuantity} />
-      <input type="hidden" name="slippage" value={slippage} />
-      {lpAsset && <input type="hidden" name="lp_asset" value={lpAsset} />}
-    </ComposerForm>
+          <AmountWithMaxInput
+            asset={assetA}
+            availableBalance={assetADetails?.availableBalance || "0"}
+            value={quantityA}
+            onChange={setQuantityA}
+            feeRate={feeRate}
+            setError={setLocalError}
+            showHelpText={showHelpText}
+            sourceAddress={activeAddress}
+            maxAmount={assetADetails?.availableBalance || "0"}
+            label="Amount"
+            name="quantity_a_display"
+            disabled={pending || !assetA}
+            isDivisible={isAssetADivisible}
+          />
+
+          <AssetSelectInput
+            selectedAsset={assetB}
+            onChange={setAssetB}
+            label="Asset B"
+            required
+            showHelpText={showHelpText}
+          />
+
+          <AmountWithMaxInput
+            asset={assetB}
+            availableBalance={assetBDetails?.availableBalance || "0"}
+            value={quantityB}
+            onChange={setQuantityB}
+            feeRate={feeRate}
+            setError={setLocalError}
+            showHelpText={showHelpText}
+            sourceAddress={activeAddress}
+            maxAmount={assetBDetails?.availableBalance || "0"}
+            label="Amount"
+            name="quantity_b_display"
+            disabled={pending || !assetB}
+            isDivisible={isAssetBDivisible}
+            labelRight={
+              partnerQuantity && !isFirstDeposit ? (
+                <button
+                  type="button"
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                  onClick={() => setQuantityB(partnerQuantity.toString())}
+                >
+                  Use quote
+                </button>
+              ) : null
+            }
+          />
+
+          {isLoadingQuote && (
+            <p className="text-sm text-gray-500">Loading pool quote...</p>
+          )}
+
+          {quoteError && (
+            <ErrorAlert message={quoteError} />
+          )}
+
+          {quote?.message && (
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              {quote.message}
+            </div>
+          )}
+
+          {partnerQuantity && !isFirstDeposit && (
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              Quoted partner amount: {partnerQuantity.toString()} {assetB}
+            </div>
+          )}
+
+          {partnerQuantity && !isFirstDeposit && !partnerQuantityMatches && (
+            <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+              {partnerQuantityIsHigh
+                ? "Only the pool-ratio amount will be deposited; extra is left unused."
+                : partnerQuantityIsLow
+                  ? "This deposits less than the quoted ratio allows."
+                  : "Pool deposits use the current pool ratio."}
+            </div>
+          )}
+
+          {isZeroSupplyRestart && (
+            <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+              LP supply is zero. This deposit restarts the pool and may claim existing reserves.
+            </div>
+          )}
+
+          {hasLpMinimum && (
+            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+              Minimum LP tokens:{" "}
+              <span className="font-medium text-gray-900">
+                {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
+              </span>{" "}
+              after {slippage || "0"}% slippage.
+            </div>
+          )}
+
+          {isNewPool && (
+            <Field>
+              <AssetNameInput
+                value={lpAsset}
+                onChange={setLpAsset}
+                onValidationChange={setIsLpAssetValid}
+                label="LP Asset"
+                required={false}
+                showRandomNumeric
+                showHelpText={showHelpText}
+                helpText="Optional. Leave blank to auto-generate the LP asset."
+              />
+              {showHelpText && (
+                <Description className="mt-2 text-sm text-gray-500">
+                  The LP asset represents your share of the pool.
+                </Description>
+              )}
+            </Field>
+          )}
+
+          <input type="hidden" name="asset_a" value={assetA} />
+          <input type="hidden" name="asset_b" value={assetB} />
+          <input type="hidden" name="quantity_a" value={quantityA} />
+          <input type="hidden" name="quantity_b" value={quantityB} />
+          <input type="hidden" name="min_lp_quantity" value={minLpQuantity} />
+          <input type="hidden" name="slippage" value={slippage} />
+          {lpAsset && <input type="hidden" name="lp_asset" value={lpAsset} />}
+        </ComposerForm>
+      )}
+    </div>
   );
 }

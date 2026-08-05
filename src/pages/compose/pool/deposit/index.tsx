@@ -12,7 +12,7 @@ export default function ComposePoolDepositPage() {
       <Composer<PoolDepositOptions>
         composeType="pooldeposit"
         composeApiMethod={composePoolDeposit}
-        initialTitle="Pool Deposit"
+        initialTitle="Pool"
         FormComponent={(props) => (
           <PoolDepositForm
             {...props}
