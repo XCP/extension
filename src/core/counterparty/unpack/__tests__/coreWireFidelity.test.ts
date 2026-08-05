@@ -1,0 +1,109 @@
+/**
+ * Cases where this decoder and counterparty-core previously disagreed about the same bytes.
+ *
+ * A disagreement here is the worst class of defect the wallet can have: the approval screen
+ * describes one thing and the chain records another, with both halves chosen by whoever built the
+ * transaction. Each case below is pinned to the core source that defines the behaviour.
+ */
+
+import { describe, expect, it } from 'vitest';
+import { unpackBroadcast } from '@/core/counterparty/unpack/messages/broadcast';
+import { unpackIssuance } from '@/core/counterparty/unpack/messages/issuance';
+
+/** ">IdI" header: timestamp, value (float64 BE), fee_fraction_int. */
+function broadcastHeader(timestamp = 1735689600, value = 0, feeFractionInt = 0): number[] {
+  const head = new Uint8Array(16);
+  const view = new DataView(head.buffer);
+  view.setUint32(0, timestamp, false);
+  view.setFloat64(4, value, false);
+  view.setUint32(12, feeFractionInt, false);
+  return Array.from(head);
+}
+
+const ascii = (s: string): number[] => Array.from(new TextEncoder().encode(s));
+
+describe('broadcast text — core takes the tail', () => {
+  it('reads a well-formed varint-prefixed text', () => {
+    const payload = new Uint8Array([...broadcastHeader(), 3, ...ascii('ABC')]);
+    expect(unpackBroadcast(payload).text).toBe('ABC');
+  });
+
+  it('takes the last textlen bytes when the payload is padded, as core does', () => {
+    // broadcast.py: `text = rawtext[-textlen:]` then `assert len(text) == textlen`. Core accepts
+    // this message and records "DEF"; slicing from just after the prefix would show "ABC".
+    const payload = new Uint8Array([...broadcastHeader(), 3, ...ascii('ABCDEF')]);
+    expect(unpackBroadcast(payload).text).toBe('DEF');
+  });
+
+  it('treats a zero length as no text', () => {
+    const payload = new Uint8Array([...broadcastHeader(), 0]);
+    expect(unpackBroadcast(payload).text).toBe('');
+  });
+
+  it('refuses a length that cannot fit rather than inventing text', () => {
+    // Core's assert fails here, so there is no honest reading of these bytes.
+    const payload = new Uint8Array([...broadcastHeader(), 200, ...ascii('short')]);
+    expect(() => unpackBroadcast(payload)).toThrow(/does not fit/);
+  });
+
+  it('handles a multi-byte varint length', () => {
+    // 0xfd introduces a 2-byte little-endian length. 300 bytes of text.
+    const text = 'x'.repeat(300);
+    const payload = new Uint8Array([...broadcastHeader(), 0xfd, 0x2c, 0x01, ...ascii(text)]);
+    expect(unpackBroadcast(payload).text).toBe(text);
+  });
+});
+
+describe('legacy issuance — ">QQ???" since block 753500', () => {
+  /** asset_id, quantity, divisible, lock, reset, then description. */
+  function issuance(lock: number, reset: number, description: string): Uint8Array {
+    const head = new Uint8Array(19);
+    const view = new DataView(head.buffer);
+    view.setBigUint64(0, 95428956661682177n, false); // a valid numeric asset id
+    view.setBigUint64(8, 1000n, false);
+    head[16] = 1; // divisible
+    head[17] = lock;
+    head[18] = reset;
+    return new Uint8Array([...head, ...ascii(description)]);
+  }
+
+  it('reads lock and reset from the wire, not from the message type id', () => {
+    // A type 20 carrying lock=1 previously reported false, because isLock was derived from the
+    // type id. issuance.py unpacks lock and reset from these bytes.
+    const locked = unpackIssuance(issuance(1, 0, 'hello'), 20);
+    expect(locked.isLock).toBe(true);
+    expect(locked.isReset).toBe(false);
+
+    const unlocked = unpackIssuance(issuance(0, 1, 'hello'), 22);
+    expect(unlocked.isLock).toBe(false);
+    expect(unlocked.isReset).toBe(true);
+  });
+
+  it('keeps the whole description', () => {
+    // The old code consumed lock, reset and seven description bytes as callable/call_date/
+    // call_price, so the description lost its first characters and the call fields were invented.
+    const result = unpackIssuance(issuance(0, 0, 'A memorable description'), 20);
+    expect(result.description).toBe('A memorable description');
+    expect(result.callable).toBeUndefined();
+    expect(result.callDate).toBeUndefined();
+  });
+
+  it('reads a subasset name length at offset 19, after lock and reset', () => {
+    // ">QQ???B" — the length byte follows reset. Reading it at 17 read the lock byte as a length.
+    const name = [0x01, 0x02, 0x03];
+    const payload = new Uint8Array([
+      ...issuance(0, 0, ''),
+      name.length,
+      ...name,
+      ...ascii('desc'),
+    ]);
+    const result = unpackIssuance(payload, 21);
+    expect(result.description).toBe('desc');
+  });
+
+  it('refuses a subasset name length that overruns the payload', () => {
+    // Core raises UnpackError when description_length < 0 rather than skipping the name.
+    const payload = new Uint8Array([...issuance(0, 0, ''), 40, ...ascii('short')]);
+    expect(() => unpackIssuance(payload, 21)).toThrow(/exceeds/);
+  });
+});

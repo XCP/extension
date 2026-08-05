@@ -44,6 +44,29 @@ export interface BroadcastData {
  *
  * Returns null if the payload is not CBOR, so the caller falls back to legacy.
  */
+/**
+ * Read a Bitcoin varint from the front of `bytes`, the encoding core's VarIntSerializer uses:
+ * a byte below 0xfd is the value itself, otherwise 0xfd/0xfe/0xff introduce a 2/4/8 byte
+ * little-endian value.
+ *
+ * Returns prefixSize 0 when the prefix is truncated, which the caller treats as unreadable rather
+ * than guessing a length.
+ */
+function readVarInt(bytes: Uint8Array): { textLength: number; prefixSize: number } {
+  if (bytes.length === 0) return { textLength: 0, prefixSize: 0 };
+  const first = bytes[0]!;
+  if (first < 0xfd) return { textLength: first, prefixSize: 1 };
+
+  const width = first === 0xfd ? 2 : first === 0xfe ? 4 : 8;
+  if (bytes.length < 1 + width) return { textLength: 0, prefixSize: 0 };
+
+  let value = 0n;
+  for (let i = width; i >= 1; i -= 1) value = (value << 8n) | BigInt(bytes[i]!);
+  // A length beyond what a transaction can carry cannot be honoured; report it as unreadable.
+  if (value > BigInt(bytes.length)) return { textLength: Number.MAX_SAFE_INTEGER, prefixSize: 1 + width };
+  return { textLength: Number(value), prefixSize: 1 + width };
+}
+
 function tryDecodeCBOR(payload: Uint8Array): BroadcastData | null {
   const decoded = tryDecodeCborArray(payload, 5);
   if (!decoded) return null;
@@ -102,27 +125,29 @@ export function unpackBroadcast(payload: Uint8Array): BroadcastData {
 
   const feeFractionInt = reader.readUint32BE();
 
-  // Read text - may use VarInt length prefix or Pascal string format
+  // Read the text exactly as core does since broadcast_pack_text (block 423888): read a Bitcoin
+  // varint length, then take the LAST `textlen` bytes — `text = rawtext[-textlen:]` in
+  // broadcast.py, followed by `assert len(text) == textlen`.
+  //
+  // Taking the bytes immediately after the length prefix instead — which is what this did — agrees
+  // with core only when the payload is exactly a prefix followed by its text. Pad it and the two
+  // diverge while core still accepts the message: for varint(3) || "ABCDEF" the chain records
+  // "DEF" and this screen displayed "ABC", both chosen by whoever built the transaction. The
+  // API cross-check could not catch it either, because verifyBroadcast never compares the text.
   let text = '';
   if (reader.remaining > 0) {
-    // Try to read text with VarInt length prefix
-    const remainingBytes = reader.readRemaining();
+    const rawText = reader.readRemaining();
+    const { textLength, prefixSize } = readVarInt(rawText);
 
-    // Check if first byte could be a VarInt length
-    if (remainingBytes.length > 0) {
-      const firstByte = remainingBytes[0]!;
-
-      // If first byte + 1 equals remaining length, it's a Pascal string
-      if (firstByte + 1 === remainingBytes.length) {
-        // Pascal string format: length byte + content
-        text = new TextDecoder('utf-8').decode(remainingBytes.slice(1, 1 + firstByte));
-      } else if (firstByte < 0xfd && firstByte + 1 <= remainingBytes.length) {
-        // VarInt format with single-byte length
-        text = new TextDecoder('utf-8').decode(remainingBytes.slice(1, 1 + firstByte));
-      } else {
-        // Just decode all remaining as text
-        text = new TextDecoder('utf-8').decode(remainingBytes);
-      }
+    if (textLength === 0) {
+      text = '';
+    } else if (prefixSize === 0 || textLength > rawText.length - prefixSize) {
+      // Core's assert would fail here, so there is no honest reading of these bytes as text.
+      throw new Error(
+        `Broadcast text length ${textLength} does not fit in ${rawText.length - prefixSize} bytes`
+      );
+    } else {
+      text = new TextDecoder('utf-8').decode(rawText.slice(rawText.length - textLength));
     }
   }
 
