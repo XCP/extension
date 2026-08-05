@@ -358,3 +358,33 @@ describe('outputs whose destination cannot be determined', () => {
     expect(result.warnings.some(w => w.title === 'BTC Sent to an Unrecognized Script')).toBe(false);
   });
 });
+
+describe('Counterparty multisig data outputs', () => {
+  const dataScript = `51${`21${'ab'.repeat(33)}`.repeat(3)}53ae`;
+
+  it('classifies recognized data outputs as info, not danger', () => {
+    const { warnings } = analyzeTransactionSafety(
+      'fairminter',
+      [
+        { value: 1000, type: 'unknown', script: dataScript },
+        { value: 1000, type: 'unknown', script: dataScript },
+        { value: 1000, type: 'unknown', script: dataScript },
+        { value: 13854, type: 'address', address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX' },
+      ],
+      '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX'
+    );
+    expect(warnings.some(w => w.title === 'BTC Sent to an Unrecognized Script')).toBe(false);
+    const info = warnings.find(w => w.title === 'Counterparty Data Outputs');
+    expect(info?.severity).toBe('info');
+    expect(info?.message).toContain('3,000 sats');
+  });
+
+  it('still warns when the payload did not decode to a message', () => {
+    const { warnings } = analyzeTransactionSafety(
+      undefined,
+      [{ value: 1000, type: 'unknown', script: dataScript }],
+      '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX'
+    );
+    expect(warnings.some(w => w.title === 'BTC Sent to an Unrecognized Script')).toBe(true);
+  });
+});

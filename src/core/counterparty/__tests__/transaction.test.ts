@@ -14,6 +14,7 @@ import {
   decodeCounterpartyMessage,
   decodeRawTransaction,
   describeCounterpartyMessage,
+  fetchInputPrevouts,
   fetchInputValues,
   hasCounterpartyPrefix,
   type UnpackedCounterpartyData,
@@ -356,6 +357,36 @@ describe('decodeRawTransaction', () => {
 });
 
 // ── fetchInputValues ────────────────────────────────────────────────
+
+describe('fetchInputPrevouts', () => {
+  it('returns the owning address alongside the value', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      status: 200,
+      data: {
+        vout: [
+          { value: 50000, scriptpubkey_address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX' },
+        ],
+      },
+    } as any);
+
+    const result = await fetchInputPrevouts([{ txid: 'tx1', vout: 0 }]);
+    // Without the address, every movement summary reports "couldn't be determined".
+    expect(result.get('tx1:0')).toEqual({
+      value: 50000,
+      address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
+    });
+  });
+
+  it('omits the address when the source could not attribute the script', async () => {
+    mockedApiClient.get.mockResolvedValue({
+      status: 200,
+      data: { vout: [{ value: 1234 }] },
+    } as any);
+
+    const result = await fetchInputPrevouts([{ txid: 'tx1', vout: 0 }]);
+    expect(result.get('tx1:0')).toEqual({ value: 1234 });
+  });
+});
 
 describe('fetchInputValues', () => {
   it('returns map of txid:vout to satoshi values', async () => {

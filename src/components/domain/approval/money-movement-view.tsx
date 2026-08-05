@@ -59,7 +59,11 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
         {external.map((dest, i) => (
           <div key={i} className="flex items-center justify-between gap-2">
             <span className="text-gray-500 truncate" title={dest.address ?? undefined}>
-              {dest.address ? formatAddress(dest.address, true) : 'Unknown address'}
+              {dest.address
+                ? formatAddress(dest.address, true)
+                : dest.isData
+                  ? 'Protocol data (recoverable)'
+                  : 'Unknown address'}
             </span>
             <span className="font-medium text-gray-900 flex-shrink-0">{btc(dest.value)} BTC</span>
           </div>

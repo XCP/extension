@@ -19,7 +19,7 @@ import {
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
-  fetchInputValues
+  fetchInputPrevouts
 } from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
@@ -50,6 +50,8 @@ export interface DecodedTransactionInfo {
     address?: string;
     type: string;
     opReturnData?: string;
+    /** Raw scriptPubKey hex — lets the safety analyzer classify addressless scripts. */
+    script?: string;
   }>;
   totalInputValue: number;
   totalOutputValue: number;
@@ -117,6 +119,9 @@ export function useSignTransactionRequest(signerAddress?: string) {
       ...(output.address ? { address: output.address } : {}),
       type: output.type,
       ...(output.opReturnData ? { opReturnData: output.opReturnData } : {}),
+      // Carried through so bare-multisig data outputs can be recognized rather
+      // than flagged as unknown destinations.
+      ...(output.script ? { script: output.script } : {}),
     }));
 
     // An input's value is not in the transaction that spends it, so it has to be resolved from the
@@ -124,12 +129,14 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // all of them, and unresolved inputs silently counted as zero, understating the fee.
     if (inputs.length > 0) {
       try {
-        const inputValues = await fetchInputValues(inputs);
+        const prevouts = await fetchInputPrevouts(inputs);
         for (const input of inputs) {
-          const value = inputValues.get(`${input.txid}:${input.vout}`);
-          if (value != null) {
-            input.value = value;
-          }
+          const prevout = prevouts.get(`${input.txid}:${input.vout}`);
+          if (prevout == null) continue;
+          input.value = prevout.value;
+          // Without the owning address the movement summary cannot tell whose
+          // input this is, and reports every total as undetermined.
+          if (prevout.address) input.address = prevout.address;
         }
       } catch (err) {
         console.warn('Failed to fetch input values:', err);

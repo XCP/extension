@@ -34,6 +34,8 @@ export interface LocalParsedOutput {
   /** `op_return` for data outputs, otherwise the address kind or `unknown`. */
   type: string;
   opReturnData?: string;
+  /** Raw scriptPubKey hex, kept so downstream checks can classify unattributable scripts. */
+  script?: string;
 }
 
 export interface LocalParsedTransaction {
@@ -125,6 +127,7 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
       // summary renders it as unknown and flags the total as incomplete.
       ...(address ? { address } : {}),
       type: address ? 'address' : 'unknown',
+      script: scriptHex,
     });
   }
 

@@ -31,6 +31,27 @@ export interface AnalyzableOutput {
   value: number;
   address?: string;
   type: string;
+  /** Raw scriptPubKey hex when the parser kept it (bare multisig has no address). */
+  script?: string;
+}
+
+/**
+ * Counterparty's bare-multisig data encoding: 1-of-2 or 1-of-3 with 33-byte
+ * pushes, where the payload rides in the fake keys and the last key is the
+ * sender's real pubkey (which is what makes the sats recoverable later).
+ */
+const CP_MULTISIG_DATA_SCRIPT = /^51(21[0-9a-f]{66}){2,3}5[23]ae$/i;
+
+/**
+ * True when the script matches the Counterparty multisig data-encoding shape.
+ *
+ * Edge case not yet checked: compose accepts a `multisig_pubkey` override, so
+ * the embedded recovery key is *normally* the signer's but a hostile composer
+ * could point it elsewhere. The info wording hedges accordingly; verifying the
+ * third key against the signer's pubkey needs pubkey plumbing into this layer.
+ */
+export function isCounterpartyDataScript(script: string | undefined): boolean {
+  return !!script && CP_MULTISIG_DATA_SCRIPT.test(script);
 }
 
 /**
@@ -159,10 +180,20 @@ export function analyzeTransactionSafety(
   const suspiciousOutputs: Array<{ address: string; value: number }> = [];
   /** Non-dust outputs whose script could not be resolved to any address. */
   const unattributableOutputs: Array<{ value: number }> = [];
+  /** Recognized Counterparty multisig data outputs (payload, not payments). */
+  const dataOutputs: Array<{ value: number }> = [];
 
   for (const output of outputs) {
     // Skip OP_RETURN — that's the Counterparty data, no BTC is sent
     if (output.type === 'op_return') continue;
+
+    // Multisig data encoding: the payload itself, carried when it outgrows
+    // OP_RETURN. Only trusted as such when the message actually decoded —
+    // pattern alone must not silence the warning for an unread payload.
+    if (!output.address && messageType && isCounterpartyDataScript(output.script)) {
+      dataOutputs.push({ value: output.value });
+      continue;
+    }
 
     // Skip outputs back to the signer (change)
     if (output.address && normalizedSigners.has(normalizeAddressForComparison(output.address))) continue;
@@ -192,6 +223,18 @@ export function analyzeTransactionSafety(
         `This transaction sends ${btcAmount} BTC to ${addresses.length === 1 ? 'an address' : `${addresses.length} addresses`} ` +
         `that ${addresses.length === 1 ? 'is' : 'are'} not yours: ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}. ` +
         'Normal Counterparty transactions only send BTC back to your own address as change.',
+    });
+  }
+
+  if (dataOutputs.length > 0) {
+    const totalSats = dataOutputs.reduce((sum, o) => sum + o.value, 0);
+    warnings.push({
+      severity: 'info',
+      title: 'Counterparty Data Outputs',
+      message:
+        `${dataOutputs.length} output${dataOutputs.length === 1 ? '' : 's'} carry this transaction's ` +
+        `Counterparty message as bare multisig (${totalSats.toLocaleString()} sats). Those sats are ` +
+        'not payments to anyone — they are recoverable to your wallet later with the Recovery Tool.',
     });
   }
 
