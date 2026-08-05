@@ -25,6 +25,7 @@ const EXPECTED: Record<string, string> = {
   dividend: 'dividend',
   fairmint: 'fairmint',
   broadcast: 'broadcast',
+  'fairminter-xcp69': 'fairminter',
   dispense: 'dispense',
 };
 
