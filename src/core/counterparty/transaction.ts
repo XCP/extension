@@ -257,16 +257,29 @@ export function describeCounterpartyMessage(
     return BigInt(String(raw)).toLocaleString();
   };
 
+  /**
+   * The recipient of a send. `/v2/transactions/unpack` names this field
+   * `address` for both send variants, while sweep and utxo_move use
+   * `destination` — so both keys are read rather than assuming one shape.
+   * Reading only `destination` rendered every send headline as "to undefined".
+   */
+  const recipient = (): string =>
+    String(messageData.address ?? messageData.destination ?? 'unknown address');
+
   switch (messageType) {
     case 'enhanced_send':
     case 'send':
-      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
+      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${recipient()}`;
     case 'order':
       return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${displayName('give_asset')} for ${q('get_quantity', 'get_asset')} ${displayName('get_asset')}`;
     case 'dispenser':
       return `Create Dispenser: ${q('give_quantity', 'asset')} ${displayName('asset')} per ${messageData.mainchainrate} sats`;
     case 'dispense':
-      return `Dispense from ${messageData.dispenser}`;
+      // The dispense payload is a marker byte — core's unpack returns only
+      // `data`. Which dispenser is triggered is decided by the BTC output, not
+      // the payload, so naming one here rendered "Dispense from undefined".
+      // The outputs are listed on the approval screen itself.
+      return 'Trigger a dispenser';
     case 'issuance':
       return `Issue Asset: ${displayName('asset')}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
     case 'dividend':
