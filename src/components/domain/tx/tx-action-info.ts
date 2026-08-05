@@ -56,7 +56,14 @@ export function normalizeQuantity(
   // than 99999999.99999999 — a different amount than the one being signed. fromSatoshis is
   // BigNumber-backed and exact when handed the digits.
   if (divisible === true) return fromSatoshis(val.toString());
-  return val.toLocaleString();
+  if (divisible === false) return val.toLocaleString();
+
+  // Divisibility unknown. Every caller on the local-unpack path passes only (quantity, asset), so
+  // this is reached for every asset but BTC and XCP — and precisely when the API decode failed and
+  // the wallet is relying on its own bytes. Printing the bare integer reads as a quantity and is
+  // off by 1e8 for any divisible asset: 1.5 PEPECASH as "150,000,000 PEPECASH". Label it so an
+  // unknown is visibly an unknown rather than a confident wrong number.
+  return `${val.toLocaleString()} base units`;
 }
 
 /** LP tokens are always divisible. */

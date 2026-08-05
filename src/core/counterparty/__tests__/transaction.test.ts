@@ -258,11 +258,19 @@ describe('describeCounterpartyMessage', () => {
     expect(desc).toContain('XCP');
   });
 
-  it('describes utxo_move', () => {
-    const desc = describeCounterpartyMessage('utxo_move', {
+  it('describes a utxo move under the type name actually used', () => {
+    // The API and the local unpack both call this type 'utxo'. The case matched 'utxo_move',
+    // which neither produces, so every move rendered "Counterparty utxo transaction" — and this
+    // test asserted the dead string, which is why CI stayed green.
+    const desc = describeCounterpartyMessage('utxo', {
       destination: 'bc1qdest',
+      asset: 'XCP',
+      quantity: 100000000,
+      asset_info: { divisible: true },
     });
-    expect(desc).toContain('Move UTXO');
+    expect(desc).toContain('Move');
+    expect(desc).toContain('1.00000000');
+    expect(desc).toContain('XCP');
     expect(desc).toContain('bc1qdest');
   });
 

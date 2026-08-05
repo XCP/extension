@@ -47,11 +47,10 @@ describe('ReviewMPMA', () => {
           ['BTC', 'bc1qaddress2', 50000],
           ['PEPE', 'bc1qaddress3', 1000],
         ],
-        asset_dest_quant_list_normalized: [
-          ['XCP', 'bc1qaddress1', '1.00000000'],
-          ['BTC', 'bc1qaddress2', '0.00050000'],
-          ['PEPE', 'bc1qaddress3', '1000'],
-        ],
+        // No asset_dest_quant_list_normalized: compose does not emit one, and inventing it here
+        // is what let the component read an absent field and render "No sends" in production
+        // while these tests passed. Divisibility comes from the response, as it does live.
+        asset_info: { divisible: true },
         memos: ['Memo 1', 'Memo 2', 'Memo 3']
       }
     }

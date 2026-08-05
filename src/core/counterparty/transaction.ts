@@ -256,7 +256,15 @@ export function describeCounterpartyMessage(
       return fromSatoshis(String(raw));
     }
 
-    return BigInt(String(raw)).toLocaleString();
+    // Known indivisible: the base-unit integer IS the amount.
+    if (assetInfo?.divisible === false) {
+      return BigInt(String(raw)).toLocaleString();
+    }
+
+    // Divisibility could not be established. Printing the bare integer here reads as a quantity
+    // and is off by 1e8 for any divisible asset — "150,000,000 XCP" for 1.5 XCP. Label it instead,
+    // the way resolveMpmaRecipients does, so an unknown is visibly an unknown.
+    return `${BigInt(String(raw)).toLocaleString()} base units`;
   };
 
   /**
@@ -306,8 +314,12 @@ export function describeCounterpartyMessage(
       return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
     case 'detach':
       return `Detach assets from UTXO`;
+    // Both the API and the local unpack call this type `utxo`; `utxo_move` matched neither, so
+    // every move fell through to "Counterparty utxo transaction" — no asset, quantity or
+    // destination. A test asserting the dead string is why this survived CI.
+    case 'utxo':
     case 'utxo_move':
-      return `Move UTXO to ${messageData.destination}`;
+      return `Move ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
     case 'destroy':
       return `Destroy ${q('quantity', 'asset')} ${displayName('asset')}`;
     default:
@@ -327,7 +339,13 @@ export function hasCounterpartyPrefix(opReturnData: string): boolean {
  * Fields are either 'asset' or end with '_asset' (e.g., 'give_asset', 'get_asset', 'dividend_asset').
  */
 function findAssetFields(data: Record<string, unknown>): string[] {
-  return Object.keys(data).filter(k => k === 'asset' || k.endsWith('_asset'));
+  // `asset_a` and `asset_b` (pool deposit and withdraw) match neither rule — they start with
+  // `asset_` rather than ending with `_asset` — so pool messages were enriched with nothing at
+  // all, not even the BTC/XCP shortcut below, and their quantities fell through to the raw-integer
+  // branch. A 1.5 XCP deposit read "150,000,000 XCP" on the signing screen.
+  return Object.keys(data).filter(
+    k => k === 'asset' || k.endsWith('_asset') || k === 'asset_a' || k === 'asset_b'
+  );
 }
 
 /**
