@@ -74,7 +74,9 @@ function decodeCompactedSubasset(bytes: Uint8Array): string {
   // string and hang the popup's main thread for minutes. A real subasset longname is far under 255
   // bytes, so anything larger is malformed — throw, and the unpacker's caller treats it as a failed
   // decode (fail closed) rather than an ordinary transfer.
-  if (bytes.length > 255) {
+  // Core caps the compacted form at 200 bytes (utils/assetnames.py) and rejects anything longer,
+  // so 255 accepted names core voids.
+  if (bytes.length > 200) {
     throw new Error(`Subasset name too long: ${bytes.length} bytes`);
   }
 

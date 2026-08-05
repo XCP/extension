@@ -590,6 +590,13 @@ function verifyPoolDeposit(
     mismatches.push(`Min LP quantity: local=${local.minLpQuantity}, API=${apiMinLp}`);
   }
 
+  // The LP asset decides which token the deposit pays out, so leaving it uncompared meant the one
+  // field naming what you receive was the one field never checked.
+  const apiLpAsset = getApiValue(api, 'lp_asset', 'lpAsset') as string | undefined;
+  if (apiLpAsset && local.lpAsset && !assetsEqual(local.lpAsset, apiLpAsset)) {
+    mismatches.push(`LP asset: local="${local.lpAsset}", API="${apiLpAsset}"`);
+  }
+
   return mismatches;
 }
 
