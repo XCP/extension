@@ -280,6 +280,18 @@ export default function ApproveTransactionPage() {
     title: warning.title,
     description: warning.message,
   }));
+  // The message's own references to this transaction, where they do not resolve against it. A
+  // warning rather than a block: core rejects such a transaction, so it is ineffective rather than
+  // dangerous — but the screen cannot describe what it claims to do.
+  for (const [idx, finding] of (decodedInfo.structureFindings ?? []).entries()) {
+    warningItems.push({
+      key: `structure-${idx}`,
+      severity: 'warning',
+      title: finding.title,
+      description: finding.message,
+    });
+  }
+
   if (signedInputsWithAssets.length > 0) {
     warningItems.push({
       key: 'attached-assets',

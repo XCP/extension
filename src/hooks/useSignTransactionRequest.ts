@@ -17,6 +17,10 @@ import {
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
 import {
+  checkMessageStructure,
+  type StructureFinding,
+} from '@/core/counterparty/messageStructure';
+import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
   describeMpmaSend,
@@ -70,6 +74,11 @@ export interface DecodedTransactionInfo {
   safety: SafetyAnalysis;
   /** Inputs whose UTXOs carry Counterparty assets, or whose lookup failed. */
   attachedAssets: InputAttachedAssets[];
+  /**
+   * Message fields that reference this transaction and do not resolve against it — an attach
+   * naming an output that does not exist, a move naming a UTXO the transaction does not spend.
+   */
+  structureFindings: StructureFinding[];
   /**
    * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
    * These are carried in the payload rather than as outputs, so the approval screen has no other
@@ -210,6 +219,14 @@ export function useSignTransactionRequest(signerAddress?: string) {
       }
     }
 
+    // Independent of both decoders: does the message's own account of this transaction hold up
+    // against the transaction? Uses the local decode, since the point is to test the bytes.
+    const structureFindings = checkMessageStructure(
+      verification.localUnpack?.messageType,
+      verification.localUnpack?.data,
+      { inputs, outputs }
+    );
+
     const attachedAssets = await attachedAssetsPromise;
 
     return {
@@ -225,6 +242,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       verification,
       safety,
       attachedAssets,
+      structureFindings,
       mpmaRecipients,
     };
   }, []);
