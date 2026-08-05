@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import {
   fetchPoolDepositQuote,
+  fetchPoolQuote,
   fetchPoolWithdrawQuote,
   type PoolDepositQuote,
+  type PoolQuote,
   type PoolWithdrawQuote,
 } from "@/core/counterparty/api";
 import { roundDown, toSatoshis } from "@/core/numeric";
@@ -66,6 +68,68 @@ export function usePoolDepositQuote({
       clearTimeout(timer);
     };
   }, [assetA, assetB, enabled, isAssetADivisible, quantityA]);
+
+  return state;
+}
+
+/**
+ * Debounced swap quote: how much of getAsset you would receive right now for
+ * selling `quantity` of giveAsset, routed across the AMM pool and the resting
+ * order book (core's /v2/pools/<give>/<get>/quote endpoint).
+ */
+export function usePoolSwapQuote({
+  giveAsset,
+  getAsset,
+  quantity,
+  isGiveDivisible,
+  enabled,
+}: {
+  giveAsset: string;
+  getAsset: string;
+  quantity: string;
+  isGiveDivisible: boolean;
+  enabled: boolean;
+}): PoolQuoteState<PoolQuote> {
+  const [state, setState] = useState<PoolQuoteState<PoolQuote>>({
+    data: null,
+    isLoading: false,
+    error: null,
+  });
+
+  useEffect(() => {
+    if (!enabled) {
+      setState({ data: null, isLoading: false, error: null });
+      return;
+    }
+
+    let cancelled = false;
+    setState({ data: null, isLoading: true, error: null });
+
+    const timer = setTimeout(() => {
+      fetchPoolQuote(
+        giveAsset,
+        getAsset,
+        isGiveDivisible ? toSatoshis(quantity) : roundDown(quantity).toString()
+      )
+        .then((data) => {
+          if (!cancelled) setState({ data, isLoading: false, error: null });
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            setState({
+              data: null,
+              isLoading: false,
+              error: err instanceof Error ? err.message : "Unable to load swap quote.",
+            });
+          }
+        });
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [giveAsset, getAsset, quantity, isGiveDivisible, enabled]);
 
   return state;
 }

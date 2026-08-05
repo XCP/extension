@@ -48,6 +48,7 @@ import ComposePoolWithdrawPage from '@/pages/compose/pool/withdraw';
 // Compose
 import ComposeSendPage from '@/pages/compose/send';
 import ComposeMpmaPage from '@/pages/compose/send/mpma';
+import ComposeSwapPage from '@/pages/compose/swap';
 import ComposeSweepPage from '@/pages/compose/sweep';
 import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
 import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
@@ -210,6 +211,7 @@ export default function App() {
             <Route path="/compose/order/btcpay" element={<ComposeOrderBtcPayPage />} />
             <Route path="/compose/order/cancel/:hash?" element={<ComposeOrderCancelPage />} />
             <Route path="/compose/order/:asset?" element={<ComposeOrderPage />} />
+            <Route path="/compose/swap/:giveAsset?/:getAsset?" element={<ComposeSwapPage />} />
             <Route path="/compose/issuance/issue-supply/:asset" element={<ComposeIssueSupplyPage />} />
             <Route path="/compose/issuance/lock-supply/:asset" element={<ComposeLockSupplyPage />} />
             <Route path="/compose/issuance/reset-supply/:asset" element={<ComposeResetSupplyPage />} />
