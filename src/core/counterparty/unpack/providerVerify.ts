@@ -97,8 +97,24 @@ function quantitiesEqual(a: unknown, b: unknown): boolean {
  * Compare two asset names (case-insensitive)
  */
 function assetsEqual(a: string | undefined, b: string | undefined): boolean {
-  if (!a || !b) return false;
-  return a.toUpperCase() === b.toUpperCase();
+  if (!a) return false;
+  if (b === undefined || b === null) return false;
+
+  // Core resolves an asset name through a ledger lookup, and `get_asset_name` returns 0 for an
+  // asset the node does not know (ledger/issuances.py). That is an absence of information, not a
+  // disagreement — 0 is not a valid asset name and cannot be what the bytes say. Treating it as a
+  // mismatch blocked signing on the state of a node's index rather than on the transaction: an
+  // order, destroy or dividend naming an asset the queried node had not indexed reported
+  // tampering. Same shape as the rounding-induced false block fixed earlier — an API limitation
+  // rendered as an accusation.
+  //
+  // Checked before the falsy guard and stringified, because the endpoint serializes the marker as
+  // the NUMBER 0: it is falsy, so a guard placed after `!b` never sees it, and this parameter is
+  // typed string but is not always one at runtime. Both facts found by the differential fuzzer.
+  if (String(b) === '0') return true;
+
+  if (!b) return false;
+  return a.toUpperCase() === String(b).toUpperCase();
 }
 
 /**
