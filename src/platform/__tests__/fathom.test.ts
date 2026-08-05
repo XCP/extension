@@ -203,6 +203,15 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/compose/dividend/XCP')).toBe('/compose/dividend');
     });
 
+    it('strips the pair from /compose/swap/:giveAsset/:getAsset', () => {
+      expect(sanitizePath('/compose/swap/PEPECASH/XCP')).toBe('/compose/swap');
+      expect(sanitizePath('/compose/swap/XCP')).toBe('/compose/swap');
+    });
+
+    it('preserves /compose/swap (no pair)', () => {
+      expect(sanitizePath('/compose/swap')).toBe('/compose/swap');
+    });
+
     it('preserves static compose paths', () => {
       expect(sanitizePath('/compose/broadcast')).toBe('/compose/broadcast');
       expect(sanitizePath('/compose/broadcast/address-options')).toBe('/compose/broadcast/address-options');
