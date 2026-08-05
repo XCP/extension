@@ -137,8 +137,7 @@ export function AssetSelectInput({
       <Combobox value={selectedAsset} onChange={handleAssetChange}>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700">
-            {label}
-            {required && <span className="text-red-500">*</span>}
+            {label} {required && <span className="text-red-500">*</span>}
           </label>
           <div className="relative mt-1">
             <div className="relative w-full cursor-default overflow-hidden rounded-md bg-gray-50 text-left focus:outline-none sm:text-sm">
