@@ -7,6 +7,7 @@
 
 import { API_TIMEOUTS, apiClient } from '@/core/api/client';
 import { fetchAssetDetails } from '@/core/counterparty/api';
+import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
 import { fromSatoshis } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
@@ -223,115 +224,89 @@ export function describeCounterpartyMessage(
   messageType: string,
   messageData: Record<string, unknown>
 ): string {
-  /** Resolve display name for an asset field, preferring asset_longname for subassets. */
-  const displayName = (assetField: string): string => {
-    const raw = String(messageData[assetField] ?? '');
-    const info = messageData[`${assetField}_info`] as Record<string, unknown> | undefined;
-    return (info?.asset_longname && typeof info.asset_longname === 'string')
-      ? info.asset_longname
-      : raw;
-  };
-
-  /**
-   * Normalize a raw quantity for display.
-   * Checks (in order): _normalized field from API, then _info.divisible flag
-   * (injected by enrichWithAssetInfo for all assets including BTC/XCP).
-   */
-  const q = (qtyField: string, assetField?: string): string => {
-    // 1. API already provided a normalized value
-    const normalized = messageData[`${qtyField}_normalized`];
-    if (normalized != null) return String(normalized);
-
-    const raw = messageData[qtyField];
-    if (raw == null) return '?';
-
-    // 2. Check verbose asset_info for divisibility
-    const _assetName = assetField ? String(messageData[assetField] ?? '') : '';
-    const infoKey = assetField ? `${assetField}_info` : 'asset_info';
-    const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
-
-    if (assetInfo?.divisible === true) {
-      // String, not Number: quantities are unsigned 64-bit and doubles are exact only to 2^53-1,
-      // so a headline could state a different amount than the bytes carry.
-      return fromSatoshis(String(raw));
-    }
-
-    // Known indivisible: the base-unit integer IS the amount.
-    if (assetInfo?.divisible === false) {
-      return BigInt(String(raw)).toLocaleString();
-    }
-
-    // Divisibility could not be established. Printing the bare integer here reads as a quantity
-    // and is off by 1e8 for any divisible asset — "150,000,000 XCP" for 1.5 XCP. Label it instead,
-    // the way resolveMpmaRecipients does, so an unknown is visibly an unknown.
-    return `${BigInt(String(raw)).toLocaleString()} base units`;
-  };
-
-  /**
-   * The recipient of a send. `/v2/transactions/unpack` names this field
-   * `address` for both send variants, while sweep and utxo_move use
-   * `destination` — so both keys are read rather than assuming one shape.
-   * Reading only `destination` rendered every send headline as "to undefined".
-   */
-  const recipient = (): string =>
-    String(messageData.address ?? messageData.destination ?? 'unknown address');
-
-  switch (messageType) {
-    case 'enhanced_send':
-    case 'send':
-      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${recipient()}`;
-    case 'order':
-      return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${displayName('give_asset')} for ${q('get_quantity', 'get_asset')} ${displayName('get_asset')}`;
-    case 'dispenser':
-      return `Create Dispenser: ${q('give_quantity', 'asset')} ${displayName('asset')} per ${messageData.mainchainrate} sats`;
-    case 'dispense':
-      // The dispense payload is a marker byte — core's unpack returns only
-      // `data`. Which dispenser is triggered is decided by the BTC output, not
-      // the payload, so naming one here rendered "Dispense from undefined".
-      // The outputs are listed on the approval screen itself.
-      return 'Trigger a dispenser';
-    case 'issuance':
-      return `Issue Asset: ${displayName('asset')}${messageData.quantity ? ` (${q('quantity', 'asset')} units)` : ''}`;
-    case 'dividend':
-      return `Pay Dividend: ${q('quantity_per_unit', 'dividend_asset')} ${displayName('dividend_asset')} per ${displayName('asset')}`;
-    case 'cancel':
-      return `Cancel Order: ${messageData.offer_hash}`;
-    case 'btcpay':
-      return `BTC Pay for Order Match`;
-    case 'sweep':
-      return `Sweep to ${messageData.destination}`;
-    case 'broadcast':
-      return `Broadcast: ${messageData.text || 'message'}`;
-    case 'fairminter':
-      return `Create Fairminter: ${displayName('asset')}`;
-    case 'fairmint':
-      return `Mint from Fairminter: ${displayName('asset')}`;
-    case 'pooldeposit':
-      return `Deposit liquidity: ${q('quantity_a', 'asset_a')} ${displayName('asset_a')} and ${q('quantity_b', 'asset_b')} ${displayName('asset_b')}`;
-    case 'poolwithdraw':
-      return `Withdraw liquidity: burn ${q('quantity')} LP tokens from ${displayName('asset_a')}/${displayName('asset_b')}`;
-    case 'attach':
-      return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
-    case 'detach': {
-      // The payload carries exactly one field — the destination — and it was the one thing not
-      // shown. Detach moves every asset on the UTXO, so where they go is the whole decision.
-      const to = messageData.destination ?? messageData.address;
-      return to
-        ? `Detach all assets from UTXO to ${to}`
-        : `Detach all assets from UTXO`;
-    }
-    // Both the API and the local unpack call this type `utxo`; `utxo_move` matched neither, so
-    // every move fell through to "Counterparty utxo transaction" — no asset, quantity or
-    // destination. A test asserting the dead string is why this survived CI.
-    case 'utxo':
-    case 'utxo_move':
-      return `Move ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
-    case 'destroy':
-      return `Destroy ${q('quantity', 'asset')} ${displayName('asset')}`;
-    default:
-      return `Counterparty ${messageType} transaction`;
-  }
+  const described = describeMessage(messageType, fromApiDecode(messageData));
+  // The generic form is kept only for a type the shared describer does not cover, so an
+  // unrecognised message still says something rather than rendering blank.
+  return described ?? `Counterparty ${messageType} transaction`;
 }
+
+/**
+ * Adapt an API decode into the shared describer's view.
+ *
+ * The endpoint uses snake_case and carries `*_info` divisibility, so this is where quantities can
+ * be rendered in display units. Where divisibility is absent the quantity is labelled rather than
+ * guessed — printing a bare integer reads as an amount and is off by 1e8 for a divisible asset.
+ */
+function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage {
+  const infoFor = (assetField?: string): Record<string, unknown> | undefined => {
+    const key = assetField ? `${assetField}_info` : 'asset_info';
+    return messageData[key] as Record<string, unknown> | undefined;
+  };
+
+  /** Map a value back to the field it came from, so the right `*_info` is consulted. */
+  const assetFieldOf = (asset?: string): string | undefined => {
+    for (const key of Object.keys(messageData)) {
+      if ((key === 'asset' || key.endsWith('_asset') || key === 'asset_a' || key === 'asset_b')
+        && messageData[key] === asset) {
+        return key;
+      }
+    }
+    return undefined;
+  };
+
+  const format = (quantity: unknown, asset?: string): string => {
+    if (quantity == null) return '?';
+
+    // A normalized value from the endpoint is already in display units.
+    const field = assetFieldOf(asset);
+    const normalizedKey = field === 'asset' || field === undefined ? 'quantity_normalized' : null;
+    if (normalizedKey && messageData[normalizedKey] != null) {
+      return String(messageData[normalizedKey]);
+    }
+
+    const divisible = infoFor(field)?.divisible;
+    if (divisible === true) return fromSatoshis(String(quantity));
+    if (divisible === false) return BigInt(String(quantity)).toLocaleString();
+    return `${BigInt(String(quantity)).toLocaleString()} base units`;
+  };
+
+  const name = (asset?: string): string => {
+    const info = infoFor(assetFieldOf(asset));
+    const longname = info?.asset_longname;
+    return typeof longname === 'string' && longname ? longname : (asset ?? '');
+  };
+
+  const num = (key: string): number | undefined =>
+    messageData[key] == null ? undefined : Number(messageData[key]);
+
+  return {
+    asset: messageData.asset as string | undefined,
+    quantity: messageData.quantity,
+    // `/v2/transactions/unpack` names the recipient `address` for both send variants while sweep
+    // and utxo use `destination`, so both keys are read rather than assuming one shape.
+    destination: (messageData.address ?? messageData.destination) as string | undefined,
+    giveAsset: messageData.give_asset as string | undefined,
+    giveQuantity: messageData.give_quantity,
+    getAsset: messageData.get_asset as string | undefined,
+    getQuantity: messageData.get_quantity,
+    expiration: num('expiration'),
+    escrowQuantity: messageData.escrow_quantity,
+    mainchainrate: messageData.mainchainrate,
+    dividendAsset: messageData.dividend_asset as string | undefined,
+    quantityPerUnit: messageData.quantity_per_unit,
+    offerHash: messageData.offer_hash as string | undefined,
+    text: messageData.text as string | undefined,
+    assetA: messageData.asset_a as string | undefined,
+    quantityA: messageData.quantity_a,
+    assetB: messageData.asset_b as string | undefined,
+    quantityB: messageData.quantity_b,
+    recipientCount: Array.isArray(messageData) ? messageData.length : undefined,
+    subassetLongname: messageData.asset_longname as string | undefined,
+    format,
+    name,
+  };
+}
+
 
 /**
  * Check if OP_RETURN data contains Counterparty prefix
