@@ -36,7 +36,7 @@ export interface VerificationStatusProps {
  * Displays verification status with appropriate styling.
  *
  * - Green: cross-checked and agreed
- * - Neutral: decoded locally, but no second source to compare against
+ * - Neutral: decoded locally, but no payload field was compared
  * - Orange: Verification failed (non-strict mode, warning only)
  * - Red: Verification failed (strict mode, signing blocked)
  */
@@ -52,12 +52,14 @@ export function VerificationStatus({
     return null;
   }
 
-  // Decoded, but nothing to compare it against. Neither an error nor a clean bill of health.
+  // Decoded, but no payload field was actually compared — either no second
+  // source was available, or this message type carries nothing comparable.
+  // Neither an error nor a clean bill of health.
   if (passed === true && !comparedAgainstApi) {
     return (
       <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600">
         <FiInfo className="size-4 flex-shrink-0" aria-hidden="true" />
-        Decoded locally — no second source to check it against
+        Decoded locally — nothing to compare it against
       </div>
     );
   }

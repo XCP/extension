@@ -8,7 +8,7 @@
 
 import { addressesEqual } from '@/core/counterparty/unpack/address';
 import { isCounterpartyData, type UnpackResult, unpackCounterpartyMessage } from '@/core/counterparty/unpack/index';
-import type { AttachData, } from '@/core/counterparty/unpack/messages/attach';
+import type { AttachData, DetachData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
 import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
@@ -255,6 +255,27 @@ function verifyDestroy(
 /**
  * Verify a sweep message
  */
+/**
+ * Detach carries a single field — where the assets leave the UTXO to. A wrong
+ * destination sends them to an address the signer does not control, so this is
+ * exactly the comparison worth making, not one to skip.
+ */
+function verifyDetach(
+  local: DetachData,
+  api: Record<string, unknown>
+): string[] {
+  const mismatches: string[] = [];
+
+  const apiDest = getApiValue(api, 'destination', 'address') as string | undefined;
+  // "0" is the protocol's stand-in for "back to the sender", which the API
+  // renders as the resolved address — not a mismatch.
+  if (apiDest && local.destination !== '0' && !addressesEqual(local.destination, apiDest)) {
+    mismatches.push(`Destination: local="${local.destination}", API="${apiDest}"`);
+  }
+
+  return mismatches;
+}
+
 function verifySweep(
   local: SweepData,
   api: Record<string, unknown>
@@ -646,7 +667,14 @@ export function verifyProviderTransaction(
     );
   }
 
-  // Verify specific fields based on message type
+  // Verify specific fields based on message type.
+  //
+  // Whether any payload field was actually compared, as opposed to the type and
+  // type ID matching and the switch falling through. Reporting a pass as
+  // "compared against the API" when no comparator ran overstates the check
+  // precisely where the least of it happened, which is what this flag exists to
+  // prevent.
+  let payloadCompared = true;
   const apiData = apiMessage.messageData;
 
   switch (localUnpack.messageType) {
@@ -722,16 +750,20 @@ export function verifyProviderTransaction(
       break;
 
     case 'detach':
-      // Detach payload is just a destination address — minimal verification
+      mismatches.push(...verifyDetach(localUnpack.data as DetachData, apiData));
       break;
 
     case 'dispense':
-      // Dispense has minimal payload - just a marker byte
-      // Verification is at the transaction level (destination/amount)
+      // A dispense payload is a marker byte: core's unpack returns only { data },
+      // so there is no field to compare. Which dispenser is triggered lives in
+      // the outputs, which the approval screen shows directly.
+      payloadCompared = false;
       break;
 
     default:
-      // Unknown message type - type match check is done above
+      // No comparator for this type in this build. The type and type ID above
+      // still matched, but no payload field was checked.
+      payloadCompared = false;
       break;
   }
 
@@ -739,7 +771,7 @@ export function verifyProviderTransaction(
 
   return {
     passed,
-    comparedAgainstApi: true,
+    comparedAgainstApi: payloadCompared,
     warning: passed ? undefined : `Verification failed: ${mismatches.join('; ')}`,
     mismatches,
     localUnpack,
