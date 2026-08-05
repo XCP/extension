@@ -355,9 +355,13 @@ function verifyMPMA(
     return null;
   }
 
+  // The endpoint returns exactly one send no matter how many the message carries — a two-send and
+  // a three-send MPMA both come back with the first send alone. Treating that as a count mismatch
+  // would block every legitimate multi-destination send, so a short list is reported as "nothing
+  // compared" rather than as tampering. The API can only ever add confidence here: the recipients
+  // on screen are read from the bytes, not from this response.
   if (local.sends.length !== apiSends.length) {
-    mismatches.push(`Send count: local=${local.sends.length}, API=${apiSends.length}`);
-    return mismatches;
+    return null;
   }
 
   // Verify each send

@@ -129,13 +129,15 @@ describe('verifyProviderTransaction', () => {
       expect(result.comparedAgainstApi).toBe(false);
     });
 
-    it('still compares mpma_send when the API does supply the sends', () => {
+    it('does not block a multi-send just because the endpoint truncated its reply', () => {
+      // The live endpoint returns exactly one send however many the message carries — a two-send
+      // and a three-send MPMA both come back with the first alone. Reading that as a count
+      // mismatch blocked every legitimate multi-destination send.
       const { scenarios } = JSON.parse(
         readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
       ) as { scenarios: Record<string, { rawTxHex: string }> };
       const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
 
-      // One send short of what the bytes carry — the case the live endpoint actually returns.
       const result = verifyProviderTransaction(payload, {
         messageType: 'mpma_send',
         messageTypeId: 3,
@@ -145,9 +147,33 @@ describe('verifyProviderTransaction', () => {
         description: 'Counterparty mpma_send transaction',
       });
 
+      expect(result.passed).toBe(true);
+      expect(result.mismatches).toEqual([]);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('still compares mpma_send field by field when the API supplies every send', () => {
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {
+          sends: [
+            { asset: 'XCP', destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', quantity: 1000 },
+            // Quantity altered: a full-length reply is still checked, so this must be caught.
+            { asset: 'XCP', destination: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr', quantity: 9999 },
+          ],
+        } as unknown as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
       expect(result.comparedAgainstApi).toBe(true);
       expect(result.passed).toBe(false);
-      expect(result.mismatches.join(' ')).toContain('Send count');
+      expect(result.mismatches.join(' ')).toContain('quantity');
     });
   });
 
