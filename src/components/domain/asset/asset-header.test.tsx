@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { AssetInfo } from '@/core/counterparty/api';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { AssetHeader } from './asset-header';
 
 // Mock dependencies
@@ -35,6 +36,9 @@ vi.mock('@/core/format', () => ({
 }));
 
 vi.mock('@/core/numeric', () => ({
+  // Brands are compile-time only; at runtime they are identity.
+  asBaseUnits: (v: unknown) => v,
+  asDisplayUnits: (v: unknown) => v,
   fromSatoshis: vi.fn((value, options) => {
     const numValue = typeof value === 'string' ? parseInt(value) : value;
     const result = numValue / 100000000;
@@ -50,8 +54,8 @@ describe('AssetHeader', () => {
     issuer: 'bc1qxyz789',
     divisible: true,
     locked: true,
-    supply: '1000000000000',
-    supply_normalized: '10000.00000000'
+    supply: asBaseUnits('1000000000000'),
+    supply_normalized: asDisplayUnits('10000.00000000')
   };
 
   beforeEach(() => {
@@ -112,7 +116,7 @@ describe('AssetHeader', () => {
     const indivisibleAsset = {
       ...mockAssetInfo,
       divisible: false,
-      supply: '1000'
+      supply: asBaseUnits('1000')
     };
     
     render(<AssetHeader assetInfo={indivisibleAsset} />);
@@ -123,7 +127,7 @@ describe('AssetHeader', () => {
   it('should handle zero supply', () => {
     const zeroSupplyAsset = {
       ...mockAssetInfo,
-      supply: 0
+      supply: asBaseUnits(0)
     };
     
     render(<AssetHeader assetInfo={zeroSupplyAsset} />);
@@ -146,7 +150,7 @@ describe('AssetHeader', () => {
   it('should handle string supply', () => {
     const stringSupplyAsset = {
       ...mockAssetInfo,
-      supply: '5000000'
+      supply: asBaseUnits('5000000')
     };
     
     render(<AssetHeader assetInfo={stringSupplyAsset} />);
@@ -163,7 +167,7 @@ describe('AssetHeader', () => {
     
     const updatedAssetInfo = {
       ...mockAssetInfo,
-      supply: '2000000000000'
+      supply: asBaseUnits('2000000000000')
     };
     
     rerender(<AssetHeader assetInfo={updatedAssetInfo} />);
@@ -174,7 +178,7 @@ describe('AssetHeader', () => {
   it('should use cached data when available', () => {
     const cachedData: AssetInfo = {
       ...mockAssetInfo,
-      supply: '999999999'
+      supply: asBaseUnits('999999999')
     };
     
     mockSubheadings.assets['PEPECASH'] = cachedData;
@@ -239,7 +243,7 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: false,
       locked: false,
-      supply_normalized: '0'
+      supply_normalized: asDisplayUnits('0')
     };
     
     render(<AssetHeader assetInfo={minimalAsset} />);
@@ -257,8 +261,8 @@ describe('AssetHeader', () => {
       issuer: 'bc1qissuer123',
       divisible: true,
       locked: true,
-      supply: 21000000,
-      supply_normalized: '0.21'
+      supply: asBaseUnits(21000000),
+      supply_normalized: asDisplayUnits('0.21')
     };
     
     render(<AssetHeader assetInfo={fullAsset} />);
@@ -279,8 +283,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: true,
       locked: true,
-      supply: '2600000000000000',
-      supply_normalized: '26000000'
+      supply: asBaseUnits('2600000000000000'),
+      supply_normalized: asDisplayUnits('26000000')
     };
     
     rerender(<AssetHeader assetInfo={differentAsset} />);
@@ -305,7 +309,7 @@ describe('AssetHeader', () => {
   it('should handle large supply numbers', () => {
     const largeSupplyAsset = {
       ...mockAssetInfo,
-      supply: '9999999999999999999999'
+      supply: asBaseUnits('9999999999999999999999')
     };
     
     render(<AssetHeader assetInfo={largeSupplyAsset} />);
@@ -323,8 +327,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: true,
       locked: false,
-      supply: 1000,
-      supply_normalized: '0.00001'
+      supply: asBaseUnits(1000),
+      supply_normalized: asDisplayUnits('0.00001')
     };
     
     mockSubheadings.assets['TEST'] = { ...initialAsset };
@@ -352,8 +356,8 @@ describe('AssetHeader', () => {
       asset_longname: null,
       divisible: false,
       locked: false,
-      supply: 500,
-      supply_normalized: '500'
+      supply: asBaseUnits(500),
+      supply_normalized: asDisplayUnits('500')
     };
     
     render(<AssetHeader assetInfo={newAsset} />);

@@ -11,6 +11,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useWallet } from "@/contexts/wallet-context";
 import type { SendOptions } from "@/core/counterparty/compose";
 import { formatMoreOutputs } from "@/core/format";
+import { asDisplayUnits } from '@/core/numeric';
 import { validateAmount, validateQuantity } from "@/core/validation/amount";
 import type { Destination } from "@/core/validation/destinations";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -165,7 +166,7 @@ export function SendForm({
           <BalanceHeader
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
-              quantity_normalized: assetDetails.availableBalance,
+              quantity_normalized: asDisplayUnits(assetDetails.availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',

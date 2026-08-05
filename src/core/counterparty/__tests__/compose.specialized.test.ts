@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import {
   composeAttach,
@@ -346,7 +347,7 @@ describe('Compose Specialized Operations', () => {
   describe('composeFairmint', () => {
     const defaultParams = {
       asset: 'FAIRMINTASSET',
-      quantity: 100,
+      quantity: asBaseUnits(100),
     };
 
     it('should compose fairmint transaction', async () => {
@@ -362,7 +363,7 @@ describe('Compose Specialized Operations', () => {
 
     it('should include optional parameters', async () => {
       const optionalParams = {
-        quantity: 200,
+        quantity: asBaseUnits(200),
       };
 
       await composeFairmint({
@@ -442,7 +443,7 @@ describe('Compose Specialized Operations', () => {
     const defaultParams = {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
-      quantity: '1000000',
+      quantity: asBaseUnits('1000000'),
     };
 
     it('should compose pool withdraw transaction', async () => {
@@ -468,7 +469,7 @@ describe('Compose Specialized Operations', () => {
       const result = await composePoolWithdraw({
         sourceAddress: mockAddress,
         sat_per_vbyte: mockSatPerVbyte,
-        quantity: '1000000',
+        quantity: asBaseUnits('1000000'),
         min_quantity_a: '100',
         min_quantity_b: '200',
         lp_asset: 'A77777777777777777',

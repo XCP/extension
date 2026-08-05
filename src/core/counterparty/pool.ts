@@ -1,5 +1,5 @@
 import type { PoolPosition } from "@/core/counterparty/api";
-import { BigNumber, fromSatoshis, toBigNumber } from "@/core/numeric";
+import { asDisplayUnits, BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 /**
  * verbose=true does not normalize the LP `quantity` on the address pools
@@ -17,7 +17,7 @@ export function normalizePoolPosition(position: PoolPosition): PoolPosition {
   const divisible = lpAssetInfo?.divisible ?? true;
   return {
     ...position,
-    quantity_normalized: divisible ? fromSatoshis(position.quantity) : String(position.quantity),
+    quantity_normalized: asDisplayUnits(divisible ? fromSatoshis(position.quantity) : String(position.quantity)),
   };
 }
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { AssetList } from "./asset-list";
 
 // Mock dependencies
@@ -89,14 +90,14 @@ describe("AssetList", () => {
     {
       asset: "PEPECASH",
       asset_longname: null,
-      supply_normalized: "1000000000",
+      supply_normalized: asDisplayUnits("1000000000"),
       description: "Test asset",
       locked: true,
     } as OwnedAsset,
     {
       asset: "RAREPEPE",
       asset_longname: "A.RAREPEPE",
-      supply_normalized: "500000",
+      supply_normalized: asDisplayUnits("500000"),
       description: "Another test asset",
       locked: false,
     } as OwnedAsset,

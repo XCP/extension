@@ -8,6 +8,7 @@ export const mockAddress = 'bc1qtest123address';
 export const mockDestAddress = 'bc1qdest456address';
 export const mockApiBase = 'https://api.counterparty.io:4000';
 
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 
 export const mockSettings = {
@@ -38,7 +39,7 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
     source: mockAddress,
     destination: mockDestAddress,
     asset: 'XCP',
-    quantity: 100000000,
+    quantity: asBaseUnits(100000000),
     memo: null,
     memo_is_hex: false,
     use_enhanced_send: false,
@@ -52,9 +53,9 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
       locked: false,
       owner: mockAddress,
       supply: '100000000',
-      supply_normalized: '1.00000000',
+      supply_normalized: asDisplayUnits('1.00000000'),
     },
-    quantity_normalized: '1.00000000',
+    quantity_normalized: asDisplayUnits('1.00000000'),
   },
   name: 'send',
   ...overrides,

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
+import type { DisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoMoveForm } from '../form';
 
@@ -64,8 +65,8 @@ vi.mock('@/contexts/loading-context', () => ({
 vi.mock('@/core/counterparty/api', () => ({
   fetchUtxoBalances: vi.fn().mockResolvedValue({
     result: [
-      { asset: 'TESTTOKEN', quantity_normalized: '100' },
-      { asset: 'XCP', quantity_normalized: '50' }
+      { asset: 'TESTTOKEN', quantity_normalized: '100' as DisplayUnits },
+      { asset: 'XCP', quantity_normalized: '50' as DisplayUnits }
     ]
   })
 }));
@@ -279,7 +280,7 @@ describe('UtxoMoveForm', () => {
   it('should handle single balance correctly', async () => {
     const { fetchUtxoBalances } = await import('@/core/counterparty/api');
     (fetchUtxoBalances as any).mockResolvedValueOnce({
-      result: [{ asset: 'TESTTOKEN', quantity_normalized: '100' }]
+      result: [{ asset: 'TESTTOKEN', quantity_normalized: '100' as DisplayUnits }]
     });
 
     render(

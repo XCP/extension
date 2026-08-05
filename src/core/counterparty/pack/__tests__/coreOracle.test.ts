@@ -28,6 +28,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { packComposeMessage } from '../messages';
@@ -74,7 +75,7 @@ const CASES: OracleCase[] = [
     params: {
       asset: 'XCP',
       destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
-      quantity: 100,
+      quantity: asBaseUnits(100),
       memo: 'thanks',
     },
     query: {
@@ -87,7 +88,7 @@ const CASES: OracleCase[] = [
   {
     label: 'indivisible issuance',
     composeType: 'issuance',
-    params: { asset: 'LANDMARKS', quantity: 21, divisible: false },
+    params: { asset: 'LANDMARKS', quantity: asBaseUnits(21), divisible: false },
     query: { asset: 'LANDMARKS', quantity: '21', divisible: 'false' },
   },
   {
@@ -104,7 +105,7 @@ const CASES: OracleCase[] = [
     label: 'issuance transferring ownership',
     composeType: 'issuance',
     params: {
-      asset: 'LANDMARKS', quantity: 0, divisible: false,
+      asset: 'LANDMARKS', quantity: asBaseUnits(0), divisible: false,
       transfer_destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
     },
     query: {
@@ -121,7 +122,7 @@ const CASES: OracleCase[] = [
   {
     label: 'destroy with a tag',
     composeType: 'destroy',
-    params: { asset: 'XCP', quantity: 1000, tag: 'burn' },
+    params: { asset: 'XCP', quantity: asBaseUnits(1000), tag: 'burn' },
     query: { asset: 'XCP', quantity: '1000', tag: 'burn' },
   },
   {
@@ -145,7 +146,7 @@ const CASES: OracleCase[] = [
   {
     label: 'initial subasset issuance',
     composeType: 'issuance',
-    params: { asset: 'PEPECASH.oracle-check', quantity: 1000, divisible: false, description: 'a subasset' },
+    params: { asset: 'PEPECASH.oracle-check', quantity: asBaseUnits(1000), divisible: false, description: 'a subasset' },
     query: { asset: 'PEPECASH.oracle-check', quantity: '1000', divisible: 'false', description: 'a subasset' },
     // Core names the subasset by drawing a random numeric asset per compose, so the id differs on
     // every call and can only come from the response.

@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import { useSettings } from '@/contexts/settings-context';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { UtxoAttachForm } from '../form';
 
@@ -99,9 +100,9 @@ vi.mock('@/hooks/useAssetDetails', () => ({
         issuer: 'bc1qissuer',
         divisible: true,
         locked: false,
-        supply: '1000000'
+        supply: asBaseUnits('1000000')
       },
-      availableBalance: '100'
+      availableBalance: asDisplayUnits('100')
     }
   })
 }));

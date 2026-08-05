@@ -3,6 +3,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { AssetInfo } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {
@@ -20,7 +21,7 @@ const BTC_ASSET_INFO: AssetInfo = {
   divisible: true,
   locked: true,
   supply: '21000000',
-  supply_normalized: '21000000',
+  supply_normalized: asDisplayUnits('21000000'),
   issuer: '',
   fair_minting: false,
 };
@@ -159,7 +160,7 @@ export function useAssetBalance(asset: string) {
         // Update cache in HeaderContext
         setBalanceHeaderRef.current(asset, {
           asset,
-          quantity_normalized: balance,
+          quantity_normalized: asDisplayUnits(balance),
           asset_info: assetInfo ? {
             asset_longname: assetInfo.asset_longname,
             description: assetInfo.description ?? "",

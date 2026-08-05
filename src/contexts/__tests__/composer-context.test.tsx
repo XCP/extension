@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
 import type { ApiResponse } from '@/core/counterparty/compose';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { ComposerProvider } from '../composer-context';
 import { useComposer } from '../composer-context-object';
 
@@ -139,7 +140,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'XCP',
-            quantity: 1000,
+            quantity: asBaseUnits(1000),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -153,7 +154,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: 'bc1qowner',
             },
-            quantity_normalized: '0.00001000',
+            quantity_normalized: asDisplayUnits('0.00001000'),
           },
           name: 'send',
         },
@@ -346,7 +347,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -360,7 +361,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },
@@ -461,7 +462,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -475,7 +476,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },
@@ -546,7 +547,7 @@ describe('ComposerContext', () => {
             source: 'bc1qsource',
             destination: 'bc1qdest',
             asset: 'BTC',
-            quantity: 0,
+            quantity: asBaseUnits(0),
             memo: null,
             memo_is_hex: false,
             use_enhanced_send: false,
@@ -560,7 +561,7 @@ describe('ComposerContext', () => {
               locked: false,
               owner: '',
             },
-            quantity_normalized: '0',
+            quantity_normalized: asDisplayUnits('0'),
           },
           name: 'send',
         },

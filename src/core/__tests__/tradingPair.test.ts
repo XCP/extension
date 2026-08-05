@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asDisplayUnits } from '@/core/numeric';
 import {
   getMatchPricePerUnit,
   getOrderBaseAmount,
@@ -110,10 +111,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'RAREPEPE',
         get_asset: 'XCP',
-        give_quantity_normalized: '100',
-        get_quantity_normalized: '50',
-        give_remaining_normalized: '100',
-        get_remaining_normalized: '50',
+        give_quantity_normalized: asDisplayUnits('100'),
+        get_quantity_normalized: asDisplayUnits('50'),
+        give_remaining_normalized: asDisplayUnits('100'),
+        get_remaining_normalized: asDisplayUnits('50'),
       };
       // Selling 100 RAREPEPE for 50 XCP = 0.5 XCP per RAREPEPE
       expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0.5);
@@ -123,10 +124,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'XCP',
         get_asset: 'RAREPEPE',
-        give_quantity_normalized: '50',
-        get_quantity_normalized: '100',
-        give_remaining_normalized: '50',
-        get_remaining_normalized: '100',
+        give_quantity_normalized: asDisplayUnits('50'),
+        get_quantity_normalized: asDisplayUnits('100'),
+        give_remaining_normalized: asDisplayUnits('50'),
+        get_remaining_normalized: asDisplayUnits('100'),
       };
       // Buying 100 RAREPEPE with 50 XCP = 0.5 XCP per RAREPEPE
       expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0.5);
@@ -136,10 +137,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'RAREPEPE',
         get_asset: 'XCP',
-        give_quantity_normalized: '0',
-        get_quantity_normalized: '50',
-        give_remaining_normalized: '0',
-        get_remaining_normalized: '50',
+        give_quantity_normalized: asDisplayUnits('0'),
+        get_quantity_normalized: asDisplayUnits('50'),
+        give_remaining_normalized: asDisplayUnits('0'),
+        get_remaining_normalized: asDisplayUnits('50'),
       };
       expect(getOrderPricePerUnit(order, 'RAREPEPE')).toBe(0);
     });
@@ -150,10 +151,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'RAREPEPE',
         get_asset: 'XCP',
-        give_quantity_normalized: '100',
-        get_quantity_normalized: '50',
-        give_remaining_normalized: '75',
-        get_remaining_normalized: '37.5',
+        give_quantity_normalized: asDisplayUnits('100'),
+        get_quantity_normalized: asDisplayUnits('50'),
+        give_remaining_normalized: asDisplayUnits('75'),
+        get_remaining_normalized: asDisplayUnits('37.5'),
       };
       expect(getOrderBaseAmount(order, 'RAREPEPE')).toBe(75);
     });
@@ -162,10 +163,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'XCP',
         get_asset: 'RAREPEPE',
-        give_quantity_normalized: '50',
-        get_quantity_normalized: '100',
-        give_remaining_normalized: '37.5',
-        get_remaining_normalized: '75',
+        give_quantity_normalized: asDisplayUnits('50'),
+        get_quantity_normalized: asDisplayUnits('100'),
+        give_remaining_normalized: asDisplayUnits('37.5'),
+        get_remaining_normalized: asDisplayUnits('75'),
       };
       expect(getOrderBaseAmount(order, 'RAREPEPE')).toBe(75);
     });
@@ -176,10 +177,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'RAREPEPE',
         get_asset: 'XCP',
-        give_quantity_normalized: '100',
-        get_quantity_normalized: '50',
-        give_remaining_normalized: '75',
-        get_remaining_normalized: '37.5',
+        give_quantity_normalized: asDisplayUnits('100'),
+        get_quantity_normalized: asDisplayUnits('50'),
+        give_remaining_normalized: asDisplayUnits('75'),
+        get_remaining_normalized: asDisplayUnits('37.5'),
       };
       expect(getOrderQuoteAmount(order, 'RAREPEPE')).toBe(37.5);
     });
@@ -188,10 +189,10 @@ describe('trading-pair utilities', () => {
       const order = {
         give_asset: 'XCP',
         get_asset: 'RAREPEPE',
-        give_quantity_normalized: '50',
-        get_quantity_normalized: '100',
-        give_remaining_normalized: '37.5',
-        get_remaining_normalized: '75',
+        give_quantity_normalized: asDisplayUnits('50'),
+        get_quantity_normalized: asDisplayUnits('100'),
+        give_remaining_normalized: asDisplayUnits('37.5'),
+        get_remaining_normalized: asDisplayUnits('75'),
       };
       expect(getOrderQuoteAmount(order, 'RAREPEPE')).toBe(37.5);
     });

@@ -10,6 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/counterparty/api";
 import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 
@@ -215,7 +216,7 @@ export default function AssetPage(): ReactElement {
         divisible: assetDetails.assetInfo.divisible ?? false,
         locked: assetDetails.assetInfo.locked ?? false,
         supply: assetDetails.assetInfo.supply,
-        supply_normalized: assetDetails.assetInfo.supply_normalized || '0'
+        supply_normalized: assetDetails.assetInfo.supply_normalized || asDisplayUnits('0')
       };
     }
     // Fall back to cached data for instant display (partial info)
@@ -227,8 +228,12 @@ export default function AssetPage(): ReactElement {
         issuer: undefined, // Not available in cache
         divisible: false, // Not available in cache, will update when loaded
         locked: cachedAsset.locked,
-        supply: cachedAsset.supply_normalized, // Use normalized since divisibility unknown
-        supply_normalized: cachedAsset.supply_normalized
+        // supply is base units and the cache holds only the normalized figure, so it is omitted
+        // rather than filled with a display value 1e8 away from what the field means. That
+        // substitution was previously masked by the hardcoded `divisible: false` above — nothing
+        // divided it — which made a wrong value look right only while a second wrong value held.
+        supply: undefined,
+        supply_normalized: asDisplayUnits(cachedAsset.supply_normalized)
       };
     }
     return null;

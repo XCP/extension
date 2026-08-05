@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useWallet } from "@/contexts/wallet-context";
 import type { AssetInfo } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface AssetInfoState {
@@ -17,7 +18,7 @@ const BTC_ASSET_INFO: AssetInfo = {
   divisible: true,
   locked: true,
   supply: '2100000000000000',
-  supply_normalized: '21000000',
+  supply_normalized: asDisplayUnits('21000000'),
   issuer: '',
   fair_minting: false,
 };

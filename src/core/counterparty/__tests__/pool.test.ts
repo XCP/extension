@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
@@ -39,7 +40,7 @@ describe("counterparty pool utilities", () => {
       reserve_a: 75000000000000,
       reserve_b: 300000000000,
       lp_asset: "A6900000000000001774",
-      quantity: 4743416490252,
+      quantity: asBaseUnits(4743416490252),
     };
 
     it("derives quantity_normalized when the endpoint omits it", () => {
@@ -47,12 +48,12 @@ describe("counterparty pool utilities", () => {
     });
 
     it("does not divide when lp_asset_info marks the LP asset indivisible", () => {
-      const indivisible = { ...position, quantity: 42, lp_asset_info: { divisible: false } };
+      const indivisible = { ...position, quantity: asBaseUnits(42), lp_asset_info: { divisible: false } };
       expect(normalizePoolPosition(indivisible).quantity_normalized).toBe("42");
     });
 
     it("keeps quantity_normalized from the API when present", () => {
-      const alreadyNormalized = { ...position, quantity_normalized: "47434.1649" };
+      const alreadyNormalized = { ...position, quantity_normalized: asDisplayUnits("47434.1649") };
       expect(normalizePoolPosition(alreadyNormalized).quantity_normalized).toBe("47434.1649");
     });
   });

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UtxoBalance } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { UtxoCard } from "./utxo-card";
 
 vi.mock("@/components/domain/utxo/utxo-menu", () => ({
@@ -50,7 +51,7 @@ describe("UtxoCard", () => {
       issuer: "bc1qissuer",
       locked: false,
     },
-    quantity_normalized: "100.50000000",
+    quantity_normalized: asDisplayUnits("100.50000000"),
     utxo: "abc123def456789012345678901234567890123456789012345678901234:0",
     utxo_address: "bc1qtest123",
   };
@@ -64,7 +65,7 @@ describe("UtxoCard", () => {
       issuer: "bc1qissuer",
       locked: false,
     },
-    quantity_normalized: "5",
+    quantity_normalized: asDisplayUnits("5"),
     utxo: "def456abc789012345678901234567890123456789012345678901234567:1",
     utxo_address: "bc1qtest123",
   };

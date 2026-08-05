@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { asBaseUnits } from '@/core/numeric';
 import { useSearchQuery } from "../useSearchQuery";
 
 // Mock fetch
@@ -27,8 +28,8 @@ describe("useSearchQuery", () => {
   it("should search when query is set", async () => {
     const mockResults = {
       assets: [
-        { symbol: "XCP", supply: 2600000 },
-        { symbol: "PEPECASH", supply: 700000000 },
+        { symbol: "XCP", supply: asBaseUnits(2600000) },
+        { symbol: "PEPECASH", supply: asBaseUnits(700000000) },
       ],
     };
 
@@ -160,7 +161,7 @@ describe("useSearchQuery", () => {
 
   it("should clear results when query is cleared", async () => {
     const mockResults = {
-      assets: [{ symbol: "XCP", supply: 2600000 }],
+      assets: [{ symbol: "XCP", supply: asBaseUnits(2600000) }],
     };
 
     (global.fetch as any).mockResolvedValue({

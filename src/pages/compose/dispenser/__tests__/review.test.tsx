@@ -1,5 +1,6 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { ReviewDispenser } from '../review';
 
 // Capture the customFields handed to the shared review screen.
@@ -31,10 +32,10 @@ describe('ReviewDispenser', () => {
 
   const baseParams = {
     asset: 'PEPECASH',
-    escrow_quantity_normalized: '5',
-    give_quantity_normalized: '1',
-    escrow_quantity: 5,
-    give_quantity: 1,
+    escrow_quantity_normalized: asDisplayUnits('5'),
+    give_quantity_normalized: asDisplayUnits('1'),
+    escrow_quantity: asBaseUnits(5),
+    give_quantity: asBaseUnits(1),
     mainchainrate: 100000,
   };
 

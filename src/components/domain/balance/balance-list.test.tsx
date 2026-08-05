@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import type { TokenBalance } from "@/core/counterparty/api";
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { BalanceList } from "./balance-list";
 
 // Mock dependencies
@@ -131,38 +132,38 @@ describe("BalanceList", () => {
   const mockTokenBalances: TokenBalance[] = [
     {
       asset: "XCP",
-      quantity_normalized: "100.00000000",
+      quantity_normalized: asDisplayUnits("100.00000000"),
       asset_info: {
         asset_longname: null,
         description: "Counterparty Token",
         issuer: "burn",
         divisible: true,
         locked: true,
-        supply: "2600000",
+        supply: asBaseUnits("2600000"),
       },
     },
     {
       asset: "PEPECASH",
-      quantity_normalized: "1000000",
+      quantity_normalized: asDisplayUnits("1000000"),
       asset_info: {
         asset_longname: null,
         description: "Pepe Cash",
         issuer: "bc1qissuer",
         divisible: false,
         locked: true,
-        supply: "1000000000",
+        supply: asBaseUnits("1000000000"),
       },
     },
     {
       asset: "RAREPEPE",
-      quantity_normalized: "500",
+      quantity_normalized: asDisplayUnits("500"),
       asset_info: {
         asset_longname: "A.RAREPEPE",
         description: "Rare Pepe",
         issuer: "bc1qissuer2",
         divisible: false,
         locked: false,
-        supply: "1000",
+        supply: asBaseUnits("1000"),
       },
     },
   ];
@@ -474,7 +475,7 @@ describe("BalanceList", () => {
       .map((_, i) => ({
         ...mockTokenBalances[0],
         asset: `TOKEN${i}`,
-        quantity_normalized: "100.00000000",
+        quantity_normalized: asDisplayUnits("100.00000000"),
       }));
     mockFetchTokenBalances.mockResolvedValue(tenBalances);
 
@@ -521,7 +522,7 @@ describe("BalanceList", () => {
   it("should filter out zero balances for non-special assets", async () => {
     const zeroBalance: TokenBalance = {
       asset: "EMPTYTOKEN",
-      quantity_normalized: "0",
+      quantity_normalized: asDisplayUnits("0"),
       asset_info: {
         asset_longname: null,
         description: "",

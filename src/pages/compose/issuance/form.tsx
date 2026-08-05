@@ -14,7 +14,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
-import { toBigNumber } from "@/core/numeric";
+import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 /** Maximum file size for inscriptions in KB */
@@ -153,7 +153,7 @@ export function IssuanceForm({
                   divisible: parentAssetDetails.assetInfo.divisible ?? false,
                   locked: parentAssetDetails.assetInfo.locked ?? false,
                   supply: parentAssetDetails.assetInfo.supply,
-                  supply_normalized: parentAssetDetails.assetInfo.supply_normalized || '0'
+                  supply_normalized: asDisplayUnits(parentAssetDetails.assetInfo.supply_normalized || '0')
                 }}
                 className="mt-1 mb-5"
               />

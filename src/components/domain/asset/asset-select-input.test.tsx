@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
+import { asDisplayUnits } from '@/core/numeric';
 import { AssetSelectInput } from "./asset-select-input";
 
 // Mock settings - use vi.hoisted for variables used in vi.mock factory
@@ -43,12 +44,12 @@ describe("AssetSelectInput", () => {
           {
             asset: "XCP",
             description: "Counterparty",
-            supply_normalized: "2600000",
+            supply_normalized: asDisplayUnits("2600000"),
           },
           {
             asset: "PEPECASH",
             description: "Pepe Cash",
-            supply_normalized: "1000000000",
+            supply_normalized: asDisplayUnits("1000000000"),
           },
         ],
       }),

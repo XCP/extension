@@ -1,3 +1,4 @@
+import { asBaseUnits } from '@/core/numeric';
 /**
  * Integration Tests for Counterparty Message Unpacking
  *
@@ -92,7 +93,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         source: TEST_SOURCE,
         destination: TEST_DEST,
         asset: 'XCP',
-        quantity: 100000000, // 1 XCP
+        quantity: asBaseUnits(100000000), // 1 XCP
       });
 
       if (!result) {
@@ -115,7 +116,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         type: 'enhanced_send',
         params: {
           asset: 'XCP',
-          quantity: 100000000,
+          quantity: asBaseUnits(100000000),
           destination: TEST_DEST,
         },
       });
@@ -129,7 +130,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         source: TEST_SOURCE,
         destination: TEST_DEST,
         asset: 'XCP',
-        quantity: 100000000, // 1 XCP
+        quantity: asBaseUnits(100000000), // 1 XCP
       });
 
       if (!result) {
@@ -144,7 +145,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         type: 'enhanced_send',
         params: {
           asset: 'XCP',
-          quantity: 200000000, // WRONG! Should be 100000000
+          quantity: asBaseUnits(200000000), // WRONG! Should be 100000000
           destination: TEST_DEST,
         },
       });
@@ -159,9 +160,9 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
       const result = await composeTransaction('order', {
         source: TEST_SOURCE,
         give_asset: 'XCP',
-        give_quantity: 100000000, // 1 XCP
+        give_quantity: asBaseUnits(100000000), // 1 XCP
         get_asset: 'BTC',
-        get_quantity: 10000000, // 0.1 BTC
+        get_quantity: asBaseUnits(10000000), // 0.1 BTC
         expiration: 100,
       });
 
@@ -188,9 +189,9 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         type: 'order',
         params: {
           give_asset: 'XCP',
-          give_quantity: 100000000,
+          give_quantity: asBaseUnits(100000000),
           get_asset: 'BTC',
-          get_quantity: 10000000,
+          get_quantity: asBaseUnits(10000000),
           expiration: 100,
         },
       });
@@ -204,8 +205,8 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
       const result = await composeTransaction('dispenser', {
         source: TEST_SOURCE,
         asset: 'XCP',
-        give_quantity: 10000000, // 0.1 XCP per dispense
-        escrow_quantity: 100000000, // 1 XCP total
+        give_quantity: asBaseUnits(10000000), // 0.1 XCP per dispense
+        escrow_quantity: asBaseUnits(100000000), // 1 XCP total
         mainchainrate: 100000, // 100,000 sats per dispense
         status: 0, // Open
       });
@@ -233,8 +234,8 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         type: 'dispenser',
         params: {
           asset: 'XCP',
-          give_quantity: 10000000,
-          escrow_quantity: 100000000,
+          give_quantity: asBaseUnits(10000000),
+          escrow_quantity: asBaseUnits(100000000),
           mainchainrate: 100000,
           status: 0,
         },
@@ -285,7 +286,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
       const result = await composeTransaction('destroy', {
         source: TEST_SOURCE,
         asset: 'XCP',
-        quantity: 10000000, // 0.1 XCP
+        quantity: asBaseUnits(10000000), // 0.1 XCP
         tag: 'test burn',
       });
 
@@ -309,7 +310,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
         type: 'destroy',
         params: {
           asset: 'XCP',
-          quantity: 10000000,
+          quantity: asBaseUnits(10000000),
         },
       });
 
@@ -364,7 +365,7 @@ describe.skip('Integration: Counterparty API Compose & Unpack', () => {
       const result = await composeTransaction('issuance', {
         source: TEST_SOURCE,
         asset: assetName,
-        quantity: 1000000000, // 10 units (divisible)
+        quantity: asBaseUnits(1000000000), // 10 units (divisible)
         divisible: true,
         description: 'Test asset',
       });

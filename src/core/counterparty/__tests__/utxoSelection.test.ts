@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
+import { asDisplayUnits } from '@/core/numeric';
 import * as counterpartyApi from '../api';
 import { selectUtxosForTransaction } from '../utxoSelection';
 
@@ -67,7 +68,7 @@ describe('selectUtxosForTransaction', () => {
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
     mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'MYASSET', quantity_normalized: '100', utxo: 'tx2:0' },
+      { asset: 'MYASSET', quantity_normalized: asDisplayUnits('100'), utxo: 'tx2:0' },
     ]);
 
     const result = await selectUtxosForTransaction(mockAddress);
@@ -169,7 +170,7 @@ describe('selectUtxosForTransaction', () => {
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
     mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'MYASSET', quantity_normalized: '100', utxo: 'tx1:0' },
+      { asset: 'MYASSET', quantity_normalized: asDisplayUnits('100'), utxo: 'tx1:0' },
     ]);
 
     await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow(
@@ -212,8 +213,8 @@ describe('selectUtxosForTransaction', () => {
 
     mockedFetchUTXOs.mockResolvedValue(mockUtxos);
     mockedFetchTokenBalances.mockResolvedValue([
-      { asset: 'ASSET1', quantity_normalized: '100', utxo: 'tx2:0' },
-      { asset: 'ASSET2', quantity_normalized: '50', utxo: 'tx2:0' },
+      { asset: 'ASSET1', quantity_normalized: asDisplayUnits('100'), utxo: 'tx2:0' },
+      { asset: 'ASSET2', quantity_normalized: asDisplayUnits('50'), utxo: 'tx2:0' },
     ]);
 
     const result = await selectUtxosForTransaction(mockAddress);

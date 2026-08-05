@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from './tx-action-info';
 
 // Minimal localUnpack source both approval screens pass in.
@@ -35,7 +36,7 @@ describe('isAssetDivisible', () => {
 
 describe('getTxActionInfo', () => {
   it('normalizes a send quantity (the drift bug: no raw satoshis)', () => {
-    const info = getTxActionInfo(fromUnpack('send', { quantity: 100000000, asset: 'XCP' }));
+    const info = getTxActionInfo(fromUnpack('send', { quantity: asBaseUnits(100000000), asset: 'XCP' }));
     expect(info).toEqual({ label: 'Send', description: '1.00000000 XCP' });
   });
 
@@ -47,7 +48,7 @@ describe('getTxActionInfo', () => {
   });
 
   it('detach shows quantity when present, else the destination', () => {
-    expect(getTxActionInfo(fromUnpack('detach', { quantity: 100000000, asset: 'XCP' }))?.description).toBe('1.00000000 XCP');
+    expect(getTxActionInfo(fromUnpack('detach', { quantity: asBaseUnits(100000000), asset: 'XCP' }))?.description).toBe('1.00000000 XCP');
     expect(getTxActionInfo(fromUnpack('detach', { destination: 'bc1qexampleaddress0000' }))?.description)
       .toBe('To bc1qexampleaddre…');
     expect(getTxActionInfo(fromUnpack('detach', {}))?.description).toBe('Detach assets from UTXO');

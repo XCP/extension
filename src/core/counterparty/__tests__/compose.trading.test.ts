@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import { composeCancel, composeDispense, composeDispenser, composeOrder } from '../compose';
 import {
@@ -53,7 +54,7 @@ describe('Compose Trading Operations', () => {
       give_asset: testAssets.XCP,
       give_quantity: testQuantities.MEDIUM,
       get_asset: testAssets.BTC,
-      get_quantity: 10000000, // 0.1 BTC
+      get_quantity: asBaseUnits(10000000), // 0.1 BTC
       expiration: 100,
       fee_required: 0,
     };
@@ -90,9 +91,9 @@ describe('Compose Trading Operations', () => {
     it('should handle sell orders (give XCP, get BTC)', async () => {
       const sellParams = {
         give_asset: testAssets.XCP,
-        give_quantity: 100000000,
+        give_quantity: asBaseUnits(100000000),
         get_asset: testAssets.BTC,
-        get_quantity: 10000000,
+        get_quantity: asBaseUnits(10000000),
         expiration: 100,
         fee_required: 0,
       };
@@ -108,9 +109,9 @@ describe('Compose Trading Operations', () => {
     it('should handle buy orders (give BTC, get XCP)', async () => {
       const buyParams = {
         give_asset: testAssets.BTC,
-        give_quantity: 10000000,
+        give_quantity: asBaseUnits(10000000),
         get_asset: testAssets.XCP,
-        get_quantity: 100000000,
+        get_quantity: asBaseUnits(100000000),
         expiration: 100,
         fee_required: 0,
       };
@@ -126,9 +127,9 @@ describe('Compose Trading Operations', () => {
     it('should handle asset-to-asset trades', async () => {
       const assetTradeParams = {
         give_asset: testAssets.DIVISIBLE,
-        give_quantity: 50000000,
+        give_quantity: asBaseUnits(50000000),
         get_asset: testAssets.INDIVISIBLE,
-        get_quantity: 10,
+        get_quantity: asBaseUnits(10),
         expiration: 200,
         fee_required: 0,
       };
@@ -265,8 +266,8 @@ describe('Compose Trading Operations', () => {
   describe('composeDispenser', () => {
     const defaultParams = {
       asset: testAssets.XCP,
-      give_quantity: 1000000,
-      escrow_quantity: 100000000,
+      give_quantity: asBaseUnits(1000000),
+      escrow_quantity: asBaseUnits(100000000),
       mainchainrate: 100,
       status: '0', // 0 = open, 10 = close
     };
@@ -356,7 +357,7 @@ describe('Compose Trading Operations', () => {
   describe('composeDispense', () => {
     const defaultParams = {
       dispenser: 'bc1qdispenser123',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     };
 
     it('should compose dispense transaction', async () => {
@@ -377,7 +378,7 @@ describe('Compose Trading Operations', () => {
           address: mockAddress,
           dispenser: defaultParams.dispenser,
           quantity: defaultParams.quantity,
-          quantity_normalized: '0.01000000',
+          quantity_normalized: asDisplayUnits('0.01000000'),
         } as any,
       });
       mockedApiClient.get.mockResolvedValue(createMockApiResponse({ result: upstream }));

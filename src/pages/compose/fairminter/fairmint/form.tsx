@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
-import { divide, multiply, roundDownToMultiple, toBigNumber } from "@/core/numeric";
+import { asDisplayUnits, divide, multiply, roundDownToMultiple, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface FairmintFormDataInternal {
@@ -219,7 +219,7 @@ export function FairmintForm({
             <BalanceHeader 
               balance={{
                 asset: currencyType,
-                quantity_normalized: currencyDetails.availableBalance || "0",
+                quantity_normalized: asDisplayUnits(currencyDetails.availableBalance || "0"),
                 asset_info: currencyDetails.assetInfo ? {
                   asset_longname: currencyDetails.assetInfo.asset_longname,
                   description: currencyDetails.assetInfo.description || '',

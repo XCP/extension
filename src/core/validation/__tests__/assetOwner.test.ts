@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as counterpartyApi from '@/core/counterparty/api';
+import { asDisplayUnits } from '@/core/numeric';
 import { 
   looksLikeAssetName, 
   lookupAssetOwner, 
@@ -100,7 +101,7 @@ describe('Asset Owner Validation', () => {
         issuer: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
         divisible: true,
         locked: false,
-        supply_normalized: '1000000000'
+        supply_normalized: asDisplayUnits('1000000000')
       };
 
       mockFetchAssetDetails.mockResolvedValue(mockAssetInfo);
@@ -120,7 +121,7 @@ describe('Asset Owner Validation', () => {
         issuer: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
         divisible: true,
         locked: false,
-        supply_normalized: '1000000000'
+        supply_normalized: asDisplayUnits('1000000000')
       };
 
       mockFetchAssetDetails.mockResolvedValue(mockAssetInfo);
@@ -148,7 +149,7 @@ describe('Asset Owner Validation', () => {
         issuer: '',
         divisible: true,
         locked: false,
-        supply_normalized: '0'
+        supply_normalized: asDisplayUnits('0')
       };
 
       mockFetchAssetDetails.mockResolvedValue(mockAssetInfo);

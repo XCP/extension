@@ -12,7 +12,7 @@ import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest
 import { useComposer } from "@/contexts/composer-context-object";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
-import { toBigNumber } from "@/core/numeric";
+import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
@@ -202,7 +202,7 @@ export function OrderForm({
         <BalanceHeader
           balance={{
             asset: baseAsset,
-            quantity_normalized: giveAssetDetails.availableBalance,
+            quantity_normalized: asDisplayUnits(giveAssetDetails.availableBalance),
             asset_info: giveAssetDetails.assetInfo ? {
               asset_longname: giveAssetDetails.assetInfo.asset_longname,
               description: giveAssetDetails.assetInfo.description || '',

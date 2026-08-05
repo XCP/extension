@@ -8,6 +8,7 @@ import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { MemoInput } from "@/components/ui/inputs/memo-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { DestroyOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { validateQuantity } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
@@ -112,7 +113,7 @@ export function DestroySupplyForm({
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply
               },
-              quantity_normalized: assetDetails.availableBalance
+              quantity_normalized: asDisplayUnits(assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
           />
