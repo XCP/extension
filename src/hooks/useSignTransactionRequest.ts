@@ -19,7 +19,7 @@ import {
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
-  fetchInputValues
+  fetchInputPrevouts
 } from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
@@ -129,12 +129,14 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // all of them, and unresolved inputs silently counted as zero, understating the fee.
     if (inputs.length > 0) {
       try {
-        const inputValues = await fetchInputValues(inputs);
+        const prevouts = await fetchInputPrevouts(inputs);
         for (const input of inputs) {
-          const value = inputValues.get(`${input.txid}:${input.vout}`);
-          if (value != null) {
-            input.value = value;
-          }
+          const prevout = prevouts.get(`${input.txid}:${input.vout}`);
+          if (prevout == null) continue;
+          input.value = prevout.value;
+          // Without the owning address the movement summary cannot tell whose
+          // input this is, and reports every total as undetermined.
+          if (prevout.address) input.address = prevout.address;
         }
       } catch (err) {
         console.warn('Failed to fetch input values:', err);

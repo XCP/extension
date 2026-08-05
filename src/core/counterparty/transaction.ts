@@ -109,6 +109,13 @@ async function _fetchOutputValue(txid: string, vout: number): Promise<number | n
   return null;
 }
 
+/** A resolved previous output: what an input is actually spending. */
+export interface InputPrevout {
+  value: number;
+  /** Owning address, when the source API could attribute the script. */
+  address?: string;
+}
+
 /**
  * Look up input values for a decoded transaction.
  * Returns a map of "txid:vout" → satoshi value.
@@ -116,7 +123,19 @@ async function _fetchOutputValue(txid: string, vout: number): Promise<number | n
 export async function fetchInputValues(
   inputs: Array<{ txid: string; vout: number }>
 ): Promise<Map<string, number>> {
-  const values = new Map<string, number>();
+  const prevouts = await fetchInputPrevouts(inputs);
+  return new Map([...prevouts].map(([key, prevout]) => [key, prevout.value]));
+}
+
+/**
+ * Look up both the value and the owning address of each input's previous
+ * output. The address matters because a movement summary that cannot tell
+ * whose input it is has to report the net effect as undetermined.
+ */
+export async function fetchInputPrevouts(
+  inputs: Array<{ txid: string; vout: number }>
+): Promise<Map<string, InputPrevout>> {
+  const values = new Map<string, InputPrevout>();
 
   // Deduplicate by txid to minimize API calls
   const uniqueTxids = [...new Set(inputs.map(i => i.txid))];
@@ -129,12 +148,20 @@ export async function fetchInputValues(
 
     for (const url of endpoints) {
       try {
-        const response = await apiClient.get<{ vout: Array<{ value: number }> }>(url, { retries: 0 });
+        const response = await apiClient.get<{
+          vout: Array<{ value: number; scriptpubkey_address?: string }>;
+        }>(url, { retries: 0 });
         if (response.data?.vout) {
           // Store all vout values for this txid
           for (const input of inputs) {
-            if (input.txid === txid && response.data.vout[input.vout]) {
-              values.set(`${txid}:${input.vout}`, response.data.vout[input.vout]!.value);
+            const prevout = input.txid === txid ? response.data.vout[input.vout] : undefined;
+            if (prevout) {
+              values.set(`${txid}:${input.vout}`, {
+                value: prevout.value,
+                ...(prevout.scriptpubkey_address
+                  ? { address: prevout.scriptpubkey_address }
+                  : {}),
+              });
             }
           }
           break; // Success, skip fallback
