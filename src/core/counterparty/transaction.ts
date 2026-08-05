@@ -273,7 +273,18 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
   const name = (asset?: string): string => {
     const info = infoFor(assetFieldOf(asset));
     const longname = info?.asset_longname;
-    return typeof longname === 'string' && longname ? longname : (asset ?? '');
+    if (typeof longname === 'string' && longname) return longname;
+
+    // Core resolves an asset name through a ledger lookup and `get_asset_name` returns 0 for an
+    // asset the node does not know, which the endpoint serializes as the number 0. Rendering that
+    // as the name produced "Deposit liquidity: 1.00000000 XCP and 200,000,000 base units 0" — a
+    // sentence in which 0 reads as an asset. The same marker already had to be handled in the
+    // comparator, where it was reported as tampering.
+    //
+    // The bytes do name the asset: the local unpack derives it arithmetically from the id. Until
+    // the two sources are merged, an unresolvable name is stated as unknown rather than printed.
+    const text = String(asset ?? '');
+    return text === '' || text === '0' ? 'an unnamed asset' : text;
   };
 
   const num = (key: string): number | undefined =>

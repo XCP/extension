@@ -28,6 +28,13 @@ const EXPECTED: Record<string, string> = {
   'fairminter-xcp69': 'fairminter',
   'send-above-safe-integer': 'enhanced_send',
   dispense: 'dispense',
+  attach: 'attach',
+  detach: 'detach',
+  'utxo-move': 'utxo',
+  btcpay: 'btcpay',
+  dispenser: 'dispenser',
+  'pool-deposit': 'pooldeposit',
+  'pool-withdraw': 'poolwithdraw',
 };
 
 describe('approval fixtures', () => {

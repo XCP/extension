@@ -387,7 +387,8 @@ describe('refusing to pack is not the same as agreeing', () => {
   // Each of these must return null so the caller reports "cannot verify by equality" rather than
   // treating an unpackable request as verified.
   it.each([
-    ['an unsupported compose type', 'attach', { asset: 'XCP', quantity: asBaseUnits(1) }],
+    // attach used to sit here; it is packable now. bet is not, and core still parses it.
+    ['an unsupported compose type', 'bet', { feed_address: 'bc1qa', bet_type: 2, wager_quantity: asBaseUnits(1) }],
     ['a multi-destination send', 'send', { asset: 'XCP', destination: 'bc1qa,bc1qb', quantity: asBaseUnits(1) }],
     ['a hex memo, which core encodes differently', 'send', {
       asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: asBaseUnits(1), memo: 'ff00', memo_is_hex: true,

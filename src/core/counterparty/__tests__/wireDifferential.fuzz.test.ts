@@ -83,6 +83,20 @@ const GENERATORS: Record<string, (r: () => number) => Record<string, unknown>> =
   }),
   fairmint: (r) => ({ asset: numericAsset(r), quantity: qty(r) }),
   dispense: () => ({}),
+  attach: (r) => ({ asset: numericAsset(r), quantity: qty(r), destination_vout: String(Math.floor(r() * 4)) }),
+  detach: (r) => ({ destination: pick(r, ADDRESSES) }),
+  dispenser: (r) => ({
+    asset: numericAsset(r), give_quantity: qty(r), escrow_quantity: qty(r),
+    mainchainrate: String(Math.floor(r() * 1e6) + 1), status: '0',
+  }),
+  pooldeposit: (r) => ({
+    asset_a: numericAsset(r), asset_b: numericAsset(r),
+    quantity_a: qty(r), quantity_b: qty(r), min_lp_quantity: '0',
+  }),
+  poolwithdraw: (r) => ({
+    asset_a: numericAsset(r), asset_b: numericAsset(r),
+    quantity: qty(r), min_quantity_a: '0', min_quantity_b: '0',
+  }),
 };
 
 /**
@@ -172,6 +186,11 @@ describe('local decoder vs counterparty-core, same bytes', () => {
     // A divergence here means the approval screen and the chain would describe the same bytes
     // differently — the defect class this whole harness exists to catch.
     expect(divergences, `\n${divergences.join('\n')}\n`).toEqual([]);
-    expect(compared.length).toBeGreaterThan(0);
+
+    // Every generator must actually reach the endpoint. Without this a type whose packer starts
+    // returning null is silently dropped from the run and the suite still passes — coverage
+    // shrinking quietly is the failure mode this harness exists to prevent.
+    const expected = Object.keys(GENERATORS).filter((t) => !EXPECTED_DIVERGENCE.has(t)).sort();
+    expect([...new Set(compared)].sort(), `not built: ${unbuildable.join(', ')}`).toEqual(expected);
   }, 300000);
 });
