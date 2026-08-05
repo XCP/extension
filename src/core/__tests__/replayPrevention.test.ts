@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import {
   _testStore, 
   checkReplayAttempt,
@@ -122,7 +123,7 @@ describe('replayPrevention', () => {
     it('should generate consistent keys for same inputs', () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
 
       const key1 = generateIdempotencyKey(origin, method, params);
       const key2 = generateIdempotencyKey(origin, method, params);
@@ -135,8 +136,8 @@ describe('replayPrevention', () => {
     it('should generate different keys for different inputs', () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params1 = [{ asset: 'XCP', quantity: 100 }];
-      const params2 = [{ asset: 'XCP', quantity: 200 }];
+      const params1 = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
+      const params2 = [{ asset: 'XCP', quantity: asBaseUnits(200) }];
 
       const key1 = generateIdempotencyKey(origin, method, params1);
       const key2 = generateIdempotencyKey(origin, method, params2);
@@ -149,7 +150,7 @@ describe('replayPrevention', () => {
     it('should detect identical recent requests', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
 
       // Record first request
       recordTransaction('tx1', origin, method, params, { status: 'pending' });
@@ -164,7 +165,7 @@ describe('replayPrevention', () => {
     it('should not flag old requests as replays', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
 
       // Mock an old transaction (more than 5 minutes ago)
       const oldTimestamp = Date.now() - (6 * 60 * 1000);
@@ -181,7 +182,7 @@ describe('replayPrevention', () => {
     it('should validate nonces when required', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const address = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 
       // Generate a nonce first
@@ -210,7 +211,7 @@ describe('replayPrevention', () => {
     it('should handle idempotency keys', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const key = generateIdempotencyKey(origin, method, params);
 
       // Record successful response
@@ -289,7 +290,7 @@ describe('replayPrevention', () => {
     it('should execute handler when no replay detected', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const mockResult = { txid: 'tx123' };
 
       const handler = vi.fn().mockResolvedValue(mockResult);
@@ -303,7 +304,7 @@ describe('replayPrevention', () => {
     it('should return cached response for idempotent requests', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const mockResult = { txid: 'tx123' };
 
       const handler = vi.fn().mockResolvedValue(mockResult);
@@ -343,7 +344,7 @@ describe('replayPrevention', () => {
     it('should generate and validate nonces when required', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const address = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
       const mockResult = { txid: 'tx123' };
 
@@ -361,7 +362,7 @@ describe('replayPrevention', () => {
     it('should handle handler errors', async () => {
       const origin = 'https://test.com';
       const method = 'xcp_composeSend';
-      const params = [{ asset: 'XCP', quantity: 100 }];
+      const params = [{ asset: 'XCP', quantity: asBaseUnits(100) }];
       const error = new Error('Handler failed');
 
       const handler = vi.fn().mockRejectedValue(error);

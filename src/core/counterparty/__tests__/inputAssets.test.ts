@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchUtxoBalances } from '@/core/counterparty/api';
+import { asDisplayUnits } from '@/core/numeric';
 import {
   classifySignedInputAssets,
   fetchInputsAttachedAssets,
@@ -30,7 +31,7 @@ describe('fetchInputsAttachedAssets', () => {
     mockedFetch.mockImplementation(async (utxo: string) => {
       if (utxo.startsWith('aaaa')) {
         return page([
-          { asset: 'PEPECASH', quantity_normalized: '1000.00000000', asset_info: { asset_longname: null } },
+          { asset: 'PEPECASH', quantity_normalized: asDisplayUnits('1000.00000000'), asset_info: { asset_longname: null } },
         ]);
       }
       return page([]);
@@ -45,14 +46,14 @@ describe('fetchInputsAttachedAssets', () => {
     expect(assets[0]).toMatchObject({
       inputIndex: 0,
       utxo: `${'aaaa'.repeat(16)}:0`,
-      assets: [{ asset: 'PEPECASH', quantity_normalized: '1000.00000000', asset_longname: null }],
+      assets: [{ asset: 'PEPECASH', quantity_normalized: asDisplayUnits('1000.00000000'), asset_longname: null }],
     });
   });
 
   it('prefers the asset longname when present', async () => {
     mockedFetch.mockResolvedValue(
       page([
-        { asset: 'A95428956661682177', quantity_normalized: '1', asset_info: { asset_longname: 'MYPROJECT.RARE' } },
+        { asset: 'A95428956661682177', quantity_normalized: asDisplayUnits('1'), asset_info: { asset_longname: 'MYPROJECT.RARE' } },
       ])
     );
 
@@ -119,7 +120,7 @@ describe('fetchInputsAttachedAssets', () => {
     const assetTxid = 'ab'.repeat(32);
     mockedFetch.mockImplementation(async (utxo: string) =>
       utxo.startsWith(assetTxid)
-        ? page([{ asset: 'RAREPEPE', quantity_normalized: '1.00000000', asset_info: { asset_longname: null } }])
+        ? page([{ asset: 'RAREPEPE', quantity_normalized: asDisplayUnits('1.00000000'), asset_info: { asset_longname: null } }])
         : page([])
     );
 
@@ -158,15 +159,15 @@ describe('fetchInputsAttachedAssets', () => {
   it('drops balance rows missing an asset or quantity', async () => {
     mockedFetch.mockResolvedValue(
       page([
-        { asset: 'XCP', quantity_normalized: '5.00000000' },
-        { asset: '', quantity_normalized: '1' },
-        { asset: 'GHOST', quantity_normalized: '' },
+        { asset: 'XCP', quantity_normalized: asDisplayUnits('5.00000000') },
+        { asset: '', quantity_normalized: asDisplayUnits('1') },
+        { asset: 'GHOST', quantity_normalized: asDisplayUnits('') },
       ])
     );
 
     const assets = await fetchInputsAttachedAssets([input(0)]);
     expect(assets[0]!.assets).toEqual([
-      { asset: 'XCP', quantity_normalized: '5.00000000', asset_longname: null },
+      { asset: 'XCP', quantity_normalized: asDisplayUnits('5.00000000'), asset_longname: null },
     ]);
   });
 });
@@ -175,7 +176,7 @@ describe('classifySignedInputAssets', () => {
   const withAsset = (inputIndex: number): InputAttachedAssets => ({
     inputIndex,
     utxo: `tx:${inputIndex}`,
-    assets: [{ asset: 'XCP', quantity_normalized: '1', asset_longname: null }],
+    assets: [{ asset: 'XCP', quantity_normalized: asDisplayUnits('1'), asset_longname: null }],
   });
   const failed = (inputIndex: number): InputAttachedAssets => ({
     inputIndex,

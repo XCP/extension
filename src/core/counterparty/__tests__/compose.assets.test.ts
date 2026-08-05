@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import {
   composeBurn, 
@@ -48,7 +49,7 @@ describe('Compose Asset Management Operations', () => {
   describe('composeIssuance', () => {
     const defaultParams = {
       asset: 'NEWASSET',
-      quantity: 1000000000,
+      quantity: asBaseUnits(1000000000),
       divisible: true,
       lock: false,
       reset: false,
@@ -93,7 +94,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle subasset issuance', async () => {
       const subassetParams = {
         asset: 'PARENTASSET.SUBASSET',
-        quantity: 100000,
+        quantity: asBaseUnits(100000),
         divisible: true,
         lock: false,
         reset: false,
@@ -111,7 +112,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle numeric asset issuance', async () => {
       const numericParams = {
         asset: testAssets.NUMERIC,
-        quantity: 1000000000,
+        quantity: asBaseUnits(1000000000),
         divisible: true,
         lock: false,
         reset: false,
@@ -129,7 +130,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle locking an asset', async () => {
       const lockParams = {
         ...defaultParams,
-        quantity: 0, // No new issuance
+        quantity: asBaseUnits(0), // No new issuance
         lock: true,
       };
       
@@ -153,7 +154,7 @@ describe('Compose Asset Management Operations', () => {
     it('should handle transfer of ownership', async () => {
       const transferParams = {
         asset: 'EXISTINGASSET',
-        quantity: 0,
+        quantity: asBaseUnits(0),
         divisible: true,
         lock: false,
         reset: false,
@@ -258,7 +259,7 @@ describe('Compose Asset Management Operations', () => {
     const defaultParams = {
       asset: 'SHARETOKEN',
       dividend_asset: testAssets.XCP,
-      quantity_per_unit: 1000,
+      quantity_per_unit: asBaseUnits(1000),
     };
 
     it('should compose dividend transaction', async () => {
@@ -292,7 +293,7 @@ describe('Compose Asset Management Operations', () => {
       const btcDividendParams = {
         asset: 'SHARETOKEN',
         dividend_asset: testAssets.BTC,
-        quantity_per_unit: 100, // 100 satoshis per unit
+        quantity_per_unit: asBaseUnits(100), // 100 satoshis per unit
       };
 
       await composeDividend({
@@ -326,7 +327,7 @@ describe('Compose Asset Management Operations', () => {
 
   describe('composeBurn', () => {
     const defaultParams = {
-      quantity: 10000000, // 0.1 BTC
+      quantity: asBaseUnits(10000000), // 0.1 BTC
     };
 
     it('should compose burn transaction', async () => {
@@ -376,7 +377,7 @@ describe('Compose Asset Management Operations', () => {
     });
 
     it('should handle minimum burn amount error', async () => {
-      const smallAmount = { quantity: 100 }; // Too small
+      const smallAmount = { quantity: asBaseUnits(100) }; // Too small
 
       mockedApiClient.get.mockRejectedValueOnce(new Error('Burn amount below minimum'));
 

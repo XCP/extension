@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { useAssetBalance } from '../useAssetBalance';
 import { fetchAssetDetailsAndBalance } from '../utils/fetchAssetData';
 
@@ -36,8 +37,8 @@ describe('useAssetBalance', () => {
     description: 'Counterparty',
     divisible: true,
     locked: false,
-    supply: '2648755.95200000',
-    supply_normalized: '2648755.95200000',
+    supply: asBaseUnits('2648755.95200000'),
+    supply_normalized: asDisplayUnits('2648755.95200000'),
     issuer: '',
     fair_minting: false,
   };
@@ -66,7 +67,7 @@ describe('useAssetBalance', () => {
 
   it('should fetch Counterparty asset balance successfully', async () => {
     vi.mocked(fetchAssetDetailsAndBalance).mockResolvedValue({
-      availableBalance: '1000.50000000',
+      availableBalance: asDisplayUnits('1000.50000000'),
       isDivisible: true,
       assetInfo: mockXCPAssetInfo
     });

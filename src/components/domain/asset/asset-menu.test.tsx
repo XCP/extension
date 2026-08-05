@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { asDisplayUnits } from '@/core/numeric';
 import { AssetMenu } from './asset-menu';
 
 const mockNavigate = vi.fn();
@@ -16,7 +17,7 @@ describe('AssetMenu', () => {
   const unlockedAsset = {
     asset: 'TESTASSET',
     asset_longname: null,
-    supply_normalized: '1000000',
+    supply_normalized: asDisplayUnits('1000000'),
     description: 'Test Asset',
     locked: false
   };
@@ -24,7 +25,7 @@ describe('AssetMenu', () => {
   const lockedAsset = {
     asset: 'LOCKEDASSET',
     asset_longname: null,
-    supply_normalized: '1000000',
+    supply_normalized: asDisplayUnits('1000000'),
     description: 'Locked Asset',
     locked: true
   };

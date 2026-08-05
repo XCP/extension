@@ -1,3 +1,4 @@
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 /**
  * Tests for Counterparty Transaction Decoding Utilities
  *
@@ -80,7 +81,7 @@ describe('describeCounterpartyMessage', () => {
     // The fixture used to disagree with production, so this test passed while
     // the approval headline rendered "to undefined".
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
       address: 'bc1qtest',
     });
@@ -92,7 +93,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes a send that supplies destination instead of address', () => {
     const desc = describeCounterpartyMessage('send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
       destination: 'bc1qlegacy',
     });
@@ -102,7 +103,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('never renders undefined when neither recipient key is present', () => {
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
     });
     expect(desc).not.toContain('undefined');
@@ -110,7 +111,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes send (legacy)', () => {
     const desc = describeCounterpartyMessage('send', {
-      quantity: 50000,
+      quantity: asBaseUnits(50000),
       asset: 'PEPECASH',
       destination: '1Abc',
     });
@@ -120,9 +121,9 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes order with give/get assets', () => {
     const desc = describeCounterpartyMessage('order', {
-      give_quantity: 100000000,
+      give_quantity: asBaseUnits(100000000),
       give_asset: 'XCP',
-      get_quantity: 50000,
+      get_quantity: asBaseUnits(50000),
       get_asset: 'BTC',
     });
     expect(desc).toContain('DEX Order');
@@ -140,7 +141,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes dispenser', () => {
     const desc = describeCounterpartyMessage('dispenser', {
-      give_quantity: 1000,
+      give_quantity: asBaseUnits(1000),
       asset: 'PEPECASH',
       mainchainrate: 10000,
     });
@@ -151,7 +152,7 @@ describe('describeCounterpartyMessage', () => {
   it('describes issuance', () => {
     const desc = describeCounterpartyMessage('issuance', {
       asset: 'MYTOKEN',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     });
     expect(desc).toContain('Issue Asset');
     expect(desc).toContain('MYTOKEN');
@@ -159,7 +160,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes dividend', () => {
     const desc = describeCounterpartyMessage('dividend', {
-      quantity_per_unit: 100,
+      quantity_per_unit: asBaseUnits(100),
       dividend_asset: 'XCP',
       asset: 'PEPECASH',
     });
@@ -229,7 +230,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('poolwithdraw', {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
-      quantity: 1000000,
+      quantity: asBaseUnits(1000000),
     });
     expect(desc).toContain('Withdraw liquidity');
     expect(desc).toContain('XCP/POOLTEST');
@@ -237,7 +238,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes attach', () => {
     const desc = describeCounterpartyMessage('attach', {
-      quantity: 500,
+      quantity: asBaseUnits(500),
       asset: 'PEPECASH',
     });
     expect(desc).toContain('Attach');
@@ -251,7 +252,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('describes destroy', () => {
     const desc = describeCounterpartyMessage('destroy', {
-      quantity: 100,
+      quantity: asBaseUnits(100),
       asset: 'XCP',
     });
     expect(desc).toContain('Destroy');
@@ -265,7 +266,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('utxo', {
       destination: 'bc1qdest',
       asset: 'XCP',
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset_info: { divisible: true },
     });
     expect(desc).toContain('Move');
@@ -282,8 +283,8 @@ describe('describeCounterpartyMessage', () => {
 
   it('uses _normalized quantity when available', () => {
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
-      quantity_normalized: '1.00000000',
+      quantity: asBaseUnits(100000000),
+      quantity_normalized: asDisplayUnits('1.00000000'),
       asset: 'XCP',
       destination: 'bc1q',
     });
@@ -292,7 +293,7 @@ describe('describeCounterpartyMessage', () => {
 
   it('normalizes quantity using asset_info divisibility', () => {
     const desc = describeCounterpartyMessage('enhanced_send', {
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       asset: 'XCP',
       asset_info: { divisible: true },
       destination: 'bc1q',
@@ -524,7 +525,7 @@ describe('decodeCounterpartyMessage', () => {
     message_type_id: 2,
     message_data: {
       asset: 'XCP',
-      quantity: 100000000,
+      quantity: asBaseUnits(100000000),
       destination: 'bc1qtest',
     },
   };
@@ -587,9 +588,9 @@ describe('decodeCounterpartyMessage', () => {
           message_type_id: 10,
           message_data: {
             give_asset: 'XCP',
-            give_quantity: 100000000,
+            give_quantity: asBaseUnits(100000000),
             get_asset: 'BTC',
-            get_quantity: 50000,
+            get_quantity: asBaseUnits(50000),
           },
         },
       },

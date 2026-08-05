@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
 import * as counterpartyApi from '@/core/counterparty/api';
 import * as utxoSelection from '@/core/counterparty/utxoSelection';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { DispenseForm } from '../form';
 
 // Mock the API modules
@@ -71,18 +72,18 @@ function createMockDispenser(overrides: Partial<counterpartyApi.DispenserDetails
     source: 'bc1qsource',
     tx_hash: 'abc123',
     status: 0,
-    give_remaining: 1000000,
-    give_remaining_normalized: '10',
-    give_quantity: 100000,
-    give_quantity_normalized: '1',
-    satoshirate: 5000,
-    satoshirate_normalized: '0.00005000',
-    escrow_quantity: 10000000,
-    escrow_quantity_normalized: '100',
+    give_remaining: asBaseUnits(1000000),
+    give_remaining_normalized: asDisplayUnits('10'),
+    give_quantity: asBaseUnits(100000),
+    give_quantity_normalized: asDisplayUnits('1'),
+    satoshirate: asBaseUnits(5000),
+    satoshirate_normalized: asDisplayUnits('0.00005000'),
+    escrow_quantity: asBaseUnits(10000000),
+    escrow_quantity_normalized: asDisplayUnits('100'),
     block_index: 800000,
     block_time: 1700000000,
     confirmed: true,
-    price: 5000,
+    price: asBaseUnits(5000),
     satoshi_price: 5000,
     asset_info: {
       asset_longname: null,
@@ -204,12 +205,12 @@ describe('DispenseForm', () => {
       createMockDispenser({
         asset: 'RAREPEPE',
         tx_hash: 'def456',
-        give_remaining: 500000,
-        give_remaining_normalized: '5',
-        give_quantity: 50000,
-        give_quantity_normalized: '0.5',
-        satoshirate: 10000,
-        satoshirate_normalized: '0.00010000',
+        give_remaining: asBaseUnits(500000),
+        give_remaining_normalized: asDisplayUnits('5'),
+        give_quantity: asBaseUnits(50000),
+        give_quantity_normalized: asDisplayUnits('0.5'),
+        satoshirate: asBaseUnits(10000),
+        satoshirate_normalized: asDisplayUnits('0.00010000'),
         asset_info: {
           asset_longname: null,
           description: 'Rare Pepe',
@@ -251,7 +252,7 @@ describe('DispenseForm', () => {
   }, 15000);
 
   it('should handle max dispenses calculation', async () => {
-    const mockDispensers = [createMockDispenser({ satoshirate: 1000, satoshirate_normalized: '0.00001000' })];
+    const mockDispensers = [createMockDispenser({ satoshirate: asBaseUnits(1000), satoshirate_normalized: asDisplayUnits('0.00001000') })];
 
     mockFetchAddressDispensers.mockResolvedValue({
       result: mockDispensers,
@@ -291,8 +292,8 @@ describe('DispenseForm', () => {
   it('should show insufficient balance error', async () => {
     const mockDispensers = [createMockDispenser({
       asset: 'EXPENSIVE',
-      satoshirate: 100000000, // 1 BTC per dispense (more than our 0.1 BTC balance)
-      satoshirate_normalized: '1.00000000',
+      satoshirate: asBaseUnits(100000000), // 1 BTC per dispense (more than our 0.1 BTC balance)
+      satoshirate_normalized: asDisplayUnits('1.00000000'),
       asset_info: {
         asset_longname: null,
         description: 'Expensive Asset',
@@ -341,10 +342,10 @@ describe('DispenseForm', () => {
   it('should handle empty dispenser', async () => {
     const mockDispensers = [createMockDispenser({
       asset: 'EMPTY',
-      give_remaining: 0,
-      give_remaining_normalized: '0',
-      satoshirate: 1000,
-      satoshirate_normalized: '0.00001000',
+      give_remaining: asBaseUnits(0),
+      give_remaining_normalized: asDisplayUnits('0'),
+      satoshirate: asBaseUnits(1000),
+      satoshirate_normalized: asDisplayUnits('0.00001000'),
       asset_info: {
         asset_longname: null,
         description: 'Empty Asset',

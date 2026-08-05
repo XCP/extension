@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as apiClientUtils from '@/core/api/client';
+import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import { composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
 import {
@@ -113,7 +114,7 @@ describe('Compose Send Operations', () => {
       const btcParams = {
         destination: mockDestAddress,
         asset: testAssets.BTC,
-        quantity: 100000000, // 1 BTC in satoshis
+        quantity: asBaseUnits(100000000), // 1 BTC in satoshis
       };
 
       await composeSend({

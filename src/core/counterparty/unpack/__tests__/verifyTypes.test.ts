@@ -6,6 +6,7 @@
  * API field names that normalizeFormData produces.
  */
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
 import { verifyTransaction } from '../verify';
 
@@ -42,13 +43,13 @@ describe('verifyTransaction activation per type', () => {
     const message = PREFIX + '6e' + u64(1n) + u64(100000000n); // type 110, XCP, 1 XCP
 
     it('accepts the true intent', () => {
-      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: 100000000 });
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: asBaseUnits(100000000) });
       expect(r.errors).toHaveLength(0);
       expect(r.valid).toBe(true);
     });
 
     it('rejects a tampered quantity', () => {
-      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: 999 });
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: asBaseUnits(999) });
       expect(r.valid).toBe(false);
     });
   });
@@ -62,7 +63,7 @@ describe('verifyTransaction activation per type', () => {
     // The half that costs security: two unreadable values compared equal and certified each
     // other, so a tampered message passed as verified.
     it('does not let an unreadable request certify a message', () => {
-      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: 'not-a-number' });
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: asBaseUnits('not-a-number') });
       expect(r.valid).toBe(false);
       expect(r.criticalMismatches.some((m) => m.field === 'quantity')).toBe(true);
     });
@@ -70,13 +71,13 @@ describe('verifyTransaction activation per type', () => {
     it('does not treat an unreadable value as zero', () => {
       // Against a message carrying zero, the old sentinel made these compare equal.
       const zeroMessage = PREFIX + '6e' + u64(1n) + u64(0n);
-      const r = verifyTransaction(zeroMessage, 'destroy', { asset: 'XCP', quantity: '1.5' });
+      const r = verifyTransaction(zeroMessage, 'destroy', { asset: 'XCP', quantity: asBaseUnits('1.5') });
       expect(r.valid).toBe(false);
     });
 
     // The other half: a readable request must still verify normally, in either spelling.
     it('still accepts a quantity given as a numeric string', () => {
-      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: '100000000' });
+      const r = verifyTransaction(message, 'destroy', { asset: 'XCP', quantity: asBaseUnits('100000000') });
       expect(r.errors).toHaveLength(0);
       expect(r.valid).toBe(true);
     });
@@ -87,8 +88,8 @@ describe('verifyTransaction activation per type', () => {
     const message = PREFIX + '0c' + u64(1n) + u64(100n) + u64(1000n) + u64(1000000n) + '00';
     const intent = {
       asset: 'XCP',
-      give_quantity: 100,
-      escrow_quantity: 1000,
+      give_quantity: asBaseUnits(100),
+      escrow_quantity: asBaseUnits(1000),
       mainchainrate: 1000000,
       status: 0,
     };

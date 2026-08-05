@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { AssetInfo } from "@/core/counterparty/api";
+import type { DisplayUnits } from '@/core/numeric';
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetBalance } from "@/hooks/useAssetBalance";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useAssetUtxos } from "@/hooks/useAssetUtxos";
@@ -10,7 +12,8 @@ import { useAssetUtxos } from "@/hooks/useAssetUtxos";
 export interface AssetDetails {
   isDivisible: boolean;
   assetInfo: AssetInfo | null;
-  availableBalance: string;
+  /** Display units — already divided by divisibility, as the balance hook returns it. */
+  availableBalance: DisplayUnits;
   utxoBalances?: Array<{
     txid: string;
     amount: string;
@@ -74,7 +77,7 @@ export function useAssetDetails(asset: string, options?: UseAssetDetailsOptions)
     return {
       isDivisible: balance.isDivisible,
       assetInfo: assetInfo.data,
-      availableBalance: balance.balance,
+      availableBalance: asDisplayUnits(balance.balance),
       utxoBalances: utxos.utxos || undefined,
     };
   }, [assetInfo.data, balance.balance, balance.isDivisible, utxos.utxos]);

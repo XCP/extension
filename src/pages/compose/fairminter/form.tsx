@@ -24,6 +24,7 @@ import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { FairminterOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 const FAIRMINTER_MODELS = {
@@ -188,7 +189,7 @@ export function FairminterForm({
                 divisible: assetInfo.divisible ?? true,
                 locked: assetInfo.locked ?? false,
                 supply: assetInfo.supply,
-                supply_normalized: assetInfo.supply_normalized || '0'
+                supply_normalized: asDisplayUnits(assetInfo.supply_normalized || '0')
               }}
               className="mt-1 mb-5" 
             />

@@ -8,6 +8,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**
@@ -86,7 +87,7 @@ export function LockSupplyForm({
             description: assetInfo?.description ?? "",
             issuer: assetInfo?.issuer ?? "",
             supply: assetInfo?.supply ?? "0",
-            supply_normalized: assetInfo?.supply_normalized || '0'
+            supply_normalized: asDisplayUnits(assetInfo?.supply_normalized || '0')
           }}
           className="mt-1 mb-5"
         />

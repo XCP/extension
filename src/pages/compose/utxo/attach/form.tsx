@@ -6,6 +6,7 @@ import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { AttachOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 /**
@@ -65,7 +66,7 @@ export function UtxoAttachForm({
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply
               },
-              quantity_normalized: assetDetails.availableBalance
+              quantity_normalized: asDisplayUnits(assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
           />

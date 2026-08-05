@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as numeric from '@/core/numeric';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import type { AssetInfo } from '../api';
 import * as api from '../api';
 import { getComposeType, normalizeFormData } from '../normalize';
@@ -47,7 +48,7 @@ describe('normalize.ts', () => {
     });
 
     it('should detect dispenser type from escrow_quantity field', () => {
-      const formData = { escrow_quantity: '1000' };
+      const formData = { escrow_quantity: asBaseUnits('1000') };
       expect(getComposeType(formData)).toBe('dispenser');
     });
 
@@ -72,12 +73,12 @@ describe('normalize.ts', () => {
     });
 
     it('should detect send type from quantity and asset fields', () => {
-      const formData = { quantity: '1.5', asset: 'XCP' };
+      const formData = { quantity: asBaseUnits('1.5'), asset: 'XCP' };
       expect(getComposeType(formData)).toBe('send');
     });
 
     it('should detect issuance type from quantity and asset_name fields', () => {
-      const formData = { quantity: '1000', asset_name: 'MYTOKEN' };
+      const formData = { quantity: asBaseUnits('1000'), asset_name: 'MYTOKEN' };
       expect(getComposeType(formData)).toBe('issuance');
     });
 
@@ -104,7 +105,7 @@ describe('normalize.ts', () => {
     it('should detect pool withdraw type from LP asset withdraw fields', () => {
       const formData = {
         lp_asset: 'A77777777777777777',
-        quantity: '1',
+        quantity: asBaseUnits('1'),
         min_quantity_a: '0',
       };
       expect(getComposeType(formData)).toBe('poolwithdraw');
@@ -193,7 +194,7 @@ describe('normalize.ts', () => {
         asset_longname: null,
         divisible: true,
         locked: false,
-        supply_normalized: '1000000.00000000'
+        supply_normalized: asDisplayUnits('1000000.00000000')
       };
 
       it('should normalize divisible asset amounts using toSatoshis', async () => {
@@ -224,7 +225,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '500000.00000000'
+          supply_normalized: asDisplayUnits('500000.00000000')
         };
 
         mockFetchAssetDetails
@@ -257,7 +258,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails
@@ -289,7 +290,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockLpAsset);
@@ -310,7 +311,7 @@ describe('normalize.ts', () => {
         asset_longname: null,
         divisible: false,
         locked: false,
-        supply_normalized: '1000'
+        supply_normalized: asDisplayUnits('1000')
       };
 
       it('should not modify indivisible asset amounts', async () => {
@@ -340,7 +341,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails
@@ -364,7 +365,7 @@ describe('normalize.ts', () => {
         asset_longname: null,
         divisible: true,
         locked: false,
-        supply_normalized: '1000000.00000000'
+        supply_normalized: asDisplayUnits('1000000.00000000')
       };
 
       it('should cache asset info and reuse it for subsequent calls', async () => {
@@ -445,7 +446,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -467,7 +468,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -489,7 +490,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -557,7 +558,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: false,
           locked: false,
-          supply_normalized: '10000'
+          supply_normalized: asDisplayUnits('10000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -608,7 +609,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: undefined as any, // Force undefined
           locked: false,
-          supply_normalized: '1000'
+          supply_normalized: asDisplayUnits('1000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -628,7 +629,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: null as any, // Force null
           locked: false,
-          supply_normalized: '1000'
+          supply_normalized: asDisplayUnits('1000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -685,7 +686,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -707,7 +708,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -729,7 +730,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: false,
           locked: false,
-          supply_normalized: '18446744073709551615'
+          supply_normalized: asDisplayUnits('18446744073709551615')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -752,7 +753,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: true,
-          supply_normalized: '2648998.99999999'
+          supply_normalized: asDisplayUnits('2648998.99999999')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -774,7 +775,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: false,
           locked: false,
-          supply_normalized: '1000'
+          supply_normalized: asDisplayUnits('1000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -795,7 +796,7 @@ describe('normalize.ts', () => {
           asset_longname: 'VERYLONGASSETNAME.WITH.DOTS',
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
@@ -821,7 +822,7 @@ describe('normalize.ts', () => {
           asset_longname: null,
           divisible: true,
           locked: false,
-          supply_normalized: '1000000.00000000'
+          supply_normalized: asDisplayUnits('1000000.00000000')
         };
 
         // Simulate both calls returning the same asset info

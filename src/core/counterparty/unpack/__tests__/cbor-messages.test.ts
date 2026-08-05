@@ -13,6 +13,7 @@
 
 import { base58 } from '@scure/base';
 import { describe, expect, it } from 'vitest';
+import { asBaseUnits } from '@/core/numeric';
 import { packAddress, unpackAddress } from '../address';
 import { assetNameToId } from '../assetId';
 import { decodeCbor } from '../cbor';
@@ -276,7 +277,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const result = verifyTransaction(message, 'send', {
       destination: DESTINATION,
       asset: 'XCP',
-      quantity: 50000000000,
+      quantity: asBaseUnits(50000000000),
     });
     expect(result.criticalMismatches).toEqual([]);
     expect(result.errors).toEqual([]);
@@ -291,7 +292,7 @@ describe('verifyTransaction over CBOR messages', () => {
 
     const result = verifyTransaction(message, 'issuance', {
       asset: 'LANDMARKS',
-      quantity: 21,
+      quantity: asBaseUnits(21),
       divisible: false,
     });
     expect(result.criticalMismatches).toEqual([]);
@@ -306,7 +307,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const payload = payloadOf([assetNameToId('LANDMARKS'), 0n, false, true, false, '', null]);
     const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
 
-    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 0 });
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: asBaseUnits(0) });
     expect(result.valid).toBe(false);
     expect(result.dangerousMismatches.some((m) => m.field === 'lock')).toBe(true);
   });
@@ -315,7 +316,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const payload = payloadOf([assetNameToId('LANDMARKS'), 0n, false, false, true, '', null]);
     const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
 
-    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 0 });
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: asBaseUnits(0) });
     expect(result.valid).toBe(false);
     expect(result.dangerousMismatches.some((m) => m.field === 'reset')).toBe(true);
   });
@@ -329,7 +330,7 @@ describe('verifyTransaction over CBOR messages', () => {
 
     const result = verifyTransaction(message, 'issuance', {
       asset: 'LANDMARKS',
-      quantity: 21,
+      quantity: asBaseUnits(21),
       divisible: 'false',
     });
     expect(result.valid).toBe(false);
@@ -342,7 +343,7 @@ describe('verifyTransaction over CBOR messages', () => {
 
     const result = verifyTransaction(message, 'issuance', {
       asset: 'LANDMARKS',
-      quantity: 21,
+      quantity: asBaseUnits(21),
       divisible: 'true',
     });
     expect(result.valid).toBe(true);
@@ -354,7 +355,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const payload = payloadOf([assetNameToId('LANDMARKS'), 21n, false, false, false, '', null]);
     const message = new Uint8Array([...CNTRPRTY, 22, ...payload]);
 
-    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: 21 });
+    const result = verifyTransaction(message, 'issuance', { asset: 'LANDMARKS', quantity: asBaseUnits(21) });
     expect(result.valid).toBe(true);
   });
 
@@ -368,7 +369,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const result = verifyTransaction(message, 'send', {
       destination: DESTINATION,
       asset: 'XCP',
-      quantity: 50000000000,
+      quantity: asBaseUnits(50000000000),
       memo: '',
     });
     expect(result.valid).toBe(true);
@@ -384,7 +385,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const result = verifyTransaction(message, 'send', {
       destination: DESTINATION,
       asset: 'XCP',
-      quantity: 50000000000,
+      quantity: asBaseUnits(50000000000),
       memo: '',
     });
     expect(result.infoMismatches.some((m) => m.field === 'memo')).toBe(true);
@@ -398,7 +399,7 @@ describe('verifyTransaction over CBOR messages', () => {
     const result = verifyTransaction(message, 'send', {
       destination: DESTINATION,
       asset: 'XCP',
-      quantity: 50000000000,
+      quantity: asBaseUnits(50000000000),
     });
     expect(result.valid).toBe(false);
     expect(result.criticalMismatches.some((m) => m.field === 'destination')).toBe(true);

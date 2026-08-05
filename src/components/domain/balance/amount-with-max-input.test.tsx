@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { asDisplayUnits } from '@/core/numeric';
 import { AmountWithMaxInput } from './amount-with-max-input';
 
 // Mock the validation utilities
@@ -13,13 +14,16 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
 }));
 
 vi.mock('@/core/numeric', () => ({
+  // Brands are compile-time only; at runtime they are identity.
+  asBaseUnits: (v: unknown) => v,
+  asDisplayUnits: (v: unknown) => v,
   fromSatoshis: vi.fn((sats) => (parseInt(sats) / 100000000).toFixed(8)),
 }));
 
 describe('AmountWithMaxInput', () => {
   const defaultProps = {
     asset: 'XCP',
-    availableBalance: '100.00000000',
+    availableBalance: asDisplayUnits('100.00000000'),
     value: '',
     onChange: vi.fn(),
     feeRate: 1,

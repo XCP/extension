@@ -3,6 +3,7 @@ import { apiClient } from '@/core/api/client';
 import * as bitcoinBalance from '@/core/bitcoin/balance';
 import { CounterpartyApiError } from '@/core/errors';
 import * as formatUtils from '@/core/format';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import {
   type AssetInfo,
@@ -64,8 +65,8 @@ const mockSettings = { counterpartyApiBase: mockApiBase };
 
 const mockTokenBalance: TokenBalance = {
   asset: 'XCP',
-  quantity: 100000000,
-  quantity_normalized: '1.00000000',
+  quantity: asBaseUnits(100000000),
+  quantity_normalized: asDisplayUnits('1.00000000'),
   asset_info: {
     asset_longname: null,
     description: 'The Counterparty protocol token',
@@ -84,7 +85,7 @@ const mockAssetInfo: AssetInfo = {
   divisible: true,
   locked: false,
   supply: 2649755.0,
-  supply_normalized: '2649755.00000000',
+  supply_normalized: asDisplayUnits('2649755.00000000'),
 };
 
 const mockOrder: Order = {
@@ -92,10 +93,10 @@ const mockOrder: Order = {
   block_time: 1640995200,
   give_asset: 'XCP',
   get_asset: 'BTC',
-  give_quantity_normalized: '100.00000000',
-  get_quantity_normalized: '0.01000000',
-  give_remaining_normalized: '50.00000000',
-  get_remaining_normalized: '0.00500000',
+  give_quantity_normalized: asDisplayUnits('100.00000000'),
+  get_quantity_normalized: asDisplayUnits('0.01000000'),
+  give_remaining_normalized: asDisplayUnits('50.00000000'),
+  get_remaining_normalized: asDisplayUnits('0.00500000'),
   status: 'open',
   expire_index: 700000,
 };
@@ -108,11 +109,11 @@ const mockTransaction: Transaction = {
   destination: 'bc1qdest456address',
   type: 'send',
   status: 'valid',
-  data: { asset: 'XCP', quantity: 100000000 },
+  data: { asset: 'XCP', quantity: asBaseUnits(100000000) },
   supported: true,
   unpacked_data: {
     message_type: 'send',
-    message_data: { asset: 'XCP', quantity: 100000000 },
+    message_data: { asset: 'XCP', quantity: asBaseUnits(100000000) },
   },
 };
 
@@ -250,9 +251,9 @@ describe('counterparty/api.ts', () => {
 
       expect(balance).toEqual({
         asset: 'XCP',
-        quantity: '100000000',
+        quantity: asBaseUnits('100000000'),
         asset_info: mockTokenBalance.asset_info,
-        quantity_normalized: '1',
+        quantity_normalized: asDisplayUnits('1'),
       });
     });
 
@@ -270,8 +271,8 @@ describe('counterparty/api.ts', () => {
 
       expect(balance).toEqual({
         asset: 'NONEXISTENT',
-        quantity: 0,
-        quantity_normalized: '0',
+        quantity: asBaseUnits(0),
+        quantity_normalized: asDisplayUnits('0'),
         asset_info: {
           asset_longname: null,
           description: '',
@@ -285,8 +286,8 @@ describe('counterparty/api.ts', () => {
     it('should filter out UTXOs when type is address', async () => {
       const mockBalanceWithoutUtxo = {
         ...mockTokenBalance,
-        quantity: 25000000,
-        quantity_normalized: '0.25000000',
+        quantity: asBaseUnits(25000000),
+        quantity_normalized: asDisplayUnits('0.25000000'),
       };
       const mockData = {
         result: [mockBalanceWithoutUtxo]
@@ -308,8 +309,8 @@ describe('counterparty/api.ts', () => {
     });
 
     it('should aggregate multiple balances', async () => {
-      const balance1 = { ...mockTokenBalance, quantity: 50000000, quantity_normalized: '0.5' };
-      const balance2 = { ...mockTokenBalance, quantity: 25000000, quantity_normalized: '0.25' };
+      const balance1 = { ...mockTokenBalance, quantity: asBaseUnits(50000000), quantity_normalized: asDisplayUnits('0.5') };
+      const balance2 = { ...mockTokenBalance, quantity: asBaseUnits(25000000), quantity_normalized: asDisplayUnits('0.25') };
       const mockData = { result: [balance1, balance2] };
       mockedApiClient.get.mockResolvedValue({
         data: mockData,
@@ -330,8 +331,8 @@ describe('counterparty/api.ts', () => {
       // quantities: summing them as doubles drops digits for exactly the large holdings where the
       // total matters most. 99526925811111111 is the real PEPECASH supply.
       return (async () => {
-        const balance1 = { ...mockTokenBalance, quantity: '99526925811111111', quantity_normalized: '995269258.11111111' };
-        const balance2 = { ...mockTokenBalance, quantity: '1', quantity_normalized: '0.00000001' };
+        const balance1 = { ...mockTokenBalance, quantity: asBaseUnits('99526925811111111'), quantity_normalized: asDisplayUnits('995269258.11111111') };
+        const balance2 = { ...mockTokenBalance, quantity: asBaseUnits('1'), quantity_normalized: asDisplayUnits('0.00000001') };
         mockedApiClient.get.mockResolvedValue({
           data: { result: [balance1, balance2] },
           status: 200, statusText: 'OK', headers: {}, config: {},
@@ -366,8 +367,8 @@ describe('counterparty/api.ts', () => {
       // Now returns zero balance instead of null for missing result
       expect(balance).toEqual({
         asset: 'XCP',
-        quantity: 0,
-        quantity_normalized: '0',
+        quantity: asBaseUnits(0),
+        quantity_normalized: asDisplayUnits('0'),
         asset_info: {
           asset_longname: null,
           description: '',
@@ -381,8 +382,8 @@ describe('counterparty/api.ts', () => {
     it('should handle invalid quantity_normalized values without producing NaN', async () => {
       // Test with various invalid quantity_normalized values
       const invalidBalances = [
-        { ...mockTokenBalance, quantity: 100, quantity_normalized: '' },
-        { ...mockTokenBalance, quantity: 200, quantity_normalized: 'invalid' },
+        { ...mockTokenBalance, quantity: asBaseUnits(100), quantity_normalized: asDisplayUnits('') },
+        { ...mockTokenBalance, quantity: asBaseUnits(200), quantity_normalized: asDisplayUnits('invalid') },
       ];
       const mockData = { result: invalidBalances };
       mockedApiClient.get.mockResolvedValue({
@@ -493,7 +494,7 @@ describe('counterparty/api.ts', () => {
     it('should fetch UTXO balances successfully', async () => {
       const mockUtxoBalance = {
         asset: 'XCP',
-        quantity_normalized: '1.00000000',
+        quantity_normalized: asDisplayUnits('1.00000000'),
         utxo: 'abc123:0',
         utxo_address: mockAddress,
       };
@@ -629,8 +630,8 @@ describe('counterparty/api.ts', () => {
       const mockOrderDetails: OrderDetails = {
         ...mockOrder,
         source: mockAddress,
-        give_quantity: 100000000,
-        get_quantity: 1000000,
+        give_quantity: asBaseUnits(100000000),
+        get_quantity: asBaseUnits(1000000),
         fee_required: 0,
         fee_provided: 1000,
         fee_required_remaining: 0,
@@ -825,8 +826,8 @@ describe('counterparty/api.ts', () => {
         source: mockAddress,
         asset: 'XCP',
         status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10.00000000',
+        give_remaining: asBaseUnits(1000000),
+        give_remaining_normalized: asDisplayUnits('10.00000000'),
         asset_info: {
           asset_longname: null,
           description: 'Test asset',
@@ -901,8 +902,8 @@ describe('counterparty/api.ts', () => {
         source: mockAddress,
         asset: 'XCP',
         status: 0,
-        give_remaining: 1000000,
-        give_remaining_normalized: '10.00000000',
+        give_remaining: asBaseUnits(1000000),
+        give_remaining_normalized: asDisplayUnits('10.00000000'),
       };
       mockedApiClient.get.mockResolvedValue({
         data: { result: mockDispenser },
@@ -1002,7 +1003,7 @@ describe('counterparty/api.ts', () => {
       const mockOwnedAsset: OwnedAsset = {
         asset: 'MYTOKEN',
         asset_longname: null,
-        supply_normalized: '1000000.00000000',
+        supply_normalized: asDisplayUnits('1000000.00000000'),
         description: 'My custom token',
         locked: false,
       };
@@ -1299,17 +1300,17 @@ describe('counterparty/api.ts', () => {
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         1,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote`,
-        expect.objectContaining({ params: { quantity: '100000000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('100000000') } })
       );
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         2,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/deposit`,
-        expect.objectContaining({ params: { quantity: '100000000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('100000000') } })
       );
       expect(mockedApiClient.get).toHaveBeenNthCalledWith(
         3,
         `${mockApiBase}/v2/pools/XCP/POOLTEST/quote/withdraw`,
-        expect.objectContaining({ params: { quantity: '1000' } })
+        expect.objectContaining({ params: { quantity: asBaseUnits('1000') } })
       );
     });
 

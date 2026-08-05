@@ -18,6 +18,43 @@ BigNumber.config({
   },
 });
 
+// =============================================================================
+// UNIT BRANDS
+// =============================================================================
+
+declare const BaseUnitsBrand: unique symbol;
+declare const DisplayUnitsBrand: unique symbol;
+
+/**
+ * An integer count of an asset's smallest unit — what the protocol stores and what a signature
+ * commits to. For a divisible asset this is 1e8 times the number a person would say.
+ *
+ * Branded so it cannot be silently swapped with {@link DisplayUnits}. The two are the same
+ * JavaScript values and differ by a factor of 1e8, which made every confusion between them a
+ * plausible-looking wrong number rather than a type error — a fairminter price sold for a
+ * hundred-millionth of its intended value, a pool deposit shown as 150,000,000 XCP instead of 1.5.
+ *
+ * Values above 2^53-1 arrive as strings so no digits are lost (see core/api/losslessJson.ts),
+ * which is why the underlying type is a union rather than number.
+ */
+export type BaseUnits = (string | number) & { readonly [BaseUnitsBrand]: true };
+
+/** A human-facing decimal, already divided by the asset's divisibility. Never arithmetic input. */
+export type DisplayUnits = string & { readonly [DisplayUnitsBrand]: true };
+
+/**
+ * Assert that a value is already in base units.
+ *
+ * The only way to produce a {@link BaseUnits}, so every entry point is greppable. Use it at a
+ * boundary where the protocol defines the unit — an API response field, a decoded payload — never
+ * to quiet a type error on a value whose unit you are unsure of.
+ */
+export const asBaseUnits = (value: string | number | bigint): BaseUnits =>
+  (typeof value === 'bigint' ? value.toString() : value) as BaseUnits;
+
+/** Assert that a value is already in display units. Same discipline as {@link asBaseUnits}. */
+export const asDisplayUnits = (value: string): DisplayUnits => value as DisplayUnits;
+
 /**
  * Creates a BigNumber instance from a value, safely handling string conversion
  * to prevent precision loss.

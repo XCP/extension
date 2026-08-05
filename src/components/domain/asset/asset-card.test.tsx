@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { BrowserRouter } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OwnedAsset } from "@/core/counterparty/api";
+import { asDisplayUnits } from '@/core/numeric';
 import { AssetCard } from "./asset-card";
 
 // Mock the AssetMenu component
@@ -75,7 +76,7 @@ describe("AssetCard", () => {
     asset_longname: "RARE.PEPE.COLLECTION",
     description: "Rare Pepe Collection",
     locked: false,
-    supply_normalized: "1000.00000000",
+    supply_normalized: asDisplayUnits("1000.00000000"),
   };
 
   const mockDivisibleAsset: OwnedAsset = {
@@ -83,7 +84,7 @@ describe("AssetCard", () => {
     asset_longname: null,
     description: "My Custom Token",
     locked: true,
-    supply_normalized: "10000.00000000",
+    supply_normalized: asDisplayUnits("10000.00000000"),
   };
 
   beforeEach(() => {

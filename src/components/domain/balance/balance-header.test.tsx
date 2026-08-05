@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { BalanceHeader } from './balance-header';
 
 // Mock dependencies
@@ -38,9 +39,9 @@ describe('BalanceHeader', () => {
       issuer: 'bc1qxyz789',
       divisible: true,
       locked: true,
-      supply: '1000000000000'
+      supply: asBaseUnits('1000000000000')
     },
-    quantity_normalized: '500000000'
+    quantity_normalized: asDisplayUnits('500000000')
   };
 
   beforeEach(() => {
@@ -102,7 +103,7 @@ describe('BalanceHeader', () => {
         ...mockBalance.asset_info,
         divisible: false
       },
-      quantity_normalized: '1000'
+      quantity_normalized: asDisplayUnits('1000')
     };
     
     render(<BalanceHeader balance={indivisibleBalance} />);
@@ -113,7 +114,7 @@ describe('BalanceHeader', () => {
   it('should handle zero balance', () => {
     const zeroBalance = {
       ...mockBalance,
-      quantity_normalized: '0'
+      quantity_normalized: asDisplayUnits('0')
     };
     
     render(<BalanceHeader balance={zeroBalance} />);
@@ -124,7 +125,7 @@ describe('BalanceHeader', () => {
   it('should handle undefined quantity_normalized', () => {
     const noQuantityBalance = {
       ...mockBalance,
-      quantity_normalized: '0' // Changed from undefined to '0' since TokenBalance requires string
+      quantity_normalized: asDisplayUnits('0') // Changed from undefined to '0' since TokenBalance requires string
     };
     
     render(<BalanceHeader balance={noQuantityBalance} />);
@@ -139,7 +140,7 @@ describe('BalanceHeader', () => {
     
     const updatedBalance = {
       ...mockBalance,
-      quantity_normalized: '600000000'
+      quantity_normalized: asDisplayUnits('600000000')
     };
     
     rerender(<BalanceHeader balance={updatedBalance} />);
@@ -240,7 +241,7 @@ describe('BalanceHeader', () => {
   it('should handle balance without asset_info', () => {
     const minimalBalance = {
       asset: 'BTC',
-      quantity_normalized: '100000000'
+      quantity_normalized: asDisplayUnits('100000000')
     };
     
     render(<BalanceHeader balance={minimalBalance} />);
@@ -261,7 +262,7 @@ describe('BalanceHeader', () => {
         divisible: true,
         locked: false
       },
-      quantity_normalized: '1000'
+      quantity_normalized: asDisplayUnits('1000')
     };
     
     render(<BalanceHeader balance={partialInfoBalance} />);
@@ -284,7 +285,7 @@ describe('BalanceHeader', () => {
         divisible: true,
         locked: true
       },
-      quantity_normalized: '2600000000000000'
+      quantity_normalized: asDisplayUnits('2600000000000000')
     };
     
     rerender(<BalanceHeader balance={differentBalance} />);
@@ -296,7 +297,7 @@ describe('BalanceHeader', () => {
   it('should handle numeric quantity_normalized', () => {
     const numericQuantityBalance = {
       ...mockBalance,
-      quantity_normalized: '123456.789'
+      quantity_normalized: asDisplayUnits('123456.789')
     };
     
     render(<BalanceHeader balance={numericQuantityBalance} />);
@@ -307,7 +308,7 @@ describe('BalanceHeader', () => {
   it('should handle empty strings gracefully', () => {
     const emptyStringBalance = {
       ...mockBalance,
-      quantity_normalized: ''
+      quantity_normalized: asDisplayUnits('')
     };
     
     render(<BalanceHeader balance={emptyStringBalance} />);
@@ -319,7 +320,7 @@ describe('BalanceHeader', () => {
   it('should use props data as source of truth', () => {
     const initialBalance = {
       ...mockBalance,
-      quantity_normalized: '100'
+      quantity_normalized: asDisplayUnits('100')
     };
     
     const { rerender } = render(<BalanceHeader balance={initialBalance} />);
@@ -328,7 +329,7 @@ describe('BalanceHeader', () => {
     
     const updatedBalance = {
       ...mockBalance,
-      quantity_normalized: '200'
+      quantity_normalized: asDisplayUnits('200')
     };
     
     rerender(<BalanceHeader balance={updatedBalance} />);
@@ -409,7 +410,7 @@ describe('BalanceHeader', () => {
     // Re-render with different balance
     const updatedBalance = {
       ...mockBalance,
-      quantity_normalized: '999999'
+      quantity_normalized: asDisplayUnits('999999')
     };
     rerender(<BalanceHeader balance={updatedBalance} />);
     

@@ -9,7 +9,7 @@
 
 import { apiClient } from '@/core/api/client';
 import { CounterpartyApiError } from '@/core/errors';
-import { toBigNumber } from '@/core/numeric';
+import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
 // =============================================================================
@@ -127,7 +127,7 @@ export type DispenserStatusType = (typeof DispenserStatus)[keyof typeof Dispense
  * to numeric.ts — toBigNumber and fromSatoshis accept either and are exact with both — rather than
  * doing arithmetic on them directly, where a string would concatenate instead of add.
  */
-export type ApiQuantity = number | string;
+export type ApiQuantity = BaseUnits;
 
 export interface PaginatedResponse<T> {
   result: T[];
@@ -154,7 +154,7 @@ export interface AssetInfo {
   locked: boolean;
   description_locked?: boolean;
   supply?: string | number;
-  supply_normalized: string;
+  supply_normalized: DisplayUnits;
   fair_minting?: boolean;
   first_issuance_block_index?: number;
   last_issuance_block_index?: number;
@@ -173,7 +173,7 @@ export interface TokenBalance {
     supply?: number | string;
   };
   quantity?: ApiQuantity;
-  quantity_normalized: string;
+  quantity_normalized: DisplayUnits;
   address?: string | null;
   utxo?: string | null;
   utxo_address?: string | null;
@@ -187,7 +187,7 @@ export interface UtxoBalance extends TokenBalance {
 export interface OwnedAsset {
   asset: string;
   asset_longname: string | null;
-  supply_normalized: string;
+  supply_normalized: DisplayUnits;
   description: string;
   locked: boolean;
 }
@@ -201,13 +201,13 @@ export interface Order {
   block_time: number;
   give_asset: string;
   get_asset: string;
-  give_quantity_normalized: string;
-  get_quantity_normalized: string;
-  give_remaining_normalized: string;
-  get_remaining_normalized: string;
+  give_quantity_normalized: DisplayUnits;
+  get_quantity_normalized: DisplayUnits;
+  give_remaining_normalized: DisplayUnits;
+  get_remaining_normalized: DisplayUnits;
   status: string;
   expire_index: number;
-  market_price_normalized?: string;
+  market_price_normalized?: DisplayUnits;
 }
 
 export interface OrderDetails extends Order {
@@ -235,12 +235,12 @@ export interface OrderDetails extends Order {
     divisible: boolean;
     locked: boolean;
   };
-  give_price_normalized?: string;
-  get_price_normalized?: string;
-  fee_provided_normalized?: string;
-  fee_required_normalized?: string;
-  fee_required_remaining_normalized?: string;
-  fee_provided_remaining_normalized?: string;
+  give_price_normalized?: DisplayUnits;
+  get_price_normalized?: DisplayUnits;
+  fee_provided_normalized?: DisplayUnits;
+  fee_required_normalized?: DisplayUnits;
+  fee_required_remaining_normalized?: DisplayUnits;
+  fee_provided_remaining_normalized?: DisplayUnits;
 }
 
 export interface OrderMatch {
@@ -253,20 +253,20 @@ export interface OrderMatch {
   tx1_address: string;
   forward_asset: string;
   forward_quantity: number;
-  forward_quantity_normalized: string;
+  forward_quantity_normalized: DisplayUnits;
   backward_asset: string;
   backward_quantity: number;
-  backward_quantity_normalized: string;
+  backward_quantity_normalized: DisplayUnits;
   tx0_block_index: number;
   tx1_block_index: number;
   block_index: number;
   block_time: number;
   match_expire_index: number;
   fee_paid: number;
-  fee_paid_normalized: string;
+  fee_paid_normalized: DisplayUnits;
   status: string;
   confirmed?: boolean;
-  market_price_normalized?: string;
+  market_price_normalized?: DisplayUnits;
 }
 
 // =============================================================================
@@ -285,15 +285,15 @@ export interface Pool {
   reserve_b: number;
   lp_asset: string;
   status?: string;
-  reserve_a_normalized?: string;
-  reserve_b_normalized?: string;
+  reserve_a_normalized?: DisplayUnits;
+  reserve_b_normalized?: DisplayUnits;
   confirmed?: boolean;
   [key: string]: unknown;
 }
 
 export interface PoolPosition extends Pool {
   quantity: ApiQuantity;
-  quantity_normalized?: string;
+  quantity_normalized?: DisplayUnits;
 }
 
 export interface PoolQuote {
@@ -346,7 +346,7 @@ export interface Dispenser {
   asset: string;
   status: number;
   give_remaining: ApiQuantity;
-  give_remaining_normalized: string;
+  give_remaining_normalized: DisplayUnits;
   asset_info?: {
     asset_longname: string | null;
     description: string;
@@ -358,11 +358,11 @@ export interface Dispenser {
 
 export interface DispenserDetails extends Dispenser {
   give_quantity: ApiQuantity;
-  give_quantity_normalized: string;
+  give_quantity_normalized: DisplayUnits;
   satoshirate: ApiQuantity;
-  satoshirate_normalized: string;
+  satoshirate_normalized: DisplayUnits;
   escrow_quantity: ApiQuantity;
-  escrow_quantity_normalized: string;
+  escrow_quantity_normalized: DisplayUnits;
   block_index: number;
   block_time: number;
   confirmed?: boolean;
@@ -379,10 +379,10 @@ export interface Dispense {
   destination: string;
   asset: string;
   dispense_quantity: number;
-  dispense_quantity_normalized: string;
+  dispense_quantity_normalized: DisplayUnits;
   dispenser_tx_hash: string;
   btc_amount: number;
-  btc_amount_normalized: string;
+  btc_amount_normalized: DisplayUnits;
   confirmed?: boolean;
 }
 
@@ -402,7 +402,7 @@ export interface Transaction {
   status?: string;
   transaction_type?: string;
   btc_amount?: number;
-  btc_amount_normalized?: string;
+  btc_amount_normalized?: DisplayUnits;
   fee?: number;
   data: Record<string, any>;
   supported: boolean;
@@ -435,11 +435,11 @@ export interface Dividend {
   asset: string;
   dividend_asset: string;
   quantity_per_unit: ApiQuantity;
-  quantity_per_unit_normalized: string;
+  quantity_per_unit_normalized: DisplayUnits;
   total_distributed: number;
-  total_distributed_normalized: string;
+  total_distributed_normalized: DisplayUnits;
   fee_paid: number;
-  fee_paid_normalized: string;
+  fee_paid_normalized: DisplayUnits;
   status?: string;
   confirmed?: boolean;
 }
@@ -590,8 +590,8 @@ export async function fetchTokenBalance(
 
   const emptyBalance: TokenBalance = {
     asset,
-    quantity: 0,
-    quantity_normalized: '0',
+    quantity: asBaseUnits(0),
+    quantity_normalized: asDisplayUnits('0'),
     asset_info: { asset_longname: null, description: '', issuer: '', divisible: true, locked: false },
   };
 
@@ -604,12 +604,16 @@ export async function fetchTokenBalance(
     asset,
     // Summed as BigNumber and kept as a string: these are 64-bit asset quantities, and adding
     // them as doubles loses digits for exactly the large balances where the total matters most.
-    quantity: balances
-      .reduce((sum, b) => sum.plus(toBigNumber(b.quantity ?? 0)), toBigNumber(0))
-      .toFixed(0),
-    quantity_normalized: balances
-      .reduce((sum, b) => sum.plus(toBigNumber(b.quantity_normalized)), toBigNumber(0))
-      .toString(),
+    quantity: asBaseUnits(
+      balances
+        .reduce((sum, b) => sum.plus(toBigNumber(b.quantity ?? 0)), toBigNumber(0))
+        .toFixed(0)
+    ),
+    quantity_normalized: asDisplayUnits(
+      balances
+        .reduce((sum, b) => sum.plus(toBigNumber(b.quantity_normalized)), toBigNumber(0))
+        .toString()
+    ),
     asset_info: balances[0]!.asset_info,
   };
 }

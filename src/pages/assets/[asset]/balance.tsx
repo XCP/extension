@@ -8,7 +8,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { getCanonicalPoolPair } from "@/core/counterparty/pool";
-import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/core/numeric";
+import { asDisplayUnits, divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 
@@ -153,7 +153,7 @@ export default function AssetBalancePage(): ReactElement {
           locked: info?.locked ?? false,
           supply: info?.supply,
         },
-        quantity_normalized: assetDetails.availableBalance || "0",
+        quantity_normalized: asDisplayUnits(assetDetails.availableBalance || "0"),
       };
     }
     // Fall back to cached data for instant display

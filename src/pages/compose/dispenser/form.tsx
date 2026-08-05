@@ -10,6 +10,7 @@ import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { DispenserOptions } from "@/core/counterparty/compose";
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 
@@ -182,7 +183,7 @@ export const DispenserForm = memo(function DispenserForm({
           <BalanceHeader
             balance={{
               asset: selectedAsset,
-              quantity_normalized: availableBalance,
+              quantity_normalized: asDisplayUnits(availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',

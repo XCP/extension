@@ -6,7 +6,7 @@
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { type AssetInfo, fetchAssetDetails, fetchTokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
-import { fromSatoshis } from '@/core/numeric';
+import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
 
 export async function fetchAssetDetailsAndBalance(
   asset: string,
@@ -22,7 +22,7 @@ export async function fetchAssetDetailsAndBalance(
       divisible: true,
       locked: true,
       supply: '2100000000000000',
-      supply_normalized: '21000000',
+      supply_normalized: asDisplayUnits('21000000'),
     };
 
     const balanceSats = await fetchBTCBalance(address);

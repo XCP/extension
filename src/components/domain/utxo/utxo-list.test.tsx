@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import type { UtxoBalance } from '@/core/counterparty/api';
+import { asDisplayUnits } from '@/core/numeric';
 import { UtxoList } from './utxo-list';
 
 const mockNavigate = vi.fn();
@@ -69,7 +70,7 @@ const mockUtxoBalances: UtxoBalance[] = [
       issuer: 'bc1qissuer',
       locked: false,
     },
-    quantity_normalized: '100.00000000',
+    quantity_normalized: asDisplayUnits('100.00000000'),
     utxo: 'aaa111bbb222ccc333ddd444eee555fff666aaa111bbb222ccc333ddd444eee555:0',
     utxo_address: 'bc1qtest123',
   },
@@ -82,7 +83,7 @@ const mockUtxoBalances: UtxoBalance[] = [
       issuer: 'bc1qissuer',
       locked: false,
     },
-    quantity_normalized: '50',
+    quantity_normalized: asDisplayUnits('50'),
     utxo: 'fff666eee555ddd444ccc333bbb222aaa111fff666eee555ddd444ccc333bbb222:1',
     utxo_address: 'bc1qtest123',
   },

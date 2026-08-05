@@ -3,6 +3,7 @@ import * as bitcoinAddress from '@/core/bitcoin/address';
 import { AddressFormat, detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses } from '@/core/bitcoin/address';
 import { hasAddressActivity } from '@/core/bitcoin/balance';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { asBaseUnits } from '@/core/numeric';
 
 // Mock the external dependencies
 vi.mock('@/core/counterparty/api');
@@ -78,7 +79,7 @@ describe('Address Type Detector', () => {
     it('should detect based on Counterparty token activity', async () => {
       // P2PKH address has tokens
       vi.mocked(fetchTokenBalances)
-        .mockResolvedValueOnce([{ asset: 'XCP', quantity: '100' }] as any)
+        .mockResolvedValueOnce([{ asset: 'XCP', quantity: asBaseUnits('100') }] as any)
         .mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
@@ -89,7 +90,7 @@ describe('Address Type Detector', () => {
     it('should prioritize Counterparty activity over Bitcoin activity', async () => {
       // P2PKH has tokens (will be detected first)
       vi.mocked(fetchTokenBalances)
-        .mockResolvedValueOnce([{ asset: 'PEPE', quantity: '1000' }] as any)  // P2PKH has tokens
+        .mockResolvedValueOnce([{ asset: 'PEPE', quantity: asBaseUnits('1000') }] as any)  // P2PKH has tokens
         .mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
