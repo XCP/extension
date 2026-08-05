@@ -251,7 +251,9 @@ export function describeCounterpartyMessage(
     const assetInfo = messageData[infoKey] as Record<string, unknown> | undefined;
 
     if (assetInfo?.divisible === true) {
-      return fromSatoshis(Number(raw));
+      // String, not Number: quantities are unsigned 64-bit and doubles are exact only to 2^53-1,
+      // so a headline could state a different amount than the bytes carry.
+      return fromSatoshis(String(raw));
     }
 
     return BigInt(String(raw)).toLocaleString();
@@ -420,7 +422,7 @@ export async function resolveMpmaRecipients(
       // decimal (or the reverse) misstates the amount by eight orders of magnitude.
       quantity:
         divisible === true
-          ? fromSatoshis(Number(send.quantity))
+          ? fromSatoshis(send.quantity.toString())
           : divisible === false
             ? send.quantity.toLocaleString()
             : `${send.quantity.toString()} base units`,

@@ -51,7 +51,11 @@ export function normalizeQuantity(
   if (quantity == null) return '?';
   const val = BigInt(String(quantity));
   const divisible = isAssetDivisible(asset, messageData, assetField);
-  if (divisible === true) return fromSatoshis(Number(val));
+  // String, not Number: a Counterparty quantity is an unsigned 64-bit integer and doubles are
+  // exact only to 2^53-1, so 9999999999999999 base units rendered as 100000000.00000000 rather
+  // than 99999999.99999999 — a different amount than the one being signed. fromSatoshis is
+  // BigNumber-backed and exact when handed the digits.
+  if (divisible === true) return fromSatoshis(val.toString());
   return val.toLocaleString();
 }
 

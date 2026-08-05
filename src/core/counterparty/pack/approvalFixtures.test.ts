@@ -26,6 +26,7 @@ const EXPECTED: Record<string, string> = {
   fairmint: 'fairmint',
   broadcast: 'broadcast',
   'fairminter-xcp69': 'fairminter',
+  'send-above-safe-integer': 'enhanced_send',
   dispense: 'dispense',
 };
 
