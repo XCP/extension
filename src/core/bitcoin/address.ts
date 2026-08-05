@@ -142,6 +142,17 @@ export function decodeAddressFromScript(scriptHex: string): string | null {
       return bech32.encode('bc', [0, ...words]);
     }
 
+    // P2WSH: OP_0 <32 bytes>
+    // Format: 0020{32-byte-hash}
+    // Without this the only source for a P2WSH row was the decode API, which is
+    // why its addresses used to overwrite locally derived ones.
+    if (scriptHex.startsWith('0020') && scriptHex.length === 68) {
+      const hashHex = scriptHex.slice(4);
+      const scriptHash = hexToUint8Array(hashHex);
+      const words = bech32.toWords(scriptHash);
+      return bech32.encode('bc', [0, ...words]);
+    }
+
     // P2SH: OP_HASH160 <20 bytes> OP_EQUAL
     // Format: a914{20-byte-hash}87
     if (scriptHex.startsWith('a914') && scriptHex.endsWith('87') && scriptHex.length === 46) {

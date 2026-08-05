@@ -120,10 +120,15 @@ export function useSignPsbtRequest(signerAddress?: string) {
         const decoded = await decodeRawTransaction(psbtDetails.rawTxHex, true);
         txid = decoded.txid;
 
-        // Enrich outputs with addresses from API
+        // Fill in addresses the local decode couldn't derive — never replace one
+        // it did. The signature commits to the output scripts, so an address the
+        // API supplies for a script we already read would let it relabel someone
+        // else's output as your own change: `analyzeTransactionSafety` and
+        // `computeMoneyMovement` both classify on this same array, so the
+        // "BTC Sent to External Address" warning would not fire (ADR-019).
         for (const vout of decoded.vout) {
           const output = psbtDetails.outputs.find(o => o.index === vout.n);
-          if (output && vout.scriptPubKey.address) {
+          if (output && !output.address && vout.scriptPubKey.address) {
             output.address = vout.scriptPubKey.address;
           }
         }
