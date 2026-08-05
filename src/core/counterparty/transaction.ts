@@ -230,10 +230,19 @@ export function describeCounterpartyMessage(
     return BigInt(String(raw)).toLocaleString();
   };
 
+  /**
+   * The recipient of a send. `/v2/transactions/unpack` names this field
+   * `address` for both send variants, while sweep and utxo_move use
+   * `destination` — so both keys are read rather than assuming one shape.
+   * Reading only `destination` rendered every send headline as "to undefined".
+   */
+  const recipient = (): string =>
+    String(messageData.address ?? messageData.destination ?? 'unknown address');
+
   switch (messageType) {
     case 'enhanced_send':
     case 'send':
-      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${messageData.destination}`;
+      return `Send ${q('quantity', 'asset')} ${displayName('asset')} to ${recipient()}`;
     case 'order':
       return `DEX Order: Give ${q('give_quantity', 'give_asset')} ${displayName('give_asset')} for ${q('get_quantity', 'get_asset')} ${displayName('get_asset')}`;
     case 'dispenser':

@@ -75,14 +75,36 @@ describe('hasCounterpartyPrefix', () => {
 
 describe('describeCounterpartyMessage', () => {
   it('describes enhanced_send', () => {
+    // `/v2/transactions/unpack` names this field `address`, not `destination`.
+    // The fixture used to disagree with production, so this test passed while
+    // the approval headline rendered "to undefined".
     const desc = describeCounterpartyMessage('enhanced_send', {
       quantity: 100000000,
       asset: 'XCP',
-      destination: 'bc1qtest',
+      address: 'bc1qtest',
     });
     expect(desc).toContain('Send');
     expect(desc).toContain('XCP');
     expect(desc).toContain('bc1qtest');
+    expect(desc).not.toContain('undefined');
+  });
+
+  it('describes a send that supplies destination instead of address', () => {
+    const desc = describeCounterpartyMessage('send', {
+      quantity: 100000000,
+      asset: 'XCP',
+      destination: 'bc1qlegacy',
+    });
+    expect(desc).toContain('bc1qlegacy');
+    expect(desc).not.toContain('undefined');
+  });
+
+  it('never renders undefined when neither recipient key is present', () => {
+    const desc = describeCounterpartyMessage('enhanced_send', {
+      quantity: 100000000,
+      asset: 'XCP',
+    });
+    expect(desc).not.toContain('undefined');
   });
 
   it('describes send (legacy)', () => {
