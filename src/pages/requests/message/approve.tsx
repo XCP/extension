@@ -8,7 +8,8 @@ import type { AddressFormat } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
-import { getIdentityMismatchError } from '@/platform/provider/requestIdentity';
+import { getConnectionRevokedError, getIdentityMismatchError } from '@/platform/provider/requestIdentity';
+import { getConnectionService } from '@/services/connectionService';
 
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet, getPrivateKey } = useWallet();
@@ -52,6 +53,15 @@ export default function ApproveMessagePage() {
     const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet.id);
     if (identityError) {
       setError(identityError);
+      return;
+    }
+
+    // A request stays open for up to ten minutes, so the site's grant is rechecked here rather
+    // than trusted from when the request was created — revoking a site in Settings must take
+    // effect on an approval already on screen. The transaction and PSBT paths both do this.
+    const revokedError = await getConnectionRevokedError(request, getConnectionService());
+    if (revokedError) {
+      setError(revokedError);
       return;
     }
 

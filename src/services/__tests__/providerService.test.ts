@@ -30,7 +30,6 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as approvalQueue from '@/platform/provider/approvalQueue';
-import * as cspValidation from '@/platform/provider/csp';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
 import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
@@ -77,7 +76,6 @@ vi.mock('@/platform/fathom', () => ({
   },
 }));
 vi.mock('@/core/replayPrevention');
-vi.mock('@/platform/provider/csp');
 vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
 }));
@@ -293,13 +291,6 @@ describe('ProviderService', () => {
     // Setup security mocks  
     vi.mocked(replayPrevention.checkReplayAttempt).mockResolvedValue({ isReplay: false });
     vi.mocked(replayPrevention.withReplayPrevention).mockImplementation(async (fn: any) => fn());
-    vi.mocked(cspValidation.analyzeCSP).mockResolvedValue({
-      hasCSP: true,
-      isSecure: true,
-      recommendations: [],
-      warnings: [],
-      directives: {}
-    });
     
     // Analytics mocked in module setup
     
