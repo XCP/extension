@@ -44,6 +44,33 @@ export function normalizeAddressForComparison(address: string): string {
 }
 
 /**
+ * Human-readable label for an address format, shown wherever the UI names a
+ * wallet's address type (settings, address list).
+ */
+export function getAddressFormatLabel(format: AddressFormat): string {
+  switch (format) {
+    case AddressFormat.P2PKH:
+      return 'Legacy (P2PKH)';
+    case AddressFormat.P2WPKH:
+      return 'Native SegWit (P2WPKH)';
+    case AddressFormat.P2SH_P2WPKH:
+      return 'Nested SegWit (P2SH-P2WPKH)';
+    case AddressFormat.P2TR:
+      return 'Taproot (P2TR)';
+    case AddressFormat.Counterwallet:
+      return 'CounterWallet (P2PKH)';
+    case AddressFormat.CounterwalletSegwit:
+      return 'CounterWallet SegWit (P2WPKH)';
+    case AddressFormat.FreewalletBIP39:
+      return 'FreeWallet (P2PKH)';
+    case AddressFormat.FreewalletBIP39Segwit:
+      return 'FreeWallet SegWit (P2WPKH)';
+    default:
+      return format;
+  }
+}
+
+/**
  * Check if an address format is a SegWit format (P2WPKH, P2SH-P2WPKH, CounterwalletSegwit, or P2TR).
  */
 export function isSegwitFormat(format: AddressFormat): boolean {

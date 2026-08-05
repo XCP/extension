@@ -7,7 +7,7 @@ import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat } from '@/core/bitcoin/address';
+import { getAddressFormatLabel } from '@/core/bitcoin/address';
 import packageJson from "../../../package.json";
 
 
@@ -70,26 +70,7 @@ export default function SettingsPage(): ReactElement {
    */
   const getAddressTypeDescription = (): string => {
     if (!activeWallet) return "";
-    switch (activeWallet.addressFormat) {
-      case AddressFormat.P2PKH:
-        return "Legacy (P2PKH)";
-      case AddressFormat.P2SH_P2WPKH:
-        return "Nested SegWit (P2SH-P2WPKH)";
-      case AddressFormat.P2WPKH:
-        return "Native SegWit (P2WPKH)";
-      case AddressFormat.P2TR:
-        return "Taproot (P2TR)";
-      case AddressFormat.Counterwallet:
-        return "CounterWallet (P2PKH)";
-      case AddressFormat.CounterwalletSegwit:
-        return "CounterWallet SegWit (P2WPKH)";
-      case AddressFormat.FreewalletBIP39:
-        return "FreeWallet (P2PKH)";
-      case AddressFormat.FreewalletBIP39Segwit:
-        return "FreeWallet SegWit (P2WPKH)";
-      default:
-        return "";
-    }
+    return getAddressFormatLabel(activeWallet.addressFormat);
   };
 
   const settingSections: ActionSection[] = [
