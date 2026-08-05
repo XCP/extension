@@ -51,11 +51,14 @@ export function PoolCard({
       tabIndex={0}
     >
       <div className="flex items-center gap-3">
-        <div className="relative h-8 w-12 flex-shrink-0">
-          <div className="absolute left-0 top-0">
+        {/* Overlapping pair icons: solid white backing keeps transparent icon art
+            from bleeding through, hairline ring keeps each circle crisp, and the
+            front icon carries a white halo to separate it from the back one. */}
+        <div className="relative h-8 w-[52px] flex-shrink-0">
+          <div className="absolute left-0 top-0 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden">
             <AssetIcon asset={assetA} size="md" />
           </div>
-          <div className="absolute left-4 top-0 rounded-full ring-2 ring-white">
+          <div className="absolute left-5 top-0 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden shadow-[0_0_0_2px_white]">
             <AssetIcon asset={assetB} size="md" />
           </div>
         </div>
@@ -65,9 +68,18 @@ export function PoolCard({
           </div>
           <div className="flex justify-between text-xs text-gray-500">
             <span className="truncate">
-              {formatAmount({ value: reserveA, maximumFractionDigits: 2 })} {assetA}
-              {" / "}
-              {formatAmount({ value: reserveB, maximumFractionDigits: 2 })} {assetB}
+              {reserveA > 0 && reserveB > 0 ? (
+                <>
+                  1 {assetB} ={" "}
+                  {formatAmount({
+                    value: reserveA / reserveB,
+                    maximumFractionDigits: reserveA / reserveB >= 1 ? 2 : 8,
+                  })}{" "}
+                  {assetA}
+                </>
+              ) : (
+                "No liquidity"
+              )}
             </span>
             {quantity !== null && (
               <span className="flex-shrink-0 ml-2">
