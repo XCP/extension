@@ -50,6 +50,20 @@ type TxActionData =
  * Extract structured action data for visual rendering.
  * Returns typed discriminated union per message type.
  */
+/**
+ * Split a trailing address off a headline so the two can be set differently.
+ *
+ * Deliberately anchored to the end and to address shapes: only the destination a send, sweep or
+ * UTXO move ends with should be pulled out. A description with no trailing address comes back
+ * whole, so every other message type renders exactly as before.
+ */
+function splitTrailingAddress(description: string): { sentence: string; address?: string } {
+  const match = description.match(
+    /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
+  );
+  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
+}
+
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
   // --- Try API message first (for 'order') ---
   if (decodedInfo.counterpartyMessage) {
@@ -341,13 +355,29 @@ export default function ApproveTransactionPage() {
               /* Counterparty action — flat label + description */
               <div className="text-center mb-3">
                 <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                {/* An address is a single unbreakable token, and a send or sweep headline ends in
-                    one. Without a break opportunity it overflowed the popup and put a horizontal
-                    scrollbar under the whole approval screen, pushing the tail of the destination
-                    out of view — on the one line that says where the money goes. Wrapping keeps it
-                    whole; truncating it here would repeat the lookalike-grinding problem the
-                    outputs list below deliberately avoids. */}
-                <p className="text-lg font-bold text-gray-900 break-words">{txAction.description}</p>
+                {(() => {
+                  // A send or sweep headline ends in an address: a long, unbreakable token that
+                  // set in 18px bold ran to three lines and dominated the card, shouting the
+                  // least readable part of the sentence. It is split off and set like the
+                  // outputs list — smaller, monospace, not bold — so the sentence carries the
+                  // weight and the address stays scannable.
+                  //
+                  // It is still shown whole and allowed to wrap. Truncating here would repeat
+                  // the lookalike-grinding problem the outputs list deliberately avoids, and for
+                  // an enhanced send the destination lives in the payload, so this headline is
+                  // the only place it appears at all.
+                  const { sentence, address } = splitTrailingAddress(txAction.description);
+                  return (
+                    <>
+                      <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                      {address && (
+                        <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
+                          {address}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             ) : null}
             <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
