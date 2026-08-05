@@ -9,6 +9,8 @@
 import { describe, expect, it } from 'vitest';
 import { unpackAddress, unpackAddressLegacy } from '@/core/counterparty/unpack/address';
 import { unpackBroadcast } from '@/core/counterparty/unpack/messages/broadcast';
+import { encodeCbor } from '@/core/counterparty/pack/cbor';
+import { compactSubassetLongname } from '@/core/counterparty/pack/messages';
 import { unpackIssuance } from '@/core/counterparty/unpack/messages/issuance';
 
 /** ">IdI" header: timestamp, value (float64 BE), fee_fraction_int. */
@@ -22,6 +24,15 @@ function broadcastHeader(timestamp = 1735689600, value = 0, feeFractionInt = 0):
 }
 
 const ascii = (s: string): number[] => Array.from(new TextEncoder().encode(s));
+
+
+/** CBOR subasset issuance: [asset_id, quantity, divisible, lock, reset, len, name, mime, desc]. */
+function cborSubasset(compactedName: Uint8Array): Uint8Array {
+  return encodeCbor([
+    95428956661682177n, 1000n, true, false, false,
+    BigInt(compactedName.length), compactedName, '', new TextEncoder().encode('d'),
+  ]);
+}
 
 describe('broadcast text — core takes the tail', () => {
   it('reads a well-formed varint-prefixed text', () => {
@@ -135,5 +146,22 @@ describe('mpma address table — core decodes it with legacy rules only', () => 
   it('decodes a 0x80-marked segwit entry as bech32, as core does', () => {
     const program = new Uint8Array(20).fill(0x22);
     expect(unpackAddressLegacy(new Uint8Array([0x80, ...program])).startsWith('bc1q')).toBe(true);
+  });
+});
+
+describe('subasset longname — canonical compaction only', () => {
+  it('refuses a zero-padded compaction that expands to the same name', () => {
+    // Distinct byte strings expand to the same longname, so without re-compacting and comparing,
+    // a familiar name renders here for bytes core refuses to unpack. Core raises deliberately
+    // outside its own legacy fallback so the rejection cannot be swallowed.
+    const canonical = compactSubassetLongname('sub')!;
+    const padded = new Uint8Array([0x00, ...canonical]);
+
+    // Both expand to the same string...
+    expect(padded.length).toBeGreaterThan(canonical.length);
+
+    // ...but only the minimal encoding is accepted.
+    expect(() => unpackIssuance(cborSubasset(canonical), 21)).not.toThrow();
+    expect(() => unpackIssuance(cborSubasset(padded), 21)).toThrow(/non-canonical/i);
   });
 });
