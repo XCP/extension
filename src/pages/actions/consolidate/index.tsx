@@ -22,9 +22,13 @@ function ConsolidatePage() {
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings } = useSettings();
 
+  // Local, non-persisting help toggle (same behavior as compose forms):
+  // seeded from the global setting, but never written back to it.
+  const [localShowHelpText, setLocalShowHelpText] = useState<boolean | null>(null);
+  const showHelpText = localShowHelpText ?? settings?.showHelpText ?? false;
   const toggleHelp = useCallback(() => {
-    updateSettings({ showHelpText: !settings?.showHelpText });
-  }, [settings?.showHelpText, updateSettings]);
+    setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
+  }, [settings?.showHelpText]);
 
   // Mark the recover bitcoin page as visited
   useEffect(() => {
@@ -51,7 +55,7 @@ function ConsolidatePage() {
       });
     }
     return () => setHeaderProps(null);
-  }, [step, setHeaderProps, navigate]);
+  }, [step, setHeaderProps, navigate, toggleHelp]);
 
   if (!activeAddress || !activeWallet) return null;
 
@@ -110,7 +114,7 @@ function ConsolidatePage() {
 
       {step === "form" && (
         <>
-          <ConsolidationForm onSubmit={handleFormSubmit} />
+          <ConsolidationForm onSubmit={handleFormSubmit} showHelpText={showHelpText} />
           <ConsolidationHistory address={activeAddress.address} />
         </>
       )}
