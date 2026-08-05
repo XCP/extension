@@ -7,35 +7,11 @@
  */
 
 import type { ReactElement } from 'react';
-import { FiInfo, FiShield, FiShieldOff } from '@/components/icons';
-
-/*
- * The passed state is intentionally low-weight — a small inline badge, not a
- * full banner — so the normal (verified) case doesn't compete visually with
- * the exceptional warning/danger banners. Only failures render a full box.
- */
+import { FiShieldOff } from '@/components/icons';
 
 export interface VerificationStatusProps {
   /** Whether verification passed */
   passed?: boolean;
-  /**
-   * Whether a second decoding was actually compared against the local one.
-   *
-   * Passing with nothing to compare against is not the same as passing a comparison: when the API
-   * decode is unavailable, the message decoded locally and that is all. Claiming "no tampering
-   * detected" there asserts most where least was checked, so the two are shown differently.
-   */
-  comparedAgainstApi?: boolean;
-  /**
-   * Whether the decode was rebuilt into the exact bytes being signed.
-   *
-   * This, not the API comparison, is what justifies an affirmative message. Both decoders read the
-   * same input, so agreement between them can only ever mean this project's unpacker has no bug —
-   * never that the payload is honest. Rebuilding proves something the user actually cares about:
-   * that the summary above accounts for every byte, and nothing is hiding in a field the decode
-   * skipped. Absence of a proof is not evidence of tampering, so it is stated flatly.
-   */
-  repackProved?: boolean;
   /** Warning/error message to display */
   warning?: string;
   /** Whether strict mode is enabled (blocks signing on failure) */
@@ -43,17 +19,14 @@ export interface VerificationStatusProps {
 }
 
 /**
- * Displays verification status with appropriate styling.
+ * Speaks only when something is wrong.
  *
- * - Green: cross-checked and agreed
- * - Neutral: decoded locally, but no payload field was compared
- * - Orange: Verification failed (non-strict mode, warning only)
- * - Red: Verification failed (strict mode, signing blocked)
+ * - Nothing: verification was not attempted, or it found no problem
+ * - Orange: verification failed (non-strict mode, warning only)
+ * - Red: verification failed (strict mode, signing blocked)
  */
 export function VerificationStatus({
   passed,
-  comparedAgainstApi = true,
-  repackProved = false,
   warning,
   isStrict = true,
 }: VerificationStatusProps): ReactElement | null {
@@ -63,31 +36,19 @@ export function VerificationStatus({
     return null;
   }
 
-  // Rebuilt into the exact bytes being signed. This is the only state that says something
-  // affirmative, and it describes what was done rather than issuing a verdict: "no tampering
-  // detected" was a promise this check cannot make, and a reassuring badge on every screen is
-  // what teaches people to click through the one screen that matters.
-  if (passed === true && repackProved) {
-    return (
-      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-success-700">
-        <FiShield className="size-4 flex-shrink-0" aria-hidden="true" />
-        Rebuilt from these bytes — every byte accounted for
-      </div>
-    );
-  }
-
-  // Decoded, but nothing corroborated it: no adapter to rebuild this message type, or no payload
-  // field was comparable. Neither an error nor a clean bill of health, and said plainly so the
-  // absence of a proof is not mistaken for the presence of a problem.
+  // Nothing is wrong, so say nothing.
+  //
+  // Every previous version of this state was a line about our own machinery — what got compared,
+  // what got rebuilt — which is not something a person can act on and not something most people
+  // can read. Worse, a reassuring badge present on every screen is exactly what trains someone to
+  // approve without looking, so it spends the user's attention to buy nothing and makes the one
+  // screen that should alarm them look like all the others.
+  //
+  // Silence also happens to be the most honest option available: it claims nothing at all, which
+  // is the right claim to make whether the decode was proved complete or merely not contradicted.
+  // The outcome is still reported, quietly, inside Transaction Details for anyone who looks.
   if (passed === true) {
-    return (
-      <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-gray-600">
-        <FiInfo className="size-4 flex-shrink-0" aria-hidden="true" />
-        {comparedAgainstApi
-          ? 'Decoded locally — this type cannot be rebuilt to confirm'
-          : 'Decoded locally — nothing to compare it against'}
-      </div>
-    );
+    return null;
   }
 
   // Verification failed

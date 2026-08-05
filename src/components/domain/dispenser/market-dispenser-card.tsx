@@ -49,7 +49,7 @@ export function MarketDispenserCard({
             )}
           </div>
           <div className="flex justify-between text-xs text-gray-500">
-            <span>{formattedPrice ?? `${formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats`}</span>
+            <span>{formattedPrice ?? `${formatAmount({ value: Number(dispenser.satoshirate), maximumFractionDigits: 0 })} sats`}</span>
             <span>{formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 0 })} remaining</span>
           </div>
         </div>

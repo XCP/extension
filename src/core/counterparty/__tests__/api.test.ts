@@ -250,7 +250,7 @@ describe('counterparty/api.ts', () => {
 
       expect(balance).toEqual({
         asset: 'XCP',
-        quantity: 100000000,
+        quantity: '100000000',
         asset_info: mockTokenBalance.asset_info,
         quantity_normalized: '1',
       });
@@ -303,7 +303,7 @@ describe('counterparty/api.ts', () => {
         type: 'address'
       });
 
-      expect(balance?.quantity).toBe(25000000);
+      expect(balance?.quantity).toBe('25000000');
       expect(balance?.quantity_normalized).toBe('0.25');
     });
 
@@ -321,8 +321,29 @@ describe('counterparty/api.ts', () => {
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
-      expect(balance?.quantity).toBe(75000000);
+      expect(balance?.quantity).toBe('75000000');
       expect(balance?.quantity_normalized).toBe('0.75');
+    });
+
+    it('aggregates large balances without losing digits', () => {
+      // The aggregate is a decimal string rather than a number because these are 64-bit asset
+      // quantities: summing them as doubles drops digits for exactly the large holdings where the
+      // total matters most. 99526925811111111 is the real PEPECASH supply.
+      return (async () => {
+        const balance1 = { ...mockTokenBalance, quantity: '99526925811111111', quantity_normalized: '995269258.11111111' };
+        const balance2 = { ...mockTokenBalance, quantity: '1', quantity_normalized: '0.00000001' };
+        mockedApiClient.get.mockResolvedValue({
+          data: { result: [balance1, balance2] },
+          status: 200, statusText: 'OK', headers: {}, config: {},
+        } as any);
+
+        const balance = await fetchTokenBalance(mockAddress, 'XCP');
+
+        expect(balance?.quantity).toBe('99526925811111112');
+        // The same total via a double loses its last two digits. Written as a string because a
+        // numeric literal for the true value would itself be rounded by the JS parser.
+        expect(String(Number(balance?.quantity))).toBe('99526925811111100');
+      })();
     });
 
     it('should throw CounterpartyApiError on network error', async () => {

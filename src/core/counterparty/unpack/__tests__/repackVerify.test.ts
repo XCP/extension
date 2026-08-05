@@ -39,10 +39,9 @@ describe('proveByRepack', () => {
       dividend: 'proved',
       fairmint: 'proved',
       dispense: 'proved',
-      // No adapter yet. Reported as unproved, never as tampering.
-      'issuance-numeric': 'no-adapter',
-      'fairminter-xcp69': 'no-adapter',
-      broadcast: 'no-adapter',
+      'issuance-numeric': 'proved',
+      'fairminter-xcp69': 'proved',
+      broadcast: 'proved',
     });
   });
 

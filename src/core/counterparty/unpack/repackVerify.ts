@@ -32,11 +32,14 @@
 
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
+import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
 import type { DestroyData } from '@/core/counterparty/unpack/messages/destroy';
 import type { DividendData } from '@/core/counterparty/unpack/messages/dividend';
 import type { EnhancedSendData } from '@/core/counterparty/unpack/messages/enhancedSend';
 import type { FairmintData } from '@/core/counterparty/unpack/messages/fairmint';
+import type { FairminterData } from '@/core/counterparty/unpack/messages/fairminter';
+import type { IssuanceData } from '@/core/counterparty/unpack/messages/issuance';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
@@ -152,6 +155,70 @@ function paramsFor(messageType: string, data: unknown): { composeType: string; p
       return {
         composeType: 'fairmint',
         params: { asset: fairmint.asset, quantity: fairmint.quantity },
+      };
+    }
+
+    case 'issuance': {
+      const issuance = data as IssuanceData;
+      // Subassets carry a parent and a randomly drawn id the request does not determine, and the
+      // packer builds only the standard form, so those are left unproved rather than guessed at.
+      if (issuance.subassetLongname) return null;
+      return {
+        composeType: 'issuance',
+        params: {
+          asset: issuance.asset,
+          quantity: issuance.quantity,
+          divisible: issuance.divisible,
+          ...(issuance.description ? { description: issuance.description } : {}),
+          ...(issuance.mimeType ? { mime_type: issuance.mimeType } : {}),
+          ...(issuance.isLock ? { lock: true } : {}),
+        },
+      };
+    }
+
+    case 'fairminter': {
+      const fairminter = data as FairminterData;
+      if (fairminter.assetParent) return null; // subasset fairminters are not packed here
+      return {
+        composeType: 'fairminter',
+        params: {
+          asset: fairminter.asset,
+          lot_price: fairminter.price,
+          lot_size: fairminter.quantityByPrice,
+          max_mint_per_tx: fairminter.maxMintPerTx,
+          max_mint_per_address: fairminter.maxMintPerAddress,
+          hard_cap: fairminter.hardCap,
+          premint_quantity: fairminter.premintQuantity,
+          start_block: fairminter.startBlock,
+          end_block: fairminter.endBlock,
+          soft_cap: fairminter.softCap,
+          soft_cap_deadline_block: fairminter.softCapDeadlineBlock,
+          // The packer recomputes int(commission * 1e8), so the float is handed back the way it
+          // arrived. A value that does not survive the round trip reports unproved, not tampered.
+          minted_asset_commission: Number(fairminter.mintedAssetCommissionInt) / 1e8,
+          burn_payment: fairminter.burnPayment,
+          lock_description: fairminter.lockDescription,
+          lock_quantity: fairminter.lockQuantity,
+          divisible: fairminter.divisible,
+          pool_quantity: fairminter.poolQuantity,
+          ...(fairminter.lpAsset ? { lp_asset: fairminter.lpAsset } : {}),
+          ...(fairminter.mimeType ? { mime_type: fairminter.mimeType } : {}),
+          ...(fairminter.description ? { description: fairminter.description } : {}),
+        },
+      };
+    }
+
+    case 'broadcast': {
+      const broadcast = data as BroadcastData;
+      return {
+        composeType: 'broadcast',
+        params: {
+          text: broadcast.text,
+          value: broadcast.value,
+          fee_fraction: broadcast.feeFractionInt / 1e8,
+          timestamp: broadcast.timestamp,
+          ...(broadcast.mimeType ? { mime_type: broadcast.mimeType } : {}),
+        },
       };
     }
 

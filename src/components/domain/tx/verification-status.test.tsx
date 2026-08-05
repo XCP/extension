@@ -1,8 +1,8 @@
 /**
- * The distinction under test is the point of the component: what was actually established about
- * the bytes decides what the user is told. Only a rebuild that reproduced the payload earns an
- * affirmative line; everything else says plainly that nothing was established, because a
- * reassuring badge on every screen is what teaches people to click through the one that matters.
+ * The component's whole job is restraint. Earlier versions announced what the checks had done —
+ * what was compared, what was rebuilt — which is machinery a person cannot act on and most people
+ * cannot read, and a reassurance shown on every screen is what teaches someone to approve without
+ * looking. It now speaks only when something is actually wrong.
  */
 
 import { render, screen } from '@testing-library/react';
@@ -10,31 +10,9 @@ import { describe, expect, it } from 'vitest';
 import { VerificationStatus } from './verification-status';
 
 describe('VerificationStatus', () => {
-  it('affirms only when the decode was rebuilt into the signed bytes', () => {
-    render(<VerificationStatus passed repackProved />);
-    expect(screen.getByText(/every byte accounted for/i)).toBeInTheDocument();
-  });
-
-  it('makes no affirmative claim when the type cannot be rebuilt', () => {
-    // Agreement between two decoders of the same bytes is not evidence the payload is honest, so
-    // it must not produce the same message as a rebuild.
-    render(<VerificationStatus passed comparedAgainstApi repackProved={false} />);
-
-    expect(screen.queryByText(/every byte accounted for/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/cannot be rebuilt to confirm/i)).toBeInTheDocument();
-  });
-
-  it('says so when there was nothing to compare and nothing to rebuild', () => {
-    render(<VerificationStatus passed comparedAgainstApi={false} repackProved={false} />);
-    expect(screen.getByText(/nothing to compare/i)).toBeInTheDocument();
-  });
-
-  it('never claims tampering merely because no proof was available', () => {
-    render(<VerificationStatus passed comparedAgainstApi={false} repackProved={false} />);
-
-    expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/blocked/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/tampering/i)).not.toBeInTheDocument();
+  it('stays silent when nothing is wrong', () => {
+    const { container } = render(<VerificationStatus passed />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing when verification was not attempted', () => {
@@ -54,5 +32,13 @@ describe('VerificationStatus', () => {
 
     expect(screen.getByText(/verification warning/i)).toBeInTheDocument();
     expect(screen.queryByText(/signing blocked/i)).not.toBeInTheDocument();
+  });
+
+  it('never claims verification, in any state', () => {
+    // The old copy promised "no tampering detected", which none of these checks can establish.
+    for (const props of [{ passed: true }, { passed: undefined }]) {
+      const { container } = render(<VerificationStatus {...props} />);
+      expect(container.textContent ?? '').not.toMatch(/tampering|verified/i);
+    }
   });
 });

@@ -219,10 +219,16 @@ export default function ApproveTransactionPage() {
   const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
-  const verificationComparedAgainstApi = decodedInfo.verification?.comparedAgainstApi ?? false;
   const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
-  const verificationFailed = verificationPassed === false;
+  // A disagreement with the decode API is only grounds to stop when we cannot vouch for the bytes
+  // ourselves. Once the rebuild has reproduced the payload exactly, our reading of it is provably
+  // complete, so an API that reports something different is the one that is wrong — and under
+  // ADR-019 that endpoint is untrusted and user-configurable, which means letting it veto a
+  // signature hands an untrusted party a way to block transactions that are demonstrably fine.
+  // This is not hypothetical: until the JSON boundary was fixed, every quantity above 2^53 was
+  // rounded on arrival and blocked signing over a disagreement our own parsing had manufactured.
+  const verificationFailed = verificationPassed === false && !verificationRepackProved;
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
@@ -496,6 +502,19 @@ export default function ApproveTransactionPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* The outcome of the local checks, in plain words and only for someone who
+                      opened this panel. It stays off the main screen because a person cannot act
+                      on it and a permanent reassurance there would only teach them to stop
+                      reading. */}
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
+                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
+                      {verificationRepackProved
+                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
+                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
+                    </div>
+                  </div>
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
@@ -503,9 +522,7 @@ export default function ApproveTransactionPage() {
 
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
-            passed={verificationPassed}
-            comparedAgainstApi={verificationComparedAgainstApi}
-            repackProved={verificationRepackProved}
+            passed={verificationRepackProved ? true : verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />

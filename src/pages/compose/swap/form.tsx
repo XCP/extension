@@ -147,7 +147,9 @@ export function SwapForm({
     isGiveDivisible,
     enabled: canQuote,
   });
-  const unfilled = (quote?.give_remaining ?? 0) > 0;
+  // Compared as a BigNumber: give_remaining is a 64-bit asset quantity, so it can arrive as a
+  // string, and "0" > 0 is false but "10" > 0 compares as text rather than as a number.
+  const unfilled = toBigNumber(quote?.give_remaining ?? 0).gt(0);
 
   // Null until the quote produces actual output; all values in display units.
   const quoteView = useMemo<QuoteView | null>(() => {
