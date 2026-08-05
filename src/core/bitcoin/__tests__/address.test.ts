@@ -241,6 +241,14 @@ describe('Bitcoin Address Utilities', () => {
       expect(address).toBe('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH');
     });
 
+    it('should decode P2WSH script to bech32 address', () => {
+      // P2WSH: OP_0 <32 bytes>. BIP-173 test vector.
+      const script = '00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262';
+      expect(decodeAddressFromScript(script)).toBe(
+        'bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3'
+      );
+    });
+
     it('should decode P2WPKH script to bech32 address', () => {
       // P2WPKH script: OP_0 <20 bytes>
       // Example: 0014751e76e8199196d454941c45d1b3a323f1433bd6
