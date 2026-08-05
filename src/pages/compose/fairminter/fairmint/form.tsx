@@ -112,8 +112,13 @@ export function FairmintForm({
     
     if (price.isLessThanOrEqualTo(0) || balance.isLessThanOrEqualTo(0) || lotSize.isLessThanOrEqualTo(0)) return "0";
     
-    // Calculate how many lots we can afford
-    const maxLots = divide(balance, price).integerValue();
+    // price_normalized is XCP per WHOLE UNIT, not per lot — core computes it as
+    // price / quantity_by_price (api/verbose.py). So balance / price is already the affordable
+    // unit count, and multiplying it by the lot size again overstated Max by exactly that factor:
+    // a 1,000-unit lot at 0.01 XCP with a 10 XCP balance offered 1,000,000,000 units, costing
+    // 10,000 XCP. Divide by the cost of a lot instead.
+    const costPerLot = multiply(price, lotSize);
+    const maxLots = divide(balance, costPerLot).integerValue();
     let maxQuantity = multiply(maxLots, lotSize);
     
     // Check if there's a max_mint_per_tx limit
@@ -282,7 +287,7 @@ export function FairmintForm({
               maxAmount={calculateMaxQuantity()}
               label="Amount"
               name="amount"
-              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && parseFloat(selectedFairminter.quantity_by_price_normalized) > 1 ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${selectedFairminter.price_normalized} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
+              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && parseFloat(selectedFairminter.quantity_by_price_normalized) > 1 ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
               disableMaxButton={false}
               onMaxClick={() => {
                 const maxQty = calculateMaxQuantity();

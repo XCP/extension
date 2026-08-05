@@ -40,8 +40,15 @@ export function PoolWithdrawForm({
   const [localError, setLocalError] = useState<string | null>(null);
 
   const canQuote = !!pool && isGreaterThan(quantity || 0, 0);
-  const isAssetADivisible = assetADetails?.isDivisible ?? true;
-  const isAssetBDivisible = assetBDetails?.isDivisible ?? true;
+  // Readiness, not a default. `?? true` divides an indivisible reserve by 1e8 whenever details
+  // are still loading or failed to load: a 10 RAREPEPE quote renders as 0.0000001 in both
+  // "Estimated receive" and "Minimum received after slippage" — the figures the user checks
+  // before accepting a slippage tolerance. The deposit form already guards the identical value
+  // this way and blocks submit until both resolve.
+  const assetADetailsReady = assetADetails?.assetInfo?.asset === pool?.asset_a;
+  const assetBDetailsReady = assetBDetails?.assetInfo?.asset === pool?.asset_b;
+  const isAssetADivisible = assetADetailsReady ? assetADetails?.isDivisible : undefined;
+  const isAssetBDivisible = assetBDetailsReady ? assetBDetails?.isDivisible : undefined;
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolWithdrawQuote({
     assetA: pool?.asset_a || "",
     assetB: pool?.asset_b || "",
@@ -49,8 +56,13 @@ export function PoolWithdrawForm({
     enabled: canQuote,
   });
 
-  const formatReceived = (value: number | string | undefined, divisible: boolean): string => {
+  const formatReceived = (
+    value: number | string | undefined,
+    divisible: boolean | undefined,
+  ): string => {
     if (value === undefined) return "0";
+    // Unknown divisibility has no correct rendering: the same digits are two amounts 1e8 apart.
+    if (divisible === undefined) return "—";
     return divisible ? fromSatoshis(value.toString(), { removeTrailingZeros: true }) : value.toString();
   };
 
@@ -62,12 +74,13 @@ export function PoolWithdrawForm({
 
   const submitDisabled = useMemo(() => {
     if (!pool) return true;
+    if (!assetADetailsReady || !assetBDetailsReady) return true;
     if (!isGreaterThan(quantity || 0, 0)) return true;
     if (isGreaterThan(quantity, pool.quantity_normalized ?? pool.quantity)) return true;
     if (canQuote && (isLoadingQuote || !quote?.pool_exists)) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [pool, quantity, canQuote, isLoadingQuote, quote?.pool_exists, isSlippageValid]);
+  }, [pool, assetADetailsReady, assetBDetailsReady, quantity, canQuote, isLoadingQuote, quote?.pool_exists, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (!pool) return;

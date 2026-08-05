@@ -37,10 +37,14 @@ type TxActionData =
       giveAsset: string;
       getAmount: string;
       getAsset: string;
-      /** Normalized give quantity (for price ratio formatting) */
-      normalizedGive: number;
-      /** Normalized get quantity (for price ratio formatting) */
-      normalizedGet: number;
+      /**
+       * Give/get quantities in display units, for the price ratio — or null when divisibility
+       * could not be established for both assets, in which case no ratio is shown. A ratio of raw
+       * base units is wrong by 1e8 for a mixed-divisibility pair, and silently right for a
+       * matched one, which is what hid it.
+       */
+      normalizedGive: number | null;
+      normalizedGet: number | null;
       expiration: number;
     }
   | { type: 'fallback'; label: string; description: string }
@@ -113,14 +117,29 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
     const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
     const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
 
+    /** 1e8 for a known-divisible asset, 1 for a known-indivisible one, null when unknown. */
+    const divisorFor = (asset: string): number | null => {
+      const divisible = isAssetDivisible(asset);
+      return divisible === undefined ? null : divisible ? 1e8 : 1;
+    };
+    const localGiveDivisor = divisorFor(data.giveAsset);
+    const localGetDivisor = divisorFor(data.getAsset);
+
     return {
       type: 'order',
       giveAmount,
       giveAsset: data.giveAsset,
       getAmount,
       getAsset: data.getAsset,
-      normalizedGive: Number(data.giveQuantity),
-      normalizedGet: Number(data.getQuantity),
+      // Divisibility is not available on this path — the local unpack carries asset names, not
+      // asset_info — so it can only be established for BTC and XCP. Rather than dividing by a
+      // guess, the ratio is withheld unless both sides are known.
+      normalizedGive: localGiveDivisor === null
+        ? null
+        : Number(data.giveQuantity) / localGiveDivisor,
+      normalizedGet: localGetDivisor === null
+        ? null
+        : Number(data.getQuantity) / localGetDivisor,
       expiration: data.expiration,
     };
   }
@@ -332,13 +351,15 @@ export default function ApproveTransactionPage() {
                     className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
                     title="Click to flip price"
                   >
-                    {formatPriceRatio(
-                      txAction.normalizedGive,
-                      txAction.normalizedGet,
-                      txAction.giveAsset,
-                      txAction.getAsset,
-                      priceFlipped,
-                    )}
+                    {txAction.normalizedGive === null || txAction.normalizedGet === null
+                      ? 'Price unavailable'
+                      : formatPriceRatio(
+                          txAction.normalizedGive,
+                          txAction.normalizedGet,
+                          txAction.giveAsset,
+                          txAction.getAsset,
+                          priceFlipped,
+                        )}
                   </button>
                 </div>
 
