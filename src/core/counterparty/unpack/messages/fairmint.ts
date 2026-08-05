@@ -63,8 +63,11 @@ export function unpackFairmint(payload: Uint8Array): FairmintData {
     const text = new TextDecoder('utf-8').decode(payload);
     const parts = text.split('|');
 
-    if (parts.length < 2) {
-      throw new Error(`Invalid fairmint format: expected at least 2 fields, got ${parts.length}`);
+    // Exactly two. Core tuple-unpacks `(asset, quantity) = unpack_legacy(message)`, so a third
+    // field raises there and voids the message; accepting extras showed a clean fairmint for a
+    // payload the chain will not honour.
+    if (parts.length !== 2) {
+      throw new Error(`Invalid fairmint format: expected 2 fields, got ${parts.length}`);
     }
 
     const [asset, quantityStr] = parts;

@@ -312,8 +312,14 @@ export function describeCounterpartyMessage(
       return `Withdraw liquidity: burn ${q('quantity')} LP tokens from ${displayName('asset_a')}/${displayName('asset_b')}`;
     case 'attach':
       return `Attach ${q('quantity', 'asset')} ${displayName('asset')} to UTXO`;
-    case 'detach':
-      return `Detach assets from UTXO`;
+    case 'detach': {
+      // The payload carries exactly one field — the destination — and it was the one thing not
+      // shown. Detach moves every asset on the UTXO, so where they go is the whole decision.
+      const to = messageData.destination ?? messageData.address;
+      return to
+        ? `Detach all assets from UTXO to ${to}`
+        : `Detach all assets from UTXO`;
+    }
     // Both the API and the local unpack call this type `utxo`; `utxo_move` matched neither, so
     // every move fell through to "Counterparty utxo transaction" — no asset, quantity or
     // destination. A test asserting the dead string is why this survived CI.

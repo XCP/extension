@@ -108,10 +108,15 @@ describe('message type safety', () => {
     expect(result.warnings).toHaveLength(0);
   });
 
-  it('should allow detach without warnings', () => {
+  it('warns on detach, which moves every asset on the UTXO', () => {
+    // detach credits EVERY balance on the source UTXO to the destination (core detach.py), so the
+    // message states no amount. It was listed as safe and raised nothing, while sweep — the same
+    // idea at address scope — is blocked outright. Not blocked here, because the scope is one
+    // UTXO and a detach without a valid destination credits back to the UTXO owner.
     const result = analyzeTransactionSafety('detach', normalOutputs, SIGNER);
     expect(result.blocked).toBe(false);
-    expect(result.warnings).toHaveLength(0);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]!.title).toMatch(/moves everything/i);
   });
 
   it('should allow mpma_send without warnings', () => {
