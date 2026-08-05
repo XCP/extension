@@ -918,6 +918,36 @@ describe('verifyProviderTransaction', () => {
       expect(result.passed).toBe(true);
     });
 
+    it('reports dispense as not compared — its payload has no fields', () => {
+      const data = buildMessage(MessageTypeId.DISPENSE, '00');
+      const api: ApiCounterpartyMessage = {
+        messageType: 'dispense',
+        messageTypeId: MessageTypeId.DISPENSE,
+        messageData: {},
+        description: '',
+      };
+      const result = verifyProviderTransaction(data, api);
+      // Passing is fine; claiming it was cross-checked is not.
+      expect(result.passed).toBe(true);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('catches a detach destination the API disagrees with', () => {
+      const destBytes = new TextEncoder().encode('mn6q3dS2EnDUx3bmyWc6D4szJNVGtaR7zc');
+      const destHex = Array.from(destBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      const data = buildMessage(MessageTypeId.UTXO_DETACH, destHex);
+      const api: ApiCounterpartyMessage = {
+        messageType: 'detach',
+        messageTypeId: MessageTypeId.UTXO_DETACH,
+        messageData: { destination: 'mzKp5S4TFqvcNwLcv2S3xUgnrqzhoTGusL' },
+        description: '',
+      };
+      const result = verifyProviderTransaction(data, api);
+      expect(result.passed).toBe(false);
+      expect(result.comparedAgainstApi).toBe(true);
+      expect(result.mismatches.join(' ')).toMatch(/Destination/i);
+    });
+
     it('detach passes with matching type (minimal verification)', () => {
       // Detach payload is a destination address string
       const destBytes = new TextEncoder().encode('mn6q3dS2EnDUx3bmyWc6D4szJNVGtaR7zc');

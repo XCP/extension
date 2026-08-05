@@ -18,7 +18,7 @@ describe('VerificationStatus', () => {
     render(<VerificationStatus passed comparedAgainstApi={false} />);
 
     expect(screen.queryByText(/no tampering detected/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/no second source/i)).toBeInTheDocument();
+    expect(screen.getByText(/nothing to compare/i)).toBeInTheDocument();
   });
 
   it('renders nothing when verification was not attempted', () => {
