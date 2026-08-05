@@ -207,15 +207,19 @@ walletTest.describe('Select Address Page (/addresses)', () => {
     }
   });
 
-  walletTest('header has Add button for quick add', async ({ page }) => {
+  walletTest('header has Address Type settings button', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/addresses'));
     await page.waitForLoadState('networkidle');
 
     walletTest.skip(!page.url().includes('addresses'), 'Redirected - non-mnemonic wallet');
 
-    // Header should have Add Address button (icon only, in header section)
-    const headerAddButton = selectAddress.headerAddButton(page);
-    await expect(headerAddButton).toBeVisible({ timeout: 5000 });
+    // The header cog opens the address type page; adding addresses lives in the
+    // bottom button only
+    const headerButton = selectAddress.headerAddressTypeButton(page);
+    await expect(headerButton).toBeVisible({ timeout: 5000 });
+    await headerButton.click();
+
+    await expect(page).toHaveURL(/settings\/address-types/, { timeout: 5000 });
   });
 
   walletTest('shows address previews in list', async ({ page }) => {

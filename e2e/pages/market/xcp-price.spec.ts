@@ -34,8 +34,11 @@ const PRICE_HISTORY = {
   },
 };
 
-/** Serve the two explorer endpoints the page reads. Registered most-specific-last so it wins. */
-async function stubPriceApi(page: Page, overrides: { tickerStatus?: number } = {}) {
+/** Serve the endpoints the page reads. Registered most-specific-last so it wins. */
+async function stubPriceApi(
+  page: Page,
+  overrides: { tickerStatus?: number; dispensers?: object[] } = {},
+) {
   await page.route('**/v2/price', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PRICE_HISTORY) }),
   );
@@ -44,6 +47,16 @@ async function stubPriceApi(page: Page, overrides: { tickerStatus?: number } = {
       status: overrides.tickerStatus ?? 200,
       contentType: 'application/json',
       body: JSON.stringify(overrides.tickerStatus ? { error: 'unavailable' } : TICKER),
+    }),
+  );
+  // Open XCP dispensers feed the floor-price row; with none open the page
+  // falls back to the explorer's DEX rate.
+  const dispensers = overrides.dispensers ?? [];
+  await page.route('**/v2/assets/XCP/dispensers*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ result: dispensers, result_count: dispensers.length }),
     }),
   );
 }
@@ -63,7 +76,7 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/Counterparty \(USD\)/i)).toBeVisible();
   });
 
-  walletTest('reports the DEX rate and all-time high', async ({ page }) => {
+  walletTest('falls back to the DEX rate when no dispensers are open', async ({ page }) => {
     await stubPriceApi(page);
     await gotoXcpPrice(page);
 
@@ -72,6 +85,19 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/2,200 sats/)).toBeVisible();
     await expect(market.allTimeHigh(page)).toBeVisible();
     await expect(page.getByText(/\$88\.93/)).toBeVisible();
+  });
+
+  walletTest('reports the floor price from the cheapest open dispenser', async ({ page }) => {
+    await stubPriceApi(page, {
+      dispensers: [
+        { source: 'bc1qcheapest', satoshirate: 2400, give_quantity_normalized: '1' },
+        { source: 'bc1qpricier', satoshirate: 5000, give_quantity_normalized: '1' },
+      ],
+    });
+    await gotoXcpPrice(page);
+
+    await expect(market.floorPrice(page)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/2,400 sats/)).toBeVisible();
   });
 
   walletTest('draws the price chart', async ({ page }) => {
