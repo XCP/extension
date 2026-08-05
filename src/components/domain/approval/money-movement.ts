@@ -7,6 +7,8 @@ export interface MovementDestination {
   value: number;
 }
 
+import { isCounterpartyDataScript } from '@/core/counterparty/transactionSafety';
+
 export interface MoneyMovement {
   /** Sats spent from your addresses. */
   spent: number;
