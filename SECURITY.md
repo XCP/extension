@@ -62,3 +62,4 @@ We recognize all valid security contributions, regardless of severity:
 | Niftyboss | Password memory cleanup | [#178](https://github.com/XCP/extension/pull/178) |
 | refangga1337 | Approval summary priced a PSBT without regard to what the signature committed to | [GHSA-xm3c-v5fj-mxqv](https://github.com/XCP/extension/security/advisories/GHSA-xm3c-v5fj-mxqv) |
 | refangga1337 | Attached-asset warning suppressible by padding a PSBT past the lookup cap | [GHSA-6mmc-r2hj-qq43](https://github.com/XCP/extension/security/advisories/GHSA-6mmc-r2hj-qq43) |
+| goat | Decode API could override byte-derived output addresses on the PSBT approval screen | [#256](https://github.com/XCP/extension/pull/256) |
