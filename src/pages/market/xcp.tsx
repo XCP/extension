@@ -6,6 +6,7 @@ import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import type { PricePoint } from "@/core/bitcoin/price";
+import { fetchAssetDispensers } from "@/core/counterparty/api";
 import {
   getXcpPriceHistory,
   getXcpStats,
@@ -27,6 +28,12 @@ const TIME_RANGES: { id: XcpTimeRange; label: string; days: number | null }[] = 
 // Chart dimensions
 const CHART_HEIGHT = 200;
 
+/** The cheapest open XCP dispenser: the price you can actually pay right now. */
+interface DispenserFloor {
+  satsPerXcp: number;
+  source: string;
+}
+
 function filterHistory(history: PricePoint[], range: XcpTimeRange): PricePoint[] {
   const days = TIME_RANGES.find((t) => t.id === range)?.days;
   if (!days) return history;
@@ -45,6 +52,7 @@ export default function XcpPricePage(): ReactElement {
   // Data state
   const [stats, setStats] = useState<XcpStats | null>(null);
   const [historyData, setHistoryData] = useState<XcpPriceHistoryData | null>(null);
+  const [floor, setFloor] = useState<DispenserFloor | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
@@ -61,6 +69,28 @@ export default function XcpPricePage(): ReactElement {
       setStats(statsData);
     } else {
       setStatsError("Unable to load price");
+    }
+  }, []);
+
+  // Find the cheapest open XCP dispenser (sats per whole XCP). Checks the first
+  // 100 open dispensers; the true floor could hide beyond that, but in practice
+  // open XCP dispensers number far fewer.
+  const loadFloor = useCallback(async () => {
+    try {
+      const response = await fetchAssetDispensers("XCP", { limit: 100, status: "open" });
+      let best: DispenserFloor | null = null;
+      for (const dispenser of response.result) {
+        const unitsPerDispense = Number(dispenser.give_quantity_normalized);
+        if (unitsPerDispense <= 0) continue;
+        const satsPerXcp = dispenser.satoshirate / unitsPerDispense;
+        if (!best || satsPerXcp < best.satsPerXcp) {
+          best = { satsPerXcp, source: dispenser.source };
+        }
+      }
+      setFloor(best);
+    } catch (err) {
+      console.error("Failed to load XCP dispenser floor:", err);
+      setFloor(null);
     }
   }, []);
 
@@ -82,23 +112,23 @@ export default function XcpPricePage(): ReactElement {
     const loadInitial = async () => {
       setLoading(true);
       try {
-        await Promise.all([loadStats(), loadHistory()]);
+        await Promise.all([loadStats(), loadHistory(), loadFloor()]);
       } finally {
         setLoading(false);
       }
     };
     loadInitial();
-  }, [loadStats, loadHistory]);
+  }, [loadStats, loadHistory, loadFloor]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([loadStats(), loadHistory()]);
+      await Promise.all([loadStats(), loadHistory(), loadFloor()]);
     } finally {
       setIsRefreshing(false);
     }
-  }, [loadStats, loadHistory]);
+  }, [loadStats, loadHistory, loadFloor]);
 
   // Configure header
   useEffect(() => {
@@ -219,7 +249,7 @@ export default function XcpPricePage(): ReactElement {
             <PriceChart
               data={chartData}
               height={CHART_HEIGHT}
-              lineColor="#e11d48"
+              lineColor="#0ea5e9"
               className="w-full"
               currencySymbol="$"
               priceDecimals={2}
@@ -229,18 +259,29 @@ export default function XcpPricePage(): ReactElement {
         </div>
 
         {/* Market Stats */}
-        {historyData && (historyData.satsPerXcp || historyData.ath) && (
+        {(floor || historyData?.satsPerXcp || historyData?.ath) && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
-            {historyData.satsPerXcp && (
+            {floor ? (
+              <div className={`flex items-center justify-between ${historyData?.ath ? "pb-2 border-b border-gray-100" : ""}`}>
+                <span className="text-sm text-gray-600">Floor Price</span>
+                <button
+                  onClick={() => navigate(`/compose/dispenser/dispense?address=${floor.source}&asset=XCP`)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                  aria-label="Buy from the cheapest open XCP dispenser"
+                >
+                  1 XCP = {formatAmount({ value: floor.satsPerXcp, maximumFractionDigits: 0 })} sats
+                </button>
+              </div>
+            ) : historyData?.satsPerXcp ? (
               <div className={`flex items-center justify-between ${historyData.ath ? "pb-2 border-b border-gray-100" : ""}`}>
                 <span className="text-sm text-gray-600">DEX Rate</span>
                 <span className="text-sm font-medium text-gray-900">
                   1 XCP = {formatAmount({ value: historyData.satsPerXcp, maximumFractionDigits: 0 })} sats
                 </span>
               </div>
-            )}
-            {historyData.ath && (
-              <div className={`flex items-center justify-between ${historyData.satsPerXcp ? "pt-2" : ""}`}>
+            ) : null}
+            {historyData?.ath && (
+              <div className={`flex items-center justify-between ${(floor || historyData.satsPerXcp) ? "pt-2" : ""}`}>
                 <span className="text-sm text-gray-600">All-Time High</span>
                 <span className="text-sm font-medium text-gray-900">
                   {formatPrice(historyData.ath.usd)}
