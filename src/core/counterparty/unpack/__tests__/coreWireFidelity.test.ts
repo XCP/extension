@@ -7,6 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { unpackAddress, unpackAddressLegacy } from '@/core/counterparty/unpack/address';
 import { unpackBroadcast } from '@/core/counterparty/unpack/messages/broadcast';
 import { unpackIssuance } from '@/core/counterparty/unpack/messages/issuance';
 
@@ -105,5 +106,34 @@ describe('legacy issuance — ">QQ???" since block 753500', () => {
     // Core raises UnpackError when description_length < 0 rather than skipping the name.
     const payload = new Uint8Array([...issuance(0, 0, ''), 40, ...ascii('short')]);
     expect(() => unpackIssuance(payload, 21)).toThrow(/exceeds/);
+  });
+});
+
+describe('mpma address table — core decodes it with legacy rules only', () => {
+  it('reads a leading 0x01 as a base58 version byte, not as a modern P2PKH tag', () => {
+    // utils/mpmaencoding.py _decode_decode_lut calls address.unpack_legacy unconditionally, never
+    // the taproot-aware unpack. Under the modern rules 0x01 is a P2PKH type tag and this renders
+    // as an ordinary '1…' address; core base58-encodes it under version 0x01 and credits a
+    // different one. An MPMA carries its recipients in the payload, so the approval screen has no
+    // second source to contradict a wrong string.
+    const hash160 = new Uint8Array(20).fill(0xab);
+    const packed = new Uint8Array([0x01, ...hash160]);
+
+    // 0x01 is not one of the four defined base58 versions, so it is refused rather than rendered.
+    expect(() => unpackAddressLegacy(packed)).toThrow(/version byte/);
+
+    // The modern unpacker is what used to be called here, and it happily produces an address.
+    expect(unpackAddress(packed).startsWith('1')).toBe(true);
+  });
+
+  it('still decodes ordinary legacy entries', () => {
+    const hash160 = new Uint8Array(20).fill(0x11);
+    expect(unpackAddressLegacy(new Uint8Array([0x00, ...hash160])).startsWith('1')).toBe(true);
+    expect(unpackAddressLegacy(new Uint8Array([0x05, ...hash160])).startsWith('3')).toBe(true);
+  });
+
+  it('decodes a 0x80-marked segwit entry as bech32, as core does', () => {
+    const program = new Uint8Array(20).fill(0x22);
+    expect(unpackAddressLegacy(new Uint8Array([0x80, ...program])).startsWith('bc1q')).toBe(true);
   });
 });
