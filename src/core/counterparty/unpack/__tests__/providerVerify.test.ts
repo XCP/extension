@@ -5,7 +5,9 @@
  * messages against API-decoded messages to detect tampering.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import {
   COUNTERPARTY_PREFIX_HEX,
   MessageTypeId,
@@ -104,6 +106,48 @@ describe('verifyProviderTransaction', () => {
       const result = verifyProviderTransaction('deadbeef');
       expect(result.passed).toBeUndefined();
       expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('does not claim a comparison for mpma_send, whose API payload has no sends to line up', () => {
+      // `/v2/transactions/unpack` renders mpma_send message_data as a bare array, so the keyed
+      // lookup for `sends` finds nothing. That used to return an empty mismatch list, which is
+      // indistinguishable from a clean pass — the screen showed "no tampering detected" for a
+      // message no field of which had been checked.
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {} as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
+      expect(result.passed).toBe(true);
+      expect(result.comparedAgainstApi).toBe(false);
+    });
+
+    it('still compares mpma_send when the API does supply the sends', () => {
+      const { scenarios } = JSON.parse(
+        readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
+      ) as { scenarios: Record<string, { rawTxHex: string }> };
+      const payload = extractCounterpartyPayload(scenarios['mpma-two-recipients']!.rawTxHex)!;
+
+      // One send short of what the bytes carry — the case the live endpoint actually returns.
+      const result = verifyProviderTransaction(payload, {
+        messageType: 'mpma_send',
+        messageTypeId: 3,
+        messageData: {
+          sends: [{ asset: 'XCP', destination: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', quantity: 1000 }],
+        } as unknown as Record<string, unknown>,
+        description: 'Counterparty mpma_send transaction',
+      });
+
+      expect(result.comparedAgainstApi).toBe(true);
+      expect(result.passed).toBe(false);
+      expect(result.mismatches.join(' ')).toContain('Send count');
     });
   });
 

@@ -341,7 +341,13 @@ export default function ApproveTransactionPage() {
               /* Counterparty action — flat label + description */
               <div className="text-center mb-3">
                 <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-                <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
+                {/* An address is a single unbreakable token, and a send or sweep headline ends in
+                    one. Without a break opportunity it overflowed the popup and put a horizontal
+                    scrollbar under the whole approval screen, pushing the tail of the destination
+                    out of view — on the one line that says where the money goes. Wrapping keeps it
+                    whole; truncating it here would repeat the lookalike-grinding problem the
+                    outputs list below deliberately avoids. */}
+                <p className="text-lg font-bold text-gray-900 break-words">{txAction.description}</p>
               </div>
             ) : null}
             <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
@@ -432,6 +438,33 @@ export default function ApproveTransactionPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Recipients of a multi-destination send. These live in the Counterparty
+                      payload rather than in BTC outputs, so the outputs list above cannot show
+                      them and this is the only place they appear. Addresses are shown in full for
+                      the same reason as the outputs above. */}
+                  {decodedInfo.mpmaRecipients.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                        Recipients ({decodedInfo.mpmaRecipients.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {decodedInfo.mpmaRecipients.map((recipient, idx) => (
+                          <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                            <div className="flex justify-between gap-2">
+                              <span className="text-gray-600 truncate">{recipient.asset}</span>
+                              <span className="text-gray-900 font-medium flex-shrink-0">
+                                {recipient.quantity}
+                              </span>
+                            </div>
+                            <div className="text-gray-500 break-all font-mono" title={recipient.address}>
+                              {recipient.address}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}

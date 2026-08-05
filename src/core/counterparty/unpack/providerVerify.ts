@@ -332,18 +332,27 @@ function verifyIssuance(
 /**
  * Verify an MPMA send message
  */
+/**
+ * Returns null when the API payload offers nothing to compare against, which is different from
+ * comparing and finding nothing wrong. Previously both cases returned an empty mismatch list, so
+ * an mpma_send that was never checked reported the same "no tampering detected" as one that
+ * passed every field.
+ */
 function verifyMPMA(
   local: MPMAData,
   api: Record<string, unknown>
-): string[] {
+): string[] | null {
   const mismatches: string[] = [];
 
-  // API may return sends as an array
-  const apiSends = getApiValue(api, 'sends', 'destinations') as Array<Record<string, unknown>> | undefined;
+  // `/v2/transactions/unpack` returns mpma_send message_data as a bare array of sends rather than
+  // an object, so the keyed lookup finds nothing; an array is still read here for API shapes that
+  // do wrap it.
+  const apiSends = (Array.isArray(api)
+    ? api
+    : getApiValue(api, 'sends', 'destinations')) as Array<Record<string, unknown>> | undefined;
 
-  if (!apiSends || !Array.isArray(apiSends)) {
-    // Can't verify individual sends without API data
-    return mismatches;
+  if (!apiSends || !Array.isArray(apiSends) || apiSends.length === 0) {
+    return null;
   }
 
   if (local.sends.length !== apiSends.length) {
@@ -713,9 +722,15 @@ export function verifyProviderTransaction(
       mismatches.push(...verifyIssuance(localUnpack.data as IssuanceData, apiData));
       break;
 
-    case 'mpma_send':
-      mismatches.push(...verifyMPMA(localUnpack.data as MPMAData, apiData));
+    case 'mpma_send': {
+      const mpmaMismatches = verifyMPMA(localUnpack.data as MPMAData, apiData);
+      if (mpmaMismatches === null) {
+        payloadCompared = false;
+      } else {
+        mismatches.push(...mpmaMismatches);
+      }
       break;
+    }
 
     case 'btcpay':
       mismatches.push(...verifyBTCPay(localUnpack.data as BTCPayData, apiData));

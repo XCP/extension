@@ -372,6 +372,71 @@ async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void>
   }
 }
 
+/** A single mpma_send recipient, resolved from the local unpack. */
+export interface MpmaRecipient {
+  address: string;
+  asset: string;
+  /** Display quantity, or base units when divisibility could not be established. */
+  quantity: string;
+}
+
+/**
+ * Resolve the recipients of an mpma_send from locally decoded bytes.
+ *
+ * This type cannot be described from the API. `/v2/transactions/unpack` renders an mpma_send
+ * payload as a bare array rather than an object — so every keyed lookup misses and the headline
+ * fell through to "Counterparty mpma_send transaction" — and that array has been observed to
+ * carry only the first send of a multi-send message. Describing it from the API would therefore
+ * name one recipient and silently drop the rest.
+ *
+ * MPMA destinations travel inside the payload, not as BTC outputs, so unlike an ordinary send
+ * they never appear in the outputs list either. If the approval screen does not read them out of
+ * the bytes, nothing on it says who is being paid.
+ */
+export async function resolveMpmaRecipients(
+  sends: Array<{ asset: string; destination: string; quantity: bigint }>
+): Promise<MpmaRecipient[]> {
+  const unique = [...new Set(sends.map(s => s.asset))];
+  const divisibility = new Map<string, boolean | null>();
+
+  await Promise.all(
+    unique.map(async (asset) => {
+      const upper = asset.toUpperCase();
+      if (upper === 'XCP' || upper === 'BTC') {
+        divisibility.set(asset, true);
+        return;
+      }
+      const info = await fetchAssetDetails(asset).catch(() => null);
+      divisibility.set(asset, info ? info.divisible : null);
+    })
+  );
+
+  return sends.map((send) => {
+    const divisible = divisibility.get(send.asset);
+    return {
+      address: send.destination,
+      asset: send.asset,
+      // An unknown divisibility is labelled rather than guessed: rendering base units as a
+      // decimal (or the reverse) misstates the amount by eight orders of magnitude.
+      quantity:
+        divisible === true
+          ? fromSatoshis(Number(send.quantity))
+          : divisible === false
+            ? send.quantity.toLocaleString()
+            : `${send.quantity.toString()} base units`,
+    };
+  });
+}
+
+/** Headline for an mpma_send, built from {@link resolveMpmaRecipients}. */
+export function describeMpmaSend(recipients: MpmaRecipient[]): string {
+  if (recipients.length === 1) {
+    const only = recipients[0]!;
+    return `Send ${only.quantity} ${only.asset} to ${only.address}`;
+  }
+  return `Send to ${recipients.length} recipients`;
+}
+
 /**
  * Decode Counterparty message from datahex (decrypted OP_RETURN payload with CNTRPRTY prefix).
  * Enriches messageData with asset divisibility info for display normalization.
