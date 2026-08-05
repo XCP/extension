@@ -214,7 +214,7 @@ const SUBASSET_DIGITS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
  *
  * Returns null for a character outside the charset, which core refuses to compose.
  */
-function compactSubassetLongname(longname: string): Uint8Array | null {
+export function compactSubassetLongname(longname: string): Uint8Array | null {
   let integer = 0n;
   for (const char of longname) {
     const digit = SUBASSET_DIGITS.indexOf(char) + 1;

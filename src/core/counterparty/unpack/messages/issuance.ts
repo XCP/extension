@@ -24,6 +24,7 @@
  *              compacted_length, compacted_name, mime_type, description]
  */
 
+import { compactSubassetLongname } from '@/core/counterparty/pack/messages';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { BinaryReader, bytesToTextOrHex } from '@/core/counterparty/unpack/binary';
 import { type CborValue, tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
@@ -147,7 +148,23 @@ function tryCborDecode(payload: Uint8Array, messageTypeId: number): IssuanceData
   if (isSubasset) {
     const compactedName = decoded[6];
     if (compactedName instanceof Uint8Array) {
-      result.subassetLongname = decodeCompactedSubasset(compactedName);
+      const longname = decodeCompactedSubasset(compactedName);
+
+      // Canonical-form guard, matching core. Distinct byte strings expand to the same longname —
+      // a leading zero pad, or the phantom '!' digit when an intermediate integer is divisible by
+      // 68 — so without re-compacting and comparing, a name renders here for bytes core refuses to
+      // unpack. Core runs this check deliberately outside its own legacy fallback so the rejection
+      // cannot be swallowed; it is likewise fatal here rather than a silent difference.
+      const recompacted = compactSubassetLongname(longname);
+      if (
+        !recompacted ||
+        recompacted.length !== compactedName.length ||
+        !recompacted.every((byte, i) => byte === compactedName[i])
+      ) {
+        throw new Error('Non-canonical compacted subasset longname');
+      }
+
+      result.subassetLongname = longname;
     }
     result.description = cborDescription(decoded[8] ?? null);
   } else {
