@@ -19,6 +19,7 @@ import { FiArrowDown } from '@/components/icons';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { formatPriceRatio } from '@/core/format';
+import { divide, toNumber } from '@/core/numeric';
 
 export interface OrderAction {
   giveAmount: string;
@@ -59,8 +60,6 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
     const giveInfo = messageData.give_asset_info as { asset_longname?: string | null } | undefined;
     const getInfo = messageData.get_asset_info as { asset_longname?: string | null } | undefined;
 
-    const rawGive = Number(messageData.give_quantity);
-    const rawGet = Number(messageData.get_quantity);
     const giveDivisor = isAssetDivisible(giveAssetRaw, messageData, 'give_asset') ? 1e8 : 1;
     const getDivisor = isAssetDivisible(getAssetRaw, messageData, 'get_asset') ? 1e8 : 1;
 
@@ -74,8 +73,10 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       giveAsset: giveInfo?.asset_longname || giveAssetRaw,
       getAmount: normalizeQuantity(messageData.get_quantity, getAssetRaw, messageData, 'get_asset'),
       getAsset: getInfo?.asset_longname || getAssetRaw,
-      normalizedGive: rawGive / giveDivisor,
-      normalizedGet: rawGet / getDivisor,
+      // Divided as BigNumber before narrowing to a float: a 64-bit quantity passed through
+      // Number() first is already rounded, and the result feeds the displayed price.
+      normalizedGive: toNumber(divide(String(messageData.give_quantity), giveDivisor)),
+      normalizedGet: toNumber(divide(String(messageData.get_quantity), getDivisor)),
       expiration: Number(messageData.expiration ?? 0),
     };
   }
@@ -106,8 +107,10 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       // Divisibility is not available on this path — the local unpack carries asset names, not
       // asset_info — so it can only be established for BTC and XCP. Rather than dividing by a
       // guess, the ratio is withheld unless both sides are known.
-      normalizedGive: giveDivisor === null ? null : Number(data.giveQuantity) / giveDivisor,
-      normalizedGet: getDivisor === null ? null : Number(data.getQuantity) / getDivisor,
+      normalizedGive:
+        giveDivisor === null ? null : toNumber(divide(String(data.giveQuantity), giveDivisor)),
+      normalizedGet:
+        getDivisor === null ? null : toNumber(divide(String(data.getQuantity), getDivisor)),
       expiration: data.expiration,
     };
   }

@@ -32,7 +32,7 @@ import {
   oracleDispenseWarning,
 } from '@/core/counterparty/oraclePolicy';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
-import { fromSatoshis, toBigNumber } from '@/core/numeric';
+import { fromSatoshis, isGreaterThan, toBigNumber } from '@/core/numeric';
 
 export type { ProtocolContext };
 
@@ -74,7 +74,7 @@ export async function resolveProtocolContext(
   // Attach, detach and fairmint charge an XCP fee that scales with demand (core
   // `gas.get_transaction_fee`), always paid in XCP — a cost beyond the Bitcoin fee.
   const fee = apiMessageData?.fee;
-  if (fee != null && Number(fee) > 0) {
+  if (fee != null && isGreaterThan(String(fee), 0)) {
     context.protocolFeeXcp = fromSatoshis(String(fee));
   }
 

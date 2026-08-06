@@ -7,9 +7,8 @@ import { splitTrailingAddress } from '@/components/domain/approval/approval-summ
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
-import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
+import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { FiArrowDown } from '@/components/icons';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
@@ -20,7 +19,7 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
-import { formatAddress, formatAmount, formatPriceRatio } from '@/core/format';
+import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
@@ -67,7 +66,6 @@ export default function ApproveTransactionPage() {
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
-  const [priceFlipped, setPriceFlipped] = useState(false);
 
   // Configure header
   useEffect(() => {

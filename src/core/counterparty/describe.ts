@@ -19,7 +19,7 @@
  */
 
 import BigNumber from 'bignumber.js';
-import type { DisplayUnits } from '@/core/numeric';
+import { type DisplayUnits, isGreaterThan, toBigNumber } from '@/core/numeric';
 
 /**
  * A decoded message in the shape the describer reads, independent of which decoder produced it.
@@ -337,8 +337,8 @@ function priceOf(m: DescribableMessage, n: (asset?: string) => string): string |
   const get = m.numeric?.(m.getQuantity, m.getAsset);
   if (give === undefined || get === undefined) return undefined;
 
-  const giveAmount = new BigNumber(give);
-  const getAmount = new BigNumber(get);
+  const giveAmount = toBigNumber(give);
+  const getAmount = toBigNumber(get);
   if (!giveAmount.isFinite() || !getAmount.isFinite() || giveAmount.isLessThanOrEqualTo(0)) {
     return undefined;
   }
@@ -358,9 +358,9 @@ function dispensesAvailable(m: DescribableMessage): string | undefined {
   const give = m.numeric?.(m.giveQuantity, m.asset);
   if (escrow === undefined || give === undefined) return undefined;
 
-  const perTrigger = new BigNumber(give);
+  const perTrigger = toBigNumber(give);
   if (!perTrigger.isFinite() || perTrigger.isLessThanOrEqualTo(0)) return undefined;
-  const escrowed = new BigNumber(escrow);
+  const escrowed = toBigNumber(escrow);
   if (!escrowed.isFinite()) return undefined;
 
   return escrowed.dividedBy(perTrigger).integerValue(BigNumber.ROUND_FLOOR).toFormat();
@@ -380,8 +380,8 @@ function shareOfSupply(m: DescribableMessage, supply?: string): string | undefin
   const destroyed = m.numeric?.(m.quantity, m.asset);
   if (destroyed === undefined) return undefined;
 
-  const total = new BigNumber(supply.replace(/,/g, ''));
-  const amount = new BigNumber(destroyed);
+  const total = toBigNumber(supply.replace(/,/g, ''));
+  const amount = toBigNumber(destroyed);
   if (!total.isFinite() || !amount.isFinite() || total.isLessThanOrEqualTo(0)) return undefined;
 
   const pct = amount.dividedBy(total).times(100);
@@ -442,7 +442,7 @@ export function protocolFields(
       add('Price', priceOf(m, n));
       // Only orders with a BTC side carry one; every other order sets it to zero, and a row
       // reading "BTC fee: 0.00000000 BTC" is noise on the majority of orders.
-      if (m.feeRequired != null && Number(m.feeRequired) > 0) {
+      if (m.feeRequired != null && isGreaterThan(String(m.feeRequired), 0)) {
         add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'));
       }
       add('Expiry', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
