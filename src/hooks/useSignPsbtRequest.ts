@@ -17,10 +17,14 @@ import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
+import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
-  decodeRawTransaction
+  decodeRawTransaction, 
+  describeMpmaSend,
+  type MpmaRecipient,
+  resolveMpmaRecipients
 } from '@/core/counterparty/transaction';
 import {
   analyzeTransactionSafety,
@@ -30,6 +34,7 @@ import {
   type ProviderVerificationResult, 
   verifyProviderTransaction
 } from '@/core/counterparty/unpack';
+import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
 import { type SignPsbtRequest, signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
@@ -48,6 +53,16 @@ export interface DecodedPsbtInfo {
   safety: SafetyAnalysis;
   /** Inputs whose UTXOs carry Counterparty assets (empty if none). */
   attachedAssets: InputAttachedAssets[];
+  /**
+   * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
+   *
+   * A PSBT can carry any Counterparty payload a raw transaction can, and MPMA recipients travel
+   * inside the payload rather than as outputs — so without this the PSBT screen said "Send to 3
+   * recipients" and named none of them, while the transaction screen listed all three.
+   */
+  mpmaRecipients: MpmaRecipient[];
+  /** Message fields that reference this transaction and do not resolve against it. */
+  structureFindings: StructureFinding[];
 }
 
 /**
@@ -145,6 +160,28 @@ export function useSignPsbtRequest(signerAddress?: string) {
       ?? verification.localUnpack?.messageType;
     const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddresses ?? []);
 
+    // Same checks the raw-transaction path runs. A PSBT carries the same payloads, so anything
+    // that path establishes about a message holds here too.
+    let mpmaRecipients: MpmaRecipient[] = [];
+    if (verification.localUnpack?.messageType === 'mpma_send' && verification.localUnpack.data) {
+      const sends = (verification.localUnpack.data as MPMAData).sends ?? [];
+      if (sends.length > 0) {
+        mpmaRecipients = await resolveMpmaRecipients(sends);
+        if (counterpartyMessage) {
+          counterpartyMessage = {
+            ...counterpartyMessage,
+            description: describeMpmaSend(mpmaRecipients),
+          };
+        }
+      }
+    }
+
+    const structureFindings = checkMessageStructure(
+      verification.localUnpack?.messageType,
+      verification.localUnpack?.data,
+      { inputs: psbtDetails.inputs, outputs: psbtDetails.outputs }
+    );
+
     const attachedAssets = await attachedAssetsPromise;
 
     return {
@@ -154,6 +191,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
       verification,
       safety,
       attachedAssets,
+      mpmaRecipients,
+      structureFindings,
     };
   }, []);
 
