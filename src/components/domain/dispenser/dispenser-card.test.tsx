@@ -10,11 +10,12 @@ vi.mock("@/core/format", () => ({
     maximumFractionDigits = 8,
     minimumFractionDigits = 0,
   }: {
-    value: number;
+    // A quantity arrives as a decimal string; the real formatter takes it as one.
+    value: string | number;
     maximumFractionDigits?: number;
     minimumFractionDigits?: number;
   }) => {
-    return value.toFixed(maximumFractionDigits);
+    return Number(value).toFixed(maximumFractionDigits);
   },
 }));
 

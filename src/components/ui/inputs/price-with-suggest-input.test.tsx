@@ -8,7 +8,7 @@ vi.mock('@/core/format', () => ({
   formatAmount: vi.fn((options) => {
     const value = options.value;
     if (typeof value === 'number') {
-      return value.toFixed(options.maximumFractionDigits || 8);
+      return Number(value).toFixed(options.maximumFractionDigits || 8);
     }
     return String(value);
   })

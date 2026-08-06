@@ -84,7 +84,7 @@ export function AssetCard({
         {/* Asset Supply */}
         <div className="text-sm text-gray-500">
           Supply: {formatAmount({ 
-            value: Number(asset.supply_normalized), 
+            value: asset.supply_normalized, 
             minimumFractionDigits: 0, 
             maximumFractionDigits: 8 
           })}

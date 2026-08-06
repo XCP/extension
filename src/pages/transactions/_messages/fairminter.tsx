@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 
 /**
  * Renders detailed information for fairminter creation transactions
@@ -56,7 +57,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Price per Mint",
         value: `${formatAmount({
-          value: Number(params.price_normalized),
+          value: params.price_normalized,
           minimumFractionDigits: 8,
           maximumFractionDigits: 8,
         })} XCP`,
@@ -68,7 +69,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
       fields.push({
         label: "Quantity per Price",
         value: formatAmount({
-          value: Number(params.quantity_by_price_normalized),
+          value: params.quantity_by_price_normalized,
           minimumFractionDigits: isDivisible ? 8 : 0,
           maximumFractionDigits: isDivisible ? 8 : 0,
         }),
@@ -111,11 +112,11 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   }
 
   // Premint (use API-provided normalized value)
-  if (params.premint_quantity_normalized !== undefined && Number(params.premint_quantity_normalized) > 0) {
+  if (params.premint_quantity_normalized !== undefined && isGreaterThan(params.premint_quantity_normalized, 0)) {
     fields.push({
       label: "Premint",
       value: formatAmount({
-        value: Number(params.premint_quantity_normalized),
+        value: params.premint_quantity_normalized,
         minimumFractionDigits: isDivisible ? 8 : 0,
         maximumFractionDigits: isDivisible ? 8 : 0,
       }),

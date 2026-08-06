@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { divide, isGreaterThan, isLessThan, multiply, subtract } from "@/core/numeric";
 
 /**
  * Interactive price display component for orders
@@ -14,16 +15,16 @@ function PriceDisplay({
 }: {
   giveAsset: string;
   getAsset: string;
-  giveQuantity: number;
-  getQuantity: number;
+  giveQuantity: string | number;
+  getQuantity: string | number;
 }) {
   const [isFlipped, setIsFlipped] = useState(false);
   
-  const priceRatio = getQuantity / giveQuantity;
+  const priceRatio = divide(getQuantity, giveQuantity);
   
   const display = isFlipped
     ? `1 ${getAsset} = ${formatAmount({
-        value: 1 / priceRatio,
+        value: divide(1, priceRatio),
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} ${giveAsset}`
@@ -68,20 +69,18 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   const giveIsDivisible = params.give_asset_info?.divisible ?? true;
   const getIsDivisible = params.get_asset_info?.divisible ?? true;
 
-  const giveQuantity = Number(params.give_quantity_normalized);
-  const getQuantity = Number(params.get_quantity_normalized);
+  const giveQuantity = params.give_quantity_normalized;
+  const getQuantity = params.get_quantity_normalized;
 
-  const giveRemaining = params.give_remaining_normalized !== undefined
-    ? Number(params.give_remaining_normalized)
-    : giveQuantity;
-  const getRemaining = params.get_remaining_normalized !== undefined
-    ? Number(params.get_remaining_normalized)
-    : getQuantity;
+  const giveRemaining = params.give_remaining_normalized ?? giveQuantity;
+  const getRemaining = params.get_remaining_normalized ?? getQuantity;
   
   // Calculate fill percentage
-  const fillPercentage = giveQuantity > 0 ? 
-    ((giveQuantity - giveRemaining) / giveQuantity * 100).toFixed(1) : 
-    "0";
+  // Without a give quantity there is no fraction to report; a zero would read as "none filled".
+  const fillPercentage = giveQuantity !== undefined && giveRemaining !== undefined
+    && isGreaterThan(giveQuantity, 0)
+    ? multiply(divide(subtract(giveQuantity, giveRemaining), giveQuantity), 100).toFixed(1)
+    : null;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
@@ -128,7 +127,8 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   ];
 
   // Add remaining quantities if partially filled
-  if (params.give_remaining !== undefined && giveRemaining < giveQuantity) {
+  if (giveRemaining !== undefined && giveQuantity !== undefined
+    && isLessThan(giveRemaining, giveQuantity)) {
     fields.push({
       label: "Give Remaining",
       value: `${formatAmount({
@@ -147,7 +147,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
       })} ${params.get_asset}`,
     });
     
-    fields.push({
+    if (fillPercentage !== null) fields.push({
       label: "Fill Progress",
       value: (
         <div className="flex items-center gap-2">
@@ -183,22 +183,22 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   }
 
   // Add fee details (use normalized values from API)
-  if (params.fee_required_normalized !== undefined && Number(params.fee_required_normalized) > 0) {
+  if (params.fee_required_normalized !== undefined && isGreaterThan(params.fee_required_normalized, 0)) {
     fields.push({
       label: "Fee Required",
       value: `${formatAmount({
-        value: Number(params.fee_required_normalized),
+        value: params.fee_required_normalized,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,
     });
   }
 
-  if (params.fee_provided_normalized !== undefined && Number(params.fee_provided_normalized) > 0) {
+  if (params.fee_provided_normalized !== undefined && isGreaterThan(params.fee_provided_normalized, 0)) {
     fields.push({
       label: "Fee Provided",
       value: `${formatAmount({
-        value: Number(params.fee_provided_normalized),
+        value: params.fee_provided_normalized,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
       })} BTC`,

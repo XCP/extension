@@ -42,7 +42,7 @@ export function UtxoCard({ token }: UtxoCardProps): ReactElement {
         <div className="flex justify-between items-baseline">
           <span className="text-sm text-gray-500">
             {formatAmount({
-              value: Number(token.quantity_normalized),
+              value: token.quantity_normalized,
               minimumFractionDigits: isDivisible ? 8 : 0,
               maximumFractionDigits: isDivisible ? 8 : 0,
               useGrouping: true,

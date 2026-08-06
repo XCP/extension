@@ -9,7 +9,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
-import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
+import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
@@ -181,7 +181,8 @@ export const BalanceList = (): ReactElement => {
     if (assetUpper === "XCP" && isPinned) return true;
 
     // Other pinned assets only show if non-zero
-    return Number(balance.quantity_normalized) > 0;
+    return balance.quantity_normalized !== undefined
+      && isGreaterThan(balance.quantity_normalized, 0);
   });
 
   const otherBalances = allBalances.filter((balance) =>

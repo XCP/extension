@@ -135,7 +135,7 @@ export function DispenserCard({
           <div className="flex gap-2 text-xs text-gray-600">
             <span>
               {formatAmount({
-                value: Number(option.dispenser.give_quantity_normalized),
+                value: option.dispenser.give_quantity_normalized,
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 8,
               })}{" "}

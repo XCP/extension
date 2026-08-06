@@ -23,7 +23,7 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
   const isDivisible = params.divisible ?? true;
   const quantity = params.quantity_normalized;
   // A normalized quantity is a decimal string; compare it as a number without narrowing it first.
-  const hasSupply = isGreaterThan(quantity ?? 0, 0);
+  const hasSupply = quantity !== undefined && isGreaterThan(quantity, 0);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [];
   

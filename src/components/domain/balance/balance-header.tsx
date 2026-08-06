@@ -42,7 +42,7 @@ export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps): 
   // Format the balance based on divisibility
   const formattedBalance = balance.quantity_normalized
     ? formatAmount({
-        value: Number(balance.quantity_normalized),
+        value: balance.quantity_normalized,
         minimumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
         maximumFractionDigits: balance.asset_info?.divisible ? 8 : 0,
         useGrouping: true,

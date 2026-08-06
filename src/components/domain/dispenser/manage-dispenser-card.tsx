@@ -65,7 +65,7 @@ export function ManageDispenserCard({
             {assetName}
           </div>
           <div className="text-xs text-gray-500">
-            {formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 2 })} remaining
+            {formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 2 })} remaining
           </div>
         </div>
         {isOpen ? (

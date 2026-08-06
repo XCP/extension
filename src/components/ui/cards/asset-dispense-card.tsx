@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
 import type { Dispense } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
 
 const SATS_PER_BTC = 100_000_000;
 
@@ -26,11 +27,11 @@ export function AssetDispenseCard({
   isCopied = false,
   className = "",
 }: AssetDispenseCardProps): ReactElement {
-  const quantity = Number(dispense.dispense_quantity_normalized);
+  const quantity = dispense.dispense_quantity_normalized;
   const btcTotal = dispense.btc_amount / SATS_PER_BTC;
 
   // Format quantity - use 8 decimals for fractional, 0 for whole numbers
-  const quantityFormatted = quantity % 1 === 0
+  const quantityFormatted = quantity !== undefined && toBigNumber(quantity).isInteger()
     ? formatAmount({ value: quantity, maximumFractionDigits: 0 })
     : formatAmount({ value: quantity, minimumFractionDigits: 8, maximumFractionDigits: 8 });
 

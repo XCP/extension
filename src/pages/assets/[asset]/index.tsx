@@ -347,14 +347,14 @@ export default function AssetPage(): ReactElement {
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {formatAmount({
-                            value: Number(dividend.quantity_per_unit_normalized),
+                            value: dividend.quantity_per_unit_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset} per unit
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           Total distributed: {formatAmount({
-                            value: Number(dividend.total_distributed_normalized),
+                            value: dividend.total_distributed_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset}
