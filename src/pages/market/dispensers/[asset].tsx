@@ -20,6 +20,7 @@ import {
   fetchAssetDispenses,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { type BigNumber, divide, multiply, roundDown, toBigNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
 import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -37,10 +38,21 @@ const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
  * satoshirate = total sats per dispense
  * give_quantity_normalized = units given per dispense
  */
-function getSatsPerUnit(dispenser: DispenserDetails): number {
-  const unitsPerDispense = Number(dispenser.give_quantity_normalized);
-  if (unitsPerDispense <= 0) return Infinity;
-  return Number(dispenser.satoshirate) / unitsPerDispense;
+function getSatsPerUnit(dispenser: DispenserDetails): BigNumber | null {
+  const unitsPerDispense = toBigNumber(dispenser.give_quantity_normalized);
+  // A dispenser giving nothing has no price per unit. Naming one would invent it.
+  if (!unitsPerDispense.isGreaterThan(0)) return null;
+  return divide(dispenser.satoshirate, unitsPerDispense);
+}
+
+/** Cheapest first. A dispenser with no price per unit has no place in the order, so it sorts last. */
+function byPricePerUnit(a: DispenserDetails, b: DispenserDetails): number {
+  const priceA = getSatsPerUnit(a);
+  const priceB = getSatsPerUnit(b);
+  if (priceA === null) return priceB === null ? 0 : 1;
+  if (priceB === null) return -1;
+  // comparedTo is null only if a value is NaN, which is a tie for ordering purposes.
+  return priceA.comparedTo(priceB) ?? 0;
 }
 
 /**
@@ -135,7 +147,7 @@ export default function AssetDispensersPage(): ReactElement {
 
       // Sort by price (lowest first) for better UX
       const sortedDispensers = [...dispensersRes.result].sort(
-        (a, b) => getSatsPerUnit(a) - getSatsPerUnit(b)
+        byPricePerUnit
       );
       setDispensers(sortedDispensers);
       setDispenserOffset(FETCH_LIMIT);
@@ -212,7 +224,7 @@ export default function AssetDispensersPage(): ReactElement {
             const deduped = merged.filter(
               (d, i, arr) => arr.findIndex((x) => x.tx_hash === d.tx_hash) === i
             );
-            return deduped.sort((a, b) => getSatsPerUnit(a) - getSatsPerUnit(b));
+            return deduped.sort(byPricePerUnit);
           });
           setDispenserOffset((prev) => prev + FETCH_LIMIT);
         }
@@ -272,32 +284,38 @@ export default function AssetDispensersPage(): ReactElement {
 
     // Total asset remaining across all dispensers
     const totalAsset = dispensers.reduce(
-      (sum, d) => sum + Number(d.give_remaining_normalized), 0
+      (sum, d) => sum.plus(toBigNumber(d.give_remaining_normalized)), toBigNumber(0)
     );
 
     // Total BTC required to buy all remaining assets (sum of satoshirate * remaining dispenses)
     const totalBtcSats = dispensers.reduce((sum, d) => {
-      const remainingDispenses = Math.floor(
-        Number(d.give_remaining_normalized) / Number(d.give_quantity_normalized)
-      );
-      return sum + Number(d.satoshirate) * remainingDispenses;
-    }, 0);
-    const totalBtc = totalBtcSats / SATS_PER_BTC;
+      const perDispense = toBigNumber(d.give_quantity_normalized);
+      if (!perDispense.isGreaterThan(0)) return sum;
+      const remainingDispenses = roundDown(divide(d.give_remaining_normalized, perDispense));
+      return sum.plus(multiply(d.satoshirate, remainingDispenses));
+    }, toBigNumber(0));
+    const totalBtc = divide(totalBtcSats, SATS_PER_BTC);
 
-    // Floor price per unit in sats (find minimum)
-    const floorPrice = Math.min(...dispensers.map(d => getSatsPerUnit(d)));
+    // Floor price per unit in sats. Dispensers with no price per unit are not a floor of zero.
+    const perUnitPrices = dispensers
+      .map(getSatsPerUnit)
+      .filter((price): price is BigNumber => price !== null);
+    const floorPrice = perUnitPrices.length > 0
+      ? perUnitPrices.reduce((lowest, price) => (price.isLessThan(lowest) ? price : lowest))
+      : null;
 
     // Weighted average price per unit by remaining quantity
-    const weightedSum = dispensers.reduce(
-      (sum, d) => sum + getSatsPerUnit(d) * Number(d.give_remaining_normalized), 0
-    );
-    const weightedAvg = totalAsset > 0 ? weightedSum / totalAsset : 0;
+    const weightedSum = dispensers.reduce((sum, d) => {
+      const price = getSatsPerUnit(d);
+      return price === null ? sum : sum.plus(multiply(price, d.give_remaining_normalized));
+    }, toBigNumber(0));
+    const weightedAvg = totalAsset.isGreaterThan(0) ? divide(weightedSum, totalAsset) : null;
 
     return {
       totalAsset,
       totalBtc,
-      floorPrice: Math.round(floorPrice),
-      weightedAvg: Math.round(weightedAvg),
+      floorPrice: floorPrice === null ? null : Number(floorPrice.toFixed(0)),
+      weightedAvg: weightedAvg === null ? null : Number(weightedAvg.toFixed(0)),
     };
   }, [dispensers]);
 
@@ -307,22 +325,26 @@ export default function AssetDispensersPage(): ReactElement {
 
     // Last dispense price (first in array = most recent)
     const lastDispense = dispenses[0]!;
-    const lastQuantity = Number(lastDispense.dispense_quantity_normalized);
-    const lastPricePerUnit = lastQuantity > 0 ? lastDispense.btc_amount / lastQuantity : 0;
+    const lastQuantity = toBigNumber(lastDispense.dispense_quantity_normalized);
+    const lastPricePerUnit = lastQuantity.isGreaterThan(0)
+      ? divide(lastDispense.btc_amount, lastQuantity)
+      : null;
 
     // Average price per unit across all loaded dispenses (weighted by quantity)
     const totalAsset = dispenses.reduce(
-      (sum, d) => sum + Number(d.dispense_quantity_normalized), 0
+      (sum, d) => sum.plus(toBigNumber(d.dispense_quantity_normalized)), toBigNumber(0)
     );
     const totalBtcSats = dispenses.reduce(
-      (sum, d) => sum + d.btc_amount, 0
+      (sum, d) => sum.plus(toBigNumber(d.btc_amount)), toBigNumber(0)
     );
-    const totalBtc = totalBtcSats / SATS_PER_BTC;
-    const avgPricePerUnit = totalAsset > 0 ? totalBtcSats / totalAsset : 0;
+    const totalBtc = divide(totalBtcSats, SATS_PER_BTC);
+    const avgPricePerUnit = totalAsset.isGreaterThan(0)
+      ? divide(totalBtcSats, totalAsset)
+      : null;
 
     return {
-      lastPrice: Math.round(lastPricePerUnit),
-      avgPrice: Math.round(avgPricePerUnit),
+      lastPrice: lastPricePerUnit === null ? null : Number(lastPricePerUnit.toFixed(0)),
+      avgPrice: avgPricePerUnit === null ? null : Number(avgPricePerUnit.toFixed(0)),
       totalAsset,
       totalBtc,
     };
@@ -339,6 +361,14 @@ export default function AssetDispensersPage(): ReactElement {
   const hasMore = tab === "open" ? hasMoreDispensers : tab === "history" ? hasMoreDispenses : false;
   const isFetching = tab === "open" ? isFetchingMore : tab === "history" ? isFetchingMoreDispenses : false;
 
+  /** A dispenser giving nothing has no price to show, rather than a price of zero. */
+  const pricePerUnitLabel = (dispenser: DispenserDetails): string => {
+    const price = getSatsPerUnit(dispenser);
+    return price === null
+      ? "N/A"
+      : formatPrice(Number(price.toFixed(0)), priceUnit, btcPrice, settings.fiat);
+  };
+
   return (
     <div className="flex flex-col h-full" role="main">
       <div className="flex flex-col flex-grow min-h-0">
@@ -353,7 +383,8 @@ export default function AssetDispensersPage(): ReactElement {
           <div className="bg-white rounded-lg shadow-sm p-3 mb-3">
             <div className="flex items-center gap-2">
               <div className="flex-1 grid grid-cols-2 gap-4 text-xs">
-                {tab === "open" && dispenserStats && (
+                {tab === "open" && dispenserStats && dispenserStats.floorPrice !== null
+                  && dispenserStats.weightedAvg !== null && (
                   <>
                     <CopyableStat
                       label="Floor"
@@ -383,7 +414,8 @@ export default function AssetDispensersPage(): ReactElement {
                     </div>
                   </>
                 )}
-                {tab === "history" && dispenseStats && (
+                {tab === "history" && dispenseStats && dispenseStats.lastPrice !== null
+                  && dispenseStats.avgPrice !== null && (
                   <>
                     <CopyableStat
                       label="Last"
@@ -452,7 +484,7 @@ export default function AssetDispensersPage(): ReactElement {
                   <AssetDispenserCard
                     key={d.tx_hash}
                     dispenser={d}
-                    formattedPrice={formatPrice(getSatsPerUnit(d), priceUnit, btcPrice, settings.fiat)}
+                    formattedPrice={pricePerUnitLabel(d)}
                     onClick={() => handleDispenserClick(d)}
                     onCopyAddress={copy}
                     isCopied={isCopied(d.source)}
@@ -474,14 +506,19 @@ export default function AssetDispensersPage(): ReactElement {
             dispenses.length > 0 ? (
               <div className="space-y-2">
                 {dispenses.map((d) => {
-                  const quantity = Number(d.dispense_quantity_normalized);
-                  const pricePerUnit = quantity > 0 ? Math.round(d.btc_amount / quantity) : 0;
+                  const quantity = toBigNumber(d.dispense_quantity_normalized);
+                  // A dispense of nothing has no price per unit; zero would read as free.
+                  const pricePerUnit = quantity.isGreaterThan(0)
+                    ? divide(d.btc_amount, quantity)
+                    : null;
                   return (
                     <AssetDispenseCard
                       key={d.tx_hash}
                       dispense={d}
                       asset={asset || ""}
-                      formattedPricePerUnit={formatPrice(pricePerUnit, priceUnit, btcPrice, settings.fiat)}
+                      formattedPricePerUnit={pricePerUnit === null
+                        ? "N/A"
+                        : formatPrice(Number(pricePerUnit.toFixed(0)), priceUnit, btcPrice, settings.fiat)}
                       onCopyTx={copy}
                       isCopied={isCopied(d.tx_hash)}
                     />

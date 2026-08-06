@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
 import type { OrderMatch } from "@/core/counterparty/api";
 import { formatAmount, formatTimeAgo } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
 import { getMatchPricePerUnit, getTradingPair } from "@/core/tradingPair";
 
 interface MarketMatchCardProps {
@@ -35,17 +36,17 @@ export function MarketMatchCard({
   const isForwardBase = match.forward_asset === baseAsset;
   const isBuy = !isForwardBase; // Buy when backward_asset is the base
   const baseQuantity = isForwardBase
-    ? Number(match.forward_quantity_normalized)
-    : Number(match.backward_quantity_normalized);
+    ? match.forward_quantity_normalized
+    : match.backward_quantity_normalized;
   const quoteQuantity = isForwardBase
-    ? Number(match.backward_quantity_normalized)
-    : Number(match.forward_quantity_normalized);
+    ? match.backward_quantity_normalized
+    : match.forward_quantity_normalized;
 
   // Calculate price per unit
   const pricePerUnit = getMatchPricePerUnit(match, baseAsset);
 
   // Format quantities
-  const baseFormatted = baseQuantity % 1 === 0
+  const baseFormatted = toBigNumber(baseQuantity).isInteger()
     ? formatAmount({ value: baseQuantity, maximumFractionDigits: 0 })
     : formatAmount({ value: baseQuantity, maximumFractionDigits: 8 });
 

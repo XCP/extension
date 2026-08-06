@@ -19,6 +19,7 @@ import {
   type OrderMatch,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { divide, toBigNumber } from "@/core/numeric";
 import {
   getMatchPricePerUnit,
   getOrderBaseAmount,
@@ -354,24 +355,25 @@ export default function AssetOrdersPage(): ReactElement {
     const lastPrice = getMatchPricePerUnit(lastMatch, baseAsset || "");
 
     // Calculate totals and average
-    let totalBaseAsset = 0;
-    let totalQuoteAsset = 0;
+    let totalBaseAsset = toBigNumber(0);
+    let totalQuoteAsset = toBigNumber(0);
 
     matches.forEach(m => {
-      if (m.forward_asset === baseAsset) {
-        totalBaseAsset += Number(m.forward_quantity_normalized);
-        totalQuoteAsset += Number(m.backward_quantity_normalized);
-      } else {
-        totalBaseAsset += Number(m.backward_quantity_normalized);
-        totalQuoteAsset += Number(m.forward_quantity_normalized);
-      }
+      const [base, quote] = m.forward_asset === baseAsset
+        ? [m.forward_quantity_normalized, m.backward_quantity_normalized]
+        : [m.backward_quantity_normalized, m.forward_quantity_normalized];
+      totalBaseAsset = totalBaseAsset.plus(toBigNumber(base));
+      totalQuoteAsset = totalQuoteAsset.plus(toBigNumber(quote));
     });
 
-    const avgPrice = totalBaseAsset > 0 ? totalQuoteAsset / totalBaseAsset : 0;
+    // Nothing traded means no average to report, rather than an average of zero.
+    const avgPrice = totalBaseAsset.isGreaterThan(0)
+      ? divide(totalQuoteAsset, totalBaseAsset)
+      : null;
 
     return {
       lastPrice,
-      avgPrice,
+      avgPrice: avgPrice === null ? null : Number(avgPrice.toFixed(8)),
       totalBaseAsset,
       totalQuoteAsset,
     };
@@ -501,13 +503,15 @@ export default function AssetOrdersPage(): ReactElement {
                     onCopy={copy}
                     isCopied={isCopied(getRawOrderPrice(matchStats.lastPrice))}
                   />
-                  <CopyableStat
-                    label="Avg"
-                    value={formatOrderPrice(matchStats.avgPrice, quoteAsset || "")}
-                    rawValue={getRawOrderPrice(matchStats.avgPrice)}
-                    onCopy={copy}
-                    isCopied={isCopied(getRawOrderPrice(matchStats.avgPrice))}
-                  />
+                  {matchStats.avgPrice !== null && (
+                    <CopyableStat
+                      label="Avg"
+                      value={formatOrderPrice(matchStats.avgPrice, quoteAsset || "")}
+                      rawValue={getRawOrderPrice(matchStats.avgPrice)}
+                      onCopy={copy}
+                      isCopied={isCopied(getRawOrderPrice(matchStats.avgPrice))}
+                    />
+                  )}
                 </>
               )}
               {tab === "history" && !matchStats && (

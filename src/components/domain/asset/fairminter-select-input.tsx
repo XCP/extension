@@ -9,6 +9,7 @@ import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 
 export interface Fairminter {
   tx_hash: string;
@@ -111,13 +112,13 @@ export function FairminterSelectInput({
   // Apply currency filter if specified
   if (currencyFilter) {
     filteredFairminters = filteredFairminters.filter((fairminter) => {
-      const price = parseFloat(fairminter.price_normalized);
+      const price = fairminter.price_normalized;
       if (currencyFilter === "BTC") {
         // BTC fairminters have price = 0 (free mints)
-        return price === 0;
+        return !isGreaterThan(price, 0);
       } else if (currencyFilter === "XCP") {
         // XCP fairminters have price > 0
-        return price > 0;
+        return isGreaterThan(price, 0);
       }
       return true;
     });
@@ -221,9 +222,9 @@ export function FairminterSelectInput({
                           <span
                             className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}
                           >
-                            {parseFloat(fairminter.price_normalized) === 0
+                            {!isGreaterThan(fairminter.price_normalized, 0)
                               ? "Free mint (BTC fees only)"
-                              : `Price: ${formatAmount({ value: parseFloat(fairminter.price_normalized), maximumFractionDigits: 8 })} XCP`}
+                              : `Price: ${formatAmount({ value: fairminter.price_normalized, maximumFractionDigits: 8 })} XCP`}
                           </span>
                         </div>
                         {selected && (
