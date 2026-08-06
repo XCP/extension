@@ -200,7 +200,7 @@ export function describeMessage(
       }
       // giveQuantity, not quantity: a dispenser's payout per trigger. Reading `quantity` here
       // rendered every dispenser as "? XCP".
-      return `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${Number(m.mainchainrate).toLocaleString()} sats`;
+      return `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${toGroupedString((m.mainchainrate ?? 0) as string | number, 0)} sats`;
 
     case 'dispense':
       // The payload is a marker byte; which dispenser is triggered is decided by the outputs,

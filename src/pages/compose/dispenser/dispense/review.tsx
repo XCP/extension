@@ -9,7 +9,7 @@ import {
   resolveDispensersAt,
 } from '@/core/counterparty/dispenseOutcome';
 import { formatAmount } from "@/core/format";
-import { fromSatoshis } from "@/core/numeric";
+import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -164,8 +164,10 @@ export function ReviewDispense({
     } else {
       // Single dispenser
       const dispenser = allTriggeredDispensers[0]!;
-      const satoshirate = dispenser.satoshirate || 0;
-      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
+      const satoshirate = toBigNumber(dispenser.satoshirate || 0);
+      const numberOfDispenses = satoshirate.isGreaterThan(0)
+        ? roundDown(divide(btcQuantity, satoshirate))
+        : toBigNumber(0);
 
       // Add dispenser TX hash first (after To:)
       if (dispenser.tx_hash) {

@@ -350,6 +350,30 @@ export const subtract = (minuend: string | number | BigNumber, subtrahend: strin
 };
 
 /**
+ * Adds two values.
+ *
+ * The counterpart to subtract. Its absence was why summing reached for `+`, which is the operator
+ * that turns a 64-bit quantity into a double before the addition happens.
+ *
+ * @param augend - The value to add to
+ * @param addend - The value to add
+ * @returns The sum as a BigNumber
+ */
+export const add = (augend: string | number | BigNumber, addend: string | number | BigNumber): BigNumber => {
+  return toBigNumber(augend).plus(toBigNumber(addend));
+};
+
+/**
+ * Sums a list of values, exactly.
+ *
+ * @param values - The values to total
+ * @returns The total as a BigNumber, zero for an empty list
+ */
+export const sum = (values: Array<string | number | BigNumber>): BigNumber => {
+  return values.reduce<BigNumber>((total, value) => total.plus(toBigNumber(value)), new BigNumber(0));
+};
+
+/**
  * Divides one value by another
  *
  * @param dividend - The value to divide
@@ -418,6 +442,21 @@ export const minimum = (
 ): BigNumber => {
   const left = toBigNumber(a);
   return left.isLessThanOrEqualTo(toBigNumber(b)) ? left : toBigNumber(b);
+};
+
+/**
+ * The larger of two values. The counterpart to minimum, and the in-layer answer to Math.max.
+ *
+ * @param a - First value
+ * @param b - Second value
+ * @returns The larger, as a BigNumber
+ */
+export const maximum = (
+  a: string | number | BigNumber,
+  b: string | number | BigNumber
+): BigNumber => {
+  const left = toBigNumber(a);
+  return left.isGreaterThanOrEqualTo(toBigNumber(b)) ? left : toBigNumber(b);
 };
 
 /**

@@ -26,6 +26,7 @@ import {
 } from "@/core/counterparty/api";
 import { normalizePoolPosition } from "@/core/counterparty/pool";
 import { formatAddress } from "@/core/format";
+import { toNumber } from "@/core/numeric";
 import { formatPrice } from "@/core/priceFormat";
 import { getTradingPair } from "@/core/tradingPair";
 import { useInView } from "@/hooks/useInView";
@@ -427,7 +428,7 @@ export default function MarketPage(): ReactElement {
                             <MarketDispenserCard
                               key={d.tx_hash}
                               dispenser={d}
-                              formattedPrice={formatPrice(Number(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
+                              formattedPrice={formatPrice(toNumber(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
                               onClick={() => handleDispenserClick(d)}
                             />
                           ))}
@@ -455,7 +456,7 @@ export default function MarketPage(): ReactElement {
                           <MarketDispenserCard
                             key={d.tx_hash}
                             dispenser={d}
-                            formattedPrice={formatPrice(Number(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
+                            formattedPrice={formatPrice(toNumber(d.satoshirate), settings.priceUnit, btc, settings.fiat)}
                             onClick={() => handleDispenserClick(d)}
                           />
                         ))}
