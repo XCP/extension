@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
-import { divide, fromSatoshis, toBigNumber } from "@/core/numeric";
+import { divide, fromSatoshis, multiply, roundDown, roundUp, toBigNumber, toNumber } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";
 
 // Known safe error messages that can be shown to users
@@ -147,7 +147,7 @@ export function AmountWithMaxInput({
       const totalVbytes = estimatedVbytes + OP_RETURN_OVERHEAD;
 
       const effectiveFeeRate = feeRate ?? 0.1;
-      const estimatedFee = Math.ceil(totalVbytes * effectiveFeeRate);
+      const estimatedFee = toNumber(roundUp(multiply(totalVbytes, effectiveFeeRate)));
 
       const candidate = totalValue - estimatedFee;
 
@@ -155,7 +155,7 @@ export function AmountWithMaxInput({
         throw new Error("Insufficient balance to cover transaction fee.");
       }
 
-      const amountPerDestination = Math.floor(candidate / destinationCount);
+      const amountPerDestination = toNumber(roundDown(divide(candidate, destinationCount)));
       if (isDustAmount(amountPerDestination)) {
         throw new Error("Amount per destination after fee is below dust limit.");
       }

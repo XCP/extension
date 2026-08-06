@@ -14,7 +14,7 @@ import {
   type XcpStats,
 } from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
-import { divide, toBigNumber } from "@/core/numeric";
+import { divide, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { analytics } from "@/platform/fathom";
 
 // Time range options over the daily history from api.xcp.io
@@ -83,7 +83,7 @@ export default function XcpPricePage(): ReactElement {
       for (const dispenser of response.result) {
         const unitsPerDispense = toBigNumber(dispenser.give_quantity_normalized);
         if (!unitsPerDispense.isGreaterThan(0)) continue;
-        const satsPerXcp = Number(divide(dispenser.satoshirate, unitsPerDispense).toFixed(0));
+        const satsPerXcp = toNumber(roundDown(divide(dispenser.satoshirate, unitsPerDispense)));
         if (!best || satsPerXcp < best.satsPerXcp) {
           best = { satsPerXcp, source: dispenser.source };
         }

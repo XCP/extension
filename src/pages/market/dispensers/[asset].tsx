@@ -20,7 +20,7 @@ import {
   fetchAssetDispenses,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
-import { type BigNumber, divide, multiply, roundDown, toBigNumber } from "@/core/numeric";
+import { type BigNumber, divide, multiply, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { formatPrice, getNextPriceUnit, getRawPrice } from "@/core/priceFormat";
 import type { PriceUnit } from "@/core/settings";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -314,7 +314,7 @@ export default function AssetDispensersPage(): ReactElement {
     return {
       totalAsset,
       totalBtc,
-      floorPrice: floorPrice === null ? null : Number(floorPrice.toFixed(0)),
+      floorPrice: floorPrice === null ? null : toNumber(roundDown(floorPrice)),
       weightedAvg: weightedAvg === null ? null : Number(weightedAvg.toFixed(0)),
     };
   }, [dispensers]);
@@ -343,8 +343,8 @@ export default function AssetDispensersPage(): ReactElement {
       : null;
 
     return {
-      lastPrice: lastPricePerUnit === null ? null : Number(lastPricePerUnit.toFixed(0)),
-      avgPrice: avgPricePerUnit === null ? null : Number(avgPricePerUnit.toFixed(0)),
+      lastPrice: lastPricePerUnit === null ? null : toNumber(roundDown(lastPricePerUnit)),
+      avgPrice: avgPricePerUnit === null ? null : toNumber(roundDown(avgPricePerUnit)),
       totalAsset,
       totalBtc,
     };
@@ -366,7 +366,7 @@ export default function AssetDispensersPage(): ReactElement {
     const price = getSatsPerUnit(dispenser);
     return price === null
       ? "N/A"
-      : formatPrice(Number(price.toFixed(0)), priceUnit, btcPrice, settings.fiat);
+      : formatPrice(toNumber(roundDown(price)), priceUnit, btcPrice, settings.fiat);
   };
 
   return (
@@ -518,7 +518,7 @@ export default function AssetDispensersPage(): ReactElement {
                       asset={asset || ""}
                       formattedPricePerUnit={pricePerUnit === null
                         ? "N/A"
-                        : formatPrice(Number(pricePerUnit.toFixed(0)), priceUnit, btcPrice, settings.fiat)}
+                        : formatPrice(toNumber(roundDown(pricePerUnit)), priceUnit, btcPrice, settings.fiat)}
                       onCopyTx={copy}
                       isCopied={isCopied(d.tx_hash)}
                     />

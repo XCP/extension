@@ -21,7 +21,7 @@ import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
-import { fromSatoshis } from '@/core/numeric';
+import { fromSatoshis, isGreaterThan } from "@/core/numeric";
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
@@ -292,12 +292,12 @@ export default function ApproveTransactionPage() {
             ) : null}
             <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
             {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
-              Number(decodedInfo.counterpartyMessage.messageData.fee) > 0 && (
+              isGreaterThan(decodedInfo.counterpartyMessage.messageData.fee as string | number, 0) && (
               <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
                 <span className="text-gray-500">Protocol Fee:</span>
                 <span className="text-sm font-medium text-purple-700">
                   {formatAmount({
-                    value: fromSatoshis(Number(decodedInfo.counterpartyMessage.messageData.fee), true),
+                    value: fromSatoshis(decodedInfo.counterpartyMessage.messageData.fee as string | number, { asNumber: true }),
                     minimumFractionDigits: 8,
                     maximumFractionDigits: 8,
                   })} XCP

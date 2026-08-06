@@ -10,7 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/counterparty/api";
 import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 
@@ -110,7 +110,7 @@ export default function AssetPage(): ReactElement {
     const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
     const isLocked = assetDetails.assetInfo.locked;
     const totalSupply = assetDetails.assetInfo.supply || "0";
-    const hasSupply = Number(totalSupply) > 0;
+    const hasSupply = isGreaterThan(totalSupply ?? 0, 0);
     const issuerBalance = assetDetails.availableBalance || "0";
     const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
     const hasFairMinting = assetDetails.assetInfo.fair_minting;

@@ -4,7 +4,7 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/core/format";
-import { type BigNumber, toBigNumber } from "@/core/numeric";
+import { type BigNumber, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -119,7 +119,7 @@ export function ReviewSend({
       ? normalizeQuantity(decoded.quantity, asset, result.params, 'asset')
       : (result.params.quantity_normalized ?? result.params.quantity);
     const memo = decoded?.memo ?? result.params.memo;
-    const amountInFiat = isBtc && btcPrice ? Number(quantityDisplay) * btcPrice : null;
+    const amountInFiat = isBtc && btcPrice ? multiply(quantityDisplay ?? 0, btcPrice) : null;
 
     customFields = [
       {
@@ -133,9 +133,9 @@ export function ReviewSend({
       },
       ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
       ...(result.params.more_outputs ? [(() => {
-        const sats = Number(String(result.params.more_outputs).split(':')[0]);
-        const btcVal = sats / 100_000_000;
-        const fiatVal = btcPrice ? btcVal * btcPrice : null;
+        const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
+        const btcVal = fromSatoshis(sats);
+        const fiatVal = btcPrice ? multiply(btcVal, btcPrice) : null;
         return {
           label: "Amount",
           value: `${formatAmount({ value: btcVal, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`,

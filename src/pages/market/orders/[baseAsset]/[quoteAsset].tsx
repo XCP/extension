@@ -19,7 +19,7 @@ import {
   type OrderMatch,
 } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
-import { divide, toBigNumber } from "@/core/numeric";
+import { divide, toBigNumber, toNumber } from "@/core/numeric";
 import {
   getMatchPricePerUnit,
   getOrderBaseAmount,
@@ -373,7 +373,7 @@ export default function AssetOrdersPage(): ReactElement {
 
     return {
       lastPrice,
-      avgPrice: avgPrice === null ? null : Number(avgPrice.toFixed(8)),
+      avgPrice: avgPrice === null ? null : toNumber(avgPrice),
       totalBaseAsset,
       totalQuoteAsset,
     };

@@ -11,12 +11,7 @@ import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
-import { 
-  divide,fromSatoshis, 
-  isLessThanOrEqualToZero,
-  roundDown,
-  subtract,
-  toNumber} from "@/core/numeric";
+import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, roundUp, subtract, toNumber } from "@/core/numeric";
 
 // ============================================================================
 // Types & Interfaces
@@ -173,7 +168,7 @@ export function DispenseForm({
   const [numberOfDispenses, setNumberOfDispenses] = useState(() => {
     if (initialFormData?.quantity) {
       const formData = initialFormData as any;
-      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+      if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         return toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))
         ).toString();
@@ -198,7 +193,7 @@ export function DispenseForm({
     const effectiveFeeRate = feeRate ?? 0.1;
     // Dispense transaction has 1 output to dispenser
     const estimatedVbytes = estimateVsize(spendableBtc.utxoCount, 1, activeAddress.address);
-    const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+    const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, effectiveFeeRate)));
 
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
@@ -237,7 +232,7 @@ export function DispenseForm({
       selectedDispenserIndex !== null
     ) {
       const formData = initialFormData as any;
-      if (formData.satoshirate && Number(formData.satoshirate) > 0) {
+      if (formData.satoshirate && isGreaterThan(formData.satoshirate, 0)) {
         const calculatedDispenses = toNumber(
           roundDown(divide(initialFormData.quantity, formData.satoshirate))
         ).toString();
@@ -308,7 +303,7 @@ export function DispenseForm({
         // Calculate fee for error message
         const effectiveFeeRate = feeRate ?? 0.1;
         const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
-        const estimatedFee = Math.ceil(estimatedVbytes * effectiveFeeRate);
+        const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, effectiveFeeRate)));
         const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
         const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
         setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({
@@ -403,7 +398,7 @@ export function DispenseForm({
                 name="quantity"
                 value={
                   selectedDispenser
-                    ? Number(numberOfDispenses) * selectedDispenser.satoshirate
+                    ? toNumber(multiply(numberOfDispenses, selectedDispenser.satoshirate))
                     : 0
                 }
               />
