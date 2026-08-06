@@ -50,11 +50,15 @@ function block(value: CborValue, field: string): number {
 
 export function unpackFairminter(payload: Uint8Array): FairminterData {
   const fields = decodeCbor(payload);
-  if (!Array.isArray(fields) || (fields.length !== 19 && fields.length !== 21)) {
-    throw new Error('Invalid fairminter field count');
+  // Core reads `fields[:17]` and defaults everything after it — mime_type and description are
+  // taken only `if len(fields) > 17` / `> 18`, and the pool pair only when there are 21 or more
+  // (fairminter.py). Requiring exactly 19 or 21 rejected payloads core accepts, which fails
+  // verification and blocks signing on a transaction the chain would honour.
+  if (!Array.isArray(fields) || fields.length < 17) {
+    throw new Error(`Invalid fairminter field count: ${Array.isArray(fields) ? fields.length : 0} (minimum 17)`);
   }
 
-  const hasPool = fields.length === 21;
+  const hasPool = fields.length >= 21;
   const poolQuantity = hasPool ? integer(fields[17]!, 'pool quantity') : 0n;
   const lpAssetId = hasPool ? integer(fields[18]!, 'LP asset') : 0n;
   const mimeTypeIndex = hasPool ? 19 : 17;
