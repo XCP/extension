@@ -414,6 +414,40 @@ export const isLessThanOrEqualToZero = (value: string | number | BigNumber): boo
 };
 
 /**
+ * The smaller of two values.
+ *
+ * Exists so callers never need `BigNumber.min`, which would mean importing the constructor and
+ * losing the single point through which this codebase does arithmetic.
+ *
+ * @param a - First value
+ * @param b - Second value
+ * @returns The smaller value as a BigNumber
+ */
+export const minimum = (
+  a: string | number | BigNumber,
+  b: string | number | BigNumber
+): BigNumber => {
+  const left = toBigNumber(a);
+  return left.isLessThanOrEqualTo(toBigNumber(b)) ? left : toBigNumber(b);
+};
+
+/**
+ * Formats a value with thousands separators, trimming to at most `decimals` places.
+ *
+ * Unlike formatBigNumber this does not pad: 4 renders as "4", not "4.00000000".
+ *
+ * @param value - The value to format
+ * @param decimals - Maximum decimal places to keep (default: 8)
+ * @returns Grouped string, e.g. "1,234.5"
+ */
+export const toGroupedString = (
+  value: string | number | BigNumber,
+  decimals = 8
+): string => {
+  return toBigNumber(value).decimalPlaces(decimals).toFormat();
+};
+
+/**
  * Converts a BigNumber to a number
  *
  * @param value - The BigNumber to convert

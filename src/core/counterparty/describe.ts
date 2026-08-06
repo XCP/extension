@@ -18,8 +18,17 @@
  * carries only names and must label a quantity whose units it cannot establish.
  */
 
-import BigNumber from 'bignumber.js';
-import { type DisplayUnits, isGreaterThan, toBigNumber } from '@/core/numeric';
+import {
+  divide,
+  type DisplayUnits,
+  isGreaterThan,
+  isLessThan,
+  isLessThanOrEqualTo,
+  multiply,
+  roundDown,
+  toBigNumber,
+  toGroupedString,
+} from '@/core/numeric';
 
 /**
  * A decoded message in the shape the describer reads, independent of which decoder produced it.
@@ -337,14 +346,10 @@ function priceOf(m: DescribableMessage, n: (asset?: string) => string): string |
   const get = m.numeric?.(m.getQuantity, m.getAsset);
   if (give === undefined || get === undefined) return undefined;
 
-  const giveAmount = toBigNumber(give);
-  const getAmount = toBigNumber(get);
-  if (!giveAmount.isFinite() || !getAmount.isFinite() || giveAmount.isLessThanOrEqualTo(0)) {
-    return undefined;
-  }
+  if (!toBigNumber(give).isFinite() || !toBigNumber(get).isFinite()) return undefined;
+  if (isLessThanOrEqualTo(give, 0)) return undefined;
 
-  const rate = getAmount.dividedBy(giveAmount);
-  return `1 ${n(m.giveAsset)} = ${rate.decimalPlaces(8).toFormat()} ${n(m.getAsset)}`;
+  return `1 ${n(m.giveAsset)} = ${toGroupedString(divide(get, give))} ${n(m.getAsset)}`;
 }
 
 /**
@@ -358,12 +363,10 @@ function dispensesAvailable(m: DescribableMessage): string | undefined {
   const give = m.numeric?.(m.giveQuantity, m.asset);
   if (escrow === undefined || give === undefined) return undefined;
 
-  const perTrigger = toBigNumber(give);
-  if (!perTrigger.isFinite() || perTrigger.isLessThanOrEqualTo(0)) return undefined;
-  const escrowed = toBigNumber(escrow);
-  if (!escrowed.isFinite()) return undefined;
+  if (!toBigNumber(give).isFinite() || isLessThanOrEqualTo(give, 0)) return undefined;
+  if (!toBigNumber(escrow).isFinite()) return undefined;
 
-  return escrowed.dividedBy(perTrigger).integerValue(BigNumber.ROUND_FLOOR).toFormat();
+  return toGroupedString(roundDown(divide(escrow, give)), 0);
 }
 
 /** What a sweep carries, from its flags - balances, ownership, or both. */
@@ -380,15 +383,15 @@ function shareOfSupply(m: DescribableMessage, supply?: string): string | undefin
   const destroyed = m.numeric?.(m.quantity, m.asset);
   if (destroyed === undefined) return undefined;
 
-  const total = toBigNumber(supply.replace(/,/g, ''));
-  const amount = toBigNumber(destroyed);
-  if (!total.isFinite() || !amount.isFinite() || total.isLessThanOrEqualTo(0)) return undefined;
+  const total = supply.replace(/,/g, '');
+  if (!toBigNumber(total).isFinite() || !toBigNumber(destroyed).isFinite()) return undefined;
+  if (isLessThanOrEqualTo(total, 0)) return undefined;
 
-  const pct = amount.dividedBy(total).times(100);
+  const pct = multiply(divide(destroyed, total), 100);
   // Nothing can destroy more than the supply. A figure above 100% means the two sides are in
   // different units, and printing it would be stating a number we have just shown to be wrong.
-  if (pct.isGreaterThan(100)) return undefined;
-  return pct.isLessThan(0.01) ? '<0.01%' : `${pct.toFixed(2)}%`;
+  if (isGreaterThan(pct, 100)) return undefined;
+  return isLessThan(pct, 0.01) ? '<0.01%' : `${pct.toFixed(2)}%`;
 }
 
 export function protocolFields(

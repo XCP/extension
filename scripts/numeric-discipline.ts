@@ -39,6 +39,20 @@ const EXEMPT = [
   'src/core/bitcoin/feeEstimation.ts',
 ];
 
+/**
+ * Importing bignumber.js directly.
+ *
+ * numeric.ts re-exports BigNumber, so a direct import is a call site that has stepped outside the
+ * layer — and every one of them has, at some point, gone on to use a constructor or static that
+ * numeric has a wrapper for. Unlike the count below this is held at zero, because there is no
+ * legacy to work off.
+ */
+const DIRECT_IMPORT = /from ['"]bignumber\.js['"]/;
+
+export function importsBigNumberDirectly(source: string): boolean {
+  return DIRECT_IMPORT.test(source);
+}
+
 export function violationsIn(source: string): number {
   let count = 0;
   for (const line of source.split('\n')) {
@@ -64,6 +78,14 @@ function scan(): Record<string, number> {
     if (n > 0) counts[file] = n;
   }
   return counts;
+}
+
+function directImporters(): string[] {
+  return globSync('src/**/*.{ts,tsx}', { cwd: process.cwd() })
+    .map((f) => f.replace(/\\/g, '/'))
+    .filter((f) => !f.includes('__tests__') && !f.includes('.test.'))
+    .filter((f) => f !== 'src/core/numeric.ts')
+    .filter((f) => importsBigNumberDirectly(readFileSync(f, 'utf8')));
 }
 
 const current = scan();
@@ -92,6 +114,14 @@ try {
   baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf8'));
 } catch {
   console.error('No baseline. Run with --update to record one.');
+  process.exit(1);
+}
+
+const direct = directImporters();
+if (direct.length > 0) {
+  console.error('bignumber.js imported directly instead of through @/core/numeric:\n');
+  for (const f of direct) console.error(`  ${f}`);
+  console.error('\nnumeric.ts re-exports BigNumber and wraps every operation it needs.');
   process.exit(1);
 }
 

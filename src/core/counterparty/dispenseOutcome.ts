@@ -17,8 +17,16 @@
  * fixed-rate formula.
  */
 
-import BigNumber from 'bignumber.js';
 import { fetchAddressDispensers } from '@/core/counterparty/api';
+import {
+  divide,
+  isGreaterThan,
+  isLessThan,
+  isLessThanOrEqualToZero,
+  minimum,
+  multiply,
+  roundDown,
+} from '@/core/numeric';
 
 /** Open (0) and open-with-empty-address (11) — the statuses core dispenses from. */
 const DISPENSABLE_STATUSES = new Set([0, 11]);
@@ -65,8 +73,8 @@ export async function resolveDispensersAt(
   const open = dispensers.filter(
     (d) =>
       DISPENSABLE_STATUSES.has(d.status) &&
-      new BigNumber(String(d.satoshirate)).isGreaterThan(0) &&
-      new BigNumber(String(d.give_quantity)).isGreaterThan(0)
+      isGreaterThan(String(d.satoshirate), 0) &&
+      isGreaterThan(String(d.give_quantity), 0)
   );
 
   // Core processes them in asset order, and pays from each in turn.
@@ -81,16 +89,11 @@ export async function resolveDispensersAt(
       continue;
     }
 
-    const giveQuantity = new BigNumber(String(d.give_quantity));
-    const mustGive = new BigNumber(satoshis)
-      .dividedBy(String(d.satoshirate))
-      .integerValue(BigNumber.ROUND_FLOOR);
-    const remaining = new BigNumber(String(d.give_remaining))
-      .dividedBy(giveQuantity)
-      .integerValue(BigNumber.ROUND_FLOOR);
-    const lots = BigNumber.min(mustGive, remaining);
+    const mustGive = roundDown(divide(satoshis, String(d.satoshirate)));
+    const remaining = roundDown(divide(String(d.give_remaining), String(d.give_quantity)));
+    const lots = minimum(mustGive, remaining);
 
-    if (lots.isLessThanOrEqualTo(0)) continue;
+    if (isLessThanOrEqualToZero(lots)) continue;
 
     // The API's normalized figure carries the asset's divisibility, which the raw quantity does
     // not; scaling the lot count by it keeps this out of the 1e8 guessing business.
@@ -98,10 +101,10 @@ export async function resolveDispensersAt(
     payouts.push({
       asset: name,
       ...(perLot !== undefined && perLot !== null
-        ? { quantity: lots.multipliedBy(String(perLot)).toFixed() }
+        ? { quantity: multiply(lots, String(perLot)).toFixed() }
         : {}),
       oraclePriced: false,
-      partiallyFilled: remaining.isLessThan(mustGive),
+      partiallyFilled: isLessThan(remaining, mustGive),
     });
   }
 
