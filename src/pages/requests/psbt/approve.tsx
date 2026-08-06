@@ -143,9 +143,7 @@ export default function ApprovePsbtPage() {
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
-  // Shared with the raw-transaction approval screen so the two cannot drift; see
-  // `shouldBlockSigning`. This screen used to omit the repack clause, which meant a payload we had
-  // proved we read completely could still be blocked here by an untrusted decode API.
+  // Shared with the raw-transaction approval screen so the two cannot drift.
   const blockSigning = shouldBlockSigning({
     safetyBlocked,
     verificationPassed,

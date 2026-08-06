@@ -141,7 +141,7 @@ export default function ApproveTransactionPage() {
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
-  // Shared with the PSBT approval screen so the two cannot drift; see `shouldBlockSigning`.
+  // Shared with the PSBT approval screen so the two cannot drift.
   const blockSigning = shouldBlockSigning({
     safetyBlocked,
     verificationPassed,

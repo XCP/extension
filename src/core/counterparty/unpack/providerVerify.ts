@@ -79,18 +79,13 @@ export interface SigningDecisionInput {
 }
 
 /**
- * Whether the approval screen must refuse to sign.
+ * Whether the approval screen must refuse to sign. Shared by both approval screens, which had
+ * drifted apart when written out separately.
  *
- * A pure function with one caller-visible rule, rather than the same expression written out on each
- * approval screen: they had already drifted apart, with the PSBT screen missing the repack clause
- * and so blocking transactions the raw-transaction screen allowed. The truth table is small enough
- * to test exhaustively, which is the point of keeping it here.
- *
- * A safety block is absolute. A verification failure only blocks in strict mode, and only when the
- * rebuild has not already proved our reading of the payload complete: past that point a
- * disagreement is the decode API's to explain, and under ADR-019 that endpoint is untrusted and
- * user-configurable, so letting it veto a signature would hand an untrusted party a way to block
- * transactions that are demonstrably fine.
+ * A safety block is absolute. A verification failure blocks only in strict mode, and only while the
+ * rebuild has not proved our reading of the payload complete — past that point a disagreement is the
+ * decode API's to explain, and ADR-019 treats that endpoint as untrusted and user-configurable, so
+ * letting it veto a signature would hand an untrusted party a way to block sound transactions.
  */
 export function shouldBlockSigning(input: SigningDecisionInput): boolean {
   if (input.safetyBlocked) return true;

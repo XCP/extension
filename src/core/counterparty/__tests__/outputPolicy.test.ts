@@ -294,6 +294,24 @@ describe('checkOutputPolicy, where the destination is read from output order', (
     expect(result.ok).toBe(false);
   });
 
+  it('does not apply to a transaction with no data output', () => {
+    // A taproot-encoded issuance commits its message to a P2TR output rather than an OP_RETURN, and
+    // `composeIssuance` accepts `inscription` and `transfer_destination` together. With no data
+    // output there is no boundary to be positioned against, and treating every output as preceding
+    // would reject a legitimate compose.
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        { address: RECIPIENT, value: 546n },
+        { address: OWNER, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   it('leaves transactions with no positional destination alone', () => {
     // An enhanced send carries its recipient in the payload, so output order says nothing about it
     // and change ahead of the data output is merely unusual, not a substitution.

@@ -103,17 +103,12 @@ export function pinnedQuantity(quantity: unknown): number | undefined {
 }
 
 /**
- * The output whose BTC amount the request determines, for the compose types that have one.
+ * The output whose BTC amount the request determines, for the two compose types that have one. A
+ * dispense pays the dispenser in BTC and gets back whatever that buys, and its message is a bare
+ * marker byte, so byte equality says nothing about the amount; a BTC send carries no message at all.
  *
- * Naming an address is not the same as agreeing to an amount, and for these two the amount is the
- * substance of the transaction. A dispense pays the dispenser in BTC and gets back whatever that
- * buys — core's `dispense.compose` returns `[(destination, quantity)]`, while the message itself is
- * a bare marker byte, so byte equality says nothing about it. A BTC send carries no message at all,
- * so the amount is the only thing there is to check.
- *
- * Nothing else pins one: elsewhere the composer chooses the amount (a dust marker, or no output at
- * all) and pinning a value would reject honest transactions. Burns pin theirs at the call site,
- * where the protocol's own address is supplied alongside it.
+ * Nothing else pins one — elsewhere the composer chooses the amount (a dust marker, or no output at
+ * all) and a pin would reject honest transactions. Burns pin theirs at the call site.
  */
 export function pinnedDestination(
   composeType: string,
@@ -134,27 +129,22 @@ function isDataOutput(script: Uint8Array, scriptHex: string): boolean {
 }
 
 /**
- * Some messages name no destination at all: the node reads it from *where an output sits*. It takes
- * every non-data output ahead of the first data output and joins them —
- * `destinations = "-".join(destinations)` in `parser/gettxinfo.py` — and an issuance then assigns
- * `issuer = tx["destination"]`. So a second output ahead of the data output does not merely add a
- * payment: it changes the recipient into the string `"addressA-addressB"`, which nobody holds a key
- * to. An ownership transfer composed that way destroys the asset rather than transferring it.
+ * Some messages name no destination: the node joins every non-data output ahead of the first data
+ * output — `destinations = "-".join(destinations)` in `parser/gettxinfo.py` — and an issuance then
+ * assigns `issuer = tx["destination"]`. A second output in front therefore changes the recipient to
+ * `"addressA-addressB"`, which nobody holds a key to, destroying an ownership transfer rather than
+ * misdirecting it. Byte equality cannot see it (the message carries no destination) and accounting
+ * cannot either (each output is individually explainable), so position is checked here.
  *
- * Neither of the other checks sees this. The message carries no destination, so byte equality
- * passes; each output is individually explainable, so accounting passes. Only the *position* is
- * wrong, so position is what this checks: exactly one non-data output ahead of the data output,
- * paying the address the request named.
- *
- * Every honest compose satisfies this. Core assembles outputs as destinations, then data, then
- * `more_outputs`, then change (`api/composer.py`), so the destination is always alone in front and
- * change is always behind — which is also why `more_outputs` entries are not destinations and are
- * not counted here.
+ * Core emits destinations, then data, then `more_outputs`, then change (`api/composer.py`), so every
+ * honest compose puts the destination alone in front — and `more_outputs` entries, sitting behind
+ * the data output, are correctly not counted as destinations.
  *
  * @returns An error message, or null when the arrangement is right.
  */
 function checkPositionalDestination(tx: Transaction, expected: string): string | null {
   const preceding: Array<{ address: string | null; value: number }> = [];
+  let foundDataOutput = false;
 
   for (let index = 0; index < tx.outputsLength; index += 1) {
     const output = tx.getOutput(index);
@@ -162,12 +152,20 @@ function checkPositionalDestination(tx: Transaction, expected: string): string |
     if (!script) continue;
     const scriptHex = bytesToHex(script);
     // Everything before the *first* data output is what the node reads as the destination.
-    if (isDataOutput(script, scriptHex)) break;
+    if (isDataOutput(script, scriptHex)) {
+      foundDataOutput = true;
+      break;
+    }
     preceding.push({
       address: decodeAddressFromScript(scriptHex),
       value: Number(output?.amount ?? 0n),
     });
   }
+
+  // A taproot-encoded message lives in a commit output's envelope rather than an OP_RETURN, so
+  // there is no boundary to be positioned against and every output would read as preceding. The
+  // envelope is verified in its own right (`inscriptionEnvelope.ts`).
+  if (!foundDataOutput) return null;
 
   const wanted = normalizeAddressForComparison(expected);
 

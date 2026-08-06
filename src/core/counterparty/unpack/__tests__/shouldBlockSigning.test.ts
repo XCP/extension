@@ -1,11 +1,9 @@
 /**
  * The signing decision, enumerated.
  *
- * Both approval screens ask this one question, and they had already answered it differently: the
- * PSBT screen omitted the repack clause, so a payload the wallet had proved it read completely
- * could still be blocked there by a decode API that ADR-019 treats as untrusted. Every input
- * combination is written out below with its answer stated rather than computed, so that drift
- * cannot happen quietly again — changing the rule means changing these expectations on purpose.
+ * Both approval screens ask this one question and had answered it differently while each wrote it
+ * out itself. Every input combination is listed with its answer stated rather than computed, so
+ * changing the rule means changing these expectations on purpose.
  */
 
 import { describe, expect, it } from 'vitest';

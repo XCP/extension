@@ -71,13 +71,11 @@ function opReturnScript(payload: Uint8Array, txid: string): string {
 }
 
 describe('a message split across encodings is read whole', () => {
-  // A node accumulates across every data output, whatever its encoding and wherever it sits:
-  // counterparty-rs's vout loop appends each `ParseOutput::Data` in output order. Reading only the
-  // first data output would leave the rest of the message unexamined.
+  // A node appends each data output's payload in output order, whatever its encoding.
 
   it('takes the message type from a multisig chunk placed ahead of the OP_RETURN', () => {
-    // The substitution this prevents: an honest-looking enhanced send in the OP_RETURN, with a
-    // sweep sitting in front of it supplying the type byte the node actually acts on.
+    // An honest-looking enhanced send in the OP_RETURN, with a sweep in front supplying the type
+    // byte the node acts on.
     const sweep = sweepMessage();
     const enhancedSend = new Uint8Array([0x02, 0xcc, 0xdd]);
     const scripts = [
@@ -92,8 +90,7 @@ describe('a message split across encodings is read whole', () => {
   });
 
   it('appends a second Counterparty OP_RETURN to the first', () => {
-    // Both decrypt to the prefix, so a node takes both; neither is an "invalid OP_RETURN" it would
-    // refuse the transaction over.
+    // Both decrypt to the prefix, so a node takes both.
     const first = new Uint8Array([0x02, 0x11, 0x22]);
     const second = new Uint8Array([0x33, 0x44]);
 

@@ -424,11 +424,7 @@ export function ComposerProvider<T>({
             intendedDestinations.push({ address, value: pinnedQuantity(dataForApi.quantity) });
           }
         }
-        // Where a request pins how much BTC an output pays, pin it here too. Naming an address is
-        // not the same as agreeing to an amount: a dispense pays the dispenser in BTC and that
-        // amount *is* the transaction (core's dispense compose returns `[(destination, quantity)]`,
-        // and the message itself is a bare marker byte), while a BTC send carries no message at all,
-        // so the amount is the only thing there is to check.
+        // Naming an address is not the same as agreeing to an amount paid to it.
         const pinned = pinnedDestination(composeType, dataForApi);
         if (pinned) {
           const entry = intendedDestinations.find(d => d.address === pinned.address);
@@ -440,9 +436,8 @@ export function ComposerProvider<T>({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
           intendedDestinations,
-          // An ownership transfer names its new owner nowhere in the message; the node reads it from
-          // the output ahead of the data output, joining several into one unspendable pseudo-address
-          // if a response puts them there.
+          // An ownership transfer names its new owner nowhere in the message; the node reads it
+          // from the output ahead of the data output.
           positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'
             && dataForApi.transfer_destination
             ? dataForApi.transfer_destination

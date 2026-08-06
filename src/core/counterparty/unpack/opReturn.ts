@@ -83,14 +83,11 @@ export function decryptOpReturnData(
  * decoding, so every caller (composer verification and both dapp sign-request paths) reads exactly
  * the message counterparty-core would.
  *
- * **Every data output contributes, in output order, whatever its encoding.** A node accumulates
- * across all of them — `data.append(&mut new_data)` for each `ParseOutput::Data`, in
- * counterparty-rs's vout loop — so an OP_RETURN and a bare-multisig output in the same transaction
- * form one message, and so do two OP_RETURNs. Reading only the first data output would leave the
- * rest of the message unexamined: a chunk placed *ahead* of an honest OP_RETURN supplies the
- * message type, so the wallet would verify and display an enhanced send while the network executed
- * the sweep sitting in front of it. Concatenating instead means whatever the network will run is
- * what byte-equality verification gets to compare against.
+ * Every data output contributes, in output order, whatever its encoding — a node appends each
+ * `ParseOutput::Data` in counterparty-rs's vout loop, so two OP_RETURNs, or an OP_RETURN and a
+ * bare-multisig output, form one message. Stopping at the first data output would read a different
+ * message from the one that executes: a chunk placed ahead of an honest OP_RETURN supplies the
+ * message type.
  *
  * OP_RETURN is only ever ARC4-decrypted — never read as plaintext. Core does the same, so a
  * plaintext CNTRPRTY OP_RETURN is garbage to the node, which then parses a multisig-encoded
@@ -117,13 +114,10 @@ export function extractPayloadFromOutputs(
     // ARC4-decrypt to the CNTRPRTY prefix, so a plaintext decoy is correctly ignored.
     const opReturn = decryptOpReturnData(scriptHex, firstInputTxid);
     if (opReturn) {
-      // Core strips the prefix from each data output and appends the remainder, so the prefix
-      // appears once at the front of the assembled message rather than between the pieces.
+      // Each data output carries its own prefix; the assembled message keeps one, at the front.
       payload += opReturn.slice(COUNTERPARTY_PREFIX_HEX.length);
       continue;
     }
-    // The same message may travel in bare-multisig outputs, which carry no OP_RETURN. Each is
-    // chunked and prefixed independently, and every one of them counts wherever it sits.
     payload += decodeMultisigChunk(scriptHex, firstInputTxid) ?? '';
   }
 
