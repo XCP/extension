@@ -19,8 +19,8 @@
  */
 
 import {
-  divide,
   type DisplayUnits,
+  divide,
   isGreaterThan,
   isLessThan,
   isLessThanOrEqualTo,
