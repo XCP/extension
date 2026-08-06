@@ -354,8 +354,13 @@ function priceOf(m: DescribableMessage, n: (asset?: string) => string): string |
   return `1 ${n(m.giveAsset)} = ${rate.decimalPlaces(8).toFormat()} ${n(m.getAsset)}`;
 }
 
-/** How many times a dispenser can still pay out, from what it holds and what it gives. */
-function triggersAvailable(m: DescribableMessage): string | undefined {
+/**
+ * How many dispenses a dispenser can still pay out, from what it holds and what it gives.
+ *
+ * "Dispenses" rather than "triggers" only because the compose flow already counts them that way
+ * ("# of Dispenses"); the act itself is still called triggering a dispenser.
+ */
+function dispensesAvailable(m: DescribableMessage): string | undefined {
   const escrow = m.numeric?.(m.escrowQuantity, m.asset);
   const give = m.numeric?.(m.giveQuantity, m.asset);
   if (escrow === undefined || give === undefined) return undefined;
@@ -455,7 +460,7 @@ export function protocolFields(
       // describe the opening case only.
       if (m.dispenserStatus !== DISPENSER_STATUS_CLOSED) {
         add('Escrow', amount(m.escrowQuantity, m.asset));
-        add('Triggers', triggersAvailable(m));
+        add('Dispenses', dispensesAvailable(m));
       }
       break;
 

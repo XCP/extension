@@ -5,6 +5,7 @@ import {ApprovalExpired, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
+import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
@@ -112,7 +113,11 @@ export default function ApprovePsbtPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
-  const txAction = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
+  // The same card the raw-transaction screen shows. A PSBT carrying an order used to fall through
+  // to the generic headline-and-details rendering, so one message had two appearances depending on
+  // which method the site called.
+  const order = buildOrderAction(decodedInfo);
+  const txAction = order ? null : getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
   // Warn on the fee *rate* as well as its absolute size: a fee under the absolute ceiling can still
   // be absurd on a small transaction, and that case previously drew no warning at all. It warns
@@ -340,6 +345,7 @@ export default function ApprovePsbtPage() {
           <ApprovalSummaryCard
             unfunded={psbtDetails.unfunded}
             txAction={txAction}
+            order={order}
             movement={movement}
             flexible={userSignsWithAnyoneCanPay}
             hasHighFee={hasHighFee}

@@ -6,6 +6,7 @@ import {ApprovalExpired, ApprovalFooter,
 import { splitTrailingAddress } from '@/components/domain/approval/approval-summary-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
+import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { FiArrowDown } from '@/components/icons';
@@ -30,109 +31,19 @@ import { getWalletService } from '@/services/walletService';
 
 /**
  * Structured data for per-type visual renderers.
- * Currently only 'order' has a visual card; all other types fall back to flat text.
+ *
+ * `order` has a card of its own — see order-card.tsx, which both approval screens use so the same
+ * message does not render two different ways depending on which method the site called.
  */
 type TxActionData =
-  | {
-      type: 'order';
-      giveAmount: string;
-      giveAsset: string;
-      getAmount: string;
-      getAsset: string;
-      /**
-       * Give/get quantities in display units, for the price ratio — or null when divisibility
-       * could not be established for both assets, in which case no ratio is shown. A ratio of raw
-       * base units is wrong by 1e8 for a mixed-divisibility pair, and silently right for a
-       * matched one, which is what hid it.
-       */
-      normalizedGive: number | null;
-      normalizedGet: number | null;
-      expiration: number;
-    }
+  | { type: 'order'; order: OrderAction }
   | { type: 'fallback'; label: string; description: string; protocol: ProtocolField[] }
   | null;
 
-/**
- * Extract structured action data for visual rendering.
- * Returns typed discriminated union per message type.
- */
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
-  // --- Try API message first (for 'order') ---
-  if (decodedInfo.counterpartyMessage) {
-    const { messageType, messageData } = decodedInfo.counterpartyMessage;
+  const order = buildOrderAction(decodedInfo);
+  if (order) return { type: 'order', order };
 
-    if (messageType === 'order') {
-      const giveAssetRaw = String(messageData.give_asset ?? '');
-      const getAssetRaw = String(messageData.get_asset ?? '');
-      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAssetRaw, messageData, 'give_asset');
-      const getAmount = normalizeQuantity(messageData.get_quantity, getAssetRaw, messageData, 'get_asset');
-
-      // Prefer asset_longname (subasset display name) over numeric ID
-      const giveInfo = messageData.give_asset_info as { asset_longname?: string | null } | undefined;
-      const getInfo = messageData.get_asset_info as { asset_longname?: string | null } | undefined;
-      const giveAsset = giveInfo?.asset_longname || giveAssetRaw;
-      const getAsset = getInfo?.asset_longname || getAssetRaw;
-
-      const rawGive = Number(messageData.give_quantity);
-      const rawGet = Number(messageData.get_quantity);
-      const giveDivisor = isAssetDivisible(giveAssetRaw, messageData, 'give_asset') ? 1e8 : 1;
-      const getDivisor = isAssetDivisible(getAssetRaw, messageData, 'get_asset') ? 1e8 : 1;
-
-      return {
-        type: 'order',
-        giveAmount,
-        giveAsset,
-        getAmount,
-        getAsset,
-        normalizedGive: rawGive / giveDivisor,
-        normalizedGet: rawGet / getDivisor,
-        expiration: Number(messageData.expiration ?? 0),
-      };
-    }
-  }
-
-  // --- Try local unpack (for 'order') ---
-  const unpack = decodedInfo.verification?.localUnpack;
-  if (unpack?.success && unpack.messageType === 'order' && unpack.data) {
-    const data = unpack.data as {
-      giveAsset: string;
-      giveQuantity: bigint;
-      getAsset: string;
-      getQuantity: bigint;
-      expiration: number;
-    };
-
-    const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
-    const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
-
-    /** 1e8 for a known-divisible asset, 1 for a known-indivisible one, null when unknown. */
-    const divisorFor = (asset: string): number | null => {
-      const divisible = isAssetDivisible(asset);
-      return divisible === undefined ? null : divisible ? 1e8 : 1;
-    };
-    const localGiveDivisor = divisorFor(data.giveAsset);
-    const localGetDivisor = divisorFor(data.getAsset);
-
-    return {
-      type: 'order',
-      giveAmount,
-      giveAsset: data.giveAsset,
-      getAmount,
-      getAsset: data.getAsset,
-      // Divisibility is not available on this path — the local unpack carries asset names, not
-      // asset_info — so it can only be established for BTC and XCP. Rather than dividing by a
-      // guess, the ratio is withheld unless both sides are known.
-      normalizedGive: localGiveDivisor === null
-        ? null
-        : Number(data.giveQuantity) / localGiveDivisor,
-      normalizedGet: localGetDivisor === null
-        ? null
-        : Number(data.getQuantity) / localGetDivisor,
-      expiration: data.expiration,
-    };
-  }
-
-  // --- Fallback: use existing flat text ---
   const info = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   if (info) {
     return { type: 'fallback', label: info.label, description: info.description, protocol: info.protocol };
@@ -352,56 +263,7 @@ export default function ApproveTransactionPage() {
           {/* Transaction action & fee */}
           <div className="bg-white rounded-lg shadow-sm p-5">
             {txAction?.type === 'order' ? (
-              /* Order — Uniswap-style swap card */
-              <div className="mb-3">
-                {/* Give box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You give</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.giveAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.giveAsset}</span>
-                  </p>
-                </div>
-
-                {/* Arrow + price between boxes */}
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <div className="bg-white border border-gray-200 rounded-full p-1">
-                    <FiArrowDown className="size-3.5 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPriceFlipped(f => !f)}
-                    className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
-                    title="Click to flip price"
-                  >
-                    {txAction.normalizedGive === null || txAction.normalizedGet === null
-                      ? 'Price unavailable'
-                      : formatPriceRatio(
-                          txAction.normalizedGive,
-                          txAction.normalizedGet,
-                          txAction.giveAsset,
-                          txAction.getAsset,
-                          priceFlipped,
-                        )}
-                  </button>
-                </div>
-
-                {/* Get box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You receive</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.getAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.getAsset}</span>
-                  </p>
-                </div>
-
-                {/* Expiration */}
-                <p className="text-xs text-gray-400 text-center mt-2">
-                  {txAction.expiration === 0
-                    ? 'Never expires'
-                    : `Expires in ${txAction.expiration.toLocaleString()} blocks`}
-                </p>
-              </div>
+              <OrderCard order={txAction.order} />
             ) : txAction?.type === 'fallback' ? (
               /* Counterparty action — flat label + description */
               <div className="text-center mb-3">

@@ -1,5 +1,6 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
+import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -24,6 +25,11 @@ export function splitTrailingAddress(description: string): { sentence: string; a
 interface ApprovalSummaryCardProps {
   /** Decoded Counterparty action, if any — the "what kind" headline. */
   txAction: { label: string; description: string } | null;
+  /**
+   * A DEX order, which gets a card of its own instead of the label-and-sentence treatment: a trade
+   * is two amounts that only mean something as a pair. Takes precedence over txAction.
+   */
+  order?: OrderAction | null;
   /** Structural net effect on the signer's wallet. */
   movement: MoneyMovement;
   /** ANYONECANPAY — the movement can change after signing. */
@@ -44,6 +50,7 @@ interface ApprovalSummaryCardProps {
  */
 export function ApprovalSummaryCard({
   txAction,
+  order,
   movement,
   flexible,
   hasHighFee,
@@ -52,7 +59,7 @@ export function ApprovalSummaryCard({
 }: ApprovalSummaryCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-5">
-      {txAction && (
+      {order ? <OrderCard order={order} /> : txAction && (
         <div className="text-center mb-3">
           <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
           {(() => {
@@ -70,7 +77,7 @@ export function ApprovalSummaryCard({
           })()}
         </div>
       )}
-      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction} />
+      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction && !order} />
       {protocolFeeXcp != null && protocolFeeXcp > 0 && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>
