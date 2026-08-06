@@ -145,7 +145,9 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
     // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
     // for a multi-destination send that panel is the only place the payees appear at all.
-    const details = approval.getByText(/transaction details/i);
+    // Exact match: warning copy also mentions 'the transaction details', which makes a loose
+    // locator ambiguous on any screen that carries one.
+    const details = approval.getByText(/^Transaction Details$/);
     await expect(details).toBeVisible({ timeout: 30_000 });
     await details.click();
     await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });

@@ -1,6 +1,6 @@
+import { type DescribableMessage, describeMessage, labelFor } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
-import { type DescribableMessage, describeMessage, labelFor } from '@/core/counterparty/describe';
 import { fromSatoshis } from '@/core/numeric';
 
 /**

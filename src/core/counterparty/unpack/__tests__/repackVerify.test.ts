@@ -42,6 +42,13 @@ describe('proveByRepack', () => {
       'issuance-numeric': 'proved',
       'fairminter-xcp69': 'proved',
       broadcast: 'proved',
+      attach: 'proved',
+      detach: 'proved',
+      'utxo-move': 'proved',
+      btcpay: 'proved',
+      dispenser: 'proved',
+      'pool-deposit': 'proved',
+      'pool-withdraw': 'proved',
     });
   });
 

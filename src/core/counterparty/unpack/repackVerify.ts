@@ -32,9 +32,12 @@
 
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
+import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
 import type { BroadcastData } from '@/core/counterparty/unpack/messages/broadcast';
+import type { BTCPayData } from '@/core/counterparty/unpack/messages/btcpay';
 import type { CancelData } from '@/core/counterparty/unpack/messages/cancel';
 import type { DestroyData } from '@/core/counterparty/unpack/messages/destroy';
+import type { DispenserData } from '@/core/counterparty/unpack/messages/dispenser';
 import type { DividendData } from '@/core/counterparty/unpack/messages/dividend';
 import type { EnhancedSendData } from '@/core/counterparty/unpack/messages/enhancedSend';
 import type { FairmintData } from '@/core/counterparty/unpack/messages/fairmint';
@@ -42,6 +45,7 @@ import type { FairminterData } from '@/core/counterparty/unpack/messages/fairmin
 import type { IssuanceData } from '@/core/counterparty/unpack/messages/issuance';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import type { OrderData } from '@/core/counterparty/unpack/messages/order';
+import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
 
 /** Why a decode could not be proved complete. Never surfaced as an accusation. */
@@ -218,6 +222,88 @@ function paramsFor(messageType: string, data: unknown): { composeType: string; p
           fee_fraction: broadcast.feeFractionInt / 1e8,
           timestamp: broadcast.timestamp,
           ...(broadcast.mimeType ? { mime_type: broadcast.mimeType } : {}),
+        },
+      };
+    }
+
+    case 'attach': {
+      const attach = data as AttachData;
+      return {
+        composeType: 'attach',
+        params: {
+          asset: attach.asset,
+          quantity: attach.quantity,
+          ...(attach.destinationVout !== undefined ? { destination_vout: attach.destinationVout } : {}),
+        },
+      };
+    }
+
+    case 'detach': {
+      const detach = data as DetachData;
+      return { composeType: 'detach', params: { destination: detach.destination } };
+    }
+
+    case 'utxo':
+    case 'utxo_move': {
+      const move = data as MoveData;
+      return {
+        composeType: 'utxo',
+        params: {
+          source: move.source,
+          destination: move.destination,
+          asset: move.asset,
+          quantity: move.quantity,
+        },
+      };
+    }
+
+    case 'btcpay': {
+      const btcpay = data as BTCPayData;
+      // Core writes the two order-match hashes; the id is their "_"-joined form.
+      if (!btcpay.tx0Hash || !btcpay.tx1Hash) return null;
+      return {
+        composeType: 'btcpay',
+        params: { order_match_id: `${btcpay.tx0Hash}_${btcpay.tx1Hash}` },
+      };
+    }
+
+    case 'dispenser': {
+      const dispenser = data as DispenserData;
+      return {
+        composeType: 'dispenser',
+        params: {
+          asset: dispenser.asset,
+          give_quantity: dispenser.giveQuantity,
+          escrow_quantity: dispenser.escrowQuantity,
+          mainchainrate: dispenser.mainchainrate,
+          status: dispenser.status,
+          ...(dispenser.openAddress ? { open_address: dispenser.openAddress } : {}),
+          ...(dispenser.oracleAddress ? { oracle_address: dispenser.oracleAddress } : {}),
+        },
+      };
+    }
+
+    case 'pooldeposit': {
+      const pool = data as PoolDepositData;
+      return {
+        composeType: 'pooldeposit',
+        params: {
+          asset_a: pool.assetA, asset_b: pool.assetB,
+          quantity_a: pool.quantityA, quantity_b: pool.quantityB,
+          min_lp_quantity: pool.minLpQuantity,
+          ...(pool.lpAsset ? { lp_asset: pool.lpAsset } : {}),
+        },
+      };
+    }
+
+    case 'poolwithdraw': {
+      const pool = data as PoolWithdrawData;
+      return {
+        composeType: 'poolwithdraw',
+        params: {
+          asset_a: pool.assetA, asset_b: pool.assetB,
+          quantity: pool.quantity,
+          min_quantity_a: pool.minQuantityA, min_quantity_b: pool.minQuantityB,
         },
       };
     }

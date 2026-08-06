@@ -21,7 +21,9 @@ import { COUNTERPARTY_PREFIX_HEX, MessageTypeId } from '@/core/counterparty/unpa
 /** The message types this module can construct. */
 export type PackableComposeType =
   | 'send' | 'issuance' | 'sweep' | 'destroy' | 'cancel' | 'order'
-  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast' | 'mpma';
+  | 'dividend' | 'fairmint' | 'fairminter' | 'dispense' | 'broadcast' | 'mpma'
+  | 'attach' | 'detach' | 'utxo' | 'move' | 'btcpay' | 'dispenser'
+  | 'pooldeposit' | 'poolwithdraw';
 
 /**
  * Not every message is CBOR. The taproot_support upgrade moved enhanced send, issuance, sweep,
@@ -801,6 +803,159 @@ function packSendAsMpma(params: Params): PackedMessage | null {
  *
  * A null return means "cannot verify by equality" — never "verified".
  */
+
+/**
+ * Pipe-delimited body, the form core uses for the UTXO family.
+ *
+ * `"|".join(str(v) for v in [...])` in core, UTF-8 encoded, with a value that is None written as
+ * the empty string. No length prefixes — the field count is fixed per type and core tuple-unpacks
+ * it, so an extra or missing field voids the message.
+ */
+function packPipeDelimited(messageTypeId: number, fields: Array<string | number | bigint>): PackedMessage {
+  const body = new TextEncoder().encode(fields.map((f) => String(f)).join('|'));
+  return withPrefix(messageTypeId, body);
+}
+
+/** attach: `asset|quantity|destination_vout` (attach.py). An absent vout is the empty string. */
+function packAttach(params: Params): PackedMessage | null {
+  const asset = requireString(params, 'asset');
+  const quantity = requireQuantity(params, 'quantity');
+  if (!asset || quantity === null) return null;
+
+  const vout = params.destination_vout;
+  const voutText = vout === undefined || vout === null || vout === '' ? '' : String(vout);
+  return packPipeDelimited(MessageTypeId.UTXO_ATTACH, [asset, quantity, voutText]);
+}
+
+/**
+ * detach: the destination address alone, or the single byte "0" when none is given.
+ *
+ * Core writes b"0" rather than an empty body specifically to avoid a protocol change in
+ * `messagetype.unpack()` (detach.py), so the empty case is that literal, not an empty string.
+ */
+function packDetach(params: Params): PackedMessage | null {
+  const destination = typeof params.destination === 'string' ? params.destination : '';
+  return withPrefix(
+    MessageTypeId.UTXO_DETACH,
+    new TextEncoder().encode(destination === '' ? '0' : destination)
+  );
+}
+
+/** utxo move: `source|destination|asset|quantity` (utxo.py). */
+function packUtxoMove(params: Params): PackedMessage | null {
+  const source = requireString(params, 'source');
+  const asset = requireString(params, 'asset');
+  const quantity = requireQuantity(params, 'quantity');
+  if (!source || !asset || quantity === null) return null;
+
+  const destination = typeof params.destination === 'string' ? params.destination : '';
+  return packPipeDelimited(MessageTypeId.UTXO, [source, destination, asset, quantity]);
+}
+
+/** btcpay: `">32s32s"` — the two transaction hashes of the order match (btcpay.py). */
+function packBtcPay(params: Params): PackedMessage | null {
+  const id = requireString(params, 'order_match_id');
+  if (!id) return null;
+
+  // Core splits the id on "_" into two 32-byte hashes.
+  const [tx0, tx1] = id.split('_');
+  if (!tx0 || !tx1) return null;
+  if (!/^[0-9a-fA-F]{64}$/.test(tx0) || !/^[0-9a-fA-F]{64}$/.test(tx1)) return null;
+  const a = hexToBytes(tx0.toLowerCase());
+  const b = hexToBytes(tx1.toLowerCase());
+
+  return withPrefix(MessageTypeId.BTC_PAY, new Uint8Array([...a, ...b]));
+}
+
+/**
+ * dispenser: `">QQQQB"` — asset_id, give_quantity, escrow_quantity, mainchainrate, status —
+ * optionally followed by a 21-byte action address and a 21-byte oracle address (dispenser.py).
+ */
+function packDispenser(params: Params): PackedMessage | null {
+  const asset = requireString(params, 'asset');
+  const give = requireQuantity(params, 'give_quantity');
+  const escrow = requireQuantity(params, 'escrow_quantity');
+  const rate = requireQuantity(params, 'mainchainrate');
+  const status = requireQuantity(params, 'status');
+  if (!asset || give === null || escrow === null || rate === null || status === null) return null;
+  if (status > 255n) return null;
+
+  let assetId: bigint;
+  try {
+    assetId = assetNameToId(asset);
+  } catch {
+    return null;
+  }
+
+  const body: number[] = [
+    ...uint(assetId, 8),
+    ...uint(give, 8),
+    ...uint(escrow, 8),
+    ...uint(rate, 8),
+    Number(status),
+  ];
+
+  // Optional trailing addresses, packed legacy-style as core does for this message.
+  for (const key of ['open_address', 'oracle_address']) {
+    const value = params[key];
+    if (typeof value === 'string' && value !== '') {
+      const packed = packAddressLegacy(value);
+      if (!packed) return null;
+      body.push(...packed);
+    }
+  }
+
+  return withPrefix(MessageTypeId.DISPENSER, new Uint8Array(body));
+}
+
+/** pooldeposit: `">QQQQQQ"` — asset ids, quantities, min LP quantity, LP asset id. */
+function packPoolDeposit(params: Params): PackedMessage | null {
+  const assetA = requireString(params, 'asset_a');
+  const assetB = requireString(params, 'asset_b');
+  const qtyA = requireQuantity(params, 'quantity_a');
+  const qtyB = requireQuantity(params, 'quantity_b');
+  const minLp = requireQuantity(params, 'min_lp_quantity') ?? 0n;
+  if (!assetA || !assetB || qtyA === null || qtyB === null) return null;
+
+  const lpAsset = requireString(params, 'lp_asset');
+  let ids: [bigint, bigint, bigint];
+  try {
+    ids = [assetNameToId(assetA), assetNameToId(assetB), lpAsset ? assetNameToId(lpAsset) : 0n];
+  } catch {
+    return null;
+  }
+
+  return withPrefix(MessageTypeId.POOL_DEPOSIT, new Uint8Array([
+    ...uint(ids[0], 8), ...uint(ids[1], 8),
+    ...uint(qtyA, 8), ...uint(qtyB, 8),
+    ...uint(minLp, 8), ...uint(ids[2], 8),
+  ]));
+}
+
+/** poolwithdraw: `">QQQQQ"` — asset ids, LP quantity burned, and the two minimums. */
+function packPoolWithdraw(params: Params): PackedMessage | null {
+  const assetA = requireString(params, 'asset_a');
+  const assetB = requireString(params, 'asset_b');
+  const quantity = requireQuantity(params, 'quantity');
+  const minA = requireQuantity(params, 'min_quantity_a') ?? 0n;
+  const minB = requireQuantity(params, 'min_quantity_b') ?? 0n;
+  if (!assetA || !assetB || quantity === null) return null;
+
+  let idA: bigint;
+  let idB: bigint;
+  try {
+    idA = assetNameToId(assetA);
+    idB = assetNameToId(assetB);
+  } catch {
+    return null;
+  }
+
+  return withPrefix(MessageTypeId.POOL_WITHDRAW, new Uint8Array([
+    ...uint(idA, 8), ...uint(idB, 8),
+    ...uint(quantity, 8), ...uint(minA, 8), ...uint(minB, 8),
+  ]));
+}
+
 export function packComposeMessage(
   composeType: string,
   params: Params,
@@ -835,6 +990,21 @@ export function packComposeMessage(
       return packDispense();
     case 'broadcast':
       return packBroadcast(params, observed);
+    case 'attach':
+      return packAttach(params);
+    case 'detach':
+      return packDetach(params);
+    case 'utxo':
+    case 'move':
+      return packUtxoMove(params);
+    case 'btcpay':
+      return packBtcPay(params);
+    case 'dispenser':
+      return packDispenser(params);
+    case 'pooldeposit':
+      return packPoolDeposit(params);
+    case 'poolwithdraw':
+      return packPoolWithdraw(params);
     default:
       return null;
   }
