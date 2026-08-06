@@ -3,7 +3,7 @@
  * Handles fee rate validation, fee calculation, and fee-related checks
  */
 
-import { type BigNumber, toBigNumber } from '@/core/numeric';
+import { type BigNumber, multiply, roundUp, toBigNumber } from '@/core/numeric';
 
 // Fee rate constants (in sat/vB)
 export const MIN_FEE_RATE = 1;
@@ -132,7 +132,7 @@ export function calculateTransactionFee(
   const estimatedSize = (inputs * inputSize) + (outputs * outputSize) + overhead;
   
   // Calculate total fee
-  const fee = Math.ceil(estimatedSize * feeRate);
+  const fee = Number(roundUp(multiply(estimatedSize, feeRate)).toFixed());
 
   const result: FeeCalculationResult = {
     fee,

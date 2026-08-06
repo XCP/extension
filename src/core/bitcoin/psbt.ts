@@ -10,6 +10,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { SigningError, ValidationError } from '@/core/errors';
+import { toSafeInteger } from '@/core/numeric';
 
 /** Resolve the exact sighash the signer will use for one PSBT input. */
 export function resolvePsbtSighashType(
@@ -369,7 +370,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     if (!output) continue;
 
     const scriptHex = output.script ? bytesToHex(output.script) : '';
-    const value = output.amount ? Number(output.amount) : 0;
+    const value = output.amount ? (toSafeInteger(output.amount) ?? 0) : 0;
     const type = getScriptType(scriptHex);
 
     totalOutputValue += value;

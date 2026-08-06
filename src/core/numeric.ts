@@ -476,6 +476,28 @@ export const toGroupedString = (
 };
 
 /**
+ * A whole number a double can hold exactly, or undefined when the value is not one.
+ *
+ * The case this exists for is satoshis. Bitcoin's entire supply is 2.1e15 of them, comfortably
+ * inside the 2^53 a double represents exactly, so a sat figure is one of the few money values a
+ * number can carry without loss — but only while it really is an integer in that range, which this
+ * checks rather than assumes. An asset quantity is not such a value and will be refused here.
+ *
+ * @param value - The value to read
+ * @returns The number, or undefined if it is not an exactly-representable integer
+ */
+export const toSafeInteger = (value: unknown): number | undefined => {
+  if (typeof value === 'bigint') {
+    return value >= BigInt(Number.MIN_SAFE_INTEGER) && value <= BigInt(Number.MAX_SAFE_INTEGER)
+      ? Number(value)
+      : undefined;
+  }
+  if (typeof value !== 'number' && typeof value !== 'string') return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+};
+
+/**
  * Converts a BigNumber to a number
  *
  * @param value - The BigNumber to convert

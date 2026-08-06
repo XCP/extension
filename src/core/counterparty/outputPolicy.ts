@@ -56,6 +56,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
+import { toSafeInteger } from '@/core/numeric';
 
 /** An output the user's request accounts for. */
 export interface IntendedDestination {
@@ -98,8 +99,8 @@ export interface OutputPolicyResult {
  * Quantities reach here already in base units, normalized before the request was composed.
  */
 export function pinnedQuantity(quantity: unknown): number | undefined {
-  const value = Number(quantity);
-  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+  const value = toSafeInteger(quantity);
+  return value !== undefined && value > 0 ? value : undefined;
 }
 
 /** Addresses a request names as recipients, split from the singular or plural field. */
@@ -117,8 +118,8 @@ function attachedBtcTo(params: Record<string, unknown>, address: string): number
   return params.more_outputs.split(',').flatMap(entry => {
     const [sats, paid] = entry.split(':');
     if (!sats || !paid || normalizeAddressForComparison(paid.trim()) !== wanted) return [];
-    const value = Number(sats.trim());
-    return Number.isSafeInteger(value) && value >= 0 ? [value] : [];
+    const value = toSafeInteger(sats.trim());
+    return value !== undefined && value >= 0 ? [value] : [];
   });
 }
 
@@ -221,7 +222,7 @@ function checkPositionalDestination(tx: Transaction, expected: string): string |
     }
     preceding.push({
       address: decodeAddressFromScript(scriptHex),
-      value: Number(output?.amount ?? 0n),
+      value: toSafeInteger(output?.amount ?? 0n) ?? 0,
     });
   }
 
@@ -286,7 +287,7 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
   for (let index = 0; index < tx.outputsLength; index += 1) {
     const output = tx.getOutput(index);
     const script = output?.script;
-    const value = Number(output?.amount ?? 0n);
+    const value = toSafeInteger(output?.amount ?? 0n) ?? 0;
     if (!script) {
       unexplained.push({ index, address: null, value });
       continue;

@@ -9,6 +9,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { Transaction } from '@scure/btc-signer';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
 import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/core/bitcoin/multisigSigner';
+import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
 
 // RBF-enabled sequence number
 const RBF_SEQUENCE = 0xfffffffd;
@@ -135,10 +136,10 @@ export async function consolidateBareMultisigBatch(
     }
 
     const inputCountVarintSize = utxos.length >= 253 ? 3 : 1;
-    const estimateNetworkFee = (outputCount: number): bigint => BigInt(Math.ceil(
-      (utxos.length * BYTES_PER_INPUT + BASE_OVERHEAD + inputCountVarintSize + outputCount * BYTES_PER_OUTPUT)
-      * feeRateSatPerVByte
-    ));
+    const estimateNetworkFee = (outputCount: number): bigint => BigInt(roundUp(multiply(
+      utxos.length * BYTES_PER_INPUT + BASE_OVERHEAD + inputCountVarintSize + outputCount * BYTES_PER_OUTPUT,
+      feeRateSatPerVByte
+    )).toFixed());
 
     let networkFeeSats = estimateNetworkFee(1);
     let serviceFeeSats = 0n;
@@ -181,13 +182,13 @@ export async function consolidateBareMultisigBatch(
     const signedTxHex = tx.hex;
     return {
       signedTxHex,
-      totalInput: Number(totalInputSats),
+      totalInput: toSafeInteger(totalInputSats) ?? 0,
       // The outputs were constructed with the estimated fee, so that is the
       // exact fee the transaction pays; the recovery API rejects reports
       // where the fees don't reconcile against the raw transaction.
-      networkFee: Number(networkFeeSats),
-      serviceFee: Number(serviceFeeSats),
-      outputAmount: Number(outputSats),
+      networkFee: toSafeInteger(networkFeeSats) ?? 0,
+      serviceFee: toSafeInteger(serviceFeeSats) ?? 0,
+      outputAmount: toSafeInteger(outputSats) ?? 0,
       txSize: signedTxHex.length / 2,
     };
   } finally {
