@@ -280,6 +280,29 @@ export default function ApproveTransactionPage() {
     title: warning.title,
     description: warning.message,
   }));
+  // Where the attached assets land. Spending an attached UTXO moves its balances with no
+  // Counterparty message, so without this the screen can say only that assets move, never where —
+  // and for an atomic swap that is the whole question.
+  if (decodedInfo.attachedAssetDestination) {
+    const dest = decodedInfo.attachedAssetDestination;
+    warningItems.push({
+      key: 'attached-destination',
+      severity: dest.leavesWallet ? 'danger' : 'warning',
+      title: dest.detaches
+        ? 'Attached assets are detached to your address'
+        : dest.leavesWallet
+          ? 'Attached assets leave your wallet'
+          : 'Attached assets move to your own output',
+      description: dest.detaches
+        ? 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
+          'signing is credited back to your address.'
+        : `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
+          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
+          `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
+          `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
+    });
+  }
+
   // The message's own references to this transaction, where they do not resolve against it. A
   // warning rather than a block: core rejects such a transaction, so it is ineffective rather than
   // dangerous — but the screen cannot describe what it claims to do.

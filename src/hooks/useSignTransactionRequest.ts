@@ -13,6 +13,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
+  type AttachedAssetDestination,
+  resolveAttachedAssetDestination,
+} from '@/core/counterparty/attachedAssetMovement';
+import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
@@ -79,6 +83,8 @@ export interface DecodedTransactionInfo {
    * naming an output that does not exist, a move naming a UTXO the transaction does not spend.
    */
   structureFindings: StructureFinding[];
+  /** Where the assets attached to the signed inputs end up. Null when nothing attached moves. */
+  attachedAssetDestination: AttachedAssetDestination | null;
   /**
    * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
    * These are carried in the payload rather than as outputs, so the approval screen has no other
@@ -229,6 +235,15 @@ export function useSignTransactionRequest(signerAddress?: string) {
 
     const attachedAssets = await attachedAssetsPromise;
 
+    // A raw transaction can spend an attached UTXO just as a PSBT can, and does so with no
+    // message. Every input is being signed here, so all of them count as sources.
+    const attachedAssetDestination = resolveAttachedAssetDestination(
+      outputs,
+      attachedAssets,
+      inputs.map((_, index) => index),
+      signerAddress ? [signerAddress] : []
+    );
+
     return {
       txid: parsed.txid,
       inputs,
@@ -243,6 +258,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       safety,
       attachedAssets,
       structureFindings,
+      attachedAssetDestination,
       mpmaRecipients,
     };
   }, []);

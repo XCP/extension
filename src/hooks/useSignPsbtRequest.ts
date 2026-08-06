@@ -14,6 +14,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import {
+  type AttachedAssetDestination,
+  resolveAttachedAssetDestination,
+} from '@/core/counterparty/attachedAssetMovement';
+import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
@@ -61,6 +65,13 @@ export interface DecodedPsbtInfo {
    * recipients" and named none of them, while the transaction screen listed all three.
    */
   mpmaRecipients: MpmaRecipient[];
+  /**
+   * Where the assets attached to the signed inputs end up. Null when nothing attached is moving.
+   *
+   * Spending an attached UTXO moves its balances with no Counterparty message, so this is the only
+   * account of an atomic swap the screen can give.
+   */
+  attachedAssetDestination: AttachedAssetDestination | null;
   /** Message fields that reference this transaction and do not resolve against it. */
   structureFindings: StructureFinding[];
 }
@@ -184,6 +195,13 @@ export function useSignPsbtRequest(signerAddress?: string) {
 
     const attachedAssets = await attachedAssetsPromise;
 
+    const attachedAssetDestination = resolveAttachedAssetDestination(
+      psbtDetails.outputs,
+      attachedAssets,
+      signedInputIndices ?? [],
+      signerAddresses ?? []
+    );
+
     return {
       psbtDetails,
       counterpartyMessage,
@@ -193,6 +211,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
       attachedAssets,
       mpmaRecipients,
       structureFindings,
+      attachedAssetDestination,
     };
   }, []);
 
