@@ -120,7 +120,7 @@ export function FeeRateInput({
     
     // Basic format check - allow typing but don't validate yet
     const num = parseFloat(trimmed);
-    if (isNaN(num)) {
+    if (Number.isNaN(num)) {
       return; // Ignore non-numeric input
     }
     

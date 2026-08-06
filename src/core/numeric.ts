@@ -95,17 +95,6 @@ export const toBigNumber = (value: string | number | BigNumber | null | undefine
 };
 
 /**
- * Formats a BigNumber to a string with specified decimal places
- *
- * @param value - BigNumber to format
- * @param decimals - Number of decimal places (default: 8)
- * @returns Formatted string
- */
-export const formatBigNumber = (value: BigNumber, decimals = 8): string => {
-  return value.toFixed(decimals, BigNumber.ROUND_DOWN);
-};
-
-/**
  * Validates if a string represents a valid positive number
  *
  * @param value - String to validate
@@ -434,7 +423,7 @@ export const minimum = (
 /**
  * Formats a value with thousands separators, trimming to at most `decimals` places.
  *
- * Unlike formatBigNumber this does not pad: 4 renders as "4", not "4.00000000".
+ * Trims rather than pads: 4 renders as "4", not "4.00000000".
  *
  * @param value - The value to format
  * @param decimals - Maximum decimal places to keep (default: 8)
@@ -458,23 +447,12 @@ export const toNumber = (value: string | number | BigNumber): number => {
 };
 
 /**
- * Converts asset supply from raw units to normalized units based on divisibility
- * For divisible assets, divides by 100,000,000 (1e8)
- * For non-divisible assets, returns the value as-is
- * @param supply - The raw supply value as string or number
- * @param isDivisible - Whether the asset is divisible
- * @returns The normalized supply as a number
- * @example
- * normalizeAssetSupply("100000000", true) // 1.0 (divisible)
- * normalizeAssetSupply("100", false) // 100 (non-divisible)
+ * A supply in display units, exactly. Not exported: a supply is the value most likely to exceed
+ * what a double holds, and the only caller divides by it.
  */
-export function normalizeAssetSupply(supply: string | number, isDivisible: boolean): number {
+function normalizedAssetSupply(supply: string | number, isDivisible: boolean): BigNumber {
   const supplyBN = toBigNumber(supply);
-  if (isDivisible) {
-    // Use safe division with BigNumber for divisible assets
-    return supplyBN.dividedBy(SATOSHI_DIVISOR).toNumber();
-  }
-  return supplyBN.toNumber();
+  return isDivisible ? supplyBN.dividedBy(SATOSHI_DIVISOR) : supplyBN;
 }
 
 /**
@@ -493,14 +471,15 @@ export function calculateMaxDividendPerUnit(
   assetSupply: string | number, 
   assetIsDivisible: boolean
 ): BigNumber {
-  const normalizedSupply = normalizeAssetSupply(assetSupply, assetIsDivisible);
-  
-  if (normalizedSupply === 0) {
+  // Dividing by the supply as a double put the error into every per-unit figure, and a dividend is
+  // paid per unit across the whole supply — so it lands in the total the user is quoted.
+  const normalizedSupply = normalizedAssetSupply(assetSupply, assetIsDivisible);
+
+  if (normalizedSupply.isZero()) {
     return new BigNumber(0);
   }
-  
-  const balance = toBigNumber(dividendBalance);
-  return balance.dividedBy(normalizedSupply);
+
+  return toBigNumber(dividendBalance).dividedBy(normalizedSupply);
 }
 
 /**

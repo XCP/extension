@@ -142,7 +142,7 @@ export const DispenserForm = memo(function DispenserForm({
     const cleanEscrow = parseFloat(escrowQuantity || "0");
     const cleanGive = parseFloat(giveQuantity || "0");
     
-    if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
+    if (!Number.isNaN(cleanEscrow) && !Number.isNaN(cleanGive) && cleanEscrow < cleanGive) {
       setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
       return;
     }

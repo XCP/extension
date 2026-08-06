@@ -58,7 +58,7 @@ export function PriceWithSuggestInput({
 
       if (value) {
         const priceValue = parseFloat(value);
-        if (!isNaN(priceValue) && priceValue !== 0) {
+        if (!Number.isNaN(priceValue) && priceValue !== 0) {
           const invertedPrice = formatAmount({
             value: 1 / priceValue,
             maximumFractionDigits: 8,
@@ -87,7 +87,7 @@ export function PriceWithSuggestInput({
     if (!tradingPairData?.last_trade_price) return;
 
     const suggestedPrice = Number(tradingPairData.last_trade_price);
-    if (!isNaN(suggestedPrice)) {
+    if (!Number.isNaN(suggestedPrice)) {
       onChange(formatAmount({
         value: suggestedPrice,
         maximumFractionDigits: 8,

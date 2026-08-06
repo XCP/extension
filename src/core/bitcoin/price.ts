@@ -126,7 +126,7 @@ export async function getBtcPrice(
   const promises = fetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.bitcoin?.usd;
-    if (typeof price !== "number" || isNaN(price)) {
+    if (typeof price !== "number" || Number.isNaN(price)) {
       throw new DataFetchError(`${fetcher.name} returned invalid price`, "price-fetcher");
     }
     return price;

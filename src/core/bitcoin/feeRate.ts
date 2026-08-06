@@ -31,9 +31,9 @@ export async function fetchFromMempoolSpace(): Promise<FeeRates> {
   const response = await apiClient.get<Record<string, number>>('https://mempool.space/api/v1/fees/recommended', { retries: 0 });
   const data = response.data;
   if (
-    typeof data.fastestFee !== 'number' || isNaN(data.fastestFee) ||
-    typeof data.halfHourFee !== 'number' || isNaN(data.halfHourFee) ||
-    typeof data.hourFee !== 'number' || isNaN(data.hourFee)
+    typeof data.fastestFee !== 'number' || Number.isNaN(data.fastestFee) ||
+    typeof data.halfHourFee !== 'number' || Number.isNaN(data.halfHourFee) ||
+    typeof data.hourFee !== 'number' || Number.isNaN(data.hourFee)
   ) {
     throw new DataFetchError('Invalid response data format', 'mempool.space', {
       endpoint: '/api/v1/fees/recommended',
@@ -62,9 +62,9 @@ export async function fetchFromBlockstream(): Promise<FeeRates> {
   const halfHourFee = data["3"];
   const hourFee = data["6"];
   if (
-    typeof fastestFee !== 'number' || isNaN(fastestFee) ||
-    typeof halfHourFee !== 'number' || isNaN(halfHourFee) ||
-    typeof hourFee !== 'number' || isNaN(hourFee)
+    typeof fastestFee !== 'number' || Number.isNaN(fastestFee) ||
+    typeof halfHourFee !== 'number' || Number.isNaN(halfHourFee) ||
+    typeof hourFee !== 'number' || Number.isNaN(hourFee)
   ) {
     throw new DataFetchError('Invalid response data format', 'blockstream.info', {
       endpoint: '/api/fee-estimates',
@@ -89,9 +89,9 @@ async function fetchFeeRatesWithFallback(): Promise<FeeRates> {
       const rates = await fetcher();
       // Check that the returned rates are valid.
       if (
-        typeof rates.fastestFee === 'number' && !isNaN(rates.fastestFee) &&
-        typeof rates.halfHourFee === 'number' && !isNaN(rates.halfHourFee) &&
-        typeof rates.hourFee === 'number' && !isNaN(rates.hourFee)
+        typeof rates.fastestFee === 'number' && !Number.isNaN(rates.fastestFee) &&
+        typeof rates.halfHourFee === 'number' && !Number.isNaN(rates.halfHourFee) &&
+        typeof rates.hourFee === 'number' && !Number.isNaN(rates.hourFee)
       ) {
         return rates;
       }
