@@ -170,7 +170,4 @@ export function describeMessage(
   }
 }
 
-/** LP tokens are divisible by definition, so their quantity never needs a lookup. */
-export const LP_TOKENS_ARE_DIVISIBLE = true;
-
 export type { DisplayUnits };

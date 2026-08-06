@@ -67,12 +67,6 @@ export function normalizeQuantity(
   return `${val.toLocaleString()} base units`;
 }
 
-/** LP tokens are always divisible. */
-export function normalizeLpQuantity(quantity: unknown): string {
-  if (quantity == null) return '?';
-  return fromSatoshis(String(quantity), { removeTrailingZeros: true });
-}
-
 /**
  * Build a human-readable label and description from decoded transaction data.
  * Prefers the API counterpartyMessage, else falls back to the local unpack.

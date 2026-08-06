@@ -210,6 +210,16 @@ export default function ApprovePsbtPage() {
     title: warning.title,
     description: warning.message,
   }));
+  // Message fields that reference this transaction and do not resolve against it.
+  for (const [idx, finding] of (decodedInfo.structureFindings ?? []).entries()) {
+    warningItems.push({
+      key: `structure-${idx}`,
+      severity: 'warning',
+      title: finding.title,
+      description: finding.message,
+    });
+  }
+
   if (signedInputsWithAssets.length > 0) {
     warningItems.push({
       key: 'attached-assets',
@@ -388,6 +398,44 @@ export default function ApprovePsbtPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* Recipients of a multi-destination send. Carried in the payload rather than as
+                    outputs, so the list above cannot show them and this is the only place they
+                    appear — the same reason the transaction screen lists them. */}
+                {decodedInfo.mpmaRecipients.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
+                      Recipients ({decodedInfo.mpmaRecipients.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {decodedInfo.mpmaRecipients.map((recipient, idx) => (
+                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                          <div className="flex justify-between gap-2">
+                            <span className="text-gray-600 truncate">{recipient.asset}</span>
+                            <span className="text-gray-900 font-medium flex-shrink-0">
+                              {recipient.quantity}
+                            </span>
+                          </div>
+                          <div className="text-gray-500 break-all font-mono" title={recipient.address}>
+                            {recipient.address}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* The outcome of the local checks, in plain words, for whoever opened this panel. */}
+                {decodedInfo.verification?.passed !== undefined && (
+                  <div>
+                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
+                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
+                      {decodedInfo.verification.repackProved
+                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
+                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
+                    </div>
+                  </div>
+                )}
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
