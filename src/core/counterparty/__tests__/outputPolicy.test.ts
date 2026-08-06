@@ -10,7 +10,12 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
-import { checkOutputPolicy } from '../outputPolicy';
+import {
+  checkOutputPolicy,
+  pinnedDestinations,
+  pinnedQuantity,
+  withPinnedDestinations,
+} from '../outputPolicy';
 
 const OWNER_KEY = hexToBytes('11'.repeat(32));
 const OWNER_PUBKEY = getPublicKey(OWNER_KEY, true);
@@ -204,5 +209,288 @@ describe('checkOutputPolicy', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+});
+
+/** Build a transaction with outputs in an exact order; `'data'` places the OP_RETURN. */
+function orderedTx(items: Array<'data' | { address: string; value: bigint }>): string {
+  const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+  tx.addInput({
+    txid: hexToBytes('33'.repeat(32)),
+    index: 0,
+    witnessUtxo: { script: p2wpkh(OWNER_PUBKEY).script, amount: 1_000_000n },
+  });
+  for (const item of items) {
+    if (item === 'data') tx.addOutput({ script: new Uint8Array([0x6a, 0x04, 0xde, 0xad, 0xbe, 0xef]), amount: 0n });
+    else tx.addOutputAddress(item.address, item.value);
+  }
+  return bytesToHex(tx.unsignedTx);
+}
+
+describe('checkOutputPolicy, where the destination is read from output order', () => {
+  // Some messages name no destination: the node takes every non-data output ahead of the first
+  // data output and joins them — `"-".join(destinations)` in parser/gettxinfo.py — and an issuance
+  // then assigns `issuer = tx["destination"]`. Position is therefore part of the meaning, and
+  // nothing else checks it: the message carries no destination so byte equality passes, and each
+  // output is individually explainable so accounting passes.
+
+  it('accepts the ordering every honest compose produces', () => {
+    // core assembles outputs as destinations, then data, then change (api/composer.py).
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        { address: RECIPIENT, value: 546n },
+        'data',
+        { address: OWNER, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects change placed ahead of the data output', () => {
+    // Two outputs in front make the recipient the pseudo-address "owner-recipient", which nobody
+    // holds a key to: an ownership transfer composed this way destroys the asset.
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        { address: OWNER, value: 400_000n },
+        { address: RECIPIENT, value: 546n },
+        'data',
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toContain('join them into a single recipient');
+  });
+
+  it('rejects a recipient that is not paid ahead of the data output at all', () => {
+    // Read as no destination: the transfer silently does not happen while the wallet shows one.
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        'data',
+        { address: RECIPIENT, value: 546n },
+        { address: OWNER, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('rejects a different address standing in the recipient\'s position', () => {
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        { address: OWNER, value: 546n },
+        'data',
+        { address: RECIPIENT, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('does not apply to a transaction with no data output', () => {
+    // A taproot-encoded issuance commits its message to a P2TR output rather than an OP_RETURN, and
+    // `composeIssuance` accepts `inscription` and `transfer_destination` together. With no data
+    // output there is no boundary to be positioned against, and treating every output as preceding
+    // would reject a legitimate compose.
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([
+        { address: RECIPIENT, value: 546n },
+        { address: OWNER, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [{ address: RECIPIENT }],
+      positionalDestination: RECIPIENT,
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('leaves transactions with no positional destination alone', () => {
+    // An enhanced send carries its recipient in the payload, so output order says nothing about it
+    // and change ahead of the data output is merely unusual, not a substitution.
+    const result = checkOutputPolicy({
+      rawTransaction: orderedTx([{ address: OWNER, value: 400_000n }, 'data']),
+      ownAddresses: [OWNER],
+      intendedDestinations: [],
+    });
+
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('pinnedDestinations', () => {
+  // Naming an address is not the same as agreeing to an amount.
+
+  it('pins the dispenser output to the requested quantity', () => {
+    // A dispense pays the dispenser in BTC and gets back whatever that buys; the message itself is
+    // a bare marker byte, so byte equality says nothing about the amount.
+    expect(pinnedDestinations('dispense', { dispenser: RECIPIENT, quantity: '50000' }))
+      .toEqual([{ address: RECIPIENT, value: 50_000 }]);
+  });
+
+  it('pins a BTC send, which carries no message to check at all', () => {
+    expect(pinnedDestinations('send', { asset: 'BTC', destination: RECIPIENT, quantity: '50000' }))
+      .toEqual([{ address: RECIPIENT, value: 50_000 }]);
+  });
+
+  it('pins nothing for a type whose recipient is not in the payload and not stated', () => {
+    expect(pinnedDestinations('order', { give_quantity: '50000' })).toEqual([]);
+    expect(pinnedDestinations('issuance', { asset: 'XCP', quantity: '1' })).toEqual([]);
+  });
+
+  it('leaves the amount unpinned rather than pinning an unreadable one', () => {
+    // Pinning NaN would reject every honest transaction of that type.
+    expect(pinnedDestinations('dispense', { dispenser: RECIPIENT, quantity: 'not a number' }))
+      .toEqual([]);
+    expect(pinnedQuantity(2 ** 60)).toBe(undefined);
+    expect(pinnedQuantity(0)).toBe(undefined);
+  });
+
+  it('rejects a dispense paying the dispenser more than was asked for', () => {
+    const result = checkOutputPolicy({
+      rawTransaction: rawTxWith([
+        { address: RECIPIENT, value: 500_000n },
+        { address: OWNER, value: 400_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: pinnedDestinations('dispense', {
+        dispenser: RECIPIENT,
+        quantity: '50000',
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('accepts the dispense the request actually asked for', () => {
+    const result = checkOutputPolicy({
+      rawTransaction: rawTxWith([
+        { address: RECIPIENT, value: 50_000n },
+        { address: OWNER, value: 900_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: pinnedDestinations('dispense', {
+        dispenser: RECIPIENT,
+        quantity: '50000',
+      }),
+    });
+
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('pinnedDestinations, where the recipient travels in the payload', () => {
+  // core returns no destination outputs for these types — mpma.compose returns `(source, [], data)`
+  // — so the only BTC that belongs there is what the user attached through more_outputs.
+
+  it('pins an enhanced send destination to zero when no BTC was attached', () => {
+    expect(pinnedDestinations('send', { asset: 'XCP', destination: RECIPIENT, quantity: '50000' }))
+      .toEqual([{ address: RECIPIENT, value: 0 }]);
+  });
+
+  it('pins it to exactly the BTC the request attached', () => {
+    expect(pinnedDestinations('send', {
+      asset: 'XCP',
+      destination: RECIPIENT,
+      quantity: '50000',
+      more_outputs: `7000:${RECIPIENT}`,
+    })).toEqual([{ address: RECIPIENT, value: 7000 }]);
+  });
+
+  it('pins a sweep destination the same way', () => {
+    expect(pinnedDestinations('sweep', { destination: RECIPIENT }))
+      .toEqual([{ address: RECIPIENT, value: 0 }]);
+    expect(pinnedDestinations('sweep', {
+      destination: RECIPIENT,
+      more_outputs: `7000:${RECIPIENT}`,
+    })).toEqual([{ address: RECIPIENT, value: 7000 }]);
+  });
+
+  it('pins every MPMA recipient to zero', () => {
+    // The form cannot attach BTC to a multi-destination send, and core pays these in the payload.
+    expect(pinnedDestinations('send', {
+      asset: 'XCP',
+      destinations: `${RECIPIENT},${STRANGER}`,
+    })).toEqual([
+      { address: RECIPIENT, value: 0 },
+      { address: STRANGER, value: 0 },
+    ]);
+  });
+
+  it('does not pin an address the signer also owns', () => {
+    // Change to yourself is indistinguishable from a payment to yourself, so a pin would reject a
+    // send to your own address.
+    expect(pinnedDestinations('send', { asset: 'XCP', destination: OWNER }, [OWNER])).toEqual([]);
+  });
+
+  it('rejects BTC routed to the recipient of an asset send', () => {
+    const pins = pinnedDestinations('send', {
+      asset: 'XCP',
+      destination: RECIPIENT,
+      quantity: '50000',
+    }, [OWNER]);
+
+    const result = checkOutputPolicy({
+      rawTransaction: rawTxWith([
+        { address: RECIPIENT, value: 40_000n },
+        { address: OWNER, value: 150_000n },
+      ], { opReturn: true }),
+      ownAddresses: [OWNER],
+      intendedDestinations: withPinnedDestinations([{ address: RECIPIENT }], pins),
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('accepts the BTC the request actually attached', () => {
+    const params = {
+      asset: 'XCP',
+      destination: RECIPIENT,
+      quantity: '50000',
+      more_outputs: `40000:${RECIPIENT}`,
+    };
+
+    const result = checkOutputPolicy({
+      rawTransaction: rawTxWith([
+        { address: RECIPIENT, value: 40_000n },
+        { address: OWNER, value: 150_000n },
+      ], { opReturn: true }),
+      ownAddresses: [OWNER],
+      // Both entries the caller derives for this address — the destination field and the one parsed
+      // out of more_outputs — are replaced by the pin.
+      intendedDestinations: withPinnedDestinations(
+        [{ address: RECIPIENT }, { address: RECIPIENT }],
+        pinnedDestinations('send', params, [OWNER])
+      ),
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('leaves no unpinned duplicate for a second output to slip through', () => {
+    // The hole this closes: `more_outputs` names its recipient twice, so without replacement one
+    // entry stays unpinned and explains any amount.
+    const merged = withPinnedDestinations(
+      [{ address: RECIPIENT }, { address: RECIPIENT }],
+      pinnedDestinations('send', {
+        asset: 'XCP',
+        destination: RECIPIENT,
+        more_outputs: `40000:${RECIPIENT}`,
+      }, [OWNER])
+    );
+
+    expect(merged).toEqual([{ address: RECIPIENT, value: 40_000 }]);
   });
 });

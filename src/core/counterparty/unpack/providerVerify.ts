@@ -66,6 +66,33 @@ export interface ProviderVerificationResult {
   localUnpack?: UnpackResult;
 }
 
+/** What an approval screen knows when it decides whether to let the user sign. */
+export interface SigningDecisionInput {
+  /** A safety rule refused this transaction outright (a sweep from a website, say). */
+  safetyBlocked: boolean;
+  /** `ProviderVerificationResult.passed` — undefined when verification was not attempted. */
+  verificationPassed: boolean | undefined;
+  /** `ProviderVerificationResult.repackProved`. */
+  repackProved: boolean;
+  /** The user's `strictTransactionVerification` setting, which defaults to on. */
+  strictMode: boolean;
+}
+
+/**
+ * Whether the approval screen must refuse to sign. Shared by both approval screens, which had
+ * drifted apart when written out separately.
+ *
+ * A safety block is absolute. A verification failure blocks only in strict mode, and only while the
+ * rebuild has not proved our reading of the payload complete — past that point a disagreement is the
+ * decode API's to explain, and ADR-019 treats that endpoint as untrusted and user-configurable, so
+ * letting it veto a signature would hand an untrusted party a way to block sound transactions.
+ */
+export function shouldBlockSigning(input: SigningDecisionInput): boolean {
+  if (input.safetyBlocked) return true;
+  const verificationFailed = input.verificationPassed === false && !input.repackProved;
+  return input.strictMode && verificationFailed;
+}
+
 /**
  * Normalize a value to bigint for comparison
  */

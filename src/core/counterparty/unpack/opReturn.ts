@@ -12,7 +12,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
-import { extractMultisigPayload } from '@/core/counterparty/unpack/multisig';
+import { decodeMultisigChunk } from '@/core/counterparty/unpack/multisig';
 
 /**
  * Strip the OP_RETURN opcode (0x6a) and push-data length prefix from an
@@ -55,6 +55,15 @@ export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
   }
 }
 
+/** Whether a scriptPubKey is an OP_RETURN, however malformed the rest of it is. */
+function isOpReturnScript(scriptHex: string): boolean {
+  try {
+    return hexToBytes(scriptHex)[0] === 0x6a;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * ARC4-decrypt an OP_RETURN payload using the first input's txid as the key.
  * Returns the decrypted datahex (including the CNTRPRTY prefix) if it decrypts
@@ -79,16 +88,19 @@ export function decryptOpReturnData(
 }
 
 /**
- * Resolve a Counterparty payload from a transaction's output scripts: from an ARC4-obfuscated
- * OP_RETURN output, or from bare-multisig data outputs. The single home for that encoding order,
- * so every caller (composer verification and both dapp sign-request paths) recognizes exactly the
- * same payloads counterparty-core would.
+ * Resolve a Counterparty payload from a transaction's output scripts. The single home for that
+ * decoding, so every caller (composer verification and both dapp sign-request paths) reads exactly
+ * the message counterparty-core would.
  *
- * OP_RETURN is only ever ARC4-decrypted — never read as plaintext. Core does the same, so a
- * plaintext CNTRPRTY OP_RETURN is garbage to the node, which then parses a multisig-encoded
- * message instead. Honoring the plaintext form here would let an attacker pair a benign plaintext
- * decoy with a real multisig sweep: the wallet would surface and bless the decoy while the network
- * executed the sweep. Decrypting first, exactly as core does, keeps the two in agreement.
+ * Every data output contributes, in output order, whatever its encoding — a node appends each
+ * `ParseOutput::Data` in counterparty-rs's vout loop, so two OP_RETURNs, or an OP_RETURN and a
+ * bare-multisig output, form one message. Stopping at the first data output would read a different
+ * message from the one that executes: a chunk placed ahead of an honest OP_RETURN supplies the
+ * message type.
+ *
+ * OP_RETURN is only ever ARC4-decrypted — never read as plaintext, because a node does not read one
+ * either. A plaintext CNTRPRTY OP_RETURN is not a decoy that gets ignored: it is unreadable data
+ * that fails the whole transaction, so nothing at all executes.
  *
  * A null return is read as "no Counterparty data" and skips verification, so every encoding that
  * can carry a message has to be looked for here.
@@ -102,15 +114,31 @@ export function extractPayloadFromOutputs(
   outputScriptHexes: readonly string[],
   firstInputTxid: string
 ): string | null {
+  let payload = '';
+
   for (const scriptHex of outputScriptHexes) {
     // decryptOpReturnData returns null for non-OP_RETURN outputs and for anything that does not
     // ARC4-decrypt to the CNTRPRTY prefix, so a plaintext decoy is correctly ignored.
-    const decrypted = decryptOpReturnData(scriptHex, firstInputTxid);
-    if (decrypted) return decrypted;
+    const opReturn = decryptOpReturnData(scriptHex, firstInputTxid);
+    if (opReturn) {
+      // Each data output carries its own prefix; the assembled message keeps one, at the front.
+      payload += opReturn.slice(COUNTERPARTY_PREFIX_HEX.length);
+      continue;
+    }
+
+    if (isOpReturnScript(scriptHex)) {
+      // An OP_RETURN a node cannot read as Counterparty data fails the whole transaction: the vout
+      // parser returns `Err`, which crosses into Python as an exception and raises `DecodeError`.
+      // No message executes, so there is nothing here to verify. The exception is the bare
+      // plaintext prefix, which marks a taproot reveal and carries no payload itself.
+      if (extractOpReturnPayload(scriptHex) === COUNTERPARTY_PREFIX_HEX) continue;
+      return null;
+    }
+
+    payload += decodeMultisigChunk(scriptHex, firstInputTxid) ?? '';
   }
 
-  // The message may instead be spread across bare-multisig outputs, which carry no OP_RETURN.
-  return extractMultisigPayload(outputScriptHexes, firstInputTxid);
+  return payload ? COUNTERPARTY_PREFIX_HEX + payload : null;
 }
 
 /**

@@ -17,6 +17,7 @@ import {
 import {
   assertComposeUrlCalled,
   createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockApiBase,
@@ -35,11 +36,14 @@ vi.mock('@/core/settings', async (importOriginal) => {
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
 });
 
-// Mock UTXO selection to prevent real API calls to mempool.space
+// Mock UTXO selection to prevent real API calls to mempool.space.
+// The txid is spelled out rather than imported as `mockInputTxid`: this factory is hoisted
+// above the imports and cannot read them. It must stay in step with the composed transaction
+// in composeTestHelpers, or the input check has nothing to match and stops testing anything.
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -52,7 +56,7 @@ describe('Compose Specialized Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeTransaction (generic)', () => {
@@ -63,7 +67,7 @@ describe('Compose Specialized Operations', () => {
 
       const result = await composeTransaction(endpoint, params, mockAddress, satPerVbyte);
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/addresses/${mockAddress}/compose/${endpoint}`;
       const actualCall = mockedApiClient.get.mock.calls[0]!;
@@ -95,7 +99,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'broadcast', defaultParams);
     });
 
@@ -123,7 +127,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const value of values) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, value };
         await composeBroadcast({
@@ -153,7 +157,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'btcpay', defaultParams);
     });
 
@@ -179,7 +183,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const order_match_id of matchIds) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         await composeBTCPay({
           sourceAddress: mockAddress,
@@ -210,7 +214,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'mpma', defaultParams);
     });
 
@@ -258,7 +262,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const assets of assetSets) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const destinations = assets.map((_, i) => `bc1qdest${i + 1}`);
         const quantities = assets.map((_, i) => `${(i + 1) * 1000}`);
@@ -297,7 +301,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'fairminter', defaultParams);
     });
 
@@ -357,7 +361,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'fairmint', defaultParams);
     });
 
@@ -383,7 +387,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity };
         await composeFairmint({
@@ -416,7 +420,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'pooldeposit', {
         ...defaultParams,
         min_lp_quantity: '0',
@@ -453,7 +457,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'poolwithdraw', {
         ...defaultParams,
         min_quantity_a: '0',
@@ -500,7 +504,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'attach', defaultParams);
     });
 
@@ -537,7 +541,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/detach`;
       const actualCall = mockedApiClient.get.mock.calls[0]!;
@@ -566,7 +570,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, sourceUtxo };
         await composeDetach({
@@ -597,7 +601,7 @@ describe('Compose Specialized Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       
       const expectedUrl = `${mockApiBase}/v2/utxos/${defaultParams.sourceUtxo}/compose/movetoutxo`;
       const actualCall = mockedApiClient.get.mock.calls[0]!;
@@ -624,7 +628,7 @@ describe('Compose Specialized Operations', () => {
 
       for (const sourceUtxo of utxos) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, sourceUtxo };
         await composeMove({

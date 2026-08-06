@@ -557,3 +557,37 @@ describe('CBOR encoding matches cbor2 canonical choices', () => {
     expect(roundTrip.length).toBeGreaterThan(0);
   });
 });
+
+describe('the compose types that carry no message', () => {
+  /**
+   * The composer refuses a transaction that carries no payload when this function can build one
+   * (`composer-context.tsx`), so whether it returns null decides whether a legitimate compose is
+   * blocked. These are the types whose transactions correctly have no Counterparty message at all.
+   */
+  const BECH32 = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+  const P2PKH = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+
+  it('a BTC send builds no message', () => {
+    // packEnhancedSend stops at asset id 0 — BTC is not a Counterparty send.
+    expect(packComposeMessage('send', { asset: 'BTC', destination: BECH32, quantity: '50000' }))
+      .toBeNull();
+  });
+
+  it('a BTC send to several destinations builds no message either', () => {
+    // This one goes through the MPMA packer rather than packEnhancedSend, so it needs its own case.
+    expect(packComposeMessage('send', {
+      asset: 'BTC',
+      destinations: `${BECH32},${P2PKH}`,
+      quantity: '50000',
+    })).toBeNull();
+  });
+
+  it('a burn builds no message', () => {
+    expect(packComposeMessage('burn', { quantity: '50000' })).toBeNull();
+  });
+
+  it('an asset send does build one, so the guard has something to compare', () => {
+    expect(packComposeMessage('send', { asset: 'XCP', destination: BECH32, quantity: '50000' }))
+      .not.toBeNull();
+  });
+});

@@ -61,7 +61,13 @@ import {
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
 import { normalizeFormData } from "@/core/counterparty/normalize";
-import { checkOutputPolicy, type IntendedDestination } from "@/core/counterparty/outputPolicy";
+import {
+  checkOutputPolicy,
+  type IntendedDestination,
+  pinnedDestinations,
+  pinnedQuantity,
+  withPinnedDestinations,
+} from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
@@ -363,9 +369,18 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
+      } else if (!inscriptionCommitAddress && packComposeMessage(composeType, dataForApi)) {
+        // No payload, but this request's message can be built — so the transaction carries none of
+        // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
+        // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
+        // and an inscription's message lives in its envelope rather than an output.
+        throw new Error(
+          'Transaction verification failed: the composed transaction carries no Counterparty '
+          + 'message, so it would not do what you asked.'
+        );
       }
-      // Note: If no Counterparty payload was found, this might be a non-Counterparty
-      // transaction, which is allowed through (e.g., BTC-only transactions)
+      // A transaction with no payload and no message to expect is a plain BTC spend; its outputs
+      // and fee are still checked below.
 
       // Independently bound the fee for every transaction type (including
       // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
@@ -415,15 +430,26 @@ export function ComposerProvider<T>({
         if (composeType === 'burn') {
           // A burn carries no Counterparty message at all, so the outputs are the only thing that
           // can be checked — and pinning the amount here is the only verification a burn gets.
-          const quantity = Number(dataForApi.quantity);
-          const value = Number.isSafeInteger(quantity) && quantity > 0 ? quantity : undefined;
-          for (const address of BURN_ADDRESSES) intendedDestinations.push({ address, value });
+          for (const address of BURN_ADDRESSES) {
+            intendedDestinations.push({ address, value: pinnedQuantity(dataForApi.quantity) });
+          }
         }
+        // Naming an address is not the same as agreeing to an amount paid to it.
+        const accountedFor = withPinnedDestinations(
+          intendedDestinations,
+          pinnedDestinations(composeType, dataForApi, [activeAddress.address])
+        );
 
         const outputCheck = checkOutputPolicy({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
-          intendedDestinations,
+          intendedDestinations: accountedFor,
+          // An ownership transfer names its new owner nowhere in the message; the node reads it
+          // from the output ahead of the data output.
+          positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'
+            && dataForApi.transfer_destination
+            ? dataForApi.transfer_destination
+            : undefined,
         });
         if (!outputCheck.ok) {
           throw new Error(outputCheck.error || 'Transaction pays outputs your request did not ask for');

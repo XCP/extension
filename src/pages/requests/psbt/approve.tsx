@@ -19,6 +19,7 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
+import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
@@ -139,11 +140,16 @@ export default function ApprovePsbtPage() {
 
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
-  const verificationFailed = verificationPassed === false;
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = safety?.blocked ?? false;
   const safetyWarnings = safety?.warnings ?? [];
-  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  // Shared with the raw-transaction approval screen so the two cannot drift.
+  const blockSigning = shouldBlockSigning({
+    safetyBlocked,
+    verificationPassed,
+    repackProved: verification?.repackProved ?? false,
+    strictMode: isStrictMode,
+  });
   const requestedAddressSpends = Object.entries(request.signInputs ?? {}).map(
     ([address, indices]) => ({
       address,
@@ -492,7 +498,7 @@ export default function ApprovePsbtPage() {
 
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
-            passed={verificationPassed}
+            passed={verification?.repackProved ? true : verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
@@ -518,7 +524,7 @@ export default function ApprovePsbtPage() {
         onCancel={handleReject}
         onSign={handleSign}
         busy={isSigning}
-        blocked={shouldBlockSigning || (movement.atRisk > 0 && !acceptedAtRisk)}
+        blocked={blockSigning || (movement.atRisk > 0 && !acceptedAtRisk)}
         isHardware={activeWallet.type === 'hardware'}
       />
     </div>

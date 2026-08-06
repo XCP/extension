@@ -1,8 +1,18 @@
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+
+/**
+ * A composed transaction spent a UTXO the request never offered.
+ *
+ * Its own type so the UTXO fallback below cannot mistake it for the composer rejecting a selection
+ * and retry — the last retry sends no `inputs_set` at all, which would answer a composer that
+ * ignored the set by letting it choose freely.
+ */
+class UnofferedInputsError extends CounterpartyApiError {}
 
 /**
  * Type guard to check if an error has a response with data
@@ -415,6 +425,10 @@ async function executeWithUtxoFallback(
   try {
     return await makeRequest({ inputsSet, allowUnconfirmed });
   } catch (error) {
+    // Not a composer complaining about the selection, so retrying with a different one — or with
+    // none — would only widen what it is allowed to spend.
+    if (error instanceof UnofferedInputsError) throw error;
+
     const errorMessage = getApiErrorMessage(error);
 
     // If it's a UTXO-related error, try fallbacks
@@ -483,7 +497,18 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     if ('error' in response.data) {
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
-    return response.data as ApiResponse;
+
+    const composed = response.data as ApiResponse;
+    // Checked here, where the set actually sent is in scope: the fallbacks below send different
+    // ones, and the last sends none at all.
+    const inputCheck = checkInputPolicy({
+      rawTransaction: composed.result?.rawtransaction ?? '',
+      offeredInputs: inputsSet,
+    });
+    if (!inputCheck.ok) {
+      throw new UnofferedInputsError(inputCheck.error ?? 'Unoffered inputs', endpoint);
+    }
+    return composed;
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
@@ -535,7 +560,18 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     if ('error' in response.data) {
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
-    return response.data as ApiResponse;
+
+    const composed = response.data as ApiResponse;
+    // Checked here, where the set actually sent is in scope: the fallbacks below send different
+    // ones, and the last sends none at all.
+    const inputCheck = checkInputPolicy({
+      rawTransaction: composed.result?.rawtransaction ?? '',
+      offeredInputs: inputsSet,
+    });
+    if (!inputCheck.ok) {
+      throw new UnofferedInputsError(inputCheck.error ?? 'Unoffered inputs', endpoint);
+    }
+    return composed;
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
