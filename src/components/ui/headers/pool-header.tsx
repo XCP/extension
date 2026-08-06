@@ -11,10 +11,12 @@ interface PoolHeaderProps {
 
 export function PoolHeader({ pool, className = "" }: PoolHeaderProps): ReactElement {
   const pair = getCanonicalPoolPair(pool.asset_a, pool.asset_b);
-  const quantity = "quantity_normalized" in pool ? pool.quantity_normalized : undefined;
+  const quantity = "quantity_normalized" in pool
+    ? (pool.quantity_normalized as string | undefined)
+    : undefined;
   const balance = quantity
     ? formatAmount({
-        value: Number(quantity),
+        value: quantity,
         minimumFractionDigits: 8,
         maximumFractionDigits: 8,
         useGrouping: true,

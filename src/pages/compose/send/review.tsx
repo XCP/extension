@@ -4,6 +4,7 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import { formatAmount } from "@/core/format";
+import { type BigNumber, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
 /**
@@ -63,7 +64,8 @@ export function ReviewSend({
 
     // Total across the recipients shown above, so the total and the list cannot disagree.
     const totalQuantity = transactions.reduce(
-      (sum: number, tx: { quantity: string | number }) => sum + Number(tx.quantity), 0
+      (sum: BigNumber, tx: { quantity: string | number }) => sum.plus(toBigNumber(tx.quantity)),
+      toBigNumber(0)
     );
     const asset = transactions[0]?.asset ?? assetDestQuantList[0]?.[0] ?? '';
 

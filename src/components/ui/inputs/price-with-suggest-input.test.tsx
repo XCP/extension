@@ -14,7 +14,8 @@ vi.mock('@/core/format', () => ({
   })
 }));
 
-vi.mock('@/core/numeric', () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
   toBigNumber: vi.fn((v) => v),
   isValidPositiveNumber: vi.fn((value, options) => {
     if (value === '') return true;

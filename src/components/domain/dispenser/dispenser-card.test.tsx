@@ -19,7 +19,8 @@ vi.mock("@/core/format", () => ({
   },
 }));
 
-vi.mock("@/core/numeric", () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
   asBaseUnits: (v: unknown) => v,
   asDisplayUnits: (v: unknown) => v,
   divide: (a: string, b: string) =>

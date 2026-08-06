@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
-import { fromSatoshis } from "@/core/numeric";
+import { divide, fromSatoshis, toBigNumber } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";
 
 // Known safe error messages that can be shown to users
@@ -97,14 +97,16 @@ export function AmountWithMaxInput({
     if (!sourceAddress?.address || disabled) return;
 
     if (asset !== "BTC") {
-      const maxNum = Number(maxAmount);
-      if (!isNaN(maxNum)) {
+      // maxAmount is the whole balance as a decimal string; splitting it as a double would hand
+      // the user a figure their balance cannot cover, or leave a remainder behind.
+      const maxNum = toBigNumber(maxAmount);
+      if (!maxNum.isNaN()) {
         // Use appropriate decimal places based on divisibility
         // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
         // useGrouping: false prevents commas in the value (e.g., "1000000" not "1,000,000")
         const decimals = isDivisible ? 8 : 0;
         const perDestination = formatAmount({
-          value: maxNum / destinationCount,
+          value: divide(maxNum, destinationCount),
           maximumFractionDigits: decimals,
           minimumFractionDigits: 0,
           useGrouping: false

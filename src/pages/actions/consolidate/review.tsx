@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/core/format";
+import { divide, roundDown, toSatoshis } from "@/core/numeric";
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 interface ConsolidationReviewProps {
@@ -40,7 +41,11 @@ function calculateBatchFees(
   
   batches.forEach(batch => {
     // Use actual total from API
-    const inputSats = Math.floor(batch.summary.total_btc * 100000000 / batch.summary.batches_required);
+    // total_btc is a decimal BTC figure; multiplying it by 1e8 as a double is the classic way to
+    // land a satoshi off. toSatoshis does the scaling exactly.
+    const inputSats = Number(roundDown(
+      divide(toSatoshis(batch.summary.total_btc), batch.summary.batches_required)
+    ).toFixed(0));
     totalInput += inputSats;
     
     // Measured against confirmed recoveries: a 420-input spend lands at ~48,200 bytes, so a 1-of-3
