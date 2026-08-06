@@ -23,7 +23,8 @@ vi.mock("@/components/domain/asset/asset-icon", () => ({
 }));
 
 vi.mock("@/core/format", () => ({
-  formatAmount: ({ value }: { value: number }) => value.toFixed(8),
+  // Mirrors the real signature: a quantity arrives as a decimal string, not a number.
+  formatAmount: ({ value }: { value: string | number }) => Number(value).toFixed(8),
   formatAsset: (asset: string) => asset,
   formatTxid: (txid: string) => `${txid.slice(0, 8)}...${txid.slice(-6)}`,
 }));

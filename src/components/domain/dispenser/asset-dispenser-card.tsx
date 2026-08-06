@@ -2,6 +2,7 @@ import type { KeyboardEvent, MouseEvent, ReactElement } from "react";
 import { FaCheck, FaCopy } from "@/components/icons";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAddress, formatAmount } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
 import { isNumericAsset } from "@/core/validation/asset";
 
 interface AssetDispenserCardProps {
@@ -25,11 +26,12 @@ export function AssetDispenserCard({
   isCopied = false,
   className = "",
 }: AssetDispenserCardProps): ReactElement {
-  const remaining = Number(dispenser.give_remaining_normalized);
-  const perDispense = Number(dispenser.give_quantity_normalized);
+  const remaining = dispenser.give_remaining_normalized;
+  const perDispense = dispenser.give_quantity_normalized;
 
   // Use 8 decimals for fractional amounts, 0 for whole numbers
-  const formatAssetAmount = (value: number) => value % 1 === 0
+  const formatAssetAmount = (value: string | number | undefined) =>
+    value !== undefined && toBigNumber(value).isInteger()
     ? formatAmount({ value, maximumFractionDigits: 0 })
     : formatAmount({ value, minimumFractionDigits: 8, maximumFractionDigits: 8 });
 

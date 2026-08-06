@@ -10,7 +10,7 @@ import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest
 import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { DispenserOptions } from "@/core/counterparty/compose";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 
@@ -139,10 +139,10 @@ export const DispenserForm = memo(function DispenserForm({
       return;
     }
     
-    const cleanEscrow = parseFloat(escrowQuantity || "0");
-    const cleanGive = parseFloat(giveQuantity || "0");
-    
-    if (!isNaN(cleanEscrow) && !isNaN(cleanGive) && cleanEscrow < cleanGive) {
+    const cleanEscrow = toBigNumber(escrowQuantity || "0");
+    const cleanGive = toBigNumber(giveQuantity || "0");
+
+    if (!cleanEscrow.isNaN() && !cleanGive.isNaN() && cleanEscrow.isLessThan(cleanGive)) {
       setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
       return;
     }

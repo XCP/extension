@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { fromSatoshis } from "@/core/numeric";
 
 interface ManageDispenserCardProps {
   dispenser: DispenserDetails;
@@ -30,7 +31,7 @@ export function ManageDispenserCard({
     e.stopPropagation();
     // Navigate to create dispenser with same params for refill
     // Convert satoshirate to BTC (divide by 100,000,000)
-    const btcPrice = (Number(dispenser.satoshirate) / 100_000_000).toFixed(8);
+    const btcPrice = fromSatoshis(dispenser.satoshirate);
     const params = new URLSearchParams({
       refill: "true",
       mainchainrate: btcPrice,
@@ -65,7 +66,7 @@ export function ManageDispenserCard({
             {assetName}
           </div>
           <div className="text-xs text-gray-500">
-            {formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 2 })} remaining
+            {formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 2 })} remaining
           </div>
         </div>
         {isOpen ? (

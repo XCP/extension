@@ -133,7 +133,7 @@ export function hexToText(hex: string): string | null {
     const bytes = new Uint8Array(cleanHex.length / 2);
     for (let i = 0; i < cleanHex.length; i += 2) {
       const byte = parseInt(cleanHex.substr(i, 2), 16);
-      if (isNaN(byte)) return null;
+      if (Number.isNaN(byte)) return null;
       bytes[i / 2] = byte;
     }
     

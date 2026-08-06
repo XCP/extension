@@ -10,7 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/counterparty/api";
 import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 
@@ -110,7 +110,7 @@ export default function AssetPage(): ReactElement {
     const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
     const isLocked = assetDetails.assetInfo.locked;
     const totalSupply = assetDetails.assetInfo.supply || "0";
-    const hasSupply = Number(totalSupply) > 0;
+    const hasSupply = isGreaterThan(totalSupply ?? 0, 0);
     const issuerBalance = assetDetails.availableBalance || "0";
     const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
     const hasFairMinting = assetDetails.assetInfo.fair_minting;
@@ -347,14 +347,14 @@ export default function AssetPage(): ReactElement {
                       <div>
                         <div className="text-sm font-medium text-gray-900">
                           {formatAmount({
-                            value: Number(dividend.quantity_per_unit_normalized),
+                            value: dividend.quantity_per_unit_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset} per unit
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
                           Total distributed: {formatAmount({
-                            value: Number(dividend.total_distributed_normalized),
+                            value: dividend.total_distributed_normalized,
                             minimumFractionDigits: 0,
                             maximumFractionDigits: 8,
                           })} {dividend.dividend_asset}

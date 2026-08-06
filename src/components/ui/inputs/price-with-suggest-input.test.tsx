@@ -5,16 +5,15 @@ import { PriceWithSuggestInput } from './price-with-suggest-input';
 
 // Mock utilities
 vi.mock('@/core/format', () => ({
-  formatAmount: vi.fn((options) => {
-    const value = options.value;
-    if (typeof value === 'number') {
-      return value.toFixed(options.maximumFractionDigits || 8);
-    }
-    return String(value);
-  })
+  // The real formatter takes a string or BigNumber as readily as a number, and applies the
+  // fraction digits to all of them; a branch that stringifies instead diverges from it.
+  formatAmount: vi.fn((options) =>
+    Number(options.value).toFixed(options.maximumFractionDigits || 8)
+  )
 }));
 
-vi.mock('@/core/numeric', () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
   toBigNumber: vi.fn((v) => v),
   isValidPositiveNumber: vi.fn((value, options) => {
     if (value === '') return true;

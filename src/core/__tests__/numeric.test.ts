@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   calculateMaxDividendPerUnit,
   divideSatoshis,
-  formatBigNumber,
   fromSatoshis,
   isEqualTo,
   isFiniteNumber,
@@ -14,7 +13,6 @@ import {
   isLessThanOrEqualToSatoshis,
   isLessThanSatoshis,
   isValidPositiveNumber,
-  normalizeAssetSupply,
   roundDownToMultiple,
   subtractSatoshis,
   toBigNumber,
@@ -75,38 +73,6 @@ describe('numeric utilities', () => {
       const result = toBigNumber('1e-8');
       // The input is valid, but the toString might not format as expected due to BigNumber config
       expect(result.isEqualTo('0.00000001')).toBe(true);
-    });
-  });
-
-  describe('formatBigNumber', () => {
-    it('should format with default 8 decimal places', () => {
-      const num = new BigNumber('123.456789123456789');
-      const result = formatBigNumber(num);
-      expect(result).toBe('123.45678912');
-    });
-
-    it('should format with custom decimal places', () => {
-      const num = new BigNumber('123.456789');
-      const result = formatBigNumber(num, 2);
-      expect(result).toBe('123.45');
-    });
-
-    it('should handle zero', () => {
-      const num = new BigNumber('0');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('0.00000000');
-    });
-
-    it('should handle very small numbers', () => {
-      const num = new BigNumber('0.00000001');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('0.00000001');
-    });
-
-    it('should handle large numbers', () => {
-      const num = new BigNumber('1234567890.12345678');
-      const result = formatBigNumber(num, 8);
-      expect(result).toBe('1234567890.12345678');
     });
   });
 
@@ -472,7 +438,7 @@ describe('numeric utilities', () => {
       expect(isValidPositiveNumber(total.toString(), { maxDecimals: 8 })).toBe(true);
       
       // Format for display
-      const formatted = formatBigNumber(total, 2);
+      const formatted = total.toFixed(2, BigNumber.ROUND_DOWN);
       expect(formatted).toBe('123.45');
     });
 
@@ -490,22 +456,6 @@ describe('numeric utilities', () => {
       // Convert back to BTC
       const btcAfterFee = fromSatoshis(afterFee);
       expect(btcAfterFee).toBe('0.00000544');
-    });
-  });
-
-  describe('normalizeAssetSupply', () => {
-    it('should normalize divisible asset supply from satoshis', () => {
-      // 100000000 satoshis = 1.0 for divisible
-      expect(normalizeAssetSupply('100000000', true)).toBe(1);
-      expect(normalizeAssetSupply('50000000', true)).toBe(0.5);
-      expect(normalizeAssetSupply('1', true)).toBe(0.00000001);
-    });
-
-    it('should not normalize indivisible asset supply', () => {
-      // Indivisible assets are whole units
-      expect(normalizeAssetSupply('100', false)).toBe(100);
-      expect(normalizeAssetSupply('1', false)).toBe(1);
-      expect(normalizeAssetSupply('1000000', false)).toBe(1000000);
     });
   });
 
@@ -555,14 +505,25 @@ describe('numeric utilities', () => {
       expect(result.toString()).toBe('0.1');
     });
 
+    it('never quotes a per-unit figure that overpays the balance', () => {
+      // The invariant that matters, held against a supply past 2^53: whatever rounding does, the
+      // whole distribution has to stay inside the balance.
+      const balance = '99526925811111111';
+      const supply = '99526925811111111';
+
+      const perUnit = calculateMaxDividendPerUnit(balance, supply, false);
+
+      expect(perUnit.times(supply).isLessThanOrEqualTo(balance)).toBe(true);
+    });
+
     it('should ensure max * supply does not exceed balance', () => {
       const balance = '0.47519999';
       const supply = '100000000'; // 1.0 normalized for divisible
       const isDivisible = true;
 
       const maxPerUnit = calculateMaxDividendPerUnit(balance, supply, isDivisible);
-      const normalizedSupply = normalizeAssetSupply(supply, isDivisible);
-      const totalPayout = maxPerUnit.times(normalizedSupply);
+      // 1.0 normalized, so the payout is the per-unit figure itself.
+      const totalPayout = maxPerUnit.times(toBigNumber(supply).dividedBy(100_000_000));
 
       // Total payout should equal the balance (within precision)
       expect(totalPayout.toString()).toBe(balance);

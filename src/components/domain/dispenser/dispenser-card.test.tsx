@@ -10,15 +10,17 @@ vi.mock("@/core/format", () => ({
     maximumFractionDigits = 8,
     minimumFractionDigits = 0,
   }: {
-    value: number;
+    // A quantity arrives as a decimal string; the real formatter takes it as one.
+    value: string | number;
     maximumFractionDigits?: number;
     minimumFractionDigits?: number;
   }) => {
-    return value.toFixed(maximumFractionDigits);
+    return Number(value).toFixed(maximumFractionDigits);
   },
 }));
 
-vi.mock("@/core/numeric", () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
   asBaseUnits: (v: unknown) => v,
   asDisplayUnits: (v: unknown) => v,
   divide: (a: string, b: string) =>

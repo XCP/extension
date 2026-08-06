@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
-import { asDisplayUnits, divide, multiply, roundDownToMultiple, toBigNumber } from '@/core/numeric';
+import { asDisplayUnits, divide, isGreaterThan, multiply, roundDownToMultiple, toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface FairmintFormDataInternal {
@@ -95,7 +95,7 @@ export function FairmintForm({
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Computed values
-  const isFreeMint = selectedFairminter ? parseFloat(selectedFairminter.price_normalized) === 0 : false;
+  const isFreeMint = selectedFairminter ? !isGreaterThan(selectedFairminter.price_normalized, 0) : false;
 
   // Focus input on mount
   useEffect(() => {
@@ -160,7 +160,7 @@ export function FairmintForm({
     
     // Only validate quantity for paid mints
     if (!isFreeMint) {
-      if (!formData.quantity || Number(formData.quantity) <= 0) {
+      if (!formData.quantity || !isGreaterThan(formData.quantity, 0)) {
         setValidationError("Please enter a valid quantity greater than zero.");
         return;
       }
@@ -207,7 +207,7 @@ export function FairmintForm({
   const isSubmitDisabled = !formData.asset || 
     (formData.asset === "BTC") || 
     (formData.asset === "XCP") ||
-    (!isFreeMint && (!formData.quantity || Number(formData.quantity) <= 0));
+    (!isFreeMint && (!formData.quantity || !isGreaterThan(formData.quantity, 0)));
 
   return (
     <ComposerForm
@@ -287,7 +287,7 @@ export function FairmintForm({
               maxAmount={calculateMaxQuantity()}
               label="Amount"
               name="amount"
-              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && parseFloat(selectedFairminter.quantity_by_price_normalized) > 1 ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
+              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && isGreaterThan(selectedFairminter.quantity_by_price_normalized, 1) ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
               disableMaxButton={false}
               onMaxClick={() => {
                 const maxQty = calculateMaxQuantity();

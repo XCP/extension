@@ -301,7 +301,7 @@ export function SwapForm({
           labelRight={
             availableBalance ? (
               <span className="text-xs text-gray-500 font-normal">
-                Balance: {formatAmount({ value: Number(availableBalance), maximumFractionDigits: 8 })}
+                Balance: {formatAmount({ value: availableBalance, maximumFractionDigits: 8 })}
               </span>
             ) : undefined
           }
@@ -380,7 +380,7 @@ export function SwapForm({
               <>
                 <DetailRow
                   label="Minimum received"
-                  value={`${formatAmount({ value: Number(quoteView.minReceived), maximumFractionDigits: 8 })} ${getAsset}`}
+                  value={`${formatAmount({ value: quoteView.minReceived, maximumFractionDigits: 8 })} ${getAsset}`}
                 />
                 {quoteView.poolFee && (
                   <DetailRow

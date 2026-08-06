@@ -30,7 +30,7 @@ export async function fetchFromBlockstream(): Promise<number> {
   const response = await apiClient.get<string>('https://blockstream.info/api/blocks/tip/height', { retries: 0 });
   const data = String(response.data);
   const height = parseInt(data, 10);
-  if (isNaN(height)) {
+  if (Number.isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'blockstream.info', {
       endpoint: '/api/blocks/tip/height',
     });
@@ -45,7 +45,7 @@ export async function fetchFromMempoolSpace(): Promise<number> {
   const response = await apiClient.get<string>('https://mempool.space/api/blocks/tip/height', { retries: 0 });
   const data = String(response.data);
   const height = parseInt(data, 10);
-  if (isNaN(height)) {
+  if (Number.isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'mempool.space', {
       endpoint: '/api/blocks/tip/height',
     });
@@ -60,7 +60,7 @@ export async function fetchFromBlockchainInfo(): Promise<number> {
   const response = await apiClient.get<string>('https://blockchain.info/q/getblockcount', { retries: 0 });
   const data = String(response.data);
   const height = parseInt(data, 10);
-  if (isNaN(height)) {
+  if (Number.isNaN(height)) {
     throw new DataFetchError('Invalid block height data', 'blockchain.info', {
       endpoint: '/q/getblockcount',
     });

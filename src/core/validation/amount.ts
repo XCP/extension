@@ -213,7 +213,7 @@ export function isValidNumber(value: string): boolean {
   
   // Try to parse
   const num = Number(trimmed);
-  return !isNaN(num) && isFinite(num);
+  return !Number.isNaN(num) && Number.isFinite(num);
 }
 
 /**

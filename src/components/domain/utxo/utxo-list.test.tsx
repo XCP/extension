@@ -25,7 +25,7 @@ vi.mock('@/core/counterparty/api', () => ({
 }));
 
 vi.mock('@/core/format', () => ({
-  formatAmount: vi.fn(({ value }: { value: number }) => value.toFixed(8)),
+  formatAmount: vi.fn(({ value }: { value: string | number }) => Number(value).toFixed(8)),
   formatAsset: vi.fn((asset: string) => asset),
   formatTxid: vi.fn((txid: string) => `${txid.slice(0, 8)}...`)
 }));

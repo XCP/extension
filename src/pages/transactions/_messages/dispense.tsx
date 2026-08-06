@@ -11,7 +11,7 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   
   if (!dispenseEvent?.params) {
     // Fallback to transaction root data (use normalized value)
-    const btcAmount = Number(tx.btc_amount_normalized ?? 0);
+    const btcAmount = tx.btc_amount_normalized ?? '0';
     return [
       {
         label: "Dispenser Address",
@@ -32,8 +32,8 @@ export function dispense(tx: Transaction): Array<{ label: string; value: string 
   const isDivisible = params.asset_info?.divisible ?? true;
 
   // Use API-provided normalized values (verbose=true always returns these)
-  const quantityReceived = Number(params.dispense_quantity_normalized);
-  const btcPaid = Number(params.btc_amount_normalized);
+  const quantityReceived = params.dispense_quantity_normalized;
+  const btcPaid = params.btc_amount_normalized;
     
   const pricePerUnit = quantityReceived > 0 ? btcPaid / quantityReceived : 0;
   

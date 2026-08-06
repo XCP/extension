@@ -2,6 +2,7 @@ import type { KeyboardEvent, ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { isEqualTo } from "@/core/numeric";
 
 interface MarketDispenserCardProps {
   dispenser: DispenserDetails;
@@ -42,15 +43,15 @@ export function MarketDispenserCard({
         <div className="flex-1 min-w-0">
           <div className="flex justify-between">
             <span className="font-medium text-blue-600 text-sm truncate">{assetName}</span>
-            {Number(dispenser.give_quantity_normalized) !== 1 && (
+            {!isEqualTo(dispenser.give_quantity_normalized, 1) && (
               <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                {formatAmount({ value: Number(dispenser.give_quantity_normalized), maximumFractionDigits: 2 })} per dispense
+                {formatAmount({ value: dispenser.give_quantity_normalized, maximumFractionDigits: 2 })} per dispense
               </span>
             )}
           </div>
           <div className="flex justify-between text-xs text-gray-500">
-            <span>{formattedPrice ?? `${formatAmount({ value: Number(dispenser.satoshirate), maximumFractionDigits: 0 })} sats`}</span>
-            <span>{formatAmount({ value: Number(dispenser.give_remaining_normalized), maximumFractionDigits: 0 })} remaining</span>
+            <span>{formattedPrice ?? `${formatAmount({ value: dispenser.satoshirate, maximumFractionDigits: 0 })} sats`}</span>
+            <span>{formatAmount({ value: dispenser.give_remaining_normalized, maximumFractionDigits: 0 })} remaining</span>
           </div>
         </div>
       </div>

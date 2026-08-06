@@ -16,6 +16,7 @@
 
 import { BinaryReader, bytesToTextOrHex } from '@/core/counterparty/unpack/binary';
 import { tryDecodeCborArray } from '@/core/counterparty/unpack/cbor';
+import { toFiniteNumber } from "@/core/numeric";
 
 /** Minimum length of legacy broadcast message (timestamp + value + fee_fraction) */
 const BROADCAST_MIN_LENGTH = 16; // 4 + 8 + 4
@@ -86,7 +87,7 @@ function tryDecodeCBOR(payload: Uint8Array): BroadcastData | null {
   return {
     timestamp: Number(timestampValue),
     value: Number(valueValue),
-    feeFractionInt: Number(feeFractionValue),
+    feeFractionInt: toFiniteNumber(feeFractionValue) ?? 0,
     text,
     mimeType: typeof mimeTypeValue === 'string' && mimeTypeValue !== '' ? mimeTypeValue : undefined,
   };

@@ -1,6 +1,7 @@
 import { CacheTTL, KeyedTTLCache } from '@/core/api/cache';
 import { apiClient } from '@/core/api/client';
 import { DataFetchError } from '@/core/errors';
+import { toFiniteNumber } from "@/core/numeric";
 
 /**
  * Supported fiat currencies for price display.
@@ -67,7 +68,13 @@ export async function fetchFromCoinbase(): Promise<PriceData> {
       endpoint: "/v2/prices/spot",
     });
   }
-  return { bitcoin: { usd: parseFloat(data.data.amount) } };
+  const usd = toFiniteNumber(data.data.amount);
+  if (usd === undefined) {
+    throw new DataFetchError("Invalid response data", "coinbase.com", {
+      endpoint: "/v2/prices/spot",
+    });
+  }
+  return { bitcoin: { usd } };
 }
 
 /**
@@ -83,8 +90,8 @@ export async function fetchFromKraken(): Promise<PriceData> {
       endpoint: "/0/public/Ticker",
     });
   }
-  const price = parseFloat(data.result.XXBTZUSD.c[0] ?? '');
-  if (!Number.isFinite(price)) {
+  const price = toFiniteNumber(data.result.XXBTZUSD.c[0]);
+  if (price === undefined) {
     throw new DataFetchError("Invalid response data", "kraken.com", {
       endpoint: "/0/public/Ticker",
     });
@@ -126,7 +133,7 @@ export async function getBtcPrice(
   const promises = fetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.bitcoin?.usd;
-    if (typeof price !== "number" || isNaN(price)) {
+    if (typeof price !== "number" || Number.isNaN(price)) {
       throw new DataFetchError(`${fetcher.name} returned invalid price`, "price-fetcher");
     }
     return price;
@@ -257,7 +264,7 @@ async function fetchHistoryFromCoinCap(range: TimeRange): Promise<PricePoint[]> 
 
   return data.data.map((point: { time: number; priceUsd: string }) => ({
     timestamp: point.time,
-    price: parseFloat(point.priceUsd),
+    price: toFiniteNumber(point.priceUsd) ?? Number.NaN,
   }));
 }
 
@@ -276,8 +283,8 @@ async function fetchStatsFromCoinCap(): Promise<BtcStats> {
   }
 
   return {
-    price: parseFloat(data.data.priceUsd),
-    change24h: parseFloat(data.data.changePercent24Hr) || 0,
+    price: toFiniteNumber(data.data.priceUsd) ?? Number.NaN,
+    change24h: toFiniteNumber(data.data.changePercent24Hr) ?? 0,
   };
 }
 

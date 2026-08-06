@@ -19,6 +19,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
+import { divide, maximum, multiply, roundDown, roundUp, toFiniteNumber, toSafeInteger } from "@/core/numeric";
 
 /**
  * A fee rate above this (sat/vByte) is treated as never legitimate, and *blocks* on the compose
@@ -176,23 +177,33 @@ export async function checkTransactionFee(
   if (fee < 0n) {
     return { ok: false, error: 'Transaction outputs exceed inputs — refusing to sign.' };
   }
-  const computedFee = Number(fee);
+  // A fee is satoshis, so it fits a number exactly — but only while it really does.
+  const computedFee = toSafeInteger(fee);
+  if (computedFee === undefined) {
+    return { ok: false, error: 'Transaction fee is out of range — refusing to sign.' };
+  }
 
   const vsize = Math.max(1, estimateVsize(tx, rawBytes.length));
-  const impliedRate = computedFee / vsize;
+  const impliedRate = divide(computedFee, vsize);
 
-  if (impliedRate > MAX_SANE_FEE_RATE) {
+  if (impliedRate.isGreaterThan(MAX_SANE_FEE_RATE)) {
     return {
       ok: false,
-      error: `Transaction fee (${computedFee} sats, ~${Math.round(impliedRate)} sat/vB) is abnormally high and was blocked.`,
+      error: `Transaction fee (${computedFee} sats, ~${roundDown(impliedRate).toFixed()} sat/vB) is abnormally high and was blocked.`,
       computedFee,
     };
   }
 
-  const rate = typeof userFeeRate === 'string' ? Number(userFeeRate) : userFeeRate;
-  if (rate && Number.isFinite(rate) && rate > 0) {
-    const bound = Math.max(MIN_BOUND_SATS, Math.ceil(rate * vsize * USER_FEE_RATE_TOLERANCE));
-    if (computedFee > bound) {
+  // The rate arrives as a form string; a value that is not a number leaves the bound unapplied
+  // rather than silently becoming zero.
+  const rate = toFiniteNumber(userFeeRate);
+  if (rate !== undefined && rate > 0) {
+    // Named rather than nested three deep: what the fee would be at the user's rate, times the
+    // slack the bound allows.
+    const feeAtUserRate = multiply(rate, vsize);
+    const allowed = roundUp(multiply(feeAtUserRate, USER_FEE_RATE_TOLERANCE));
+    const bound = maximum(MIN_BOUND_SATS, allowed);
+    if (bound.isLessThan(computedFee)) {
       return {
         ok: false,
         error: `Transaction fee (${computedFee} sats) far exceeds your selected rate of ${rate} sat/vB.`,

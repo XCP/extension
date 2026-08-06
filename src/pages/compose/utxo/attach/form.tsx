@@ -6,7 +6,7 @@ import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { AttachOptions } from "@/core/counterparty/compose";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 /**
@@ -72,7 +72,7 @@ export function UtxoAttachForm({
           />
         )
       }
-      submitDisabled={!quantity || quantity === "0" || parseFloat(quantity) <= 0}
+      submitDisabled={!quantity || quantity === "0" || !isGreaterThan(quantity, 0)}
     >
       {validationError && (
         <div className="mb-4">

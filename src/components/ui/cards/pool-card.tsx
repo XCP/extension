@@ -33,7 +33,7 @@ export function PoolCard({
       : (pool.reserve_b_normalized ?? pool.reserve_b),
   );
   const quantity =
-    "quantity" in pool ? Number(pool.quantity_normalized ?? pool.quantity) : null;
+    "quantity" in pool ? ((pool.quantity_normalized ?? pool.quantity) as string | number) : null;
 
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {

@@ -88,7 +88,7 @@ export function BalanceCard({
         {/* Balance Amount */}
         <div className="text-sm text-gray-500">
           {formatAmount({
-            value: Number(token.quantity_normalized),
+            value: token.quantity_normalized,
             minimumFractionDigits: isDivisible ? 8 : 0,
             maximumFractionDigits: isDivisible ? 8 : 0,
             useGrouping: true,

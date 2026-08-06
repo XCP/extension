@@ -29,13 +29,14 @@ vi.mock('@/components/domain/asset/asset-icon', () => ({
 vi.mock('@/core/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
-      return value.toFixed(8);
+      return Number(value).toFixed(8);
     }
-    return value.toLocaleString();
+    return Number(value).toLocaleString();
   })
 }));
 
-vi.mock('@/core/numeric', () => ({
+vi.mock('@/core/numeric', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/numeric')>()),
   // Brands are compile-time only; at runtime they are identity.
   asBaseUnits: (v: unknown) => v,
   asDisplayUnits: (v: unknown) => v,

@@ -352,3 +352,30 @@ describe('format utilities', () => {
     });
   });
 });
+
+describe('formatAmount, given the string a quantity arrived as', () => {
+  // A Counterparty quantity is a 64-bit integer and its normalized form is a decimal string. The
+  // string is exact; converting it to a double first is not, and Intl formats either.
+
+  it('renders a supply that a double cannot hold', () => {
+    // PEPECASH's real supply. Through Number() the last digits change.
+    expect(formatAmount({ value: '995269258.11111111', maximumFractionDigits: 8 }))
+      .toBe('995,269,258.11111111');
+    expect(formatAmount({ value: Number('995269258.11111111'), maximumFractionDigits: 8 }))
+      .toBe('995,269,258.1111112');
+  });
+
+  it('renders a base-unit quantity above 2^53 exactly', () => {
+    expect(formatAmount({ value: '99526925811111111' })).toBe('99,526,925,811,111,111');
+  });
+
+  it('still formats numbers, so existing callers are unaffected', () => {
+    expect(formatAmount({ value: 1234.5678, maximumFractionDigits: 2 })).toBe('1,234.57');
+  });
+
+  it('reports a value it cannot read as N/A rather than NaN', () => {
+    expect(formatAmount({ value: 'not a number' })).toBe('N/A');
+    expect(formatAmount({ value: '' })).toBe('N/A');
+    expect(formatAmount({ value: null })).toBe('N/A');
+  });
+});

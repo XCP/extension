@@ -53,7 +53,7 @@ vi.mock("@/core/format", () => ({
   formatAmount: vi.fn(
     ({ value, minimumFractionDigits, maximumFractionDigits }) => {
       if (minimumFractionDigits === 8 || maximumFractionDigits === 8) {
-        return value.toFixed(8);
+        return Number(value).toFixed(8);
       }
       return value.toString();
     },

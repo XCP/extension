@@ -3,10 +3,17 @@
  */
 
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
-import { fromSatoshis, toSatoshis } from '@/core/numeric';
+import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
 
 export interface AmountFormatterOptions {
-  value: number | null | undefined;
+  /**
+   * The amount to render. Pass the string a quantity arrived as, rather than converting it.
+   *
+   * `Intl.NumberFormat` formats a decimal string exactly, and a `number` only as precisely as a
+   * double allows — a 64-bit quantity is already rounded by the time it gets here. PEPECASH's
+   * supply renders as 995,269,258.11111111 from the string and 995,269,258.1111112 from the number.
+   */
+  value: string | number | BigNumber | null | undefined;
   currency?: string;
   style?: "decimal" | "currency" | "percent" | "unit";
   maximumFractionDigits?: number;
@@ -24,7 +31,7 @@ export interface AmountFormatterOptions {
  * @returns A formatted string representation of the value
  * @example
  * formatAmount({ value: 1234.5678, maximumFractionDigits: 2 }) // "1,234.57"
- * formatAmount({ value: 1234.5678, currency: "USD", style: "currency" }) // "$1,234.57"
+ * formatAmount({ value: "995269258.11111111" }) // "995,269,258.11111111"
  */
 export function formatAmount({
   value,
@@ -37,7 +44,10 @@ export function formatAmount({
   locale,
   signDisplay,
 }: AmountFormatterOptions): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return "N/A";
+  if (value === null || value === undefined) return "N/A";
+  if (typeof value === "number" && Number.isNaN(value)) return "N/A";
+  // A string that is not a number at all would reach Intl as NaN and render as "NaN".
+  if (typeof value === "string" && (value.trim() === "" || Number.isNaN(Number(value)))) return "N/A";
 
   const notation: "compact" | "standard" = compact ? "compact" : "standard";
   const formatOptions: Intl.NumberFormatOptions = {
@@ -56,7 +66,19 @@ export function formatAmount({
       delete formatOptions[key as keyof Intl.NumberFormatOptions]
   );
 
-  return new Intl.NumberFormat(locale, formatOptions).format(value);
+  // `toFixed` rather than `toString`, which switches to exponent notation at the extremes.
+  const exact = typeof value === "number" || typeof value === "string"
+    ? value
+    : value.toFixed();
+
+  // Intl.NumberFormat V3 (Chrome 106+, Firefox 116+) formats a decimal string exactly. The bundled
+  // lib types still describe the older signature, so the correction belongs on that signature
+  // rather than on the value — the value is genuinely a string, and casting it would say otherwise.
+  const format = new Intl.NumberFormat(locale, formatOptions).format as (
+    input: string | number
+  ) => string;
+
+  return format(exact);
 }
 
 /**

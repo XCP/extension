@@ -1,5 +1,6 @@
 import type { PricePoint } from "@/core/bitcoin/price";
 import { DataFetchError } from "@/core/errors";
+import { toFiniteNumber } from "@/core/numeric";
 
 /**
  * Interface for XCP price data response from xcp.io API.
@@ -100,8 +101,8 @@ export async function fetchFromDexTrade(
     });
   }
 
-  const xcpBtcPrice = parseFloat(data.data.last);
-  if (isNaN(xcpBtcPrice)) {
+  const xcpBtcPrice = toFiniteNumber(data.data.last);
+  if (xcpBtcPrice === undefined) {
     throw new DataFetchError("Invalid XCP/BTC price value", "dex-trade.com", {
       endpoint: "/v1/public/ticker",
     });
@@ -236,7 +237,7 @@ export async function getXCPPrice(
   const directFetcherPromises = xcpPriceFetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.xcp?.usd;
-    if (typeof price !== "number" || isNaN(price)) {
+    if (typeof price !== "number" || Number.isNaN(price)) {
       throw new DataFetchError(
         `${fetcher.name} returned invalid XCP price`,
         "xcp-price",
@@ -250,7 +251,7 @@ export async function getXCPPrice(
     const dexTradePromise = (async () => {
       const data = await fetchFromDexTrade(btcPriceUsd);
       const price = data.xcp?.usd;
-      if (typeof price !== "number" || isNaN(price)) {
+      if (typeof price !== "number" || Number.isNaN(price)) {
         throw new DataFetchError(
           "fetchFromDexTrade returned invalid XCP price",
           "dex-trade.com",

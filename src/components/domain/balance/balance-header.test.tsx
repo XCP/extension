@@ -24,9 +24,10 @@ vi.mock('@/components/domain/asset/asset-icon', () => ({
 vi.mock('@/core/format', () => ({
   formatAmount: vi.fn(({ value, minimumFractionDigits, maximumFractionDigits, useGrouping }) => {
     if (minimumFractionDigits === 8) {
-      return value.toFixed(8);
+      return Number(value).toFixed(8);
     }
-    return value.toLocaleString();
+    // The real formatter groups a decimal string too; a bare string does not.
+    return Number(value).toLocaleString();
   })
 }));
 

@@ -21,7 +21,7 @@ import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/p
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
-import { fromSatoshis } from '@/core/numeric';
+import { fromSatoshis, toFiniteNumber } from "@/core/numeric";
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignPsbtRequest } from '@/hooks/useSignPsbtRequest';
 import { getIdentityMismatchError, getPsbtPermissionError } from '@/platform/provider/requestIdentity';
@@ -354,7 +354,9 @@ export default function ApprovePsbtPage() {
             movement={movement}
             flexible={userSignsWithAnyoneCanPay}
             hasHighFee={hasHighFee}
-            protocolFeeXcp={counterpartyMessage?.messageData?.fee != null ? Number(counterpartyMessage.messageData.fee) : null}
+            protocolFeeXcp={counterpartyMessage?.messageData?.fee != null
+              ? toFiniteNumber(counterpartyMessage.messageData.fee) ?? null
+              : null}
           />
 
           {/* Transaction Details (expandable) */}

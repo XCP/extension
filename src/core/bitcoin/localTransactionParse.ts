@@ -18,6 +18,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { toSafeInteger } from '@/core/numeric';
 
 export interface LocalParsedInput {
   txid: string;
@@ -108,7 +109,7 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
   for (let index = 0; index < tx.outputsLength; index += 1) {
     const output = tx.getOutput(index);
     const script = output?.script;
-    const value = Number(output?.amount ?? 0n);
+    const value = toSafeInteger(output?.amount ?? 0n) ?? 0;
     if (!script) {
       outputs.push({ index, value, type: 'unknown' });
       continue;
