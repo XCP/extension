@@ -18,6 +18,7 @@
  * carries only names and must label a quantity whose units it cannot establish.
  */
 
+import BigNumber from 'bignumber.js';
 import type { DisplayUnits } from '@/core/numeric';
 
 /**
@@ -80,6 +81,14 @@ export interface DescribableMessage {
   lpAsset?: string;
   /** MPMA recipients, which travel in the payload rather than in outputs. */
   recipients?: { asset?: string; destination: string; quantity: unknown }[];
+  /**
+   * A dispenser message's status: 0 open, 1 open with an empty address, 10 closed
+   * (core `messages/dispenser.py`).
+   *
+   * Opening a dispenser commits assets to it; closing one shuts it down and refunds what is left.
+   * Both carry the same fields, so without this the two opposite acts rendered identically.
+   */
+  dispenserStatus?: number;
 
   /**
    * Render a quantity in display units for the given asset.
@@ -92,6 +101,20 @@ export interface DescribableMessage {
 
   /** Display name for an asset, preferring a subasset longname where the decoder has one. */
   name?: (asset?: string) => string;
+
+  /**
+   * A quantity in display units as a plain number string — no separators, no unit, no caveat.
+   *
+   * Derived figures (an order's price, a destroy's share of supply) need arithmetic, and the only
+   * divisibility-aware value available was `format`'s output, so they parsed it back with
+   * `Number(text.replace(/,/g, ''))`. Reading a number out of a string we had just formatted is
+   * the wrong direction in a codebase that spent this release removing exactly that, and it breaks
+   * outright on "1,000 (decimals unconfirmed)".
+   *
+   * Returns undefined when divisibility is not established, which is the case where a derived
+   * figure must not be computed at all rather than computed on an assumption.
+   */
+  numeric?: (quantity: unknown, asset?: string) => string | undefined;
 }
 
 /**
@@ -101,6 +124,9 @@ export interface DescribableMessage {
  * protocol's internal spelling shown to someone who has never read the protocol. Types whose name
  * does not survive that treatment are spelled out; the rest fall through to title case.
  */
+/** Core `messages/dispenser.py`: 0 open, 1 open with an empty address, 10 closed. */
+const DISPENSER_STATUS_CLOSED = 10;
+
 const TYPE_LABELS: Record<string, string> = {
   enhanced_send: 'Send',
   mpma_send: 'Multi-Send',
@@ -160,9 +186,15 @@ export function describeMessage(
         : 'Cancel a DEX order';
 
     case 'dispenser':
+      // Closing refunds the escrow and shuts the dispenser down; opening commits assets to it.
+      // Both messages carry the same fields, so describing them identically stated the opposite of
+      // what half of them do.
+      if (m.dispenserStatus === DISPENSER_STATUS_CLOSED) {
+        return `Close the ${n(m.asset)} dispenser`;
+      }
       // giveQuantity, not quantity: a dispenser's payout per trigger. Reading `quantity` here
       // rendered every dispenser as "? XCP".
-      return `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${m.mainchainrate} sats`;
+      return `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${Number(m.mainchainrate).toLocaleString()} sats`;
 
     case 'dispense':
       // The payload is a marker byte; which dispenser is triggered is decided by the outputs,
@@ -300,25 +332,40 @@ export interface ProtocolField {
  *
  * Empty for a type whose headline already says everything it carries.
  */
-/** Unit price of an order, which neither side's quantity states on its own. */
-function priceOf(
-  m: DescribableMessage,
-  q: (quantity: unknown, asset?: string) => string,
-  n: (asset?: string) => string
-): string | undefined {
-  const give = Number(q(m.giveQuantity, m.giveAsset).replace(/,/g, ''));
-  const get = Number(q(m.getQuantity, m.getAsset).replace(/,/g, ''));
-  if (!Number.isFinite(give) || !Number.isFinite(get) || give <= 0 || get <= 0) return undefined;
-  const unit = (get / give).toLocaleString(undefined, { maximumSignificantDigits: 8 });
-  return `${unit} ${n(m.getAsset)} per ${n(m.giveAsset)}`;
+/**
+ * An order's price, stated in a direction the reader does not have to guess.
+ *
+ * "200 PEPECASH per XCP" requires knowing which side the wallet chose to divide by; "1 XCP = 200
+ * PEPECASH" does not. A rate whose direction is unstated is worse than no rate on a screen someone
+ * is about to act on.
+ */
+function priceOf(m: DescribableMessage, n: (asset?: string) => string): string | undefined {
+  const give = m.numeric?.(m.giveQuantity, m.giveAsset);
+  const get = m.numeric?.(m.getQuantity, m.getAsset);
+  if (give === undefined || get === undefined) return undefined;
+
+  const giveAmount = new BigNumber(give);
+  const getAmount = new BigNumber(get);
+  if (!giveAmount.isFinite() || !getAmount.isFinite() || giveAmount.isLessThanOrEqualTo(0)) {
+    return undefined;
+  }
+
+  const rate = getAmount.dividedBy(giveAmount);
+  return `1 ${n(m.giveAsset)} = ${rate.decimalPlaces(8).toFormat()} ${n(m.getAsset)}`;
 }
 
 /** How many times a dispenser can still pay out, from what it holds and what it gives. */
 function triggersAvailable(m: DescribableMessage): string | undefined {
-  const escrow = Number(m.escrowQuantity);
-  const give = Number(m.giveQuantity);
-  if (!Number.isFinite(escrow) || !Number.isFinite(give) || give <= 0) return undefined;
-  return Math.floor(escrow / give).toLocaleString();
+  const escrow = m.numeric?.(m.escrowQuantity, m.asset);
+  const give = m.numeric?.(m.giveQuantity, m.asset);
+  if (escrow === undefined || give === undefined) return undefined;
+
+  const perTrigger = new BigNumber(give);
+  if (!perTrigger.isFinite() || perTrigger.isLessThanOrEqualTo(0)) return undefined;
+  const escrowed = new BigNumber(escrow);
+  if (!escrowed.isFinite()) return undefined;
+
+  return escrowed.dividedBy(perTrigger).integerValue(BigNumber.ROUND_FLOOR).toFormat();
 }
 
 /** What a sweep carries, from its flags - balances, ownership, or both. */
@@ -332,14 +379,18 @@ function sweepContents(m: DescribableMessage): string | undefined {
 /** A destroy's share of the asset's total supply, so the amount has a scale. */
 function shareOfSupply(m: DescribableMessage, supply?: string): string | undefined {
   if (!supply) return undefined;
-  const total = Number(supply.replace(/,/g, ''));
-  const amount = Number(m.format(m.quantity, m.asset).replace(/,/g, ''));
-  if (!Number.isFinite(total) || !Number.isFinite(amount) || total <= 0) return undefined;
-  const pct = (amount / total) * 100;
+  const destroyed = m.numeric?.(m.quantity, m.asset);
+  if (destroyed === undefined) return undefined;
+
+  const total = new BigNumber(supply.replace(/,/g, ''));
+  const amount = new BigNumber(destroyed);
+  if (!total.isFinite() || !amount.isFinite() || total.isLessThanOrEqualTo(0)) return undefined;
+
+  const pct = amount.dividedBy(total).times(100);
   // Nothing can destroy more than the supply. A figure above 100% means the two sides are in
   // different units, and printing it would be stating a number we have just shown to be wrong.
-  if (pct > 100) return undefined;
-  return `${pct < 0.01 ? '<0.01' : pct.toFixed(2)}%`;
+  if (pct.isGreaterThan(100)) return undefined;
+  return pct.isLessThan(0.01) ? '<0.01%' : `${pct.toFixed(2)}%`;
 }
 
 export function protocolFields(
@@ -381,85 +432,93 @@ export function protocolFields(
 
     case 'mpma_send':
       // The headline can only state a count, because the recipients are in the payload rather than
-      // in outputs - so this list is the only account of who is paid.
+      // in outputs - so this list is the only account of who is paid. One row per recipient in the
+      // same shape as every other row: the label names the field, the value carries the data.
       for (const r of m.recipients ?? []) {
-        const label = amount(r.quantity, r.asset);
-        if (label) add(label, r.destination);
+        const paid = amount(r.quantity, r.asset);
+        if (paid) add('Recipient', `${paid} to ${r.destination}`);
       }
       break;
 
     case 'order':
-      add('Price', priceOf(m, q, n));
-      add('Expires after', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
-      // An order with a BTC side requires this much BTC to be paid on match, beyond the trade.
-      add('BTC fee required', amount(m.feeRequired, 'BTC', 'BTC'));
+      add('Price', priceOf(m, n));
+      // Only orders with a BTC side carry one; every other order sets it to zero, and a row
+      // reading "BTC fee: 0.00000000 BTC" is noise on the majority of orders.
+      if (m.feeRequired != null && Number(m.feeRequired) > 0) {
+        add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'));
+      }
+      add('Expiry', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
       break;
 
     case 'dispenser':
-      // The headline is the price per trigger. What it cannot say is how much the dispenser holds,
-      // which is what decides how long it can keep paying.
-      add('Held in escrow', amount(m.escrowQuantity, m.asset));
-      add('Triggers available', triggersAvailable(m));
+      // Closing is stated in the headline and refunds rather than commits, so the escrow figures
+      // describe the opening case only.
+      if (m.dispenserStatus !== DISPENSER_STATUS_CLOSED) {
+        add('Escrow', amount(m.escrowQuantity, m.asset));
+        add('Triggers', triggersAvailable(m));
+      }
       break;
 
     case 'dispense':
       // "Trigger a dispenser" says nothing about what comes back, and core pays out from every
       // open dispenser at the address - so one payment can return several assets.
-      for (const payout of context.dispensePayouts ?? []) add('Receiving', payout);
+      for (const payout of context.dispensePayouts ?? []) add('You receive', payout);
       break;
 
     case 'fairminter':
       // The headline is the asset name alone; everything being agreed to is here.
-      add('Price per lot', amount(m.giveQuantity, 'XCP', 'XCP'));
+      add('XCP price', amount(m.giveQuantity, 'XCP', 'XCP'));
       add('Lot size', amount(m.quantityA, m.asset));
       add('Hard cap', amount(m.getQuantity, m.asset));
       add('Soft cap', amount(m.quantityB, m.asset));
-      add('Soft cap deadline', m.expiration ? `block ${m.expiration.toLocaleString()}` : undefined);
+      add('Deadline', m.expiration ? `block ${m.expiration.toLocaleString()}` : undefined);
       break;
 
     case 'fairmint':
-      // Headline: the amount being minted. Not in it: what it costs.
-      add('Cost', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
+      // Headline: the amount being minted. Not in it: what it costs. "XCP price" rather than
+      // "Cost", because this is a purchase price and the same screen uses "XCP fee" for the
+      // protocol charge on attach, detach and dividend - one name per concept.
+      add('XCP price', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
       break;
 
     case 'issuance':
     case 'subasset_issuance':
     case 'lr_issuance':
     case 'lr_subasset':
-      // Asset and new supply are the headline. The switches are not, and they are permanent:
-      // locking an asset cannot be undone.
-      add('Description', m.text);
-      if (m.divisible !== undefined) add('Divisible', m.divisible ? 'Yes' : 'No');
+      // Ordered by consequence: the switches that cannot be undone and the change of owner come
+      // before a description that can run several lines and change nothing.
       if (m.lock) add('Lock', 'Yes - supply can never be increased again');
       if (m.reset) add('Reset', 'Yes - existing supply is destroyed and replaced');
-      add('Transfer ownership to', m.destination);
+      add('New owner', m.destination);
+      if (m.divisible !== undefined) add('Divisible', m.divisible ? 'Yes' : 'No');
+      add('Description', m.text);
       break;
 
     case 'dividend':
-      // Headline: the rate. Here: the bill.
-      add('Paid across', context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined);
+      // Headline: the rate. Here: the bill, before the supply it is measured against.
       add(
         'Total payout',
         context.dividendTotal ? `${context.dividendTotal} ${n(m.dividendAsset)}` : undefined
       );
       add('XCP fee', context.dividendFeeXcp ? `${context.dividendFeeXcp} XCP` : undefined);
+      add('Supply', context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined);
       break;
 
     case 'destroy':
       // Headline: the amount. Without the supply it has no sense of scale - destroying 1,000 of
       // 1,000 is a very different act from destroying 1,000 of a billion.
+      add('Share of supply', shareOfSupply(m, context.assetSupply));
       add(
         'Total supply',
         context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined
       );
-      add('Share of supply', shareOfSupply(m, context.assetSupply));
       add('Tag', m.memo);
       break;
 
     case 'sweep':
       // Headline: the destination. Not in it: what actually moves, which is the whole question -
       // a sweep can hand over asset ownership as well as balances.
-      add('Moves', sweepContents(m));
+      add('Includes', sweepContents(m));
       add('Memo', m.memo);
       break;
 
@@ -480,9 +539,8 @@ export function protocolFields(
     }
 
     case 'btcpay':
-      // The headline is the same sentence for every BTCPay. Which match, and whether there is
-      // still time to pay it, are the two things that differ.
-      add('Order match', m.offerHash);
+      // The headline is the same sentence for every BTCPay. Whether there is still time to pay is
+      // the part that can make this transaction worthless, so it comes before the identifier.
       if (context.btcpayBlocksLeft !== undefined) {
         add(
           'Time left',
@@ -491,6 +549,7 @@ export function protocolFields(
             : 'Expired - this payment will not settle the match'
         );
       }
+      add('Order match', m.offerHash);
       break;
 
     case 'cancel':
@@ -499,29 +558,26 @@ export function protocolFields(
       break;
 
     case 'pooldeposit':
-      // Both amounts are the headline; the pool they land in is not.
+    case 'poolwithdraw':
+      // Both amounts are the headline; the pool they belong to is not.
       add('Pool', m.lpAsset ? n(m.lpAsset) : undefined);
       break;
 
-    case 'poolwithdraw':
-      add('Pool token', m.lpAsset ? n(m.lpAsset) : undefined);
-      break;
-
     case 'attach':
-      // The resulting UTXO is what this transaction produces and what the user will later spend;
-      // asset and amount are already stated in the headline.
+      // The XCP fee is a cost; the UTXO is an identifier, so it comes second. Asset and amount are
+      // already stated in the headline.
+      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
       add(
-        'Attaching to',
+        'New UTXO',
         context.transactionId !== undefined && m.destinationVout !== undefined
           ? `${context.transactionId}:${m.destinationVout}`
           : undefined
       );
-      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
       break;
 
     case 'detach':
       // The destination is in the headline. What is not is which balances come back.
-      for (const asset of context.detachingAssets ?? []) add('Detaching', asset);
+      for (const asset of context.detachingAssets ?? []) add('Released', asset);
       add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
       break;
 

@@ -154,6 +154,28 @@ describe('describeCounterpartyMessage', () => {
     expect(desc).not.toContain('?');
   });
 
+  it('distinguishes closing a dispenser from opening one', () => {
+    // core messages/dispenser.py: status 10 is a close, which refunds the escrow and shuts the
+    // dispenser down. It carries the same fields as an open, so describing them alike stated the
+    // opposite of what half of these messages do.
+    const open = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(1000),
+      asset: 'PEPECASH',
+      mainchainrate: 10000,
+      status: 0,
+    });
+    const close = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(0),
+      asset: 'PEPECASH',
+      mainchainrate: 0,
+      status: 10,
+    });
+
+    expect(close).toContain('Close');
+    expect(close).toContain('PEPECASH');
+    expect(close).not.toBe(open);
+  });
+
   it('describes issuance', () => {
     const desc = describeCounterpartyMessage('issuance', {
       asset: 'MYTOKEN',

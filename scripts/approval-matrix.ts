@@ -45,6 +45,7 @@ const SAMPLE: Omit<DescribableMessage, 'format'> = {
   lock: true,
   reset: false,
   sourceUtxo: `${'f'.repeat(64)}:0`,
+  dispenserStatus: 0,
   feeRequired: 10_000,
   lpAsset: 'XCPPEPE',
   recipients: [
@@ -106,6 +107,11 @@ const view: DescribableMessage = {
       : Number(quantity).toLocaleString();
   },
   name: (asset) => asset ?? '',
+  numeric: (quantity, asset) => {
+    if (quantity == null) return undefined;
+    const divisible = asset !== 'PEPECASH';
+    return divisible ? (Number(quantity) / 1e8).toString() : String(quantity);
+  },
 };
 
 const rows: string[] = [];

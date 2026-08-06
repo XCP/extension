@@ -218,12 +218,23 @@ function fromLocalUnpack(
     feeRequired: data.feeRequired,
     lpAsset: data.lpAsset as string | undefined,
     recipients: sends as { asset?: string; destination: string; quantity: unknown }[] | undefined,
+    dispenserStatus: data.status as number | undefined,
     format: (quantity, asset) => {
       if (quantity == null) return '?';
       const divisible = divisibilityOf(asset);
       if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: false });
       if (divisible === false) return BigInt(String(quantity)).toLocaleString();
       return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
+    },
+    // The same value with nothing added, for the figures that get divided rather than displayed.
+    // Undefined where divisibility is unknown: a derived rate computed on a guessed scale is wrong
+    // by 1e8, which is the failure this whole layer exists to prevent.
+    numeric: (quantity, asset) => {
+      if (quantity == null) return undefined;
+      const divisible = divisibilityOf(asset);
+      if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+      if (divisible === false) return BigInt(String(quantity)).toString();
+      return undefined;
     },
   };
 }
