@@ -8,10 +8,10 @@
  * (`parser/gettxinfo.py::get_utxos_info` → `get_first_non_op_return_output`). When there is no such
  * output — a lone OP_RETURN — the assets are **detached** to the source address instead.
  *
- * This is the whole mechanism behind an atomic swap of an attached UTXO, and it is invisible to
- * every message-based check: there is no payload to decode, no compose request to compare against,
- * nothing to re-pack. The approval screen previously said only "inputs you are signing carry
- * attached assets" — that they move, never where. For a swap that is the entire question.
+ * This is the mechanism behind an atomic swap of an attached UTXO, and it is invisible to every
+ * message-based check: no payload to decode, no compose request to compare against, nothing to
+ * re-pack. Knowing that assets move is not enough — where they land is the question a swap turns
+ * on, so it must be resolved here.
  *
  * It is also the Counterparty form of the risk the ordinals wallets guard against: an asset-bearing
  * UTXO spent as an ordinary coin, its contents landing wherever the first output happens to point.

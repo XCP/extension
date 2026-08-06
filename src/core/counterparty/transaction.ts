@@ -336,7 +336,6 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
   };
 }
 
-
 /**
  * Check if OP_RETURN data contains Counterparty prefix
  */

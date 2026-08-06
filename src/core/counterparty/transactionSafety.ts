@@ -55,11 +55,9 @@ export function isCounterpartyDataScript(script: string | undefined): boolean {
 }
 
 /**
- * Message types whose whole purpose is to pay BTC to somebody else's address.
- *
- * A dispense pays the dispenser; a BTCPay settles an order match. Treating that payment as
- * suspicious flagged every correct transaction of these types, which is the failure mode that
- * makes warnings stop working.
+ * Message types whose whole purpose is to pay BTC to somebody else's address: a dispense pays the
+ * dispenser, a BTCPay settles an order match. Flagging that payment as suspicious would fire on
+ * every correct transaction of these types.
  */
 const BTC_PAYING_MESSAGE_TYPES = new Set(['dispense', 'btcpay']);
 
@@ -254,10 +252,8 @@ export function analyzeTransactionSafety(
     warnings.push(
       expected
         ? {
-            // For these two types the payment is the transaction. Raising a red danger banner on
-            // every one of them is a false alarm, and a warning that fires when nothing is wrong
-            // teaches people to click past the one that matters. It still says where the money
-            // goes — that is the part worth reading — but as a statement, not an accusation.
+            // The payment is the transaction, so this is information rather than a warning.
+            // The address and amount still need checking, hence the wording.
             severity: 'info',
             title: 'BTC Payment',
             message:

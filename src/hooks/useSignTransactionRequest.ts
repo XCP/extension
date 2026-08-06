@@ -260,7 +260,6 @@ export function useSignTransactionRequest(signerAddress?: string) {
 
     const attachedAssets = await attachedAssetsPromise;
 
-
     // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
     // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
     // transaction, which a site has no Counterparty reason to ask this wallet for and which the

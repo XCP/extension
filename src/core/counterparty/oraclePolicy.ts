@@ -1,28 +1,12 @@
 /**
- * This wallet does not sign oracle-priced dispensers.
+ * Policy: this wallet does not sign oracle-priced dispensers.
  *
- * An oracle dispenser prices in fiat: core converts the BTC paid using the oracle address's most
- * recent broadcast (`messages/dispense.py::get_must_give` → `ledger.other.get_oracle_last_price`).
- *
- * That lookup is
- *
- *     SELECT * FROM broadcasts
- *     WHERE source = :source AND status = 'valid' AND block_index < :block_index
- *     ORDER BY tx_index DESC LIMIT 1
- *
- * — with no bound on age. There is no staleness check anywhere in core: a price broadcast years ago
- * is applied verbatim today, and most oracle feeds stopped publishing long ago. Two consequences
- * make this unsignable rather than merely unwise:
- *
- *  1. The rate is not fixed when you approve. The oracle's owner can broadcast a new price in any
- *     block before the transaction confirms, and core will use the newest one below the confirming
- *     block. What the BTC buys is decided after the signature, by a third party.
- *  2. Where the feed is dead, the price applied is whatever the market happened to be on the day it
- *     stopped, which has no relationship to what the payer thinks they are paying.
- *
- * The approval screen's job is to say what will happen if you approve. For an oracle dispenser it
- * cannot, so this refuses instead of showing a number it cannot stand behind. Fixed-rate dispensers
- * — the overwhelming majority — are unaffected.
+ * An oracle dispenser prices in fiat from the oracle address's latest broadcast
+ * (`messages/dispense.py::get_must_give` → `ledger.other.get_oracle_last_price`). That query bounds
+ * the broadcast only by block height, never by age, so the rate is whatever was last published and
+ * the feed's owner can change it in any block before the transaction confirms. The payout is
+ * therefore not knowable at signing time, and these are refused rather than shown with a figure
+ * that may not hold. Fixed-rate dispensers are unaffected.
  */
 
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';

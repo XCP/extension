@@ -135,10 +135,8 @@ export function ReviewDispense({
   
   // Add expected outcome if we have triggered dispensers
   if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
-    // What each dispenser pays is worked out in one place, shared with the provider approval
-    // screen. This screen used to compute it inline and diverged from core twice: it never applied
-    // the `give_remaining` cap, so a nearly-empty dispenser was quoted at its full rate, and it
-    // priced oracle dispensers with the fixed-rate formula, which is not what they charge.
+    // Payout arithmetic is shared with the provider approval screen; see dispenseOutcome.ts for
+    // why it must not be reimplemented here.
     const receivedAssets = payouts.map(describePayout);
     
     // Format USD value for BTC payment

@@ -309,7 +309,6 @@ export default function ApproveTransactionPage() {
             )}
           </div>
 
-
           {/* What the Counterparty message itself says, kept apart from the Bitcoin view below.
               The headline is one line and loses most of it — a fairminter's headline is its asset
               name, while the thing being agreed to is a set of caps, a price and a deadline. */}

@@ -12,7 +12,7 @@ import { fromSatoshis } from '@/core/numeric';
  * the destination out of view — on the line that says where the money goes. Truncating instead
  * would reintroduce the lookalike-grinding problem the outputs list deliberately avoids.
  *
- * Lives here because both approval screens render this headline. It was previously fixed inline on
+ * Lives here because both approval screens render this headline, and it was once fixed inline on
  * the transaction screen only, so the PSBT screen kept overflowing.
  */
 export function splitTrailingAddress(description: string): { sentence: string; address?: string } {

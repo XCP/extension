@@ -1,29 +1,20 @@
 /**
- * What a dispense actually returns.
+ * What a dispense pays back, mirroring `messages/dispense.py`.
  *
- * A dispense carries no payload worth reading — one marker byte — so the message says nothing about
- * what the sender receives. The answer is entirely in the outputs and in ledger state: core takes
- * each output, looks up **every** open dispenser at that address
- * (`messages/dispense.py`: `get_dispensers(..., status_in=[0, 11], order_by="asset")`) and pays out
- * from each in turn. One payment to an address running three dispensers returns three assets.
+ * A dispense payload is a single marker byte, so what the sender receives is decided entirely by
+ * the outputs and by ledger state. Core takes each output and pays from *every* open dispenser at
+ * that address — `get_dispensers(..., status_in=[0, 11], order_by="asset")` — so one payment to an
+ * address running three dispensers returns three assets.
  *
- * That is the part a person cannot work out from the screen. The BTC leaving is visible in the
- * outputs; what comes back is not, and "Trigger a dispenser" was the whole description.
- *
- * Payout per dispenser, from `dispense.py`:
+ * Per dispenser:
  *
  *     must_give      = floor(btc_amount / satoshirate)
  *     remaining      = floor(give_remaining / give_quantity)
  *     actually_given = min(must_give, remaining) * give_quantity
  *
- * The compose review screen worked this out inline and diverged from core twice: it never applied
- * the `give_remaining` cap, so a nearly-empty dispenser was quoted at its full rate, and it priced
- * oracle dispensers with the fixed-rate formula, which is not what they charge. Both screens now
- * read from here, because two implementations of one rule is how a fix lands in only one of them.
- *
- * Oracle dispensers price in fiat against the oracle's last broadcast, so their payout depends on a
- * value that can change before the transaction confirms. Those are reported as oracle-priced rather
- * than given a number this wallet cannot stand behind.
+ * Shared by the compose review screen and the provider approval screen. Keep it that way: the
+ * inline copy this replaced omitted the `give_remaining` cap and priced oracle dispensers with the
+ * fixed-rate formula.
  */
 
 import BigNumber from 'bignumber.js';

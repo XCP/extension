@@ -113,9 +113,8 @@ export default function ApprovePsbtPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
-  // The same card the raw-transaction screen shows. A PSBT carrying an order used to fall through
-  // to the generic headline-and-details rendering, so one message had two appearances depending on
-  // which method the site called.
+  // The same card the raw-transaction screen shows, so an order looks identical whichever signing
+  // method the site called.
   const order = buildOrderAction(decodedInfo);
   const txAction = order ? null : getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));

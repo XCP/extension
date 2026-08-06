@@ -105,14 +105,12 @@ export interface DescribableMessage {
   /**
    * A quantity in display units as a plain number string — no separators, no unit, no caveat.
    *
-   * Derived figures (an order's price, a destroy's share of supply) need arithmetic, and the only
-   * divisibility-aware value available was `format`'s output, so they parsed it back with
-   * `Number(text.replace(/,/g, ''))`. Reading a number out of a string we had just formatted is
-   * the wrong direction in a codebase that spent this release removing exactly that, and it breaks
-   * outright on "1,000 (decimals unconfirmed)".
+   * Derived figures (an order's price, a destroy's share of supply) need arithmetic, and `format`'s
+   * output is not a valid input for it: separators must be stripped and the "(decimals unconfirmed)"
+   * caveat parses to NaN.
    *
-   * Returns undefined when divisibility is not established, which is the case where a derived
-   * figure must not be computed at all rather than computed on an assumption.
+   * Returns undefined when divisibility is not established — a derived figure must be withheld
+   * rather than computed against an assumed scale.
    */
   numeric?: (quantity: unknown, asset?: string) => string | undefined;
 }
@@ -178,9 +176,8 @@ export function describeMessage(
       return `Give ${q(m.giveQuantity, m.giveAsset)} ${n(m.giveAsset)} for ${q(m.getQuantity, m.getAsset)} ${n(m.getAsset)}`;
 
     case 'cancel':
-      // The hash alone says nothing a person can act on, and putting it in the headline spends the
-      // one prominent line on 64 characters nobody can check. Where the order resolved, name the
-      // trade; where it did not, say what is being done and leave the hash to the detail list.
+      // Name the trade where the order resolved; otherwise say what is being done and leave the
+      // hash to the detail list, which is where 64 characters belong.
       return m.cancelledOrderSummary
         ? `Cancel order: ${m.cancelledOrderSummary}`
         : 'Cancel a DEX order';
@@ -229,9 +226,8 @@ export function describeMessage(
       return n(m.asset);
 
     case 'fairmint':
-      // A fairmint may leave the quantity to the fairminter's lot size, and formatting an absent
-      // quantity produced "? FAIRTOKEN" — the same question mark that made every dispenser read
-      // "? XCP". With no amount stated, name the asset and let the detail list carry the cost.
+      // The quantity is optional: a fairmint may take the fairminter's lot size. With no amount
+      // to state, name the asset rather than formatting nothing as "?".
       return m.quantity == null ? n(m.asset) : `${q(m.quantity, m.asset)} ${n(m.asset)}`;
 
     case 'pooldeposit':
@@ -333,11 +329,8 @@ export interface ProtocolField {
  * Empty for a type whose headline already says everything it carries.
  */
 /**
- * An order's price, stated in a direction the reader does not have to guess.
- *
- * "200 PEPECASH per XCP" requires knowing which side the wallet chose to divide by; "1 XCP = 200
- * PEPECASH" does not. A rate whose direction is unstated is worse than no rate on a screen someone
- * is about to act on.
+ * An order's price, phrased so its direction is explicit: "1 XCP = 200 PEPECASH" rather than
+ * "200 PEPECASH per XCP", which requires knowing which side was divided by.
  */
 function priceOf(m: DescribableMessage, n: (asset?: string) => string): string | undefined {
   const give = m.numeric?.(m.giveQuantity, m.giveAsset);

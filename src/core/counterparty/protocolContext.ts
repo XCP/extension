@@ -11,10 +11,9 @@
  * Every lookup fails soft: a field that could not be resolved is omitted, and the detail list
  * simply says less. An approval must not depend on a third party being reachable.
  *
- * Values here are bare — a number, not a number with a unit glued on. The describer decides how to
- * label them, because it is the side that knows which asset each figure belongs to, and a label
- * baked in here reappeared as "1,000 PEPECASH PEPECASH" on screen and as NaN wherever a figure was
- * parsed back for arithmetic.
+ * Values are bare numbers, never a number with a unit appended: the describer knows which asset
+ * each figure belongs to and does the labelling, and a value labelled here cannot be used in
+ * arithmetic downstream.
  */
 
 import { getCurrentBlockHeight } from '@/core/bitcoin/blockHeight';
