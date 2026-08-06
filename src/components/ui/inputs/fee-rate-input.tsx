@@ -11,6 +11,7 @@ import {
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatAmount } from "@/core/format";
+import { maximum, toNumber } from "@/core/numeric";
 import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
 
@@ -73,7 +74,7 @@ export function FeeRateInput({
         onFeeRateChangeRef.current?.(initialValue);
       } else {
         // Default to fast preset (fresh load or default value)
-        const defaultValue = Math.max(feeRates.fastestFee, 0.1);
+        const defaultValue = toNumber(maximum(feeRates.fastestFee, 0.1));
         setCustomInput(defaultValue.toString());
         setSelectedOption("fast");
         onFeeRateChangeRef.current?.(defaultValue);
@@ -132,7 +133,7 @@ export function FeeRateInput({
         minimumFractionDigits: 0
       });
       setCustomInput(formattedValue);
-      onFeeRateChangeRef.current?.(parseFloat(formattedValue));
+      onFeeRateChangeRef.current?.(toNumber(formattedValue));
       return;
     }
     
@@ -177,7 +178,7 @@ export function FeeRateInput({
       minimumFractionDigits: 0
     });
     setCustomInput(formattedValue);
-    onFeeRateChange?.(parseFloat(formattedValue));
+    onFeeRateChange?.(toNumber(formattedValue));
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number } | null) => {

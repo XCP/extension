@@ -476,6 +476,29 @@ export const toGroupedString = (
 };
 
 /**
+ * A finite number, or undefined when the value is not one.
+ *
+ * The parse that reports failure. toBigNumber substitutes zero for an unreadable value, which is
+ * right when a missing figure means none and wrong when it means the source is broken — a price
+ * feed returning garbage must not read as a price of zero. Use this wherever the answer to "not a
+ * number" is to stop rather than to carry on with a default.
+ *
+ * Stricter than parseFloat, which reads "12abc" as 12; a value that is not wholly numeric is not a
+ * number here.
+ *
+ * @param value - The value to read
+ * @returns The number, or undefined when it is not finite
+ */
+export const toFiniteNumber = (value: unknown): number | undefined => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (trimmed === '') return undefined;
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+/**
  * A whole number a double can hold exactly, or undefined when the value is not one.
  *
  * The case this exists for is satoshis. Bitcoin's entire supply is 2.1e15 of them, comfortably

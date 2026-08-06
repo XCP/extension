@@ -2,7 +2,7 @@ import { Description, Field, Label } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { Button } from '@/components/ui/button';
 import { formatAmount } from '@/core/format';
-import { isValidPositiveNumber } from '@/core/numeric';
+import { divide, isValidPositiveNumber, toFiniteNumber } from "@/core/numeric";
 
 interface PriceWithSuggestInputProps {
   value: string;
@@ -57,10 +57,10 @@ export function PriceWithSuggestInput({
       setIsPairFlipped(prev => !prev);
 
       if (value) {
-        const priceValue = parseFloat(value);
-        if (!Number.isNaN(priceValue) && priceValue !== 0) {
+        const priceValue = toFiniteNumber(value);
+        if (priceValue !== undefined && priceValue !== 0) {
           const invertedPrice = formatAmount({
-            value: 1 / priceValue,
+            value: divide(1, priceValue),
             maximumFractionDigits: 8,
             minimumFractionDigits: 8
           });
@@ -86,8 +86,8 @@ export function PriceWithSuggestInput({
   const handleSuggestClick = () => {
     if (!tradingPairData?.last_trade_price) return;
 
-    const suggestedPrice = Number(tradingPairData.last_trade_price);
-    if (!Number.isNaN(suggestedPrice)) {
+    const suggestedPrice = toFiniteNumber(tradingPairData.last_trade_price);
+    if (suggestedPrice !== undefined) {
       onChange(formatAmount({
         value: suggestedPrice,
         maximumFractionDigits: 8,
@@ -144,8 +144,8 @@ export function PriceWithSuggestInput({
             <span className="ml-1">
               Last trade: {formatAmount({
                 value: showPairFlip && isPairFlipped
-                  ? 1 / Number(tradingPairData.last_trade_price)
-                  : Number(tradingPairData.last_trade_price),
+                  ? divide(1, tradingPairData.last_trade_price)
+                  : tradingPairData.last_trade_price,
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
                 useGrouping: true

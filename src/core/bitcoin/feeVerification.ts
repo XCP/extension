@@ -19,7 +19,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
-import { divide, maximum, multiply, roundDown, roundUp, toSafeInteger } from '@/core/numeric';
+import { divide, maximum, multiply, roundDown, roundUp, toFiniteNumber, toSafeInteger } from "@/core/numeric";
 
 /**
  * A fee rate above this (sat/vByte) is treated as never legitimate, and *blocks* on the compose
@@ -194,8 +194,10 @@ export async function checkTransactionFee(
     };
   }
 
-  const rate = typeof userFeeRate === 'string' ? Number(userFeeRate) : userFeeRate;
-  if (rate && Number.isFinite(rate) && rate > 0) {
+  // The rate arrives as a form string; a value that is not a number leaves the bound unapplied
+  // rather than silently becoming zero.
+  const rate = toFiniteNumber(userFeeRate);
+  if (rate !== undefined && rate > 0) {
     const bound = maximum(MIN_BOUND_SATS, roundUp(multiply(multiply(rate, vsize), USER_FEE_RATE_TOLERANCE)));
     if (bound.isLessThan(computedFee)) {
       return {

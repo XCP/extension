@@ -1,5 +1,6 @@
 import type { PricePoint } from "@/core/bitcoin/price";
 import { DataFetchError } from "@/core/errors";
+import { toFiniteNumber } from "@/core/numeric";
 
 /**
  * Interface for XCP price data response from xcp.io API.
@@ -100,8 +101,8 @@ export async function fetchFromDexTrade(
     });
   }
 
-  const xcpBtcPrice = parseFloat(data.data.last);
-  if (Number.isNaN(xcpBtcPrice)) {
+  const xcpBtcPrice = toFiniteNumber(data.data.last);
+  if (xcpBtcPrice === undefined) {
     throw new DataFetchError("Invalid XCP/BTC price value", "dex-trade.com", {
       endpoint: "/v1/public/ticker",
     });

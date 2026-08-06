@@ -287,7 +287,7 @@ export function FairmintForm({
               maxAmount={calculateMaxQuantity()}
               label="Amount"
               name="amount"
-              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && parseFloat(selectedFairminter.quantity_by_price_normalized) > 1 ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
+              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && isGreaterThan(selectedFairminter.quantity_by_price_normalized, 1) ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
               disableMaxButton={false}
               onMaxClick={() => {
                 const maxQty = calculateMaxQuantity();

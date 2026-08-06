@@ -80,6 +80,7 @@ import {
   type InputScriptType,
   type OutputScriptType,
 } from '@/core/hardware/types';
+import { toSafeInteger } from "@/core/numeric";
 import { getActiveSettings } from '@/core/settings';
 
 // ============================================================================
@@ -831,7 +832,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           sequence: input.sequence,
         })),
         bin_outputs: refTx.outputs.map((output) => ({
-          amount: parseInt(output.amount, 10),
+          amount: toSafeInteger(output.amount) ?? 0,
           script_pubkey: output.script,
         })),
       }));
