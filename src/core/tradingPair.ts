@@ -4,6 +4,8 @@
  * like XCP, BTC, PEPECASH are always shown as the quote (denominator).
  */
 
+import { divide, isLessThanOrEqualToZero, toNumber } from '@/core/numeric';
+
 // Priority-ordered list of known quote assets
 // Lower index = higher priority to be the quote asset
 const QUOTE_ASSETS = [
@@ -159,19 +161,18 @@ interface OrderMatchLike {
  * @returns Price in quote asset per unit of base asset
  */
 export function getOrderPricePerUnit(order: OrderLike, baseAsset: string): number {
+  // Divided as BigNumber and narrowed once at the end: a float division of two decimal strings
+  // accumulates error that then drives sorting, and these feed the order book.
   if (order.give_asset === baseAsset) {
-    // Sell order: giving base, getting quote
-    // Price = quote/base = get_quantity / give_quantity
-    const giveQty = Number(order.give_quantity_normalized);
-    if (giveQty <= 0) return 0;
-    return Number(order.get_quantity_normalized) / giveQty;
-  } else {
-    // Buy order: giving quote, getting base
-    // Price = quote/base = give_quantity / get_quantity
-    const getQty = Number(order.get_quantity_normalized);
-    if (getQty <= 0) return 0;
-    return Number(order.give_quantity_normalized) / getQty;
+    // Sell order: giving base, getting quote. Price = get_quantity / give_quantity.
+    const giveQty = order.give_quantity_normalized;
+    if (isLessThanOrEqualToZero(giveQty)) return 0;
+    return toNumber(divide(order.get_quantity_normalized, giveQty));
   }
+  // Buy order: giving quote, getting base. Price = give_quantity / get_quantity.
+  const getQty = order.get_quantity_normalized;
+  if (isLessThanOrEqualToZero(getQty)) return 0;
+  return toNumber(divide(order.give_quantity_normalized, getQty));
 }
 
 /**
@@ -180,11 +181,10 @@ export function getOrderPricePerUnit(order: OrderLike, baseAsset: string): numbe
 export function getOrderBaseAmount(order: OrderLike, baseAsset: string): number {
   if (order.give_asset === baseAsset) {
     // Sell order: they're giving base
-    return Number(order.give_remaining_normalized);
-  } else {
-    // Buy order: they want to receive base
-    return Number(order.get_remaining_normalized);
+    return toNumber(order.give_remaining_normalized);
   }
+  // Buy order: they want to receive base
+  return toNumber(order.get_remaining_normalized);
 }
 
 /**
@@ -193,11 +193,10 @@ export function getOrderBaseAmount(order: OrderLike, baseAsset: string): number 
 export function getOrderQuoteAmount(order: OrderLike, baseAsset: string): number {
   if (order.give_asset === baseAsset) {
     // Sell order: they want to receive quote
-    return Number(order.get_remaining_normalized);
-  } else {
-    // Buy order: they're giving quote
-    return Number(order.give_remaining_normalized);
+    return toNumber(order.get_remaining_normalized);
   }
+  // Buy order: they're giving quote
+  return toNumber(order.give_remaining_normalized);
 }
 
 /**
@@ -205,12 +204,12 @@ export function getOrderQuoteAmount(order: OrderLike, baseAsset: string): number
  */
 export function getMatchPricePerUnit(match: OrderMatchLike, baseAsset: string): number {
   if (match.forward_asset === baseAsset) {
-    const baseQty = Number(match.forward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.backward_quantity_normalized) / baseQty;
+    const baseQty = match.forward_quantity_normalized;
+    if (isLessThanOrEqualToZero(baseQty)) return 0;
+    return toNumber(divide(match.backward_quantity_normalized, baseQty));
   } else {
-    const baseQty = Number(match.backward_quantity_normalized);
-    if (baseQty <= 0) return 0;
-    return Number(match.forward_quantity_normalized) / baseQty;
+    const baseQty = match.backward_quantity_normalized;
+    if (isLessThanOrEqualToZero(baseQty)) return 0;
+    return toNumber(divide(match.forward_quantity_normalized, baseQty));
   }
 }
