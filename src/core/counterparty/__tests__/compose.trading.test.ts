@@ -7,6 +7,7 @@ import { composeCancel, composeDispense, composeDispenser, composeOrder } from '
 import {
   assertComposeUrlCalled,
   createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockSatPerVbyte,
@@ -29,8 +30,8 @@ vi.mock('@/core/counterparty/capabilities', () => ({
 // Mock UTXO selection to prevent real API calls to mempool.space
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -45,8 +46,8 @@ describe('Compose Trading Operations', () => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
     // Mock both get and post methods since different functions may use different HTTP methods
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-    mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+    mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeOrder', () => {
@@ -66,7 +67,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'order', defaultParams);
     });
 
@@ -84,7 +85,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -207,7 +208,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'cancel', defaultParams);
     });
 
@@ -223,7 +224,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -232,8 +233,8 @@ describe('Compose Trading Operations', () => {
 
       for (const offer_hash of hashes) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const result = await composeCancel({
           sourceAddress: mockAddress,
@@ -241,7 +242,7 @@ describe('Compose Trading Operations', () => {
           offer_hash,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -279,7 +280,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dispenser', defaultParams);
     });
 
@@ -297,7 +298,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -313,7 +314,7 @@ describe('Compose Trading Operations', () => {
         ...openParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -329,7 +330,7 @@ describe('Compose Trading Operations', () => {
         ...closeParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -338,8 +339,8 @@ describe('Compose Trading Operations', () => {
 
       for (const mainchainrate of rates) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, mainchainrate };
         const result = await composeDispenser({
@@ -348,7 +349,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -367,7 +368,7 @@ describe('Compose Trading Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dispense', defaultParams);
     });
 
@@ -407,7 +408,7 @@ describe('Compose Trading Operations', () => {
         ...optionalParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       expect(mockedApiClient.get).toHaveBeenCalled();
     });
 
@@ -416,8 +417,8 @@ describe('Compose Trading Operations', () => {
 
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity };
         const result = await composeDispense({
@@ -426,7 +427,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });
@@ -436,8 +437,8 @@ describe('Compose Trading Operations', () => {
 
       for (const dispenser of dispensers) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
-        mockedApiClient.post.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+        mockedApiClient.post.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, dispenser };
         const result = await composeDispense({
@@ -446,7 +447,7 @@ describe('Compose Trading Operations', () => {
           ...params,
         });
 
-        expect(result).toEqual(createMockComposeResult());
+        expect(result.result).toEqual(createMockComposeResult());
         expect(mockedApiClient.get).toHaveBeenCalled();
       }
     });

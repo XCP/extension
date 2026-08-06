@@ -1,5 +1,8 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, expect, it, vi } from 'vitest';
-import type { ComposeResult } from '../../compose';
+import type { ApiResponse, ComposeResult } from '../../compose';
 
 /**
  * Common test data and mocks for compose tests
@@ -18,10 +21,39 @@ export const mockSettings = {
 export const mockSatPerVbyte = 10;
 
 /**
+ * The coin these fixtures pretend the wallet offered. Each suite repeats the literal in its
+ * `utxoSelection` mock, because a `vi.mock` factory is hoisted above these imports and cannot read
+ * them.
+ */
+export const mockInputTxid = 'aa'.repeat(32);
+export const mockInputsSet = `${mockInputTxid}:0`;
+
+/**
+ * A real transaction spending exactly that coin, so the composed fixture parses.
+ *
+ * A placeholder like `'0200000001...'` reads fine but decodes to nothing, which quietly excuses
+ * every check that reads the composed transaction — input accounting among them — while the
+ * assertions around it still pass.
+ */
+function buildMockRawTransaction(): string {
+  const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+  const script = p2wpkh(getPublicKey(hexToBytes('11'.repeat(32)), true)).script;
+  tx.addInput({
+    txid: hexToBytes(mockInputTxid),
+    index: 0,
+    witnessUtxo: { script, amount: 100_000n },
+  });
+  tx.addOutput({ script, amount: 90_000n });
+  return bytesToHex(tx.unsignedTx);
+}
+
+export const mockRawTransaction = buildMockRawTransaction();
+
+/**
  * Create a mock compose result with defaults
  */
 export const createMockComposeResult = (overrides?: Partial<ComposeResult>): ComposeResult => ({
-  rawtransaction: '0200000001...',
+  rawtransaction: mockRawTransaction,
   btc_in: 100000,
   btc_out: 90000,
   btc_change: 8000,
@@ -62,9 +94,10 @@ export const createMockComposeResult = (overrides?: Partial<ComposeResult>): Com
 });
 
 /**
- * Create a mock API response with full AxiosResponse structure
+ * Create a mock API response with full AxiosResponse structure. `data` is the response body, so a
+ * compose body has to be wrapped — prefer `createMockComposeResponse`.
  */
-export const createMockApiResponse = <T = ComposeResult>(data: T) => ({
+export const createMockApiResponse = <T = ApiResponse>(data: T) => ({
   data: data,
   status: 200,
   statusText: 'OK',
@@ -73,12 +106,22 @@ export const createMockApiResponse = <T = ComposeResult>(data: T) => ({
 });
 
 /**
+ * A mocked compose call, shaped the way the API answers one: the result nested under `result`.
+ *
+ * Passing a bare `ComposeResult` as the body instead leaves `response.data.result` undefined, so
+ * anything reading the composed transaction — `result.rawtransaction`, and the input accounting
+ * that depends on it — silently sees nothing and every assertion still passes.
+ */
+export const createMockComposeResponse = (overrides?: Partial<ComposeResult>) =>
+  createMockApiResponse<ApiResponse>({ result: createMockComposeResult(overrides) });
+
+/**
  * Setup common mocks for compose tests
  */
 export const setupComposeMocks = () => {
   const mockedAxios = {
-    get: vi.fn().mockResolvedValue(createMockApiResponse(createMockComposeResult())),
-    post: vi.fn().mockResolvedValue(createMockApiResponse(createMockComposeResult())),
+    get: vi.fn().mockResolvedValue(createMockComposeResponse()),
+    post: vi.fn().mockResolvedValue(createMockComposeResponse()),
   };
   
   const mockedGetSettings = vi.fn().mockResolvedValue(mockSettings);
@@ -234,7 +277,7 @@ export const createComposeTestSuite = (
     it('should compose transaction with required parameters', async () => {
       const result = await composeFn(mockAddress, requiredParams);
       
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mocks.mockedAxios, endpoint, requiredParams);
     });
 

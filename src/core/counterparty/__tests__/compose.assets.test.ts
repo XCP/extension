@@ -10,7 +10,7 @@ import {
 } from '../compose';
 import {
   assertComposeUrlCalled,
-  createMockApiResponse,
+  createMockComposeResponse,
   createMockComposeResult,
   mockAddress,
   mockSatPerVbyte,
@@ -29,8 +29,8 @@ vi.mock('@/core/settings', async (importOriginal) => {
 // Mock UTXO selection to prevent real API calls to mempool.space
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
-    utxos: [{ txid: 'mock-txid', vout: 0, value: 100000, status: { confirmed: true } }],
-    inputsSet: 'mock-txid:0',
+    utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
+    inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
   }),
@@ -43,7 +43,7 @@ describe('Compose Asset Management Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
-    mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+    mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
   });
 
   describe('composeIssuance', () => {
@@ -63,7 +63,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'issuance', defaultParams);
     });
 
@@ -192,7 +192,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'destroy', defaultParams);
     });
 
@@ -219,7 +219,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const asset of assets) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, asset };
         await composeDestroy({
@@ -239,7 +239,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity of quantities) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity };
         await composeDestroy({
@@ -269,7 +269,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'dividend', defaultParams);
     });
 
@@ -309,7 +309,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity_per_unit of rates) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         const params = { ...defaultParams, quantity_per_unit };
         await composeDividend({
@@ -337,7 +337,7 @@ describe('Compose Asset Management Operations', () => {
         ...defaultParams,
       });
 
-      expect(result).toEqual(createMockComposeResult());
+      expect(result.result).toEqual(createMockComposeResult());
       assertComposeUrlCalled(mockedApiClient, 'burn', defaultParams);
     });
 
@@ -362,7 +362,7 @@ describe('Compose Asset Management Operations', () => {
 
       for (const quantity of amounts) {
         vi.clearAllMocks();
-        mockedApiClient.get.mockResolvedValue(createMockApiResponse(createMockComposeResult()));
+        mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
 
         await composeBurn({
           sourceAddress: mockAddress,
