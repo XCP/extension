@@ -102,25 +102,88 @@ export function pinnedQuantity(quantity: unknown): number | undefined {
   return Number.isSafeInteger(value) && value > 0 ? value : undefined;
 }
 
+/** Addresses a request names as recipients, split from the singular or plural field. */
+function requestedDestinations(params: Record<string, unknown>): string[] {
+  const plural = typeof params.destinations === 'string' ? params.destinations : '';
+  if (plural) return plural.split(',').map(entry => entry.trim()).filter(Boolean);
+  return typeof params.destination === 'string' && params.destination ? [params.destination] : [];
+}
+
+/** The `more_outputs` entries paying `address`, as sat amounts. `more_outputs` is "sats:address". */
+function attachedBtcTo(params: Record<string, unknown>, address: string): number[] {
+  if (typeof params.more_outputs !== 'string' || !params.more_outputs) return [];
+  const wanted = normalizeAddressForComparison(address);
+
+  return params.more_outputs.split(',').flatMap(entry => {
+    const [sats, paid] = entry.split(':');
+    if (!sats || !paid || normalizeAddressForComparison(paid.trim()) !== wanted) return [];
+    const value = Number(sats.trim());
+    return Number.isSafeInteger(value) && value >= 0 ? [value] : [];
+  });
+}
+
 /**
- * The output whose BTC amount the request determines, for the two compose types that have one. A
- * dispense pays the dispenser in BTC and gets back whatever that buys, and its message is a bare
- * marker byte, so byte equality says nothing about the amount; a BTC send carries no message at all.
+ * The outputs whose BTC amount the request determines, rather than the composer.
  *
- * Nothing else pins one — elsewhere the composer chooses the amount (a dust marker, or no output at
- * all) and a pin would reject honest transactions. Burns pin theirs at the call site.
+ * Two shapes. Where the request states an amount for an output that has to exist, that amount is the
+ * substance of the transaction: a dispense pays the dispenser in BTC and gets back whatever that
+ * buys, while its message is a bare marker byte, and a BTC send carries no message at all.
+ *
+ * Where the recipient travels inside the payload instead — an enhanced send, a sweep, an MPMA — core
+ * returns no destination outputs at all (`mpma.compose` returns `(source, [], data)`), so the only
+ * BTC that belongs there is what the user attached through `more_outputs`, and none when they
+ * attached nothing. Pinning it to zero is what stops a composer routing the change to the recipient:
+ * naming an address is not agreeing to an amount, and the payload the byte-equality check compares
+ * says nothing about BTC.
+ *
+ * An address the signer also owns is skipped: its change is indistinguishable from a payment, so a
+ * pin there would reject a send to yourself.
  */
-export function pinnedDestination(
+export function pinnedDestinations(
   composeType: string,
-  params: Record<string, unknown>
-): IntendedDestination | null {
-  const address = composeType === 'dispense' ? params.dispenser
+  params: Record<string, unknown>,
+  ownAddresses: readonly string[] = []
+): IntendedDestination[] {
+  const stated = composeType === 'dispense' ? params.dispenser
     : composeType === 'send' && params.asset === 'BTC' ? params.destination
     : null;
-  if (typeof address !== 'string' || !address) return null;
+  if (typeof stated === 'string' && stated) {
+    const value = pinnedQuantity(params.quantity);
+    return value === undefined ? [] : [{ address: stated, value }];
+  }
 
-  const value = pinnedQuantity(params.quantity);
-  return value === undefined ? null : { address, value };
+  const carriesDestinationInPayload = composeType === 'sweep' || composeType === 'mpma'
+    || (composeType === 'send' && params.asset !== 'BTC');
+  if (!carriesDestinationInPayload) return [];
+
+  const own = new Set(ownAddresses.map(normalizeAddressForComparison));
+
+  return requestedDestinations(params).flatMap(address => {
+    if (own.has(normalizeAddressForComparison(address))) return [];
+    const attached = attachedBtcTo(params, address);
+    // One pin per attached output, so several to one address stay individually accounted for.
+    return attached.length > 0
+      ? attached.map(value => ({ address, value }))
+      : [{ address, value: 0 }];
+  });
+}
+
+/**
+ * Replace every entry for a pinned address with the pins themselves.
+ *
+ * Callers name addresses generously — `more_outputs` is "sats:address", so its recipient is listed
+ * both as the destination and again from that field — and each entry explains one output. Leaving
+ * the duplicates alongside a pin would let a second, unpinned output through on the same address.
+ */
+export function withPinnedDestinations(
+  named: readonly IntendedDestination[],
+  pins: readonly IntendedDestination[]
+): IntendedDestination[] {
+  const pinned = new Set(pins.map(pin => normalizeAddressForComparison(pin.address)));
+  return [
+    ...named.filter(entry => !pinned.has(normalizeAddressForComparison(entry.address))),
+    ...pins,
+  ];
 }
 
 /** Whether an output carries message bytes rather than value. */

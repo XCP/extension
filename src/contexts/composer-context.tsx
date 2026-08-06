@@ -64,8 +64,9 @@ import { normalizeFormData } from "@/core/counterparty/normalize";
 import {
   checkOutputPolicy,
   type IntendedDestination,
-  pinnedDestination,
+  pinnedDestinations,
   pinnedQuantity,
+  withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
 import { fetchInputValues } from "@/core/counterparty/transaction";
@@ -434,17 +435,15 @@ export function ComposerProvider<T>({
           }
         }
         // Naming an address is not the same as agreeing to an amount paid to it.
-        const pinned = pinnedDestination(composeType, dataForApi);
-        if (pinned) {
-          const entry = intendedDestinations.find(d => d.address === pinned.address);
-          if (entry) entry.value = pinned.value;
-          else intendedDestinations.push(pinned);
-        }
+        const accountedFor = withPinnedDestinations(
+          intendedDestinations,
+          pinnedDestinations(composeType, dataForApi, [activeAddress.address])
+        );
 
         const outputCheck = checkOutputPolicy({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
-          intendedDestinations,
+          intendedDestinations: accountedFor,
           // An ownership transfer names its new owner nowhere in the message; the node reads it
           // from the output ahead of the data output.
           positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'
