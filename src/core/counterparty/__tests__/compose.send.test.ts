@@ -23,7 +23,10 @@ vi.mock('@/core/settings', async (importOriginal) => {
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
 });
 
-// Mock UTXO selection to prevent real API calls to mempool.space
+// Mock UTXO selection to prevent real API calls to mempool.space.
+// The txid is spelled out rather than imported as `mockInputTxid`: this factory is hoisted
+// above the imports and cannot read them. It must stay in step with the composed transaction
+// in composeTestHelpers, or the input check has nothing to match and stops testing anything.
 vi.mock('@/core/counterparty/utxoSelection', () => ({
   selectUtxosForTransaction: vi.fn().mockResolvedValue({
     utxos: [{ txid: 'aa'.repeat(32), vout: 0, value: 100000, status: { confirmed: true } }],
