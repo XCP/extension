@@ -55,7 +55,12 @@ export function importsBigNumberDirectly(source: string): boolean {
 
 export function violationsIn(source: string): number {
   let count = 0;
-  for (const line of source.split('\n')) {
+  // Split on either convention rather than on '\n' alone. JavaScript's `.` does not match `\r`, so
+  // on a CRLF checkout `//.*$` never reaches end-of-line and strips nothing: comments were scanned
+  // as code, and a comment containing the word `Number()` scored as a violation. It also made the
+  // count differ between a Windows working copy and CI's Linux one, so a baseline recorded on one
+  // could not be checked against the other.
+  for (const line of source.split(/\r?\n/)) {
     const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');
     if (!MONEY.test(code) || NOT_MONEY.test(code)) continue;
     const matches = code.match(RAW_NUMERIC);

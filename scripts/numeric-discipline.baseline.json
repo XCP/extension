@@ -32,7 +32,7 @@
   "src/core/hardware/trezorAdapter.ts": 1,
   "src/core/counterparty/describe.ts": 1,
   "src/core/counterparty/outputPolicy.ts": 1,
-  "src/core/counterparty/price.ts": 2,
+  "src/core/counterparty/price.ts": 1,
   "src/core/counterparty/unpack/messages/broadcast.ts": 1,
   "src/core/bitcoin/consolidateBatch.ts": 5,
   "src/core/bitcoin/feeVerification.ts": 5,
@@ -58,6 +58,5 @@
   "src/components/domain/balance/balance-list.tsx": 1,
   "src/components/domain/asset/asset-card.tsx": 1,
   "src/components/domain/asset/asset-header.tsx": 1,
-  "src/components/domain/asset/fairminter-select-input.tsx": 3,
-  "src/components/domain/approval/order-card.tsx": 1
+  "src/components/domain/asset/fairminter-select-input.tsx": 3
 }
