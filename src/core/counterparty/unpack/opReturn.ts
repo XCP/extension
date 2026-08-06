@@ -55,6 +55,15 @@ export function extractOpReturnPayload(scriptPubKeyHex: string): string | null {
   }
 }
 
+/** Whether a scriptPubKey is an OP_RETURN, however malformed the rest of it is. */
+function isOpReturnScript(scriptHex: string): boolean {
+  try {
+    return hexToBytes(scriptHex)[0] === 0x6a;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * ARC4-decrypt an OP_RETURN payload using the first input's txid as the key.
  * Returns the decrypted datahex (including the CNTRPRTY prefix) if it decrypts
@@ -89,11 +98,9 @@ export function decryptOpReturnData(
  * message from the one that executes: a chunk placed ahead of an honest OP_RETURN supplies the
  * message type.
  *
- * OP_RETURN is only ever ARC4-decrypted — never read as plaintext. Core does the same, so a
- * plaintext CNTRPRTY OP_RETURN is garbage to the node, which then parses a multisig-encoded
- * message instead. Honoring the plaintext form here would let an attacker pair a benign plaintext
- * decoy with a real multisig sweep: the wallet would surface and bless the decoy while the network
- * executed the sweep. Decrypting first, exactly as core does, keeps the two in agreement.
+ * OP_RETURN is only ever ARC4-decrypted — never read as plaintext, because a node does not read one
+ * either. A plaintext CNTRPRTY OP_RETURN is not a decoy that gets ignored: it is unreadable data
+ * that fails the whole transaction, so nothing at all executes.
  *
  * A null return is read as "no Counterparty data" and skips verification, so every encoding that
  * can carry a message has to be looked for here.
@@ -118,6 +125,16 @@ export function extractPayloadFromOutputs(
       payload += opReturn.slice(COUNTERPARTY_PREFIX_HEX.length);
       continue;
     }
+
+    if (isOpReturnScript(scriptHex)) {
+      // An OP_RETURN a node cannot read as Counterparty data fails the whole transaction: the vout
+      // parser returns `Err`, which crosses into Python as an exception and raises `DecodeError`.
+      // No message executes, so there is nothing here to verify. The exception is the bare
+      // plaintext prefix, which marks a taproot reveal and carries no payload itself.
+      if (extractOpReturnPayload(scriptHex) === COUNTERPARTY_PREFIX_HEX) continue;
+      return null;
+    }
+
     payload += decodeMultisigChunk(scriptHex, firstInputTxid) ?? '';
   }
 

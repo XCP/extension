@@ -147,18 +147,37 @@ describe('extractPayloadFromOutputs, over multisig data outputs', () => {
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 
-  it('a plaintext CNTRPRTY OP_RETURN decoy does not shadow a multisig sweep', () => {
-    // The attack: a benign plaintext CNTRPRTY OP_RETURN (which the node ignores, since it
-    // ARC4-decrypts every OP_RETURN) paired with a real sweep spread across multisig outputs. If
-    // extraction honored the plaintext decoy, the wallet would bless it while the network ran the
-    // sweep. extractPayloadFromOutputs must decrypt-or-skip the OP_RETURN and surface the sweep.
-    const sweep = sweepMessage();
+  it('a plaintext CNTRPRTY OP_RETURN is never read as a message', () => {
+    // A node ARC4-decrypts every OP_RETURN, so plaintext prefix bytes are not a message it ignores
+    // — they are data it cannot read, which fails the whole transaction. Honoring the plaintext
+    // form here would bless a message nothing will execute.
     const decoyOpReturn = '6a0d' + COUNTERPARTY_PREFIX_HEX + '0212345678'; // plaintext CNTRPRTY bytes
-    const scripts = [decoyOpReturn, ...multisigScriptsFor(sweep, FIRST_INPUT_TXID)];
 
-    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
-    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweep));
-    expect(unpackCounterpartyMessage(payload!).messageType).toBe('sweep');
+    expect(extractPayloadFromOutputs([decoyOpReturn], FIRST_INPUT_TXID)).toBeNull();
+  });
+
+  it('reads nothing from a transaction whose OP_RETURN fails, whatever else it carries', () => {
+    // The sweep in the multisig outputs would never run: `parse_vout` returns `Err` for the
+    // unreadable OP_RETURN, which raises `DecodeError` for the transaction as a whole. Surfacing
+    // the sweep would describe something the network does not do.
+    const scripts = [
+      '6a0d' + COUNTERPARTY_PREFIX_HEX + '0212345678',
+      ...multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID)).toBeNull();
+  });
+
+  it('ignores a bare taproot reveal marker rather than failing on it', () => {
+    // The one plaintext OP_RETURN a node does accept: exactly the prefix, marking a reveal whose
+    // message lives in the witness.
+    const scripts = [
+      '6a08' + COUNTERPARTY_PREFIX_HEX,
+      ...multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
+      .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweepMessage()));
   });
 
   it('returns null for a transaction with no data outputs', () => {

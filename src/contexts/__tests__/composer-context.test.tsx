@@ -598,3 +598,77 @@ describe('ComposerContext', () => {
     });
   });
 });
+describe('a compose whose message is missing entirely', () => {
+  // A real address, so the message this request should produce can actually be built — that is the
+  // precondition for expecting the transaction to carry one.
+  const DESTINATION = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+
+  /** A parseable composed transaction with no OP_RETURN and nothing but change. */
+  const messagelessResponse = (params: Record<string, unknown>): ApiResponse => ({
+    result: {
+      rawtransaction: VALID_BTC_ONLY_TX,
+      btc_fee: 4840,
+      lock_scripts: [],
+      inputs_values: [100000],
+      params,
+      name: 'send',
+    },
+  } as unknown as ApiResponse);
+
+  function composeWith(composeType: string, response: ApiResponse) {
+    const mockComposeApi = vi.fn().mockResolvedValue(response);
+    return renderHook(() => useComposer(), {
+      wrapper: ({ children }) => (
+        <MemoryRouter>
+          <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType={composeType}>
+            {children}
+          </ComposerProvider>
+        </MemoryRouter>
+      ),
+    });
+  }
+
+  it('refuses an asset send that carries no Counterparty message', async () => {
+    // Every other check passes: there is no payload to disagree with, the only output is change,
+    // and the fee is sane. The transaction simply would not send anything.
+    const formData = new FormData();
+    formData.set('destination', DESTINATION);
+    formData.set('asset', 'XCP');
+    formData.set('quantity', '1000');
+
+    const { result } = composeWith('send', messagelessResponse({
+      destination: DESTINATION, asset: 'XCP', quantity: 1000,
+    }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.isComposing).toBe(false);
+    });
+    expect(result.current.state.error).toContain('carries no Counterparty message');
+    expect(result.current.state.step).toBe('form');
+  });
+
+  it('still allows a BTC send, which has no message to carry', async () => {
+    // The guard must not fire where a missing payload is the correct shape.
+    const formData = new FormData();
+    formData.set('destination', DESTINATION);
+    formData.set('asset', 'BTC');
+    formData.set('quantity', '95160');
+
+    const { result } = composeWith('send', messagelessResponse({
+      destination: DESTINATION, asset: 'BTC', quantity: 95160,
+    }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.step).toBe('review');
+    });
+    expect(result.current.state.error).toBeNull();
+  });
+});

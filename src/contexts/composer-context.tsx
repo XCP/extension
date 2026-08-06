@@ -368,9 +368,18 @@ export function ComposerProvider<T>({
           // Differences too minor to block, shown on the review screen so the user can still see them.
           verificationWarnings = verification.warnings;
         }
+      } else if (!inscriptionCommitAddress && packComposeMessage(composeType, dataForApi)) {
+        // No payload, but this request's message can be built — so the transaction carries none of
+        // it and cannot do what was asked. Signing it would spend the fee to no effect. Types that
+        // legitimately carry no message (a BTC send, a burn) cannot be built and do not reach here,
+        // and an inscription's message lives in its envelope rather than an output.
+        throw new Error(
+          'Transaction verification failed: the composed transaction carries no Counterparty '
+          + 'message, so it would not do what you asked.'
+        );
       }
-      // Note: If no Counterparty payload was found, this might be a non-Counterparty
-      // transaction, which is allowed through (e.g., BTC-only transactions)
+      // A transaction with no payload and no message to expect is a plain BTC spend; its outputs
+      // and fee are still checked below.
 
       // Independently bound the fee for every transaction type (including
       // BTC-only sends with no OP_RETURN), so a drain-to-fee response or a
