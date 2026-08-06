@@ -49,12 +49,21 @@ interface OnChainTransaction {
  * rather than failed.
  */
 const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<string, unknown> | null> = {
-  enhanced_send: (data) => ({
-    asset: data.asset,
-    destination: data.destination,
-    quantity: data.quantity,
-    memo: data.memo ?? '',
-  }),
+  // Core composes CBOR wherever `taproot_support` is active and the `>QQ21s` struct otherwise, and
+  // its unpack accepts both — so clients predating the activation are still sending the struct
+  // form, and it is still on chain today. This wallet composes only the modern layout: it is a
+  // wallet, not an indexer, and reproducing every historical encoding is not its job. A struct
+  // send is therefore one it can read and deliberately cannot rebuild, which counts as declined
+  // rather than as a defect.
+  enhanced_send: (data) =>
+    data.layout === 'legacy'
+      ? null
+      : {
+          asset: data.asset,
+          destination: data.destination,
+          quantity: data.quantity,
+          memo: data.memo ?? '',
+        },
   sweep: (data) => (data.memoIsBinary ? null : {
     destination: data.destination,
     flags: data.flags,

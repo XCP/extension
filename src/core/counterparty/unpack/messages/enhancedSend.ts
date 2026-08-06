@@ -40,6 +40,15 @@ export interface EnhancedSendData {
   memo?: string;
   /** Raw memo bytes */
   memoBytes?: Uint8Array;
+  /**
+   * Which layout the bytes were in.
+   *
+   * Core composes CBOR wherever `taproot_support` is active and falls back to the `>QQ21s` struct
+   * otherwise, and its unpack accepts both — so clients predating the activation are still sending
+   * the struct form. This wallet composes only the modern one, so a struct-layout message is one
+   * it can read but deliberately cannot rebuild.
+   */
+  layout?: 'cbor' | 'legacy';
 }
 
 /**
@@ -70,6 +79,7 @@ function tryCbor2Decode(payload: Uint8Array): EnhancedSendData | null {
     destination: unpackAddress(addressValue),
     memo: memoBytes ? bytesToTextOrHex(memoBytes) : undefined,
     memoBytes,
+    layout: 'cbor',
   };
 }
 
@@ -118,6 +128,7 @@ function unpackLegacy(payload: Uint8Array): EnhancedSendData {
     destination,
     memo,
     memoBytes,
+    layout: 'legacy',
   };
 }
 
