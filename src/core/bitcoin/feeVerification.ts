@@ -198,7 +198,11 @@ export async function checkTransactionFee(
   // rather than silently becoming zero.
   const rate = toFiniteNumber(userFeeRate);
   if (rate !== undefined && rate > 0) {
-    const bound = maximum(MIN_BOUND_SATS, roundUp(multiply(multiply(rate, vsize), USER_FEE_RATE_TOLERANCE)));
+    // Named rather than nested three deep: what the fee would be at the user's rate, times the
+    // slack the bound allows.
+    const feeAtUserRate = multiply(rate, vsize);
+    const allowed = roundUp(multiply(feeAtUserRate, USER_FEE_RATE_TOLERANCE));
+    const bound = maximum(MIN_BOUND_SATS, allowed);
     if (bound.isLessThan(computedFee)) {
       return {
         ok: false,
