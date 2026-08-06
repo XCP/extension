@@ -627,9 +627,7 @@ export class WalletManager {
     const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
     const trezor = getTrezorAdapter();
 
-    // Initialize with settings
-    const settings = this.getSettings();
-    await trezor.init({ testMode: settings?.trezorEmulatorMode });
+    await trezor.init();
 
     // Perform account discovery - this shows Trezor's account selection UI
     // discoverAccount validates the path internally and returns accountIndex
@@ -1217,9 +1215,7 @@ export class WalletManager {
     const { DerivationPaths } = await import('@/core/hardware/types');
     const trezor = getTrezorAdapter();
 
-    // Initialize with settings
-    const settings = this.getSettings();
-    await trezor.init({ testMode: settings?.trezorEmulatorMode });
+    await trezor.init();
 
     return { trezor, DerivationPaths, hardwareData };
   }
@@ -1347,7 +1343,6 @@ export class WalletManager {
       const result = await trezor.signMessage({
         message,
         path: pathArray,
-        coin: 'Bitcoin',
       });
 
       return {

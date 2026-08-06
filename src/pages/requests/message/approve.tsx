@@ -83,7 +83,6 @@ export default function ApproveMessagePage() {
         const hwResult = await trezor.signMessage({
           path: DerivationPaths.stringToPath(activeAddress.path),
           message: request.message,
-          coin: 'Bitcoin',
         });
 
         resultSignature = hwResult.signature;
