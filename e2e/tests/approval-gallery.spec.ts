@@ -90,6 +90,48 @@ function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
   ].join('');
 }
 
+
+/**
+ * Wrap an unsigned transaction in a minimal PSBT v0 envelope.
+ *
+ * The PSBT approval screen reads the same Counterparty payloads as the raw-transaction screen, so
+ * the same fixtures exercise it — but until now nothing captured that screen, and a change to it
+ * (the recipients list, the structural warnings) shipped unseen. Which is the situation this
+ * gallery exists to prevent.
+ *
+ * Layout: magic, then a global map holding the unsigned transaction under key 0x00, then one empty
+ * map per input and per output. The fixtures already carry empty scriptSigs, which is what a PSBT
+ * requires of its unsigned transaction.
+ */
+function toPsbt(rawTxHex: string): string {
+  const bytes = rawTxHex.length / 2;
+  const varint = (n: number): string => {
+    if (n < 0xfd) return le(n, 1);
+    if (n <= 0xffff) return 'fd' + le(n, 2);
+    return 'fe' + le(n, 4);
+  };
+
+  // One input and two outputs in every fixture; read them back rather than assuming.
+  let cursor = 8;
+  const inputCount = parseInt(rawTxHex.slice(cursor, cursor + 2), 16);
+  cursor += 2;
+  for (let i = 0; i < inputCount; i += 1) {
+    cursor += 64 + 8;
+    const scriptLen = parseInt(rawTxHex.slice(cursor, cursor + 2), 16);
+    cursor += 2 + scriptLen * 2 + 8;
+  }
+  const outputCount = parseInt(rawTxHex.slice(cursor, cursor + 2), 16);
+
+  return [
+    '70736274ff',                      // magic + separator
+    '01', '00',                        // key length 1, key type 0x00 (unsigned tx)
+    varint(bytes), rawTxHex,           // value
+    '00',                              // end of global map
+    '00'.repeat(inputCount),           // one empty map per input
+    '00'.repeat(outputCount),          // one empty map per output
+  ].join('');
+}
+
 walletTest('captures every provider approval screen', async ({ context, page, extensionId }) => {
   walletTest.setTimeout(300_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -154,6 +196,41 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
     await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
     captured.push(name);
+    await approval.close();
+  }
+
+  // The same payloads through the PSBT screen. It runs the same decode, comparator and describer,
+  // so any divergence between the two screens is a drift bug rather than a design difference.
+  for (const [name, { rawTxHex }] of scenarios) {
+    const id = `gallery-psbt-${name}`;
+    await page.evaluate(
+      async (req) => {
+        await chrome.storage.session.set({ pending_sign_psbt_requests: [req] });
+      },
+      {
+        id,
+        origin: 'https://launchpad.xcp.fun',
+        timestamp: Date.now(),
+        address: signerAddress!,
+        walletId: '',
+        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!)),
+      }
+    );
+
+    const approval = await context.newPage();
+    await approval.setViewportSize({ width: 380, height: 1400 });
+    await approval.goto(
+      `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
+    );
+    await expect(approval.getByRole('button', { name: /^(sign|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+
+    // Expanded, for the same reason as above: the recipients list and the checks line live in
+    // this panel, and they are precisely what was missing from this screen.
+    const psbtDetails = approval.getByText(/^Transaction Details$/);
+    await expect(psbtDetails).toBeVisible({ timeout: 30_000 });
+    await psbtDetails.click();
+
+    await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
     await approval.close();
   }
 
