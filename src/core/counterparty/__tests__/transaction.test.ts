@@ -126,7 +126,9 @@ describe('describeCounterpartyMessage', () => {
       get_quantity: asBaseUnits(50000),
       get_asset: 'BTC',
     });
-    expect(desc).toContain('DEX Order');
+    // No "DEX Order" prefix: the type is already the label above the headline, and repeating it
+    // there cost a line that could state the trade instead.
+    expect(desc).not.toMatch(/^DEX Order/);
     expect(desc).toContain('XCP');
     expect(desc).toContain('BTC');
   });
@@ -145,8 +147,33 @@ describe('describeCounterpartyMessage', () => {
       asset: 'PEPECASH',
       mainchainrate: 10000,
     });
-    expect(desc).toContain('Dispenser');
+    expect(desc).not.toMatch(/^Dispenser/);
     expect(desc).toContain('PEPECASH');
+    // give_quantity, not quantity: reading the wrong field rendered every dispenser as "? XCP".
+    expect(desc).toContain('1,000');
+    expect(desc).not.toContain('?');
+  });
+
+  it('distinguishes closing a dispenser from opening one', () => {
+    // core messages/dispenser.py: status 10 is a close, which refunds the escrow and shuts the
+    // dispenser down. It carries the same fields as an open, so describing them alike stated the
+    // opposite of what half of these messages do.
+    const open = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(1000),
+      asset: 'PEPECASH',
+      mainchainrate: 10000,
+      status: 0,
+    });
+    const close = describeCounterpartyMessage('dispenser', {
+      give_quantity: asBaseUnits(0),
+      asset: 'PEPECASH',
+      mainchainrate: 0,
+      status: 10,
+    });
+
+    expect(close).toContain('Close');
+    expect(close).toContain('PEPECASH');
+    expect(close).not.toBe(open);
   });
 
   it('describes issuance', () => {
@@ -154,7 +181,7 @@ describe('describeCounterpartyMessage', () => {
       asset: 'MYTOKEN',
       quantity: asBaseUnits(1000000),
     });
-    expect(desc).toContain('Issue Asset');
+    expect(desc).not.toMatch(/^Issue Asset/);
     expect(desc).toContain('MYTOKEN');
   });
 
@@ -164,7 +191,7 @@ describe('describeCounterpartyMessage', () => {
       dividend_asset: 'XCP',
       asset: 'PEPECASH',
     });
-    expect(desc).toContain('Dividend');
+    expect(desc).not.toMatch(/^Dividend/);
     expect(desc).toContain('XCP');
     expect(desc).toContain('PEPECASH');
   });
@@ -173,13 +200,17 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('cancel', {
       offer_hash: 'abc123',
     });
-    expect(desc).toContain('Cancel');
-    expect(desc).toContain('abc123');
+    // With no resolved order, the headline says what is being done. The hash is 64 characters
+    // nobody can check by eye, so it belongs in the detail list rather than the one prominent line.
+    expect(desc).toBe('Cancel a DEX order');
+    expect(desc).not.toContain('abc123');
   });
 
   it('describes btcpay', () => {
     const desc = describeCounterpartyMessage('btcpay', {});
-    expect(desc).toContain('BTC Pay');
+    // The label above the headline already says "BTC Payment"; the headline says what it does.
+    expect(desc).not.toMatch(/^BTC Pay/);
+    expect(desc).toContain('matched order');
   });
 
   it('describes sweep', () => {
@@ -194,7 +225,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('broadcast', {
       text: 'Hello World',
     });
-    expect(desc).toContain('Broadcast');
+    expect(desc).not.toMatch(/^Broadcast/);
     expect(desc).toContain('Hello World');
   });
 
@@ -202,7 +233,7 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('fairminter', {
       asset: 'FAIRTOKEN',
     });
-    expect(desc).toContain('Fairminter');
+    expect(desc).not.toMatch(/^Fairminter/);
     expect(desc).toContain('FAIRTOKEN');
   });
 
@@ -210,7 +241,8 @@ describe('describeCounterpartyMessage', () => {
     const desc = describeCounterpartyMessage('fairmint', {
       asset: 'FAIRTOKEN',
     });
-    expect(desc).toContain('Mint');
+    // No quantity in the message: name the asset rather than formatting nothing as "?".
+    expect(desc).not.toContain('?');
     expect(desc).toContain('FAIRTOKEN');
   });
 
@@ -304,7 +336,8 @@ describe('describeCounterpartyMessage', () => {
 
   it('handles broadcast with no text', () => {
     const desc = describeCounterpartyMessage('broadcast', {});
-    expect(desc).toContain('Broadcast');
+    // The text is the headline, so an empty broadcast says so rather than being prefixed.
+    expect(desc).not.toMatch(/^Broadcast/);
     expect(desc).toContain('message');
   });
 });

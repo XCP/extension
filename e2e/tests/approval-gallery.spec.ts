@@ -26,6 +26,22 @@ import { expect, walletTest } from '../fixtures';
 
 const OUT_DIR = 'test-results/approval-gallery';
 
+
+/**
+ * Pause between screens.
+ *
+ * Each approval makes several API calls — unpack, asset info, one prevout lookup per input — so
+ * fifty screens is a few hundred requests against shared public infrastructure. A rate-limited
+ * screen does not fail: the decode returns nothing and the approval quietly renders its local-only
+ * fallback, so the gallery would show states no user encounters and hide the ones they do.
+ *
+ * Two seconds, deliberately unsubtle. Earlier attempts used 350ms, which is not waiting. This is a
+ * review tool run on demand; a slow gallery costs a few minutes, a throttled one costs a wrong
+ * picture of the product.
+ */
+const SCREEN_SPACING_MS = 2_000;
+const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const scenarioFixtures = JSON.parse(
   fs.readFileSync('e2e/fixtures/approval-scenarios.json', 'utf8')
 ) as { input: { txid: string; vout: number }; scenarios: Record<string, { rawTxHex: string }> };
@@ -70,7 +86,11 @@ function opReturnScriptOf(rawTxHex: string): string {
 }
 
 /** Rebuild a fixture so its change output pays `changeAddress`, leaving the payload untouched. */
-function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
+/** The dispenser a `dispense` pays. Real dispenses send BTC to the dispenser's address. */
+const DISPENSER_ADDRESS_SCRIPT = '76a914' + '11'.repeat(20) + '88ac';
+const DISPENSE_PAYMENT_SATS = 10_000;
+
+function rebuildForSigner(rawTxHex: string, changeAddress: string, payDispenser = false): string {
   const { txid, vout } = scenarioFixtures.input;
   const txidLe = txid.match(/../g)!.reverse().join('');
   const opReturnScript = opReturnScriptOf(rawTxHex);
@@ -83,9 +103,13 @@ function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
     le(vout, 4),
     '00',
     'ffffffff',
-    '02',
+    payDispenser ? '03' : '02',
     le(0, 8), le(opReturnScript.length / 2, 1), opReturnScript,
-    le(CHANGE_VALUE, 8), le(changeScript.length / 2, 1), changeScript,
+    ...(payDispenser
+      ? [le(DISPENSE_PAYMENT_SATS, 8), le(DISPENSER_ADDRESS_SCRIPT.length / 2, 1), DISPENSER_ADDRESS_SCRIPT]
+      : []),
+    le(CHANGE_VALUE - (payDispenser ? DISPENSE_PAYMENT_SATS : 0), 8),
+    le(changeScript.length / 2, 1), changeScript,
     le(0, 4),
   ].join('');
 }
@@ -103,6 +127,18 @@ function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
  * map per input and per output. The fixtures already carry empty scriptSigs, which is what a PSBT
  * requires of its unsigned transaction.
  */
+
+/**
+ * The prevout every fixture spends: a real outpoint of 18,074 sats paying the P2PKH address that
+ * composed them. Encoded as PSBT_IN_WITNESS_UTXO (key 0x01) followed by the map terminator.
+ */
+function witnessUtxo(): string {
+  const script = '76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac';
+  const value = le(18_074, 8);
+  const record = value + le(script.length / 2, 1) + script;
+  return '01' + '01' + le(record.length / 2, 1) + record + '00';
+}
+
 function toPsbt(rawTxHex: string): string {
   const bytes = rawTxHex.length / 2;
   const varint = (n: number): string => {
@@ -127,9 +163,65 @@ function toPsbt(rawTxHex: string): string {
     '01', '00',                        // key length 1, key type 0x00 (unsigned tx)
     varint(bytes), rawTxHex,           // value
     '00',                              // end of global map
-    '00'.repeat(inputCount),           // one empty map per input
+    // A witness_utxo per input, carrying the prevout's value and script. Without it the PSBT
+    // screen cannot know what the inputs are worth and says "some amounts couldn't be determined"
+    // — on every screenshot. That is an artifact of a hand-built envelope, not of the product:
+    // real PSBTs from the integrator carry these records. Omitting them made all 25 PSBT
+    // screenshots show a warning a user would not see.
+    witnessUtxo().repeat(inputCount),
     '00'.repeat(outputCount),          // one empty map per output
   ].join('');
+}
+
+
+/**
+ * The warnings each scenario is expected to raise, by the phrase that identifies them.
+ *
+ * A warning is a claim about the user's money, so a spurious one is not cosmetic — it teaches
+ * people that alarms are noise. Reviewing screenshots catches those only if somebody looks at all
+ * of them, every time. This table means an unexpected warning fails the run and a warning that
+ * silently stops appearing does too.
+ *
+ * Scenarios absent from this table are expected to raise nothing at all.
+ */
+const EXPECTED_WARNINGS: Record<string, RegExp[]> = {
+  'sweep-blocked': [/blocked: sweep/i],
+  destroy: [/asset destruction/i],
+  detach: [/moves everything on the utxo/i],
+  // Paying the dispenser, and paying the order-match counterparty, are what these transactions
+  // are. Both are stated rather than flagged; the red danger banner they used to raise fired on
+  // every correct one of them.
+  dispense: [/btc payment/i],
+  btcpay: [/btc payment/i],
+  'attach-bad-vout': [/attaches to an output that does not exist/i],
+  'utxo-move-foreign-source': [/moves a utxo this transaction does not spend/i],
+};
+
+/** Every warning title the safety layer and the approval screens can raise. */
+const ALL_WARNING_PATTERNS: RegExp[] = [
+  /blocked: sweep/i,
+  /asset destruction/i,
+  /moves everything on the utxo/i,
+  /unknown transaction type/i,
+  /unrecognized transaction/i,
+  /btc sent to external address/i,
+  /btc payment/i,
+  /btc sent to an unrecognized script/i,
+  /counterparty data outputs/i,
+  /attaches to an output that does not exist/i,
+  /moves a utxo this transaction does not spend/i,
+  /attached assets leave your wallet/i,
+  /attached assets move to your own output/i,
+  /attached assets are detached/i,
+  /spends utxos holding counterparty assets/i,
+  /verification failed/i,
+  /some amounts couldn.t be determined/i,
+];
+
+/** Which of the known warnings are actually on screen. */
+async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp[]> {
+  const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
+  return ALL_WARNING_PATTERNS.filter((re) => re.test(body));
 }
 
 walletTest('captures every provider approval screen', async ({ context, page, extensionId }) => {
@@ -148,6 +240,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   };
 
   const openApproval = async (id: string) => {
+    await settle(SCREEN_SPACING_MS);
     const approval = await context.newPage();
     // Popup width, because the horizontal-overflow bugs this gallery exists to catch are width
     // bound. The height is not the popup's: the screen scrolls in an inner container, so fullPage
@@ -179,10 +272,11 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   expect(signerAddress, 'signing address must be readable from the approval header').toBeTruthy();
 
   const captured: string[] = [];
+  const warningMismatches: string[] = [];
 
   for (const [name, { rawTxHex }] of scenarios) {
     const id = `gallery-${name}`;
-    await seed(id, rebuildForSigner(rawTxHex, signerAddress!));
+    await seed(id, rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense'));
     const approval = await openApproval(id);
 
     // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
@@ -193,6 +287,14 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     await expect(details).toBeVisible({ timeout: 30_000 });
     await details.click();
     await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
+
+    const shown = (await warningsOn(approval)).map((re) => re.source).sort();
+    const expected = (EXPECTED_WARNINGS[name] ?? []).map((re) => re.source).sort();
+    if (JSON.stringify(shown) !== JSON.stringify(expected)) {
+      warningMismatches.push(`${name}
+    on screen: ${shown.join(', ') || '(none)'}
+    expected:  ${expected.join(', ') || '(none)'}`);
+    }
 
     await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
     captured.push(name);
@@ -213,10 +315,11 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
         timestamp: Date.now(),
         address: signerAddress!,
         walletId: '',
-        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!)),
+        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense')),
       }
     );
 
+    await settle(SCREEN_SPACING_MS);
     const approval = await context.newPage();
     await approval.setViewportSize({ width: 380, height: 1400 });
     await approval.goto(
@@ -233,6 +336,12 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
     await approval.close();
   }
+
+  // Every warning is a claim about the user's money, so a spurious one is not cosmetic — it
+  // teaches people that alarms are noise. Reviewing screenshots catches those only if somebody
+  // looks at all fifty, every time. This fails the run instead, in both directions: an
+  // unexpected warning and a warning that has silently stopped appearing.
+  expect(warningMismatches, 'warnings did not match these scenarios').toEqual([]);
 
   expect(captured).toEqual(scenarios.map(([name]) => name));
   console.log(`\nApproval gallery: ${captured.length} screens in ${OUT_DIR}\n`);

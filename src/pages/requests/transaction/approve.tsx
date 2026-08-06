@@ -3,11 +3,12 @@ import {ApprovalExpired, ApprovalFooter,
   ApprovalLoading, ApprovalNoWallet,ApprovalSiteBar, 
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
+import { splitTrailingAddress } from '@/components/domain/approval/approval-summary-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
-import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
+import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
+import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { FiArrowDown } from '@/components/icons';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
@@ -16,8 +17,9 @@ import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
+import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
-import { formatAddress, formatAmount, formatPriceRatio } from '@/core/format';
+import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
@@ -28,126 +30,22 @@ import { getWalletService } from '@/services/walletService';
 
 /**
  * Structured data for per-type visual renderers.
- * Currently only 'order' has a visual card; all other types fall back to flat text.
+ *
+ * `order` has a card of its own — see order-card.tsx, which both approval screens use so the same
+ * message does not render two different ways depending on which method the site called.
  */
 type TxActionData =
-  | {
-      type: 'order';
-      giveAmount: string;
-      giveAsset: string;
-      getAmount: string;
-      getAsset: string;
-      /**
-       * Give/get quantities in display units, for the price ratio — or null when divisibility
-       * could not be established for both assets, in which case no ratio is shown. A ratio of raw
-       * base units is wrong by 1e8 for a mixed-divisibility pair, and silently right for a
-       * matched one, which is what hid it.
-       */
-      normalizedGive: number | null;
-      normalizedGet: number | null;
-      expiration: number;
-    }
-  | { type: 'fallback'; label: string; description: string }
+  | { type: 'order'; order: OrderAction }
+  | { type: 'fallback'; label: string; description: string; protocol: ProtocolField[] }
   | null;
 
-/**
- * Extract structured action data for visual rendering.
- * Returns typed discriminated union per message type.
- */
-/**
- * Split a trailing address off a headline so the two can be set differently.
- *
- * Deliberately anchored to the end and to address shapes: only the destination a send, sweep or
- * UTXO move ends with should be pulled out. A description with no trailing address comes back
- * whole, so every other message type renders exactly as before.
- */
-function splitTrailingAddress(description: string): { sentence: string; address?: string } {
-  const match = description.match(
-    /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
-  );
-  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
-}
-
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
-  // --- Try API message first (for 'order') ---
-  if (decodedInfo.counterpartyMessage) {
-    const { messageType, messageData } = decodedInfo.counterpartyMessage;
+  const order = buildOrderAction(decodedInfo);
+  if (order) return { type: 'order', order };
 
-    if (messageType === 'order') {
-      const giveAssetRaw = String(messageData.give_asset ?? '');
-      const getAssetRaw = String(messageData.get_asset ?? '');
-      const giveAmount = normalizeQuantity(messageData.give_quantity, giveAssetRaw, messageData, 'give_asset');
-      const getAmount = normalizeQuantity(messageData.get_quantity, getAssetRaw, messageData, 'get_asset');
-
-      // Prefer asset_longname (subasset display name) over numeric ID
-      const giveInfo = messageData.give_asset_info as { asset_longname?: string | null } | undefined;
-      const getInfo = messageData.get_asset_info as { asset_longname?: string | null } | undefined;
-      const giveAsset = giveInfo?.asset_longname || giveAssetRaw;
-      const getAsset = getInfo?.asset_longname || getAssetRaw;
-
-      const rawGive = Number(messageData.give_quantity);
-      const rawGet = Number(messageData.get_quantity);
-      const giveDivisor = isAssetDivisible(giveAssetRaw, messageData, 'give_asset') ? 1e8 : 1;
-      const getDivisor = isAssetDivisible(getAssetRaw, messageData, 'get_asset') ? 1e8 : 1;
-
-      return {
-        type: 'order',
-        giveAmount,
-        giveAsset,
-        getAmount,
-        getAsset,
-        normalizedGive: rawGive / giveDivisor,
-        normalizedGet: rawGet / getDivisor,
-        expiration: Number(messageData.expiration ?? 0),
-      };
-    }
-  }
-
-  // --- Try local unpack (for 'order') ---
-  const unpack = decodedInfo.verification?.localUnpack;
-  if (unpack?.success && unpack.messageType === 'order' && unpack.data) {
-    const data = unpack.data as {
-      giveAsset: string;
-      giveQuantity: bigint;
-      getAsset: string;
-      getQuantity: bigint;
-      expiration: number;
-    };
-
-    const giveAmount = normalizeQuantity(data.giveQuantity, data.giveAsset);
-    const getAmount = normalizeQuantity(data.getQuantity, data.getAsset);
-
-    /** 1e8 for a known-divisible asset, 1 for a known-indivisible one, null when unknown. */
-    const divisorFor = (asset: string): number | null => {
-      const divisible = isAssetDivisible(asset);
-      return divisible === undefined ? null : divisible ? 1e8 : 1;
-    };
-    const localGiveDivisor = divisorFor(data.giveAsset);
-    const localGetDivisor = divisorFor(data.getAsset);
-
-    return {
-      type: 'order',
-      giveAmount,
-      giveAsset: data.giveAsset,
-      getAmount,
-      getAsset: data.getAsset,
-      // Divisibility is not available on this path — the local unpack carries asset names, not
-      // asset_info — so it can only be established for BTC and XCP. Rather than dividing by a
-      // guess, the ratio is withheld unless both sides are known.
-      normalizedGive: localGiveDivisor === null
-        ? null
-        : Number(data.giveQuantity) / localGiveDivisor,
-      normalizedGet: localGetDivisor === null
-        ? null
-        : Number(data.getQuantity) / localGetDivisor,
-      expiration: data.expiration,
-    };
-  }
-
-  // --- Fallback: use existing flat text ---
-  const info = getTxActionInfo(decodedInfo);
+  const info = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   if (info) {
-    return { type: 'fallback', label: info.label, description: info.description };
+    return { type: 'fallback', label: info.label, description: info.description, protocol: info.protocol };
   }
   return null;
 }
@@ -168,7 +66,6 @@ export default function ApproveTransactionPage() {
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
-  const [priceFlipped, setPriceFlipped] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -280,6 +177,29 @@ export default function ApproveTransactionPage() {
     title: warning.title,
     description: warning.message,
   }));
+  // Where the attached assets land. Spending an attached UTXO moves its balances with no
+  // Counterparty message, so without this the screen can say only that assets move, never where —
+  // and for an atomic swap that is the whole question.
+  if (decodedInfo.attachedAssetDestination) {
+    const dest = decodedInfo.attachedAssetDestination;
+    warningItems.push({
+      key: 'attached-destination',
+      severity: dest.leavesWallet ? 'danger' : 'warning',
+      title: dest.detaches
+        ? 'Attached assets are detached to your address'
+        : dest.leavesWallet
+          ? 'Attached assets leave your wallet'
+          : 'Attached assets move to your own output',
+      description: dest.detaches
+        ? 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
+          'signing is credited back to your address.'
+        : `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
+          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
+          `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
+          `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
+    });
+  }
+
   // The message's own references to this transaction, where they do not resolve against it. A
   // warning rather than a block: core rejects such a transaction, so it is ineffective rather than
   // dangerous — but the screen cannot describe what it claims to do.
@@ -341,56 +261,7 @@ export default function ApproveTransactionPage() {
           {/* Transaction action & fee */}
           <div className="bg-white rounded-lg shadow-sm p-5">
             {txAction?.type === 'order' ? (
-              /* Order — Uniswap-style swap card */
-              <div className="mb-3">
-                {/* Give box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You give</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.giveAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.giveAsset}</span>
-                  </p>
-                </div>
-
-                {/* Arrow + price between boxes */}
-                <div className="flex items-center justify-center gap-2 py-2">
-                  <div className="bg-white border border-gray-200 rounded-full p-1">
-                    <FiArrowDown className="size-3.5 text-gray-400" aria-hidden="true" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPriceFlipped(f => !f)}
-                    className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
-                    title="Click to flip price"
-                  >
-                    {txAction.normalizedGive === null || txAction.normalizedGet === null
-                      ? 'Price unavailable'
-                      : formatPriceRatio(
-                          txAction.normalizedGive,
-                          txAction.normalizedGet,
-                          txAction.giveAsset,
-                          txAction.getAsset,
-                          priceFlipped,
-                        )}
-                  </button>
-                </div>
-
-                {/* Get box */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <p className="text-xs text-gray-500 mb-1">You receive</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {txAction.getAmount}{' '}
-                    <span className="text-base font-normal text-gray-500">{txAction.getAsset}</span>
-                  </p>
-                </div>
-
-                {/* Expiration */}
-                <p className="text-xs text-gray-400 text-center mt-2">
-                  {txAction.expiration === 0
-                    ? 'Never expires'
-                    : `Expires in ${txAction.expiration.toLocaleString()} blocks`}
-                </p>
-              </div>
+              <OrderCard order={txAction.order} />
             ) : txAction?.type === 'fallback' ? (
               /* Counterparty action — flat label + description */
               <div className="text-center mb-3">
@@ -436,6 +307,37 @@ export default function ApproveTransactionPage() {
             )}
           </div>
 
+          {/* What the Counterparty message itself says, kept apart from the Bitcoin view below.
+              The headline is one line and loses most of it — a fairminter's headline is its asset
+              name, while the thing being agreed to is a set of caps, a price and a deadline. */}
+          {txAction && 'protocol' in txAction && txAction.protocol.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty Details</h3>
+              <div className="space-y-1.5">
+                {txAction.protocol.map((field) => {
+                  /* A hash or an outpoint does not fit on a row beside its label: right-aligned it
+                     wrapped into three ragged lines that nobody can read across. Long values get
+                     their own line in monospace, where the digits line up and can be compared. */
+                  const isLong = field.value.length > 32;
+                  return isLong ? (
+                    <div key={field.label} className="text-sm">
+                      <div className="text-gray-500">{field.label}</div>
+                      <div className="text-gray-900 font-mono text-xs break-all mt-0.5">
+                        {field.value}
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={field.label} className="flex justify-between gap-3 text-sm">
+                      <span className="text-gray-500 flex-shrink-0">{field.label}</span>
+                      <span className="text-gray-900 font-medium text-right break-all">
+                        {field.value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {/* Transaction Details (expandable) */}
           <Collapsible variant="card" title="Transaction Details">
                   {/* TX Hash */}
@@ -536,18 +438,6 @@ export default function ApproveTransactionPage() {
                     </div>
                   )}
 
-                  {/* The outcome of the local checks, in plain words and only for someone who
-                      opened this panel. It stays off the main screen because a person cannot act
-                      on it and a permanent reassurance there would only teach them to stop
-                      reading. */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
-                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
-                      {verificationRepackProved
-                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
-                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
-                    </div>
-                  </div>
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}

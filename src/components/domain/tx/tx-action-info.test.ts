@@ -39,14 +39,14 @@ describe('getTxActionInfo', () => {
     // Both approval paths now run the same describer, so the local fallback states the action as
     // well as the amount instead of emitting a bare quantity.
     const info = getTxActionInfo(fromUnpack('send', { quantity: asBaseUnits(100000000), asset: 'XCP' }));
-    expect(info).toEqual({ label: 'Send', description: 'Send 1.00000000 XCP' });
+    expect(info).toMatchObject({ label: 'Send', description: 'Send 1.00000000 XCP' });
   });
 
   it('prefers the API counterpartyMessage when present', () => {
     const info = getTxActionInfo({
       counterpartyMessage: { messageType: 'enhanced_send', description: '5 PEPECASH' },
     } as never);
-    expect(info).toEqual({ label: 'Enhanced Send', description: '5 PEPECASH' });
+    expect(info).toMatchObject({ label: 'Send', description: '5 PEPECASH' });
   });
 
   it('detach states that everything on the UTXO moves, and where', () => {
@@ -80,7 +80,7 @@ describe('getTxActionInfo merges what each decoder knows', () => {
   it('uses the local name and the API divisibility together', () => {
     // The endpoint returns 0 for an asset its ledger has not indexed, so the name must come from
     // the local unpack (which derives it from the id). Divisibility only the API has. Used
-    // separately these produced "200,000,000 base units 0" — both blind spots in one sentence.
+    // separately these produced "200,000,000 (decimals unconfirmed) 0" — both blind spots at once.
     const info = getTxActionInfo(withBoth(
       'pooldeposit',
       {
@@ -98,20 +98,22 @@ describe('getTxActionInfo merges what each decoder knows', () => {
     );
   });
 
-  it('falls back to base units when the API cannot supply divisibility either', () => {
+  it('says the decimals are unconfirmed when the API cannot supply divisibility either', () => {
     const info = getTxActionInfo(withBoth(
       'pooldeposit',
       { assetA: 'XCP', quantityA: asBaseUnits(100000000), assetB: 'MYSTERY', quantityB: asBaseUnits(200000000) },
       { asset_a: 'XCP', asset_a_info: { divisible: true }, asset_b: 0 },
     ));
 
-    expect(info?.description).toContain('200,000,000 base units MYSTERY');
+    // "base units" is this codebase's vocabulary, not the reader's; the screen says the digits are
+    // right and their scale is not established.
+    expect(info?.description).toContain('200,000,000 (decimals unconfirmed) MYSTERY');
   });
 
   it('uses the API description when there is no local unpack to merge with', () => {
     const info = getTxActionInfo({
       counterpartyMessage: { messageType: 'enhanced_send', messageData: {}, description: 'API SAID THIS' },
     } as never);
-    expect(info).toEqual({ label: 'Enhanced Send', description: 'API SAID THIS' });
+    expect(info).toMatchObject({ label: 'Send', description: 'API SAID THIS' });
   });
 });

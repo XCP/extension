@@ -16,11 +16,16 @@
 import { walletTest, expect } from '@e2e/fixtures';
 import type { Page } from '@playwright/test';
 
-// Valid P2WPKH PSBT: 1 BTC input, 10k-sat output -> ~1 BTC fee. No signer
-// inputs, so it renders the high-fee caption and a BTC-to-external safety
-// banner without needing any API.
+// A Counterparty send — the OP_RETURN payload of the `send-divisible-bech32` gallery fixture —
+// against a 1 BTC input and a 10k-sat output, so the fee reads as absurd and the screen shows the
+// high-fee caption and a BTC-to-external banner without needing any API.
+//
+// It has to be a real Counterparty transaction: the wallet refuses to sign anything that carries
+// no message and spends nothing holding attached assets, so a plain P2WPKH PSBT reaches a disabled
+// "Blocked" button rather than the signable view this test is checking. Only the payload is taken
+// from the fixture, as the gallery does — the fixtures' own output values are not maintained.
 const HIGH_FEE_PSBT =
-  '70736274ff0100520200000001aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000ffffffff01102700000000000016001406afd46bcdfd22ef94ac122aa11f241244a37ecc000000000001011f00e1f50500000000160014751e76e8199196d454941c45d1b3a323f1433bd60000';
+  '70736274ff0100900200000001d6a5449f6ebaff846701cd467283f5bd7f48114448c142ec00fe9c88b05c7b3f0200000000ffffffff020000000000000000356a33a90f422858ffd8d5891e583f8b74f0b9bc420f67f5cf4463298da066285ae0a3c89caf6e61b9c14620b32f08ef7ee42fa25f95102700000000000016001406afd46bcdfd22ef94ac122aa11f241244a37ecc000000000001011f00e1f50500000000160014751e76e8199196d454941c45d1b3a323f1433bd6000000';
 
 async function readActiveAddress(page: Page): Promise<string> {
   await page.goto(page.url().replace(/\/(index|requests|addresses).*/, '/addresses/details'));

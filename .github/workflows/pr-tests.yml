@@ -63,6 +63,9 @@ jobs:
       - name: Run TypeScript type checking
         run: npm run compile
 
+      - name: Lint
+        run: npm run lint
+
       - name: Build extension
         run: npm run build
 

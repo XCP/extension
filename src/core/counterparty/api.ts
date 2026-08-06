@@ -803,6 +803,58 @@ export async function fetchAllOrderMatches(
 }
 
 /**
+ * Fetch a single order match by its id (`tx0Hash_tx1Hash`).
+ *
+ * Used by the approval screen for a BTCPay: the match carries `match_expire_index`, and a payment
+ * landing after it does nothing at all — the match is gone and the BTC is spent for no effect.
+ */
+export async function fetchOrderMatch(matchId: string): Promise<OrderMatch | null> {
+  const data = await cpApiGet<{ result: OrderMatch | null }>(
+    `/v2/order_matches/${encodePath(matchId)}`,
+    { verbose: true }
+  );
+  return data.result ?? null;
+}
+
+/**
+ * Count of distinct addresses holding an asset.
+ *
+ * Core bills a dividend at `0.0002 XCP × holder_count` (`messages/dividend.py`), so this is what
+ * decides the XCP half of what a dividend costs.
+ */
+export async function fetchAssetHolderCount(asset: string): Promise<number | null> {
+  const data = await cpApiGet<{ result_count?: number }>(
+    `/v2/assets/${encodePath(asset)}/holders`,
+    { verbose: true, limit: 1, offset: 0 }
+  );
+  return typeof data.result_count === 'number' ? data.result_count : null;
+}
+
+export interface FairminterDetails {
+  tx_hash: string;
+  asset: string;
+  status: string;
+  /** XCP charged per lot, in base units. */
+  price: ApiQuantity;
+  price_normalized?: DisplayUnits;
+  /** Assets released per lot paid for. */
+  quantity_by_price: ApiQuantity;
+  quantity_by_price_normalized?: DisplayUnits;
+}
+
+/**
+ * The fairminter behind an asset, whose price is what a fairmint of it costs.
+ */
+export async function fetchAssetFairminter(asset: string): Promise<FairminterDetails | null> {
+  const data = await cpApiGet<{ result: FairminterDetails[] | null }>(
+    `/v2/assets/${encodePath(asset)}/fairminters`,
+    { verbose: true, limit: 5, offset: 0 }
+  );
+  const open = (data.result ?? []).find((f) => f.status === 'open');
+  return open ?? data.result?.[0] ?? null;
+}
+
+/**
  * Fetch all orders across all addresses.
  * @param options - Pagination and status filter options (defaults to 'open' status)
  * @returns Paginated list of orders with full details

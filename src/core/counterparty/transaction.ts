@@ -267,7 +267,23 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
     const divisible = infoFor(field)?.divisible;
     if (divisible === true) return fromSatoshis(String(quantity));
     if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-    return `${BigInt(String(quantity)).toLocaleString()} base units`;
+    return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
+  };
+
+  /**
+   * The display-unit value as a bare number string, for figures that are divided rather than shown.
+   *
+   * Deliberately not `format`'s output with the separators stripped: that output can carry a
+   * "(decimals unconfirmed)" caveat, and parsing a number back out of it would turn an honest
+   * "we do not know the scale" into NaN or, worse, a plausible wrong number.
+   */
+  const numeric = (quantity: unknown, asset?: string): string | undefined => {
+    if (quantity == null) return undefined;
+    const field = assetFieldOf(asset);
+    const divisible = infoFor(field)?.divisible;
+    if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+    if (divisible === false) return BigInt(String(quantity)).toString();
+    return undefined;
   };
 
   const name = (asset?: string): string => {
@@ -313,11 +329,12 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
     quantityB: messageData.quantity_b,
     recipientCount: Array.isArray(messageData) ? messageData.length : undefined,
     subassetLongname: messageData.asset_longname as string | undefined,
+    dispenserStatus: num('status'),
     format,
+    numeric,
     name,
   };
 }
-
 
 /**
  * Check if OP_RETURN data contains Counterparty prefix
@@ -388,7 +405,7 @@ async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void>
 export interface MpmaRecipient {
   address: string;
   asset: string;
-  /** Display quantity, or base units when divisibility could not be established. */
+  /** Display quantity, or the raw integer marked unconfirmed when divisibility is unknown. */
   quantity: string;
 }
 
@@ -435,7 +452,7 @@ export async function resolveMpmaRecipients(
           ? fromSatoshis(send.quantity.toString())
           : divisible === false
             ? send.quantity.toLocaleString()
-            : `${send.quantity.toString()} base units`,
+            : `${send.quantity.toString()} (decimals unconfirmed)`,
     };
   });
 }

@@ -14,10 +14,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import {
+  type AttachedAssetDestination,
+  movesCounterpartyValue,
+  resolveAttachedAssetDestination,
+} from '@/core/counterparty/attachedAssetMovement';
+import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
+import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
@@ -61,8 +67,17 @@ export interface DecodedPsbtInfo {
    * recipients" and named none of them, while the transaction screen listed all three.
    */
   mpmaRecipients: MpmaRecipient[];
+  /**
+   * Where the assets attached to the signed inputs end up. Null when nothing attached is moving.
+   *
+   * Spending an attached UTXO moves its balances with no Counterparty message, so this is the only
+   * account of an atomic swap the screen can give.
+   */
+  attachedAssetDestination: AttachedAssetDestination | null;
   /** Message fields that reference this transaction and do not resolve against it. */
   structureFindings: StructureFinding[];
+  /** Ledger facts the message does not carry, for the protocol detail list. */
+  protocolContext: ProtocolContext;
 }
 
 /**
@@ -182,7 +197,51 @@ export function useSignPsbtRequest(signerAddress?: string) {
       { inputs: psbtDetails.inputs, outputs: psbtDetails.outputs }
     );
 
+    // Same ledger lookups the raw-transaction path runs: a PSBT carries the same messages, so a
+    // cancel, dividend or dispense in one deserves the same account of itself as in the other.
+    const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
+      messageType: verification.localUnpack?.messageType,
+      data: verification.localUnpack?.data,
+      transactionId: txid,
+      apiMessageData: counterpartyMessage?.messageData,
+      outputs: psbtDetails.outputs,
+      signerAddresses: signerAddresses ?? [],
+      spentUtxos: psbtDetails.inputs.map((input) => `${input.txid}:${input.vout}`),
+    });
+
+    if (policyWarnings.length > 0) {
+      safety.warnings = [...policyWarnings, ...safety.warnings];
+      safety.blocked = safety.blocked || policyWarnings.some((w) => w.severity === 'block');
+    }
+
     const attachedAssets = await attachedAssetsPromise;
+
+    // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
+    // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
+    // transaction, which a site has no Counterparty reason to ask this wallet for and which the
+    // user can make in the wallet directly. Both halves are required — a message alone would miss
+    // an attached UTXO being spent alongside it, and attached assets alone miss every ordinary send.
+    if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices ?? [])) {
+      safety.warnings = [
+        {
+          severity: 'block',
+          title: 'Blocked: Not a Counterparty Transaction',
+          message:
+            'This carries no Counterparty message and spends nothing holding Counterparty assets, ' +
+            'so signing it would move only bitcoin at a site’s direction. Make plain Bitcoin ' +
+            'payments in the wallet, where you choose the destination.',
+        },
+        ...safety.warnings,
+      ];
+      safety.blocked = true;
+    }
+
+    const attachedAssetDestination = resolveAttachedAssetDestination(
+      psbtDetails.outputs,
+      attachedAssets,
+      signedInputIndices ?? [],
+      signerAddresses ?? []
+    );
 
     return {
       psbtDetails,
@@ -193,6 +252,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
       attachedAssets,
       mpmaRecipients,
       structureFindings,
+      attachedAssetDestination,
+      protocolContext,
     };
   }, []);
 

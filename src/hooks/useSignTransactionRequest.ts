@@ -13,6 +13,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
+  type AttachedAssetDestination,
+  movesCounterpartyValue,
+  resolveAttachedAssetDestination,
+} from '@/core/counterparty/attachedAssetMovement';
+import {
   fetchInputsAttachedAssets,
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
@@ -20,6 +25,7 @@ import {
   checkMessageStructure,
   type StructureFinding,
 } from '@/core/counterparty/messageStructure';
+import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
@@ -79,6 +85,14 @@ export interface DecodedTransactionInfo {
    * naming an output that does not exist, a move naming a UTXO the transaction does not spend.
    */
   structureFindings: StructureFinding[];
+  /**
+   * Ledger facts the message does not carry, so the detail list can say what the transaction means
+   * rather than only what it contains — the order behind a cancel, the supply a destroy is measured
+   * against, the total a dividend costs.
+   */
+  protocolContext: ProtocolContext;
+  /** Where the assets attached to the signed inputs end up. Null when nothing attached moves. */
+  attachedAssetDestination: AttachedAssetDestination | null;
   /**
    * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
    * These are carried in the payload rather than as outputs, so the approval screen has no other
@@ -227,7 +241,53 @@ export function useSignTransactionRequest(signerAddress?: string) {
       { inputs, outputs }
     );
 
+    const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
+      messageType: verification.localUnpack?.messageType,
+      data: verification.localUnpack?.data,
+      transactionId: parsed.txid,
+      apiMessageData: counterpartyMessage?.messageData,
+      outputs,
+      signerAddresses: signerAddress ? [signerAddress] : [],
+      spentUtxos: inputs.map((input) => `${input.txid}:${input.vout}`),
+    });
+
+    // Policy blocks come from the same lookups as the detail list — an oracle-priced dispenser is
+    // only visible once the dispensers behind the paid address have been read.
+    if (policyWarnings.length > 0) {
+      safety.warnings = [...policyWarnings, ...safety.warnings];
+      safety.blocked = safety.blocked || policyWarnings.some((w) => w.severity === 'block');
+    }
+
     const attachedAssets = await attachedAssetsPromise;
+
+    // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
+    // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
+    // transaction, which a site has no Counterparty reason to ask this wallet for and which the
+    // user can make in the wallet directly. Both halves are required — a message alone would miss
+    // an attached UTXO being spent alongside it, and attached assets alone miss every ordinary send.
+    if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, inputs.map((_, index) => index))) {
+      safety.warnings = [
+        {
+          severity: 'block',
+          title: 'Blocked: Not a Counterparty Transaction',
+          message:
+            'This carries no Counterparty message and spends nothing holding Counterparty assets, ' +
+            'so signing it would move only bitcoin at a site’s direction. Make plain Bitcoin ' +
+            'payments in the wallet, where you choose the destination.',
+        },
+        ...safety.warnings,
+      ];
+      safety.blocked = true;
+    }
+
+    // A raw transaction can spend an attached UTXO just as a PSBT can, and does so with no
+    // message. Every input is being signed here, so all of them count as sources.
+    const attachedAssetDestination = resolveAttachedAssetDestination(
+      outputs,
+      attachedAssets,
+      inputs.map((_, index) => index),
+      signerAddress ? [signerAddress] : []
+    );
 
     return {
       txid: parsed.txid,
@@ -243,6 +303,8 @@ export function useSignTransactionRequest(signerAddress?: string) {
       safety,
       attachedAssets,
       structureFindings,
+      protocolContext,
+      attachedAssetDestination,
       mpmaRecipients,
     };
   }, []);

@@ -1,4 +1,11 @@
-import { type DescribableMessage, describeMessage, labelFor } from '@/core/counterparty/describe';
+import {
+  type DescribableMessage,
+  describeMessage,
+  labelFor,
+  type ProtocolContext,
+  type ProtocolField,
+  protocolFields,
+} from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { fromSatoshis } from '@/core/numeric';
@@ -64,7 +71,7 @@ export function normalizeQuantity(
   // the wallet is relying on its own bytes. Printing the bare integer reads as a quantity and is
   // off by 1e8 for any divisible asset: 1.5 PEPECASH as "150,000,000 PEPECASH". Label it so an
   // unknown is visibly an unknown rather than a confident wrong number.
-  return `${val.toLocaleString()} base units`;
+  return `${val.toLocaleString()} (decimals unconfirmed)`;
 }
 
 /**
@@ -101,32 +108,47 @@ const ASSET_SLOT_TO_API_FIELD: Record<string, string> = {
  * a quantity the local path could not scale. So when both are present the description is built
  * from the local fields and formatted with the API's divisibility.
  */
-export function getTxActionInfo(decodedInfo: TxActionSource): { label: string; description: string } | null {
+export function getTxActionInfo(
+  decodedInfo: TxActionSource,
+  context: ProtocolContext = {}
+): { label: string; description: string; protocol: ProtocolField[] } | null {
   const unpack = decodedInfo.verification?.localUnpack;
   const api = decodedInfo.counterpartyMessage;
   const localUsable = unpack?.success && unpack.messageType && unpack.data;
 
   if (localUsable && api) {
-    const merged = describeMessage(
-      unpack.messageType!,
-      fromLocalUnpack(unpack.data, api.messageData)
-    );
+    const localView = fromLocalUnpack(unpack.data, api.messageData);
+    // Before describeMessage, not after: the cancel headline reads this, and assigning it
+    // afterwards left every resolved cancel showing its bare hash.
+    if (context.cancelledOrder) {
+      const o = context.cancelledOrder;
+      localView.cancelledOrderSummary = `sell ${o.giveQuantity} ${o.giveAsset} for ${o.getQuantity} ${o.getAsset}`;
+    }
+    const merged = describeMessage(unpack.messageType!, localView);
     if (merged) {
-      return { label: labelFor(unpack.messageType!), description: merged };
+      const view = localView;
+      return {
+        label: labelFor(unpack.messageType!),
+        description: merged,
+        protocol: protocolFields(unpack.messageType!, view, context),
+      };
     }
   }
 
   // Only one source available — use whichever it is, with its own limitations stated by the
   // adapter rather than papered over.
   if (api) {
-    return { label: labelFor(api.messageType), description: api.description };
+    // No local decode to merge with, so the protocol view has nothing trustworthy to read.
+    return { label: labelFor(api.messageType), description: api.description, protocol: [] };
   }
 
   if (!localUsable) return null;
-  const description = describeMessage(unpack!.messageType!, fromLocalUnpack(unpack!.data));
+  const view = fromLocalUnpack(unpack!.data);
+  const description = describeMessage(unpack!.messageType!, view);
   return {
     label: labelFor(unpack!.messageType!),
     description: description ?? unpack!.messageType!,
+    protocol: protocolFields(unpack!.messageType!, view, context),
   };
 }
 
@@ -172,20 +194,47 @@ function fromLocalUnpack(
     mainchainrate: data.mainchainrate,
     dividendAsset: data.dividendAsset as string | undefined,
     quantityPerUnit: data.quantityPerUnit,
-    offerHash: data.offerHash as string | undefined,
+    offerHash: (data.offerHash ?? (data.tx0Hash && data.tx1Hash ? `${data.tx0Hash}_${data.tx1Hash}` : undefined)) as string | undefined,
     text: data.text as string | undefined,
     assetA: data.assetA as string | undefined,
     quantityA: data.quantityA,
     assetB: data.assetB as string | undefined,
     quantityB: data.quantityB,
     recipientCount: sends?.length,
+    destinationVout: data.destinationVout as number | undefined,
+    mimeType: data.mimeType as string | undefined,
+    value: data.value as number | undefined,
+    feeFractionInt: data.feeFractionInt as number | undefined,
     subassetLongname: data.subassetLongname as string | undefined,
+    sweepBalances: data.sweepBalances as boolean | undefined,
+    sweepOwnership: data.sweepOwnership as boolean | undefined,
+    divisible: data.divisible as boolean | undefined,
+    lock: data.lock as boolean | undefined,
+    reset: data.reset as boolean | undefined,
+    // A utxo move names the outpoint it empties in `source`.
+    sourceUtxo: typeof data.source === 'string' && data.source.includes(':')
+      ? (data.source as string)
+      : undefined,
+    feeRequired: data.feeRequired,
+    lpAsset: data.lpAsset as string | undefined,
+    recipients: sends as { asset?: string; destination: string; quantity: unknown }[] | undefined,
+    dispenserStatus: data.status as number | undefined,
     format: (quantity, asset) => {
       if (quantity == null) return '?';
       const divisible = divisibilityOf(asset);
       if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: false });
       if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-      return `${BigInt(String(quantity)).toLocaleString()} base units`;
+      return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
+    },
+    // The same value with nothing added, for the figures that get divided rather than displayed.
+    // Undefined where divisibility is unknown: a derived rate computed on a guessed scale is wrong
+    // by 1e8, which is the failure this whole layer exists to prevent.
+    numeric: (quantity, asset) => {
+      if (quantity == null) return undefined;
+      const divisible = divisibilityOf(asset);
+      if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: true });
+      if (divisible === false) return BigInt(String(quantity)).toString();
+      return undefined;
     },
   };
 }
