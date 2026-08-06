@@ -77,23 +77,62 @@ export function normalizeLpQuantity(quantity: unknown): string {
  * Build a human-readable label and description from decoded transaction data.
  * Prefers the API counterpartyMessage, else falls back to the local unpack.
  */
+/**
+ * Canonical asset slot → the API field carrying its `*_info`.
+ *
+ * Divisibility has to be matched by slot rather than by name: the endpoint returns 0 for an asset
+ * its ledger cannot resolve, so matching on the name fails for exactly the assets whose name the
+ * local unpack had to supply.
+ */
+const ASSET_SLOT_TO_API_FIELD: Record<string, string> = {
+  asset: 'asset',
+  giveAsset: 'give_asset',
+  getAsset: 'get_asset',
+  dividendAsset: 'dividend_asset',
+  assetA: 'asset_a',
+  assetB: 'asset_b',
+};
+
+/**
+ * Build a human-readable label and description from decoded transaction data.
+ *
+ * Neither decoder is sufficient alone, and each is blind where the other sees. The local unpack
+ * derives an asset name arithmetically from its id, so it always has one; the API resolves names
+ * through a ledger lookup and returns 0 for anything it has not indexed. The API carries
+ * divisibility in `*_info`; the local unpack carries none, so on its own it can only label a
+ * quantity as base units.
+ *
+ * Used separately, each blind spot reached the screen: "Deposit liquidity: … and 200,000,000 base
+ * units 0" is both of them in one sentence — an unresolvable name printed as 0 by the API, beside
+ * a quantity the local path could not scale. So when both are present the description is built
+ * from the local fields and formatted with the API's divisibility.
+ */
 export function getTxActionInfo(decodedInfo: TxActionSource): { label: string; description: string } | null {
-  // The API decode already carries a description built by the shared describer.
-  if (decodedInfo.counterpartyMessage) {
-    return {
-      label: labelFor(decodedInfo.counterpartyMessage.messageType),
-      description: decodedInfo.counterpartyMessage.description,
-    };
+  const unpack = decodedInfo.verification?.localUnpack;
+  const api = decodedInfo.counterpartyMessage;
+  const localUsable = unpack?.success && unpack.messageType && unpack.data;
+
+  if (localUsable && api) {
+    const merged = describeMessage(
+      unpack.messageType!,
+      fromLocalUnpack(unpack.data, api.messageData)
+    );
+    if (merged) {
+      return { label: labelFor(unpack.messageType!), description: merged };
+    }
   }
 
-  // Otherwise describe from the local unpack, through the same switch rather than a parallel one.
-  const unpack = decodedInfo.verification?.localUnpack;
-  if (!unpack?.success || !unpack.messageType || !unpack.data) return null;
+  // Only one source available — use whichever it is, with its own limitations stated by the
+  // adapter rather than papered over.
+  if (api) {
+    return { label: labelFor(api.messageType), description: api.description };
+  }
 
-  const description = describeMessage(unpack.messageType, fromLocalUnpack(unpack.data));
+  if (!localUsable) return null;
+  const description = describeMessage(unpack!.messageType!, fromLocalUnpack(unpack!.data));
   return {
-    label: labelFor(unpack.messageType),
-    description: description ?? unpack.messageType,
+    label: labelFor(unpack!.messageType!),
+    description: description ?? unpack!.messageType!,
   };
 }
 
@@ -105,9 +144,26 @@ export function getTxActionInfo(decodedInfo: TxActionSource): { label: string; d
  * That is the honest rendering: this path runs precisely when the API decode failed and the
  * wallet is relying on its own bytes.
  */
-function fromLocalUnpack(raw: unknown): DescribableMessage {
+function fromLocalUnpack(
+  raw: unknown,
+  apiData?: Record<string, unknown>
+): DescribableMessage {
   const data = raw as Record<string, unknown>;
   const sends = data.sends as unknown[] | undefined;
+
+  /** Divisibility for a local asset slot, taken from the API's info for the matching field. */
+  const divisibilityOf = (asset?: string): boolean | undefined => {
+    const upper = String(asset ?? '').toUpperCase();
+    if (upper === 'BTC' || upper === 'XCP') return true;
+    if (!apiData) return undefined;
+
+    for (const [slot, apiField] of Object.entries(ASSET_SLOT_TO_API_FIELD)) {
+      if (data[slot] !== asset) continue;
+      const info = apiData[`${apiField}_info`] as Record<string, unknown> | undefined;
+      if (typeof info?.divisible === 'boolean') return info.divisible;
+    }
+    return undefined;
+  };
 
   return {
     asset: data.asset as string | undefined,
@@ -130,6 +186,12 @@ function fromLocalUnpack(raw: unknown): DescribableMessage {
     quantityB: data.quantityB,
     recipientCount: sends?.length,
     subassetLongname: data.subassetLongname as string | undefined,
-    format: (quantity, asset) => normalizeQuantity(quantity, asset ?? ''),
+    format: (quantity, asset) => {
+      if (quantity == null) return '?';
+      const divisible = divisibilityOf(asset);
+      if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: false });
+      if (divisible === false) return BigInt(String(quantity)).toLocaleString();
+      return `${BigInt(String(quantity)).toLocaleString()} base units`;
+    },
   };
 }

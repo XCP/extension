@@ -65,3 +65,53 @@ describe('getTxActionInfo', () => {
     expect(getTxActionInfo({} as never)).toBeNull();
   });
 });
+
+describe('getTxActionInfo merges what each decoder knows', () => {
+  /** Both sources present: local unpack fields, plus the API decode alongside them. */
+  const withBoth = (
+    messageType: string,
+    localData: Record<string, unknown>,
+    apiMessageData: Record<string, unknown>,
+  ) => ({
+    verification: { localUnpack: { success: true, messageType, data: localData } },
+    counterpartyMessage: { messageType, messageData: apiMessageData, description: 'API SAID THIS' },
+  }) as never;
+
+  it('uses the local name and the API divisibility together', () => {
+    // The endpoint returns 0 for an asset its ledger has not indexed, so the name must come from
+    // the local unpack (which derives it from the id). Divisibility only the API has. Used
+    // separately these produced "200,000,000 base units 0" — both blind spots in one sentence.
+    const info = getTxActionInfo(withBoth(
+      'pooldeposit',
+      {
+        assetA: 'XCP', quantityA: asBaseUnits(100000000),
+        assetB: 'A95428957068369062', quantityB: asBaseUnits(200000000),
+      },
+      {
+        asset_a: 'XCP', asset_a_info: { divisible: true },
+        asset_b: 0, asset_b_info: { divisible: true },
+      },
+    ));
+
+    expect(info?.description).toBe(
+      'Deposit liquidity: 1.00000000 XCP and 2.00000000 A95428957068369062'
+    );
+  });
+
+  it('falls back to base units when the API cannot supply divisibility either', () => {
+    const info = getTxActionInfo(withBoth(
+      'pooldeposit',
+      { assetA: 'XCP', quantityA: asBaseUnits(100000000), assetB: 'MYSTERY', quantityB: asBaseUnits(200000000) },
+      { asset_a: 'XCP', asset_a_info: { divisible: true }, asset_b: 0 },
+    ));
+
+    expect(info?.description).toContain('200,000,000 base units MYSTERY');
+  });
+
+  it('uses the API description when there is no local unpack to merge with', () => {
+    const info = getTxActionInfo({
+      counterpartyMessage: { messageType: 'enhanced_send', messageData: {}, description: 'API SAID THIS' },
+    } as never);
+    expect(info).toEqual({ label: 'Enhanced Send', description: 'API SAID THIS' });
+  });
+});
