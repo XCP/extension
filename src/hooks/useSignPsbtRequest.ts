@@ -15,6 +15,7 @@ import { useSearchParams } from 'react-router';
 import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import {
   type AttachedAssetDestination,
+  movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
 import {
@@ -214,6 +215,26 @@ export function useSignPsbtRequest(signerAddress?: string) {
     }
 
     const attachedAssets = await attachedAssetsPromise;
+
+    // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
+    // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
+    // transaction, which a site has no Counterparty reason to ask this wallet for and which the
+    // user can make in the wallet directly. Both halves are required — a message alone would miss
+    // an attached UTXO being spent alongside it, and attached assets alone miss every ordinary send.
+    if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices ?? [])) {
+      safety.warnings = [
+        {
+          severity: 'block',
+          title: 'Blocked: Not a Counterparty Transaction',
+          message:
+            'This carries no Counterparty message and spends nothing holding Counterparty assets, ' +
+            'so signing it would move only bitcoin at a site’s direction. Make plain Bitcoin ' +
+            'payments in the wallet, where you choose the destination.',
+        },
+        ...safety.warnings,
+      ];
+      safety.blocked = true;
+    }
 
     const attachedAssetDestination = resolveAttachedAssetDestination(
       psbtDetails.outputs,
