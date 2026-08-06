@@ -3,6 +3,24 @@ import { MoneyMovementView } from '@/components/domain/approval/money-movement-v
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
+/**
+ * Split a trailing address off a headline so the two can be set differently.
+ *
+ * A send or sweep headline ends in an address, which is one unbreakable token: set in 18px bold it
+ * overflows the popup and puts a horizontal scrollbar under the whole screen, pushing the tail of
+ * the destination out of view — on the line that says where the money goes. Truncating instead
+ * would reintroduce the lookalike-grinding problem the outputs list deliberately avoids.
+ *
+ * Lives here because both approval screens render this headline. It was previously fixed inline on
+ * the transaction screen only, so the PSBT screen kept overflowing.
+ */
+export function splitTrailingAddress(description: string): { sentence: string; address?: string } {
+  const match = description.match(
+    /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
+  );
+  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
+}
+
 interface ApprovalSummaryCardProps {
   /** Decoded Counterparty action, if any — the "what kind" headline. */
   txAction: { label: string; description: string } | null;
@@ -37,7 +55,19 @@ export function ApprovalSummaryCard({
       {txAction && (
         <div className="text-center mb-3">
           <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
-          <p className="text-lg font-bold text-gray-900">{txAction.description}</p>
+          {(() => {
+            const { sentence, address } = splitTrailingAddress(txAction.description);
+            return (
+              <>
+                <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                {address && (
+                  <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
+                    {address}
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
       <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction} />

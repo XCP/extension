@@ -3,6 +3,7 @@ import {ApprovalExpired, ApprovalFooter,
   ApprovalLoading, ApprovalNoWallet,ApprovalSiteBar, 
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
+import { splitTrailingAddress } from '@/components/domain/approval/approval-summary-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { getTxActionInfo, isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
@@ -54,20 +55,6 @@ type TxActionData =
  * Extract structured action data for visual rendering.
  * Returns typed discriminated union per message type.
  */
-/**
- * Split a trailing address off a headline so the two can be set differently.
- *
- * Deliberately anchored to the end and to address shapes: only the destination a send, sweep or
- * UTXO move ends with should be pulled out. A description with no trailing address comes back
- * whole, so every other message type renders exactly as before.
- */
-function splitTrailingAddress(description: string): { sentence: string; address?: string } {
-  const match = description.match(
-    /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
-  );
-  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
-}
-
 function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
   // --- Try API message first (for 'order') ---
   if (decodedInfo.counterpartyMessage) {

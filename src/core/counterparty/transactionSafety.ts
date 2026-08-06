@@ -102,6 +102,12 @@ const SAFE_MESSAGE_TYPES = new Set([
   'dividend',
   'broadcast',
   'attach',
+  // A UTXO move is decoded, described and repack-proved, but was absent here — so every
+  // legitimate move raised "Unknown Transaction Type", a spurious alarm on a supported
+  // operation. Both spellings appear because the API and the local unpack agree on 'utxo' while
+  // older records use 'utxo_move'.
+  'utxo',
+  'utxo_move',
   'mpma_send',
   'btcpay',
   'pooldeposit',
