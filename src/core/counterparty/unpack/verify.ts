@@ -491,23 +491,24 @@ function verifyDispenser(
       'Wrong asset = dispensing wrong tokens');
   }
 
-  // Give quantity - critical
-  if (!valuesEqual(data.giveQuantity, params.give_quantity)) {
-    addMismatch(result, 'give_quantity', params.give_quantity, data.giveQuantity, 'critical',
-      'Wrong amount = giving wrong amount per dispense');
-  }
+  // Give quantity, escrow and rate - critical, but only the open flows supply them.
+  //
+  // Core constrains these for STATUS_OPEN and STATUS_OPEN_EMPTY_ADDRESS only (`dispenser.py`:
+  // give_quantity and mainchainrate must be positive, escrow >= give); a close leaves them
+  // unconstrained and the composer sends 0. Comparing the composed 0 against a request that never
+  // carried the field reported three CRITICAL mismatches — "expected undefined, got 0" — on every
+  // attempt to close a dispenser, which blocked the flow outright.
+  //
+  // verifyOptional keeps the check rather than dropping it: with the field absent the expectation
+  // becomes 0, so a response that closes a dispenser while carrying a non-zero escrow still fails.
+  verifyOptional(result, 'give_quantity', params.give_quantity, data.giveQuantity, 0, 'critical',
+    'Wrong amount = giving wrong amount per dispense');
 
-  // Escrow quantity - critical
-  if (!valuesEqual(data.escrowQuantity, params.escrow_quantity)) {
-    addMismatch(result, 'escrow_quantity', params.escrow_quantity, data.escrowQuantity, 'critical',
-      'Wrong amount = locking wrong total amount');
-  }
+  verifyOptional(result, 'escrow_quantity', params.escrow_quantity, data.escrowQuantity, 0, 'critical',
+    'Wrong amount = locking wrong total amount');
 
-  // Mainchainrate - critical
-  if (!valuesEqual(data.mainchainrate, params.mainchainrate)) {
-    addMismatch(result, 'mainchainrate', params.mainchainrate, data.mainchainrate, 'critical',
-      'Wrong rate = selling at wrong price');
-  }
+  verifyOptional(result, 'mainchainrate', params.mainchainrate, data.mainchainrate, 0, 'critical',
+    'Wrong rate = selling at wrong price');
 
   // Status - dangerous. Opening a dispenser omits status (the compose layer defaults it to 0);
   // the close flows submit it explicitly. Either way the composed status must match, so a response

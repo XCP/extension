@@ -104,5 +104,25 @@ describe('verifyTransaction activation per type', () => {
       const r = verifyTransaction(message, 'dispenser', { ...intent, mainchainrate: 1 });
       expect(r.valid).toBe(false);
     });
+
+    // Core constrains give_quantity, escrow_quantity and mainchainrate for the open statuses only
+    // (`dispenser.py`); a close leaves them unset and the composer sends 0. The close form submits
+    // status alone, so comparing 0 against a request that never carried the field reported three
+    // CRITICAL mismatches and blocked every attempt to close a dispenser.
+    describe('closing', () => {
+      const closeMessage = PREFIX + '0c' + u64(1n) + u64(0n) + u64(0n) + u64(0n) + '0a';
+
+      it('accepts a close that omits the quantities the composer defaults', () => {
+        const r = verifyTransaction(closeMessage, 'dispenser', { asset: 'XCP', status: 10 });
+        expect(r.errors).toHaveLength(0);
+        expect(r.valid).toBe(true);
+      });
+
+      it('still rejects a close carrying an escrow it was not asked for', () => {
+        const escrowed = PREFIX + '0c' + u64(1n) + u64(0n) + u64(5000n) + u64(0n) + '0a';
+        const r = verifyTransaction(escrowed, 'dispenser', { asset: 'XCP', status: 10 });
+        expect(r.valid).toBe(false);
+      });
+    });
   });
 });
