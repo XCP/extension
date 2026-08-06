@@ -9,11 +9,15 @@ import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { useWallet } from '@/contexts/wallet-context';
 import ActionsPage from '@/pages/actions';
+import BroadcastTransactionPage from '@/pages/actions/broadcast-transaction';
+import CombineSignaturesPage from '@/pages/actions/combine-signatures';
 // Actions
 import ConsolidatePage from '@/pages/actions/consolidate';
 import ConsolidateStatusPage from '@/pages/actions/consolidate/status';
 import ConsolidateSuccessPage from '@/pages/actions/consolidate/success';
+import FundBareMultisigPage from '@/pages/actions/fund-bare-multisig';
 import SignMessagePage from '@/pages/actions/sign-message';
+import SignTransactionPage from '@/pages/actions/sign-transaction';
 import VerifyMessagePage from '@/pages/actions/verify-message';
 // Viewing
 import AddressesPage from '@/pages/addresses';
@@ -174,6 +178,10 @@ export default function App() {
             <Route path="/actions/consolidate/status" element={<ConsolidateStatusPage />} />
             <Route path="/actions/consolidate/success" element={<ConsolidateSuccessPage />} />
             <Route path="/actions/sign-message" element={<SignMessagePage />} />
+            <Route path="/actions/sign-transaction" element={<SignTransactionPage />} />
+            <Route path="/actions/combine-signatures" element={<CombineSignaturesPage />} />
+            <Route path="/actions/broadcast-transaction" element={<BroadcastTransactionPage />} />
+            <Route path="/actions/fund-bare-multisig" element={<FundBareMultisigPage />} />
             <Route path="/actions/verify-message" element={<VerifyMessagePage />} />
 
             <Route path="/settings/address-types" element={<AddressTypesPage />} />

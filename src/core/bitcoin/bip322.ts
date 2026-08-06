@@ -775,7 +775,8 @@ export async function verifyBIP322Signature(
 /**
  * Parse DER-encoded signature
  */
-function parseDERSignature(der: Uint8Array): Uint8Array | null {
+/** Exported for the multisig combine path, which receives DER signatures from a counterparty. */
+export function parseDERSignature(der: Uint8Array): Uint8Array | null {
   try {
     // Basic DER structure validation
     if (der[0] !== 0x30) return null;

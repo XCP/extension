@@ -2,7 +2,7 @@ import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { FiMinus, FiPlus } from "@/components/icons";
 import { lookupAssetOwner, shouldTriggerAssetLookup } from "@/core/validation/assetOwner";
-import { validateBitcoinAddress } from "@/core/validation/bitcoin";
+import { isMultisigAddress, validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { type Destination, isMPMASupported, parseMultiLineDestinations, validateDestinations } from "@/core/validation/destinations";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
@@ -146,7 +146,8 @@ export function DestinationsInput({
     }
   };
 
-  const showAddButton = isMPMASupported(asset) && enableMPMA && destinations.length < 1000;
+  const hasMultisig = destinations.some(d => d.address && isMultisigAddress(d.address));
+  const showAddButton = isMPMASupported(asset) && enableMPMA && destinations.length < 1000 && !hasMultisig;
   const canRemove = destinations.length > 1;
 
   return (
