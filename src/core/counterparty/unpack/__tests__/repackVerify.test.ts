@@ -39,6 +39,8 @@ describe('proveByRepack', () => {
       dividend: 'proved',
       fairmint: 'proved',
       dispense: 'proved',
+      'attach-bad-vout': 'proved',
+      'utxo-move-foreign-source': 'proved',
       'issuance-numeric': 'proved',
       'fairminter-xcp69': 'proved',
       broadcast: 'proved',

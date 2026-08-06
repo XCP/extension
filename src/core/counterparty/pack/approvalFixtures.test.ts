@@ -28,6 +28,8 @@ const EXPECTED: Record<string, string> = {
   'fairminter-xcp69': 'fairminter',
   'send-above-safe-integer': 'enhanced_send',
   dispense: 'dispense',
+  'attach-bad-vout': 'attach',
+  'utxo-move-foreign-source': 'utxo',
   attach: 'attach',
   detach: 'detach',
   'utxo-move': 'utxo',
