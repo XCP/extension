@@ -112,7 +112,7 @@ export default function ApprovePsbtPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
-  const txAction = getTxActionInfo(decodedInfo);
+  const txAction = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
   // Warn on the fee *rate* as well as its absolute size: a fee under the absolute ceiling can still
   // be absurd on a small transaction, and that case previously drew no warning at all. It warns
@@ -347,6 +347,38 @@ export default function ApprovePsbtPage() {
           />
 
           {/* Transaction Details (expandable) */}
+
+          {/* What the Counterparty message itself says, kept apart from the Bitcoin view below.
+              The headline is one line and loses most of it — a fairminter's headline is its asset
+              name, while the thing being agreed to is a set of caps, a price and a deadline. */}
+          {txAction && 'protocol' in txAction && txAction.protocol.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty Details</h3>
+              <div className="space-y-1.5">
+                {txAction.protocol.map((field) => {
+                  /* A hash or an outpoint does not fit on a row beside its label: right-aligned it
+                     wrapped into three ragged lines that nobody can read across. Long values get
+                     their own line in monospace, where the digits line up and can be compared. */
+                  const isLong = field.value.length > 32;
+                  return isLong ? (
+                    <div key={field.label} className="text-sm">
+                      <div className="text-gray-500">{field.label}</div>
+                      <div className="text-gray-900 font-mono text-xs break-all mt-0.5">
+                        {field.value}
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={field.label} className="flex justify-between gap-3 text-sm">
+                      <span className="text-gray-500 flex-shrink-0">{field.label}</span>
+                      <span className="text-gray-900 font-medium text-right break-all">
+                        {field.value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Collapsible variant="card" title="Transaction Details">
                 {/* TX Hash */}
                 {txid && (
@@ -448,17 +480,6 @@ export default function ApprovePsbtPage() {
                   </div>
                 )}
 
-                {/* The outcome of the local checks, in plain words, for whoever opened this panel. */}
-                {decodedInfo.verification?.passed !== undefined && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
-                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
-                      {decodedInfo.verification.repackProved
-                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
-                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
-                    </div>
-                  </div>
-                )}
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}

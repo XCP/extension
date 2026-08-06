@@ -86,7 +86,11 @@ function opReturnScriptOf(rawTxHex: string): string {
 }
 
 /** Rebuild a fixture so its change output pays `changeAddress`, leaving the payload untouched. */
-function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
+/** The dispenser a `dispense` pays. Real dispenses send BTC to the dispenser's address. */
+const DISPENSER_ADDRESS_SCRIPT = '76a914' + '11'.repeat(20) + '88ac';
+const DISPENSE_PAYMENT_SATS = 10_000;
+
+function rebuildForSigner(rawTxHex: string, changeAddress: string, payDispenser = false): string {
   const { txid, vout } = scenarioFixtures.input;
   const txidLe = txid.match(/../g)!.reverse().join('');
   const opReturnScript = opReturnScriptOf(rawTxHex);
@@ -99,9 +103,13 @@ function rebuildForSigner(rawTxHex: string, changeAddress: string): string {
     le(vout, 4),
     '00',
     'ffffffff',
-    '02',
+    payDispenser ? '03' : '02',
     le(0, 8), le(opReturnScript.length / 2, 1), opReturnScript,
-    le(CHANGE_VALUE, 8), le(changeScript.length / 2, 1), changeScript,
+    ...(payDispenser
+      ? [le(DISPENSE_PAYMENT_SATS, 8), le(DISPENSER_ADDRESS_SCRIPT.length / 2, 1), DISPENSER_ADDRESS_SCRIPT]
+      : []),
+    le(CHANGE_VALUE - (payDispenser ? DISPENSE_PAYMENT_SATS : 0), 8),
+    le(changeScript.length / 2, 1), changeScript,
     le(0, 4),
   ].join('');
 }
@@ -180,9 +188,11 @@ const EXPECTED_WARNINGS: Record<string, RegExp[]> = {
   'sweep-blocked': [/blocked: sweep/i],
   destroy: [/asset destruction/i],
   detach: [/moves everything on the utxo/i],
-  // dispense raises nothing here: the fixture pays change to the signer rather than a
-  // dispenser, so there is no external output. A real dispense would raise the external-address
-  // warning, and a fixture that pays one would be worth adding.
+  // Paying the dispenser, and paying the order-match counterparty, are what these transactions
+  // are. Both are stated rather than flagged; the red danger banner they used to raise fired on
+  // every correct one of them.
+  dispense: [/btc payment/i],
+  btcpay: [/btc payment/i],
   'attach-bad-vout': [/attaches to an output that does not exist/i],
   'utxo-move-foreign-source': [/moves a utxo this transaction does not spend/i],
 };
@@ -195,6 +205,7 @@ const ALL_WARNING_PATTERNS: RegExp[] = [
   /unknown transaction type/i,
   /unrecognized transaction/i,
   /btc sent to external address/i,
+  /btc payment/i,
   /btc sent to an unrecognized script/i,
   /counterparty data outputs/i,
   /attaches to an output that does not exist/i,
@@ -265,7 +276,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
   for (const [name, { rawTxHex }] of scenarios) {
     const id = `gallery-${name}`;
-    await seed(id, rebuildForSigner(rawTxHex, signerAddress!));
+    await seed(id, rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense'));
     const approval = await openApproval(id);
 
     // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
@@ -304,7 +315,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
         timestamp: Date.now(),
         address: signerAddress!,
         walletId: '',
-        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!)),
+        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense')),
       }
     );
 

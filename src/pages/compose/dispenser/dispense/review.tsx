@@ -3,6 +3,11 @@ import { useEffect, useState } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
 import { fetchAddressDispensers, fetchMempoolDispenses } from "@/core/counterparty/api";
+import {
+  type DispensePayout,
+  describePayout,
+  resolveDispensersAt,
+} from '@/core/counterparty/dispenseOutcome';
 import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
@@ -66,6 +71,7 @@ export function ReviewDispense({
   const dispenserAddress = result?.params?.dispenser;
   const btcQuantity = result?.params?.quantity || 0;
   const [allTriggeredDispensers, setAllTriggeredDispensers] = useState<VerboseDispenser[]>([]);
+  const [payouts, setPayouts] = useState<DispensePayout[]>([]);
   
   // Fetch dispenser details and check mempool
   useEffect(() => {
@@ -93,6 +99,7 @@ export function ReviewDispense({
           const sorted = [...triggered].sort((a, b) => a.asset.localeCompare(b.asset));
           
           setAllTriggeredDispensers(sorted);
+          setPayouts(await resolveDispensersAt(dispenserAddress, btcQuantity));
           
           try {
             const pending = await fetchMempoolDispenses(dispenserAddress);
@@ -128,30 +135,11 @@ export function ReviewDispense({
   
   // Add expected outcome if we have triggered dispensers
   if (!isLoadingInfo && allTriggeredDispensers.length > 0) {
-    // Calculate what will be received from all dispensers
-    const receivedAssets = allTriggeredDispensers.map(dispenser => {
-      // `?? false` treated an unresolved asset as indivisible, overstating "You Receive" by 1e8
-      // for a divisible one. asset_info is normally present (these are verbose lookups); when it
-      // is not, the amount is unknowable rather than assumable, so it is omitted below.
-      const isDivisible = dispenser.asset_info?.divisible;
-      const satoshirate = dispenser.satoshirate || 0;
-      const numberOfDispenses = satoshirate > 0 ? Math.floor(btcQuantity / satoshirate) : 0;
-      // For divisible assets, give_quantity is in satoshis; for indivisible, it's the raw count
-      const assetName = dispenser.asset_info?.asset_longname || dispenser.asset;
-      if (isDivisible === undefined) {
-        return `Amount unavailable (${assetName})`;
-      }
-      const giveQuantity = isDivisible
-        ? fromSatoshis(dispenser.give_quantity || 0, true)
-        : (dispenser.give_quantity || 0);
-      const totalReceived = giveQuantity * numberOfDispenses;
-
-      return `${formatAmount({
-        value: totalReceived,
-        minimumFractionDigits: 0,
-        maximumFractionDigits: isDivisible ? 8 : 0
-      })} ${assetName}`;
-    });
+    // What each dispenser pays is worked out in one place, shared with the provider approval
+    // screen. This screen used to compute it inline and diverged from core twice: it never applied
+    // the `give_remaining` cap, so a nearly-empty dispenser was quoted at its full rate, and it
+    // priced oracle dispensers with the fixed-rate formula, which is not what they charge.
+    const receivedAssets = payouts.map(describePayout);
     
     // Format USD value for BTC payment
     const usdDisplay = btcInFiat !== null

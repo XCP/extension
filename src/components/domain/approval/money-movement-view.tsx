@@ -68,12 +68,6 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
             <span className="font-medium text-gray-900 flex-shrink-0">{btc(dest.value)} BTC</span>
           </div>
         ))}
-        {backToYou > 0 && (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-gray-400">To your wallet</span>
-            <span className="text-gray-400 font-normal flex-shrink-0">{btc(backToYou)} BTC</span>
-          </div>
-        )}
         {atRisk > 0 && (
           <div className="flex items-center justify-between gap-2">
             <span className="text-danger-600">May not return to you</span>
@@ -86,6 +80,14 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
             {unfunded ? 'Set by the other party' : `${btc(fee)} BTC`}
           </span>
         </div>
+        {backToYou > 0 && (
+          <div className="flex items-center justify-between gap-2">
+            {/* "Change", not "to your wallet": on a dispense or a send the only such row is the
+                change, and calling it an arrival reads as though the transaction pays you. */}
+            <span className="text-gray-400">Change</span>
+            <span className="text-gray-400 font-medium flex-shrink-0">{btc(backToYou)} BTC</span>
+          </div>
+        )}
         {hasHighFee && (
           <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
         )}

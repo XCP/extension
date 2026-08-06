@@ -17,6 +17,7 @@ import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
+import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { formatAddress, formatAmount, formatPriceRatio } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
@@ -48,7 +49,7 @@ type TxActionData =
       normalizedGet: number | null;
       expiration: number;
     }
-  | { type: 'fallback'; label: string; description: string }
+  | { type: 'fallback'; label: string; description: string; protocol: ProtocolField[] }
   | null;
 
 /**
@@ -132,9 +133,9 @@ function getTxActionData(decodedInfo: DecodedTransactionInfo): TxActionData {
   }
 
   // --- Fallback: use existing flat text ---
-  const info = getTxActionInfo(decodedInfo);
+  const info = getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
   if (info) {
-    return { type: 'fallback', label: info.label, description: info.description };
+    return { type: 'fallback', label: info.label, description: info.description, protocol: info.protocol };
   }
   return null;
 }
@@ -446,6 +447,38 @@ export default function ApproveTransactionPage() {
             )}
           </div>
 
+
+          {/* What the Counterparty message itself says, kept apart from the Bitcoin view below.
+              The headline is one line and loses most of it — a fairminter's headline is its asset
+              name, while the thing being agreed to is a set of caps, a price and a deadline. */}
+          {txAction && 'protocol' in txAction && txAction.protocol.length > 0 && (
+            <div className="bg-white rounded-lg shadow-sm p-4">
+              <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty Details</h3>
+              <div className="space-y-1.5">
+                {txAction.protocol.map((field) => {
+                  /* A hash or an outpoint does not fit on a row beside its label: right-aligned it
+                     wrapped into three ragged lines that nobody can read across. Long values get
+                     their own line in monospace, where the digits line up and can be compared. */
+                  const isLong = field.value.length > 32;
+                  return isLong ? (
+                    <div key={field.label} className="text-sm">
+                      <div className="text-gray-500">{field.label}</div>
+                      <div className="text-gray-900 font-mono text-xs break-all mt-0.5">
+                        {field.value}
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={field.label} className="flex justify-between gap-3 text-sm">
+                      <span className="text-gray-500 flex-shrink-0">{field.label}</span>
+                      <span className="text-gray-900 font-medium text-right break-all">
+                        {field.value}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           {/* Transaction Details (expandable) */}
           <Collapsible variant="card" title="Transaction Details">
                   {/* TX Hash */}
@@ -546,18 +579,6 @@ export default function ApproveTransactionPage() {
                     </div>
                   )}
 
-                  {/* The outcome of the local checks, in plain words and only for someone who
-                      opened this panel. It stays off the main screen because a person cannot act
-                      on it and a permanent reassurance there would only teach them to stop
-                      reading. */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Checks</h4>
-                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600">
-                      {verificationRepackProved
-                        ? 'We rebuilt this transaction from scratch and got exactly the same thing you are signing, so the summary above leaves nothing out.'
-                        : 'We could not automatically re-create this kind of transaction to double-check it. That is not a sign of a problem — check the details above yourself.'}
-                    </div>
-                  </div>
           </Collapsible>
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}

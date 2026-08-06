@@ -55,6 +55,15 @@ export function isCounterpartyDataScript(script: string | undefined): boolean {
 }
 
 /**
+ * Message types whose whole purpose is to pay BTC to somebody else's address.
+ *
+ * A dispense pays the dispenser; a BTCPay settles an order match. Treating that payment as
+ * suspicious flagged every correct transaction of these types, which is the failure mode that
+ * makes warnings stop working.
+ */
+const BTC_PAYING_MESSAGE_TYPES = new Set(['dispense', 'btcpay']);
+
+/**
  * Message types that are too dangerous to sign via a provider/dApp request.
  * These can cause irreversible loss of all assets.
  */
@@ -240,15 +249,30 @@ export function analyzeTransactionSafety(
     const totalSats = suspiciousOutputs.reduce((sum, o) => sum + o.value, 0);
     const btcAmount = (totalSats / 100_000_000).toFixed(8);
     const addresses = suspiciousOutputs.map(o => o.address);
+    const expected = messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType);
 
-    warnings.push({
-      severity: 'danger',
-      title: 'BTC Sent to External Address',
-      message:
-        `This transaction sends ${btcAmount} BTC to ${addresses.length === 1 ? 'an address' : `${addresses.length} addresses`} ` +
-        `that ${addresses.length === 1 ? 'is' : 'are'} not yours: ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}. ` +
-        'Normal Counterparty transactions only send BTC back to your own address as change.',
-    });
+    warnings.push(
+      expected
+        ? {
+            // For these two types the payment is the transaction. Raising a red danger banner on
+            // every one of them is a false alarm, and a warning that fires when nothing is wrong
+            // teaches people to click past the one that matters. It still says where the money
+            // goes — that is the part worth reading — but as a statement, not an accusation.
+            severity: 'info',
+            title: 'BTC Payment',
+            message:
+              `This sends ${btcAmount} BTC to ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}, ` +
+              'which is how this type of transaction pays. Check the address is the one you mean.',
+          }
+        : {
+            severity: 'danger',
+            title: 'BTC Sent to External Address',
+            message:
+              `This transaction sends ${btcAmount} BTC to ${addresses.length === 1 ? 'an address' : `${addresses.length} addresses`} ` +
+              `that ${addresses.length === 1 ? 'is' : 'are'} not yours: ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}. ` +
+              'Normal Counterparty transactions only send BTC back to your own address as change.',
+          }
+    );
   }
 
   if (dataOutputs.length > 0) {

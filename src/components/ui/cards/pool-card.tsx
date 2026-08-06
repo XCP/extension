@@ -53,12 +53,15 @@ export function PoolCard({
       <div className="flex items-center gap-3">
         {/* Overlapping pair icons: solid white backing keeps transparent icon art
             from bleeding through, hairline ring keeps each circle crisp, and the
-            front icon carries a white halo to separate it from the back one. */}
+            front icon carries a white halo to separate it from the back one.
+            The wrappers need an explicit size-8 and flex: AssetIcon is inline-block, so without
+            them the wrapper inherited a line box a few pixels taller than 32px and rounded-full on
+            a non-square box drew an oval. */}
         <div className="relative h-8 w-[52px] flex-shrink-0">
-          <div className="absolute left-0 top-0 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden">
+          <div className="absolute left-0 top-0 size-8 flex rounded-full bg-white ring-1 ring-gray-200 overflow-hidden">
             <AssetIcon asset={assetA} size="md" />
           </div>
-          <div className="absolute left-5 top-0 rounded-full bg-white ring-1 ring-gray-200 overflow-hidden shadow-[0_0_0_2px_white]">
+          <div className="absolute left-5 top-0 size-8 flex rounded-full bg-white ring-1 ring-gray-200 overflow-hidden shadow-[0_0_0_2px_white]">
             <AssetIcon asset={assetB} size="md" />
           </div>
         </div>

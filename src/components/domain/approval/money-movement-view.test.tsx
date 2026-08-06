@@ -28,7 +28,7 @@ describe('MoneyMovementView', () => {
       />
     );
     expect(screen.getByText(/^bc1q/)).toBeInTheDocument(); // the external destination (truncated)
-    expect(screen.getByText('To your wallet')).toBeInTheDocument();
+    expect(screen.getByText('Change')).toBeInTheDocument();
     expect(screen.getByText('Network fee')).toBeInTheDocument();
   });
 

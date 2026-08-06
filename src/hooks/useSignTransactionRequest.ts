@@ -24,6 +24,7 @@ import {
   checkMessageStructure,
   type StructureFinding,
 } from '@/core/counterparty/messageStructure';
+import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
@@ -83,6 +84,12 @@ export interface DecodedTransactionInfo {
    * naming an output that does not exist, a move naming a UTXO the transaction does not spend.
    */
   structureFindings: StructureFinding[];
+  /**
+   * Ledger facts the message does not carry, so the detail list can say what the transaction means
+   * rather than only what it contains — the order behind a cancel, the supply a destroy is measured
+   * against, the total a dividend costs.
+   */
+  protocolContext: ProtocolContext;
   /** Where the assets attached to the signed inputs end up. Null when nothing attached moves. */
   attachedAssetDestination: AttachedAssetDestination | null;
   /**
@@ -233,6 +240,23 @@ export function useSignTransactionRequest(signerAddress?: string) {
       { inputs, outputs }
     );
 
+    const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
+      messageType: verification.localUnpack?.messageType,
+      data: verification.localUnpack?.data,
+      transactionId: parsed.txid,
+      apiMessageData: counterpartyMessage?.messageData,
+      outputs,
+      signerAddresses: signerAddress ? [signerAddress] : [],
+      spentUtxos: inputs.map((input) => `${input.txid}:${input.vout}`),
+    });
+
+    // Policy blocks come from the same lookups as the detail list — an oracle-priced dispenser is
+    // only visible once the dispensers behind the paid address have been read.
+    if (policyWarnings.length > 0) {
+      safety.warnings = [...policyWarnings, ...safety.warnings];
+      safety.blocked = safety.blocked || policyWarnings.some((w) => w.severity === 'block');
+    }
+
     const attachedAssets = await attachedAssetsPromise;
 
     // A raw transaction can spend an attached UTXO just as a PSBT can, and does so with no
@@ -258,6 +282,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       safety,
       attachedAssets,
       structureFindings,
+      protocolContext,
       attachedAssetDestination,
       mpmaRecipients,
     };

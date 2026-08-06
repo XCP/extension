@@ -22,6 +22,7 @@ import {
   type InputAttachedAssets,
 } from '@/core/counterparty/inputAssets';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
+import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
   type CounterpartyMessage, 
   decodeCounterpartyMessage,
@@ -74,6 +75,8 @@ export interface DecodedPsbtInfo {
   attachedAssetDestination: AttachedAssetDestination | null;
   /** Message fields that reference this transaction and do not resolve against it. */
   structureFindings: StructureFinding[];
+  /** Ledger facts the message does not carry, for the protocol detail list. */
+  protocolContext: ProtocolContext;
 }
 
 /**
@@ -193,6 +196,23 @@ export function useSignPsbtRequest(signerAddress?: string) {
       { inputs: psbtDetails.inputs, outputs: psbtDetails.outputs }
     );
 
+    // Same ledger lookups the raw-transaction path runs: a PSBT carries the same messages, so a
+    // cancel, dividend or dispense in one deserves the same account of itself as in the other.
+    const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
+      messageType: verification.localUnpack?.messageType,
+      data: verification.localUnpack?.data,
+      transactionId: txid,
+      apiMessageData: counterpartyMessage?.messageData,
+      outputs: psbtDetails.outputs,
+      signerAddresses: signerAddresses ?? [],
+      spentUtxos: psbtDetails.inputs.map((input) => `${input.txid}:${input.vout}`),
+    });
+
+    if (policyWarnings.length > 0) {
+      safety.warnings = [...policyWarnings, ...safety.warnings];
+      safety.blocked = safety.blocked || policyWarnings.some((w) => w.severity === 'block');
+    }
+
     const attachedAssets = await attachedAssetsPromise;
 
     const attachedAssetDestination = resolveAttachedAssetDestination(
@@ -212,6 +232,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
       mpmaRecipients,
       structureFindings,
       attachedAssetDestination,
+      protocolContext,
     };
   }, []);
 

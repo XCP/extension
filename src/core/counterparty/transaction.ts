@@ -267,7 +267,7 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
     const divisible = infoFor(field)?.divisible;
     if (divisible === true) return fromSatoshis(String(quantity));
     if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-    return `${BigInt(String(quantity)).toLocaleString()} base units`;
+    return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
   };
 
   const name = (asset?: string): string => {
@@ -388,7 +388,7 @@ async function enrichWithAssetInfo(data: Record<string, unknown>): Promise<void>
 export interface MpmaRecipient {
   address: string;
   asset: string;
-  /** Display quantity, or base units when divisibility could not be established. */
+  /** Display quantity, or the raw integer marked unconfirmed when divisibility is unknown. */
   quantity: string;
 }
 
@@ -435,7 +435,7 @@ export async function resolveMpmaRecipients(
           ? fromSatoshis(send.quantity.toString())
           : divisible === false
             ? send.quantity.toLocaleString()
-            : `${send.quantity.toString()} base units`,
+            : `${send.quantity.toString()} (decimals unconfirmed)`,
     };
   });
 }

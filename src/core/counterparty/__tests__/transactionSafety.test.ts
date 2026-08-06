@@ -284,10 +284,12 @@ describe('real-world scenarios', () => {
     );
     const result = analyzeTransactionSafety('btcpay', outputs, SIGNER);
     expect(result.blocked).toBe(false);
-    // btcpay legitimately sends BTC to another address, but we still flag it
-    // so the user can verify the payment amount
+    // Paying the counterparty is what a BTCPay is. The amount and address still get stated so the
+    // user can check them, but as information — a danger banner on every correct BTCPay is the
+    // false alarm that teaches people to click past the real one.
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]!.severity).toBe('danger');
+    expect(result.warnings[0]!.severity).toBe('info');
+    expect(result.warnings[0]!.message).toContain('0.00050000 BTC');
   });
 
   it('malicious site: hidden extra output draining BTC', () => {
