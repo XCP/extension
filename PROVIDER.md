@@ -106,6 +106,42 @@ await xcpwallet.request({ method: 'xcp_disconnect' });
 
 All signing methods require an active connection and open a popup for user approval.
 
+#### What this wallet will sign
+
+`xcp_signTransaction` and `xcp_signPsbt` are for Counterparty transactions. A request is refused
+outright when it is not one:
+
+- **No Counterparty content.** The transaction must either carry a Counterparty message or spend an
+  input holding attached assets. Both forms count, because spending an attached UTXO moves its
+  balances with no message at all — that is how an atomic swap of an attached asset works, and
+  requiring a payload would refuse it. A transaction with neither is a plain Bitcoin payment, which
+  a user can make in the wallet, where they choose the destination themselves.
+- **Sweeps.** A `sweep` hands every balance and asset ownership to another address in one message.
+  It is available in the wallet and not through a site.
+- **Oracle-priced dispensers.** Opening one, or paying one, is refused. Core applies the oracle
+  address's most recent broadcast with no bound on its age
+  (`ledger.other.get_oracle_last_price`), and the feed's owner can publish a new price in any block
+  before the transaction confirms — so what the payment buys is decided after the signature, by a
+  third party. The approval screen cannot state the outcome, so the wallet declines rather than
+  showing a figure it cannot stand behind. Fixed-rate dispensers are unaffected.
+- **Undecodable payloads.** A Counterparty payload the wallet cannot decode is surfaced as an
+  unrecognized transaction and blocked, not rendered as an ordinary transfer.
+
+A refusal is shown to the user with its reason; the method returns a rejection to the caller.
+
+#### What the approval screen shows
+
+Every supported message type gets a one-line description built from the transaction's own bytes,
+and — separately from the Bitcoin inputs and outputs — a list of the protocol facts the headline
+cannot carry: an order's price and expiry, a dividend's total cost and its per-holder XCP fee, the
+UTXO an attach creates, the assets a detach releases, the blocks remaining on a BTCPay's order
+match, and what each dispenser at a paid address will pay back.
+
+Some of those require a ledger lookup, which is done against the configured Counterparty node.
+Every one fails soft: a fact that cannot be resolved is omitted and the screen says less. Nothing
+about whether a transaction can be signed depends on that node being reachable — the decode,
+re-pack proof and structural checks all run on the bytes locally.
+
 #### `xcp_signMessage`
 
 Sign a message with the active address using BIP-322.
