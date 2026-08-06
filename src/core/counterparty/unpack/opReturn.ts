@@ -12,7 +12,7 @@
 import { Transaction } from '@scure/btc-signer';
 import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
-import { extractMultisigPayload } from '@/core/counterparty/unpack/multisig';
+import { decodeMultisigChunk } from '@/core/counterparty/unpack/multisig';
 
 /**
  * Strip the OP_RETURN opcode (0x6a) and push-data length prefix from an
@@ -79,10 +79,18 @@ export function decryptOpReturnData(
 }
 
 /**
- * Resolve a Counterparty payload from a transaction's output scripts: from an ARC4-obfuscated
- * OP_RETURN output, or from bare-multisig data outputs. The single home for that encoding order,
- * so every caller (composer verification and both dapp sign-request paths) recognizes exactly the
- * same payloads counterparty-core would.
+ * Resolve a Counterparty payload from a transaction's output scripts. The single home for that
+ * decoding, so every caller (composer verification and both dapp sign-request paths) reads exactly
+ * the message counterparty-core would.
+ *
+ * **Every data output contributes, in output order, whatever its encoding.** A node accumulates
+ * across all of them — `data.append(&mut new_data)` for each `ParseOutput::Data`, in
+ * counterparty-rs's vout loop — so an OP_RETURN and a bare-multisig output in the same transaction
+ * form one message, and so do two OP_RETURNs. Reading only the first data output would leave the
+ * rest of the message unexamined: a chunk placed *ahead* of an honest OP_RETURN supplies the
+ * message type, so the wallet would verify and display an enhanced send while the network executed
+ * the sweep sitting in front of it. Concatenating instead means whatever the network will run is
+ * what byte-equality verification gets to compare against.
  *
  * OP_RETURN is only ever ARC4-decrypted — never read as plaintext. Core does the same, so a
  * plaintext CNTRPRTY OP_RETURN is garbage to the node, which then parses a multisig-encoded
@@ -102,15 +110,24 @@ export function extractPayloadFromOutputs(
   outputScriptHexes: readonly string[],
   firstInputTxid: string
 ): string | null {
+  let payload = '';
+
   for (const scriptHex of outputScriptHexes) {
     // decryptOpReturnData returns null for non-OP_RETURN outputs and for anything that does not
     // ARC4-decrypt to the CNTRPRTY prefix, so a plaintext decoy is correctly ignored.
-    const decrypted = decryptOpReturnData(scriptHex, firstInputTxid);
-    if (decrypted) return decrypted;
+    const opReturn = decryptOpReturnData(scriptHex, firstInputTxid);
+    if (opReturn) {
+      // Core strips the prefix from each data output and appends the remainder, so the prefix
+      // appears once at the front of the assembled message rather than between the pieces.
+      payload += opReturn.slice(COUNTERPARTY_PREFIX_HEX.length);
+      continue;
+    }
+    // The same message may travel in bare-multisig outputs, which carry no OP_RETURN. Each is
+    // chunked and prefixed independently, and every one of them counts wherever it sits.
+    payload += decodeMultisigChunk(scriptHex, firstInputTxid) ?? '';
   }
 
-  // The message may instead be spread across bare-multisig outputs, which carry no OP_RETURN.
-  return extractMultisigPayload(outputScriptHexes, firstInputTxid);
+  return payload ? COUNTERPARTY_PREFIX_HEX + payload : null;
 }
 
 /**

@@ -29,7 +29,7 @@
  * |---|---|---|
  * | broadcast, cancel, destroy, detach, dividend, fairmint, fairminter, order, pooldeposit, poolwithdraw, sweep, enhanced send | none — core returns `[]` | nothing to explain |
  * | send (BTC), mpma | the payee(s) | named in the request; comma-separated lists are split |
- * | issuance with `transfer_destination` | the new owner | named in the request |
+ * | issuance with `transfer_destination` | the new owner | named in the request, and required to be the only output ahead of the data output (`checkPositionalDestination`) |
  * | dispenser | none, or `open_address` | named in the request when used |
  * | dispense | the dispenser being paid | named in the request as `dispenser` |
  * | attach | a new UTXO at the source's own address | recognized as change |
@@ -70,6 +70,12 @@ export interface OutputPolicyInput {
   ownAddresses: string[];
   /** Addresses the user asked to pay. Empty for messages whose recipient lives in the payload. */
   intendedDestinations: IntendedDestination[];
+  /**
+   * The address this message reads *positionally* — from where its output sits rather than from
+   * the payload — when it has one. Set it for those message types and nothing else; see
+   * `checkPositionalDestination`.
+   */
+  positionalDestination?: string;
 }
 
 /** An output that could not be explained, described for the error message. */
@@ -84,6 +90,106 @@ export interface OutputPolicyResult {
   ok: boolean;
   error?: string;
   unexplained: UnexplainedOutput[];
+}
+
+/**
+ * A quantity from the request, as an exact sat amount to hold an output to — or undefined when it
+ * cannot be read that way, which leaves the amount unpinned rather than pinning a wrong one.
+ * Quantities reach here already in base units, normalized before the request was composed.
+ */
+export function pinnedQuantity(quantity: unknown): number | undefined {
+  const value = Number(quantity);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * The output whose BTC amount the request determines, for the compose types that have one.
+ *
+ * Naming an address is not the same as agreeing to an amount, and for these two the amount is the
+ * substance of the transaction. A dispense pays the dispenser in BTC and gets back whatever that
+ * buys — core's `dispense.compose` returns `[(destination, quantity)]`, while the message itself is
+ * a bare marker byte, so byte equality says nothing about it. A BTC send carries no message at all,
+ * so the amount is the only thing there is to check.
+ *
+ * Nothing else pins one: elsewhere the composer chooses the amount (a dust marker, or no output at
+ * all) and pinning a value would reject honest transactions. Burns pin theirs at the call site,
+ * where the protocol's own address is supplied alongside it.
+ */
+export function pinnedDestination(
+  composeType: string,
+  params: Record<string, unknown>
+): IntendedDestination | null {
+  const address = composeType === 'dispense' ? params.dispenser
+    : composeType === 'send' && params.asset === 'BTC' ? params.destination
+    : null;
+  if (typeof address !== 'string' || !address) return null;
+
+  const value = pinnedQuantity(params.quantity);
+  return value === undefined ? null : { address, value };
+}
+
+/** Whether an output carries message bytes rather than value. */
+function isDataOutput(script: Uint8Array, scriptHex: string): boolean {
+  return script[0] === 0x6a || isBareMultisigDataOutput(scriptHex);
+}
+
+/**
+ * Some messages name no destination at all: the node reads it from *where an output sits*. It takes
+ * every non-data output ahead of the first data output and joins them —
+ * `destinations = "-".join(destinations)` in `parser/gettxinfo.py` — and an issuance then assigns
+ * `issuer = tx["destination"]`. So a second output ahead of the data output does not merely add a
+ * payment: it changes the recipient into the string `"addressA-addressB"`, which nobody holds a key
+ * to. An ownership transfer composed that way destroys the asset rather than transferring it.
+ *
+ * Neither of the other checks sees this. The message carries no destination, so byte equality
+ * passes; each output is individually explainable, so accounting passes. Only the *position* is
+ * wrong, so position is what this checks: exactly one non-data output ahead of the data output,
+ * paying the address the request named.
+ *
+ * Every honest compose satisfies this. Core assembles outputs as destinations, then data, then
+ * `more_outputs`, then change (`api/composer.py`), so the destination is always alone in front and
+ * change is always behind — which is also why `more_outputs` entries are not destinations and are
+ * not counted here.
+ *
+ * @returns An error message, or null when the arrangement is right.
+ */
+function checkPositionalDestination(tx: Transaction, expected: string): string | null {
+  const preceding: Array<{ address: string | null; value: number }> = [];
+
+  for (let index = 0; index < tx.outputsLength; index += 1) {
+    const output = tx.getOutput(index);
+    const script = output?.script;
+    if (!script) continue;
+    const scriptHex = bytesToHex(script);
+    // Everything before the *first* data output is what the node reads as the destination.
+    if (isDataOutput(script, scriptHex)) break;
+    preceding.push({
+      address: decodeAddressFromScript(scriptHex),
+      value: Number(output?.amount ?? 0n),
+    });
+  }
+
+  const wanted = normalizeAddressForComparison(expected);
+
+  if (preceding.length === 1 && preceding[0]!.address
+    && normalizeAddressForComparison(preceding[0]!.address) === wanted) {
+    return null;
+  }
+
+  if (preceding.length === 0) {
+    // Read as no destination at all, which for an issuance means the transfer silently does not
+    // happen — the issuer stays put — while the wallet shows a transfer.
+    return `This transaction does not pay ${expected} ahead of its data output, so the network `
+      + 'would not read it as the recipient. It was not accepted.';
+  }
+
+  const describe = preceding
+    .map(({ address, value }) => `${value} sats to ${address ?? 'an undecodable script'}`)
+    .join('; ');
+
+  return 'This transaction puts more than one output ahead of its data output '
+    + `(${describe}), so the network would join them into a single recipient that nobody controls `
+    + `rather than paying ${expected}. It was not accepted.`;
 }
 
 /**
@@ -128,7 +234,7 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
     const scriptHex = bytesToHex(script);
 
     // Data outputs carry the Counterparty message, not value.
-    if (script[0] === 0x6a || isBareMultisigDataOutput(scriptHex)) continue;
+    if (isDataOutput(script, scriptHex)) continue;
 
     const address = decodeAddressFromScript(scriptHex);
     if (!address) {
@@ -155,7 +261,15 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
     unexplained.push({ index, address, value });
   }
 
-  if (unexplained.length === 0) return { ok: true, unexplained: [] };
+  if (unexplained.length === 0) {
+    // Every output is accounted for; the remaining question is whether the one the node reads as
+    // the recipient is in the place it has to be.
+    if (input.positionalDestination) {
+      const positionError = checkPositionalDestination(tx, input.positionalDestination);
+      if (positionError) return { ok: false, unexplained: [], error: positionError };
+    }
+    return { ok: true, unexplained: [] };
+  }
 
   const describe = ({ address, value }: UnexplainedOutput) =>
     `${value} sats to ${address ?? 'an address that could not be decoded'}`;

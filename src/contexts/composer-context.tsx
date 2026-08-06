@@ -61,7 +61,12 @@ import {
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
 import { normalizeFormData } from "@/core/counterparty/normalize";
-import { checkOutputPolicy, type IntendedDestination } from "@/core/counterparty/outputPolicy";
+import {
+  checkOutputPolicy,
+  type IntendedDestination,
+  pinnedDestination,
+  pinnedQuantity,
+} from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
@@ -415,15 +420,33 @@ export function ComposerProvider<T>({
         if (composeType === 'burn') {
           // A burn carries no Counterparty message at all, so the outputs are the only thing that
           // can be checked — and pinning the amount here is the only verification a burn gets.
-          const quantity = Number(dataForApi.quantity);
-          const value = Number.isSafeInteger(quantity) && quantity > 0 ? quantity : undefined;
-          for (const address of BURN_ADDRESSES) intendedDestinations.push({ address, value });
+          for (const address of BURN_ADDRESSES) {
+            intendedDestinations.push({ address, value: pinnedQuantity(dataForApi.quantity) });
+          }
+        }
+        // Where a request pins how much BTC an output pays, pin it here too. Naming an address is
+        // not the same as agreeing to an amount: a dispense pays the dispenser in BTC and that
+        // amount *is* the transaction (core's dispense compose returns `[(destination, quantity)]`,
+        // and the message itself is a bare marker byte), while a BTC send carries no message at all,
+        // so the amount is the only thing there is to check.
+        const pinned = pinnedDestination(composeType, dataForApi);
+        if (pinned) {
+          const entry = intendedDestinations.find(d => d.address === pinned.address);
+          if (entry) entry.value = pinned.value;
+          else intendedDestinations.push(pinned);
         }
 
         const outputCheck = checkOutputPolicy({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
           intendedDestinations,
+          // An ownership transfer names its new owner nowhere in the message; the node reads it from
+          // the output ahead of the data output, joining several into one unspendable pseudo-address
+          // if a response puts them there.
+          positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'
+            && dataForApi.transfer_destination
+            ? dataForApi.transfer_destination
+            : undefined,
         });
         if (!outputCheck.ok) {
           throw new Error(outputCheck.error || 'Transaction pays outputs your request did not ask for');

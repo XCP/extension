@@ -19,6 +19,7 @@ import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
+import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
@@ -137,18 +138,16 @@ export default function ApproveTransactionPage() {
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
-  // A disagreement with the decode API is only grounds to stop when we cannot vouch for the bytes
-  // ourselves. Once the rebuild has reproduced the payload exactly, our reading of it is provably
-  // complete, so an API that reports something different is the one that is wrong — and under
-  // ADR-019 that endpoint is untrusted and user-configurable, which means letting it veto a
-  // signature hands an untrusted party a way to block transactions that are demonstrably fine.
-  // This is not hypothetical: until the JSON boundary was fixed, every quantity above 2^53 was
-  // rounded on arrival and blocked signing over a disagreement our own parsing had manufactured.
-  const verificationFailed = verificationPassed === false && !verificationRepackProved;
   const isStrictMode = settings?.strictTransactionVerification !== false;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
-  const shouldBlockSigning = safetyBlocked || (isStrictMode && verificationFailed);
+  // Shared with the PSBT approval screen so the two cannot drift; see `shouldBlockSigning`.
+  const blockSigning = shouldBlockSigning({
+    safetyBlocked,
+    verificationPassed,
+    repackProved: verificationRepackProved,
+    strictMode: isStrictMode,
+  });
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
   const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
@@ -457,7 +456,7 @@ export default function ApproveTransactionPage() {
         onCancel={handleReject}
         onSign={handleSign}
         busy={isSigning}
-        blocked={shouldBlockSigning}
+        blocked={blockSigning}
         isHardware={activeWallet.type === 'hardware'}
       />
     </div>

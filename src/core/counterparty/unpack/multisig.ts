@@ -61,7 +61,7 @@ function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
  * @param firstInputTxid - First input txid in display (big-endian) order
  * @returns The chunk hex without the CNTRPRTY prefix, or null
  */
-function decodeMultisigChunk(scriptHex: string, firstInputTxid: string): string | null {
+export function decodeMultisigChunk(scriptHex: string, firstInputTxid: string): string | null {
   const dataBytes = extractMultisigDataBytes(scriptHex);
   if (!dataBytes) return null;
 
@@ -81,26 +81,5 @@ function decodeMultisigChunk(scriptHex: string, firstInputTxid: string): string 
   return contentHex.slice(COUNTERPARTY_PREFIX_HEX.length);
 }
 
-/**
- * Extract a Counterparty payload from a transaction's bare-multisig outputs.
- *
- * @param outputScriptHexes - All output scriptPubKey hexes, in output order
- * @param firstInputTxid - First input txid in display (big-endian) order
- * @returns Counterparty datahex with the CNTRPRTY prefix, or null if no
- *          multisig-encoded payload is present
- */
-export function extractMultisigPayload(
-  outputScriptHexes: readonly string[],
-  firstInputTxid: string
-): string | null {
-  let payload = '';
-
-  // Every data output counts, wherever it sits. Stopping at the first ordinary output would let a
-  // payload be split around one and read as only its prefix — a different message from the one the
-  // network will parse.
-  for (const scriptHex of outputScriptHexes) {
-    payload += decodeMultisigChunk(scriptHex, firstInputTxid) ?? '';
-  }
-
-  return payload ? COUNTERPARTY_PREFIX_HEX + payload : null;
-}
+// Assembling the chunks across outputs lives in `extractPayloadFromOutputs` (opReturn.ts), which
+// walks every data output in order regardless of encoding — the way counterparty-core does.

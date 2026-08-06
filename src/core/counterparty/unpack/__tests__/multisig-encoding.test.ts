@@ -14,7 +14,6 @@ import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';
 import { unpackCounterpartyMessage } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
-import { extractMultisigPayload } from '../multisig';
 import { extractPayloadFromOutputs } from '../opReturn';
 import { verifyTransaction } from '../verify';
 
@@ -64,10 +63,64 @@ function sweepMessage(flags = 3): Uint8Array {
   return new Uint8Array([0x04, ...packAddress(SWEEP_DESTINATION), flags]);
 }
 
-describe('extractMultisigPayload', () => {
+/** An ARC4-obfuscated OP_RETURN data output carrying `payload`, as core's composer writes one. */
+function opReturnScript(payload: Uint8Array, txid: string): string {
+  const prefix = hexToBytes(COUNTERPARTY_PREFIX_HEX);
+  const obfuscated = arc4(hexToBytes(txid), new Uint8Array([...prefix, ...payload]));
+  return bytesToHex(new Uint8Array([0x6a, obfuscated.length, ...obfuscated]));
+}
+
+describe('a message split across encodings is read whole', () => {
+  // A node accumulates across every data output, whatever its encoding and wherever it sits:
+  // counterparty-rs's vout loop appends each `ParseOutput::Data` in output order. Reading only the
+  // first data output would leave the rest of the message unexamined.
+
+  it('takes the message type from a multisig chunk placed ahead of the OP_RETURN', () => {
+    // The substitution this prevents: an honest-looking enhanced send in the OP_RETURN, with a
+    // sweep sitting in front of it supplying the type byte the node actually acts on.
+    const sweep = sweepMessage();
+    const enhancedSend = new Uint8Array([0x02, 0xcc, 0xdd]);
+    const scripts = [
+      ...multisigScriptsFor(sweep, FIRST_INPUT_TXID),
+      opReturnScript(enhancedSend, FIRST_INPUT_TXID),
+    ];
+
+    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
+
+    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(sweep) + bytesToHex(enhancedSend));
+    expect(unpackCounterpartyMessage(payload!).messageType).toBe('sweep');
+  });
+
+  it('appends a second Counterparty OP_RETURN to the first', () => {
+    // Both decrypt to the prefix, so a node takes both; neither is an "invalid OP_RETURN" it would
+    // refuse the transaction over.
+    const first = new Uint8Array([0x02, 0x11, 0x22]);
+    const second = new Uint8Array([0x33, 0x44]);
+
+    const payload = extractPayloadFromOutputs(
+      [opReturnScript(first, FIRST_INPUT_TXID), opReturnScript(second, FIRST_INPUT_TXID)],
+      FIRST_INPUT_TXID
+    );
+
+    expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(first) + bytesToHex(second));
+  });
+
+  it('still reads an ordinary single-OP_RETURN message unchanged', () => {
+    const message = new Uint8Array([0x02, 0xcc, 0xdd]);
+    const scripts = [
+      opReturnScript(message, FIRST_INPUT_TXID),
+      '76a914' + '11'.repeat(20) + '88ac',
+    ];
+
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
+      .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
+  });
+});
+
+describe('extractPayloadFromOutputs, over multisig data outputs', () => {
   it('recovers a single-output payload', () => {
     const message = sweepMessage();
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(message, FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -81,7 +134,7 @@ describe('extractMultisigPayload', () => {
     const scripts = multisigScriptsFor(message, FIRST_INPUT_TXID);
     expect(scripts.length).toBeGreaterThan(1);
 
-    const payload = extractMultisigPayload(scripts, FIRST_INPUT_TXID);
+    const payload = extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID);
     expect(payload).toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 
@@ -93,7 +146,7 @@ describe('extractMultisigPayload', () => {
       '0014' + '22'.repeat(20),
     ];
 
-    expect(extractMultisigPayload(scripts, FIRST_INPUT_TXID))
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID))
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 
@@ -113,12 +166,12 @@ describe('extractMultisigPayload', () => {
 
   it('returns null for a transaction with no data outputs', () => {
     const scripts = ['76a914' + '11'.repeat(20) + '88ac', '0014' + '22'.repeat(20)];
-    expect(extractMultisigPayload(scripts, FIRST_INPUT_TXID)).toBeNull();
+    expect(extractPayloadFromOutputs(scripts, FIRST_INPUT_TXID)).toBeNull();
   });
 
   it('returns null when the key does not match', () => {
     const scripts = multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID);
-    expect(extractMultisigPayload(scripts, 'b'.repeat(64))).toBeNull();
+    expect(extractPayloadFromOutputs(scripts, 'b'.repeat(64))).toBeNull();
   });
 
   it('reads the whole payload when a payment output is placed between data outputs', () => {
@@ -128,14 +181,14 @@ describe('extractMultisigPayload', () => {
     const [first, ...rest] = multisigScriptsFor(message, FIRST_INPUT_TXID);
     const interleaved = [first!, '76a914' + '11'.repeat(20) + '88ac', ...rest];
 
-    expect(extractMultisigPayload(interleaved, FIRST_INPUT_TXID))
+    expect(extractPayloadFromOutputs(interleaved, FIRST_INPUT_TXID))
       .toBe(COUNTERPARTY_PREFIX_HEX + bytesToHex(message));
   });
 });
 
 describe('a sweep is classified in either encoding', () => {
   it('unpacks a multisig-encoded sweep to the sweep message type', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -147,7 +200,7 @@ describe('a sweep is classified in either encoding', () => {
   });
 
   it('blocks signing once the message type is resolved', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
@@ -194,7 +247,7 @@ describe('a message type with no unpacker is not a successful decode', () => {
   });
 
   it('still reports success for a type it can decode', () => {
-    const payload = extractMultisigPayload(
+    const payload = extractPayloadFromOutputs(
       multisigScriptsFor(sweepMessage(), FIRST_INPUT_TXID),
       FIRST_INPUT_TXID
     );
