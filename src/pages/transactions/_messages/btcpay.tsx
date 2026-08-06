@@ -10,7 +10,7 @@ export function btcpay(tx: Transaction): Array<{ label: string; value: string | 
   if (!params) return [];
 
   // Use API-provided normalized values (verbose=true always returns these)
-  const btcAmount = Number(params.btc_amount_normalized);
+  const btcAmount = params.btc_amount_normalized;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

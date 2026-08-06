@@ -16,7 +16,7 @@ export function send(tx: Transaction): Array<{ label: string; value: string | Re
   
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? false;
-  const quantity = Number(params.quantity_normalized);
+  const quantity = params.quantity_normalized;
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {

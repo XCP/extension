@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { divide, multiply, roundDown } from "@/core/numeric";
 
 /**
  * Renders detailed information for dispenser transactions
@@ -20,13 +21,13 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  const giveQuantity = Number(params.give_quantity_normalized);
-  const escrowQuantity = Number(params.escrow_quantity_normalized);
-  const btcPerDispense = Number(params.satoshirate_normalized);
+  const giveQuantity = params.give_quantity_normalized;
+  const escrowQuantity = params.escrow_quantity_normalized;
+  const btcPerDispense = params.satoshirate_normalized;
   
-  // Calculate derived values
-  const totalDispenses = escrowQuantity / giveQuantity;
-  const totalBtcValue = totalDispenses * btcPerDispense;
+  // Derived from the normalized strings, so a large escrow does not lose digits on the way.
+  const totalDispenses = divide(escrowQuantity ?? 0, giveQuantity ?? 1);
+  const totalBtcValue = multiply(totalDispenses, btcPerDispense ?? 0);
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
@@ -67,8 +68,8 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
 
   // Add remaining quantity if available
   if (params.give_remaining_normalized !== undefined) {
-    const giveRemaining = Number(params.give_remaining_normalized);
-    const remainingDispenses = Math.floor(giveRemaining / giveQuantity);
+    const giveRemaining = params.give_remaining_normalized;
+    const remainingDispenses = roundDown(divide(giveRemaining ?? 0, giveQuantity ?? 1));
     
     fields.push({
       label: "Remaining in Escrow",
@@ -88,7 +89,7 @@ export function dispenser(tx: Transaction): Array<{ label: string; value: string
   // Add total calculations
   fields.push({
     label: "Max Dispenses",
-    value: Math.floor(totalDispenses).toString(),
+    value: roundDown(totalDispenses).toFixed(),
   });
   
   fields.push({

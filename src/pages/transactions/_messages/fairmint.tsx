@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
+import { isGreaterThan } from "@/core/numeric";
 
 /**
  * Renders detailed information for fairmint transactions
@@ -11,7 +12,7 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
 
   // Use API-provided normalized values (verbose=true always returns these)
   const isDivisible = params.asset_info?.divisible ?? true;
-  const quantity = Number(params.quantity_normalized);
+  const quantity = params.quantity_normalized;
 
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
@@ -45,8 +46,8 @@ export function fairmint(tx: Transaction): Array<{ label: string; value: string 
   }
 
   // Price paid (if XCP model)
-  if (params.paid_quantity_normalized !== undefined && Number(params.paid_quantity_normalized) > 0) {
-    const paidQuantity = Number(params.paid_quantity_normalized);
+  if (params.paid_quantity_normalized !== undefined && isGreaterThan(params.paid_quantity_normalized, 0)) {
+    const paidQuantity = params.paid_quantity_normalized;
     fields.push({
       label: "XCP Paid",
       value: `${formatAmount({
