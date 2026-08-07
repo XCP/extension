@@ -230,12 +230,25 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
   const scenarios = Object.entries(scenarioFixtures.scenarios);
 
+  // One record per signing request, in the shape `beginSignFlow` writes (`signFlow.ts`). Seeded
+  // directly rather than through a dApp connection, so `requestKey` only has to be present — it
+  // exists for rejoining a duplicate request, which this gallery never makes.
   const seed = async (id: string, rawTxHex: string) => {
     await page.evaluate(
       async (req) => {
-        await chrome.storage.session.set({ pending_sign_transaction_requests: [req] });
+        await chrome.storage.session.set({ pending_sign_flow: [req] });
       },
-      { id, origin: 'https://launchpad.xcp.fun', timestamp: Date.now(), address: '', walletId: '', rawTxHex }
+      {
+        id,
+        origin: 'https://launchpad.xcp.fun',
+        timestamp: Date.now(),
+        address: '',
+        walletId: '',
+        requestKey: `xcp_signTransaction:${id}`,
+        kind: 'sign-transaction',
+        status: 'pending',
+        rawTxHex,
+      }
     );
   };
 
@@ -307,7 +320,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     const id = `gallery-psbt-${name}`;
     await page.evaluate(
       async (req) => {
-        await chrome.storage.session.set({ pending_sign_psbt_requests: [req] });
+        await chrome.storage.session.set({ pending_sign_flow: [req] });
       },
       {
         id,
@@ -315,6 +328,9 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
         timestamp: Date.now(),
         address: signerAddress!,
         walletId: '',
+        requestKey: `xcp_signPsbt:${id}`,
+        kind: 'sign-psbt',
+        status: 'pending',
         psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense')),
       }
     );

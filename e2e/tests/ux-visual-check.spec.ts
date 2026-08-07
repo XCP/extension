@@ -43,10 +43,23 @@ async function readActiveAddress(page: Page): Promise<string> {
 
 async function seedPsbtAndOpenApproval(page: Page, psbtHex: string, origin = 'https://app.example.com') {
   const address = await readActiveAddress(page);
+  // One record per signing request, in the shape `beginSignFlow` writes (`signFlow.ts`). Seeded
+  // directly rather than through a dApp connection, so `requestKey` only has to be present — it
+  // exists for rejoining a duplicate request, which this test never makes.
   await page.evaluate(async ({ address, psbtHex, origin }) => {
     await chrome.storage.session.set({
-      pending_sign_psbt_requests: [
-        { id: 'visual-check', origin, timestamp: Date.now(), address, walletId: '', psbtHex },
+      pending_sign_flow: [
+        {
+          id: 'visual-check',
+          origin,
+          timestamp: Date.now(),
+          address,
+          walletId: '',
+          requestKey: 'xcp_signPsbt:visual-check',
+          kind: 'sign-psbt',
+          status: 'pending',
+          psbtHex,
+        },
       ],
     });
   }, { address, psbtHex, origin });
