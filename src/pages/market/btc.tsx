@@ -186,7 +186,7 @@ export default function BtcPricePage(): ReactElement {
               {/* Currency Selector - only show if multiple currencies available */}
               {CURRENCIES.length > 1 ? (
                 <div className="relative mt-1">
-                  <button
+                  <button type="button"
                     onClick={() => setShowCurrencyMenu(!showCurrencyMenu)}
                     className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
@@ -196,7 +196,7 @@ export default function BtcPricePage(): ReactElement {
                   {showCurrencyMenu && (
                     <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
                       {CURRENCIES.map((c) => (
-                        <button
+                        <button type="button"
                           key={c}
                           onClick={() => handleCurrencyChange(c)}
                           className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -217,7 +217,7 @@ export default function BtcPricePage(): ReactElement {
               {statsError ? (
                 <div className="text-sm text-red-600">
                   <span className="block">{statsError}</span>
-                  <button
+                  <button type="button"
                     onClick={() => loadStats(currency)}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
@@ -244,7 +244,7 @@ export default function BtcPricePage(): ReactElement {
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
             {TIME_RANGES.map((t) => (
-              <button
+              <button type="button"
                 key={t.id}
                 onClick={() => handleRangeChange(t.id)}
                 className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -276,7 +276,7 @@ export default function BtcPricePage(): ReactElement {
               style={{ height: CHART_HEIGHT }}
             >
               <span className="text-sm text-red-600 mb-2">{chartError}</span>
-              <button
+              <button type="button"
                 onClick={() => loadChartData(range, currency)}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >

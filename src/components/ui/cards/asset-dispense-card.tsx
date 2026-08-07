@@ -59,7 +59,7 @@ export function AssetDispenseCard({
           </div>
           <div className="flex items-center justify-end gap-2 mt-0.5">
             {onCopyTx && (
-              <button
+              <button type="button"
                 onClick={() => onCopyTx(dispense.tx_hash)}
                 className={`flex items-center gap-1 text-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                   isCopied

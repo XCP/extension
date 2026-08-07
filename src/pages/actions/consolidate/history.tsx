@@ -75,7 +75,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
 
   return (
     <div className="mt-4 bg-white rounded-lg shadow-sm">
-      <button
+      <button type="button"
         onClick={() => setShowHistory(!showHistory)}
         className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset rounded-lg"
         aria-expanded={showHistory}

@@ -542,7 +542,7 @@ export default function AssetOrdersPage(): ReactElement {
                 History
               </TabButton>
             </div>
-            <button
+            <button type="button"
               onClick={() => navigate(`/market?tab=orders&mode=manage&search=${baseAsset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >

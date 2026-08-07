@@ -8,7 +8,7 @@ import { BalanceCard } from "./balance-card";
 // Mock the BalanceMenu component
 vi.mock("@/components/domain/balance/balance-menu", () => ({
   BalanceMenu: ({ asset }: { asset: string }) => (
-    <button data-testid={`balance-menu-${asset}`}>Menu</button>
+    <button type="button" data-testid={`balance-menu-${asset}`}>Menu</button>
   ),
 }));
 

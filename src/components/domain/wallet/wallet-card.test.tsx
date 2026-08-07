@@ -17,7 +17,7 @@ vi.mock('@/core/format', () => ({
 // Mock the WalletMenu component
 vi.mock('@/components/domain/wallet/wallet-menu', () => ({
   WalletMenu: ({ wallet, isOnlyWallet }: { wallet: any; isOnlyWallet: boolean }) => (
-    <button data-testid={`wallet-menu-${wallet.id}`} className="wallet-menu">
+    <button type="button" data-testid={`wallet-menu-${wallet.id}`} className="wallet-menu">
       Menu {isOnlyWallet ? '(Only)' : ''}
     </button>
   )

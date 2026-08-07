@@ -7,7 +7,7 @@ import { UtxoCard } from "./utxo-card";
 
 vi.mock("@/components/domain/utxo/utxo-menu", () => ({
   UtxoMenu: ({ utxo }: { utxo: string }) => (
-    <button data-testid={`utxo-menu-${utxo}`}>Menu</button>
+    <button type="button" data-testid={`utxo-menu-${utxo}`}>Menu</button>
   ),
 }));
 

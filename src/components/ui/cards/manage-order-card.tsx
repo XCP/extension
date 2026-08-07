@@ -67,7 +67,7 @@ export function ManageOrderCard({
           </div>
         </div>
         {isOpen ? (
-          <button
+          <button type="button"
             onClick={handleCancel}
             className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
           >

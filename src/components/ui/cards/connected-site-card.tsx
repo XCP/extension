@@ -102,7 +102,7 @@ export function ConnectedSiteCard({
         </div>
         
         {/* Disconnect Button */}
-        <button
+        <button type="button"
           onClick={handleDisconnect}
           onKeyDown={handleDisconnectKeyDown}
           className="flex-shrink-0 p-2 hover:bg-red-50 rounded-lg transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-1"

@@ -145,14 +145,14 @@ function ConsolidateSuccessPage() {
                   <span className="text-xs text-gray-600 font-mono break-all flex-1">
                     {result.txid}
                   </span>
-                  <button
+                  <button type="button"
                     onClick={() => copyToClipboard(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label="Copy transaction ID"
                   >
                     <FaCopy className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
-                  <button
+                  <button type="button"
                     onClick={() => openInExplorer(result.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label="View in explorer"

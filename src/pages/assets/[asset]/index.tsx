@@ -300,7 +300,7 @@ export default function AssetPage(): ReactElement {
       
       {/* Dividend History Section - Collapsible */}
       <div className="bg-white rounded-lg shadow-sm">
-        <button
+        <button type="button"
           onClick={() => setShowDividends(!showDividends)}
           className="w-full p-4 flex justify-between items-center hover:bg-gray-50 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           aria-expanded={showDividends}
@@ -371,7 +371,7 @@ export default function AssetPage(): ReactElement {
                 ))}
                 
                 {hasMoreDividends && (
-                  <button
+                  <button type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       loadDividends();

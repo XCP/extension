@@ -18,6 +18,9 @@
     "enabled": true,
     "rules": {
       "recommended": false,
+      "a11y": {
+        "useButtonType": "error"
+      },
       "correctness": {
         "noUnusedImports": "error",
         "noUnusedVariables": "warn"
