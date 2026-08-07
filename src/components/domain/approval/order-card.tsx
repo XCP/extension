@@ -11,11 +11,22 @@
  * a rule with two implementations gets fixed in whichever one the author is looking at. Here the
  * cost is milder (a person recognises one screen and not the other) but the cause is identical, so
  * the card and the builder live together and both screens call them.
+ *
+ * The receive box says "at least", because that is what an order's get_quantity is: the guaranteed
+ * minimum, not a prediction. Sites show pool estimates; the signed message carries the bound. Every
+ * major wallet simulates and shows the estimate, so a decoded minimum with no label reads as the
+ * site's number gone wrong — a real user cancelled a correct transaction over exactly this. The
+ * card therefore names the category, and beside it fetches its own pool quote from the wallet's
+ * configured node — never from anything the site supplied — so the user sees the wallet
+ * independently agree with what the site promised. When the order's minimum sits far below the
+ * wallet's own quote, that same fetch turns into a warning: either the pool moved, or the site
+ * composed against a number it shouldn't have.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
 import { FiArrowDown } from '@/components/icons';
+import { useSettings } from '@/contexts/settings-context';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { formatPriceRatio } from '@/core/format';
@@ -35,6 +46,15 @@ export interface OrderAction {
   normalizedGive: number | null;
   normalizedGet: number | null;
   expiration: number;
+  /**
+   * Raw asset names and base-unit quantities, for the wallet's own pool-quote lookup. Raw names
+   * because the API routes on them (a longname is display-only); strings because a 64-bit quantity
+   * through Number() is already rounded.
+   */
+  giveAssetRaw: string;
+  getAssetRaw: string;
+  giveQuantityRaw: string;
+  getQuantityRaw: string;
 }
 
 /** The parts of a decoded transaction or PSBT this builder reads — both screens supply them. */
@@ -78,6 +98,10 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       normalizedGive: toNumber(divide(String(messageData.give_quantity), giveDivisor)),
       normalizedGet: toNumber(divide(String(messageData.get_quantity), getDivisor)),
       expiration: Number(messageData.expiration ?? 0),
+      giveAssetRaw,
+      getAssetRaw,
+      giveQuantityRaw: String(messageData.give_quantity ?? ''),
+      getQuantityRaw: String(messageData.get_quantity ?? ''),
     };
   }
 
@@ -112,15 +136,80 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       normalizedGet:
         getDivisor === null ? null : toNumber(divide(String(data.getQuantity), getDivisor)),
       expiration: data.expiration,
+      giveAssetRaw: data.giveAsset,
+      getAssetRaw: data.getAsset,
+      giveQuantityRaw: String(data.giveQuantity),
+      getQuantityRaw: String(data.getQuantity),
     };
   }
 
   return null;
 }
 
+/**
+ * The wallet's own read of the pool, fetched from the configured node at approval time. `null`
+ * while loading or when there is no pool for the pair — in both cases the card simply shows the
+ * decoded minimum alone. The estimate is decoration; the minimum is the contract. Signing is never
+ * blocked on this lookup.
+ */
+interface OwnQuote {
+  estimatedRaw: number;
+}
+
+function useOwnPoolQuote(order: OrderAction): OwnQuote | null {
+  const { settings } = useSettings();
+  const [quote, setQuote] = useState<OwnQuote | null>(null);
+
+  useEffect(() => {
+    // BTC has no pools, and a zero quantity has no quote.
+    if (
+      order.giveAssetRaw === 'BTC' ||
+      order.getAssetRaw === 'BTC' ||
+      !order.giveQuantityRaw ||
+      order.giveQuantityRaw === '0'
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(
+          `${settings.counterpartyApiBase}/v2/pools/${order.giveAssetRaw}/${order.getAssetRaw}/quote?quantity=${order.giveQuantityRaw}`,
+          { signal: controller.signal }
+        );
+        if (!res.ok) return;
+        const estimated = Number((await res.json())?.result?.estimated_output);
+        if (Number.isFinite(estimated) && estimated > 0) {
+          setQuote({ estimatedRaw: estimated });
+        }
+      } catch {
+        // No pool, no node, no answer — the minimum stands on its own.
+      }
+    })();
+    return () => controller.abort();
+  }, [settings.counterpartyApiBase, order.giveAssetRaw, order.getAssetRaw, order.giveQuantityRaw]);
+
+  return quote;
+}
+
 /** The give/receive card, with a rate the user can flip. */
 export function OrderCard({ order }: { order: OrderAction }) {
   const [priceFlipped, setPriceFlipped] = useState(false);
+  const ownQuote = useOwnPoolQuote(order);
+
+  const minRaw = Number(order.getQuantityRaw);
+  // Scale the raw estimate into display units by the same divisor the decoded minimum used —
+  // derivable only when the normalized figure exists, so the estimate is withheld exactly when
+  // the price ratio is.
+  const getScale =
+    order.normalizedGet !== null && order.normalizedGet > 0 && minRaw > 0
+      ? minRaw / order.normalizedGet
+      : null;
+  const estimateDisplay =
+    ownQuote && getScale !== null ? (ownQuote.estimatedRaw / getScale).toFixed(8) : null;
+  /** How far below the wallet's own quote this order is willing to settle, as a fraction. */
+  const impliedSlippage =
+    ownQuote && minRaw > 0 && ownQuote.estimatedRaw > 0 ? 1 - minRaw / ownQuote.estimatedRaw : null;
 
   return (
     <div className="mb-3">
@@ -154,12 +243,37 @@ export function OrderCard({ order }: { order: OrderAction }) {
         </button>
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-4">
-        <p className="text-xs text-gray-500 mb-1">You receive</p>
+      <div
+        className="bg-gray-50 rounded-lg p-4"
+        title={`This amount is guaranteed by the transaction itself. If the market can't deliver at least this much, the order rests or refunds and you keep your ${order.giveAsset}.`}
+      >
+        <p className="text-xs text-gray-500 mb-1">You receive at least</p>
         <p className="text-xl font-bold text-gray-900">
           {order.getAmount}{' '}
           <span className="text-base font-normal text-gray-500">{order.getAsset}</span>
         </p>
+        {estimateDisplay !== null && impliedSlippage !== null && impliedSlippage >= 0 && (
+          <>
+            <p className="text-xs text-gray-500 mt-1.5">
+              ~{estimateDisplay} at the pool price right now
+            </p>
+            <p className="text-[11px] text-gray-400">
+              Checked by your wallet, not supplied by the site.
+            </p>
+          </>
+        )}
+        {impliedSlippage !== null && impliedSlippage < 0 && (
+          <p className="text-xs text-red-600 mt-1.5">
+            The pool price has moved below this minimum. This order is likely to rest unfilled
+            instead of executing.
+          </p>
+        )}
+        {impliedSlippage !== null && impliedSlippage >= 0.05 && (
+          <p className="text-xs text-amber-600 mt-1.5">
+            This order accepts up to {(impliedSlippage * 100).toFixed(1)}% less than the wallet's
+            own pool quote. Make sure that is the slippage you chose.
+          </p>
+        )}
       </div>
 
       <p className="text-xs text-gray-400 text-center mt-2">
