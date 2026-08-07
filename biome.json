@@ -19,6 +19,8 @@
     "rules": {
       "recommended": false,
       "a11y": {
+        "noLabelWithoutControl": "error",
+        "noSvgWithoutTitle": "error",
         "useButtonType": "error"
       },
       "correctness": {

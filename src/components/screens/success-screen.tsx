@@ -85,9 +85,9 @@ export function SuccessScreen({
 
         {/* Transaction ID Display - Clickable to copy */}
         <div className="mt-4">
-          <label className="block text-xs font-medium text-gray-600 mb-1">
+          <span className="block text-xs font-medium text-gray-600 mb-1">
             Transaction ID
-          </label>
+          </span>
           <div
             onClick={() => copy(txid)}
             onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && copy(txid)}

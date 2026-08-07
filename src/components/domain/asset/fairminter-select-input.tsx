@@ -4,6 +4,7 @@ import {
   ComboboxInput,
   ComboboxOption,
   ComboboxOptions,
+  Label,
 } from "@headlessui/react";
 import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
@@ -162,9 +163,11 @@ export function FairminterSelectInput({
     <div className="relative">
       <Combobox value={selectedAsset} onChange={handleAssetChange}>
         <div className="relative">
-          <label className="block text-sm font-medium text-gray-700">
+          {/* Headless UI's Label, so it is wired to the Combobox input rather than only
+              looking like a label. Still renders a <label>, which the input specs select on. */}
+          <Label className="block text-sm font-medium text-gray-700">
             {label} {required && <span className="text-red-500">*</span>}
-          </label>
+          </Label>
           <div className="relative mt-1">
             <div className="relative w-full cursor-default overflow-hidden rounded-md bg-gray-50 text-left focus:outline-none sm:text-sm">
               <div className="flex items-center">

@@ -90,7 +90,7 @@ export function UtxoMoveForm({
           {/* UTXO Display - styled like an input */}
           {(initialUtxo || initialFormData?.sourceUtxo) && (
             <div>
-              <label className="text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></label>
+              <span className="block text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></span>
               <div
                 onClick={() => navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`)}
                 onKeyDown={(e) => {
