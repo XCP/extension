@@ -6,7 +6,8 @@ import { DispenserList, type DispenserOption } from './dispenser-list';
 // Mock the DispenserCard component
 vi.mock('@/components/domain/dispenser/dispenser-card', () => ({
   DispenserCard: ({ option, isSelected, onSelect, disabled }: any) => (
-    <div
+    <button
+      type="button"
       data-testid={`dispenser-card-${option.index}`}
       className={`dispenser-card ${isSelected ? 'selected' : ''} ${disabled ? 'disabled' : ''}`}
       onClick={onSelect}
@@ -14,7 +15,7 @@ vi.mock('@/components/domain/dispenser/dispenser-card', () => ({
       <div className="asset">{option.dispenser.asset}</div>
       <div className="btc-amount">{option.btcAmount} BTC</div>
       <div className="selected-state">{isSelected ? 'Selected' : 'Not Selected'}</div>
-    </div>
+    </button>
   )
 }));
 

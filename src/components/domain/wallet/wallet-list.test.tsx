@@ -7,7 +7,8 @@ import { WalletList } from './wallet-list';
 // Mock WalletCard component
 vi.mock('@/components/domain/wallet/wallet-card', () => ({
   WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet, disabled, disabledMessage }: any) => (
-    <div
+    <button
+      type="button"
       data-testid={`wallet-card-${wallet.id}`}
       data-selected={selected}
       data-display-address={displayAddress?.address || ''}
@@ -20,7 +21,7 @@ vi.mock('@/components/domain/wallet/wallet-card', () => ({
       aria-disabled={disabled}
     >
       {wallet.name}
-    </div>
+    </button>
   )
 }));
 

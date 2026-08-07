@@ -48,10 +48,25 @@ export function WalletCard({
     }
   };
 
+  // The radio group ignores a keypress on the option that is already checked, so
+  // re-selecting the current wallet — how these screens confirm and move on — is
+  // otherwise unreachable from the keyboard. Handle it here, on the focusable
+  // element, and stop the group from acting on the same key twice.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (disabled) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    onSelect(wallet);
+  };
+
   return (
     <RadioGroup.Option
       value={wallet}
       disabled={disabled}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
       className={({ checked }) => `
         relative w-full rounded transition duration-300 p-4
         ${disabled ? 'cursor-not-allowed bg-gray-100 text-gray-500' : 'cursor-pointer'}
@@ -60,7 +75,7 @@ export function WalletCard({
       `}
     >
       {({ checked }) => (
-        <div onClick={handleClick} className="flex flex-col" aria-disabled={disabled}>
+        <div className="flex flex-col" aria-disabled={disabled}>
           <div className="flex justify-between items-center">
             <div className="text-sm font-medium">{wallet.name}</div>
             <div className="absolute top-2 right-2 wallet-menu">
