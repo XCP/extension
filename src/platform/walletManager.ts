@@ -91,6 +91,9 @@ export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
  * - chrome.storage.session: master key bytes (survives SW restart, cleared on browser close)
  * - In-memory: keychain metadata, wallet list, active wallet's decrypted secret
  */
+/** How long a keychain load waits for session recovery before declining to load this time. */
+const RECOVERY_WAIT_MS = 5_000;
+
 export class WalletManager {
   /** Runtime wallet list (addresses populated only for active wallet) */
   private wallets: Wallet[] = [];
@@ -135,8 +138,15 @@ export class WalletManager {
   public async ensureKeychainLoaded(): Promise<void> {
     if (this.keychain) return;
 
-    const recovery = await whenSessionRecovered();
-    if (recovery === SessionRecoveryState.LOCKED) return;
+    // Bounded, and deliberately not by resolving the gate itself: initialisation could hang rather
+    // than fail, and a caller waiting on it forever is worse than one that declines to load. The
+    // gate stays unresolved so a later call still gets the real verdict — timing out here means
+    // "not now", not "locked forever".
+    const recovery = await Promise.race([
+      whenSessionRecovered(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), RECOVERY_WAIT_MS)),
+    ]);
+    if (recovery === null || recovery === SessionRecoveryState.LOCKED) return;
 
     const masterKey = await sessionManager.getKeychainMasterKey();
     if (!masterKey) return;
