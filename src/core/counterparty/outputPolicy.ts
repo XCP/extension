@@ -35,7 +35,7 @@
  * | attach | a new UTXO at the source's own address | recognized as change |
  * | move (utxo) | the destination, or the source address when none is given | named in the request, else change |
  * | burn | the protocol's unspendable address | supplied by the caller as a constant, with the amount pinned |
- * | btcpay | derived from the order match, so unnameable | exempt (`SERVER_DERIVED_DESTINATION_TYPES`) |
+ * | btcpay | the BTC side of the order match | read from the match and pinned (`btcpayPayment.ts`) |
  *
  * `bet` is the one core module with an implicit payee (its feed address) that is not covered — the
  * wallet composes no bets, so it never reaches here. Adding bet composition would require adding the

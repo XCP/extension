@@ -55,6 +55,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
+import { fetchOrderMatch } from "@/core/counterparty/api";
+import { btcPayPayment } from "@/core/counterparty/btcpayPayment";
 import type { ApiResponse } from "@/core/counterparty/compose";
 import {
   verifyInscriptionEnvelope,
@@ -84,14 +86,6 @@ import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fa
  * After this time, UTXOs may have been spent or fee rates may have changed significantly.
  */
 const STALE_TRANSACTION_MS = 5 * 60 * 1000;
-
-/**
- * Compose types whose payee is derived server-side and so cannot appear in the request. A BTCPay is
- * settled against an order match, and the address to pay comes from that match rather than from
- * anything the user typed — output accounting would have nothing to match it against. These skip
- * the output policy; every other type is accounted for.
- */
-const SERVER_DERIVED_DESTINATION_TYPES = new Set(['btcpay']);
 
 /**
  * Where a burn sends its BTC. These are protocol constants rather than anything the user types, so
@@ -418,9 +412,35 @@ export function ComposerProvider<T>({
       // Account for every output: each must be the data output, an address the request names, or
       // change to one of our own addresses. Anything else rejects the transaction, so a response
       // that adds a recipient fails closed even though no field-level check covers it (ADR-019).
-      if (activeAddress && !SERVER_DERIVED_DESTINATION_TYPES.has(composeType)) {
+      if (activeAddress) {
         const intendedDestinations: IntendedDestination[] =
           addressesNamedIn(dataForApi).map(address => ({ address }));
+        // A BTCPay pays an address the request never names — it comes from the order match — so
+        // this used to skip output accounting altogether, and an added output went unexamined. The
+        // match decides both the payee and the amount (`messages/btcpay.py`), so the wallet reads
+        // the match itself and holds the transaction to what it says. Refusing when the match
+        // cannot be read is the point: the alternative is accepting the composer's word for where
+        // the money goes, which is the thing being guarded against.
+        if (composeType === 'btcpay') {
+          const matchId = typeof dataForApi.order_match_id === 'string'
+            ? dataForApi.order_match_id
+            : '';
+          const match = matchId ? await fetchOrderMatch(matchId) : null;
+          if (!match) {
+            throw new Error(
+              'Transaction verification failed: this order match could not be read, so the '
+              + 'payment it settles could not be checked.'
+            );
+          }
+          const payment = btcPayPayment(match);
+          if (!payment) {
+            throw new Error(
+              'Transaction verification failed: neither side of this order match is BTC, so it '
+              + 'is not settled by a BTCPay.'
+            );
+          }
+          intendedDestinations.push({ address: payment.address, value: payment.quantity });
+        }
         // The inscription commit output pays an address the request cannot name, but one that was
         // just derived from an envelope verified to carry this request's message — so it is
         // explained by proof rather than by exemption.
