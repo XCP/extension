@@ -106,9 +106,8 @@ function CreateMnemonicPage() {
   }
 
   return (
-    <div
+    <section
       className="flex-grow overflow-y-auto p-4"
-      role="main"
       aria-labelledby="create-wallet-title"
     >
       <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
@@ -206,7 +205,7 @@ function CreateMnemonicPage() {
           Watch Tutorial: How to Create a Wallet
         </Button>
       )}
-    </div>
+    </section>
   );
 }
 

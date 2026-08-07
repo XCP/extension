@@ -304,7 +304,7 @@ walletTest.describe('Consolidation Accessibility', () => {
     await page.waitForLoadState('networkidle');
 
     // Should have some form of main content
-    const mainContent = page.locator('form, [role="main"], .p-4');
+    const mainContent = page.locator('form, main, .p-4');
     await expect(mainContent.first()).toBeVisible({ timeout: 10000 });
   });
 

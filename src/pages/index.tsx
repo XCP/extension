@@ -246,7 +246,7 @@ export default function HomePage(): ReactElement {
   );
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="index-title">
+    <section className="flex flex-col h-full" aria-labelledby="index-title">
       <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
       <div className="flex flex-col flex-grow min-h-0">
         <div className="p-4 pb-0 flex-shrink-0">
@@ -264,6 +264,6 @@ export default function HomePage(): ReactElement {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

@@ -48,7 +48,7 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
     : null;
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-label={pair}>
+    <section className="p-4 space-y-6" aria-label={pair}>
       <section className="space-y-5">
         <PoolHeader pool={pool} className="mt-1 mb-5" />
 
@@ -142,6 +142,6 @@ export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElemen
           },
         ]}
       />
-    </div>
+    </section>
   );
 }

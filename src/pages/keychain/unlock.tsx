@@ -88,7 +88,7 @@ function UnlockPage() {
   }
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="unlock-wallet-title">
+    <section className="flex flex-col h-full" aria-labelledby="unlock-wallet-title">
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
           <h1 id="unlock-wallet-title" className="text-3xl mb-5 flex justify-between items-center">
@@ -123,7 +123,7 @@ function UnlockPage() {
           </form>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

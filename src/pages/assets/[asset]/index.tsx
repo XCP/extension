@@ -255,7 +255,7 @@ export default function AssetPage(): ReactElement {
   }
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
+    <section className="p-4 space-y-6" aria-labelledby="asset-title">
       <AssetHeader
         className="mt-1 mb-5"
         assetInfo={headerAssetInfo}
@@ -387,6 +387,6 @@ export default function AssetPage(): ReactElement {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

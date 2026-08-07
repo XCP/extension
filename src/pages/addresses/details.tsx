@@ -68,9 +68,8 @@ export default function AddressDetailsPage(): ReactElement {
   })();
 
   return (
-    <div
+    <section
       className="flex flex-col items-center p-4 space-y-4"
-      role="main"
       aria-labelledby="view-address-title"
     >
       <div id="view-address-title" className="text-center font-medium text-gray-600">
@@ -78,7 +77,7 @@ export default function AddressDetailsPage(): ReactElement {
       </div>
       <QRCode text={activeAddress?.address} ariaLabel="Address QR Code" />
       <CopyAddress address={activeAddress?.address} />
-    </div>
+    </section>
   );
 }
 

@@ -221,7 +221,7 @@ export default function PinnedAssetsPage(): ReactElement {
   };
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="pinned-assets-title">
+    <section className="flex flex-col h-full" aria-labelledby="pinned-assets-title">
       <h2 id="pinned-assets-title" className="sr-only">
         Pinned Assets Settings
       </h2>
@@ -247,6 +247,6 @@ export default function PinnedAssetsPage(): ReactElement {
         </div>
       </div>
 
-    </div>
+    </section>
   );
 } 

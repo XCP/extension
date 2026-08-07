@@ -115,7 +115,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
   };
 
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="show-private-key-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="show-private-key-title">
       <h2 id="show-private-key-title" className="sr-only">Show Private Key</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
@@ -174,6 +174,6 @@ export default function ShowPrivateKeyPage(): ReactElement {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

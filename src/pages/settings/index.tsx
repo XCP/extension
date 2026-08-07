@@ -114,7 +114,7 @@ export default function SettingsPage(): ReactElement {
   ];
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
           <ActionList sections={settingSections} />

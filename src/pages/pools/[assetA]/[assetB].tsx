@@ -50,7 +50,7 @@ export default function PoolPage(): ReactElement {
 
   if (!pool) {
     return (
-      <div className="p-4 space-y-4" role="main" aria-label={pair}>
+      <section className="p-4 space-y-4" aria-label={pair}>
         <div className="rounded border border-gray-200 bg-white p-4">
           <div className="text-xs font-medium uppercase text-gray-500">Pool</div>
           <div className="mt-1 text-lg font-semibold text-gray-900">{pair}</div>
@@ -66,7 +66,7 @@ export default function PoolPage(): ReactElement {
             Enter Pool
           </Button>
         </div>
-      </div>
+      </section>
     );
   }
 

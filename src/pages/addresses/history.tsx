@@ -166,7 +166,7 @@ export default function AddressHistoryPage(): ReactElement {
   if (error) return <ErrorAlert message={error} onClose={() => setError(null)} />;
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="history-title">
+    <section className="flex flex-col h-full" aria-labelledby="history-title">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         {transactions.length > 0 ? (
           <div className="space-y-4">
@@ -197,6 +197,6 @@ export default function AddressHistoryPage(): ReactElement {
         )}
       </div>
       {transactions.length > 0 && totalPages > 1 && <div className="p-4">{renderPagination()}</div>}
-    </div>
+    </section>
   );
 }

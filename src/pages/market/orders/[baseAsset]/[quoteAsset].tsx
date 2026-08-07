@@ -408,7 +408,7 @@ export default function AssetOrdersPage(): ReactElement {
   const isFetching = tab === "history" && isFetchingMoreMatches;
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex flex-col flex-grow min-h-0">
         {/* Fixed Header */}
         <div className="p-4 pb-0 flex-shrink-0">
