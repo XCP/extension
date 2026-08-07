@@ -26,11 +26,11 @@
 import { useEffect, useState } from 'react';
 import { isAssetDivisible, normalizeQuantity } from '@/components/domain/tx/tx-action-info';
 import { FiArrowDown } from '@/components/icons';
-import { useSettings } from '@/contexts/settings-context';
+import { fetchPoolQuote, type PoolQuote } from '@/core/counterparty/api';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { formatPriceRatio } from '@/core/format';
-import { divide, toNumber } from '@/core/numeric';
+import { type BigNumber, divide, isGreaterThan, subtract, toBigNumber, toNumber } from '@/core/numeric';
 
 export interface OrderAction {
   giveAmount: string;
@@ -55,6 +55,12 @@ export interface OrderAction {
   getAssetRaw: string;
   giveQuantityRaw: string;
   getQuantityRaw: string;
+  /**
+   * What the get side's base units divide by for display: 1e8, 1, or null when divisibility could
+   * not be established. Carried rather than recovered from the normalized figure, which would mean
+   * dividing two floats to recover a constant this builder already computed.
+   */
+  getDivisor: number | null;
 }
 
 /** The parts of a decoded transaction or PSBT this builder reads — both screens supply them. */
@@ -102,6 +108,7 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       getAssetRaw,
       giveQuantityRaw: String(messageData.give_quantity ?? ''),
       getQuantityRaw: String(messageData.get_quantity ?? ''),
+      getDivisor,
     };
   }
 
@@ -140,6 +147,7 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
       getAssetRaw: data.getAsset,
       giveQuantityRaw: String(data.giveQuantity),
       getQuantityRaw: String(data.getQuantity),
+      getDivisor,
     };
   }
 
@@ -147,69 +155,102 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
 }
 
 /**
- * The wallet's own read of the pool, fetched from the configured node at approval time. `null`
- * while loading or when there is no pool for the pair — in both cases the card simply shows the
- * decoded minimum alone. The estimate is decoration; the minimum is the contract. Signing is never
- * blocked on this lookup.
+ * The wallet's own read of the market, fetched from the configured node at approval time.
+ *
+ * `estimated_output` spans the pool *and* the order book — the API reports `pool_output` and
+ * `book_output` separately and this is their sum — so the figure is a market estimate, not a pool
+ * price, and the wording says so.
+ *
+ * `null` while loading, when the pair has no market, or when the node cannot be reached. In every
+ * one of those cases the card shows the decoded minimum alone: the estimate is decoration, the
+ * minimum is the contract, and signing is never blocked on this lookup.
  */
 interface OwnQuote {
-  estimatedRaw: number;
+  /** Estimated output in base units. */
+  estimatedRaw: BigNumber;
+  /** Which venues the estimate came from, for the label. */
+  route: 'pool' | 'book' | 'both' | null;
 }
 
-function useOwnPoolQuote(order: OrderAction): OwnQuote | null {
-  const { settings } = useSettings();
+function routeOf(quote: PoolQuote): OwnQuote['route'] {
+  const pool = isGreaterThan(quote.pool_output ?? 0, 0);
+  const book = isGreaterThan(quote.book_output ?? 0, 0);
+  if (pool && book) return 'both';
+  if (pool) return 'pool';
+  if (book) return 'book';
+  return null;
+}
+
+function useOwnMarketQuote(order: OrderAction): OwnQuote | null {
   const [quote, setQuote] = useState<OwnQuote | null>(null);
 
   useEffect(() => {
-    // BTC has no pools, and a zero quantity has no quote.
+    // BTC has no pool or book here, and a zero quantity has nothing to quote.
     if (
       order.giveAssetRaw === 'BTC' ||
       order.getAssetRaw === 'BTC' ||
       !order.giveQuantityRaw ||
-      order.giveQuantityRaw === '0'
+      !isGreaterThan(order.giveQuantityRaw, 0)
     ) {
       return;
     }
-    const controller = new AbortController();
+
+    let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(
-          `${settings.counterpartyApiBase}/v2/pools/${order.giveAssetRaw}/${order.getAssetRaw}/quote?quantity=${order.giveQuantityRaw}`,
-          { signal: controller.signal }
+        // fetchPoolQuote rather than a hand-rolled fetch: it encodes the asset names, skips the
+        // cache, and parses through the lossless JSON boundary — a base-unit quantity read with
+        // JSON.parse is already rounded above 2^53 (see core/api/losslessJson.ts).
+        const result = await fetchPoolQuote(
+          order.giveAssetRaw,
+          order.getAssetRaw,
+          order.giveQuantityRaw
         );
-        if (!res.ok) return;
-        const estimated = Number((await res.json())?.result?.estimated_output);
-        if (Number.isFinite(estimated) && estimated > 0) {
-          setQuote({ estimatedRaw: estimated });
+        if (cancelled) return;
+        const estimatedRaw = toBigNumber(result.estimated_output ?? 0);
+        if (estimatedRaw.isFinite() && estimatedRaw.isGreaterThan(0)) {
+          setQuote({ estimatedRaw, route: routeOf(result) });
         }
       } catch {
-        // No pool, no node, no answer — the minimum stands on its own.
+        // No market, no node, no answer — the minimum stands on its own.
       }
     })();
-    return () => controller.abort();
-  }, [settings.counterpartyApiBase, order.giveAssetRaw, order.getAssetRaw, order.giveQuantityRaw]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [order.giveAssetRaw, order.getAssetRaw, order.giveQuantityRaw]);
 
   return quote;
 }
 
+/** How the estimate is described, given where it came from. */
+const ROUTE_LABEL: Record<NonNullable<OwnQuote['route']>, string> = {
+  pool: 'at the pool price right now',
+  book: 'at the current order book price',
+  both: 'at the current market price',
+};
+
 /** The give/receive card, with a rate the user can flip. */
 export function OrderCard({ order }: { order: OrderAction }) {
   const [priceFlipped, setPriceFlipped] = useState(false);
-  const ownQuote = useOwnPoolQuote(order);
+  const ownQuote = useOwnMarketQuote(order);
 
-  const minRaw = Number(order.getQuantityRaw);
-  // Scale the raw estimate into display units by the same divisor the decoded minimum used —
-  // derivable only when the normalized figure exists, so the estimate is withheld exactly when
-  // the price ratio is.
-  const getScale =
-    order.normalizedGet !== null && order.normalizedGet > 0 && minRaw > 0
-      ? minRaw / order.normalizedGet
-      : null;
+  // Both figures are base-unit quantities, so they are compared as such and scaled for display by
+  // the divisor the builder already established. Withheld when divisibility is unknown, exactly as
+  // the price ratio is — showing an amount scaled by a guess is how a figure is wrong by 1e8.
+  const minRaw = toBigNumber(order.getQuantityRaw || 0);
   const estimateDisplay =
-    ownQuote && getScale !== null ? (ownQuote.estimatedRaw / getScale).toFixed(8) : null;
-  /** How far below the wallet's own quote this order is willing to settle, as a fraction. */
+    ownQuote && order.getDivisor !== null
+      ? divide(ownQuote.estimatedRaw, order.getDivisor).toFixed(8)
+      : null;
+
+  /** How far below the wallet's own estimate this order is willing to settle, as a fraction. */
   const impliedSlippage =
-    ownQuote && minRaw > 0 && ownQuote.estimatedRaw > 0 ? 1 - minRaw / ownQuote.estimatedRaw : null;
+    ownQuote && minRaw.isGreaterThan(0)
+      ? toNumber(subtract(1, divide(minRaw, ownQuote.estimatedRaw)))
+      : null;
+  const routeLabel = ownQuote?.route ? ROUTE_LABEL[ownQuote.route] : null;
 
   return (
     <div className="mb-3">
@@ -252,10 +293,11 @@ export function OrderCard({ order }: { order: OrderAction }) {
           {order.getAmount}{' '}
           <span className="text-base font-normal text-gray-500">{order.getAsset}</span>
         </p>
-        {estimateDisplay !== null && impliedSlippage !== null && impliedSlippage >= 0 && (
+        {estimateDisplay !== null && routeLabel !== null && impliedSlippage !== null
+          && impliedSlippage >= 0 && (
           <>
             <p className="text-xs text-gray-500 mt-1.5">
-              ~{estimateDisplay} at the pool price right now
+              ~{estimateDisplay} {routeLabel}
             </p>
             <p className="text-[11px] text-gray-400">
               Checked by your wallet, not supplied by the site.
@@ -264,14 +306,14 @@ export function OrderCard({ order }: { order: OrderAction }) {
         )}
         {impliedSlippage !== null && impliedSlippage < 0 && (
           <p className="text-xs text-red-600 mt-1.5">
-            The pool price has moved below this minimum. This order is likely to rest unfilled
-            instead of executing.
+            The market has moved below this minimum. This order is likely to rest unfilled instead
+            of executing.
           </p>
         )}
         {impliedSlippage !== null && impliedSlippage >= 0.05 && (
           <p className="text-xs text-amber-600 mt-1.5">
             This order accepts up to {(impliedSlippage * 100).toFixed(1)}% less than the wallet's
-            own pool quote. Make sure that is the slippage you chose.
+            own estimate. Make sure that is the slippage you chose.
           </p>
         )}
       </div>
