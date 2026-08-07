@@ -131,12 +131,19 @@ export default function ApproveConnectionPage(): ReactElement {
         setIsProcessing(false);
         return;
       }
-      await approvalService.resolveApproval(requestId, {
+      const resolved = await approvalService.resolveApproval(requestId, {
         approved: true,
         updatedParams: {
           pairedAddresses: pairedAddressesRequested && grantPairedAddresses && Boolean(pairedAddresses),
         },
       });
+      if (!resolved) {
+        // The request is gone and could not be completed without its caller. Say so rather than
+        // closing on a click that did nothing.
+        setApprovalError("This request expired. Please connect again from the site.");
+        setIsProcessing(false);
+        return;
+      }
       // Close the popup
       window.close();
     } catch (error) {

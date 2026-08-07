@@ -2,13 +2,14 @@
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
 import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
-import { requestCleanup } from '@/platform/provider/requestCleanup';
 import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
-import { registerConnectionService } from '@/services/connectionService';
+import { getConnectionService, registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
+import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
@@ -157,18 +158,6 @@ export default defineBackground(() => {
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
 
-  // Track initialization state for health checks
-  let servicesReady = false;
-  let initError: Error | null = null;
-
-  // Helper to check if services are ready
-  function getServicesStatus(): { ready: boolean; error?: string } {
-    return {
-      ready: servicesReady,
-      error: initError?.message
-    };
-  }
-
   // Sequential initialization to ensure proper ordering
   async function initializeServices(): Promise<void> {
     try {
@@ -191,12 +180,10 @@ export default defineBackground(() => {
       getPopupMonitorService().initialize();
       console.log('[Background] PopupMonitorService initialized');
 
-      // 5. Start request cleanup (periodic cleanup of expired approval requests)
-      requestCleanup.startCleanup();
-      console.log('[Background] RequestCleanup started');
-
-      // 6. Check session recovery state (may lock wallets if session expired)
+      // 6. Check session recovery state (may lock wallets if session expired). Anything that
+      //    re-derives from the session master key waits on the outcome of this — see sessionReady.
       const recoveryState = await checkSessionRecovery();
+      markSessionRecovery(recoveryState);
       if (recoveryState === SessionRecoveryState.LOCKED) {
         const walletService = getWalletService();
         await walletService.lockKeychain();
@@ -210,13 +197,62 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
-      servicesReady = true;
+      // 7. Load the keychain before anything is served. The master key outlives the worker but the
+      //    decrypted keychain does not, and every answer about accounts, permissions or lock state
+      //    reads from it — so it is loaded once, here, rather than checked for on each call.
+      await getWalletService().ensureKeychainLoaded();
+
+      // 8. Open the barrier proxied calls have been waiting at — see serviceReadiness.
+      markServicesReady();
+
+      // 9. Tell tabs that were already open that the worker is back.
+      await announceReadinessToConnectedTabs();
+
       console.log('[Background] All services initialized successfully');
     } catch (error) {
-      initError = error instanceof Error ? error : new Error(String(error));
       console.error('[Background] Service initialization failed:', error);
-      // Still mark as ready to prevent deadlock, but log the error
-      servicesReady = true;
+      // An initialisation that failed cannot vouch for the session, so callers waiting on it are
+      // told locked rather than left hanging. The barrier then opens on that verdict: a call that
+      // fails is recoverable, a call that hangs is not.
+      markSessionRecovery(SessionRecoveryState.LOCKED);
+      markServicesReady(error instanceof Error ? error : new Error(String(error)));
+    }
+  }
+
+  /**
+   * Re-announce each connected origin's accounts once the worker has finished waking.
+   *
+   * A page that was open when the worker died holds a dead port and has no way to notice it came
+   * back. MetaMask sends a READY message to every tab for the same reason; sending the accounts
+   * instead means the page gets the answer it would have asked for, over the provider-event path
+   * that already works.
+   *
+   * Deliberately last: the accounts are only true once recovery has decided whether this session
+   * is still valid.
+   */
+  async function announceReadinessToConnectedTabs(): Promise<void> {
+    try {
+      const walletService = getWalletService();
+      if (!(await walletService.isKeychainUnlocked())) return;
+
+      // Asked of the service that owns the answer, not read off the settings it keeps it in.
+      const connections = await getConnectionService().getConnectedWebsites();
+      if (connections.length === 0) return;
+
+      const activeAddress = await walletService.getActiveAddress();
+      const accounts = activeAddress ? [activeAddress.address] : [];
+
+      for (const { origin } of connections) {
+        eventEmitterService.emit('emit-provider-event', {
+          origin,
+          event: 'accountsChanged',
+          data: accounts,
+        });
+      }
+      console.log('[Background] Re-announced accounts to', connections.length, 'origin(s)');
+    } catch (error) {
+      // A page that misses this falls back to asking, which now answers correctly anyway.
+      console.warn('[Background] Could not announce readiness:', error);
     }
   }
 
@@ -235,10 +271,10 @@ export default defineBackground(() => {
 
   webextBridgeOnMessage('startup-health-check', async () => {
     // Wait for services to be ready before reporting healthy
-    if (!servicesReady) {
+    if (!getReadinessState().ready) {
       await initPromise;
     }
-    const status = getServicesStatus();
+    const status = getReadinessState();
     return {
       status: status.ready ? 'ready' : 'initializing',
       timestamp: Date.now(),
@@ -280,6 +316,11 @@ export default defineBackground(() => {
     });
 
     try {
+      // The other boundary. dApp requests arrive here rather than over a service port, so the
+      // barrier proxy.ts applies to popup calls has to be applied again — a waking worker would
+      // otherwise tell a connected site it is disconnected.
+      await whenServicesReady();
+
       const providerService = getProviderService();
 
       // Extract request details with validation

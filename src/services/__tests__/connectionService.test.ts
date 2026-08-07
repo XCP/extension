@@ -108,6 +108,7 @@ const mockApprovalService = vi.hoisted(() => ({
   requestApproval: vi.fn().mockResolvedValue({ approved: true }),
   resolveApproval: vi.fn(),
   rejectApproval: vi.fn(),
+  registerCompletionHandler: vi.fn(),
 }));
 
 vi.mock('@/services/approvalService', () => ({

@@ -35,6 +35,8 @@ interface WalletService {
   unlockKeychain: (password: string) => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
   isKeychainUnlocked: () => Promise<boolean>;
+  /** Load the keychain from the session master key, if a valid session has one. */
+  ensureKeychainLoaded: () => Promise<void>;
   lockKeychain: () => Promise<void>;
   emitProviderEvent: (origin: string, event: string, data: any) => Promise<void>;
   createMnemonicWallet: (
@@ -162,6 +164,9 @@ function createWalletService(): WalletService {
     },
     isKeychainUnlocked: async () => {
       return walletManager.isKeychainUnlocked();
+    },
+    ensureKeychainLoaded: async () => {
+      await walletManager.ensureKeychainLoaded();
     },
     lockKeychain: async () => {
       await walletManager.lockKeychain();

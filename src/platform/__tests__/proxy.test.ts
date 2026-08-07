@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@/core/rpcErrors';
+import { markServicesReady } from '@/services/core/serviceReadiness';
 import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
 
 // ---------------------------------------------------------------------------
@@ -15,7 +16,7 @@ function createMockPort(name: string) {
 
   return {
     name,
-    sender: { id: 'test-extension-id' },
+    sender: { id: 'test-extension-id', url: 'chrome-extension://test-extension-id/popup.html' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {
@@ -37,6 +38,7 @@ let onConnectListeners: ((port: any) => void)[] = [];
 const mockChrome = {
   runtime: {
     id: 'test-extension-id',
+    getURL: (path: string) => `chrome-extension://test-extension-id/${path}`,
     onConnect: {
       addListener: vi.fn((fn: any) => onConnectListeners.push(fn)),
       removeListener: vi.fn(),
@@ -63,6 +65,9 @@ describe('isBackgroundScript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockChrome.runtime.id = 'test-extension-id';
+    // These exercise dispatch, not startup: the barrier holds every call until the background says
+    // it has finished initialising, so a test standing in for that background must say so.
+    markServicesReady();
   });
 
   it('should return false when chrome is undefined', () => {

@@ -42,8 +42,7 @@ import {
 } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
-import { recordSignOutcome } from '@/platform/provider/signFlow';
-import { type SignPsbtRequest, signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
+import { getSignFlow, recordSignOutcome, type SignPsbtRequest } from '@/platform/provider/signFlow';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message
@@ -270,7 +269,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
       setError(null);
 
       try {
-        const req = await signPsbtRequestStorage.get(requestId);
+        const req = (await getSignFlow(requestId)) as SignPsbtRequest | null;
         if (!req) {
           setError('PSBT signing request not found or expired');
           setIsLoading(false);
@@ -304,7 +303,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
       if (message.type === 'NAVIGATE_TO_APPROVE_PSBT' && message.signPsbtRequestId) {
         // Reload the request if we get a navigation message
         const loadRequest = async () => {
-          const req = await signPsbtRequestStorage.get(message.signPsbtRequestId);
+          const req = (await getSignFlow(message.signPsbtRequestId)) as SignPsbtRequest | null;
           if (req) {
             setRequest(req);
             const requestedSigners = Object.keys(req.signInputs ?? {});
@@ -335,7 +334,6 @@ export function useSignPsbtRequest(signerAddress?: string) {
       emitToBackground(`sign-psbt-complete-${requestId}`, { signedPsbtHex });
 
       // Clean up the request
-      await signPsbtRequestStorage.remove(requestId);
     }
   }, [requestId]);
 
@@ -347,7 +345,6 @@ export function useSignPsbtRequest(signerAddress?: string) {
       emitToBackground(`sign-psbt-cancel-${requestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
-      await signPsbtRequestStorage.remove(requestId);
     }
   }, [requestId]);
 

@@ -29,10 +29,8 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import * as approvalQueue from '@/platform/provider/approvalQueue';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
-import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
-import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
+import * as signFlow from '@/platform/provider/signFlow';
 import { walletManager } from '@/platform/walletManager';
 import * as updateService from '@/services/updateService';
 import * as approvalService from '../approvalService';
@@ -56,13 +54,15 @@ vi.mock('@/platform/walletManager', () => ({
     updateSettings: vi.fn(),
   },
 }));
-vi.mock('@/platform/storage/signMessageRequestStorage');
 vi.mock('@/core/bitcoin/messageSigner', () => ({
   signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qtest123' }),
 }));
-vi.mock('@/platform/storage/signPsbtRequestStorage');
+// Partial: the rest of the flow module (request keys, rejoin lookups) must stay real.
+vi.mock('@/platform/provider/signFlow', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/provider/signFlow')>()),
+  beginSignFlow: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/services/updateService');
-vi.mock('@/platform/provider/approvalQueue');
 vi.mock('@/platform/provider/rateLimiter');
 vi.mock('@/platform/fathom', () => ({
   sanitizePath: vi.fn((path: string) => path),
@@ -259,29 +259,11 @@ describe('ProviderService', () => {
     };
     vi.mocked(updateService.getUpdateService).mockReturnValue(mockUpdateService as any);
 
-    // Mock sign message and PSBT request storage
-    vi.mocked(signMessageRequestStorage).signMessageRequestStorage = {
-      store: vi.fn().mockResolvedValue(undefined),
-      get: vi.fn().mockResolvedValue(null),
-      remove: vi.fn().mockResolvedValue(undefined)
-    } as any;
-
-    vi.mocked(signPsbtRequestStorage).signPsbtRequestStorage = {
-      store: vi.fn().mockResolvedValue(undefined),
-      get: vi.fn().mockResolvedValue(null),
-      remove: vi.fn().mockResolvedValue(undefined)
-    } as any;
+    vi.mocked(signFlow.beginSignFlow).mockResolvedValue(undefined);
     
     // Setup settings mocks - default to no connected sites
     // (Already set up above with DEFAULT_SETTINGS)
     vi.mocked(walletManager.updateSettings).mockResolvedValue(undefined);
-    
-    // Setup other mocks
-    vi.mocked(approvalQueue.approvalQueue.add).mockReturnValue(undefined as any);
-    vi.mocked(approvalQueue.approvalQueue.remove).mockReturnValue(true);
-    vi.mocked(approvalQueue.approvalQueue.getCurrentWindow).mockReturnValue(null);
-    vi.mocked(approvalQueue.approvalQueue.setCurrentWindow).mockReturnValue(undefined);
-    vi.mocked(approvalQueue.getApprovalBadgeText).mockReturnValue('');
     
     // Setup rate limiter mocks
     vi.mocked(rateLimiter.connectionRateLimiter.isAllowed).mockReturnValue(true);
@@ -681,7 +663,6 @@ describe('ProviderService', () => {
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
         // Mock storage
-        const mockStorage = vi.mocked(signMessageRequestStorage).signMessageRequestStorage;
 
         const message = 'Hello Bitcoin';
         const address = 'bc1qtest123';
@@ -697,7 +678,7 @@ describe('ProviderService', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify storage was called - the actual storage includes id and timestamp
-        expect(mockStorage.store).toHaveBeenCalledWith(
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
           expect.objectContaining({
             origin: 'https://test.com',
             message
@@ -718,7 +699,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, signInputs: {} }]
         )).rejects.toThrow('at least one input');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
       it.each([null, []])('rejects a malformed signer map (%j) before opening approval', async (signInputs) => {
         const connection = vi.mocked(connectionService.getConnectionService)();
@@ -730,7 +711,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, signInputs }]
         )).rejects.toThrow('signInputs must be an address-to-input-indices object');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
       it('rejects unknown signer addresses before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
@@ -742,7 +723,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, signInputs: { '1attacker': [0] } }]
         )).rejects.toThrow('not in this wallet');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
       it('rejects a different HD derivation index even when it belongs to the wallet', async () => {
@@ -766,7 +747,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, signInputs: { bc1qotherindex: [0] } }]
         )).rejects.toThrow('not in this wallet');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
       it('requires paired permission before accepting a sibling-format signer', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
@@ -779,7 +760,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] } }]
         )).rejects.toThrow('Paired Legacy/SegWit address access has not been granted');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
       it('rejects sighash entries beyond the PSBT input count', async () => {
@@ -792,7 +773,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, sighashTypes: [0x01, 0x01, 0x01] }]
         )).rejects.toThrow('more entries than the PSBT has inputs');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
       it('rejects a short sighash override instead of silently falling back', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
@@ -804,7 +785,7 @@ describe('ProviderService', () => {
           [{ hex: VALID_PSBT_HEX, sighashTypes: [0x01] }]
         )).rejects.toThrow('indexed by absolute PSBT input index and is missing entries for inputs: 1');
 
-        expect(signPsbtRequestStorage.signPsbtRequestStorage.store).not.toHaveBeenCalled();
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
       it('should handle xcp_signPsbt with proper storage', async () => {
         // Mock connection service to return true
@@ -812,7 +793,6 @@ describe('ProviderService', () => {
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
 
         // Mock storage
-        const mockStorage = vi.mocked(signPsbtRequestStorage).signPsbtRequestStorage;
 
         const psbtHex = VALID_PSBT_HEX;
 
@@ -827,7 +807,7 @@ describe('ProviderService', () => {
         await new Promise(resolve => setTimeout(resolve, 10));
 
         // Verify storage was called
-        expect(mockStorage.store).toHaveBeenCalledWith(
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
           expect.objectContaining({
             origin: 'https://test.com',
             psbtHex

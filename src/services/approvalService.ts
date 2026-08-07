@@ -3,34 +3,51 @@
  *
  * Handles one approval at a time. New requests reject any pending request.
  * Auto-rejects when user closes the popup window.
+ *
+ * A request outlives its worker. MV3 can stop the background while an approval screen is being
+ * read, so the request lives in approvalFlow — the same store the signing flows use — and the
+ * waiting caller does not. That Promise cannot be restored, and its port died with the same worker
+ * anyway. A request read back afterwards is therefore finished by a completion handler rather than
+ * by answering anyone; see registerCompletionHandler.
  */
 
 import { analytics } from '@/platform/fathom';
 import { openPopupWindow, type PopupWindow } from '@/platform/popup';
+import {
+  beginApprovalFlow,
+  findPendingApproval,
+  recordApprovalOutcome,
+} from '@/platform/provider/approvalFlow';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 
+/** The screen every approval opens. Signing requests have their own screens and their own flow. */
+const APPROVAL_ROUTE = '/requests/connect/approve';
+
 export type { ApprovalRequestOptions, ApprovalResult };
 
-interface PendingApproval {
-  id: string;
-  origin: string;
-  method: string;
-  type: ApprovalRequest['type'];
-  params: any[];
-  metadata: ApprovalRequestOptions['metadata'];
-  timestamp: number;
-  resolve: (value: any) => void;
-  reject: (reason: Error) => void;
+interface PendingApproval extends ApprovalRequest {
+  /** The caller waiting on this request. Absent once it has been restored from storage. */
+  waiter?: {
+    resolve: (value: any) => void;
+    reject: (reason: Error) => void;
+  };
 }
 
 interface ApprovalServiceState {
   currentWindow: number | null;
 }
 
+/** Finishes a request whose caller is gone, doing the work that caller would have done. */
+export type CompletionHandler = (
+  request: ApprovalRequest,
+  result: ApprovalResult
+) => Promise<void>;
+
 export class ApprovalService extends BaseService {
   private pendingApproval: PendingApproval | null = null;
+  private completeOrphaned: CompletionHandler | null = null;
   private popup: PopupWindow | null = null;
   private state: ApprovalServiceState = {
     currentWindow: null,
@@ -38,7 +55,7 @@ export class ApprovalService extends BaseService {
   private windowRemovedListener: ((windowId: number) => void) | null = null;
   private resolveRequestHandler: ((data: any) => void) | null = null;
 
-  private static readonly STATE_VERSION = 2;
+  private static readonly STATE_VERSION = 3;
   private static readonly REQUEST_TIMEOUT = 5 * 60 * 1000; // 5 minutes fallback
 
   constructor() {
@@ -61,19 +78,23 @@ export class ApprovalService extends BaseService {
       this.rejectCurrentApproval('Superseded by new request');
     }
 
-    // Create the approval promise
+    const request: ApprovalRequest = {
+      id,
+      origin,
+      method,
+      type,
+      params,
+      metadata,
+      timestamp: Date.now(),
+    };
+
+    // Stored before it is pending anywhere else. A decision arriving between the two would
+    // otherwise record an outcome against a request that did not exist yet, and the pending record
+    // would then be written over the top of it.
+    await beginApprovalFlow(request);
+
     const promise = new Promise<T>((resolve, reject) => {
-      this.pendingApproval = {
-        id,
-        origin,
-        method,
-        type,
-        params,
-        metadata,
-        timestamp: Date.now(),
-        resolve,
-        reject,
-      };
+      this.pendingApproval = { ...request, waiter: { resolve, reject } };
     });
 
     // Set up timeout
@@ -104,9 +125,13 @@ export class ApprovalService extends BaseService {
   }
 
   /**
-   * Resolve the current pending approval
+   * Resolve the current pending approval.
+   *
+   * Returns false when nothing came of the call — the request is gone, or it was restored and its
+   * type cannot finish without the caller — so the screen can say so rather than close on a click
+   * that did nothing.
    */
-  resolveApproval(id: string, result: ApprovalResult): boolean {
+  async resolveApproval(id: string, result: ApprovalResult): Promise<boolean> {
     if (!this.pendingApproval || this.pendingApproval.id !== id) {
       console.warn('[ApprovalService] No matching pending approval to resolve:', id);
       return false;
@@ -114,15 +139,51 @@ export class ApprovalService extends BaseService {
 
     const approval = this.pendingApproval;
     this.pendingApproval = null;
+    this.updateBadge();
 
-    if (result.approved) {
-      approval.resolve(result);
-    } else {
-      approval.reject(new Error('User denied the request'));
+    if (approval.waiter) {
+      await recordApprovalOutcome(id, result.approved ? 'completed' : 'cancelled', result);
+      if (result.approved) {
+        approval.waiter.resolve(result);
+      } else {
+        approval.waiter.reject(new Error('User denied the request'));
+      }
+      return true;
     }
 
-    this.updateBadge();
+    // Nobody is waiting. Refusing is still complete in itself.
+    if (!result.approved) {
+      await recordApprovalOutcome(id, 'cancelled', result);
+      return true;
+    }
+
+    // The store drops a request once its TTL has passed, so one whose window closed while the
+    // screen sat open is simply no longer there to complete.
+    if (!(await findPendingApproval())) {
+      console.warn('[ApprovalService] Refusing to complete an expired request:', id);
+      return false;
+    }
+
+    if (!this.completeOrphaned) {
+      console.warn('[ApprovalService] Cannot complete a restored', approval.type, 'request');
+      return false;
+    }
+
+    await recordApprovalOutcome(id, 'completed', result);
+    await this.completeOrphaned(approval, result);
     return true;
+  }
+
+  /**
+   * Register how to finish an approval whose caller is gone.
+   *
+   * Sound only because the outcome of the one approval this service handles is state the site can
+   * observe afterwards: the grant is stored, and the site reads it from accountsChanged or its next
+   * request. Anything whose only product is an artifact for the caller must not be registered here
+   * — unregistered means the request expires, which is the safe default.
+   */
+  registerCompletionHandler(handler: CompletionHandler): void {
+    this.completeOrphaned = handler;
   }
 
   /**
@@ -144,15 +205,9 @@ export class ApprovalService extends BaseService {
   getCurrentApproval(): ApprovalRequest | null {
     if (!this.pendingApproval) return null;
 
-    return {
-      id: this.pendingApproval.id,
-      origin: this.pendingApproval.origin,
-      method: this.pendingApproval.method,
-      type: this.pendingApproval.type,
-      params: this.pendingApproval.params,
-      timestamp: this.pendingApproval.timestamp,
-      metadata: this.pendingApproval.metadata,
-    };
+    // Everything but the caller, which is neither the UI's business nor storable.
+    const { waiter, ...request } = this.pendingApproval;
+    return request;
   }
 
   /**
@@ -174,12 +229,21 @@ export class ApprovalService extends BaseService {
 
   // Private methods
 
+  /**
+   * Drop the pending approval, telling anyone waiting why.
+   *
+   * Called from paths that cannot await — a window-close listener, a timeout — so the record is
+   * updated without waiting on it. Memory is already correct; storage catches up.
+   */
   private rejectCurrentApproval(reason: string): void {
     if (!this.pendingApproval) return;
 
     const approval = this.pendingApproval;
     this.pendingApproval = null;
-    approval.reject(new Error(reason));
+    void recordApprovalOutcome(approval.id, 'cancelled').catch((error) => {
+      console.error('[ApprovalService] Failed to record approval outcome:', error);
+    });
+    approval.waiter?.reject(new Error(reason));
     this.updateBadge();
   }
 
@@ -192,7 +256,7 @@ export class ApprovalService extends BaseService {
     await this.closePopup();
 
     // Determine the route based on approval type
-    const route = this.getRouteForType(type);
+    const route = APPROVAL_ROUTE;
     const params = new URLSearchParams({
       requestId,
       origin,
@@ -204,21 +268,6 @@ export class ApprovalService extends BaseService {
 
     // Listen for window close to auto-reject
     this.setupWindowCloseListener(this.popup.id);
-  }
-
-  private getRouteForType(type: ApprovalRequest['type']): string {
-    switch (type) {
-      case 'connection':
-        return '/requests/connect/approve';
-      case 'transaction':
-        return '/requests/transaction/approve';
-      case 'signature':
-        return '/requests/signature/approve';
-      case 'compose':
-        return '/requests/compose/approve';
-      default:
-        return '/requests/connect/approve';
-    }
   }
 
   private setupWindowCloseListener(windowId: number): void {
@@ -282,12 +331,24 @@ export class ApprovalService extends BaseService {
     // Set up approval resolution handler
     this.resolveRequestHandler = ({ requestId, approved, updatedParams }: any) => {
       if (approved) {
-        this.resolveApproval(requestId, { approved: true, updatedParams });
+        void this.resolveApproval(requestId, { approved: true, updatedParams }).catch((error) => {
+          console.error('[ApprovalService] Failed to resolve approval:', error);
+        });
       } else {
         this.rejectApproval(requestId, 'User denied the request');
       }
     };
     eventEmitterService.on('resolve-pending-request', this.resolveRequestHandler);
+
+    // Pick up a request left behind by a previous worker. It has no waiter, so it can only be
+    // finished by a completion handler; the store has already dropped it if its window passed.
+    const pending = await findPendingApproval();
+    if (pending) {
+      const { status, result, ...request } = pending;
+      this.pendingApproval = request;
+      this.updateBadge();
+      console.log('[ApprovalService] Resumed a pending', request.type, 'request');
+    }
 
     console.log('[ApprovalService] Initialized (single-request mode)');
   }
@@ -308,14 +369,14 @@ export class ApprovalService extends BaseService {
     console.log('[ApprovalService] Destroyed');
   }
 
-  protected getSerializableState(): { currentWindow: number | null } | null {
-    return this.state.currentWindow ? { currentWindow: this.state.currentWindow } : null;
+  // Nothing here outlives the worker usefully: the popup's window id is stale by the time anyone
+  // could read it, and the request itself lives in approvalFlow. Persisting either would be a
+  // write nothing reads.
+  protected getSerializableState(): null {
+    return null;
   }
 
-  protected hydrateState(state: { currentWindow: number | null }): void {
-    // Don't restore window ID - it may be stale
-    console.log('[ApprovalService] State hydration skipped (fresh start)');
-  }
+  protected hydrateState(): void {}
 
   protected getStateVersion(): number {
     return ApprovalService.STATE_VERSION;

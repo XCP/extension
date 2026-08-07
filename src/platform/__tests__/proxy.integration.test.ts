@@ -13,7 +13,7 @@ function createMockPort(name: string) {
   const disconnectListeners: PortDisconnectListener[] = [];
   return {
     name,
-    sender: { id: 'test-extension-id' },
+    sender: { id: 'test-extension-id', url: 'chrome-extension://test-extension-id/popup.html' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {
@@ -34,6 +34,7 @@ let onConnectListeners: OnConnectListener[] = [];
 const mockChrome = {
   runtime: {
     id: 'test-extension-id',
+    getURL: (path: string) => `chrome-extension://test-extension-id/${path}`,
     onConnect: {
       addListener: vi.fn((fn: OnConnectListener) => onConnectListeners.push(fn)),
       removeListener: vi.fn(),
@@ -61,6 +62,10 @@ describe('Proxy Service Integration', () => {
     vi.clearAllMocks();
     vi.resetModules();
     onConnectListeners = [];
+    // resetModules gives each case a fresh barrier, so each must open it: these stand in for a
+    // background that has finished initialising, which is what the barrier waits for.
+    const { markServicesReady } = await import('@/services/core/serviceReadiness');
+    markServicesReady();
 
     const { defineProxyService } = await import('../proxy');
 

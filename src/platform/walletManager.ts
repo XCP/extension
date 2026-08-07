@@ -27,6 +27,8 @@ import {
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
 import * as sessionManager from '@/platform/auth/sessionManager';
+import { SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { whenSessionRecovered } from '@/platform/auth/sessionReady';
 import {
   assertUnlockAllowed,
   clearUnlockAttempts,
@@ -51,6 +53,9 @@ import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 
 // Re-export from constants to maintain backwards compatibility
 export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
+
+/** How long a keychain load waits for session recovery before declining to load this time. */
+const RECOVERY_WAIT_MS = 5_000;
 
 /**
  * WalletManager - Core wallet state management (ADR-015)
@@ -101,7 +106,49 @@ export class WalletManager {
     await sessionManager.setLastActiveTime();
   }
 
+  /**
+   * In-flight refresh, so the several requests a waking worker takes at once share one.
+   *
+   * Not only to save the repeated decrypt: the failure branch clears `keychain` and `wallets`, so
+   * one attempt failing could wipe state another had just populated.
+   */
+  private refreshInFlight: Promise<void> | null = null;
+
   public async refreshWallets(): Promise<void> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    this.refreshInFlight = this.doRefreshWallets().finally(() => {
+      this.refreshInFlight = null;
+    });
+    return this.refreshInFlight;
+  }
+
+  /**
+   * Load the keychain into memory from the session master key, if it is not there already.
+   *
+   * The master key outlives the worker in session storage; the decrypted keychain does not, so
+   * until something re-decrypts, a wallet that is genuinely unlocked reports as locked.
+   *
+   * Waits on session recovery first: on expiry the metadata is cleared before the master key is,
+   * so re-deriving inside that window would revive a session that had already timed out.
+   */
+  public async ensureKeychainLoaded(): Promise<void> {
+    if (this.keychain) return;
+
+    // Bounded here rather than at the gate, which stays unresolved so a later call still gets the
+    // real verdict. Timing out means "not now", not "locked forever".
+    const recovery = await Promise.race([
+      whenSessionRecovered(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), RECOVERY_WAIT_MS)),
+    ]);
+    if (recovery === null || recovery === SessionRecoveryState.LOCKED) return;
+
+    const masterKey = await sessionManager.getKeychainMasterKey();
+    if (!masterKey) return;
+
+    await this.refreshWallets();
+  }
+
+  private async doRefreshWallets(): Promise<void> {
     // If keychain is already loaded, just refresh addresses
     if (this.keychain) {
       await this.refreshWalletAddresses();

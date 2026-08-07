@@ -9,6 +9,7 @@
  */
 
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { whenServicesReady } from '@/services/core/serviceReadiness';
 
 type ServiceFactory<T> = () => T;
 
@@ -99,6 +100,22 @@ export function defineProxyService<T extends Record<string, any>>(
 
       port.onMessage.addListener(async (msg: PortRequest) => {
         const { id, methodName, args } = msg;
+
+        // Nothing is dispatched until initialisation has finished. A waking worker would otherwise
+        // answer from state it has not loaded and a session it has not checked — see
+        // serviceReadiness.
+        try {
+          await whenServicesReady();
+        } catch (error) {
+          try {
+            port.postMessage({
+              id,
+              success: false,
+              error: { message: error instanceof Error ? error.message : String(error) },
+            } as PortResponse);
+          } catch {}
+          return;
+        }
 
         if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
           try {
