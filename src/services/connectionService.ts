@@ -94,12 +94,19 @@ export class ConnectionService extends BaseService {
     const settings = await getWalletService().getSettings();
     const isConnected = settings.connectedWebsites.includes(origin);
 
-    // Update cache
-    this.state.connectionCache.set(origin, {
-      origin,
-      isConnected,
-      lastActive: Date.now(),
-    });
+    // Only a positive answer is cached. A negative one is indistinguishable from "the keychain was
+    // not loaded when I asked", and caching that for the full TTL locked an approved origin out for
+    // five minutes — including after the wallet had finished waking up. Re-reading settings is
+    // cheap; being wrong for five minutes is not.
+    if (isConnected) {
+      this.state.connectionCache.set(origin, {
+        origin,
+        isConnected: true,
+        lastActive: Date.now(),
+      });
+    } else {
+      this.state.connectionCache.delete(origin);
+    }
 
     return isConnected;
   }
@@ -295,6 +302,15 @@ export class ConnectionService extends BaseService {
         connectedWallet: walletId,
         connectionTime: Date.now(),
         lastActive: Date.now(),
+      });
+
+      // Tell the page it was approved. Nothing else does: disconnect emits both accountsChanged
+      // and disconnect, but approval emitted nothing at all, so a site whose connect promise was
+      // lost to a worker restart had no way to learn it had been granted except by polling.
+      eventEmitterService.emit('emit-provider-event', {
+        origin,
+        event: 'accountsChanged',
+        data: [address],
       });
 
       console.debug('[ConnectionService] Connection established, getting accounts');

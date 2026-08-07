@@ -103,7 +103,12 @@ function createWalletService(): WalletService {
     refreshWallets: async () => {
       await walletManager.refreshWallets();
     },
-    getSettings: async () => walletManager.getSettings(),
+    // Settings live inside the keychain, so a worker that has not re-decrypted it answers with
+    // defaults — which reads as "no sites connected" and denies an origin that is in fact approved.
+    getSettings: async () => {
+      await walletManager.ensureKeychainLoaded();
+      return walletManager.getSettings();
+    },
     updateSettings: async (updates) => {
       await walletManager.updateSettings(updates);
     },
@@ -128,8 +133,12 @@ function createWalletService(): WalletService {
       await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
     },
     getWallets: async () => walletManager.getWallets(),
-    getActiveWallet: async () => walletManager.getActiveWallet(),
+    getActiveWallet: async () => {
+      await walletManager.ensureKeychainLoaded();
+      return walletManager.getActiveWallet();
+    },
     getActiveAddress: async () => {
+      await walletManager.ensureKeychainLoaded();
       const activeWallet = walletManager.getActiveWallet();
       if (!activeWallet) return undefined;
 
@@ -161,6 +170,9 @@ function createWalletService(): WalletService {
       await walletManager.selectWallet(walletId);
     },
     isKeychainUnlocked: async () => {
+      // Reports locked whenever the keychain is not in memory, which a restarted worker's is not.
+      // Loading it first is what makes the answer about the session rather than about the worker.
+      await walletManager.ensureKeychainLoaded();
       return walletManager.isKeychainUnlocked();
     },
     lockKeychain: async () => {

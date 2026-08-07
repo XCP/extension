@@ -2,6 +2,7 @@
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
 import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
 import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
 import { requestCleanup } from '@/platform/provider/requestCleanup';
 import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
@@ -195,8 +196,10 @@ export default defineBackground(() => {
       requestCleanup.startCleanup();
       console.log('[Background] RequestCleanup started');
 
-      // 6. Check session recovery state (may lock wallets if session expired)
+      // 6. Check session recovery state (may lock wallets if session expired). Anything that
+      //    re-derives from the session master key waits on the outcome of this — see sessionReady.
       const recoveryState = await checkSessionRecovery();
+      markSessionRecovery(recoveryState);
       if (recoveryState === SessionRecoveryState.LOCKED) {
         const walletService = getWalletService();
         await walletService.lockKeychain();
@@ -215,6 +218,9 @@ export default defineBackground(() => {
     } catch (error) {
       initError = error instanceof Error ? error : new Error(String(error));
       console.error('[Background] Service initialization failed:', error);
+      // An initialisation that failed cannot vouch for the session, so the gate is closed rather
+      // than left hanging: a caller waiting on it is told locked, not left waiting forever.
+      markSessionRecovery(SessionRecoveryState.LOCKED);
       // Still mark as ready to prevent deadlock, but log the error
       servicesReady = true;
     }
