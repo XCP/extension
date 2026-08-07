@@ -2,7 +2,6 @@ import './setup'; // Must be first to setup browser mocks
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import { approvalQueue } from '@/platform/provider/approvalQueue';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { walletManager } from '@/platform/walletManager';
 import { getApprovalService } from '../approvalService';
@@ -41,9 +40,6 @@ describe('ProviderService Security Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     fakeBrowser.reset();
-    
-    // Clear any pending requests from previous tests
-    approvalQueue.clearAll();
     
     // Re-setup browser mocks after reset
     fakeBrowser.windows.create = vi.fn().mockResolvedValue({ id: 12345 });

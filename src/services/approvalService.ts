@@ -22,6 +22,9 @@ import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 
+/** The screen every approval opens. Signing requests have their own screens and their own flow. */
+const APPROVAL_ROUTE = '/requests/connect/approve';
+
 export type { ApprovalRequestOptions, ApprovalResult };
 
 interface PendingApproval extends ApprovalRequest {
@@ -253,7 +256,7 @@ export class ApprovalService extends BaseService {
     await this.closePopup();
 
     // Determine the route based on approval type
-    const route = this.getRouteForType(type);
+    const route = APPROVAL_ROUTE;
     const params = new URLSearchParams({
       requestId,
       origin,
@@ -265,21 +268,6 @@ export class ApprovalService extends BaseService {
 
     // Listen for window close to auto-reject
     this.setupWindowCloseListener(this.popup.id);
-  }
-
-  private getRouteForType(type: ApprovalRequest['type']): string {
-    switch (type) {
-      case 'connection':
-        return '/requests/connect/approve';
-      case 'transaction':
-        return '/requests/transaction/approve';
-      case 'signature':
-        return '/requests/signature/approve';
-      case 'compose':
-        return '/requests/compose/approve';
-      default:
-        return '/requests/connect/approve';
-    }
   }
 
   private setupWindowCloseListener(windowId: number): void {

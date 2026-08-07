@@ -29,7 +29,6 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
-import * as approvalQueue from '@/platform/provider/approvalQueue';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
 import * as signMessageRequestStorage from '@/platform/storage/signMessageRequestStorage';
 import * as signPsbtRequestStorage from '@/platform/storage/signPsbtRequestStorage';
@@ -62,7 +61,6 @@ vi.mock('@/core/bitcoin/messageSigner', () => ({
 }));
 vi.mock('@/platform/storage/signPsbtRequestStorage');
 vi.mock('@/services/updateService');
-vi.mock('@/platform/provider/approvalQueue');
 vi.mock('@/platform/provider/rateLimiter');
 vi.mock('@/platform/fathom', () => ({
   sanitizePath: vi.fn((path: string) => path),
@@ -275,13 +273,6 @@ describe('ProviderService', () => {
     // Setup settings mocks - default to no connected sites
     // (Already set up above with DEFAULT_SETTINGS)
     vi.mocked(walletManager.updateSettings).mockResolvedValue(undefined);
-    
-    // Setup other mocks
-    vi.mocked(approvalQueue.approvalQueue.add).mockReturnValue(undefined as any);
-    vi.mocked(approvalQueue.approvalQueue.remove).mockReturnValue(true);
-    vi.mocked(approvalQueue.approvalQueue.getCurrentWindow).mockReturnValue(null);
-    vi.mocked(approvalQueue.approvalQueue.setCurrentWindow).mockReturnValue(undefined);
-    vi.mocked(approvalQueue.getApprovalBadgeText).mockReturnValue('');
     
     // Setup rate limiter mocks
     vi.mocked(rateLimiter.connectionRateLimiter.isAllowed).mockReturnValue(true);

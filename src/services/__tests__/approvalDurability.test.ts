@@ -109,18 +109,20 @@ describe('approval durability', () => {
     expect(second.hasPendingApproval()).toBe(false);
   });
 
-  it('refuses a restored signature, whose only product had nowhere left to go', async () => {
+  it('refuses a restored request whose type cannot finish without its caller', async () => {
     const first = new ApprovalService();
     await first.initialize();
-    await ask(first, { ...CONNECT_REQUEST, type: 'signature', method: 'xcp_signMessage' });
+    await ask(first);
 
+    // A worker that registered no handler for this type — the state a type added later starts in,
+    // and the state any type is in whose only product is an artifact for a caller now gone.
     const second = await restart();
 
-    // The request itself survives — the screen still has something to show and refuse.
-    expect(second.getCurrentApproval()).toMatchObject({ id: 'request-1', type: 'signature' });
+    // The request survives, so the screen still has something to show and refuse.
+    expect(second.getCurrentApproval()).toMatchObject({ id: 'request-1', type: 'connection' });
 
-    // But no completion handler is registered for signatures, by design: the signed message would
-    // be handed back through a promise that no longer exists. False tells the screen to say so.
+    // Approving it completes nothing, and false tells the screen to say so rather than close on a
+    // click that did nothing.
     await expect(second.resolveApproval('request-1', { approved: true })).resolves.toBe(false);
     expect(second.hasPendingApproval()).toBe(false);
   });

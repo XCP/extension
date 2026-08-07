@@ -4,7 +4,6 @@ import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from 
 import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
-import { requestCleanup } from '@/platform/provider/requestCleanup';
 import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
 import { registerConnectionService } from '@/services/connectionService';
@@ -192,10 +191,6 @@ export default defineBackground(() => {
       // 4. Initialize popup monitor service
       getPopupMonitorService().initialize();
       console.log('[Background] PopupMonitorService initialized');
-
-      // 5. Start request cleanup (periodic cleanup of expired approval requests)
-      requestCleanup.startCleanup();
-      console.log('[Background] RequestCleanup started');
 
       // 6. Check session recovery state (may lock wallets if session expired). Anything that
       //    re-derives from the session master key waits on the outcome of this — see sessionReady.
