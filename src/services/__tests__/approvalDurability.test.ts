@@ -131,8 +131,8 @@ describe('approval durability', () => {
     await ask(first);
 
     // Age the stored request past the five-minute window its timer would have enforced.
-    const record = session['ApprovalService_state'] as any;
-    record.data.pending.timestamp = Date.now() - 6 * 60 * 1000;
+    const stored = session['pending_approval_flow'] as { timestamp: number }[];
+    stored[0]!.timestamp = Date.now() - 6 * 60 * 1000;
 
     const second = await restart();
 

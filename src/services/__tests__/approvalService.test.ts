@@ -41,10 +41,27 @@ vi.mock('@/platform/popup', () => ({
 // Now import the service
 import { ApprovalService } from '../approvalService';
 
+/**
+ * requestApproval writes the record before the request is pending in memory, so registration is
+ * no longer synchronous. Production cannot observe the gap — the popup opens after the write.
+ */
+async function whenPending(service: ApprovalService) {
+  await vi.waitFor(() => expect(service.hasPendingApproval()).toBe(true));
+}
+
 // Mock chrome APIs
+// Backed by an object rather than returning undefined: the approval record is written through to
+// session storage before a request is pending anywhere else, so a stub that stores nothing fails
+// every request.
+let sessionData: Record<string, unknown> = {};
+
 const mockStorage = {
-  get: vi.fn(),
-  set: vi.fn(),
+  get: vi.fn(async (key?: string) =>
+    typeof key === 'string' && key in sessionData ? { [key]: sessionData[key] } : {}
+  ),
+  set: vi.fn(async (items: Record<string, unknown>) => {
+    Object.assign(sessionData, items);
+  }),
 };
 
 const mockWindows = {
@@ -64,6 +81,7 @@ const mockWindows = {
 // Setup global mocks
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionData = {};
 
   // Reset mock windows functions
   mockWindows.create.mockReset();
@@ -145,6 +163,7 @@ describe('ApprovalService', () => {
           description: 'Site wants to connect',
         },
       });
+      await whenPending(approvalService);
 
       // Add catch handler to prevent unhandled rejection
       approvalPromise.catch(() => {});
@@ -172,6 +191,7 @@ describe('ApprovalService', () => {
           description: 'Connect request',
         },
       });
+      await whenPending(approvalService);
 
       // Resolve the approval
       approvalService.resolveApproval('test-approve', { approved: true });
@@ -193,6 +213,7 @@ describe('ApprovalService', () => {
           description: 'Connect request',
         },
       });
+      await whenPending(approvalService);
 
       // Reject the approval
       approvalService.rejectApproval('test-reject', 'User denied');
@@ -210,6 +231,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'first.com', title: 'First', description: 'First' },
       });
+      await whenPending(approvalService);
       firstPromise.catch(() => {});
 
       expect(approvalService.getCurrentApproval()?.id).toBe('first-request');
@@ -223,6 +245,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'second.com', title: 'Second', description: 'Second' },
       });
+      await whenPending(approvalService);
       secondPromise.catch(() => {});
 
       // First should be rejected with "Superseded by new request"
@@ -247,6 +270,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       });
+      await whenPending(approvalService);
 
       // Resolve it
       const resolved = await approvalService.resolveApproval('test-resolve', { approved: true });
@@ -267,6 +291,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       });
+      await whenPending(approvalService);
 
       // Resolve with approved: false
       const resolved = await approvalService.resolveApproval('test-reject', { approved: false });
@@ -303,6 +328,7 @@ describe('ApprovalService', () => {
           description: 'Test connection request',
         },
       });
+      await whenPending(approvalService);
 
       // Add a catch handler to prevent unhandled rejection
       approvalPromise.catch(() => {});
@@ -328,6 +354,7 @@ describe('ApprovalService', () => {
         type: 'connection',
         metadata: { domain: 'test.com', title: 'Test', description: 'Test' },
       });
+      await whenPending(approvalService);
       approvalPromise.catch(() => {});
 
       // There should be a pending approval

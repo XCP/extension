@@ -5,13 +5,19 @@
  * Auto-rejects when user closes the popup window.
  *
  * A request outlives its worker. MV3 can stop the background while an approval screen is being
- * read, so the request is stored and the waiting caller is not — that promise cannot be restored,
- * and its port died with the same worker anyway. A restored request is therefore finished by a
- * completion handler rather than by answering anyone; see registerCompletionHandler.
+ * read, so the request lives in approvalFlow — the same store the signing flows use — and the
+ * waiting caller does not. That Promise cannot be restored, and its port died with the same worker
+ * anyway. A request read back afterwards is therefore finished by a completion handler rather than
+ * by answering anyone; see registerCompletionHandler.
  */
 
 import { analytics } from '@/platform/fathom';
 import { openPopupWindow, type PopupWindow } from '@/platform/popup';
+import {
+  beginApprovalFlow,
+  findPendingApproval,
+  recordApprovalOutcome,
+} from '@/platform/provider/approvalFlow';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
@@ -28,12 +34,6 @@ interface PendingApproval extends ApprovalRequest {
 
 interface ApprovalServiceState {
   currentWindow: number | null;
-}
-
-/** What is stored: the request, never the caller, which cannot outlive its worker anyway. */
-interface PersistedState {
-  currentWindow: number | null;
-  pending: ApprovalRequest | null;
 }
 
 /** Finishes a request whose caller is gone, doing the work that caller would have done. */
@@ -75,22 +75,24 @@ export class ApprovalService extends BaseService {
       this.rejectCurrentApproval('Superseded by new request');
     }
 
-    // Create the approval promise
-    const promise = new Promise<T>((resolve, reject) => {
-      this.pendingApproval = {
-        id,
-        origin,
-        method,
-        type,
-        params,
-        metadata,
-        timestamp: Date.now(),
-        waiter: { resolve, reject },
-      };
-    });
+    const request: ApprovalRequest = {
+      id,
+      origin,
+      method,
+      type,
+      params,
+      metadata,
+      timestamp: Date.now(),
+    };
 
-    // Written before the popup opens, since the worker can stop the moment this call yields.
-    await this.saveState();
+    // Stored before it is pending anywhere else. A decision arriving between the two would
+    // otherwise record an outcome against a request that did not exist yet, and the pending record
+    // would then be written over the top of it.
+    await beginApprovalFlow(request);
+
+    const promise = new Promise<T>((resolve, reject) => {
+      this.pendingApproval = { ...request, waiter: { resolve, reject } };
+    });
 
     // Set up timeout
     const timeoutId = setTimeout(() => {
@@ -134,10 +136,10 @@ export class ApprovalService extends BaseService {
 
     const approval = this.pendingApproval;
     this.pendingApproval = null;
-    this.persist();
     this.updateBadge();
 
     if (approval.waiter) {
+      await recordApprovalOutcome(id, result.approved ? 'completed' : 'cancelled', result);
       if (result.approved) {
         approval.waiter.resolve(result);
       } else {
@@ -146,13 +148,15 @@ export class ApprovalService extends BaseService {
       return true;
     }
 
-    // Restored, so there is nobody to answer. Refusing is still complete in itself.
-    if (!result.approved) return true;
+    // Nobody is waiting. Refusing is still complete in itself.
+    if (!result.approved) {
+      await recordApprovalOutcome(id, 'cancelled', result);
+      return true;
+    }
 
-    // Its timeout died with its worker, and this one may have been awake for hours since. Age is
-    // checked at the decision, not only when it was read back, so the window cannot be widened by
-    // leaving the screen open.
-    if (this.hasExpired(approval)) {
+    // The store drops a request once its TTL has passed, so one whose window closed while the
+    // screen sat open is simply no longer there to complete.
+    if (!(await findPendingApproval())) {
       console.warn('[ApprovalService] Refusing to complete an expired request:', id);
       return false;
     }
@@ -163,6 +167,7 @@ export class ApprovalService extends BaseService {
       return false;
     }
 
+    await recordApprovalOutcome(id, 'completed', result);
     await complete(approval, result);
     return true;
   }
@@ -221,29 +226,22 @@ export class ApprovalService extends BaseService {
 
   // Private methods
 
+  /**
+   * Drop the pending approval, telling anyone waiting why.
+   *
+   * Called from paths that cannot await — a window-close listener, a timeout — so the record is
+   * updated without waiting on it. Memory is already correct; storage catches up.
+   */
   private rejectCurrentApproval(reason: string): void {
     if (!this.pendingApproval) return;
 
     const approval = this.pendingApproval;
     this.pendingApproval = null;
-    this.persist();
+    void recordApprovalOutcome(approval.id, 'cancelled').catch((error) => {
+      console.error('[ApprovalService] Failed to record approval outcome:', error);
+    });
     approval.waiter?.reject(new Error(reason));
     this.updateBadge();
-  }
-
-  /** Whether a request has outlived the window its own timer would have enforced. */
-  private hasExpired(request: ApprovalRequest): boolean {
-    return Date.now() - request.timestamp > ApprovalService.REQUEST_TIMEOUT;
-  }
-
-  /**
-   * Write the request through to storage without waiting, for the paths that cannot await — a
-   * window-close listener, a timeout — where memory is already correct and storage catches up.
-   */
-  private persist(): void {
-    void this.saveState().catch((error) => {
-      console.error('[ApprovalService] Failed to persist approval state:', error);
-    });
   }
 
   private async openApprovalPopup(
@@ -354,6 +352,16 @@ export class ApprovalService extends BaseService {
     };
     eventEmitterService.on('resolve-pending-request', this.resolveRequestHandler);
 
+    // Pick up a request left behind by a previous worker. It has no waiter, so it can only be
+    // finished by a completion handler; the store has already dropped it if its window passed.
+    const pending = await findPendingApproval();
+    if (pending) {
+      const { status, result, ...request } = pending;
+      this.pendingApproval = request;
+      this.updateBadge();
+      console.log('[ApprovalService] Resumed a pending', request.type, 'request');
+    }
+
     console.log('[ApprovalService] Initialized (single-request mode)');
   }
 
@@ -373,28 +381,13 @@ export class ApprovalService extends BaseService {
     console.log('[ApprovalService] Destroyed');
   }
 
-  protected getSerializableState(): PersistedState {
-    // Always an object, never null: clearing a settled request is a write, not the absence of one.
-    return {
-      currentWindow: this.state.currentWindow,
-      pending: this.getCurrentApproval(),
-    };
+  protected getSerializableState(): { currentWindow: number | null } | null {
+    return this.state.currentWindow ? { currentWindow: this.state.currentWindow } : null;
   }
 
-  protected hydrateState(state: PersistedState): void {
-    // Don't restore window ID - it may be stale
-    if (!state?.pending) return;
-
-    // A stored request could otherwise wait indefinitely and come back long after the site stopped
-    // expecting an answer.
-    if (this.hasExpired(state.pending)) {
-      this.persist(); // drops the stale record
-      return;
-    }
-
-    this.pendingApproval = state.pending;
-    this.updateBadge();
-    console.log('[ApprovalService] Restored a pending', state.pending.type, 'request');
+  protected hydrateState(): void {
+    // Don't restore window ID - it may be stale. The pending request is not service state; it
+    // lives in approvalFlow and is picked up in onInitialize.
   }
 
   protected getStateVersion(): number {
