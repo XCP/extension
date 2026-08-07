@@ -23,7 +23,8 @@
         "noLabelWithoutControl": "error",
         "noSvgWithoutTitle": "error",
         "useButtonType": "error",
-        "useKeyWithClickEvents": "error"
+        "useKeyWithClickEvents": "error",
+        "useSemanticElements": "error"
       },
       "correctness": {
         "noUnusedImports": "error",

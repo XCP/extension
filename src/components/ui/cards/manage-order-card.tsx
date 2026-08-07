@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Order } from "@/core/counterparty/api";
@@ -38,34 +38,31 @@ export function ManageOrderCard({
     navigate(`/market/orders/${baseAsset}/${quoteAsset}`);
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      handleClick();
-    }
-  };
-
   return (
+    // Opening the order is a button, not the whole card: Cancel sits inside, and
+    // a card-level key handler swallowed Enter before Cancel could act on it.
     <div
-      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
+      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow ${className}`}
     >
       <div className="flex items-center gap-3">
-        <AssetIcon asset={baseAsset} size="md" />
-        <div className="flex-1 min-w-0">
-          <div className="font-medium text-gray-900 text-sm truncate">
-            {baseDisplay}/{quoteAsset}
+        <button
+          type="button"
+          onClick={handleClick}
+          className="flex flex-1 min-w-0 items-center gap-3 text-left cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <AssetIcon asset={baseAsset} size="md" />
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-gray-900 text-sm truncate">
+              {baseDisplay}/{quoteAsset}
+            </div>
+            <div className="text-xs text-gray-500">
+              <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
+                {isBuy ? "Buy" : "Sell"}
+              </span>
+              {" "}{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining
+            </div>
           </div>
-          <div className="text-xs text-gray-500">
-            <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
-              {isBuy ? "Buy" : "Sell"}
-            </span>
-            {" "}{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining
-          </div>
-        </div>
+        </button>
         {isOpen ? (
           <button type="button"
             onClick={handleCancel}

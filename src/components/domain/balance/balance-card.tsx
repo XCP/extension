@@ -60,41 +60,36 @@ export function BalanceCard({
   // Determine if the asset is divisible for proper decimal formatting
   const isDivisible = token.asset_info?.divisible ?? false;
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleClick();
-    }
-  };
-
   return (
-    <div
-      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
-      onClick={handleClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
-    >
-      {/* Asset Icon */}
-      <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
+    // The card is a container, not a control: the menu is its own button, and a
+    // button cannot contain another one. Opening the balance is the button here.
+    <div className={`relative bg-white rounded-lg shadow-sm ${className}`}>
+      <button
+        type="button"
+        className="flex w-full items-center p-4 text-left rounded-lg cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        onClick={handleClick}
+      >
+        {/* Asset Icon */}
+        <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
 
-      {/* Asset Information */}
-      <div className="ml-3 flex-grow">
-        {/* Asset Name/Symbol */}
-        <div className="font-medium text-sm text-gray-900">
-          {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+        {/* Asset Information */}
+        <div className="ml-3 flex-grow">
+          {/* Asset Name/Symbol */}
+          <div className="font-medium text-sm text-gray-900">
+            {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+          </div>
+
+          {/* Balance Amount */}
+          <div className="text-sm text-gray-500">
+            {formatAmount({
+              value: token.quantity_normalized,
+              minimumFractionDigits: isDivisible ? 8 : 0,
+              maximumFractionDigits: isDivisible ? 8 : 0,
+              useGrouping: true,
+            })}
+          </div>
         </div>
-        
-        {/* Balance Amount */}
-        <div className="text-sm text-gray-500">
-          {formatAmount({
-            value: token.quantity_normalized,
-            minimumFractionDigits: isDivisible ? 8 : 0,
-            maximumFractionDigits: isDivisible ? 8 : 0,
-            useGrouping: true,
-          })}
-        </div>
-      </div>
+      </button>
 
       {/* Balance Menu (if enabled) */}
       {showMenu && (

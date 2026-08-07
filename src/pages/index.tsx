@@ -121,44 +121,34 @@ export default function HomePage(): ReactElement {
     // button, and saying so is what lets the keyboard reach it. The classes below are the branch
     // that always won, so this renders identically.
     return (
-      <div
-        className="relative w-full rounded p-4 cursor-pointer bg-blue-600 text-white shadow-md"
-        onClick={handleCopyAddress}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleCopyAddress();
-          }
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label="Current address"
-      >
+      // Copying and choosing another address are two buttons side by side, not one
+      // inside the other. Neither needs to guard the other's keypresses.
+      <div className="relative w-full rounded bg-blue-600 text-white shadow-md">
+        <button
+          type="button"
+          className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+          onClick={handleCopyAddress}
+          aria-label="Current address"
+        >
+          <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
+          <div className="flex justify-center items-center">
+            <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
+            {copiedToClipboard ? (
+              <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
+            ) : (
+              <FaClipboard className="ml-2" aria-hidden="true" />
+            )}
+          </div>
+        </button>
         <div className="absolute top-1/2 right-4 -translate-y-1/2">
           <button
             type="button"
             className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={handleAddressSelection}
-            // The button activates itself on Enter and Space; this only keeps the
-            // keypress from reaching the surrounding card, which copies the address.
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.stopPropagation();
-              }
-            }}
             aria-label="Select another address"
           >
             <FaChevronRight className="size-4" aria-hidden="true" />
           </button>
-        </div>
-        <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
-        <div className="flex justify-center items-center">
-          <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
-          {copiedToClipboard ? (
-            <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
-          ) : (
-            <FaClipboard className="ml-2" aria-hidden="true" />
-          )}
         </div>
       </div>
     );

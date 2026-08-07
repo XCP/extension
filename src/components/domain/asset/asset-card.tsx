@@ -58,38 +58,35 @@ export function AssetCard({
   };
 
   return (
-    <div
-      className={`relative flex items-center p-4 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
-      aria-label={`View ${asset.asset} details`}
-    >
-      {/* Asset Icon */}
-      <AssetIcon asset={asset.asset} size="lg" className="flex-shrink-0" />
+    // The card is a container, not a control: the menu is its own button, and a
+    // button cannot contain another one. Opening the asset is the button here.
+    <div className={`relative bg-white rounded-lg shadow-sm ${className}`}>
+      <button
+        type="button"
+        className="flex w-full items-center p-4 text-left rounded-lg cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        onClick={handleClick}
+        aria-label={`View ${asset.asset} details`}
+      >
+        {/* Asset Icon */}
+        <AssetIcon asset={asset.asset} size="lg" className="flex-shrink-0" />
 
-      {/* Asset Information */}
-      <div className="ml-3 flex-grow">
-        {/* Asset Name/Symbol */}
-        <div className="font-medium text-sm text-gray-900">
-          {formatAsset(asset.asset, { assetInfo: { asset_longname: asset.asset_longname }, shorten: true })}
+        {/* Asset Information */}
+        <div className="ml-3 flex-grow">
+          {/* Asset Name/Symbol */}
+          <div className="font-medium text-sm text-gray-900">
+            {formatAsset(asset.asset, { assetInfo: { asset_longname: asset.asset_longname }, shorten: true })}
+          </div>
+
+          {/* Asset Supply */}
+          <div className="text-sm text-gray-500">
+            Supply: {formatAmount({
+              value: asset.supply_normalized,
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 8
+            })}
+          </div>
         </div>
-        
-        {/* Asset Supply */}
-        <div className="text-sm text-gray-500">
-          Supply: {formatAmount({ 
-            value: asset.supply_normalized, 
-            minimumFractionDigits: 0, 
-            maximumFractionDigits: 8 
-          })}
-        </div>
-      </div>
+      </button>
 
       {/* Asset Menu (if enabled) */}
       {showMenu && (
