@@ -13,7 +13,7 @@ function createMockPort(name: string) {
   const disconnectListeners: PortDisconnectListener[] = [];
   return {
     name,
-    sender: { id: 'test-extension-id' },
+    sender: { id: 'test-extension-id', url: 'chrome-extension://test-extension-id/popup.html' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {
@@ -34,6 +34,7 @@ let onConnectListeners: OnConnectListener[] = [];
 const mockChrome = {
   runtime: {
     id: 'test-extension-id',
+    getURL: (path: string) => `chrome-extension://test-extension-id/${path}`,
     onConnect: {
       addListener: vi.fn((fn: OnConnectListener) => onConnectListeners.push(fn)),
       removeListener: vi.fn(),

@@ -18,8 +18,11 @@ export interface SignFlowEntry extends BaseRequest {
   result?: unknown;
 }
 
-/** Active flows older than this are treated as stale and ignored for rejoin/recovery. */
-export const SIGN_FLOW_TTL_MS = 10 * 60 * 1000; // matches the in-memory approval timeout
+/**
+ * Active flows older than this are treated as stale and ignored for rejoin/recovery. Independent
+ * of ApprovalService's own timeout, which covers the separate connection flow.
+ */
+export const SIGN_FLOW_TTL_MS = 10 * 60 * 1000;
 
 export const signFlowStorage = new RequestStorage<SignFlowEntry>({
   storageKey: 'pending_sign_flow',

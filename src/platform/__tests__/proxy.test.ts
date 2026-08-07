@@ -16,7 +16,7 @@ function createMockPort(name: string) {
 
   return {
     name,
-    sender: { id: 'test-extension-id' },
+    sender: { id: 'test-extension-id', url: 'chrome-extension://test-extension-id/popup.html' },
     postMessage: vi.fn(),
     disconnect: vi.fn(),
     onMessage: {
@@ -38,6 +38,7 @@ let onConnectListeners: ((port: any) => void)[] = [];
 const mockChrome = {
   runtime: {
     id: 'test-extension-id',
+    getURL: (path: string) => `chrome-extension://test-extension-id/${path}`,
     onConnect: {
       addListener: vi.fn((fn: any) => onConnectListeners.push(fn)),
       removeListener: vi.fn(),
@@ -158,6 +159,24 @@ describe('defineProxyService', () => {
 
     it('should throw when getting service before registration', () => {
       expect(() => getService()).toThrow('registerService has not been called');
+    });
+
+    it('refuses a port from a script injected into a page', async () => {
+      register();
+
+      // A content script carries the extension's own id, so the id check alone would let this
+      // through. Services answer about keys, permissions and lock state; a script sharing a
+      // process with a hostile page must not be able to ask.
+      const port = createMockPort(`proxy:${currentServiceName}`);
+      port.sender = { id: 'test-extension-id', url: 'https://evil.example.com/' } as any;
+      onConnectListeners.forEach(fn => fn(port));
+
+      expect(port.disconnect).toHaveBeenCalled();
+
+      port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
+      await new Promise(r => setTimeout(r, 0));
+
+      expect(testServiceInstance.getValue).not.toHaveBeenCalled();
     });
 
     it('should handle incoming port messages', async () => {

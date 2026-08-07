@@ -149,6 +149,14 @@ export class ApprovalService extends BaseService {
     // Restored, so there is nobody to answer. Refusing is still complete in itself.
     if (!result.approved) return true;
 
+    // Its timeout died with its worker, and this one may have been awake for hours since. Age is
+    // checked at the decision, not only when it was read back, so the window cannot be widened by
+    // leaving the screen open.
+    if (this.hasExpired(approval)) {
+      console.warn('[ApprovalService] Refusing to complete an expired request:', id);
+      return false;
+    }
+
     const complete = this.completionHandlers.get(approval.type);
     if (!complete) {
       console.warn('[ApprovalService] Cannot complete a restored', approval.type, 'request');
@@ -221,6 +229,11 @@ export class ApprovalService extends BaseService {
     this.persist();
     approval.waiter?.reject(new Error(reason));
     this.updateBadge();
+  }
+
+  /** Whether a request has outlived the window its own timer would have enforced. */
+  private hasExpired(request: ApprovalRequest): boolean {
+    return Date.now() - request.timestamp > ApprovalService.REQUEST_TIMEOUT;
   }
 
   /**
@@ -372,11 +385,9 @@ export class ApprovalService extends BaseService {
     // Don't restore window ID - it may be stale
     if (!state?.pending) return;
 
-    // The timeout that would have rejected this died with its worker, so age is checked here
-    // instead — otherwise a request could wait in storage indefinitely, then be completed by a
-    // click on a screen left open long after the site stopped expecting an answer.
-    const age = Date.now() - state.pending.timestamp;
-    if (age > ApprovalService.REQUEST_TIMEOUT) {
+    // A stored request could otherwise wait indefinitely and come back long after the site stopped
+    // expecting an answer.
+    if (this.hasExpired(state.pending)) {
       this.persist(); // drops the stale record
       return;
     }

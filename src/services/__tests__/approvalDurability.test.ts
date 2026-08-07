@@ -140,6 +140,29 @@ describe('approval durability', () => {
     expect(second.hasPendingApproval()).toBe(false);
   });
 
+  it('refuses to complete one that expired while the screen sat open', async () => {
+    const first = new ApprovalService();
+    await first.initialize();
+    await ask(first);
+
+    // Restored while still fresh, so it survives hydration.
+    const second = await restart();
+    const grant = vi.fn().mockResolvedValue(undefined);
+    second.registerCompletionHandler('connection', grant);
+    expect(second.getCurrentApproval()).not.toBeNull();
+
+    // Then this worker stays awake past the window the original timer would have enforced. That
+    // timer died with its worker, so nothing else is going to stop this.
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.now() + 6 * 60 * 1000);
+    try {
+      await expect(second.resolveApproval('request-1', { approved: true })).resolves.toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(grant).not.toHaveBeenCalled();
+  });
+
   it('lets the user refuse a restored request', async () => {
     const first = new ApprovalService();
     await first.initialize();

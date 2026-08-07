@@ -10,7 +10,7 @@ import { registerApprovalService } from '@/services/approvalService';
 import { registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
-import { markServicesReady } from '@/services/core/serviceReadiness';
+import { markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
@@ -336,6 +336,11 @@ export default defineBackground(() => {
     });
 
     try {
+      // The other boundary. dApp requests arrive here rather than over a service port, so the
+      // barrier proxy.ts applies to popup calls has to be applied again — a waking worker would
+      // otherwise tell a connected site it is disconnected.
+      await whenServicesReady();
+
       const providerService = getProviderService();
 
       // Extract request details with validation
