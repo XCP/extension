@@ -38,53 +38,6 @@ import { getUpdateService } from '@/services/updateService';
 import { getWalletService } from '@/services/walletService';
 import type { ApprovalRequest } from '@/types/provider';
 
-// In-memory storage for active requests (primary storage, fast access)
-const activeSignRequests = new Map<string, any>();
-const activeSignPsbtRequests = new Map<string, any>();
-const activeSignTransactionRequests = new Map<string, any>();
-
-// Auto-cleanup old requests every minute - store interval ID for cleanup
-let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
-
-function startCleanupInterval(): void {
-  if (cleanupIntervalId) return; // Already running
-
-  cleanupIntervalId = setInterval(() => {
-    const now = Date.now();
-    const maxAge = 10 * 60 * 1000; // 10 minutes
-
-    for (const [id, request] of activeSignRequests.entries()) {
-      if (now - request.timestamp > maxAge) {
-        activeSignRequests.delete(id);
-        console.log('[ProviderService] Cleaned up stale sign request:', id);
-      }
-    }
-
-    for (const [id, request] of activeSignPsbtRequests.entries()) {
-      if (now - request.timestamp > maxAge) {
-        activeSignPsbtRequests.delete(id);
-        console.log('[ProviderService] Cleaned up stale sign PSBT request:', id);
-      }
-    }
-
-    for (const [id, request] of activeSignTransactionRequests.entries()) {
-      if (now - request.timestamp > maxAge) {
-        activeSignTransactionRequests.delete(id);
-        console.log('[ProviderService] Cleaned up stale sign transaction request:', id);
-      }
-    }
-  }, 60000);
-}
-
-function stopCleanupInterval(): void {
-  if (cleanupIntervalId) {
-    clearInterval(cleanupIntervalId);
-    cleanupIntervalId = null;
-  }
-}
-
-// Start cleanup interval immediately
-startCleanupInterval();
 
 // Define proper types for provider requests and responses
 export type ProviderRequestParams = unknown[];
@@ -698,7 +651,6 @@ export function createProviderService(): ProviderService {
               mapResult: (result) => ({ hex: result.signedTxHex }),
             },
             cleanup: (requestId) => {
-              activeSignTransactionRequests.delete(requestId);
               void signTransactionRequestStorage.remove(requestId);
             },
             createAndOpen: async (requestId) => {
@@ -712,7 +664,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               };
-              activeSignTransactionRequests.set(requestId, request);
               await signTransactionRequestStorage.store(request);
               chrome.runtime.sendMessage({
                 type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
@@ -840,7 +791,6 @@ export function createProviderService(): ProviderService {
               mapResult: (result) => ({ hex: result.signedPsbtHex }),
             },
             cleanup: (requestId) => {
-              activeSignPsbtRequests.delete(requestId);
               void signPsbtRequestStorage.remove(requestId);
             },
             createAndOpen: async (requestId) => {
@@ -854,7 +804,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               };
-              activeSignPsbtRequests.set(requestId, request);
               await signPsbtRequestStorage.store(request);
               chrome.runtime.sendMessage({
                 type: 'NAVIGATE_TO_APPROVE_PSBT',
@@ -1042,10 +991,6 @@ export function createProviderService(): ProviderService {
    */
   async function destroy(): Promise<void> {
     console.log('[ProviderService] Destroying...');
-    stopCleanupInterval();
-    activeSignRequests.clear();
-    activeSignPsbtRequests.clear();
-    activeSignTransactionRequests.clear();
   }
 
   return {
