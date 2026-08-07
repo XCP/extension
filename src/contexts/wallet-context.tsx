@@ -47,7 +47,7 @@ import {
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import type { AddressFormat } from '@/core/bitcoin/address';
 import { withStateLock } from "@/core/wallet/stateLockManager";
-import { keychainExists as checkKeychainExists } from "@/platform/storage/walletStorage";
+import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
 import type { Address, SignTransactionOptions, Wallet } from "@/types/wallet";
 
@@ -441,10 +441,26 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
     chrome.storage?.session?.onChanged?.addListener(handleSessionStorageChange);
 
+    // Wallets and their addresses live in the keychain record, so adding a wallet or deriving an
+    // address in one surface lands as a write here. The popup and the side panel are separate
+    // documents and people run both, so without this the one merely open keeps the list it read on
+    // mount — and the address-types screen keeps offering a format the other surface already
+    // changed.
+    //
+    // Refreshing is expensive (it can decrypt and re-derive), and this fires for any keychain
+    // write, including a settings-only one. It is bounded rather than free: withStateLock
+    // serializes it against the refresh already in flight, and a locked keychain is skipped because
+    // there is nothing to re-read and the lock path handles that transition itself.
+    const stopWatchingKeychain = watchKeychainRecord(() => {
+      if (walletStateRef.current.keychainLocked) return;
+      refreshWalletState();
+    });
+
     return () => {
       // Properly cleanup the message listener
       unsubscribe();
       chrome.storage?.session?.onChanged?.removeListener(handleSessionStorageChange);
+      stopWatchingKeychain();
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 

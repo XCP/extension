@@ -1,7 +1,9 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { AppSettings } from '@/core/settings';
 import { DEFAULT_SETTINGS } from '@/core/settings';
+import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { SettingsProvider, useSettings } from '../settings-context';
 
 // Mock walletService
@@ -374,5 +376,79 @@ describe('SettingsContext', () => {
         expect(newResult.current.settings.autoLockTimer).toBe('15m');
       });
     });
+  });
+});
+
+describe('SettingsContext — settings changed in another surface', () => {
+  /**
+   * Settings live inside the keychain record, so a change made anywhere lands as a write to it.
+   * The popup and the side panel are separate documents, each holding whatever they read on mount;
+   * without this the one merely sitting open goes stale.
+   */
+  const record = (data: string) => ({
+    version: 1 as const,
+    kdf: { iterations: 600000 },
+    salt: 'dGVzdC1zYWx0',
+    encryptedKeychain: data,
+  });
+
+  let stored: AppSettings;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fakeBrowser.reset();
+    stored = { ...DEFAULT_SETTINGS };
+    mockGetSettings.mockImplementation(async () => stored);
+  });
+
+  it('re-reads settings when the keychain record changes', async () => {
+    const { result } = renderHook(() => useSettings(), { wrapper: SettingsProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.settings.connectedWebsites).toEqual([]);
+
+    // What another window's approval does, as this one sees it.
+    await act(async () => {
+      stored = { ...stored, connectedWebsites: ['https://elsewhere.org'] };
+      await saveKeychainRecord(record('changed-elsewhere'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.settings.connectedWebsites).toEqual(['https://elsewhere.org']);
+    });
+  });
+
+  it('does not raise the loading flag while re-reading', async () => {
+    const { result } = renderHook(() => useSettings(), { wrapper: SettingsProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const loadingSeen: boolean[] = [];
+    const watching = setInterval(() => loadingSeen.push(result.current.isLoading), 1);
+
+    await act(async () => {
+      stored = { ...stored, connectedWebsites: ['https://elsewhere.org'] };
+      await saveKeychainRecord(record('changed-again'));
+    });
+    await waitFor(() => {
+      expect(result.current.settings.connectedWebsites).toHaveLength(1);
+    });
+    clearInterval(watching);
+
+    // Every surface consuming isLoading renders a spinner from it. Raising it for a change made in
+    // another window would flash all of them.
+    expect(loadingSeen).not.toContain(true);
+  });
+
+  it('stops watching when the provider unmounts', async () => {
+    const { result, unmount } = renderHook(() => useSettings(), { wrapper: SettingsProvider });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    unmount();
+    const callsBefore = mockGetSettings.mock.calls.length;
+
+    await act(async () => {
+      await saveKeychainRecord(record('after-unmount'));
+    });
+
+    expect(mockGetSettings.mock.calls.length).toBe(callsBefore);
   });
 });
