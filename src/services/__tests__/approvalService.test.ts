@@ -249,7 +249,7 @@ describe('ApprovalService', () => {
       });
 
       // Resolve it
-      const resolved = approvalService.resolveApproval('test-resolve', { approved: true });
+      const resolved = await approvalService.resolveApproval('test-resolve', { approved: true });
       expect(resolved).toBe(true);
 
       // Promise should resolve
@@ -269,16 +269,16 @@ describe('ApprovalService', () => {
       });
 
       // Resolve with approved: false
-      const resolved = approvalService.resolveApproval('test-reject', { approved: false });
+      const resolved = await approvalService.resolveApproval('test-reject', { approved: false });
       expect(resolved).toBe(true);
 
       // Promise should reject
       await expect(approvalPromise).rejects.toThrow('User denied the request');
     });
 
-    it('should return false for non-existent request', () => {
+    it('should return false for non-existent request', async () => {
       // No pending approval, so resolving should return false
-      const resolved = approvalService.resolveApproval('non-existent', { approved: true });
+      const resolved = await approvalService.resolveApproval('non-existent', { approved: true });
       expect(resolved).toBe(false);
     });
   });

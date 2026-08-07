@@ -182,6 +182,47 @@ export class ConnectionService extends BaseService {
       && capability.address === address;
   }
 
+  /**
+   * Record a granted connection.
+   *
+   * Separate from the request that asked for it, because an approval restored after a restart has
+   * no caller left to return to but still grants exactly this.
+   */
+  private async grantConnection(grant: {
+    origin: string;
+    address: string;
+    walletId: string;
+    pairedAddresses: boolean;
+  }): Promise<void> {
+    const { origin, address, walletId, pairedAddresses } = grant;
+
+    await analytics.track('connection_established');
+    await getWalletService().addConnectedWebsite(origin);
+
+    if (pairedAddresses) {
+      await this.storePairedAddressPermission(origin, walletId, address);
+    } else {
+      await this.clearPairedAddressPermission(origin);
+    }
+
+    this.state.connectionCache.set(origin, {
+      origin,
+      isConnected: true,
+      connectedAddress: address,
+      connectedWallet: walletId,
+      connectionTime: Date.now(),
+      lastActive: Date.now(),
+    });
+
+    // Nothing else tells the page it was approved: disconnect emits accountsChanged, approval
+    // emitted nothing, so a site whose connect promise was lost had no way to learn it was granted.
+    eventEmitterService.emit('emit-provider-event', {
+      origin,
+      event: 'accountsChanged',
+      data: [address],
+    });
+  }
+
   private async storePairedAddressPermission(
     origin: string,
     walletId: string,
@@ -283,34 +324,11 @@ export class ConnectionService extends BaseService {
     const approval = await this.requestPermission(origin, address, walletId, pairedAddresses);
 
     if (approval.approved) {
-      // Track successful connection
-      await analytics.track('connection_established');
-
-      // Add to connected websites
-      await getWalletService().addConnectedWebsite(origin);
-      if (pairedAddresses && approval.updatedParams?.pairedAddresses === true) {
-        await this.storePairedAddressPermission(origin, walletId, address);
-      } else {
-        await this.clearPairedAddressPermission(origin);
-      }
-
-      // Update cache
-      this.state.connectionCache.set(origin, {
+      await this.grantConnection({
         origin,
-        isConnected: true,
-        connectedAddress: address,
-        connectedWallet: walletId,
-        connectionTime: Date.now(),
-        lastActive: Date.now(),
-      });
-
-      // Tell the page it was approved. Nothing else does: disconnect emits both accountsChanged
-      // and disconnect, but approval emitted nothing at all, so a site whose connect promise was
-      // lost to a worker restart had no way to learn it had been granted except by polling.
-      eventEmitterService.emit('emit-provider-event', {
-        origin,
-        event: 'accountsChanged',
-        data: [address],
+        address,
+        walletId,
+        pairedAddresses: pairedAddresses && approval.updatedParams?.pairedAddresses === true,
       });
 
       console.debug('[ConnectionService] Connection established, getting accounts');
@@ -434,6 +452,24 @@ export class ConnectionService extends BaseService {
   // BaseService implementation methods
 
   protected async onInitialize(): Promise<void> {
+    // A connect approval can outlive the worker that asked for it, and the grant still means what
+    // it meant: the site reads it from accountsChanged or from its next request.
+    getApprovalService().registerCompletionHandler('connection', async (request, result) => {
+      const { address, walletId, capabilities } = request.params?.[0] ?? {};
+      if (!address || !walletId) {
+        console.warn('[ConnectionService] Restored connect request is missing its account');
+        return;
+      }
+
+      await this.grantConnection({
+        origin: request.origin,
+        address,
+        walletId,
+        pairedAddresses:
+          capabilities?.pairedAddresses === true && result.updatedParams?.pairedAddresses === true,
+      });
+    });
+
     console.log('[ConnectionService] Initialized');
   }
 
