@@ -19,6 +19,7 @@
     "rules": {
       "recommended": false,
       "a11y": {
+        "noAutofocus": "error",
         "noLabelWithoutControl": "error",
         "noSvgWithoutTitle": "error",
         "useButtonType": "error",
