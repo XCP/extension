@@ -149,18 +149,15 @@ function CreateMnemonicPage() {
               </ol>
             </div>
             {!isRecoveryPhraseVisible && (
-              <div
+              <button type="button"
                 className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset rounded-md"
                 onClick={handleRevealPhrase}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleRevealPhrase(); } }}
-                role="button"
-                tabIndex={0}
                 aria-label="Reveal recovery phrase"
               >
                 <FaEyeSlash className="size-6 mb-2" aria-hidden="true" />
                 <p className="mb-2 font-bold">View 12-word Secret Phrase</p>
                 <p>Make sure no one is looking!</p>
-              </div>
+              </button>
             )}
           </div>
           {isRecoveryPhraseVisible && (

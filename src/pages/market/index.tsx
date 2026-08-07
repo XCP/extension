@@ -330,22 +330,21 @@ export default function MarketPage(): ReactElement {
               aria-label="Current address"
             >
               <div className="absolute top-1/2 right-4 -translate-y-1/2">
-                <div
-                  className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                <button
+                  type="button"
+                  className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                   onClick={handleAddressSelection}
+                  // The button activates itself on Enter and Space; this only keeps the
+                  // keypress from reaching the surrounding card, which copies the address.
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
                       e.stopPropagation();
-                      handleAddressSelection(e as unknown as React.MouseEvent);
                     }
                   }}
-                  role="button"
-                  tabIndex={0}
                   aria-label="Select another address"
                 >
                   <FaChevronRight className="size-4" aria-hidden="true" />
-                </div>
+                </button>
               </div>
               <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
               <div className="flex justify-center items-center">

@@ -94,17 +94,9 @@ export function UtxoDetachForm({
           {(initialUtxo || initialFormData?.sourceUtxo) && (
             <div>
               <span className="block text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></span>
-              <div
+              <button type="button"
                 onClick={() => navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`);
-                  }
-                }}
-                className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                role="button"
-                tabIndex={0}
+                className="text-left mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <span className="text-sm font-mono text-blue-600 hover:text-blue-800">
                   {formatTxid(initialUtxo || initialFormData?.sourceUtxo || '')}
@@ -119,7 +111,7 @@ export function UtxoDetachForm({
                     `${utxoBalances.length} ${utxoBalances.length === 1 ? 'Balance' : 'Balances'}`
                   )}
                 </span>
-              </div>
+              </button>
             </div>
           )}
           

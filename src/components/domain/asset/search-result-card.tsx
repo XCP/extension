@@ -68,17 +68,9 @@ export function SearchResultCard({
   };
   
   return (
-    <div
-      className={`relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
+    <button type="button"
+      className={`text-left relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick();
-        }
-      }}
       aria-label={`View ${symbol}`}
     >
       {/* Asset Icon */}
@@ -88,7 +80,7 @@ export function SearchResultCard({
       <div className="ml-3 flex-grow">
         <div className="font-medium text-sm text-gray-900">{symbol}</div>
       </div>
-    </div>
+    </button>
   );
 }
 

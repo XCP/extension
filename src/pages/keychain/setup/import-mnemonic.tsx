@@ -185,7 +185,7 @@ function ImportMnemonicPage() {
           aria-describedby="import-instructions"
           onSubmit={(e) => { if (!canSubmit) e.preventDefault(); }}
         >
-          <div className="bg-gray-100 p-2 rounded-md mb-4" role="region" aria-label="Recovery phrase input">
+          <section className="bg-gray-100 p-2 rounded-md mb-4" aria-label="Recovery phrase input">
             <ol className="list-none p-0 m-0 grid grid-flow-col grid-cols-2 grid-rows-6 gap-2" aria-label="Recovery phrase words">
               {[...Array(12)].map((_, index) => {
                 const isFocused = focusedIndex === index;
@@ -230,7 +230,7 @@ function ImportMnemonicPage() {
                 );
               })}
             </ol>
-          </div>
+          </section>
           <CheckboxInput
             name="confirmed"
             label="I have saved my secret recovery phrase."

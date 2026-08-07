@@ -88,16 +88,13 @@ export function SuccessScreen({
           <span className="block text-xs font-medium text-gray-600 mb-1">
             Transaction ID
           </span>
-          <div
+          <button type="button"
             onClick={() => copy(txid)}
-            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && copy(txid)}
-            role="button"
-            tabIndex={0}
             aria-label="Click to copy transaction ID"
-            className="font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors select-all"
+            className="block w-full text-left font-mono text-xs bg-white border border-gray-200 rounded-lg p-2 break-all text-gray-800 cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors select-all"
           >
             {txid}
-          </div>
+          </button>
         </div>
 
         {/* Copy Button */}
