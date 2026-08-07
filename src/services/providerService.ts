@@ -27,9 +27,6 @@ import {
   removeSignFlow,
 } from '@/platform/provider/signFlow';
 import { defineProxyService } from '@/platform/proxy';
-import { signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import { getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
@@ -163,22 +160,16 @@ async function runSignFlow<T>(args: {
     timeoutMessage: string;
     mapResult: (result: any) => T;
   };
-  cleanup?: (requestId: string) => void;
-  createAndOpen: (requestId: string) => Promise<void>;
+  createAndOpen: (requestId: string, requestKey: string) => Promise<void>;
 }): Promise<T> {
   const requestKey = computeRequestKey(args.origin, args.method, args.params);
   const existing = await findActiveFlowByKey(requestKey, args.origin);
 
   const awaitFor = (requestId: string) =>
-    awaitSignApproval({
-      ...args.approval,
-      requestId,
-      onCleanup: args.cleanup ? () => args.cleanup!(requestId) : undefined,
-    });
+    awaitSignApproval({ ...args.approval, requestId });
 
   if (existing?.status === 'completed') {
     await removeSignFlow(existing.id);
-    args.cleanup?.(existing.id);
     analytics.track(args.approval.analyticsEvent);
     return args.approval.mapResult(existing.result);
   }
@@ -188,8 +179,7 @@ async function runSignFlow<T>(args: {
   }
 
   const requestId = generateRequestId(args.approval.eventPrefix);
-  await beginSignFlow(requestId, args.origin, requestKey);
-  await args.createAndOpen(requestId);
+  await args.createAndOpen(requestId, requestKey);
   return awaitFor(requestId);
 }
 
@@ -594,15 +584,14 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'Sign message request timeout',
               mapResult: (result) => result.signature,
             },
-            cleanup: (requestId) => {
-              void signMessageRequestStorage.remove(requestId);
-            },
-            createAndOpen: async (requestId) => {
+            createAndOpen: async (requestId, requestKey) => {
               // Binds the request to the authorized address/wallet so signing
               // can't later use a different identity.
-              await signMessageRequestStorage.store({
+              await beginSignFlow({
                 id: requestId,
                 origin,
+                requestKey,
+                kind: 'sign-message',
                 message,
                 address: activeAddress.address,
                 walletId: activeWallet.id,
@@ -650,21 +639,19 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'Transaction signing request timeout',
               mapResult: (result) => ({ hex: result.signedTxHex }),
             },
-            cleanup: (requestId) => {
-              void signTransactionRequestStorage.remove(requestId);
-            },
-            createAndOpen: async (requestId) => {
+            createAndOpen: async (requestId, requestKey) => {
               // Binds the request to the authorized address/wallet so signing
               // can't later use a different identity.
-              const request = {
+              await beginSignFlow({
                 id: requestId,
                 origin,
+                requestKey,
+                kind: 'sign-transaction',
                 rawTxHex,
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
-              };
-              await signTransactionRequestStorage.store(request);
+              });
               chrome.runtime.sendMessage({
                 type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
                 signTxRequestId: requestId,
@@ -790,21 +777,19 @@ export function createProviderService(): ProviderService {
               timeoutMessage: 'PSBT signing request timeout',
               mapResult: (result) => ({ hex: result.signedPsbtHex }),
             },
-            cleanup: (requestId) => {
-              void signPsbtRequestStorage.remove(requestId);
-            },
-            createAndOpen: async (requestId) => {
-              const request = {
+            createAndOpen: async (requestId, requestKey) => {
+              await beginSignFlow({
                 id: requestId,
                 origin,
+                requestKey,
+                kind: 'sign-psbt',
                 psbtHex,
                 signInputs,
                 sighashTypes,
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
-              };
-              await signPsbtRequestStorage.store(request);
+              });
               chrome.runtime.sendMessage({
                 type: 'NAVIGATE_TO_APPROVE_PSBT',
                 signPsbtRequestId: requestId,

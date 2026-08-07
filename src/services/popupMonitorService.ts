@@ -5,19 +5,22 @@
  * when the popup closes unexpectedly (user closes it, walks away, etc.)
  */
 
-import { getSignFlow, recordSignOutcome } from '@/platform/provider/signFlow';
-import { signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
-import { signPsbtRequestStorage } from '@/platform/storage/signPsbtRequestStorage';
-import { signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
 import { eventEmitterService } from '@/services/eventEmitterService';
 
-type SignRequestKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
+import {
+  getPendingSignFlows,
+  getSignFlow,
+  recordSignOutcome,
+  type SignFlowKind,
+} from '@/platform/provider/signFlow';
 
-/** Per-kind event prefix (for the cancel event) and request store. */
+type SignRequestKind = SignFlowKind;
+
+/** Per-kind prefix for the cancel event a screen's listener is waiting on. */
 const REQUEST_KINDS = {
-  'sign-message': { eventPrefix: 'sign-message', storage: signMessageRequestStorage },
-  'sign-psbt': { eventPrefix: 'sign-psbt', storage: signPsbtRequestStorage },
-  'sign-transaction': { eventPrefix: 'sign-tx', storage: signTransactionRequestStorage },
+  'sign-message': { eventPrefix: 'sign-message' },
+  'sign-psbt': { eventPrefix: 'sign-psbt' },
+  'sign-transaction': { eventPrefix: 'sign-tx' },
 } as const;
 
 class PopupMonitorService {
@@ -107,13 +110,12 @@ class PopupMonitorService {
       if (flow && flow.status !== 'pending') continue;
 
       console.log(`[PopupMonitor] Cancelling abandoned request: ${requestId}`);
-      const { eventPrefix, storage } = REQUEST_KINDS[info.type];
+      const { eventPrefix } = REQUEST_KINDS[info.type];
       // Persist the cancellation so a rejoin after a worker restart sees it too.
       await recordSignOutcome(requestId, 'cancelled');
       eventEmitterService.emit(`${eventPrefix}-cancel-${requestId}`, {
         reason: 'Popup closed unexpectedly'
       });
-      await storage.remove(requestId);
     }
 
     // Clear tracked requests
@@ -161,30 +163,16 @@ class PopupMonitorService {
     const now = Date.now();
     const MAX_AGE = 5 * 60 * 1000; // 5 minutes
 
-    // Clean up sign message requests
-    const signMessageRequests = await signMessageRequestStorage.getAll();
-    for (const request of signMessageRequests) {
-      if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned sign message request: ${request.id}`);
-        await signMessageRequestStorage.remove(request.id);
+    // One list rather than one per kind: the flow record knows which screen it belongs to, so a
+    // kind added later expires without anything here being taught about it.
+    for (const request of await getPendingSignFlows()) {
+      if (now - request.timestamp <= MAX_AGE) continue;
 
-        eventEmitterService.emit(`sign-message-cancel-${request.id}`, {
-          reason: 'Request expired'
-        });
-      }
-    }
-
-    // Clean up sign PSBT requests
-    const signPsbtRequests = await signPsbtRequestStorage.getAll();
-    for (const request of signPsbtRequests) {
-      if (now - request.timestamp > MAX_AGE) {
-        console.log(`[PopupMonitor] Removing orphaned sign PSBT request: ${request.id}`);
-        await signPsbtRequestStorage.remove(request.id);
-
-        eventEmitterService.emit(`sign-psbt-cancel-${request.id}`, {
-          reason: 'Request expired'
-        });
-      }
+      console.log(`[PopupMonitor] Expiring orphaned ${request.kind} request: ${request.id}`);
+      await recordSignOutcome(request.id, 'cancelled');
+      eventEmitterService.emit(`${REQUEST_KINDS[request.kind].eventPrefix}-cancel-${request.id}`, {
+        reason: 'Request expired',
+      });
     }
   }
 

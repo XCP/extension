@@ -32,7 +32,16 @@ describe('signFlow', () => {
   describe('lifecycle', () => {
     it('records pending, then outcome, recoverable by id and key', async () => {
       const key = computeRequestKey('https://x.com', 'xcp_signTransaction', ['00']);
-      await beginSignFlow('id-1', 'https://x.com', key);
+      await beginSignFlow({
+        id: 'id-1',
+        origin: 'https://x.com',
+        requestKey: key,
+        kind: 'sign-transaction',
+        address: 'bc1qexample',
+        walletId: 'wallet-1',
+        timestamp: Date.now(),
+        rawTxHex: '00',
+      });
 
       let flow = await findActiveFlowByKey(key, 'https://x.com');
       expect(flow?.id).toBe('id-1');
@@ -50,7 +59,16 @@ describe('signFlow', () => {
 
     it('does not return a flow to a different origin (djb2 collision guard)', async () => {
       const key = computeRequestKey('https://victim.com', 'xcp_signPsbt', ['00']);
-      await beginSignFlow('id-2', 'https://victim.com', key);
+      await beginSignFlow({
+        id: 'id-2',
+        origin: 'https://victim.com',
+        requestKey: key,
+        kind: 'sign-psbt',
+        address: 'bc1qvictim',
+        walletId: 'wallet-1',
+        timestamp: Date.now(),
+        psbtHex: '00',
+      });
 
       // Even given the victim's exact requestKey, another origin gets nothing.
       expect(await findActiveFlowByKey(key, 'https://attacker.com')).toBeNull();

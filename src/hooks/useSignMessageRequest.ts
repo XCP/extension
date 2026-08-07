@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
-import { type SignMessageRequest, signMessageRequestStorage } from '@/platform/storage/signMessageRequestStorage';
+import { getSignFlow, type SignMessageRequest } from '@/platform/provider/signFlow';
 
 /**
  * Send an event to the background script's EventEmitterService.
@@ -49,7 +49,7 @@ export function useSignMessageRequest() {
       setError(null);
 
       try {
-        const req = await signMessageRequestStorage.get(requestId);
+        const req = (await getSignFlow(requestId)) as SignMessageRequest | null;
         if (!req) {
           setError('Sign message request not found or expired');
           setIsLoading(false);
@@ -72,7 +72,7 @@ export function useSignMessageRequest() {
     const handleMessage = (message: any) => {
       if (message.type === 'NAVIGATE_TO_SIGN_MESSAGE' && message.signMessageRequestId) {
         const loadRequest = async () => {
-          const req = await signMessageRequestStorage.get(message.signMessageRequestId);
+          const req = (await getSignFlow(message.signMessageRequestId)) as SignMessageRequest | null;
           if (req) {
             setRequest(req);
           }
@@ -96,7 +96,6 @@ export function useSignMessageRequest() {
       emitToBackground(`sign-message-complete-${requestId}`, result);
 
       // Clean up the request
-      await signMessageRequestStorage.remove(requestId);
     }
   }, [requestId]);
 
@@ -108,7 +107,6 @@ export function useSignMessageRequest() {
       emitToBackground(`sign-message-cancel-${requestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
-      await signMessageRequestStorage.remove(requestId);
     }
   }, [requestId]);
 

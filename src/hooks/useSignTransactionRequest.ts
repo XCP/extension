@@ -45,7 +45,7 @@ import {
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import { recordSignOutcome } from '@/platform/provider/signFlow';
-import { type SignTransactionRequest, signTransactionRequestStorage } from '@/platform/storage/signTransactionRequestStorage';
+import { getSignFlow, type SignTransactionRequest } from '@/platform/provider/signFlow';
 
 /**
  * Decoded transaction details
@@ -322,7 +322,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       setError(null);
 
       try {
-        const req = await signTransactionRequestStorage.get(requestId);
+        const req = (await getSignFlow(requestId)) as SignTransactionRequest | null;
         if (!req) {
           setError('Transaction signing request not found or expired');
           setIsLoading(false);
@@ -351,7 +351,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       if (message.type === 'NAVIGATE_TO_APPROVE_TRANSACTION' && message.signTxRequestId) {
         // Reload the request if we get a navigation message
         const loadRequest = async () => {
-          const req = await signTransactionRequestStorage.get(message.signTxRequestId);
+          const req = (await getSignFlow(message.signTxRequestId)) as SignTransactionRequest | null;
           if (req) {
             setRequest(req);
             const decoded = await decodeTransaction(req.rawTxHex, signerAddress);
@@ -377,7 +377,6 @@ export function useSignTransactionRequest(signerAddress?: string) {
       emitToBackground(`sign-tx-complete-${requestId}`, { signedTxHex });
 
       // Clean up the request
-      await signTransactionRequestStorage.remove(requestId);
     }
   }, [requestId]);
 
@@ -389,7 +388,6 @@ export function useSignTransactionRequest(signerAddress?: string) {
       emitToBackground(`sign-tx-cancel-${requestId}`, { reason: 'User cancelled' });
 
       // Clean up the request
-      await signTransactionRequestStorage.remove(requestId);
     }
   }, [requestId]);
 
