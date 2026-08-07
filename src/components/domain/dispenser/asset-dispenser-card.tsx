@@ -82,7 +82,7 @@ export function AssetDispenserCard({
               {formatAddress(dispenser.source, true)}
             </span>
             {onCopyAddress && (
-              <button
+              <button type="button"
                 onClick={handleCopyClick}
                 className={`flex-shrink-0 p-0.5 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                   isCopied

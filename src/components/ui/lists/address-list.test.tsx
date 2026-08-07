@@ -18,7 +18,7 @@ vi.mock('@/core/format', () => ({
 vi.mock('@/components/ui/menus/address-menu', () => ({
   AddressMenu: ({ address, onCopyAddress }: any) => (
     <div data-testid={`address-menu-${address.path}`}>
-      <button 
+      <button type="button" 
         onClick={() => onCopyAddress(address.address)}
         data-testid={`copy-${address.path}`}
       >

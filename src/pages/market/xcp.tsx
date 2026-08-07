@@ -183,7 +183,7 @@ export default function XcpPricePage(): ReactElement {
               {statsError ? (
                 <div className="text-sm text-red-600">
                   <span className="block">{statsError}</span>
-                  <button
+                  <button type="button"
                     onClick={loadStats}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
@@ -210,7 +210,7 @@ export default function XcpPricePage(): ReactElement {
         <div className="flex items-center justify-between mb-2">
           <div className="flex gap-1">
             {TIME_RANGES.map((t) => (
-              <button
+              <button type="button"
                 key={t.id}
                 onClick={() => setRange(t.id)}
                 className={`px-2 py-1 text-xs rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -223,7 +223,7 @@ export default function XcpPricePage(): ReactElement {
               </button>
             ))}
           </div>
-          <button
+          <button type="button"
             onClick={handleBuyXcp}
             className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
           >
@@ -239,7 +239,7 @@ export default function XcpPricePage(): ReactElement {
               style={{ height: CHART_HEIGHT }}
             >
               <span className="text-sm text-red-600 mb-2">{chartError}</span>
-              <button
+              <button type="button"
                 onClick={loadHistory}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
@@ -265,7 +265,7 @@ export default function XcpPricePage(): ReactElement {
             {floor ? (
               <div className={`flex items-center justify-between ${historyData?.ath ? "pb-2 border-b border-gray-100" : ""}`}>
                 <span className="text-sm text-gray-600">Floor Price</span>
-                <button
+                <button type="button"
                   onClick={() => navigate(`/compose/dispenser/dispense?address=${floor.source}&asset=XCP`)}
                   className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   aria-label="Buy from the cheapest open XCP dispenser"

@@ -370,7 +370,7 @@ export default function MarketPage(): ReactElement {
             <div className="flex items-center justify-between">
               <div className="flex space-x-4" role="tablist" aria-label="Market sections">
                 {(["Dispensers", "Orders", "Pools"] as const).map((label, idx) => (
-                  <button
+                  <button type="button"
                     key={label}
                     role="tab"
                     aria-selected={activeTab === idx}
@@ -433,7 +433,7 @@ export default function MarketPage(): ReactElement {
                             />
                           ))}
                           {dispenserResults.length >= PAGE_SIZE && (
-                            <button
+                            <button type="button"
                               onClick={() => navigate(`/market/dispensers/${searchQuery.toUpperCase()}`)}
                               className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                             >
@@ -501,7 +501,7 @@ export default function MarketPage(): ReactElement {
                       ) : (
                         <EmptyState message="You don't have any open dispensers" />
                       )}
-                      <button
+                      <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/dispenser/${searchQuery.toUpperCase()}` : "/compose/dispenser")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
@@ -548,7 +548,7 @@ export default function MarketPage(): ReactElement {
                             />
                           ))}
                           {orderResults.length >= PAGE_SIZE && (
-                            <button
+                            <button type="button"
                               onClick={() => navigate(`/market/orders/${searchQuery.toUpperCase()}/XCP`)}
                               className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                             >
@@ -615,7 +615,7 @@ export default function MarketPage(): ReactElement {
                       ) : (
                         <EmptyState message="You don't have any open orders" />
                       )}
-                      <button
+                      <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/order/${searchQuery.toUpperCase()}` : "/compose/order")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
@@ -662,7 +662,7 @@ export default function MarketPage(): ReactElement {
                   ) : (
                     <EmptyState message={searchQuery.trim() ? `No pools matching "${searchQuery}"` : "No pools found"} />
                   )}
-                  <button
+                  <button type="button"
                     onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
@@ -705,7 +705,7 @@ export default function MarketPage(): ReactElement {
                       ) : (
                         <EmptyState message="You don't have any LP positions" />
                       )}
-                      <button
+                      <button type="button"
                         onClick={() => navigate(searchQuery.trim() ? `/compose/pool/deposit/${searchQuery.toUpperCase()}/XCP` : "/compose/pool/deposit")}
                         className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >

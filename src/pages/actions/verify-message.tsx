@@ -120,7 +120,7 @@ export default function VerifyMessagePage(): ReactElement {
     <div className="p-4 space-y-4">
       {/* Quick Actions */}
       <div className="flex gap-2">
-        <button
+        <button type="button"
           onClick={handleUploadJSON}
           className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer"
         >

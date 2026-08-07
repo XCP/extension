@@ -14,8 +14,8 @@ vi.mock('@/components/screens/review-screen', () => ({
           {field.rightElement}
         </div>
       ))}
-      <button onClick={onSign}>Sign</button>
-      <button onClick={onBack}>Back</button>
+      <button type="button" onClick={onSign}>Sign</button>
+      <button type="button" onClick={onBack}>Back</button>
       {error && <div>{error}</div>}
       {isSigning && <div>Signing...</div>}
     </div>

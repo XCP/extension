@@ -193,7 +193,7 @@ export default function SignMessagePage(): ReactElement {
             {message.length} characters
           </span>
           {message && (
-            <button
+            <button type="button"
               onClick={() => handleCopy(message, 'message')}
               className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                 copiedField === 'message'
@@ -231,7 +231,7 @@ export default function SignMessagePage(): ReactElement {
                 <FaCheckCircle className="size-3" aria-hidden="true" />
                 Signed
               </span>
-              <button
+              <button type="button"
                 onClick={() => handleCopy(signature, 'signature')}
                 className={`text-xs transition-colors duration-200 cursor-pointer flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded ${
                   copiedField === 'signature'

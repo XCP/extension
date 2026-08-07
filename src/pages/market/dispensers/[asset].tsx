@@ -446,7 +446,7 @@ export default function AssetDispensersPage(): ReactElement {
                   </>
                 )}
               </div>
-              <button
+              <button type="button"
                 onClick={togglePriceUnit}
                 className="p-1 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                 aria-label={`Switch price display to ${getNextPriceUnit(priceUnit, btcPrice !== null).toUpperCase()}`}
@@ -466,7 +466,7 @@ export default function AssetDispensersPage(): ReactElement {
                 History
               </TabButton>
             </div>
-            <button
+            <button type="button"
               onClick={() => navigate(`/market?tab=dispensers&mode=manage&search=${asset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >

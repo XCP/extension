@@ -183,7 +183,7 @@ export default function HomePage(): ReactElement {
     return (
       <div className="flex justify-between items-center mb-2">
         <div className="flex space-x-4">
-          <button
+          <button type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Assets" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Assets" })}
@@ -191,7 +191,7 @@ export default function HomePage(): ReactElement {
           >
             Assets
           </button>
-          <button
+          <button type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Balances" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Balances" })}
@@ -200,7 +200,7 @@ export default function HomePage(): ReactElement {
             Balances
           </button>
           {hasUtxos && (
-            <button
+            <button type="button"
               className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
               style={{ textDecoration: activeTab === "UTXOs" ? "underline" : "none" }}
               onClick={() => setSearchParams({ tab: "UTXOs" })}
@@ -211,14 +211,14 @@ export default function HomePage(): ReactElement {
           )}
         </div>
         <div className="flex items-center space-x-2">
-          <button
+          <button type="button"
             onClick={() => navigate(PATHS.BUY_XCP)}
             className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label="Get XCP"
           >
             Get XCP
           </button>
-          <button
+          <button type="button"
             onClick={() => navigate(PATHS.PINNED_ASSETS)}
             className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             aria-label="Manage Pinned Assets"

@@ -27,7 +27,7 @@ export function ApiStatusBanner(): ReactElement | null {
       role="alert"
     >
       <span>{displayMessage}</span>
-      <button
+      <button type="button"
         onClick={dismiss}
         className="p-1 hover:opacity-75 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
         aria-label="Dismiss"

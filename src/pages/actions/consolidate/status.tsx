@@ -100,7 +100,7 @@ function ConsolidateStatusPage() {
       <div className="bg-white rounded-lg shadow-lg p-4">
         <div className="flex justify-between items-start mb-4">
           <h2 className="font-semibold">Consolidation Overview</h2>
-          <button
+          <button type="button"
             onClick={handleRefresh}
             className={`p-2 hover:bg-gray-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isRefreshing ? 'animate-spin' : ''}`}
             aria-label="Refresh status"
@@ -172,7 +172,7 @@ function ConsolidateStatusPage() {
                       </span>
                     </div>
                   </div>
-                  <button
+                  <button type="button"
                     onClick={() => openInExplorer(tx.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label="View in explorer"
