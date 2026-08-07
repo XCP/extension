@@ -1,21 +1,16 @@
 /**
  * The barrier every proxied service call crosses before it is dispatched.
  *
- * MV3 requires listeners to be registered in the first turn of the event loop, so the background
- * registers its service ports immediately and finishes initialising afterwards. Without a barrier
- * that means a request arriving at a waking worker is answered by a worker that has not yet decided
- * whether the session survives, nor loaded the keychain it would answer from — and the answers it
- * gives in that window are wrong in the worst direction: a connected origin reads as disconnected,
- * an unlocked wallet reads as locked.
+ * MV3 requires listeners in the first turn of the event loop, so the background registers its
+ * service ports immediately and initialises afterwards. In that window a waking worker answers
+ * from state it has not loaded, and answers wrong in the worst direction: a connected origin reads
+ * as disconnected, an unlocked wallet as locked.
  *
- * One barrier at the boundary rather than a check inside each method. A method added tomorrow is
- * covered without its author knowing this problem exists, which is the only kind of guard that
- * survives contact with a growing codebase.
+ * One barrier at the boundary, not a check inside each method, so a method added later is covered
+ * without its author knowing this problem exists.
  *
- * Bounded, because a barrier that can hang is worse than the bug it prevents: a caller waiting
- * forever takes the popup down with it. On timeout the call fails rather than proceeding — an
- * initialisation that never finished cannot vouch for anything, so answering anyway is exactly what
- * this exists to stop.
+ * Bounded, because a caller waiting forever takes the popup down with it. On timeout the call
+ * fails rather than proceeding — an initialisation that never finished cannot vouch for anything.
  */
 
 /** How long a call waits for initialisation before failing. Generous; init is normally instant. */
@@ -36,8 +31,8 @@ export function markServicesReady(): void {
 /**
  * Wait for initialisation to finish.
  *
- * @throws when initialisation has not finished in time, so the caller gets a definite failure
- *   instead of a promise that never settles.
+ * @throws when it has not finished in time, so the caller gets a definite failure rather than a
+ *   promise that never settles.
  */
 export async function whenServicesReady(): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;

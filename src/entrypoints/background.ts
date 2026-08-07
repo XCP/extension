@@ -219,8 +219,7 @@ export default defineBackground(() => {
       //    reads from it — so it is loaded once, here, rather than checked for on each call.
       await getWalletService().ensureKeychainLoaded();
 
-      // 8. Open the barrier. Proxied calls have been waiting on this rather than being answered by
-      //    a worker that had not yet decided whether the session survives.
+      // 8. Open the barrier proxied calls have been waiting at — see serviceReadiness.
       markServicesReady();
 
       // 9. Tell tabs that were already open that the worker is back.
@@ -231,11 +230,10 @@ export default defineBackground(() => {
     } catch (error) {
       initError = error instanceof Error ? error : new Error(String(error));
       console.error('[Background] Service initialization failed:', error);
-      // An initialisation that failed cannot vouch for the session, so the gate is closed rather
-      // than left hanging: a caller waiting on it is told locked, not left waiting forever.
+      // An initialisation that failed cannot vouch for the session, so callers waiting on it are
+      // told locked rather than left hanging. The barrier then opens on that verdict: a call that
+      // fails is recoverable, a call that hangs is not.
       markSessionRecovery(SessionRecoveryState.LOCKED);
-      // The barrier opens either way: a call that fails is recoverable, a call that hangs is not.
-      // With recovery marked locked, nothing will load a keychain off the back of it.
       markServicesReady();
       // Still mark as ready to prevent deadlock, but log the error
       servicesReady = true;
@@ -245,14 +243,13 @@ export default defineBackground(() => {
   /**
    * Re-announce each connected origin's accounts once the worker has finished waking.
    *
-   * A page that was open when the worker died has no way to notice it came back: it holds a dead
-   * port, and nothing tells it otherwise. MetaMask sends a READY message to every tab for the same
-   * reason ("required to re-connect dapps after service worker re-activates"). Sending the accounts
-   * rather than a bare ping means the page gets the answer it would have asked for, and it travels
-   * the provider-event path that already works end to end.
+   * A page that was open when the worker died holds a dead port and has no way to notice it came
+   * back. MetaMask sends a READY message to every tab for the same reason; sending the accounts
+   * instead means the page gets the answer it would have asked for, over the provider-event path
+   * that already works.
    *
-   * Deliberately last: the accounts are only true once session recovery has decided whether this
-   * session is still valid, and only meaningful once the keychain can be loaded.
+   * Deliberately last: the accounts are only true once recovery has decided whether this session
+   * is still valid.
    */
   async function announceReadinessToConnectedTabs(): Promise<void> {
     try {

@@ -54,6 +54,9 @@ import { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS } from '@/core/wallet/constants';
 // Re-export from constants to maintain backwards compatibility
 export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
 
+/** How long a keychain load waits for session recovery before declining to load this time. */
+const RECOVERY_WAIT_MS = 5_000;
+
 /**
  * WalletManager - Core wallet state management (ADR-015)
  *
@@ -91,9 +94,6 @@ export { MAX_ADDRESSES_PER_WALLET, MAX_WALLETS };
  * - chrome.storage.session: master key bytes (survives SW restart, cleared on browser close)
  * - In-memory: keychain metadata, wallet list, active wallet's decrypted secret
  */
-/** How long a keychain load waits for session recovery before declining to load this time. */
-const RECOVERY_WAIT_MS = 5_000;
-
 export class WalletManager {
   /** Runtime wallet list (addresses populated only for active wallet) */
   private wallets: Wallet[] = [];
@@ -107,12 +107,10 @@ export class WalletManager {
   }
 
   /**
-   * In-flight refresh, so concurrent callers share one.
+   * In-flight refresh, so the several requests a waking worker takes at once share one.
    *
-   * A waking worker can take several dApp requests at once, and each would otherwise run the whole
-   * path: fetch the key, fetch the record, decrypt, select the wallet. Worse than the wasted work,
-   * the failure branch clears `keychain` and `wallets`, so one attempt failing could wipe state
-   * another had just populated.
+   * Not only to save the repeated decrypt: the failure branch clears `keychain` and `wallets`, so
+   * one attempt failing could wipe state another had just populated.
    */
   private refreshInFlight: Promise<void> | null = null;
 
@@ -127,21 +125,17 @@ export class WalletManager {
   /**
    * Load the keychain into memory from the session master key, if it is not there already.
    *
-   * The master key outlives the worker in session storage; the decrypted keychain does not. Until
-   * something re-decrypts, this manager reports a wallet that is genuinely unlocked as locked —
-   * which is how a dApp asking a freshly woken worker for accounts used to get an empty answer.
-   * `sessionManager` documents this re-decryption as the intended recovery from a worker restart.
+   * The master key outlives the worker in session storage; the decrypted keychain does not, so
+   * until something re-decrypts, a wallet that is genuinely unlocked reports as locked.
    *
-   * Gated on session recovery: on expiry the metadata is cleared before the master key is, so a
-   * re-derivation racing that window would revive a session that had already timed out.
+   * Waits on session recovery first: on expiry the metadata is cleared before the master key is,
+   * so re-deriving inside that window would revive a session that had already timed out.
    */
   public async ensureKeychainLoaded(): Promise<void> {
     if (this.keychain) return;
 
-    // Bounded, and deliberately not by resolving the gate itself: initialisation could hang rather
-    // than fail, and a caller waiting on it forever is worse than one that declines to load. The
-    // gate stays unresolved so a later call still gets the real verdict — timing out here means
-    // "not now", not "locked forever".
+    // Bounded here rather than at the gate, which stays unresolved so a later call still gets the
+    // real verdict. Timing out means "not now", not "locked forever".
     const recovery = await Promise.race([
       whenSessionRecovered(),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), RECOVERY_WAIT_MS)),

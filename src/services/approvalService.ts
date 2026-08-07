@@ -6,12 +6,8 @@
  *
  * A request outlives its worker. MV3 can stop the background while an approval screen is being
  * read, so the request is stored and the waiting caller is not — that promise cannot be restored,
- * and its port died with the same worker anyway.
- *
- * A restored request is therefore finished by a completion handler rather than by answering
- * anyone. Only register one where the outcome is state the site can observe later, as a connection
- * grant is. A signature or a transaction is not: its only product is an artifact for a caller that
- * no longer exists, so those expire instead.
+ * and its port died with the same worker anyway. A restored request is therefore finished by a
+ * completion handler rather than by answering anyone; see registerCompletionHandler.
  */
 
 import { analytics } from '@/platform/fathom';
@@ -40,10 +36,7 @@ interface PersistedState {
   pending: ApprovalRequest | null;
 }
 
-/**
- * Finishes a request whose caller is gone, doing the work that caller would have done on its
- * return. Registered per type; a type without one is expired instead.
- */
+/** Finishes a request whose caller is gone, doing the work that caller would have done. */
 export type CompletionHandler = (
   request: ApprovalRequest,
   result: ApprovalResult
@@ -129,9 +122,9 @@ export class ApprovalService extends BaseService {
   /**
    * Resolve the current pending approval.
    *
-   * Returns false when nothing came of the call, so the screen can say so rather than close on a
-   * click that did nothing — either the request is gone, or it was restored and its type has no
-   * way to finish without the caller.
+   * Returns false when nothing came of the call — the request is gone, or it was restored and its
+   * type cannot finish without the caller — so the screen can say so rather than close on a click
+   * that did nothing.
    */
   async resolveApproval(id: string, result: ApprovalResult): Promise<boolean> {
     if (!this.pendingApproval || this.pendingApproval.id !== id) {
@@ -169,8 +162,9 @@ export class ApprovalService extends BaseService {
   /**
    * Register how to finish an approval of this type when its caller is gone.
    *
-   * Only register one where the outcome is state the site can observe afterwards. A type left
-   * unregistered is expired rather than completed, which is the safe default.
+   * Only register one where the outcome is state the site can observe afterwards, as a connection
+   * grant is. A signature or a transaction is not: its only product is an artifact for a caller
+   * that no longer exists. A type left unregistered expires, which is the safe default.
    */
   registerCompletionHandler(type: ApprovalRequest['type'], handler: CompletionHandler): void {
     this.completionHandlers.set(type, handler);
@@ -230,10 +224,8 @@ export class ApprovalService extends BaseService {
   }
 
   /**
-   * Write the request through to storage without waiting.
-   *
-   * Used from the paths that cannot await — a window-close listener, a timeout — where the state
-   * in memory is already correct and storage only has to catch up.
+   * Write the request through to storage without waiting, for the paths that cannot await — a
+   * window-close listener, a timeout — where memory is already correct and storage catches up.
    */
   private persist(): void {
     void this.saveState().catch((error) => {
