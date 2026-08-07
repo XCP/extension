@@ -33,6 +33,7 @@ import { onMessage } from 'webext-bridge/popup';
 import { type AppSettings, DEFAULT_SETTINGS } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { analytics } from "@/platform/fathom";
+import { watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
 
 /**
@@ -61,14 +62,19 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadSettings = useCallback(async () => {
+  /**
+   * @param showLoading - False when re-reading settings that changed elsewhere. Every surface
+   *   consuming `isLoading` renders a spinner from it, so raising it for a change the user made in
+   *   another window would flash all of them.
+   */
+  const loadSettings = useCallback(async (showLoading = true) => {
     try {
-      setIsLoading(true);
+      if (showLoading) setIsLoading(true);
       const walletService = getWalletService();
       const storedSettings = await walletService.getSettings();
       setSettings(storedSettings);
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
 
@@ -90,8 +96,19 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     };
     const unsubscribe = onMessage('keychainLocked', handleLockMessage);
 
+    // Settings live inside the keychain record — one blob, one key derivation (#147) — so a change
+    // made in any surface lands as a write to it. The popup and the side panel are separate
+    // documents, each holding what it read on mount, and this is what stops one going stale while
+    // the other edits. Serialized against loadSettings for the same reason the lock handler is.
+    const stopWatching = watchKeychainRecord(() => {
+      withStateLock('settings-lock', async () => {
+        await loadSettings(false);
+      });
+    });
+
     return () => {
       unsubscribe();
+      stopWatching();
     };
   }, [loadSettings]);
 

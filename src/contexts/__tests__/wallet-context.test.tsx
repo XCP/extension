@@ -1,8 +1,10 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendMessage } from 'webext-bridge/popup';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
+import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
 import { useWallet, WalletProvider } from '../wallet-context';
 
@@ -69,7 +71,10 @@ vi.mock('@/platform/auth/sessionManager', () => ({
 
 // Mock keychainExists from walletStorage - defaults to true (wallets exist)
 const mockKeychainExists = vi.fn().mockResolvedValue(true);
-vi.mock('@/platform/storage/walletStorage', () => ({
+// Spread the real module so the mock does not go stale as walletStorage gains exports; only the
+// keychain check is stubbed, and the watch is inert because nothing writes the record here.
+vi.mock('@/platform/storage/walletStorage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/platform/storage/walletStorage')>()),
   keychainExists: () => mockKeychainExists(),
 }));
 
@@ -769,5 +774,100 @@ describe('WalletContext', () => {
       // But wallet3 should trigger an update
       mockWalletService.getWallets.mockResolvedValueOnce([wallet3]);
     });
+  });
+});
+describe('WalletContext — wallets changed in another surface', () => {
+  /**
+   * Wallets and their addresses live in the keychain record, so adding a wallet or deriving an
+   * address anywhere lands as a write to it. The popup and the side panel are separate documents
+   * and people run both, so the one merely open must not keep the list it read on mount.
+   */
+  const record = (data: string) => ({
+    version: 1 as const,
+    kdf: { iterations: 600000 },
+    salt: 'dGVzdC1zYWx0',
+    encryptedKeychain: data,
+  });
+
+  const wallet = {
+    id: 'wallet1',
+    name: 'Wallet 1',
+    encryptedMnemonic: 'encrypted1',
+    encryptedPrivateKey: null,
+    type: 'mnemonic' as const,
+    addressFormat: 'P2WPKH' as const,
+    addressCount: 1,
+    addresses: [{ name: 'Address 1', address: 'bc1qtest', path: "m/84'/0'/0'/0/0" }],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fakeBrowser.reset();
+    mockKeychainExists.mockResolvedValue(true);
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+    mockWalletService.getWallets.mockResolvedValue([wallet]);
+    mockWalletService.getActiveWallet.mockResolvedValue(wallet);
+    mockWalletService.getLastActiveAddress.mockResolvedValue(wallet.addresses[0]?.address);
+  });
+
+  /**
+   * Mount does not settle immediately: loadWithRetry waits 100ms, refreshes, and retries after a
+   * further 400ms when no wallets came back. A test that changes a mock before that has finished
+   * sees the retry pick the change up and passes whether or not anything is watching — so these
+   * wait for the refreshes to stop before touching anything.
+   */
+  const settle = async () => {
+    let previous = -1;
+    while (previous !== mockWalletService.getWallets.mock.calls.length) {
+      previous = mockWalletService.getWallets.mock.calls.length;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      });
+    }
+  };
+
+  it('picks up a wallet added elsewhere', async () => {
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.wallets).toHaveLength(1));
+    await settle();
+
+    const second = { ...wallet, id: 'wallet2', name: 'Second Wallet' };
+    mockWalletService.getWallets.mockResolvedValue([wallet, second]);
+
+    await act(async () => {
+      await saveKeychainRecord(record('wallet-added-elsewhere'));
+    });
+
+    await waitFor(() => expect(result.current.wallets).toHaveLength(2));
+  });
+
+  it('does not refresh while the keychain is locked', async () => {
+    mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
+    const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.authState).toBe('LOCKED'));
+    await settle();
+
+    const callsBefore = mockWalletService.getWallets.mock.calls.length;
+    await act(async () => {
+      await saveKeychainRecord(record('written-while-locked'));
+    });
+
+    // Nothing to re-read, and the lock path owns that transition.
+    expect(mockWalletService.getWallets.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('stops watching when the provider unmounts', async () => {
+    const { result, unmount } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+    await waitFor(() => expect(result.current.wallets).toHaveLength(1));
+    await settle();
+
+    unmount();
+    const callsBefore = mockWalletService.getWallets.mock.calls.length;
+
+    await act(async () => {
+      await saveKeychainRecord(record('after-unmount'));
+    });
+
+    expect(mockWalletService.getWallets.mock.calls.length).toBe(callsBefore);
   });
 });

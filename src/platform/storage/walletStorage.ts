@@ -71,6 +71,21 @@ export async function saveKeychainRecord(record: KeychainRecord): Promise<void> 
 }
 
 /**
+ * Calls back whenever the stored keychain changes, from this surface or any other.
+ *
+ * Settings live inside the keychain record, so this fires for a settings change as well as a wallet
+ * one — and the record is encrypted, so the change itself says nothing about what moved. It is a
+ * signal to re-read, not a source of values. A popup and a side panel are separate documents that
+ * each hold their own copy of whatever they loaded on mount, and this is what tells the one that is
+ * merely open that the other changed something.
+ *
+ * @returns An unsubscribe function.
+ */
+export function watchKeychainRecord(onChange: () => void): () => void {
+  return keychainRecordItem.watch(() => onChange());
+}
+
+/**
  * Checks if a keychain exists in storage.
  * Used to determine onboarding vs unlock routing.
  */
