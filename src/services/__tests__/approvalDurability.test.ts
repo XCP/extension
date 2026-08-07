@@ -22,8 +22,8 @@ vi.mock('@/platform/popup', () => ({
   focusPopupWindow: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { ApprovalService } from '../approvalService';
 import type { ApprovalRequestOptions } from '@/types/provider';
+import { ApprovalService } from '../approvalService';
 
 /** Session storage that actually stores, so a second worker can read what the first one wrote. */
 let session: Record<string, unknown> = {};
