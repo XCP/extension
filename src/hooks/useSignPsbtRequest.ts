@@ -42,8 +42,7 @@ import {
 } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
-import { recordSignOutcome } from '@/platform/provider/signFlow';
-import { getSignFlow, type SignPsbtRequest } from '@/platform/provider/signFlow';
+import { getSignFlow, recordSignOutcome, type SignPsbtRequest } from '@/platform/provider/signFlow';
 
 /**
  * Extended PSBT details with address enrichment and Counterparty message

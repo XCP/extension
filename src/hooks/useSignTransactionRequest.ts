@@ -44,8 +44,7 @@ import {
 } from '@/core/counterparty/unpack';
 import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
-import { recordSignOutcome } from '@/platform/provider/signFlow';
-import { getSignFlow, type SignTransactionRequest } from '@/platform/provider/signFlow';
+import { getSignFlow, recordSignOutcome, type SignTransactionRequest } from '@/platform/provider/signFlow';
 
 /**
  * Decoded transaction details

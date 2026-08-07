@@ -5,7 +5,6 @@
  * when the popup closes unexpectedly (user closes it, walks away, etc.)
  */
 
-import { eventEmitterService } from '@/services/eventEmitterService';
 
 import {
   getPendingSignFlows,
@@ -13,6 +12,7 @@ import {
   recordSignOutcome,
   type SignFlowKind,
 } from '@/platform/provider/signFlow';
+import { eventEmitterService } from '@/services/eventEmitterService';
 
 type SignRequestKind = SignFlowKind;
 
