@@ -213,6 +213,9 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
+      // 7. Tell tabs that were already open that the worker is back.
+      await announceReadinessToConnectedTabs();
+
       servicesReady = true;
       console.log('[Background] All services initialized successfully');
     } catch (error) {
@@ -223,6 +226,43 @@ export default defineBackground(() => {
       markSessionRecovery(SessionRecoveryState.LOCKED);
       // Still mark as ready to prevent deadlock, but log the error
       servicesReady = true;
+    }
+  }
+
+  /**
+   * Re-announce each connected origin's accounts once the worker has finished waking.
+   *
+   * A page that was open when the worker died has no way to notice it came back: it holds a dead
+   * port, and nothing tells it otherwise. MetaMask sends a READY message to every tab for the same
+   * reason ("required to re-connect dapps after service worker re-activates"). Sending the accounts
+   * rather than a bare ping means the page gets the answer it would have asked for, and it travels
+   * the provider-event path that already works end to end.
+   *
+   * Deliberately last: the accounts are only true once session recovery has decided whether this
+   * session is still valid, and only meaningful once the keychain can be loaded.
+   */
+  async function announceReadinessToConnectedTabs(): Promise<void> {
+    try {
+      const walletService = getWalletService();
+      if (!(await walletService.isKeychainUnlocked())) return;
+
+      const settings = await walletService.getSettings();
+      if (settings.connectedWebsites.length === 0) return;
+
+      const activeAddress = await walletService.getActiveAddress();
+      const accounts = activeAddress ? [activeAddress.address] : [];
+
+      for (const origin of settings.connectedWebsites) {
+        eventEmitterService.emit('emit-provider-event', {
+          origin,
+          event: 'accountsChanged',
+          data: accounts,
+        });
+      }
+      console.log('[Background] Re-announced accounts to', settings.connectedWebsites.length, 'origin(s)');
+    } catch (error) {
+      // A page that misses this falls back to asking, which now answers correctly anyway.
+      console.warn('[Background] Could not announce readiness:', error);
     }
   }
 
