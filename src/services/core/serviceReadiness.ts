@@ -17,15 +17,34 @@
 const READY_TIMEOUT_MS = 10_000;
 
 let resolveReady: (() => void) | null = null;
+let settled = false;
+let failure: string | undefined;
 
 const ready = new Promise<void>((resolve) => {
   resolveReady = resolve;
 });
 
-/** Open the barrier. Called once, by the background, after initialisation completes. */
-export function markServicesReady(): void {
+/**
+ * Open the barrier. Called once, by the background, after initialisation completes.
+ *
+ * @param error - what went wrong, when initialisation failed. The barrier opens either way, since
+ *   a call that fails is recoverable and a call that hangs is not.
+ */
+export function markServicesReady(error?: Error): void {
+  settled = true;
+  failure = error?.message;
   resolveReady?.();
   resolveReady = null;
+}
+
+/**
+ * Whether initialisation has finished, and how it went.
+ *
+ * Synchronous, for the health check that has to answer *about* initialisation and so cannot wait
+ * on it. Reads the same state the barrier does, rather than a second flag kept alongside it.
+ */
+export function getReadinessState(): { ready: boolean; error?: string } {
+  return { ready: settled, error: failure };
 }
 
 /**

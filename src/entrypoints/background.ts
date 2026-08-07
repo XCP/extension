@@ -9,7 +9,7 @@ import { registerApprovalService } from '@/services/approvalService';
 import { registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
-import { markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
+import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
@@ -158,18 +158,6 @@ export default defineBackground(() => {
   // Initialize service registry
   const serviceRegistry = ServiceRegistry.getInstance();
 
-  // Track initialization state for health checks
-  let servicesReady = false;
-  let initError: Error | null = null;
-
-  // Helper to check if services are ready
-  function getServicesStatus(): { ready: boolean; error?: string } {
-    return {
-      ready: servicesReady,
-      error: initError?.message
-    };
-  }
-
   // Sequential initialization to ensure proper ordering
   async function initializeServices(): Promise<void> {
     try {
@@ -220,18 +208,14 @@ export default defineBackground(() => {
       // 9. Tell tabs that were already open that the worker is back.
       await announceReadinessToConnectedTabs();
 
-      servicesReady = true;
       console.log('[Background] All services initialized successfully');
     } catch (error) {
-      initError = error instanceof Error ? error : new Error(String(error));
       console.error('[Background] Service initialization failed:', error);
       // An initialisation that failed cannot vouch for the session, so callers waiting on it are
       // told locked rather than left hanging. The barrier then opens on that verdict: a call that
       // fails is recoverable, a call that hangs is not.
       markSessionRecovery(SessionRecoveryState.LOCKED);
-      markServicesReady();
-      // Still mark as ready to prevent deadlock, but log the error
-      servicesReady = true;
+      markServicesReady(error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -286,10 +270,10 @@ export default defineBackground(() => {
 
   webextBridgeOnMessage('startup-health-check', async () => {
     // Wait for services to be ready before reporting healthy
-    if (!servicesReady) {
+    if (!getReadinessState().ready) {
       await initPromise;
     }
-    const status = getServicesStatus();
+    const status = getReadinessState();
     return {
       status: status.ready ? 'ready' : 'initializing',
       timestamp: Date.now(),
