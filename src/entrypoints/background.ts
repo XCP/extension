@@ -6,7 +6,7 @@ import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
 import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
-import { registerConnectionService } from '@/services/connectionService';
+import { getConnectionService, registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
@@ -235,20 +235,21 @@ export default defineBackground(() => {
       const walletService = getWalletService();
       if (!(await walletService.isKeychainUnlocked())) return;
 
-      const settings = await walletService.getSettings();
-      if (settings.connectedWebsites.length === 0) return;
+      // Asked of the service that owns the answer, not read off the settings it keeps it in.
+      const connections = await getConnectionService().getConnectedWebsites();
+      if (connections.length === 0) return;
 
       const activeAddress = await walletService.getActiveAddress();
       const accounts = activeAddress ? [activeAddress.address] : [];
 
-      for (const origin of settings.connectedWebsites) {
+      for (const { origin } of connections) {
         eventEmitterService.emit('emit-provider-event', {
           origin,
           event: 'accountsChanged',
           data: accounts,
         });
       }
-      console.log('[Background] Re-announced accounts to', settings.connectedWebsites.length, 'origin(s)');
+      console.log('[Background] Re-announced accounts to', connections.length, 'origin(s)');
     } catch (error) {
       // A page that misses this falls back to asking, which now answers correctly anyway.
       console.warn('[Background] Could not announce readiness:', error);
