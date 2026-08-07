@@ -47,7 +47,7 @@ export type CompletionHandler = (
 
 export class ApprovalService extends BaseService {
   private pendingApproval: PendingApproval | null = null;
-  private completionHandlers = new Map<ApprovalRequest['type'], CompletionHandler>();
+  private completeOrphaned: CompletionHandler | null = null;
   private popup: PopupWindow | null = null;
   private state: ApprovalServiceState = {
     currentWindow: null,
@@ -164,26 +164,26 @@ export class ApprovalService extends BaseService {
       return false;
     }
 
-    const complete = this.completionHandlers.get(approval.type);
-    if (!complete) {
+    if (!this.completeOrphaned) {
       console.warn('[ApprovalService] Cannot complete a restored', approval.type, 'request');
       return false;
     }
 
     await recordApprovalOutcome(id, 'completed', result);
-    await complete(approval, result);
+    await this.completeOrphaned(approval, result);
     return true;
   }
 
   /**
-   * Register how to finish an approval of this type when its caller is gone.
+   * Register how to finish an approval whose caller is gone.
    *
-   * Only register one where the outcome is state the site can observe afterwards, as a connection
-   * grant is. A signature or a transaction is not: its only product is an artifact for a caller
-   * that no longer exists. A type left unregistered expires, which is the safe default.
+   * Sound only because the outcome of the one approval this service handles is state the site can
+   * observe afterwards: the grant is stored, and the site reads it from accountsChanged or its next
+   * request. Anything whose only product is an artifact for the caller must not be registered here
+   * — unregistered means the request expires, which is the safe default.
    */
-  registerCompletionHandler(type: ApprovalRequest['type'], handler: CompletionHandler): void {
-    this.completionHandlers.set(type, handler);
+  registerCompletionHandler(handler: CompletionHandler): void {
+    this.completeOrphaned = handler;
   }
 
   /**
@@ -369,14 +369,14 @@ export class ApprovalService extends BaseService {
     console.log('[ApprovalService] Destroyed');
   }
 
-  protected getSerializableState(): { currentWindow: number | null } | null {
-    return this.state.currentWindow ? { currentWindow: this.state.currentWindow } : null;
+  // Nothing here outlives the worker usefully: the popup's window id is stale by the time anyone
+  // could read it, and the request itself lives in approvalFlow. Persisting either would be a
+  // write nothing reads.
+  protected getSerializableState(): null {
+    return null;
   }
 
-  protected hydrateState(): void {
-    // Don't restore window ID - it may be stale. The pending request is not service state; it
-    // lives in approvalFlow and is picked up in onInitialize.
-  }
+  protected hydrateState(): void {}
 
   protected getStateVersion(): number {
     return ApprovalService.STATE_VERSION;

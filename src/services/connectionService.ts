@@ -454,7 +454,7 @@ export class ConnectionService extends BaseService {
   protected async onInitialize(): Promise<void> {
     // A connect approval can outlive the worker that asked for it, and the grant still means what
     // it meant: the site reads it from accountsChanged or from its next request.
-    getApprovalService().registerCompletionHandler('connection', async (request, result) => {
+    getApprovalService().registerCompletionHandler(async (request, result) => {
       const { address, walletId, capabilities } = request.params?.[0] ?? {};
       if (!address || !walletId) {
         console.warn('[ConnectionService] Restored connect request is missing its account');

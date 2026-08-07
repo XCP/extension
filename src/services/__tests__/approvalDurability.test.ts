@@ -98,7 +98,7 @@ describe('approval durability', () => {
 
     const second = await restart();
     const grant = vi.fn().mockResolvedValue(undefined);
-    second.registerCompletionHandler('connection', grant);
+    second.registerCompletionHandler(grant);
 
     await expect(second.resolveApproval('request-1', { approved: true })).resolves.toBe(true);
 
@@ -114,8 +114,8 @@ describe('approval durability', () => {
     await first.initialize();
     await ask(first);
 
-    // A worker that registered no handler for this type — the state a type added later starts in,
-    // and the state any type is in whose only product is an artifact for a caller now gone.
+    // A worker with no completion handler registered — the state anything is in whose only product
+    // is an artifact for a caller now gone.
     const second = await restart();
 
     // The request survives, so the screen still has something to show and refuse.
@@ -150,7 +150,7 @@ describe('approval durability', () => {
     // Restored while still fresh, so it survives hydration.
     const second = await restart();
     const grant = vi.fn().mockResolvedValue(undefined);
-    second.registerCompletionHandler('connection', grant);
+    second.registerCompletionHandler(grant);
     expect(second.getCurrentApproval()).not.toBeNull();
 
     // Then this worker stays awake past the window the original timer would have enforced. That
@@ -194,7 +194,7 @@ describe('approval durability', () => {
 
     const second = await restart();
     const grant = vi.fn().mockResolvedValue(undefined);
-    second.registerCompletionHandler('connection', grant);
+    second.registerCompletionHandler(grant);
 
     await expect(second.resolveApproval('some-other-request', { approved: true })).resolves.toBe(false);
 

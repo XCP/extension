@@ -26,9 +26,9 @@ export interface ApprovalFlowEntry extends BaseRequest {
 }
 
 /** Matches the in-memory request timeout, so a stored request cannot outlive the timer it lost. */
-export const APPROVAL_TTL_MS = 5 * 60 * 1000;
+const APPROVAL_TTL_MS = 5 * 60 * 1000;
 
-export const approvalFlowStorage = new RequestStorage<ApprovalFlowEntry>({
+const approvalFlowStorage = new RequestStorage<ApprovalFlowEntry>({
   storageKey: 'pending_approval_flow',
   requestName: 'approval',
   ttlMs: APPROVAL_TTL_MS,
@@ -65,5 +65,3 @@ export async function findPendingApproval(): Promise<ApprovalFlowEntry | null> {
   const pending = all.filter((entry) => entry.status === 'pending');
   return pending.sort((a, b) => b.timestamp - a.timestamp)[0] ?? null;
 }
-
-export const removeApprovalFlow = (id: string) => approvalFlowStorage.remove(id);
