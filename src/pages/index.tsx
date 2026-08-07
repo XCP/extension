@@ -1,4 +1,3 @@
-import { Radio, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -117,48 +116,52 @@ export default function HomePage(): ReactElement {
 
   const renderCurrentAddress = (): ReactElement => {
     if (!activeAddress) return <div className="p-4">No address selected</div>;
+    // Not a RadioGroup: there was one option, its onChange did nothing, and `checked` was always
+    // true — it existed so the ternary would pick the selected styling. Copying the address is a
+    // button, and saying so is what lets the keyboard reach it. The classes below are the branch
+    // that always won, so this renders identically.
     return (
-      <RadioGroup value={activeAddress} onChange={() => {}}>
-        <Radio value={activeAddress}>
-          {({ checked }) => (
-            <div
-              className={`relative w-full rounded p-4 cursor-pointer ${
-                checked ? "bg-blue-600 text-white shadow-md" : "bg-blue-200 hover:bg-blue-300 text-gray-800"
-              }`}
-              onClick={handleCopyAddress}
-              aria-label="Current address"
-            >
-              <div className="absolute top-1/2 right-4 -translate-y-1/2">
-                <div
-                  className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                  onClick={handleAddressSelection}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleAddressSelection(e as unknown as React.MouseEvent);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Select another address"
-                >
-                  <FaChevronRight className="size-4" aria-hidden="true" />
-                </div>
-              </div>
-              <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
-              <div className="flex justify-center items-center">
-                <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
-                {copiedToClipboard ? (
-                  <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
-                ) : (
-                  <FaClipboard className="ml-2" aria-hidden="true" />
-                )}
-              </div>
-            </div>
+      <div
+        className="relative w-full rounded p-4 cursor-pointer bg-blue-600 text-white shadow-md"
+        onClick={handleCopyAddress}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleCopyAddress();
+          }
+        }}
+        role="button"
+        tabIndex={0}
+        aria-label="Current address"
+      >
+        <div className="absolute top-1/2 right-4 -translate-y-1/2">
+          <div
+            className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            onClick={handleAddressSelection}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddressSelection(e as unknown as React.MouseEvent);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Select another address"
+          >
+            <FaChevronRight className="size-4" aria-hidden="true" />
+          </div>
+        </div>
+        <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
+        <div className="flex justify-center items-center">
+          <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
+          {copiedToClipboard ? (
+            <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
+          ) : (
+            <FaClipboard className="ml-2" aria-hidden="true" />
           )}
-        </Radio>
-      </RadioGroup>
+        </div>
+      </div>
     );
   };
 
