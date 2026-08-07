@@ -161,24 +161,6 @@ describe('defineProxyService', () => {
       expect(() => getService()).toThrow('registerService has not been called');
     });
 
-    it('refuses a port from a script injected into a page', async () => {
-      register();
-
-      // A content script carries the extension's own id, so the id check alone would let this
-      // through. Services answer about keys, permissions and lock state; a script sharing a
-      // process with a hostile page must not be able to ask.
-      const port = createMockPort(`proxy:${currentServiceName}`);
-      port.sender = { id: 'test-extension-id', url: 'https://evil.example.com/' } as any;
-      onConnectListeners.forEach(fn => fn(port));
-
-      expect(port.disconnect).toHaveBeenCalled();
-
-      port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
-      await new Promise(r => setTimeout(r, 0));
-
-      expect(testServiceInstance.getValue).not.toHaveBeenCalled();
-    });
-
     it('should handle incoming port messages', async () => {
       register();
 

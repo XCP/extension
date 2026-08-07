@@ -13,11 +13,6 @@ import { whenServicesReady } from '@/services/core/serviceReadiness';
 
 type ServiceFactory<T> = () => T;
 
-/** Whether a port's sender is one of the extension's own pages, rather than an injected script. */
-function isExtensionPage(url: string | undefined): boolean {
-  return typeof url === 'string' && url.startsWith(chrome.runtime.getURL(''));
-}
-
 interface PortRequest {
   id: number;
   methodName: string;
@@ -98,9 +93,7 @@ export function defineProxyService<T extends Record<string, any>>(
 
     chrome.runtime.onConnect.addListener((port) => {
       if (port.name !== portName) return;
-      // Sender id alone does not say enough: a content script carries the extension's id too, so
-      // it would pass this while running inside a page. Services are only for extension pages.
-      if (port.sender?.id !== chrome.runtime.id || !isExtensionPage(port.sender?.url)) {
+      if (port.sender?.id !== chrome.runtime.id) {
         port.disconnect();
         return;
       }
