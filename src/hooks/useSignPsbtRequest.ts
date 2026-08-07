@@ -13,85 +13,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
+import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
-  type AttachedAssetDestination,
-  movesCounterpartyValue,
-  resolveAttachedAssetDestination,
-} from '@/core/counterparty/attachedAssetMovement';
-import {
-  fetchInputsAttachedAssets,
-  type InputAttachedAssets,
-} from '@/core/counterparty/inputAssets';
-import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
-import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
-import {
-  type CounterpartyMessage, 
-  decodeCounterpartyMessage,
-  decodeRawTransaction, 
-  describeMpmaSend,
-  type MpmaRecipient,
-  resolveMpmaRecipients
-} from '@/core/counterparty/transaction';
-import {
-  analyzeTransactionSafety,
-  type SafetyAnalysis,
-} from '@/core/counterparty/transactionSafety';
-import {
-  type ProviderVerificationResult, 
-  verifyProviderTransaction
-} from '@/core/counterparty/unpack';
-import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
+  analyzeSignRequest,
+  type SignRequestAnalysis,
+} from '@/core/counterparty/signRequestAnalysis';
+import { decodeRawTransaction } from '@/core/counterparty/transaction';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import { emitToBackground } from '@/platform/provider/emitToBackground';
 import { getSignFlow, recordSignOutcome, type SignPsbtRequest } from '@/platform/provider/signFlow';
 
 /**
- * Extended PSBT details with address enrichment and Counterparty message
+ * PSBT details with address enrichment, plus the safety analysis every signing request gets
+ * (`signRequestAnalysis.ts`, shared with the raw-transaction screen).
  */
-export interface DecodedPsbtInfo {
+export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
-  counterpartyMessage?: CounterpartyMessage;
   /** Decoded transaction ID (if available from API) */
   txid?: string;
-  /** Local verification result */
-  verification: ProviderVerificationResult;
-  /** Security analysis (dangerous types, suspicious outputs) */
-  safety: SafetyAnalysis;
-  /** Inputs whose UTXOs carry Counterparty assets (empty if none). */
-  attachedAssets: InputAttachedAssets[];
-  /**
-   * Recipients of an mpma_send, read from the local unpack. Empty for every other message type.
-   *
-   * A PSBT can carry any Counterparty payload a raw transaction can, and MPMA recipients travel
-   * inside the payload rather than as outputs — so without this the PSBT screen said "Send to 3
-   * recipients" and named none of them, while the transaction screen listed all three.
-   */
-  mpmaRecipients: MpmaRecipient[];
-  /**
-   * Where the assets attached to the signed inputs end up. Null when nothing attached is moving.
-   *
-   * Spending an attached UTXO moves its balances with no Counterparty message, so this is the only
-   * account of an atomic swap the screen can give.
-   */
-  attachedAssetDestination: AttachedAssetDestination | null;
-  /** Message fields that reference this transaction and do not resolve against it. */
-  structureFindings: StructureFinding[];
-  /** Ledger facts the message does not carry, for the protocol detail list. */
-  protocolContext: ProtocolContext;
-}
-
-/**
- * Send an event to the background script's EventEmitterService.
- * This is necessary because the popup and background have separate instances.
- */
-function emitToBackground(event: string, data: unknown): void {
-  chrome.runtime.sendMessage({
-    type: 'COMPOSE_EVENT',
-    event,
-    data
-  }).catch((error) => {
-    // Popup might be closing, which is fine
-    console.debug('Failed to emit sign PSBT event to background:', error);
-  });
 }
 
 export function useSignPsbtRequest(signerAddress?: string) {
@@ -116,7 +55,6 @@ export function useSignPsbtRequest(signerAddress?: string) {
     // OP_RETURN/txid API decodes below rather than adding a serial round-trip.
     const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
 
-    let counterpartyMessage: CounterpartyMessage | undefined;
     let txid: string | undefined;
     let counterpartyDataHex: string | undefined;
 
@@ -131,19 +69,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
       ) ?? undefined;
     }
 
-    // If the outputs carried Counterparty data, try API unpack for rich message info
-    if (counterpartyDataHex) {
-      try {
-        const msg = await decodeCounterpartyMessage(counterpartyDataHex);
-        if (msg) {
-          counterpartyMessage = msg;
-        }
-      } catch (err) {
-        console.warn('Failed to decode Counterparty message:', err);
-      }
-    }
-
-    // Try to get txid and enrich outputs with addresses from API
+    // Enrich the outputs before analysing them, so the safety checks see every address that could
+    // be resolved. Try to get txid and enrich outputs with addresses from API.
     if (psbtDetails.rawTxHex) {
       try {
         const decoded = await decodeRawTransaction(psbtDetails.rawTxHex, true);
@@ -166,93 +93,20 @@ export function useSignPsbtRequest(signerAddress?: string) {
       }
     }
 
-    // Verify locally (compares local binary unpack against API result)
-    const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
-
-    // Analyze for security risks (dangerous types, suspicious outputs)
-    const messageType = counterpartyMessage?.messageType
-      ?? verification.localUnpack?.messageType;
-    const safety = analyzeTransactionSafety(messageType, psbtDetails.outputs, signerAddresses ?? []);
-
-    // Same checks the raw-transaction path runs. A PSBT carries the same payloads, so anything
-    // that path establishes about a message holds here too.
-    let mpmaRecipients: MpmaRecipient[] = [];
-    if (verification.localUnpack?.messageType === 'mpma_send' && verification.localUnpack.data) {
-      const sends = (verification.localUnpack.data as MPMAData).sends ?? [];
-      if (sends.length > 0) {
-        mpmaRecipients = await resolveMpmaRecipients(sends);
-        if (counterpartyMessage) {
-          counterpartyMessage = {
-            ...counterpartyMessage,
-            description: describeMpmaSend(mpmaRecipients),
-          };
-        }
-      }
-    }
-
-    const structureFindings = checkMessageStructure(
-      verification.localUnpack?.messageType,
-      verification.localUnpack?.data,
-      { inputs: psbtDetails.inputs, outputs: psbtDetails.outputs }
-    );
-
-    // Same ledger lookups the raw-transaction path runs: a PSBT carries the same messages, so a
-    // cancel, dividend or dispense in one deserves the same account of itself as in the other.
-    const { context: protocolContext, warnings: policyWarnings } = await resolveProtocolContext({
-      messageType: verification.localUnpack?.messageType,
-      data: verification.localUnpack?.data,
-      transactionId: txid,
-      apiMessageData: counterpartyMessage?.messageData,
+    const analysis = await analyzeSignRequest({
+      counterpartyDataHex,
+      inputs: psbtDetails.inputs,
       outputs: psbtDetails.outputs,
       signerAddresses: signerAddresses ?? [],
-      spentUtxos: psbtDetails.inputs.map((input) => `${input.txid}:${input.vout}`),
+      signedInputIndices: signedInputIndices ?? [],
+      transactionId: txid,
+      attachedAssets: attachedAssetsPromise,
     });
-
-    if (policyWarnings.length > 0) {
-      safety.warnings = [...policyWarnings, ...safety.warnings];
-      safety.blocked = safety.blocked || policyWarnings.some((w) => w.severity === 'block');
-    }
-
-    const attachedAssets = await attachedAssetsPromise;
-
-    // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
-    // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
-    // transaction, which a site has no Counterparty reason to ask this wallet for and which the
-    // user can make in the wallet directly. Both halves are required — a message alone would miss
-    // an attached UTXO being spent alongside it, and attached assets alone miss every ordinary send.
-    if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices ?? [])) {
-      safety.warnings = [
-        {
-          severity: 'block',
-          title: 'Blocked: Not a Counterparty Transaction',
-          message:
-            'This carries no Counterparty message and spends nothing holding Counterparty assets, ' +
-            'so signing it would move only bitcoin at a site’s direction. Make plain Bitcoin ' +
-            'payments in the wallet, where you choose the destination.',
-        },
-        ...safety.warnings,
-      ];
-      safety.blocked = true;
-    }
-
-    const attachedAssetDestination = resolveAttachedAssetDestination(
-      psbtDetails.outputs,
-      attachedAssets,
-      signedInputIndices ?? [],
-      signerAddresses ?? []
-    );
 
     return {
       psbtDetails,
-      counterpartyMessage,
       txid,
-      verification,
-      safety,
-      attachedAssets,
-      mpmaRecipients,
-      structureFindings,
-      attachedAssetDestination,
-      protocolContext,
+      ...analysis,
     };
   }, []);
 

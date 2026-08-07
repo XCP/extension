@@ -10,22 +10,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { emitToBackground } from '@/platform/provider/emitToBackground';
 import { getSignFlow, recordSignOutcome, type SignMessageRequest } from '@/platform/provider/signFlow';
-
-/**
- * Send an event to the background script's EventEmitterService.
- * This is necessary because the popup and background have separate instances.
- */
-function emitToBackground(event: string, data: unknown): void {
-  chrome.runtime.sendMessage({
-    type: 'COMPOSE_EVENT',
-    event,
-    data
-  }).catch((error) => {
-    // Popup might be closing, which is fine
-    console.debug('Failed to emit sign message event to background:', error);
-  });
-}
 
 export function useSignMessageRequest() {
   const [searchParams] = useSearchParams();
