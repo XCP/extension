@@ -10,6 +10,7 @@ import { registerApprovalService } from '@/services/approvalService';
 import { registerConnectionService } from '@/services/connectionService';
 import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
+import { markServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
@@ -213,7 +214,16 @@ export default defineBackground(() => {
         await rearmSessionExpiry();
       }
 
-      // 7. Tell tabs that were already open that the worker is back.
+      // 7. Load the keychain before anything is served. The master key outlives the worker but the
+      //    decrypted keychain does not, and every answer about accounts, permissions or lock state
+      //    reads from it — so it is loaded once, here, rather than checked for on each call.
+      await getWalletService().ensureKeychainLoaded();
+
+      // 8. Open the barrier. Proxied calls have been waiting on this rather than being answered by
+      //    a worker that had not yet decided whether the session survives.
+      markServicesReady();
+
+      // 9. Tell tabs that were already open that the worker is back.
       await announceReadinessToConnectedTabs();
 
       servicesReady = true;
@@ -224,6 +234,9 @@ export default defineBackground(() => {
       // An initialisation that failed cannot vouch for the session, so the gate is closed rather
       // than left hanging: a caller waiting on it is told locked, not left waiting forever.
       markSessionRecovery(SessionRecoveryState.LOCKED);
+      // The barrier opens either way: a call that fails is recoverable, a call that hangs is not.
+      // With recovery marked locked, nothing will load a keychain off the back of it.
+      markServicesReady();
       // Still mark as ready to prevent deadlock, but log the error
       servicesReady = true;
     }

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@/core/rpcErrors';
+import { markServicesReady } from '@/services/core/serviceReadiness';
 import { defineProxyService, disconnectAllPorts, isBackgroundScript } from '../proxy';
 
 // ---------------------------------------------------------------------------
@@ -63,6 +64,9 @@ describe('isBackgroundScript', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockChrome.runtime.id = 'test-extension-id';
+    // These exercise dispatch, not startup: the barrier holds every call until the background says
+    // it has finished initialising, so a test standing in for that background must say so.
+    markServicesReady();
   });
 
   it('should return false when chrome is undefined', () => {
