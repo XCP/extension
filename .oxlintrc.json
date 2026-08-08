@@ -6,8 +6,8 @@
     "oxc/const-comparisons": "error",
 
     "react-hooks/exhaustive-deps": "warn",
-    "no-useless-escape": "warn",
-    "unicorn/no-useless-fallback-in-spread": "warn",
+    "no-useless-escape": "error",
+    "unicorn/no-useless-fallback-in-spread": "error",
 
     "no-unused-vars": "off",
     "no-control-regex": "off",

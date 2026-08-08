@@ -17,7 +17,7 @@ describe('format utilities', () => {
       });
       // Currency formatting can vary by locale, so check for key components
       expect(result).toContain('1,234.57');
-      expect(result).toMatch(/[\$]|USD/); // Should contain $ or USD
+      expect(result).toMatch(/[$]|USD/); // Should contain $ or USD
     });
 
     it('should format percentage amounts', () => {

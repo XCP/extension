@@ -26,7 +26,7 @@ export function validatePrivateKeyFormat(privateKey: string): PrivateKeyValidati
   }
   
   // Check for formula injection attempts
-  if (/^[=@+\-]/.test(trimmed)) {
+  if (/^[-=@+]/.test(trimmed)) {
     return { isValid: false, error: 'Invalid private key format' };
   }
 

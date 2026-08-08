@@ -112,7 +112,7 @@ export const isValidPositiveNumber = (
 
   try {
     // Check for formula injection attempts
-    if (/^[=@+\-]/.test(value.trim())) {
+    if (/^[-=@+]/.test(value.trim())) {
       return false;
     }
 
