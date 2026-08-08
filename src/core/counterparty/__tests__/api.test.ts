@@ -304,8 +304,8 @@ describe('counterparty/api.ts', () => {
         type: 'address'
       });
 
-      expect(balance?.quantity).toBe('25000000');
-      expect(balance?.quantity_normalized).toBe('0.25');
+      expect(balance.quantity).toBe('25000000');
+      expect(balance.quantity_normalized).toBe('0.25');
     });
 
     it('should aggregate multiple balances', async () => {
@@ -322,8 +322,8 @@ describe('counterparty/api.ts', () => {
 
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
-      expect(balance?.quantity).toBe('75000000');
-      expect(balance?.quantity_normalized).toBe('0.75');
+      expect(balance.quantity).toBe('75000000');
+      expect(balance.quantity_normalized).toBe('0.75');
     });
 
     it('aggregates large balances without losing digits', () => {
@@ -340,10 +340,10 @@ describe('counterparty/api.ts', () => {
 
         const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
-        expect(balance?.quantity).toBe('99526925811111112');
+        expect(balance.quantity).toBe('99526925811111112');
         // The same total via a double loses its last two digits. Written as a string because a
         // numeric literal for the true value would itself be rounded by the JS parser.
-        expect(String(Number(balance?.quantity))).toBe('99526925811111100');
+        expect(String(Number(balance.quantity))).toBe('99526925811111100');
       })();
     });
 
@@ -397,8 +397,8 @@ describe('counterparty/api.ts', () => {
       const balance = await fetchTokenBalance(mockAddress, 'XCP');
 
       // Should return '0' instead of 'NaN' for invalid values
-      expect(balance?.quantity_normalized).toBe('0');
-      expect(balance?.quantity_normalized).not.toBe('NaN');
+      expect(balance.quantity_normalized).toBe('0');
+      expect(balance.quantity_normalized).not.toBe('NaN');
     });
   });
 
