@@ -39,10 +39,13 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
   });
 
   describe('BIP-137 Loose Verification', () => {
-    it('should verify BIP-137 signature with wrong header flag (loose verification)', async () => {
-      // This tests the "loose BIP-137 verification" behavior
-      // where signatures with incorrect header flags are still accepted
-      // if the public key can be recovered
+    // This signature is a real one, but it does not belong to this address: it recovers to
+    // 1QDZfWJTVXqHFmJFRkyrnidvHyPyG5bynY under every recovery id, point encoding and script type.
+    // The matching fixture was removed from `wallet-fixtures.test.ts` for that reason. The test kept
+    // it and only logged the outcome, under a name claiming verification "should work" — so what it
+    // actually establishes is the opposite, and worth keeping as that: loose verification widens
+    // which header flags are tried, and must not widen which addresses are accepted.
+    it('rejects a signature that belongs to another address, whatever the header flag', async () => {
 
       const message = 'Hello World';
       // Signature with flag that might not match the address type exactly
@@ -69,9 +72,8 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
         const address = '1HnhWpkMHMjgt167kvgcPyurMmsCQ2WPgg';
 
         const result = await verifyMessageWithMethod(message, modifiedSigBase64, address);
-        // With loose verification, this should work regardless of flag
-        // as long as the public key matches
-        console.log(`Testing ${testCase.desc} flag with P2PKH address:`, result);
+        expect(result.valid, `${testCase.desc} flag must not verify against a foreign address`)
+          .toBe(false);
       }
     });
 
@@ -165,10 +167,15 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       const message = '';
       const signature = 'AUHd69PrJQEv+oKTfZ8l+WROBHuy9HKrbFCJu7U1iK2iiEy1vMU5EfMtjc+VSHM7aU0SDbak5IUZRVno2P5mjSafAQ==';
 
-      // Note: This is a full BIP-322 signature with witness data
-      // Our implementation may need adjustment to handle this format
+      // KNOWN GAP, pinned rather than blessed. This is a valid vector from bip322-js and the
+      // verifier rejects it: BIP-322 P2TR signatures using SIGHASH_ALL are not handled. It was
+      // discovered because this test logged its result instead of asserting it, so a real
+      // verification failure sat inside a passing suite.
+      //
+      // Asserting `false` keeps the gap visible and makes this test fail the moment someone fixes
+      // it — at which point flip it to `true` rather than deleting the vector.
       const result = await verifyBIP322Signature(message, signature, address);
-      console.log('P2TR SIGHASH_ALL signature verification:', result);
+      expect(result, 'BIP-322 P2TR SIGHASH_ALL is a known gap — see comment above').toBe(false);
     });
   });
 

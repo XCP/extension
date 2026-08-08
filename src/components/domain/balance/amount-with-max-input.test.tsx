@@ -516,8 +516,10 @@ describe('AmountWithMaxInput', () => {
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    // When maxAmount is empty/NaN, it falls through without calling onChange
-    // This is the existing behavior - test passes if no error is thrown
+    // The comment here used to claim Max "falls through without calling onChange". It does call it,
+    // with "0" — which is why the claim was never asserted. Pinned as the actual behaviour; whether
+    // zeroing the field is the right answer when no maximum is known is a separate question.
+    expect(onChange).toHaveBeenCalledWith('0');
   });
 
   it('should preserve input value prop', () => {

@@ -405,9 +405,5 @@ describe('AssetNameInput', () => {
       expect(mockOnChange).toHaveBeenCalledWith('YACHTDOCK.');
     });
 
-    it('should show loading spinner while checking availability', async () => {
-      // Skip this test - the spinner appears very briefly and is hard to test reliably
-      // The functionality is covered by other tests that check the async behavior
-    });
   });
 });
