@@ -4,6 +4,8 @@ import {ApprovalExpired, ApprovalFooter,
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
+import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
+import { CounterpartyDetailsCard } from '@/components/domain/approval/counterparty-details-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
@@ -214,79 +216,15 @@ export default function ApprovePsbtPage() {
     committedOutputs,
   });
 
-  const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
-    key: `safety-${idx}`,
-    severity: warning.severity === 'block' ? 'danger' : warning.severity,
-    title: warning.title,
-    description: warning.message,
-  }));
-  // Where the attached assets land. Spending an attached UTXO moves its balances with no
-  // Counterparty message, so without this the screen can say only that assets move, never where —
-  // and for an atomic swap that is the whole question.
-  if (decodedInfo.attachedAssetDestination) {
-    const dest = decodedInfo.attachedAssetDestination;
-    warningItems.push({
-      key: 'attached-destination',
-      severity: dest.leavesWallet ? 'danger' : 'warning',
-      title: dest.detaches
-        ? 'Attached assets are detached to your address'
-        : dest.leavesWallet
-          ? 'Attached assets leave your wallet'
-          : 'Attached assets move to your own output',
-      description: dest.detaches
-        ? 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
-          'signing is credited back to your address.'
-        : `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
-          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
-          `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
-          `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
-    });
-  }
+  const warningItems: WarningItem[] = buildApprovalWarnings({
+    safetyWarnings,
+    attachedAssetDestination: decodedInfo.attachedAssetDestination,
+    structureFindings: decodedInfo.structureFindings ?? [],
+    signedInputsWithAssets,
+    signedInputsUnknownStatus,
+  });
 
-  // Message fields that reference this transaction and do not resolve against it.
-  for (const [idx, finding] of (decodedInfo.structureFindings ?? []).entries()) {
-    warningItems.push({
-      key: `structure-${idx}`,
-      severity: 'warning',
-      title: finding.title,
-      description: finding.message,
-    });
-  }
-
-  if (signedInputsWithAssets.length > 0) {
-    warningItems.push({
-      key: 'attached-assets',
-      severity: 'warning',
-      title: 'Spends UTXOs holding Counterparty assets',
-      description: 'Inputs you are signing carry attached assets. Signing moves them, not just BTC.',
-      children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
-          {signedInputsWithAssets.flatMap(entry =>
-            entry.assets.map(asset => (
-              <li key={`${entry.inputIndex}-${asset.asset}`}>
-                Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
-              </li>
-            ))
-          )}
-        </ul>
-      ),
-    });
-  }
-  if (signedInputsUnknownStatus.length > 0) {
-    warningItems.push({
-      key: 'unknown-status',
-      severity: 'warning',
-      title: "Couldn't verify asset status",
-      description: `The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`,
-      children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
-          {signedInputsUnknownStatus.map(entry => (
-            <li key={entry.inputIndex}>Input #{entry.inputIndex}: status unknown</li>
-          ))}
-        </ul>
-      ),
-    });
-  }
+  // PSBT-only: a raw transaction is signed SIGHASH_ALL throughout and cannot change after signing.
   if (userSignsWithAnyoneCanPay) {
     // Money the signature leaves redirectable is a different order of risk from a transaction that
     // can merely gain inputs, so it reads as danger rather than caution.
@@ -361,36 +299,8 @@ export default function ApprovePsbtPage() {
 
           {/* Transaction Details (expandable) */}
 
-          {/* What the Counterparty message itself says, kept apart from the Bitcoin view below.
-              The headline is one line and loses most of it — a fairminter's headline is its asset
-              name, while the thing being agreed to is a set of caps, a price and a deadline. */}
-          {txAction && 'protocol' in txAction && txAction.protocol.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-4">
-              <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty Details</h3>
-              <div className="space-y-1.5">
-                {txAction.protocol.map((field) => {
-                  /* A hash or an outpoint does not fit on a row beside its label: right-aligned it
-                     wrapped into three ragged lines that nobody can read across. Long values get
-                     their own line in monospace, where the digits line up and can be compared. */
-                  const isLong = field.value.length > 32;
-                  return isLong ? (
-                    <div key={field.label} className="text-sm">
-                      <div className="text-gray-500">{field.label}</div>
-                      <div className="text-gray-900 font-mono text-xs break-all mt-0.5">
-                        {field.value}
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={field.label} className="flex justify-between gap-3 text-sm">
-                      <span className="text-gray-500 flex-shrink-0">{field.label}</span>
-                      <span className="text-gray-900 font-medium text-right break-all">
-                        {field.value}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+          {txAction && 'protocol' in txAction && (
+            <CounterpartyDetailsCard fields={txAction.protocol} />
           )}
           <Collapsible variant="card" title="Transaction Details">
                 {/* TX Hash */}
