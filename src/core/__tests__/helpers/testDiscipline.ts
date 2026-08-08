@@ -9,6 +9,16 @@ import { join } from 'node:path';
  * all. It is worse than no test: it occupies the name of the thing that should have been checked,
  * and it counts toward a green suite, so nobody looks again.
  *
+ * An assertion is not the bar — an assertion that could have gone the other way is. The first
+ * version of this rule required only that a test assert *something*, and the very defect that
+ * motivated it walked straight through: `expect(typeof result).toBe('boolean')` is an assertion,
+ * and it holds whether the verifier returns the right answer or the wrong one. Underneath it,
+ * `verifyBIP322Signature` returned `false` for BIP-322's own published P2WPKH vectors for the whole
+ * life of that test — every bc1q message signature from every other wallet rejected, and every one
+ * this wallet produced unreadable elsewhere. So the rule also classifies: a test whose assertions
+ * are *all* weak is treated as a test with none. See `isWeakAssertion` for what counts, and note
+ * that one strong assertion is enough — a weak one beside a real one is ordinary code.
+ *
  * This is not hypothetical here. `bip322-standardness.test.ts` had two tests that called the
  * verifier and `console.log`ged the result. One was logging `false` for a valid BIP-322
  * P2TR test vector — a real verifier gap, sitting inside a passing suite, and paired with the
@@ -36,6 +46,23 @@ import { join } from 'node:path';
 /** A direct assertion. `verifyProperty` is the fuzz suites' own assertion entry point. */
 export const ASSERTION =
   /\b(expect|assert|assertType|expectTypeOf|verifyProperty)\s*\(|\.(toThrow|rejects|resolves)\b/;
+
+/**
+ * The assertion forms this file does not take apart: everything except a plain `expect(...)`.
+ *
+ * These are counted, never classified. Deciding that an `assert()` or a `verifyProperty()` is weak
+ * would mean parsing code this does not parse, and a wrong guess there invents a violation — the
+ * one failure mode the rule cannot survive. So they are all treated as strong.
+ */
+export const ASSERTION_NON_EXPECT =
+  /\b(assert|assertType|expectTypeOf|verifyProperty)\s*\(|\.(toThrow|rejects|resolves)\b/;
+
+/**
+ * `expect(` beginning a fresh call — not `foo.expect(`, not `myExpect(`.
+ *
+ * Same lookbehind as `TEST_START`, for the same reason: `\b` matches between a dot and a word.
+ */
+export const EXPECT_START = /(?<![.\w$])expect\s*\(/g;
 
 /**
  * `it(`, `test(`, `it.each(...)(`, `it.concurrent(` — and the modifier, so `.todo` is visible.
@@ -203,25 +230,69 @@ function matchParen(blanked: string, open: number): number {
 }
 
 /**
- * The body of a function whose definition starts at `from`, by brace matching.
+ * The body of a function whose definition ends at `from`, by brace matching.
  *
  * An earlier version read a fixed 4000 characters instead. That is not merely imprecise, it is
  * imprecise in the dangerous direction: any function *declared within 4000 characters of an
  * unrelated `expect(`* was marked as asserting, so tests calling it were excused. It hid a real
  * assertion-free test in `bip322-standardness.test.ts` that a manual read had already found.
+ *
+ * The same defect survived that fix in a narrower form, and a deliberate mutant found it: an arrow
+ * function with an *expression* body has no braces of its own, so `indexOf('{')` ran on to whatever
+ * block came next in the file. `const isBig = (n) => n > 10` immediately above a `describe(...) {`
+ * containing assertions marked `isBig` as an assertion helper, and every test calling it was
+ * excused. An expression body therefore ends at the statement, not at the next brace.
  */
 export function functionBody(blanked: string, from: number): string {
-  const open = blanked.indexOf('{', from);
-  if (open === -1) return '';
+  // Anything other than `{` at the body position is an expression body: `(x) => x + 1`.
+  const lead = blanked.slice(from).match(/^\s*/);
+  const start = from + (lead?.[0].length ?? 0);
+  if (blanked[start] !== '{') {
+    let depth = 0;
+    for (let i = start; i < blanked.length; i++) {
+      const c = blanked[i];
+      if (c === '(' || c === '[' || c === '{') depth++;
+      else if (c === ')' || c === ']' || c === '}') {
+        // A closing bracket at depth 0 belongs to whatever encloses the definition, so the
+        // expression ended before it: `foo(() => bar, baz)`.
+        if (depth === 0) return blanked.slice(start, i);
+        depth--;
+      } else if (depth === 0 && (c === ';' || c === ',' || c === '\n')) {
+        return blanked.slice(start, i);
+      }
+    }
+    return blanked.slice(start);
+  }
   let depth = 0;
-  for (let i = open; i < blanked.length; i++) {
+  for (let i = start; i < blanked.length; i++) {
     if (blanked[i] === '{') depth++;
     else if (blanked[i] === '}') {
       depth--;
-      if (depth === 0) return blanked.slice(open, i + 1);
+      if (depth === 0) return blanked.slice(start, i + 1);
     }
   }
-  return blanked.slice(open);
+  return blanked.slice(start);
+}
+
+/**
+ * The body belonging to one `FUNCTION_DEF` match.
+ *
+ * The two branches of that pattern stop in different places, which is why this exists: the
+ * `function name(` branch stops at the opening paren of the parameter list, so the parameters have
+ * to be skipped before the body starts, while the `const name = (...) =>` branch has already
+ * consumed its arrow and the body begins immediately.
+ */
+export function functionBodyFor(blanked: string, match: RegExpMatchArray): string {
+  const end = (match.index ?? 0) + match[0].length;
+  if (!match[1]) return functionBody(blanked, end);
+
+  const afterParams = matchParen(blanked, end - 1) + 1;
+  const brace = blanked.indexOf('{', afterParams);
+  if (brace === -1) return '';
+  // An overload signature or an ambient declaration ends at a `;` and has no body of its own; the
+  // next brace in the file belongs to something else.
+  if (blanked.slice(afterParams, brace).includes(';')) return '';
+  return functionBody(blanked, brace);
 }
 
 /** Names of functions defined in `blanked` whose own body contains a direct assertion. */
@@ -230,7 +301,7 @@ export function directlyAssertingNames(blanked: string): Set<string> {
   for (const match of blanked.matchAll(FUNCTION_DEF)) {
     const name = match[1] ?? match[2];
     if (!name) continue;
-    if (ASSERTION.test(functionBody(blanked, match.index ?? 0))) names.add(name);
+    if (ASSERTION.test(functionBodyFor(blanked, match))) names.add(name);
   }
   return names;
 }
@@ -279,10 +350,107 @@ export function testBlocks(source: string, file = ''): TestBlock[] {
   return blocks;
 }
 
-/** Whether a block can fail: it asserts directly, or calls something that does. */
+/** One `expect(subject)` and the matcher chain applied to it. */
+export interface ExpectCall {
+  /** The text between `expect(` and its closing paren, over blanked source. */
+  subject: string;
+  /** Everything after it that is still a member/call chain, e.g. `.not.toBe(1)`. */
+  chain: string;
+}
+
+/**
+ * Every `expect(...)` in a span, split into subject and matcher chain.
+ *
+ * Both come from the blanked copy, so string and regex *contents* are gone while their delimiters
+ * remain. That loss is what `isWeakAssertion` guards against when comparing two sides.
+ */
+export function expectCalls(blanked: string): ExpectCall[] {
+  const calls: ExpectCall[] = [];
+  for (const match of blanked.matchAll(EXPECT_START)) {
+    const open = (match.index ?? 0) + match[0].length - 1;
+    const close = matchParen(blanked, open);
+    const chainStart = close + 1;
+    let i = chainStart;
+    // Walk `.name` segments, each optionally called, so `.resolves.toBe(1)` comes back whole.
+    for (;;) {
+      const segment = blanked.slice(i).match(/^\s*\.\s*[\w$]+/);
+      if (!segment) break;
+      i += segment[0].length;
+      const call = blanked.slice(i).match(/^\s*\(/);
+      if (call) i = matchParen(blanked, i + call[0].length - 1) + 1;
+    }
+    calls.push({ subject: blanked.slice(open + 1, close), chain: blanked.slice(chainStart, i) });
+  }
+  return calls;
+}
+
+/** A surviving string or template delimiter, whose contents `blank()` has erased. */
+const QUOTE = /["'`]/;
+
+const collapse = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+/**
+ * Whether an assertion is one that cannot fail, or can only fail on the type of a value.
+ *
+ * The three shapes below are the ones that have actually been written here. Everything else is
+ * strong by default — this classifies only what it is sure of, because the cost of a false negative
+ * is one test that keeps hiding, while the cost of a false positive is the whole rule.
+ */
+export function isWeakAssertion(call: ExpectCall): boolean {
+  const subject = collapse(call.subject);
+  if (!subject) return false;
+
+  // `expect(typeof x).toBe('boolean')` — true whichever value `x` holds. This is the one that hid
+  // the BIP-322 segwit gap: the verifier returned `false` for the spec's own vectors for as long as
+  // anyone had been looking, and the test recorded it as a pass.
+  if (/^typeof\b/.test(subject)) return true;
+
+  // `expect(a || !a)`, and the same written the other way round.
+  const tautology = subject.match(/^(!?)\s*([\w$.]+)\s*\|\|\s*(!?)\s*([\w$.]+)$/);
+  if (tautology && tautology[2] === tautology[4] && (tautology[1] === '!') !== (tautology[3] === '!')) {
+    return true;
+  }
+
+  // `expect(x).toBe(x)`, which includes `expect(true).toBe(true)` and `expect(1).toBe(1)`.
+  //
+  // Guarded twice. `.not.toBe(x)` is excluded by the anchored chain match: it always *fails*, which
+  // is a different defect and not this rule's to report. And either side holding a quote is left
+  // alone, because `blank()` erases string contents — `expect('a').toBe('b')` arrives here as two
+  // identical runs of spaces between quotes, and would otherwise read as a self-comparison.
+  const equality = call.chain.match(/^\s*\.\s*(?:toBe|toEqual|toStrictEqual)\s*\(([\s\S]*)\)\s*$/);
+  if (equality) {
+    const expected = collapse(equality[1] ?? '');
+    if (
+      !QUOTE.test(subject) &&
+      !QUOTE.test(expected) &&
+      /\w/.test(subject) &&
+      subject === expected
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Whether a block can fail: it makes an assertion that could have gone the other way.
+ *
+ * An assertion is not enough on its own. `expect(typeof result).toBe('boolean')` is an assertion,
+ * and it holds whether the subject returns the right answer, the wrong answer, or has been deleted
+ * and replaced with a stub — so a test whose assertions are all of that kind is the same as a test
+ * with none, and the rule treats it the same way.
+ *
+ * A test needs only *one* strong assertion. A weak one alongside a real one is not a defect, and
+ * flagging it would be the rule inventing a violation.
+ */
 export function canFail(body: string, assertingNames: ReadonlySet<string>): boolean {
-  if (ASSERTION.test(body)) return true;
-  return callsIn(body).some((name) => assertingNames.has(name));
+  if (ASSERTION_NON_EXPECT.test(body)) return true;
+  if (callsIn(body).some((name) => assertingNames.has(name))) return true;
+
+  const calls = expectCalls(body);
+  if (calls.length === 0) return false;
+  return calls.some((call) => !isWeakAssertion(call));
 }
 
 
@@ -304,7 +472,7 @@ export function collectAssertingNames(sources: readonly string[]): Set<string> {
       for (const match of source.matchAll(FUNCTION_DEF)) {
         const name = match[1] ?? match[2];
         if (!name || names.has(name)) continue;
-        if (callsIn(functionBody(source, match.index ?? 0)).some((c) => names.has(c))) names.add(name);
+        if (callsIn(functionBodyFor(source, match)).some((c) => names.has(c))) names.add(name);
       }
     }
     if (names.size === before) break;

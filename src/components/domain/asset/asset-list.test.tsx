@@ -11,7 +11,11 @@ vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-const mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
+// `let`, like the search mocks below, so a test can take the active address away.
+let mockActiveAddress: { address: string; name: string } | null = {
+  address: "bc1qtest123",
+  name: "Test Address",
+};
 vi.mock("@/contexts/wallet-context", () => ({
   useWallet: () => ({
     activeAddress: mockActiveAddress,
@@ -105,6 +109,7 @@ describe("AssetList", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
     mockFetchOwnedAssets.mockResolvedValue([]);
     mockSearchQuery = "";
     mockSearchResults = [];
@@ -382,9 +387,17 @@ describe("AssetList", () => {
   });
 
   it("should handle missing activeAddress", async () => {
-    // This test is skipped as it requires complex mocking of module-level variables
-    // The component correctly handles missing activeAddress by not fetching assets
-    expect(true).toBe(true);
+    // Was `expect(true).toBe(true)` under a comment asserting in prose that "the component
+    // correctly handles missing activeAddress by not fetching assets". That is the thing to check:
+    // fetching for an address the wallet does not have would query, and display, the wrong balance.
+    mockActiveAddress = null;
+
+    render(<AssetList />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+    expect(mockFetchOwnedAssets).not.toHaveBeenCalled();
   });
 
   it("should apply hover styles to asset items", async () => {

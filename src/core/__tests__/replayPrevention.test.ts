@@ -110,12 +110,18 @@ describe('replayPrevention', () => {
     });
 
     it('should handle non-string origin/address inputs gracefully', () => {
-      // Defense-in-depth: should not crash even with bad inputs
-      const nonce1 = generateNonce(undefined as any, 'address');
-      const nonce2 = generateNonce('origin', null as any);
+      // Defense-in-depth: a bad input is sanitized to 'unknown' rather than throwing. This used to
+      // assert only `typeof nonce === 'number'`, which NaN also satisfies — and a NaN nonce would
+      // make every subsequent validateNonce fail open or closed depending on the comparison.
+      //
+      // The counters have to stay *separate*, which is the part worth pinning: sanitizing both
+      // fields to the same placeholder would collapse two different callers onto one nonce
+      // sequence, and replay prevention is exactly what that would defeat.
+      expect(generateNonce(undefined as any, 'address')).toBe(1);
+      expect(generateNonce('origin', null as any)).toBe(1);
 
-      expect(typeof nonce1).toBe('number');
-      expect(typeof nonce2).toBe('number');
+      expect(generateNonce(undefined as any, 'address')).toBe(2);
+      expect(generateNonce('origin', null as any)).toBe(2);
     });
   });
 
