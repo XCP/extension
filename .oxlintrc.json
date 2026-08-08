@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["oxc", "react", "unicorn", "typescript"],
+  "ignorePatterns": ["src/core/qr-code/qrcodegen.ts"],
+  "rules": {
+    "oxc/const-comparisons": "error",
+
+    "react-hooks/exhaustive-deps": "warn",
+    "no-useless-escape": "warn",
+    "unicorn/no-useless-fallback-in-spread": "warn",
+
+    "no-unused-vars": "off",
+    "no-control-regex": "off",
+    "no-loss-of-precision": "off"
+  }
+}
