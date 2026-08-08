@@ -147,7 +147,7 @@ export function useAssetInfo(asset: string) {
         abortControllerRef.current = null;
       }
     };
-  }, [asset, activeAddress?.address, state.data]);
+  }, [asset, activeAddress?.address, state.data, isBTC]);
 
   return state;
 }

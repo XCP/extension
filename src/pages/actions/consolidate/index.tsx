@@ -30,7 +30,8 @@ function ConsolidatePage() {
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
 
-  // Mark the recover bitcoin page as visited
+  // Mark the recover bitcoin page as visited. One-shot: listing the flag would re-run the effect
+  // on the write it just made.
   useEffect(() => {
     if (!settings?.hasVisitedRecoverBitcoin) {
       updateSettings({ hasVisitedRecoverBitcoin: true });

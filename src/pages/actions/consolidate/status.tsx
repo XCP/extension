@@ -40,6 +40,8 @@ function ConsolidateStatusPage() {
     }
   };
 
+  // fetchStatus is redefined every render; listing it would recreate the interval each time and
+  // the 30s auto-refresh would never fire.
   useEffect(() => {
     fetchStatus();
     

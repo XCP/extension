@@ -200,10 +200,14 @@ export function useAssetBalance(asset: string) {
         abortControllerRef.current = null;
       }
     };
+    // The header cache is shared, so another component can refresh this asset; re-running copies
+    // the newer value out of the cache without re-fetching.
   }, [
     asset,
     activeAddress?.address,
     activeWallet?.id,
+    cachedBalance?.quantity_normalized,
+    cachedBalance?.asset_info?.divisible,
   ]);
 
   return state;
