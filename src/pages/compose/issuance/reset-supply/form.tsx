@@ -24,7 +24,7 @@ export function ResetSupplyForm({
   asset,
 }: ResetSupplyFormProps): ReactElement {
   // Context hooks
-  const {} = useComposer();
+  useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetInfo } = useAssetInfo(asset);

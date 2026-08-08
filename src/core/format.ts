@@ -60,11 +60,10 @@ export function formatAmount({
     signDisplay,
   };
 
-  Object.keys(formatOptions).forEach(
-    (key) =>
-      formatOptions[key as keyof Intl.NumberFormatOptions] === undefined &&
-      delete formatOptions[key as keyof Intl.NumberFormatOptions]
-  );
+  Object.keys(formatOptions).forEach((key) => {
+    const k = key as keyof Intl.NumberFormatOptions;
+    if (formatOptions[k] === undefined) delete formatOptions[k];
+  });
 
   // `toFixed` rather than `toString`, which switches to exponent notation at the extremes.
   const exact = typeof value === "number" || typeof value === "string"

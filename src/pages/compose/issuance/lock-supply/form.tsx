@@ -29,7 +29,7 @@ export function LockSupplyForm({
   asset,
 }: LockSupplyFormProps): ReactElement {
   // Context hooks
-  const {} = useComposer();
+  useComposer();
   
   // Data fetching hooks
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);

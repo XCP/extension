@@ -333,7 +333,7 @@ describe('Bitcoin Address Validation Fuzz Tests', () => {
       const startTime = performance.now();
       
       for (let i = 0; i < iterations; i++) {
-        addresses.forEach(addr => isValidBitcoinAddress(addr));
+        addresses.forEach(addr => { isValidBitcoinAddress(addr); });
       }
       
       const endTime = performance.now();

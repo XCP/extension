@@ -971,7 +971,7 @@ export class WalletManager {
 
   public async lockKeychain(): Promise<void> {
     await sessionManager.clearAllUnlockedSecrets();
-    this.wallets.forEach((wallet) => (wallet.addresses = []));
+    this.wallets.forEach((wallet) => { wallet.addresses = []; });
 
     // Clear keychain from memory (settings are inside keychain)
     this.keychain = null;

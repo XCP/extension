@@ -156,7 +156,7 @@ function cleanupRateLimitMap(): void {
   });
   // Remove the oldest half
   const toRemove = Math.floor(entries.length / 2);
-  entries.slice(0, toRemove).forEach(([key]) => rateLimitMap.delete(key));
+  entries.slice(0, toRemove).forEach(([key]) => { rateLimitMap.delete(key); });
 }
 
 /**

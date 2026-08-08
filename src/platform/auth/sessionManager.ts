@@ -251,7 +251,7 @@ export function clearUnlockedSecret(walletId: string): void {
  * Clears all stored unlocked secrets and session metadata.
  */
 export async function clearAllUnlockedSecrets(): Promise<void> {
-  Object.keys(unlockedSecrets).forEach((walletId) => clearUnlockedSecret(walletId));
+  Object.keys(unlockedSecrets).forEach((walletId) => { clearUnlockedSecret(walletId); });
 
   // Clear all rate limiting data
   clearAllRateLimits();

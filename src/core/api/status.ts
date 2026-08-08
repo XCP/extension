@@ -30,7 +30,7 @@ export function emitApiStatus(event: ApiStatusEvent): void {
     return;
   }
   currentStatus = event;
-  listeners.forEach(listener => listener(event));
+  listeners.forEach(listener => { listener(event); });
 }
 
 /**

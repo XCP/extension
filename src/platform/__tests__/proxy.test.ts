@@ -28,8 +28,8 @@ function createMockPort(name: string) {
       removeListener: vi.fn(),
     },
     // Test helpers
-    _fireMessage: (msg: any) => messageListeners.forEach(fn => fn(msg)),
-    _fireDisconnect: () => disconnectListeners.forEach(fn => fn()),
+    _fireMessage: (msg: any) => messageListeners.forEach(fn => { fn(msg); }),
+    _fireDisconnect: () => disconnectListeners.forEach(fn => { fn(); }),
   };
 }
 
@@ -165,7 +165,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'getValue', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -178,7 +178,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'throwError', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -192,7 +192,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'throwCoded', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -206,7 +206,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort(`proxy:${currentServiceName}`);
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       port._fireMessage({ id: 1, methodName: 'nonExistent', args: [] });
       await new Promise(r => setTimeout(r, 0));
@@ -220,7 +220,7 @@ describe('defineProxyService', () => {
       register();
 
       const port = createMockPort('proxy:OtherService');
-      onConnectListeners.forEach(fn => fn(port));
+      onConnectListeners.forEach(fn => { fn(port); });
 
       expect(port.onMessage.addListener).not.toHaveBeenCalled();
     });
