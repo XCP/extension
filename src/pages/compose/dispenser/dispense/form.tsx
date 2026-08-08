@@ -250,7 +250,7 @@ export function DispenseForm({
       selectedDispenserIndex !== previousIndexRef.current &&
       selectedDispenser
     ) {
-      const currentNumber = parseInt(numberOfDispenses) || 1;
+      const currentNumber = parseInt(numberOfDispenses, 10) || 1;
       
       // Check against new max
       if (currentNumber > maxDispenses && maxDispenses > 0) {

@@ -40,52 +40,47 @@ describe('Bitcoin Address Utilities', () => {
   });
 
   describe('encodeAddress', () => {
-    // Known test vector: compressed public key
+    // secp256k1's generator point G, i.e. the public key for private key 1.
+    // Its addresses are published, so the expectations below are independent of
+    // this codebase rather than recordings of whatever it happens to produce.
     const testPubKey = hexToBytes('0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798');
-    
+    const uncompressedPubKey = hexToBytes('0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8');
+
+    // These used to assert only `typeof address === 'string'`, a prefix and a
+    // length band. Every wrong-but-well-formed address passes that: the wrong
+    // hash, the wrong key encoding, the wrong network byte within a prefix
+    // class. The compressed and uncompressed cases below are the same key and
+    // differ only in encoding, and both satisfy startsWith('1').
     it('should encode P2PKH address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.P2PKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('1')).toBe(true);
-      expect(address.length).toBeGreaterThan(25);
-      expect(address.length).toBeLessThan(36);
+      expect(encodeAddress(testPubKey, AddressFormat.P2PKH))
+        .toBe('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH');
     });
 
     it('should encode P2SH_P2WPKH address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.P2SH_P2WPKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('3')).toBe(true);
-      expect(address.length).toBeGreaterThan(25);
-      expect(address.length).toBeLessThan(36);
+      expect(encodeAddress(testPubKey, AddressFormat.P2SH_P2WPKH))
+        .toBe('3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN');
     });
 
     it('should encode P2WPKH address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.P2WPKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
-      expect(address.length).toBe(42); // bech32 P2WPKH is always 42 chars
+      // BIP-173 test vector.
+      expect(encodeAddress(testPubKey, AddressFormat.P2WPKH))
+        .toBe('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
     });
 
     it('should encode P2TR address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.P2TR);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1p')).toBe(true);
-      expect(address.length).toBe(62); // bech32m P2TR is always 62 chars
+      // BIP-350 test vector.
+      expect(encodeAddress(testPubKey, AddressFormat.P2TR))
+        .toBe('bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9');
     });
 
-    it('should encode Counterwallet address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.Counterwallet);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('1')).toBe(true);
-      expect(address.length).toBeGreaterThan(25);
-      expect(address.length).toBeLessThan(36);
+    it('should encode Counterwallet address as P2PKH', () => {
+      expect(encodeAddress(testPubKey, AddressFormat.Counterwallet))
+        .toBe('1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH');
     });
 
-    it('should encode CounterwalletSegwit address correctly', () => {
-      const address = encodeAddress(testPubKey, AddressFormat.CounterwalletSegwit);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
-      expect(address.length).toBe(42); // bech32 P2WPKH is always 42 chars
+    it('should encode CounterwalletSegwit address as P2WPKH', () => {
+      expect(encodeAddress(testPubKey, AddressFormat.CounterwalletSegwit))
+        .toBe('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
     });
 
     it('should throw error for unsupported address type', () => {
@@ -94,10 +89,20 @@ describe('Bitcoin Address Utilities', () => {
     });
 
     it('should handle uncompressed public key', () => {
-      const uncompressedPubKey = hexToBytes('0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8');
-      const address = encodeAddress(uncompressedPubKey, AddressFormat.P2PKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('1')).toBe(true);
+      expect(encodeAddress(uncompressedPubKey, AddressFormat.P2PKH))
+        .toBe('1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm');
+    });
+
+    it('should not conflate the two encodings of one key', () => {
+      // Same point, two serialisations, two different addresses. A prefix or
+      // length check cannot tell these apart, which is how an encoding bug
+      // hides.
+      const compressed = encodeAddress(testPubKey, AddressFormat.P2PKH);
+      const uncompressed = encodeAddress(uncompressedPubKey, AddressFormat.P2PKH);
+
+      expect(compressed).not.toBe(uncompressed);
+      expect(compressed.startsWith('1')).toBe(true);
+      expect(uncompressed.startsWith('1')).toBe(true);
     });
 
     it('should generate different addresses for different public keys', () => {
@@ -133,48 +138,53 @@ describe('Bitcoin Address Utilities', () => {
     const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
     const testPath = "m/84'/0'/0'/0/0";
 
+    // testMnemonic is the BIP-39 "abandon ... about" vector, so the first
+    // receiving address of each standard account is published in the BIP that
+    // defines the path. Asserting the address rather than its shape is what
+    // makes these tests able to catch a derivation change.
     it('should derive P2PKH address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, "m/44'/0'/0'/0/0", AddressFormat.P2PKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('1')).toBe(true);
+      // BIP-44 m/44'/0'/0'/0/0
+      expect(getAddressFromMnemonic(testMnemonic, "m/44'/0'/0'/0/0", AddressFormat.P2PKH))
+        .toBe('1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA');
     });
 
     it('should derive P2WPKH address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
+      // BIP-84 m/84'/0'/0'/0/0, given verbatim in the BIP.
+      expect(getAddressFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH))
+        .toBe('bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
     });
 
     it('should derive P2SH_P2WPKH address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, "m/49'/0'/0'/0/0", AddressFormat.P2SH_P2WPKH);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('3')).toBe(true);
+      // BIP-49 m/49'/0'/0'/0/0
+      expect(getAddressFromMnemonic(testMnemonic, "m/49'/0'/0'/0/0", AddressFormat.P2SH_P2WPKH))
+        .toBe('37VucYSaXLCAsxYyAPfbSi9eh4iEcbShgf');
     });
 
     it('should derive P2TR address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, "m/86'/0'/0'/0/0", AddressFormat.P2TR);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1p')).toBe(true);
+      // BIP-86 m/86'/0'/0'/0/0, given verbatim in the BIP.
+      expect(getAddressFromMnemonic(testMnemonic, "m/86'/0'/0'/0/0", AddressFormat.P2TR))
+        .toBe('bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr');
     });
 
+    // Counterwallet has no BIP to cite and derives from the seed mocked at the
+    // top of this file, so these two pin current behaviour rather than an
+    // external standard. They still fail if the derivation changes.
     it('should derive Counterwallet address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.Counterwallet);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('1')).toBe(true);
+      expect(getAddressFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.Counterwallet))
+        .toBe('1537tphrFkmJcxsmGqXprqpsKEUcSU5NHV');
     });
 
     it('should derive CounterwalletSegwit address from mnemonic', () => {
-      const address = getAddressFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.CounterwalletSegwit);
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
-      expect(address.length).toBe(42); // bech32 P2WPKH is always 42 chars
+      expect(getAddressFromMnemonic(testMnemonic, "m/0'/0", AddressFormat.CounterwalletSegwit))
+        .toBe('bc1q93r3de5tt6ks8qjuj2e3zd5r2p6rcmluzteug4');
     });
 
     it('should generate different addresses for different paths', () => {
-      const address1 = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressFormat.P2WPKH);
-      const address2 = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/1", AddressFormat.P2WPKH);
-      
-      expect(address1).not.toBe(address2);
+      // BIP-84's second receiving address, m/84'/0'/0'/0/1.
+      expect(getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0", AddressFormat.P2WPKH))
+        .toBe('bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu');
+      expect(getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/1", AddressFormat.P2WPKH))
+        .toBe('bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g');
     });
 
     it('should generate same address for same inputs', () => {
@@ -185,12 +195,14 @@ describe('Bitcoin Address Utilities', () => {
     });
 
     it('should handle different mnemonic lengths', () => {
-      // 24-word mnemonic
+      // The 24-word "abandon ... art" BIP-39 vector. Asserting the address is
+      // what distinguishes "a 24-word phrase derives its own key" from "a
+      // 24-word phrase silently derives the 12-word one".
       const longMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
       const address = getAddressFromMnemonic(longMnemonic, testPath, AddressFormat.P2WPKH);
-      
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
+
+      expect(address).toBe('bc1qzmtrqsfuaf6l6kkcsseumq26ukaphfj9skkug6');
+      expect(address).not.toBe(getAddressFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH));
     });
 
     it('should throw error for invalid mnemonic', () => {
@@ -205,19 +217,19 @@ describe('Bitcoin Address Utilities', () => {
     });
 
     it('should handle hardened derivation paths', () => {
-      const hardenedPath = "m/84'/0'/0'/0'/0'";
-      const address = getAddressFromMnemonic(testMnemonic, hardenedPath, AddressFormat.P2WPKH);
-      
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
+      // Hardened child indices take a different derivation branch, so this
+      // must not land on the unhardened m/84'/0'/0'/0/0 address.
+      const address = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0'/0'", AddressFormat.P2WPKH);
+
+      expect(address).toBe('bc1q8d2x9494zdyx6ka8pp4p94xe8jpsef77pzl7td');
+      expect(address).not.toBe(getAddressFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH));
     });
 
     it('should handle deep derivation paths', () => {
-      const deepPath = "m/84'/0'/0'/0/0/1/2/3";
-      const address = getAddressFromMnemonic(testMnemonic, deepPath, AddressFormat.P2WPKH);
-      
-      expect(typeof address).toBe('string');
-      expect(address.startsWith('bc1')).toBe(true);
+      const address = getAddressFromMnemonic(testMnemonic, "m/84'/0'/0'/0/0/1/2/3", AddressFormat.P2WPKH);
+
+      expect(address).toBe('bc1qd7kpfv598fstjzu6p4c9rkc4eqt4p9v0vysyd8');
+      expect(address).not.toBe(getAddressFromMnemonic(testMnemonic, testPath, AddressFormat.P2WPKH));
     });
   });
 
@@ -375,14 +387,19 @@ describe('Bitcoin Address Utilities', () => {
 
       const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       
-      addressFormats.forEach(addressFormat => {
-        const path = getDerivationPathForAddressFormat(addressFormat);
-        const fullPath = path + '/0';
-        const address = getAddressFromMnemonic(testMnemonic, fullPath, addressFormat);
-        
-        expect(typeof address).toBe('string');
-        expect(address.length).toBeGreaterThan(0);
+      // Every format must produce an address that validates, and no two
+      // formats may collide. `typeof address === 'string'` and a non-zero
+      // length were true of any return value at all, including one format
+      // silently falling back to another.
+      const derived = addressFormats.map(addressFormat => {
+        const fullPath = `${getDerivationPathForAddressFormat(addressFormat)}/0`;
+        return getAddressFromMnemonic(testMnemonic, fullPath, addressFormat);
       });
+
+      for (const address of derived) {
+        expect(isValidBitcoinAddress(address)).toBe(true);
+      }
+      expect(new Set(derived).size).toBe(addressFormats.length);
     });
   });
 });

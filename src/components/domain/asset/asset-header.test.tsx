@@ -41,7 +41,7 @@ vi.mock('@/core/numeric', async (importOriginal) => ({
   asBaseUnits: (v: unknown) => v,
   asDisplayUnits: (v: unknown) => v,
   fromSatoshis: vi.fn((value, options) => {
-    const numValue = typeof value === 'string' ? parseInt(value) : value;
+    const numValue = typeof value === 'string' ? parseInt(value, 10) : value;
     const result = numValue / 100000000;
     return options?.asNumber ? result : result.toString();
   })

@@ -222,10 +222,42 @@ describe('numeric utilities', () => {
     });
   });
 
+  describe('isFiniteNumber', () => {
+    it('accepts finite numbers, as strings or numbers', () => {
+      expect(isFiniteNumber('1.25')).toBe(true);
+      expect(isFiniteNumber(1.25)).toBe(true);
+      expect(isFiniteNumber(0)).toBe(true);
+      expect(isFiniteNumber('-3')).toBe(true);
+      // Same comma and space tolerance as toBigNumber.
+      expect(isFiniteNumber('1,234.5')).toBe(true);
+    });
+
+    it('rejects the infinities', () => {
+      expect(isFiniteNumber('Infinity')).toBe(false);
+      expect(isFiniteNumber(Number.POSITIVE_INFINITY)).toBe(false);
+      expect(isFiniteNumber(Number.NEGATIVE_INFINITY)).toBe(false);
+    });
+
+    // Each of these used to return true. Routing through toBigNumber replaced anything
+    // unparseable with its default of 0, and 0 is finite — so the predicate reported junk as a
+    // number and only ever rejected Infinity.
+    it('rejects what is not a number at all', () => {
+      expect(isFiniteNumber(Number.NaN)).toBe(false);
+      expect(isFiniteNumber('NaN')).toBe(false);
+      expect(isFiniteNumber('abc')).toBe(false);
+      expect(isFiniteNumber('')).toBe(false);
+      expect(isFiniteNumber('   ')).toBe(false);
+      expect(isFiniteNumber(null)).toBe(false);
+      expect(isFiniteNumber(undefined)).toBe(false);
+    });
+
+    it('does not treat a lone decimal point as a number', () => {
+      expect(isFiniteNumber('.')).toBe(false);
+    });
+  });
+
   describe('generic comparisons', () => {
     it('compares mixed numeric inputs safely', () => {
-      expect(isFiniteNumber('1.25')).toBe(true);
-      expect(isFiniteNumber('Infinity')).toBe(false);
       expect(isEqualTo('100', 100)).toBe(true);
       expect(isLessThan('99.99999999', 100)).toBe(true);
       expect(isLessThanOrEqualTo('100', 100)).toBe(true);

@@ -440,7 +440,7 @@ describe('signPSBT', () => {
 
     expect(input.sighashType).toBe(0x83);
     expect(input.partialSig).toHaveLength(1);
-    expect(input.partialSig?.[0]![1].at(-1)).toBe(0x83);
+    expect(input.partialSig![0]![1].at(-1)).toBe(0x83);
   });
 
   it('should throw on invalid private key', () => {

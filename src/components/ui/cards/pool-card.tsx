@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Pool, PoolPosition } from "@/core/counterparty/api";
-import { getCanonicalPoolAssets } from "@/core/counterparty/pool";
+import { getPoolDisplayAssets } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 
 interface PoolCardProps {
@@ -20,7 +20,7 @@ export function PoolCard({
   className = "",
 }: PoolCardProps): ReactElement {
   // Show icons and reserves in the same canonical order as the pair title
-  const [assetA, assetB] = getCanonicalPoolAssets(pool.asset_a, pool.asset_b);
+  const [assetA, assetB] = getPoolDisplayAssets(pool.asset_a, pool.asset_b);
   const swapped = assetA !== pool.asset_a;
   const reserveA = Number(
     swapped

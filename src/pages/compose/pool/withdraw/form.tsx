@@ -9,9 +9,8 @@ import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { PoolWithdrawOptions } from "@/core/counterparty/compose";
-import { applyPoolSlippage } from "@/core/counterparty/pool";
+import { applyPoolSlippage, resolvePoolSlippage } from "@/core/counterparty/pool";
 import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/core/numeric";
-import { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePoolWithdrawQuote } from "@/hooks/usePoolQuotes";
@@ -35,7 +34,7 @@ export function PoolWithdrawForm({
   const { data: assetADetails } = useAssetDetails(pool?.asset_a || "");
   const { data: assetBDetails } = useAssetDetails(pool?.asset_b || "");
   const [quantity, setQuantity] = useState(initialFormData?.quantity?.toString() || "");
-  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || settings?.defaultPoolSlippage || DEFAULT_POOL_SLIPPAGE);
+  const [slippage, setSlippage] = useState((initialFormData as PoolWithdrawOptions & { slippage?: string })?.slippage || resolvePoolSlippage(settings?.defaultPoolSlippage));
   const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 

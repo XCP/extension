@@ -11,7 +11,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import type { PoolQuote } from "@/core/counterparty/api";
 import type { OrderOptions } from "@/core/counterparty/compose";
-import { applyPoolSlippage } from "@/core/counterparty/pool";
+import { applyPoolSlippage, resolvePoolSlippage } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 import {
   fromSatoshis,
@@ -20,7 +20,7 @@ import {
   isValidPositiveNumber,
   toBigNumber,
 } from "@/core/numeric";
-import { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
+import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolSwapQuote } from "@/hooks/usePoolQuotes";
@@ -112,10 +112,12 @@ export function SwapForm({
     initialFormData?.get_asset || initialGetAsset || "XCP",
   );
   const [amount, setAmount] = useState(initialFormData?.give_quantity?.toString() || "");
-  const [slippage, setSlippage] = useState(
+  // The stored setting, which is either a percent or "auto" — not two settings. Resolved against
+  // the live quote below.
+  const [slippageSetting, setSlippageSetting] = useState(
     (initialFormData as (OrderOptions & { slippage?: string }) | null)?.slippage
       || settings?.defaultPoolSlippage
-      || DEFAULT_POOL_SLIPPAGE,
+      || POOL_SLIPPAGE_AUTO,
   );
   const [showDetails, setShowDetails] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -150,6 +152,9 @@ export function SwapForm({
   // Compared as a BigNumber: give_remaining is a 64-bit asset quantity, so it can arrive as a
   // string, and "0" > 0 is false but "10" > 0 compares as text rather than as a number.
   const unfilled = toBigNumber(quote?.give_remaining ?? 0).gt(0);
+
+  // Auto reads the tolerance off this quote's own price impact; a stored percent is used as-is.
+  const slippage = resolvePoolSlippage(slippageSetting, quote?.price_impact);
 
   // Null until the quote produces actual output; all values in display units.
   const quoteView = useMemo<QuoteView | null>(() => {
@@ -220,7 +225,7 @@ export function SwapForm({
   // Edits apply to this swap immediately and persist as the user's default,
   // same as the pool deposit/withdraw settings panel.
   const handleSlippageChange = (next: string) => {
-    setSlippage(next);
+    setSlippageSetting(next);
     void updateSettings({ defaultPoolSlippage: next });
   };
 
@@ -393,9 +398,11 @@ export function SwapForm({
             )}
             <div className="border-t border-gray-200 pt-3">
               <SlippageInput
-                value={slippage}
+                value={slippageSetting}
                 onChange={handleSlippageChange}
                 showHelpText={showHelpText}
+                offerAuto
+                resolvedValue={slippage}
               />
             </div>
           </div>

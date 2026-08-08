@@ -70,7 +70,7 @@ function sourceFiles(dir: string): string[] {
  * code, and a comment mentioning `Number()` scored as a violation. It also made the count differ
  * between a Windows working copy and CI's Linux one.
  */
-export function violationsIn(source: string): number {
+function violationsIn(source: string): number {
   let count = 0;
   for (const line of source.split(/\r?\n/)) {
     const code = line.replace(/\/\/.*$/, '').replace(/^\s*\*.*$/, '');

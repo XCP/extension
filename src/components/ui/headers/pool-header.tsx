@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Pool, PoolPosition } from "@/core/counterparty/api";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 
 interface PoolHeaderProps {
@@ -10,7 +10,7 @@ interface PoolHeaderProps {
 }
 
 export function PoolHeader({ pool, className = "" }: PoolHeaderProps): ReactElement {
-  const pair = getCanonicalPoolPair(pool.asset_a, pool.asset_b);
+  const pair = getPoolDisplayPair(pool.asset_a, pool.asset_b);
   const quantity = "quantity_normalized" in pool
     ? (pool.quantity_normalized as string | undefined)
     : undefined;

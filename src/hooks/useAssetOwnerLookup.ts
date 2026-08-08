@@ -72,7 +72,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
 
   const cleanupAll = useCallback(() => {
     Object.keys(debounceTimeouts.current).forEach((id) => {
-      clearTimeout(debounceTimeouts.current[parseInt(id)]);
+      clearTimeout(debounceTimeouts.current[Number(id)]);
     });
     Object.values(abortControllers.current).forEach((controller) => {
       controller.abort();

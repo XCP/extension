@@ -31,7 +31,7 @@ export function UtxoAttachForm({
   
   // Data fetching hooks
   const asset = initialAsset || initialFormData?.asset || "";
-  const { data: assetDetails } = useAssetDetails(asset);
+  const { data: assetDetails, error: assetError } = useAssetDetails(asset);
   
   // Local error state management
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -49,6 +49,14 @@ export function UtxoAttachForm({
     const quantityInput = document.querySelector("input[name='quantity']") as HTMLInputElement;
     quantityInput?.focus();
   }, []);
+
+  // Surface a failed asset load instead of rendering the form as if the asset
+  // simply had no balance. Seeded into local state so it stays dismissible.
+  useEffect(() => {
+    if (assetError) {
+      setValidationError('Could not load details for this asset.');
+    }
+  }, [assetError]);
 
   return (
     <ComposerForm

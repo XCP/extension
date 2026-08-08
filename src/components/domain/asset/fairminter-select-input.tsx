@@ -9,20 +9,43 @@ import {
 import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAmount } from "@/core/format";
+import { describeFairminterLot } from "@/core/counterparty/fairminterModel";
 import { isGreaterThan } from "@/core/numeric";
 
+/**
+ * A fairminter as `/v2/fairminters?verbose=true` returns it.
+ *
+ * The endpoint returns every column of core's fairminters table; this interface used to declare
+ * nine fields and drop the rest, which is why the mint screens could not say where a payment goes
+ * or how close the asset is to its cap. The fields below are read by the mint form and review, so
+ * they are declared here rather than re-fetched.
+ */
 export interface Fairminter {
   tx_hash: string;
+  /** Where the XCP goes when burn_payment is false — the address that opened the fairminter. */
   source: string;
   asset: string;
   description: string;
+  /** XCP charged per lot, in base units. */
+  price?: number;
+  /** XCP per whole unit; core derives it as price / quantity_by_price. */
   price_normalized: string;
+  /** Assets released per lot paid for, i.e. the lot size. */
   quantity_by_price_normalized: string;
   status: string;
   divisible: boolean;
   max_mint_per_tx?: number;
   max_mint_per_tx_normalized?: string;
+  /** True burns the payment; false sends it to `source`. Says nothing about whether it is free. */
+  burn_payment?: boolean;
+  hard_cap?: number;
+  hard_cap_normalized?: string;
+  /** Until this is reached, both the payment and the minted assets sit in escrow. */
+  soft_cap?: number;
+  soft_cap_normalized?: string;
+  soft_cap_deadline_block?: number;
+  max_mint_per_address?: number;
+  max_mint_per_address_normalized?: string;
 }
 
 interface FairminterSelectInputProps {
@@ -225,9 +248,9 @@ export function FairminterSelectInput({
                           <span
                             className={`text-xs ${active ? "text-blue-100" : "text-gray-500"}`}
                           >
-                            {!isGreaterThan(fairminter.price_normalized, 0)
-                              ? "Free mint (BTC fees only)"
-                              : `Price: ${formatAmount({ value: fairminter.price_normalized, maximumFractionDigits: 8 })} XCP`}
+                            {/* Cost of a whole lot, not of one token. The per-token figure read
+                                as "the price of a mint" while being a fraction of it. */}
+                            {describeFairminterLot(fairminter)}
                           </span>
                         </div>
                         {selected && (

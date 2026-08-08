@@ -7,7 +7,7 @@ import { ActionList } from "@/components/ui/lists/action-list";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import type { TokenBalance } from "@/core/counterparty/api";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { asDisplayUnits, divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
@@ -187,7 +187,7 @@ export default function AssetBalancePage(): ReactElement {
       ? divide(lpBalance, lpSupply)
       : null;
     return {
-      pair: getCanonicalPoolPair(lpPool.asset_a, lpPool.asset_b),
+      pair: getPoolDisplayPair(lpPool.asset_a, lpPool.asset_b),
       sharePercent: poolShare ? formatDecimal(multiply(poolShare, 100), 4) : null,
       underlying: poolShare
         ? [

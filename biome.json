@@ -31,17 +31,26 @@
         "useKeyWithClickEvents": "error",
         "useSemanticElements": "error"
       },
+      "complexity": {
+        "noUselessCatch": "error"
+      },
       "correctness": {
         "noEmptyPattern": "error",
         "noSwitchDeclarations": "error",
         "noUnusedImports": "error",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "useParseIntRadix": "error"
       },
       "style": {
         "useImportType": "error"
       },
       "suspicious": {
+        "noExportsInTest": "error",
+        "noGlobalIsNan": "error",
         "noImplicitAnyLet": "error",
+        "noNonNullAssertedOptionalChain": "error",
+        "noSkippedTests": "error",
+        "useArraySortCompare": "error",
         "useIterableCallbackReturn": "error"
       }
     }

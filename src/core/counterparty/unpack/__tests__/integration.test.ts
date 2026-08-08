@@ -5,11 +5,12 @@ import { asBaseUnits } from '@/core/numeric';
  * These tests call the real Counterparty API with validate=0 to get composed
  * transactions, then verify that our local unpacker correctly extracts the data.
  *
- * These tests require network access and may be slow. They're marked with
- * .skip() by default and can be enabled by removing the skip.
+ * These tests require network access and may be slow, so they do not run by
+ * default -- CI stays offline and deterministic. They are gated on an env var
+ * rather than .skip() so that they remain runnable on demand.
  *
  * To run integration tests:
- *   npm test -- --run integration.test.ts
+ *   RUN_INTEGRATION_TESTS=1 npx vitest run src/core/counterparty/unpack/__tests__/integration.test.ts
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -81,7 +82,9 @@ function getDataFromCompose(composeResult: { data: string }): string {
   return composeResult.data;
 }
 
-describe.skip('Integration: Counterparty API Compose & Unpack', () => {
+const runIntegrationTests = Boolean(process.env.RUN_INTEGRATION_TESTS);
+
+describe.runIf(runIntegrationTests)('Integration: Counterparty API Compose & Unpack', () => {
   // Increase timeout for API calls
   beforeAll(() => {
     // Warm up the connection
