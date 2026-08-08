@@ -83,6 +83,19 @@ describe('numeric utilities', () => {
       expect(isValidPositiveNumber('999999999.99999999')).toBe(true);
     });
 
+    // A value starting with =, @, + or - is a spreadsheet formula once exported to CSV, so the
+    // formula-injection guard rejects it before BigNumber sees it.
+    //
+    // Only '+' actually exercises that guard here: '=' and '@' are NaN to BigNumber and '-' is
+    // not positive, so those three are rejected either way and asserting them proves nothing
+    // about the guard. They are kept as the caller-visible contract, not as evidence.
+    it.each(['=', '@', '+', '-'])('rejects a value starting with %s', (prefix) => {
+      expect(isValidPositiveNumber(`${prefix}1234`)).toBe(false);
+      expect(isValidPositiveNumber(`${prefix}cmd|' /c calc'!A0`)).toBe(false);
+      // Leading whitespace is trimmed before the check, so it cannot be used to slip past it.
+      expect(isValidPositiveNumber(`  ${prefix}1234`)).toBe(false);
+    });
+
     it('should reject zero by default', () => {
       expect(isValidPositiveNumber('0')).toBe(false);
       expect(isValidPositiveNumber('0.0')).toBe(false);

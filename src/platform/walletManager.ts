@@ -836,7 +836,7 @@ export class WalletManager {
     if (!this.keychain) {
       return {
         ...DEFAULT_SETTINGS,
-        providerCapabilities: { ...(DEFAULT_SETTINGS.providerCapabilities ?? {}) },
+        providerCapabilities: { ...DEFAULT_SETTINGS.providerCapabilities },
       };
     }
     // DEFAULT_SETTINGS first backfills fields missing from keychains created

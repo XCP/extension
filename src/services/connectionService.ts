@@ -230,7 +230,7 @@ export class ConnectionService extends BaseService {
   ): Promise<void> {
     const walletService = getWalletService();
     const settings = await walletService.getSettings();
-    const capabilities = { ...(settings.providerCapabilities ?? {}) };
+    const capabilities = { ...settings.providerCapabilities };
     capabilities[origin] = { pairedAddresses: true, walletId, address };
     await walletService.updateSettings({ providerCapabilities: capabilities });
   }

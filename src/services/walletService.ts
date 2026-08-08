@@ -119,7 +119,7 @@ function createWalletService(): WalletService {
     },
     removeConnectedWebsite: async (origin) => {
       const settings = walletManager.getSettings();
-      const providerCapabilities = { ...(settings.providerCapabilities ?? {}) };
+      const providerCapabilities = { ...settings.providerCapabilities };
       delete providerCapabilities[origin];
       await walletManager.updateSettings({
         connectedWebsites: settings.connectedWebsites.filter((site) => site !== origin),
