@@ -7,7 +7,8 @@ import { WalletList } from './wallet-list';
 // Mock WalletCard component
 vi.mock('@/components/domain/wallet/wallet-card', () => ({
   WalletCard: ({ wallet, selected, displayAddress, onSelect, isOnlyWallet, disabled, disabledMessage }: any) => (
-    <div
+    <button
+      type="button"
       data-testid={`wallet-card-${wallet.id}`}
       data-selected={selected}
       data-display-address={displayAddress?.address || ''}
@@ -15,12 +16,10 @@ vi.mock('@/components/domain/wallet/wallet-card', () => ({
       data-disabled={disabled}
       data-disabled-message={disabledMessage || ''}
       onClick={() => !disabled && onSelect(wallet)}
-      role="radio"
-      aria-checked={selected}
       aria-disabled={disabled}
     >
       {wallet.name}
-    </div>
+    </button>
   )
 }));
 
@@ -92,7 +91,6 @@ describe('WalletList', () => {
 
     const selectedCard = screen.getByTestId('wallet-card-wallet-2');
     expect(selectedCard).toHaveAttribute('data-selected', 'true');
-    expect(selectedCard).toHaveAttribute('aria-checked', 'true');
   });
 
   it('should pass selected address only to selected wallet', () => {

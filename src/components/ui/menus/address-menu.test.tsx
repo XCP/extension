@@ -135,7 +135,7 @@ describe('AddressMenu', () => {
     const mockOnClick = vi.fn();
     
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <AddressMenu 
             address={mockAddress}

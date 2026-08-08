@@ -162,7 +162,7 @@ export default function XcpPricePage(): ReactElement {
   }
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex-1 overflow-auto no-scrollbar p-4">
         {/* Price Stats Card */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">

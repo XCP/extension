@@ -312,13 +312,13 @@ walletTest.describe('View Asset Page (/assets/:asset)', () => {
   // Page Structure Tests
   // ============================================================================
 
-  walletTest('page has proper role="main"', async ({ page }) => {
+  walletTest('page renders inside the main landmark', async ({ page }) => {
     await navigateToAsset(page, 'XCP');
 
     await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-    // Main content should have role="main"
-    const mainContent = page.locator('[role="main"]');
+    // Page content sits inside the app's main landmark
+    const mainContent = page.getByRole('main');
     await expect(mainContent).toBeVisible({ timeout: 5000 });
   });
 

@@ -157,7 +157,7 @@ describe('AssetMenu', () => {
     const mockOnClick = vi.fn();
     
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <AssetMenu ownedAsset={unlockedAsset} />
         </MemoryRouter>

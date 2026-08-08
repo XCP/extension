@@ -1,4 +1,3 @@
-import { Radio, RadioGroup } from "@headlessui/react";
 import type { ReactElement } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
@@ -307,53 +306,46 @@ export default function MarketPage(): ReactElement {
   const isSearching = searchQuery.trim().length > 0;
 
   return (
-    <div className="flex flex-col h-full" role="main">
+    <div className="flex flex-col h-full">
       <div className="flex flex-col flex-grow min-h-0">
         {/* Fixed Header */}
         <div className="p-4 pb-0 flex-shrink-0">
           {/* Address Selector */}
           {activeAddress && (
-            <RadioGroup value={activeAddress} onChange={() => {}} className="mb-4">
-              <Radio value={activeAddress}>
-                {({ checked }) => (
-                  <div
-                    className={`relative w-full rounded p-4 cursor-pointer ${
-                      checked ? "bg-blue-600 text-white shadow-md" : "bg-blue-200 hover:bg-blue-300 text-gray-800"
-                    }`}
-                    onClick={handleCopyAddress}
-                    aria-label="Current address"
-                  >
-                    <div className="absolute top-1/2 right-4 -translate-y-1/2">
-                      <div
-                        className="py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                        onClick={handleAddressSelection}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleAddressSelection(e as unknown as React.MouseEvent);
-                          }
-                        }}
-                        role="button"
-                        tabIndex={0}
-                        aria-label="Select another address"
-                      >
-                        <FaChevronRight className="size-4" aria-hidden="true" />
-                      </div>
-                    </div>
-                    <div className="text-sm mb-1 font-medium text-center">{activeAddress.name}</div>
-                    <div className="flex justify-center items-center">
-                      <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
-                      {addressCopied ? (
-                        <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
-                      ) : (
-                        <FaClipboard className="ml-2" aria-hidden="true" />
-                      )}
-                    </div>
-                  </div>
-                )}
-              </Radio>
-            </RadioGroup>
+            // Not a RadioGroup: one option, an onChange that did nothing, and `checked` always
+            // true — it existed so the ternary would pick the selected styling. Copying the
+            // address is a button, and saying so is what lets the keyboard reach it. The classes
+            // are the branch that always won, so this renders identically.
+            // Copying and choosing another address are two buttons side by side, not
+            // one inside the other. Neither needs to guard the other's keypresses.
+            <div className="relative w-full rounded bg-blue-600 text-white shadow-md mb-4">
+              <button
+                type="button"
+                className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                onClick={handleCopyAddress}
+                aria-label="Current address"
+              >
+                <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
+                <div className="flex justify-center items-center">
+                  <span className="font-mono text-sm">{formatAddress(activeAddress.address)}</span>
+                  {addressCopied ? (
+                    <FaCheck className="ml-2 text-green-500" aria-hidden="true" />
+                  ) : (
+                    <FaClipboard className="ml-2" aria-hidden="true" />
+                  )}
+                </div>
+              </button>
+              <div className="absolute top-1/2 right-4 -translate-y-1/2">
+                <button
+                  type="button"
+                  className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  onClick={handleAddressSelection}
+                  aria-label="Select another address"
+                >
+                  <FaChevronRight className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
           )}
 
           <PriceTicker

@@ -81,7 +81,7 @@ describe('ConnectedSiteCard', () => {
     const mockParentClick = vi.fn();
     
     render(
-      <div onClick={mockParentClick}>
+      <div role="presentation" onClick={mockParentClick}>
         <ConnectedSiteCard {...defaultProps} />
       </div>
     );

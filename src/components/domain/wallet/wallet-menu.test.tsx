@@ -169,7 +169,7 @@ describe('WalletMenu', () => {
     const mockOnClick = vi.fn();
     
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <WalletMenu wallet={mnemonicWallet} isOnlyWallet={false} />
         </MemoryRouter>
@@ -191,7 +191,7 @@ describe('WalletMenu', () => {
     const mockOnClick = vi.fn();
     
     render(
-      <div onClick={mockOnClick}>
+      <div role="presentation" onClick={mockOnClick}>
         <MemoryRouter>
           <WalletMenu wallet={mnemonicWallet} isOnlyWallet={false} />
         </MemoryRouter>

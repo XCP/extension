@@ -123,6 +123,40 @@ describe('AddressList', () => {
     expect(onSelectAddress).toHaveBeenCalledWith(mockAddresses[0]);
   });
 
+  it('should call onSelectAddress when the already-selected address is confirmed by keyboard', () => {
+    const onSelectAddress = vi.fn();
+    render(
+      <AddressList
+        {...defaultProps}
+        selectedAddress={mockAddresses[0]}
+        onSelectAddress={onSelectAddress}
+      />
+    );
+
+    // The radio group itself ignores this key, because the value would not change.
+    const address1 = screen.getByText('Address 1').closest('div[role="radio"]');
+    fireEvent.keyDown(address1!, { key: 'Enter' });
+
+    expect(onSelectAddress).toHaveBeenCalledWith(mockAddresses[0]);
+  });
+
+  it('should call onSelectAddress once when a different address is confirmed by keyboard', () => {
+    const onSelectAddress = vi.fn();
+    render(
+      <AddressList
+        {...defaultProps}
+        selectedAddress={mockAddresses[0]}
+        onSelectAddress={onSelectAddress}
+      />
+    );
+
+    const address2 = screen.getByText('Address 2').closest('div[role="radio"]');
+    fireEvent.keyDown(address2!, { key: ' ' });
+
+    expect(onSelectAddress).toHaveBeenCalledTimes(1);
+    expect(onSelectAddress).toHaveBeenCalledWith(mockAddresses[1]);
+  });
+
   it('should copy address to clipboard when copy button clicked', async () => {
     render(<AddressList {...defaultProps} />);
     

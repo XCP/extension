@@ -105,7 +105,7 @@ export default function ConnectedSitesPage(): ReactElement {
   }
 
   return (
-    <div className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} role="main" aria-labelledby="connected-sites-title">
+    <section className={connectedSites.length === 0 ? 'h-full flex items-center justify-center' : 'p-4 space-y-4'} aria-labelledby="connected-sites-title">
       <h2 id="connected-sites-title" className="sr-only">
         Connected Sites
       </h2>
@@ -130,6 +130,6 @@ export default function ConnectedSitesPage(): ReactElement {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

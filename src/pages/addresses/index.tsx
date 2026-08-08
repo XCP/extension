@@ -104,7 +104,7 @@ export default function AddressesPage(): ReactElement {
   if (!activeWallet) return <div className="p-4">No active wallet found</div>;
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="address-selection-title">
+    <section className="flex flex-col h-full" aria-labelledby="address-selection-title">
       <div className="flex-grow overflow-y-auto p-4">
         {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
         <h2 id="address-selection-title" className="sr-only">Select an Address</h2>
@@ -133,6 +133,6 @@ export default function AddressesPage(): ReactElement {
           {isAddingAddress ? "Adding…" : keychainLocked ? "Unlock to Add Address" : "Add Address"}
         </Button>
       </div>
-    </div>
+    </section>
   );
 }

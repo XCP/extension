@@ -120,7 +120,7 @@ export default function SecuritySettingsPage(): ReactElement {
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="security-settings-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="security-settings-title">
       <h2 id="security-settings-title" className="sr-only">
         Security Settings
       </h2>
@@ -186,6 +186,6 @@ export default function SecuritySettingsPage(): ReactElement {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }

@@ -67,7 +67,7 @@ function ResetWalletPage() {
   }
 
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="reset-wallet-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="reset-wallet-title">
       <h2 id="reset-wallet-title" className="sr-only text-2xl font-bold mb-2">Reset Wallet</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow" aria-describedby="reset-wallet-warning">
@@ -90,7 +90,7 @@ function ResetWalletPage() {
           </Button>
         </div>
       </form>
-    </div>
+    </section>
   );
 }
 

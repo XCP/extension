@@ -61,7 +61,7 @@ export default function AdvancedSettingsPage(): ReactElement {
   const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   return (
-    <div className="space-y-8 p-4 mb-2" role="main" aria-labelledby="advanced-settings-title">
+    <section className="space-y-8 p-4 mb-2" aria-labelledby="advanced-settings-title">
       <h2 id="advanced-settings-title" className="sr-only">
         Advanced Settings
       </h2>
@@ -181,7 +181,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           />
         </SettingsSection>
       )}
-    </div>
+    </section>
   );
 }
 

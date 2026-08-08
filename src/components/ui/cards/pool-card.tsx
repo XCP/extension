@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Pool, PoolPosition } from "@/core/counterparty/api";
 import { getCanonicalPoolAssets } from "@/core/counterparty/pool";
@@ -35,20 +35,10 @@ export function PoolCard({
   const quantity =
     "quantity" in pool ? ((pool.quantity_normalized ?? pool.quantity) as string | number) : null;
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onClick();
-    }
-  };
-
   return (
-    <div
-      className={`bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
+    <button type="button"
+      className={`block w-full text-left bg-white rounded-lg shadow-sm p-3 hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       onClick={onClick}
-      onKeyDown={handleKeyDown}
-      role="button"
-      tabIndex={0}
     >
       <div className="flex items-center gap-3">
         {/* Overlapping pair icons: solid white backing keeps transparent icon art
@@ -92,6 +82,6 @@ export function PoolCard({
           </div>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

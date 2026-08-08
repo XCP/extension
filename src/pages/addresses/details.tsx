@@ -68,9 +68,8 @@ export default function AddressDetailsPage(): ReactElement {
   })();
 
   return (
-    <div
+    <section
       className="flex flex-col items-center p-4 space-y-4"
-      role="main"
       aria-labelledby="view-address-title"
     >
       <div id="view-address-title" className="text-center font-medium text-gray-600">
@@ -78,7 +77,7 @@ export default function AddressDetailsPage(): ReactElement {
       </div>
       <QRCode text={activeAddress?.address} ariaLabel="Address QR Code" />
       <CopyAddress address={activeAddress?.address} />
-    </div>
+    </section>
   );
 }
 
@@ -116,29 +115,18 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
     }
   };
 
-  /**
-   * Handles keyboard events for copying the address.
-   */
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleCopyAddress();
-    }
-  };
-
   return (
     <>
       <div className="w-full text-center">
-        <div
+        <button type="button"
           onClick={handleCopyAddress}
-          onKeyDown={handleKeyDown}
-          role="button"
-          tabIndex={0}
-          aria-label="Copy address"
-          className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
+          // Distinct from the button below, which copies the same thing: two
+          // controls sharing one accessible name is ambiguous to announce.
+          aria-label="Copy the address shown here"
+          className="block w-full font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
         >
           {address}
-        </div>
+        </button>
       </div>
       <Button
         onClick={handleCopyAddress}

@@ -107,15 +107,8 @@ export default function ShowPrivateKeyPage(): ReactElement {
     await copy(privateKey);
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      handleCopyPrivateKey();
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="show-private-key-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="show-private-key-title">
       <h2 id="show-private-key-title" className="sr-only">Show Private Key</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
@@ -147,16 +140,15 @@ export default function ShowPrivateKeyPage(): ReactElement {
                 This is your private key in Wallet Import Format. Never share it with anyone.
               </p>
             </div>
-            <div
+            <button type="button"
               onClick={handleCopyPrivateKey}
-              onKeyDown={handleKeyDown}
-              role="button"
-              tabIndex={0}
-              aria-label="Copy Private Key"
-              className="font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
+              // Distinct from the button below, which copies the same thing: two
+              // controls sharing one accessible name is ambiguous to announce.
+              aria-label="Copy the private key shown here"
+              className="block w-full text-left font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
             >
               {privateKey}
-            </div>
+            </button>
             <Button
               onClick={handleCopyPrivateKey}
               color="blue"
@@ -174,6 +166,6 @@ export default function ShowPrivateKeyPage(): ReactElement {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

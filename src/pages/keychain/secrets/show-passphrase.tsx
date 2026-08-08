@@ -80,7 +80,7 @@ export default function ShowPassphrasePage(): ReactElement {
   }
 
   return (
-    <div className="flex flex-col h-full p-4" role="main" aria-labelledby="show-passphrase-title">
+    <section className="flex flex-col h-full p-4" aria-labelledby="show-passphrase-title">
       <h2 id="show-passphrase-title" className="sr-only">Show Recovery Phrase</h2>
       {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
       {!isConfirmed ? (
@@ -134,6 +134,6 @@ export default function ShowPassphrasePage(): ReactElement {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

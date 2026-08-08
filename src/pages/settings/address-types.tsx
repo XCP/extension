@@ -161,7 +161,7 @@ export default function AddressTypesPage(): ReactElement {
   const isHardwareWallet = activeWallet.type === 'hardware';
 
   return (
-    <div className="space-y-2 p-4" role="main" aria-labelledby="address-type-settings-title">
+    <section className="space-y-2 p-4" aria-labelledby="address-type-settings-title">
       <h2 id="address-type-settings-title" className="sr-only">
         Address Type Settings
       </h2>
@@ -217,6 +217,6 @@ export default function AddressTypesPage(): ReactElement {
           })}
         </SelectionCardGroup>
       </RadioGroup>
-    </div>
+    </section>
   );
 }

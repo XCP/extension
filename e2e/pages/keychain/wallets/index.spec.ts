@@ -26,11 +26,13 @@ walletTest.describe('Select Wallet Page (/keychain/wallets)', () => {
   walletTest('displays at least one wallet', async ({ page }) => {
     await navigateToSelectWallet(page);
 
-    // Wallets are displayed using HeadlessUI RadioGroup.Option which has role="radio"
+    // Wallets are displayed using HeadlessUI RadioGroup.Option which has role="radio".
+    // count() does not wait, so it has to follow a web-first assertion rather than
+    // race the list's first render.
     const walletItems = page.locator('[role="radio"]');
-    const count = await walletItems.count();
+    await expect(walletItems.first()).toBeVisible({ timeout: 5000 });
 
-    expect(count).toBeGreaterThanOrEqual(1);
+    expect(await walletItems.count()).toBeGreaterThanOrEqual(1);
   });
 
   walletTest('shows wallet names', async ({ page }) => {

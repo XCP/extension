@@ -15,6 +15,11 @@ const Icon = ({ children, ...props }: IconProps & { children: ReactElement }): R
     height="1em"
     width="1em"
     xmlns="http://www.w3.org/2000/svg"
+    // Decorative by default: an icon repeats what its button or link already says, and a screen
+    // reader announcing it twice is noise. Icons that carry meaning alone are named by an
+    // aria-label on the control, and a caller can still override either through props.
+    aria-hidden="true"
+    focusable="false"
     {...props}
   >
     {children}
@@ -33,6 +38,9 @@ const FeatherIcon = ({ children, ...props }: IconProps & { children: ReactElemen
     height="1em"
     width="1em"
     xmlns="http://www.w3.org/2000/svg"
+    // Decorative by default, as above.
+    aria-hidden="true"
+    focusable="false"
     {...props}
   >
     {children}

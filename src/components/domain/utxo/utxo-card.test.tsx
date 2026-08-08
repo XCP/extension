@@ -134,19 +134,21 @@ describe("UtxoCard", () => {
     );
   });
 
-  it("navigates on Enter key press", () => {
+  // The card body is a real button now, so the browser supplies Enter and Space.
+  // jsdom does not synthesise that, so the element type is what pins it down —
+  // and being a button, rather than a wrapper around one, is the point: the menu
+  // is a button too, and one cannot contain the other.
+  it("exposes the card body as a button, separate from the menu", () => {
     render(
       <TestWrapper>
         <UtxoCard token={mockToken} />
       </TestWrapper>,
     );
 
-    const card = screen.getByText("XCP").closest('[role="button"]')!;
-    fireEvent.keyDown(card, { key: "Enter" });
-
-    expect(mockNavigate).toHaveBeenCalledWith(
-      `/assets/utxos/${mockToken.utxo}`,
-    );
+    const card = screen.getByText("XCP").closest("button")!;
+    expect(card.tagName).toBe("BUTTON");
+    expect(card).toHaveAttribute("type", "button");
+    expect(card.querySelector("button")).toBeNull();
   });
 
   it("handles indivisible tokens", () => {
@@ -167,8 +169,7 @@ describe("UtxoCard", () => {
       </TestWrapper>,
     );
 
-    const card = screen.getByText("XCP").closest('[role="button"]');
-    expect(card).toHaveAttribute("tabindex", "0");
+    const card = screen.getByText("XCP").closest("button");
     expect(card).toHaveClass("cursor-pointer");
   });
 });

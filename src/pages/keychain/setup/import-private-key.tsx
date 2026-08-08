@@ -134,7 +134,7 @@ function ImportPrivateKeyPage() {
   }
 
   return (
-    <div className="flex-grow overflow-y-auto p-4" role="main" aria-labelledby="import-private-key-title">
+    <section className="flex-grow overflow-y-auto p-4" aria-labelledby="import-private-key-title">
       <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
         {state.error && !errorDismissed && (
           <ErrorAlert message={state.error} onClose={() => setErrorDismissed(true)} />
@@ -238,7 +238,7 @@ function ImportPrivateKeyPage() {
           Watch Tutorial: How to Import a Private Key
         </Button>
       )}
-    </div>
+    </section>
   );
 }
 

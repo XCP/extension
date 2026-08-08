@@ -19,7 +19,12 @@
     "rules": {
       "recommended": false,
       "a11y": {
-        "useButtonType": "error"
+        "noAutofocus": "error",
+        "noLabelWithoutControl": "error",
+        "noSvgWithoutTitle": "error",
+        "useButtonType": "error",
+        "useKeyWithClickEvents": "error",
+        "useSemanticElements": "error"
       },
       "correctness": {
         "noUnusedImports": "error",

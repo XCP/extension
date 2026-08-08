@@ -245,6 +245,63 @@ describe('WalletCard', () => {
     expect(mockOnSelect).toHaveBeenCalledWith(mockMnemonicWallet);
   });
 
+  it('calls onSelect when the already-selected wallet is confirmed by keyboard', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={true}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    // The radio group itself ignores this key, because the value would not change.
+    const radioOption = screen.getByRole('radio');
+    fireEvent.keyDown(radioOption, { key: 'Enter' });
+
+    expect(mockOnSelect).toHaveBeenCalledWith(mockMnemonicWallet);
+  });
+
+  it('calls onSelect once when an unselected wallet is confirmed by keyboard', () => {
+    render(
+      <TestWrapper value={mockPrivateKeyWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockMnemonicWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+        />
+      </TestWrapper>
+    );
+
+    const radioOption = screen.getByRole('radio');
+    fireEvent.keyDown(radioOption, { key: ' ' });
+
+    expect(mockOnSelect).toHaveBeenCalledTimes(1);
+    expect(mockOnSelect).toHaveBeenCalledWith(mockMnemonicWallet);
+  });
+
+  it('does not select a disabled wallet by keyboard', () => {
+    render(
+      <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>
+        <WalletCard
+          wallet={mockHardwareWallet}
+          selected={false}
+          onSelect={mockOnSelect}
+          isOnlyWallet={false}
+          disabled
+          disabledMessage="Open in sidepanel"
+        />
+      </TestWrapper>
+    );
+
+    fireEvent.keyDown(screen.getByRole('radio'), { key: 'Enter' });
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+  });
+
   it('shows disabled message and does not select disabled hardware wallet', () => {
     render(
       <TestWrapper value={mockMnemonicWallet} onChange={mockOnSelect}>

@@ -99,7 +99,7 @@ function AddWalletPage() {
   }, [removeWallet, hardwareWallet, navigate]);
 
   return (
-    <div className="flex flex-col h-full" role="main" aria-labelledby="add-wallet-title">
+    <section className="flex flex-col h-full" aria-labelledby="add-wallet-title">
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6 text-center">
           <h2 id="add-wallet-title" className="text-2xl font-bold mb-6">
@@ -169,7 +169,7 @@ function AddWalletPage() {
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 

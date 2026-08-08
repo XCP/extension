@@ -47,13 +47,14 @@ describe('SuccessScreen', () => {
       expect(screen.getByText('Your transaction was broadcasted.')).toBeInTheDocument();
     });
 
-    it('displays transaction ID with label', () => {
+    it('displays transaction ID with a caption', () => {
       render(<SuccessScreen {...defaultProps} />);
 
-      // Find the label specifically (not the button text)
-      const label = screen.getByText('Transaction ID');
-      expect(label).toBeInTheDocument();
-      expect(label.tagName).toBe('LABEL');
+      // A caption over a read-only value, not a form label: there is no control for it to name,
+      // and a <label> that labels nothing is announced as one anyway.
+      const caption = screen.getByText('Transaction ID');
+      expect(caption).toBeInTheDocument();
+      expect(caption.tagName).toBe('SPAN');
       expect(screen.getByText('abc123def456ghi789jkl012mno345pqr678stu901vwx234yz')).toBeInTheDocument();
     });
 

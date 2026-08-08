@@ -255,7 +255,7 @@ export default function AssetPage(): ReactElement {
   }
 
   return (
-    <div className="p-4 space-y-6" role="main" aria-labelledby="asset-title">
+    <section className="p-4 space-y-6" aria-labelledby="asset-title">
       <AssetHeader
         className="mt-1 mb-5"
         assetInfo={headerAssetInfo}
@@ -334,13 +334,10 @@ export default function AssetPage(): ReactElement {
             ) : (
               <div className="p-4 space-y-3">
                 {dividends.map((dividend) => (
-                  <div
+                  <button type="button"
                     key={dividend.tx_hash}
                     onClick={() => navigate(`/transaction/${dividend.tx_hash}`)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/transaction/${dividend.tx_hash}`); } }}
-                    className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    role="button"
-                    tabIndex={0}
+                    className="block w-full text-left border border-gray-200 rounded-lg p-3 hover:bg-gray-50 cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     aria-label={`View dividend transaction ${dividend.tx_hash}`}
                   >
                     <div className="flex justify-between items-start mb-2">
@@ -367,7 +364,7 @@ export default function AssetPage(): ReactElement {
                     <div className="text-xs text-gray-400 break-all">
                       TX: {dividend.tx_hash}
                     </div>
-                  </div>
+                  </button>
                 ))}
                 
                 {hasMoreDividends && (
@@ -387,6 +384,6 @@ export default function AssetPage(): ReactElement {
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }

@@ -71,9 +71,8 @@ function WalletsPage() {
   };
 
   return (
-    <div
+    <section
       className="flex flex-col h-full"
-      role="main"
       aria-labelledby="wallet-selection-title"
     >
       <div className="flex-grow overflow-y-auto p-4">
@@ -102,7 +101,7 @@ function WalletsPage() {
           Add Wallet
         </Button>
       </div>
-    </div>
+    </section>
   );
 }
 

@@ -36,6 +36,18 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
     }
   };
 
+  // The radio group ignores a keypress on the option that is already checked, so
+  // re-selecting the current address — how these screens confirm and move on — is
+  // otherwise unreachable from the keyboard. Handle it here, on the focusable
+  // element, and stop the group from acting on the same key twice.
+  const handleAddressKeyDown = (e: React.KeyboardEvent, address: Address) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    onSelectAddress(address);
+  };
+
   return (
     <RadioGroup
       // Use the address string as the value
@@ -54,11 +66,12 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
           key={address.path}
           // Set each option's value to the unique address string
           value={address.address}
+          onClick={(e: React.MouseEvent) => handleAddressClick(e, address)}
+          onKeyDown={(e: React.KeyboardEvent) => handleAddressKeyDown(e, address)}
           className="focus-visible:outline-none"
         >
           {({ checked }) => (
             <div
-              onClick={(e) => handleAddressClick(e, address)}
               className={`
                 relative w-full rounded transition-colors duration-300 p-4 cursor-pointer
                 ${checked
