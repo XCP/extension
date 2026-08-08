@@ -68,8 +68,10 @@ describe('VALID_AUTO_LOCK_TIMERS', () => {
   });
 
   it('matches AUTO_LOCK_TIMEOUT_MS keys', () => {
-    expect(VALID_AUTO_LOCK_TIMERS.sort()).toEqual(
-      Object.keys(AUTO_LOCK_TIMEOUT_MS).sort()
+    // Compare as sets: sorting in place would mutate the exported constant and
+    // reorder it for every test that runs after this one.
+    expect(new Set(VALID_AUTO_LOCK_TIMERS)).toEqual(
+      new Set(Object.keys(AUTO_LOCK_TIMEOUT_MS))
     );
   });
 });

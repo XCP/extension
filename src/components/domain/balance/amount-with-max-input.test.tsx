@@ -18,7 +18,7 @@ vi.mock('@/core/numeric', async (importOriginal) => ({
   // Brands are compile-time only; at runtime they are identity.
   asBaseUnits: (v: unknown) => v,
   asDisplayUnits: (v: unknown) => v,
-  fromSatoshis: vi.fn((sats) => (parseInt(sats) / 100000000).toFixed(8)),
+  fromSatoshis: vi.fn((sats) => (parseInt(sats, 10) / 100000000).toFixed(8)),
 }));
 
 describe('AmountWithMaxInput', () => {

@@ -207,7 +207,7 @@ describe('Numeric Utilities Fuzz Tests', () => {
         (btcAmount) => {
           const satoshis = toSatoshis(btcAmount);
           const expectedSatoshis = Math.floor(btcAmount * 1e8);
-          expect(parseInt(satoshis)).toBe(expectedSatoshis);
+          expect(parseInt(satoshis, 10)).toBe(expectedSatoshis);
         }
       ), { numRuns: 500 });
     });
@@ -277,7 +277,7 @@ describe('Numeric Utilities Fuzz Tests', () => {
         (minuend, subtrahend) => {
           const result = subtractSatoshis(minuend, subtrahend);
           const expected = minuend - subtrahend;
-          expect(parseInt(result)).toBe(expected);
+          expect(parseInt(result, 10)).toBe(expected);
         }
       ), { numRuns: 200 });
     });
@@ -289,7 +289,7 @@ describe('Numeric Utilities Fuzz Tests', () => {
         (dividend, divisor) => {
           const result = divideSatoshis(dividend, divisor);
           const expected = Math.floor(dividend / divisor);
-          expect(parseInt(result)).toBe(expected);
+          expect(parseInt(result, 10)).toBe(expected);
         }
       ), { numRuns: 200 });
     });

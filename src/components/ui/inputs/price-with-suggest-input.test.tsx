@@ -18,7 +18,7 @@ vi.mock('@/core/numeric', async (importOriginal) => ({
   isValidPositiveNumber: vi.fn((value, options) => {
     if (value === '') return true;
     const num = parseFloat(value);
-    if (isNaN(num)) return false;
+    if (Number.isNaN(num)) return false;
     if (num < 0) return false;
     if (!options?.allowZero && num === 0) return false;
     return true;

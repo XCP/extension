@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import { DESTINATION_WARNING_THRESHOLD, MAX_DESTINATIONS } from '@/core/validation/destinations';
 import { DestinationsInput } from './destinations-input';
 
 // Mock the bitcoin validation
@@ -365,11 +366,8 @@ describe('DestinationsInput', () => {
     expect(screen.getByText(/Paste multiple addresses/)).toBeInTheDocument();
   });
 
-  it.skip('should show warning when approaching destination limit', async () => {
-    // Skip: This test renders 950 destinations which is too slow for CI
-    // Use a smaller number near the warning threshold for faster testing
-    // The warning typically shows at 950+ destinations
-    const destinations = Array.from({ length: 950 }, (_, i) => ({
+  it('should show warning when approaching destination limit', async () => {
+    const destinations = Array.from({ length: DESTINATION_WARNING_THRESHOLD }, (_, i) => ({
       id: i,
       address: `addr${i}` // Use very short addresses for speed
     }));
@@ -385,15 +383,14 @@ describe('DestinationsInput', () => {
 
     // Wait for the warning text to appear
     await waitFor(() => {
-      expect(screen.getByText(/Approaching destination limit: 950\/1000/)).toBeInTheDocument();
+      expect(
+        screen.getByText(`Approaching destination limit: ${DESTINATION_WARNING_THRESHOLD}/${MAX_DESTINATIONS}`)
+      ).toBeInTheDocument();
     }, { timeout: 5000 });
   }, 60000);
 
-  it.skip('should show error when at destination limit', () => {
-    // Skip: This test renders 1000 destinations which is too slow for CI
-    // Test with exactly 1000 destinations to verify limit message appears
-    // Use minimal addresses for performance
-    const destinations = Array.from({ length: 1000 }, (_, i) => ({
+  it('should show error when at destination limit', () => {
+    const destinations = Array.from({ length: MAX_DESTINATIONS }, (_, i) => ({
       id: i,
       address: `${i}` // Minimal string for performance
     }));
@@ -410,13 +407,11 @@ describe('DestinationsInput', () => {
     // Look for the limit message using more specific selector
     const limitMessage = container.querySelector('p.text-red-600');
     expect(limitMessage).toBeInTheDocument();
-    expect(limitMessage?.textContent).toBe('Maximum destination limit reached: 1000');
+    expect(limitMessage?.textContent).toBe(`Maximum destination limit reached: ${MAX_DESTINATIONS}`);
   }, 30000); // Increase timeout to 30 seconds for safety
 
-  it.skip('should not show add button at 1000 limit', async () => {
-    // Skip: This test renders 1000 destinations which is too slow for CI
-    // The limit behavior is tested in the previous test with 999 destinations
-    const destinations = Array.from({ length: 1000 }, (_, i) => ({
+  it('should not show add button at the destination limit', async () => {
+    const destinations = Array.from({ length: MAX_DESTINATIONS }, (_, i) => ({
       id: i,
       address: `${i}` // Simplified addresses for performance
     }));
@@ -432,7 +427,7 @@ describe('DestinationsInput', () => {
 
     // Wait for the component to render with limit message
     await waitFor(() => {
-      expect(screen.getByText('Maximum destination limit reached: 1000')).toBeInTheDocument();
+      expect(screen.getByText(`Maximum destination limit reached: ${MAX_DESTINATIONS}`)).toBeInTheDocument();
     }, { timeout: 5000 });
 
     // Should not show add button when at max limit

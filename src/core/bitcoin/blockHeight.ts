@@ -83,14 +83,7 @@ const blockHeightFetchers: Array<() => Promise<number>> = [
  * @throws {DataFetchError} If all sources fail
  */
 export async function fetchBlockHeightRace(): Promise<number> {
-  const fetchPromises = blockHeightFetchers.map(async (fetcher) => {
-    try {
-      return await fetcher();
-    } catch (error) {
-      // Convert rejections to a special rejected value so we can track failures
-      throw error;
-    }
-  });
+  const fetchPromises = blockHeightFetchers.map((fetcher) => fetcher());
 
   try {
     // Use Promise.any which returns the first fulfilled promise, ignoring rejections until all reject

@@ -26,12 +26,23 @@
         "useKeyWithClickEvents": "error",
         "useSemanticElements": "error"
       },
+      "complexity": {
+        "noUselessCatch": "error"
+      },
       "correctness": {
         "noUnusedImports": "error",
-        "noUnusedVariables": "warn"
+        "noUnusedVariables": "warn",
+        "useParseIntRadix": "error"
       },
       "style": {
         "useImportType": "error"
+      },
+      "suspicious": {
+        "noExportsInTest": "error",
+        "noGlobalIsNan": "error",
+        "noNonNullAssertedOptionalChain": "error",
+        "noSkippedTests": "error",
+        "useArraySortCompare": "error"
       }
     }
   }
