@@ -881,6 +881,31 @@ export async function fetchAssetFairminter(asset: string): Promise<FairminterDet
 }
 
 /**
+ * How much of an asset an address has already fairminted, in display units.
+ *
+ * Core enforces `already_minted + quantity <= max_mint_per_address` against this same total, so
+ * the mint form needs it to stop offering a Max that will be rejected. Returns null when the
+ * lookup fails: an unknown total is not zero, and treating it as zero offers the full allowance.
+ */
+export async function fetchAddressFairmintTotal(
+  address: string,
+  asset: string
+): Promise<string | null> {
+  try {
+    const data = await cpApiGet<{ result: Array<{ earn_quantity_normalized?: DisplayUnits }> | null }>(
+      `/v2/addresses/${encodePath(address)}/fairmints/${encodePath(asset)}`,
+      { verbose: true, limit: 500, offset: 0 }
+    );
+    if (!data.result) return null;
+    return data.result
+      .reduce((total, fairmint) => total.plus(toBigNumber(fairmint.earn_quantity_normalized ?? 0)), toBigNumber(0))
+      .toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetch all orders across all addresses.
  * @param options - Pagination and status filter options (defaults to 'open' status)
  * @returns Paginated list of orders with full details

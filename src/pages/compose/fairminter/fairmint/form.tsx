@@ -7,6 +7,7 @@ import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
+import { fetchAddressFairmintTotal } from "@/core/counterparty/api";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import {
   getFairminterLotCost,
@@ -89,7 +90,7 @@ export function FairmintForm({
   );
 
   // Data fetching hooks
-  const { error: assetError } = useAssetDetails(
+  const { data: mintedAssetDetails, error: assetError } = useAssetDetails(
     formData.asset || "", // Pass empty string if no asset selected
     {
       // These callbacks run in the useAssetDetails hook
@@ -131,13 +132,36 @@ export function FairmintForm({
     inputRef.current?.focus();
   }, []);
 
-  // Every bound core checks, expressed in lots — see getMaxFairmintLots. The hard-cap and
-  // per-address bounds need the asset's supply and this address's history, which this screen does
-  // not load; those are skipped rather than guessed, and compose still rejects them.
+  // What this address has already minted of the asset, for the per-address allowance. Null while
+  // loading or if the lookup fails, which getMaxFairmintLots treats as "unknown" rather than zero.
+  const [alreadyMinted, setAlreadyMinted] = useState<string | null>(null);
+  useEffect(() => {
+    const address = activeAddress?.address;
+    const hasAllowance = isGreaterThan(selectedFairminter?.max_mint_per_address_normalized ?? 0, 0);
+    if (!address || !selectedFairminter || !hasAllowance) {
+      setAlreadyMinted(null);
+      return;
+    }
+    let cancelled = false;
+    fetchAddressFairmintTotal(address, selectedFairminter.asset).then((total) => {
+      if (!cancelled) setAlreadyMinted(total);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeAddress?.address, selectedFairminter]);
+
+  // Every bound core checks, expressed in lots — see getMaxFairmintLots.
   const maxLots = useCallback(() => {
     if (!selectedFairminter || isFreeMint) return "0";
-    return getMaxFairmintLots({ fairminter: selectedFairminter, balance: currencyBalance });
-  }, [selectedFairminter, isFreeMint, currencyBalance]);
+    return getMaxFairmintLots({
+      fairminter: selectedFairminter,
+      balance: currencyBalance,
+      // The minted asset's supply, for the hard-cap headroom.
+      assetSupply: mintedAssetDetails?.assetInfo?.supply_normalized,
+      alreadyMinted,
+    });
+  }, [selectedFairminter, isFreeMint, currencyBalance, mintedAssetDetails, alreadyMinted]);
 
   // Coming back from review, the composed quantity is converted back into lots once the
   // fairminter (and so the lot size) is known.
