@@ -142,7 +142,9 @@ export default function ShowPrivateKeyPage(): ReactElement {
             </div>
             <button type="button"
               onClick={handleCopyPrivateKey}
-              aria-label="Copy Private Key"
+              // Distinct from the button below, which copies the same thing: two
+              // controls sharing one accessible name is ambiguous to announce.
+              aria-label="Copy the private key shown here"
               className="block w-full text-left font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
             >
               {privateKey}

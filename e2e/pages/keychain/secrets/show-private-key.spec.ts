@@ -256,7 +256,7 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await secrets.revealButton(page).click();
 
     // Private key display should have role="button" for copy
-    const keyDisplay = page.locator('[role="button"][aria-label*="Copy"]');
+    const keyDisplay = secrets.privateKeyDisplay(page);
     await expect(keyDisplay).toBeVisible({ timeout: 5000 });
   });
 

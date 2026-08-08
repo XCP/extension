@@ -120,7 +120,9 @@ function CopyAddress({ address }: CopyAddressProps): ReactElement {
       <div className="w-full text-center">
         <button type="button"
           onClick={handleCopyAddress}
-          aria-label="Copy address"
+          // Distinct from the button below, which copies the same thing: two
+          // controls sharing one accessible name is ambiguous to announce.
+          aria-label="Copy the address shown here"
           className="block w-full font-mono text-sm bg-white border border-gray-200 rounded-lg p-4 break-all text-gray-800 select-all cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 transition-colors duration-200"
         >
           {address}
