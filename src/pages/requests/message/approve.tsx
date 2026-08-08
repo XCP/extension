@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { FiClock, FiGlobe } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
+import { WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import type { AddressFormat } from '@/core/bitcoin/address';
+import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
@@ -22,6 +24,7 @@ export default function ApproveMessagePage() {
     handleCancel,
   } = useSignMessageRequest();
   usePopupLifecycle(request?.id, 'sign-message');
+  const signingRisks = getMessageSigningRisks(request?.message ?? '');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
@@ -206,6 +209,19 @@ export default function ApproveMessagePage() {
           </div>
 
           {error && <ErrorAlert message={error} />}
+
+          {/* Where the rendered message is a poor witness for the bytes being signed. The PSBT and
+              transaction screens have warned for a while; this one showed the text and a button. */}
+          {signingRisks.length > 0 && (
+            <WarningStack
+              items={signingRisks.map((risk) => ({
+                key: risk.key,
+                severity: 'warning',
+                title: risk.title,
+                description: risk.description,
+              }))}
+            />
+          )}
 
           {/* Message content */}
           <div className="bg-white rounded-lg shadow-sm p-5">
