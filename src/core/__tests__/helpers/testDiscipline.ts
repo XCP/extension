@@ -10,8 +10,9 @@ import { join } from 'node:path';
  * and it counts toward a green suite, so nobody looks again.
  *
  * This is not hypothetical here. `bip322-standardness.test.ts` had two tests that called the
- * verifier and `console.log`ged the result. One of them was logging `false` for a valid BIP-322
- * P2TR test vector — a real gap in the verifier, sitting inside a passing suite. The other was
+ * verifier and `console.log`ged the result. One was logging `false` for a valid BIP-322
+ * P2TR test vector — a real verifier gap, sitting inside a passing suite, and paired with the
+ * wrong message on top of that. Both were fixed once the test had to assert something. The other was
  * re-using a signature that had already been established to not belong to its address (see the
  * fixture removed from `wallet-fixtures.test.ts`), asserting nothing while its comment claimed the
  * verification "should work". Both had survived at least one deliberate sweep for exactly this

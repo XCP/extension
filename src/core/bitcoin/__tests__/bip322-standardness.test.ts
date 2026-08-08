@@ -161,21 +161,42 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       }
     });
 
-    it('should verify P2TR SIGHASH_ALL signatures', async () => {
-      // Test vector from bip322-js
-      const address = 'bc1ppv609nr0vr25u07u95waq5lucwfm6tde4nydujnu8npg4q75mr5sxq8lt3';
-      const message = '';
-      const signature = 'AUHd69PrJQEv+oKTfZ8l+WROBHuy9HKrbFCJu7U1iK2iiEy1vMU5EfMtjc+VSHM7aU0SDbak5IUZRVno2P5mjSafAQ==';
+    // A standard BIP-322 simple signature: a base64 witness stack holding one 65-byte Schnorr
+    // signature whose trailing byte is SIGHASH_ALL. Vector from bip322-js.
+    //
+    // This test used to pair the signature with the empty message and only console.log the result,
+    // so it recorded a failure as a pass twice over: the message was wrong, and the verifier had no
+    // standard taproot path at all.
+    const P2TR_ADDRESS = 'bc1ppv609nr0vr25u07u95waq5lucwfm6tde4nydujnu8npg4q75mr5sxq8lt3';
+    const P2TR_SIGHASH_ALL_SIG =
+      'AUHd69PrJQEv+oKTfZ8l+WROBHuy9HKrbFCJu7U1iK2iiEy1vMU5EfMtjc+VSHM7aU0SDbak5IUZRVno2P5mjSafAQ==';
 
-      // KNOWN GAP, pinned rather than blessed. This is a valid vector from bip322-js and the
-      // verifier rejects it: BIP-322 P2TR signatures using SIGHASH_ALL are not handled. It was
-      // discovered because this test logged its result instead of asserting it, so a real
-      // verification failure sat inside a passing suite.
-      //
-      // Asserting `false` keeps the gap visible and makes this test fail the moment someone fixes
-      // it — at which point flip it to `true` rather than deleting the vector.
-      const result = await verifyBIP322Signature(message, signature, address);
-      expect(result, 'BIP-322 P2TR SIGHASH_ALL is a known gap — see comment above').toBe(false);
+    it('verifies a P2TR SIGHASH_ALL signature', async () => {
+      expect(await verifyBIP322Signature('Hello World', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(true);
+    });
+
+    it('rejects it against a different message', async () => {
+      expect(await verifyBIP322Signature('', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(false);
+      expect(await verifyBIP322Signature('Hello World ', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(false);
+    });
+
+    it('rejects it against a different taproot address', async () => {
+      const other = 'bc1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c';
+      expect(await verifyBIP322Signature('Hello World', P2TR_SIGHASH_ALL_SIG, other)).toBe(false);
+    });
+
+    it('rejects a tampered signature', async () => {
+      const bytes = base64.decode(P2TR_SIGHASH_ALL_SIG);
+      bytes[10] = bytes[10]! ^ 0x01;
+      expect(await verifyBIP322Signature('Hello World', base64.encode(bytes), P2TR_ADDRESS)).toBe(false);
+    });
+
+    it('rejects a 65-byte signature that re-encodes SIGHASH_DEFAULT', async () => {
+      // BIP-341 gives SIGHASH_DEFAULT one encoding: 64 bytes. A 65-byte signature ending in 0x00 is
+      // a second spelling of it, and must not be accepted as an alternative.
+      const bytes = base64.decode(P2TR_SIGHASH_ALL_SIG);
+      bytes[bytes.length - 1] = 0x00;
+      expect(await verifyBIP322Signature('Hello World', base64.encode(bytes), P2TR_ADDRESS)).toBe(false);
     });
   });
 

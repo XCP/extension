@@ -9,7 +9,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import * as secp256k1 from '@noble/secp256k1';
 // Required initialization for @noble/secp256k1 v3
 import { hashes } from '@noble/secp256k1';
-import { base64, hex } from '@scure/base';
+import { base64, bech32m, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 
 // Ensure secp256k1 hashes are properly initialized
@@ -158,6 +158,135 @@ function serializeToSpend(messageHash: Uint8Array, scriptPubKey: Uint8Array): Ui
   }
 
   return result;
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+/** BIP-340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || msg). */
+function taggedHash(tag: string, ...parts: Uint8Array[]): Uint8Array {
+  const tagHash = sha256(new TextEncoder().encode(tag));
+  return sha256(concatBytes(tagHash, tagHash, ...parts));
+}
+
+/**
+ * The 32-byte output key of a v1 (taproot) address, or null if it is not one.
+ *
+ * Read from the address rather than supplied alongside the signature: the key *is* the thing being
+ * proven, so taking it from the caller would let any signature verify against its own key.
+ */
+export function taprootOutputKey(address: string): Uint8Array | null {
+  try {
+    const decoded = bech32m.decode(address as `${string}1${string}`, 90);
+    if (decoded.words[0] !== 1) return null;
+    const program = bech32m.fromWords(decoded.words.slice(1));
+    return program.length === 32 ? Uint8Array.from(program) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * BIP-341 signature hash for a key-path spend of the BIP-322 `to_sign` transaction.
+ *
+ * `to_sign` is fully determined by the spec — one input spending `to_spend:0` with nSequence 0, one
+ * OP_RETURN output of value 0, version 0, locktime 0 — so every field below is a constant except
+ * the outpoint and the scriptPubKey being spent. That is why this does not build a transaction.
+ *
+ * The prevout hash is the double-SHA256 of `to_spend` in its natural byte order. The displayed txid
+ * is that value reversed, and the surrounding code carries it around already reversed under the
+ * name `toSpendTxId`, so this deliberately recomputes from the raw bytes rather than reusing it.
+ *
+ * `hashType` is part of the preimage, which is why SIGHASH_DEFAULT (0x00) and SIGHASH_ALL (0x01)
+ * are not interchangeable even though they commit to the same fields.
+ */
+export function taprootKeyPathSighash(
+  toSpendBytes: Uint8Array,
+  spentScriptPubKey: Uint8Array,
+  hashType: number
+): Uint8Array {
+  const prevoutHash = sha256(sha256(toSpendBytes));
+  const opReturn = new Uint8Array([0x6a]);
+
+  const shaPrevouts = sha256(concatBytes(prevoutHash, writeUint32LE(0)));
+  const shaAmounts = sha256(writeUint64LE(0n));
+  const shaScriptPubKeys = sha256(
+    concatBytes(writeCompactSize(spentScriptPubKey.length), spentScriptPubKey)
+  );
+  const shaSequences = sha256(writeUint32LE(0));
+  const shaOutputs = sha256(
+    concatBytes(writeUint64LE(0n), writeCompactSize(opReturn.length), opReturn)
+  );
+
+  return taggedHash(
+    'TapSighash',
+    new Uint8Array([0x00]),      // epoch
+    new Uint8Array([hashType]),
+    writeUint32LE(0),            // nVersion
+    writeUint32LE(0),            // nLockTime
+    shaPrevouts,
+    shaAmounts,
+    shaScriptPubKeys,
+    shaSequences,
+    shaOutputs,                  // hashType & 3 is ALL or DEFAULT, so the outputs are committed
+    new Uint8Array([0x00]),      // spend_type: key path, no annex
+    writeUint32LE(0)             // input_index
+  );
+}
+
+/**
+ * Verify a standard BIP-322 taproot signature: a base64 witness stack holding one Schnorr signature.
+ *
+ * This is the interoperable form — what Sparrow, Ledger and bip322-js produce. It is checked in
+ * addition to this wallet's own `tr:` format, never instead of it, because signatures already
+ * issued under that format have to keep verifying.
+ */
+function verifyBIP322TaprootWitness(
+  message: string,
+  witnessData: Uint8Array,
+  address: string
+): boolean {
+  const outputKey = taprootOutputKey(address);
+  if (!outputKey) return false;
+
+  const stack = parseWitnessStack(witnessData);
+  // Key-path spend only: one signature, no script and no control block. A script-path proof would
+  // need the leaf executed to decide anything, which this does not do — so it is refused rather
+  // than guessed at.
+  if (!stack || stack.length !== 1) return false;
+
+  const item = stack[0]!;
+  let hashType: number;
+  let signature: Uint8Array;
+  if (item.length === 64) {
+    hashType = 0x00; // SIGHASH_DEFAULT, implied by the absence of a byte
+    signature = item;
+  } else if (item.length === 65) {
+    hashType = item[64]!;
+    // BIP-341: SIGHASH_DEFAULT must be encoded as 64 bytes. A 65-byte signature ending in 0x00 is
+    // a second encoding of the same thing, and is invalid.
+    if (hashType === 0x00) return false;
+    signature = item.slice(0, 64);
+  } else {
+    return false;
+  }
+
+  // Only the sighash types that commit to all outputs are accepted. NONE and SINGLE would let the
+  // outputs of to_sign differ from the ones committed to here, and BIP-322 fixes those outputs.
+  if (hashType !== 0x00 && hashType !== 0x01) return false;
+
+  const scriptPubKey = concatBytes(new Uint8Array([0x51, 0x20]), outputKey); // OP_1 PUSH32 <key>
+  const toSpendBytes = serializeToSpend(bip322MessageHash(message), scriptPubKey);
+  const sighash = taprootKeyPathSighash(toSpendBytes, scriptPubKey, hashType);
+
+  return secp256k1.schnorr.verify(signature, sighash, outputKey);
 }
 
 /**
@@ -621,8 +750,17 @@ export async function verifyBIP322Signature(
 
     // Handle Taproot signatures
     if (addressType === 'P2TR') {
+      // A standard BIP-322 signature is a base64 witness stack. This wallet's own taproot format is
+      // the `tr:` string handled below; both are accepted, so signatures already issued keep
+      // verifying while externally produced ones start to.
       if (!signature.startsWith('tr:')) {
-        return false;
+        let witness: Uint8Array;
+        try {
+          witness = base64.decode(signature);
+        } catch {
+          return false;
+        }
+        return verifyBIP322TaprootWitness(message, witness, address);
       }
 
       const sigHex = signature.slice(3);

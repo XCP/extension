@@ -20,7 +20,8 @@ import {
  *
  * This is not hypothetical here. `bip322-standardness.test.ts` had two tests that called the
  * verifier and `console.log`ged the result. One was logging `false` for a valid BIP-322 P2TR test
- * vector — a real gap in the verifier, sitting inside a passing suite. The other re-used a
+ * vector — a real verifier gap, sitting inside a passing suite, and paired with the wrong message
+ * on top of that. Both were fixed once the test had to assert something. The other re-used a
  * signature already established not to belong to its address (see the fixture removed from
  * `wallet-fixtures.test.ts`), asserting nothing while its comment claimed the verification "should
  * work". Both survived a deliberate sweep for exactly this defect, because a sweep is a memory and
