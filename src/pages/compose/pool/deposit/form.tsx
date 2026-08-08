@@ -17,6 +17,7 @@ import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
+  resolvePoolSlippage,
 } from "@/core/counterparty/pool";
 import {
   fromSatoshis,
@@ -28,7 +29,6 @@ import {
   roundDown,
   toSatoshis,
 } from "@/core/numeric";
-import { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
@@ -56,7 +56,7 @@ export function PoolDepositForm({
   const [quantityB, setQuantityB] = useState(initialFormData?.quantity_b?.toString() || "");
   const [lpAsset, setLpAsset] = useState(initialFormData?.lp_asset || "");
   const [isLpAssetValid, setIsLpAssetValid] = useState(false);
-  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || settings?.defaultPoolSlippage || DEFAULT_POOL_SLIPPAGE);
+  const [slippage, setSlippage] = useState((initialFormData as PoolDepositOptions & { slippage?: string })?.slippage || resolvePoolSlippage(settings?.defaultPoolSlippage));
   const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 

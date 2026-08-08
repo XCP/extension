@@ -5,8 +5,9 @@ import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
-  getCanonicalPoolAssets,
-  getCanonicalPoolPair,
+  getAutoSlippage,
+  getPoolDisplayAssets,
+  getPoolDisplayPair,
 } from '../pool';
 
 // 21,000,000 BTC expressed in satoshis — an upper bound on any on-chain quantity.
@@ -23,14 +24,48 @@ const slippageReachesSigning = (s: string) =>
   isValidPositiveNumber(s, { allowZero: true, maxDecimals: 2 }) && isLessThanOrEqualTo(s, 50);
 
 describe('Pool Math Fuzz Tests', () => {
-  describe('getCanonicalPoolAssets / Pair', () => {
-    it('returns a sorted pair, independent of argument order', () => {
+  describe('getPoolDisplayAssets / Pair', () => {
+    // No longer sorted — display order is the base/quote rule, not the protocol's alphabetical
+    // storage order. What must still hold is that a pool reads identically whichever way round its
+    // two assets arrive, or the same pool would render one way from the market and another from a
+    // balance.
+    it('is independent of argument order', () => {
       fc.assert(fc.property(assetName, assetName, (a, b) => {
-        const [x, y] = getCanonicalPoolAssets(a, b);
-        expect(x <= y).toBe(true);
-        expect(getCanonicalPoolAssets(a, b)).toEqual(getCanonicalPoolAssets(b, a));
-        expect(getCanonicalPoolPair(a, b)).toBe(getCanonicalPoolPair(b, a));
+        expect(getPoolDisplayAssets(a, b)).toEqual(getPoolDisplayAssets(b, a));
+        expect(getPoolDisplayPair(a, b)).toBe(getPoolDisplayPair(b, a));
       }), { numRuns: 500 });
+    });
+
+    it('shows both assets and invents neither', () => {
+      fc.assert(fc.property(assetName, assetName, (a, b) => {
+        expect([...getPoolDisplayAssets(a, b)].sort()).toEqual([a, b].sort());
+      }), { numRuns: 500 });
+    });
+  });
+
+  describe('getAutoSlippage', () => {
+    it('stays within the 0.5%..5% band for any impact, and is always submittable', () => {
+      fc.assert(fc.property(
+        fc.double({ min: -1000, max: 1000, noNaN: true, noDefaultInfinity: true }),
+        (impact) => {
+          const slippage = getAutoSlippage(impact);
+          expect(Number(slippage)).toBeGreaterThanOrEqual(0.5);
+          expect(Number(slippage)).toBeLessThanOrEqual(5);
+          // Auto must never produce a value the form would then reject.
+          expect(slippageReachesSigning(slippage)).toBe(true);
+        }
+      ), { numRuns: 500 });
+    });
+
+    it('never tolerates less than the impact the quote already reported', () => {
+      fc.assert(fc.property(
+        fc.double({ min: 0.5, max: 5, noNaN: true, noDefaultInfinity: true }),
+        (impact) => {
+          // Inside the band, rounding up a tenth must not land under the impact itself, or Auto
+          // would quote a tolerance the trade is already known to breach.
+          expect(Number(getAutoSlippage(impact))).toBeGreaterThanOrEqual(impact);
+        }
+      ), { numRuns: 500 });
     });
   });
 

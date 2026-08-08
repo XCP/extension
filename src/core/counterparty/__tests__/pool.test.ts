@@ -1,19 +1,86 @@
 import { describe, expect, it } from "vitest";
-import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
+import { asBaseUnits, asDisplayUnits } from "@/core/numeric";
+import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
-  getCanonicalPoolAssets,
-  getCanonicalPoolPair,
+  getAutoSlippage,
+  getPoolDisplayAssets,
+  getPoolDisplayPair,
+  isAutoPoolSlippage,
   normalizePoolPosition,
+  resolvePoolSlippage,
 } from "../pool";
 
 describe("counterparty pool utilities", () => {
-  it("formats pool pairs in canonical Counterparty asset order", () => {
-    expect(getCanonicalPoolAssets("XCP", "PEPECASH")).toEqual(["PEPECASH", "XCP"]);
-    expect(getCanonicalPoolPair("XCP", "PEPECASH")).toBe("PEPECASH / XCP");
-    expect(getCanonicalPoolPair("A111111111111111111", "XCP")).toBe("A111111111111111111 / XCP");
+  it("formats pool pairs with the quote asset second", () => {
+    expect(getPoolDisplayAssets("XCP", "PEPECASH")).toEqual(["PEPECASH", "XCP"]);
+    expect(getPoolDisplayPair("XCP", "PEPECASH")).toBe("PEPECASH / XCP");
+    expect(getPoolDisplayPair("A111111111111111111", "XCP")).toBe("A111111111111111111 / XCP");
+  });
+
+  it("orders by quote asset rather than alphabetically", () => {
+    // The cases alphabetical order gets backwards. BTC outranks everything, and a quote asset
+    // that sorts after its pair still belongs on the right.
+    expect(getPoolDisplayPair("BTC", "PEPECASH")).toBe("PEPECASH / BTC");
+    expect(getPoolDisplayPair("PEPECASH", "BTC")).toBe("PEPECASH / BTC");
+    expect(getPoolDisplayPair("XCP", "ZZZCOIN")).toBe("ZZZCOIN / XCP");
+    // BTC outranks XCP, so an XCP pair against BTC prices in BTC.
+    expect(getPoolDisplayPair("XCP", "BTC")).toBe("XCP / BTC");
+  });
+
+  it("derives Auto slippage from the quote's price impact", () => {
+    // Rounded up to a tenth, so the tolerance covers the impact rather than sitting under it.
+    expect(getAutoSlippage(1.23)).toBe("1.3");
+    expect(getAutoSlippage(2)).toBe("2");
+    // Floored at 0.5% (pool-fee territory) and capped at 5%.
+    expect(getAutoSlippage(0)).toBe("0.5");
+    expect(getAutoSlippage(0.11)).toBe("0.5");
+    expect(getAutoSlippage(42)).toBe("5");
+    // A negative impact means the trade improves the price; it still needs the floor.
+    expect(getAutoSlippage(-3)).toBe("0.5");
+  });
+
+  it("falls back to the standing default when there is no quote to read", () => {
+    expect(getAutoSlippage(null)).toBe("1");
+    expect(getAutoSlippage(undefined)).toBe("1");
+    expect(getAutoSlippage(Number.NaN)).toBe("1");
+    expect(getAutoSlippage(Number.POSITIVE_INFINITY)).toBe("1");
+  });
+
+  describe("resolvePoolSlippage", () => {
+    it("uses a stored percent verbatim, impact or no impact", () => {
+      expect(resolvePoolSlippage("2.5", 4)).toBe("2.5");
+      expect(resolvePoolSlippage("0", 4)).toBe("0");
+      expect(resolvePoolSlippage("3")).toBe("3");
+    });
+
+    it("derives from the impact when the setting is auto", () => {
+      expect(resolvePoolSlippage(POOL_SLIPPAGE_AUTO, 2.2)).toBe("2.2");
+      expect(resolvePoolSlippage(POOL_SLIPPAGE_AUTO, 0.05)).toBe("0.5");
+    });
+
+    it("gives deposit and withdraw a real percent even when the setting says auto", () => {
+      // They pass no impact because neither quotes one — but they still need a tolerance, so this
+      // must never hand "auto" back to a form that will put it through applyPoolSlippage.
+      expect(resolvePoolSlippage(POOL_SLIPPAGE_AUTO)).toBe("1");
+      expect(resolvePoolSlippage(undefined)).toBe("1");
+      expect(resolvePoolSlippage("")).toBe("1");
+    });
+
+    it("never returns the literal auto sentinel", () => {
+      for (const setting of [POOL_SLIPPAGE_AUTO, undefined, "", "1.5"]) {
+        expect(resolvePoolSlippage(setting, 3)).not.toBe(POOL_SLIPPAGE_AUTO);
+      }
+    });
+  });
+
+  it("identifies which stored settings mean auto", () => {
+    expect(isAutoPoolSlippage(POOL_SLIPPAGE_AUTO)).toBe(true);
+    expect(isAutoPoolSlippage(undefined)).toBe(true);
+    expect(isAutoPoolSlippage("")).toBe(true);
+    expect(isAutoPoolSlippage("1")).toBe(false);
   });
 
   it("applies pool slippage to raw integer quantities", () => {

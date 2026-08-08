@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { ActionList } from "@/components/ui/lists/action-list";
 import type { Pool, PoolPosition } from "@/core/counterparty/api";
-import { getCanonicalPoolAssets, getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayAssets, getPoolDisplayPair } from "@/core/counterparty/pool";
 import { divide, formatDecimal, isGreaterThan, multiply, toBigNumber } from "@/core/numeric";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
@@ -22,8 +22,8 @@ interface PoolOverviewProps {
  */
 export function PoolOverview({ pool, position }: PoolOverviewProps): ReactElement {
   const navigate = useNavigate();
-  const pair = getCanonicalPoolPair(pool.asset_a, pool.asset_b);
-  const [firstReserveAsset, secondReserveAsset] = getCanonicalPoolAssets(pool.asset_a, pool.asset_b);
+  const pair = getPoolDisplayPair(pool.asset_a, pool.asset_b);
+  const [firstReserveAsset, secondReserveAsset] = getPoolDisplayAssets(pool.asset_a, pool.asset_b);
   const { data: lpAssetInfo } = useAssetInfo(position ? pool.lp_asset : "");
 
   const reserveByAsset = {

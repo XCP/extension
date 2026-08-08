@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
-import { getCanonicalPoolPair } from "@/core/counterparty/pool";
+import { getPoolDisplayPair } from "@/core/counterparty/pool";
 import { useLpAssetPool } from "@/hooks/useLpAssetPool";
 import { usePool } from "@/hooks/usePool";
 import { PoolOverview } from "@/pages/pools/pool-overview";
@@ -21,7 +21,7 @@ export default function PoolPage(): ReactElement {
   // pool share, underlying, and Withdraw on the shared overview.
   const { data: position } = useLpAssetPool(pool?.lp_asset);
   const pair = decodedAssetA && decodedAssetB
-    ? getCanonicalPoolPair(decodedAssetA, decodedAssetB)
+    ? getPoolDisplayPair(decodedAssetA, decodedAssetB)
     : "Pool";
 
   useEffect(() => {
