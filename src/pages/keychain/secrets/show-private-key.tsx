@@ -79,7 +79,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
       title: "Private Key",
       onBack: () => navigate(PATHS.BACK),
     });
-  }, [walletId, wallets, setHeaderProps, navigate]);
+  }, [walletId, wallets, setHeaderProps, navigate, setSubmissionError]);
 
   const handleCopyPrivateKey = async () => {
     // useCopyToClipboard auto-clears the clipboard after 30 seconds

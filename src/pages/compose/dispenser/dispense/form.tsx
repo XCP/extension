@@ -317,7 +317,9 @@ export function DispenseForm({
 
     setNumberOfDispenses(maxDispenses.toString());
     setValidationError(null);
-  }, [selectedDispenser, maxDispenses, spendableBtc]);
+    // feeRate and the address feed the shortfall figure above, and feeRate refreshes while the
+    // form is open.
+  }, [selectedDispenser, maxDispenses, spendableBtc, feeRate, activeAddress?.address]);
 
   // Handle dispenser selection change
   const handleDispenserSelectionChange = useCallback((index: number | null, option: DispenserOption | null) => {

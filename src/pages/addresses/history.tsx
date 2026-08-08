@@ -88,12 +88,14 @@ export default function AddressHistoryPage(): ReactElement {
     }
   }, [searchParams, setSearchParams]);
 
-  // Fetch transactions when page or address changes
+  // Fetch transactions when page or address changes. loadTransactions is redefined every render,
+  // so it is omitted here and in the two effects below; its inputs are listed instead.
   useEffect(() => {
     loadTransactions();
   }, [currentPage, activeAddress]);
 
-  // Auto-refresh for unconfirmed transactions
+  // Auto-refresh for unconfirmed transactions. Listing loadTransactions would recreate the
+  // interval every render, so the 30s timer would never fire.
   useEffect(() => {
     // Check if there are any unconfirmed transactions
     const hasUnconfirmed = transactions.some(tx => tx.confirmed === false);
@@ -108,7 +110,7 @@ export default function AddressHistoryPage(): ReactElement {
     }
   }, [transactions]);
 
-  // Configure header
+  // Configure header. loadTransactions omitted (see above).
   useEffect(() => {
     setHeaderProps({
       title: "History",

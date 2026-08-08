@@ -83,7 +83,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
 
   useEffect(() => {
     return cleanupAll;
-  }, []);
+  }, [cleanupAll]);
 
   const performLookup = useCallback(
     async (destinationId: number, assetName: string) => {
@@ -142,7 +142,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
         }
       }, debounceMs);
     },
-    [debounceMs, onResolve]
+    [debounceMs, onResolve, cleanupDestination]
   );
 
   const clearLookup = useCallback((destinationId: number) => {
@@ -152,7 +152,7 @@ export function useMultiAssetOwnerLookup(options: UseMultiAssetOwnerLookupOption
       delete newState[destinationId];
       return newState;
     });
-  }, []);
+  }, [cleanupDestination]);
 
   const getLookupState = useCallback(
     (destinationId: number) => {

@@ -76,7 +76,8 @@ export const useMarketPrices = (currency: FiatCurrency = 'usd') => {
     }
   };
 
-  // Fetch prices on mount and when currency changes
+  // Fetch prices on mount and when currency changes. fetchPrices is redefined every render and
+  // closes over nothing but currency, so listing it would re-fetch on every render.
   useEffect(() => {
     fetchPrices();
   }, [currency]);

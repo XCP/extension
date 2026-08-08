@@ -32,6 +32,8 @@ import { useInView } from "@/hooks/useInView";
 // Constants
 const FETCH_LIMIT = 20;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
+/** Stable empty result, so the order memos below do not recompute on every render. */
+const NO_ORDERS: Order[] = [];
 
 /**
  * Format price in raw quote asset units
@@ -245,7 +247,7 @@ export default function AssetOrdersPage(): ReactElement {
   }, [loading, orders.length, buyOrders.length, sellOrders.length]);
 
   // Get current orders based on tab
-  const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : [];
+  const currentOrders = tab === "buy" ? buyOrders : tab === "sell" ? sellOrders : NO_ORDERS;
 
   // Aggregate orders into price levels (like an exchange order book)
   const priceLevels = useMemo(() => {

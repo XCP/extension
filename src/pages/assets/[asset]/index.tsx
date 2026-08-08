@@ -83,7 +83,9 @@ export default function AssetPage(): ReactElement {
     }
   };
 
-  // Load dividends when section is expanded
+  // Load dividends when the section is first expanded. The guard is a one-shot latch: an asset
+  // with no dividends still reads as empty and idle afterwards, so making it reactive refetches
+  // forever.
   useEffect(() => {
     if (showDividends && dividends.length === 0 && !dividendsLoading) {
       loadDividends();

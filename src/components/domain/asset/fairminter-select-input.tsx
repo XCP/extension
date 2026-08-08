@@ -50,6 +50,8 @@ export function FairminterSelectInput({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load the open fairminters once, at mount. The fetch calls onChange(selectedAsset, ...), so
+  // listing either would refetch the whole list on every selection change.
   useEffect(() => {
     const fetchFairminters = async () => {
       setIsLoading(true);

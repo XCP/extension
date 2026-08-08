@@ -58,7 +58,8 @@ export function UpdateDescriptionForm({
   };
 
 
-  // Focus description textarea on mount
+  // Focus description textarea on mount. Listing inscribeEnabled would steal focus back every
+  // time the user toggles inscribe.
   useEffect(() => {
     if (!inscribeEnabled) {
       descriptionRef.current?.focus();

@@ -109,8 +109,10 @@ export function OrderForm({
   // Trading state - restore from initialFormData if present
   const [isPairFlipped, setIsPairFlipped] = useState(initialFormData?.is_pair_flipped === "true");
 
-  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL entry)
-  // Only applies if no initialFormData (user wasn't editing a form)
+  // Sync URL params when they arrive after initial render (e.g., page.goto() in tests or direct URL
+  // entry). Only applies if no initialFormData (user wasn't editing a form).
+  // The form fields are read as "has the user set this yet?" guards and are deliberately not
+  // deps: listing them would re-run on the user's own edits and force each field back to the URL.
   useEffect(() => {
     if (initialFormData) return; // Don't override persisted form state
 

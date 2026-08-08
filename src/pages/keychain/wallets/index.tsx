@@ -12,6 +12,13 @@ import type { Wallet } from '@/types/wallet';
 /** Check if we're running in the sidepanel (vs popup) */
 const isSidepanel = () => document.body.dataset.context === 'sidepanel';
 
+/** Route constants, at module scope so their identity is stable across renders. */
+const PATHS = {
+  BACK: '/',
+  ADD_WALLET: '/keychain/wallets/add',
+  INDEX: '/index',
+} as const;
+
 /**
  * SelectWallet component allows users to choose an active wallet or add a new one.
  *
@@ -26,13 +33,6 @@ function WalletsPage() {
   const { wallets, activeWallet, activeAddress, selectWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
   const canUseHardwareWallet = isSidepanel();
-
-  // Constants for paths
-  const PATHS = {
-    BACK: '/',
-    ADD_WALLET: '/keychain/wallets/add',
-    INDEX: '/index',
-  } as const;
 
   const handleAddWallet = useCallback(() => {
     if (wallets.length >= MAX_WALLETS) {

@@ -188,7 +188,9 @@ export function useSignTransactionRequest(signerAddress?: string) {
     };
 
     loadRequest();
-  }, [requestId, decodeTransaction]);
+    // signerAddress is null until the wallet context hydrates; without it the analysis is
+    // computed once with no signer and never revisited.
+  }, [requestId, decodeTransaction, signerAddress]);
 
   // Listen for navigation messages from background
   useEffect(() => {
@@ -211,7 +213,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
     return () => {
       chrome.runtime.onMessage.removeListener(handleMessage);
     };
-  }, [decodeTransaction]);
+  }, [decodeTransaction, signerAddress]);
 
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedTxHex: string) => {
