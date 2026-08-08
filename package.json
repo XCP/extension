@@ -30,6 +30,7 @@
     "test:emulator": "vitest run --config vitest.emulator.config.ts",
     "compile": "tsc --noEmit",
     "lint": "biome check src && oxlint src",
+    "check:lockfile": "npm ci --dry-run",
     "lint:fix": "biome check src --write && oxlint src --fix",
     "postinstall": "wxt prepare"
   },

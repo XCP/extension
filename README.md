@@ -54,10 +54,21 @@ We intentionally minimized runtime dependencies—most wallets ship dozens, we s
 ## Development
 
 ```bash
-npm install
+npm install        # plain install — never --legacy-peer-deps, it prunes @testing-library/dom
 npm run dev        # Chrome
 npm run dev:firefox
 ```
+
+After changing `package.json` or `package-lock.json`, run:
+
+```bash
+npm run check:lockfile
+```
+
+CI installs with `npm ci`, which builds from the lockfile alone and fails if it
+does not record everything the tree needs. `lint`, `compile` and the test suite
+all run against your existing `node_modules`, so they pass either way — this is
+the only local check that catches a lockfile drift before CI does.
 
 ## Build
 
