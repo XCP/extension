@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/entrypoints/**/*.{ts,tsx}",
+    "e2e/**/*.spec.ts",
+    "*.config.ts",
+    "vitest.setup.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "e2e/**/*.{ts,js}"
+  ],
+  "ignore": [
+    "src/core/qr-code/qrcodegen.ts"
+  ],
+  "ignoreUnresolved": [
+    "#imports"
+  ]
+}
