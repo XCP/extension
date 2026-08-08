@@ -1164,8 +1164,7 @@ describe('TrezorAdapter', () => {
 
     it('should be safe to call multiple times', async () => {
       await resetTrezorAdapter();
-      await resetTrezorAdapter();
-      // Should not throw
+      await expect(resetTrezorAdapter()).resolves.not.toThrow();
     });
   });
 });

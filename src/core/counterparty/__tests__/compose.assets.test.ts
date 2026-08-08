@@ -289,7 +289,12 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const _actualUrl = actualCall[0];
+      const actualUrl = actualCall[0];
+      // `skip_validation` is declared on the options type but never forwarded (compose.ts only
+      // names it in the interface), so passing it changes nothing about the request. Asserted as
+      // absent rather than left unasserted, which is how this test came to check nothing at all.
+      expect(actualUrl).not.toContain('skip_validation');
+      expect(actualUrl).toContain('compose/dividend');
     });
 
     it('should handle BTC dividends', async () => {
@@ -357,7 +362,10 @@ describe('Compose Asset Management Operations', () => {
       });
 
       const actualCall = mockedApiClient.get.mock.calls[0]!;
-      const _actualUrl = actualCall[0];
+      const actualUrl = actualCall[0];
+      // See the dividend case above: `skip_validation` never reaches the wire.
+      expect(actualUrl).not.toContain('skip_validation');
+      expect(actualUrl).toContain('compose/burn');
     });
 
     it('should handle different burn amounts', async () => {

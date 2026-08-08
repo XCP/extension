@@ -13,6 +13,7 @@ import {
   signBIP322P2SH_P2WPKH,
   signBIP322P2TR, 
   signBIP322P2WPKH,
+  taprootOutputKey,
   verifyBIP322Signature
 } from '../bip322';
 import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
@@ -39,10 +40,13 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
   });
 
   describe('BIP-137 Loose Verification', () => {
-    it('should verify BIP-137 signature with wrong header flag (loose verification)', async () => {
-      // This tests the "loose BIP-137 verification" behavior
-      // where signatures with incorrect header flags are still accepted
-      // if the public key can be recovered
+    // This signature is a real one, but it does not belong to this address: it recovers to
+    // 1QDZfWJTVXqHFmJFRkyrnidvHyPyG5bynY under every recovery id, point encoding and script type.
+    // The matching fixture was removed from `wallet-fixtures.test.ts` for that reason. The test kept
+    // it and only logged the outcome, under a name claiming verification "should work" — so what it
+    // actually establishes is the opposite, and worth keeping as that: loose verification widens
+    // which header flags are tried, and must not widen which addresses are accepted.
+    it('rejects a signature that belongs to another address, whatever the header flag', async () => {
 
       const message = 'Hello World';
       // Signature with flag that might not match the address type exactly
@@ -69,9 +73,8 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
         const address = '1HnhWpkMHMjgt167kvgcPyurMmsCQ2WPgg';
 
         const result = await verifyMessageWithMethod(message, modifiedSigBase64, address);
-        // With loose verification, this should work regardless of flag
-        // as long as the public key matches
-        console.log(`Testing ${testCase.desc} flag with P2PKH address:`, result);
+        expect(result.valid, `${testCase.desc} flag must not verify against a foreign address`)
+          .toBe(false);
       }
     });
 
@@ -159,16 +162,69 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       }
     });
 
-    it('should verify P2TR SIGHASH_ALL signatures', async () => {
-      // Test vector from bip322-js
-      const address = 'bc1ppv609nr0vr25u07u95waq5lucwfm6tde4nydujnu8npg4q75mr5sxq8lt3';
-      const message = '';
-      const signature = 'AUHd69PrJQEv+oKTfZ8l+WROBHuy9HKrbFCJu7U1iK2iiEy1vMU5EfMtjc+VSHM7aU0SDbak5IUZRVno2P5mjSafAQ==';
+    // A standard BIP-322 simple signature: a base64 witness stack holding one 65-byte Schnorr
+    // signature whose trailing byte is SIGHASH_ALL. Vector from bip322-js.
+    //
+    // This test used to pair the signature with the empty message and only console.log the result,
+    // so it recorded a failure as a pass twice over: the message was wrong, and the verifier had no
+    // standard taproot path at all.
+    const P2TR_ADDRESS = 'bc1ppv609nr0vr25u07u95waq5lucwfm6tde4nydujnu8npg4q75mr5sxq8lt3';
+    const P2TR_SIGHASH_ALL_SIG =
+      'AUHd69PrJQEv+oKTfZ8l+WROBHuy9HKrbFCJu7U1iK2iiEy1vMU5EfMtjc+VSHM7aU0SDbak5IUZRVno2P5mjSafAQ==';
 
-      // Note: This is a full BIP-322 signature with witness data
-      // Our implementation may need adjustment to handle this format
-      const result = await verifyBIP322Signature(message, signature, address);
-      console.log('P2TR SIGHASH_ALL signature verification:', result);
+    it('signs taproot in the interoperable format, and verifies its own output', async () => {
+      const priv = hex.decode('55d7c5a9ce3d2b15a62434d01205f3e59077d51316f5c20628b3a4b8b2a76f4c');
+      const internalKey = secp256k1.getPublicKey(priv, true).slice(1, 33);
+      const address = btc.p2tr(internalKey).address!;
+
+      const signature = await signBIP322P2TR('Hello World', priv);
+
+      // Not the old `tr:` string, which nothing else could read.
+      expect(signature.startsWith('tr:')).toBe(false);
+      expect(await verifyBIP322Signature('Hello World', signature, address)).toBe(true);
+      expect(await verifyBIP322Signature('Goodbye', signature, address)).toBe(false);
+    });
+
+    it('signs for the key the address commits to, not the internal key', async () => {
+      // A taproot output commits to Q = P + H_TapTweak(P)*G. The previous signer used P, so its
+      // signatures could never verify against the address. Checked against scure's own tweak so
+      // this does not merely agree with itself.
+      const priv = hex.decode('55d7c5a9ce3d2b15a62434d01205f3e59077d51316f5c20628b3a4b8b2a76f4c');
+      const internalKey = secp256k1.getPublicKey(priv, true).slice(1, 33);
+      const payment = btc.p2tr(internalKey);
+
+      const fromAddress = taprootOutputKey(payment.address!);
+      expect(fromAddress).not.toBeNull();
+      expect(hex.encode(fromAddress!)).toBe(hex.encode(payment.tweakedPubkey));
+      expect(hex.encode(fromAddress!)).not.toBe(hex.encode(internalKey));
+    });
+
+    it('verifies a P2TR SIGHASH_ALL signature', async () => {
+      expect(await verifyBIP322Signature('Hello World', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(true);
+    });
+
+    it('rejects it against a different message', async () => {
+      expect(await verifyBIP322Signature('', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(false);
+      expect(await verifyBIP322Signature('Hello World ', P2TR_SIGHASH_ALL_SIG, P2TR_ADDRESS)).toBe(false);
+    });
+
+    it('rejects it against a different taproot address', async () => {
+      const other = 'bc1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c';
+      expect(await verifyBIP322Signature('Hello World', P2TR_SIGHASH_ALL_SIG, other)).toBe(false);
+    });
+
+    it('rejects a tampered signature', async () => {
+      const bytes = base64.decode(P2TR_SIGHASH_ALL_SIG);
+      bytes[10] = bytes[10]! ^ 0x01;
+      expect(await verifyBIP322Signature('Hello World', base64.encode(bytes), P2TR_ADDRESS)).toBe(false);
+    });
+
+    it('rejects a 65-byte signature that re-encodes SIGHASH_DEFAULT', async () => {
+      // BIP-341 gives SIGHASH_DEFAULT one encoding: 64 bytes. A 65-byte signature ending in 0x00 is
+      // a second spelling of it, and must not be accepted as an alternative.
+      const bytes = base64.decode(P2TR_SIGHASH_ALL_SIG);
+      bytes[bytes.length - 1] = 0x00;
+      expect(await verifyBIP322Signature('Hello World', base64.encode(bytes), P2TR_ADDRESS)).toBe(false);
     });
   });
 
