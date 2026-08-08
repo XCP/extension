@@ -45,18 +45,11 @@ export function recoverPublicKeyFromSignature(
       { prehash: false }      // don't hash again - we already hashed
     );
 
-    // Noble returns the public key bytes directly
-    // If we need uncompressed and got compressed (or vice versa), convert
-    if (compressed && publicKeyBytes.length === 65) {
-      // Convert uncompressed to compressed
-      return publicKeyBytes.slice(0, 33);
-    } else if (!compressed && publicKeyBytes.length === 33) {
-      // For uncompressed we'd need to reconstruct - for now just return what we have
-      // Most Bitcoin signatures use compressed anyway
-      return publicKeyBytes;
-    }
-
-    return publicKeyBytes;
+    // Noble returns a compressed key. Re-encode through the curve point so that
+    // asking for an uncompressed key actually yields all 65 bytes: the two
+    // encodings hash to different addresses, and BIP-137 flags 27-30 mean
+    // uncompressed. Truncating a 65-byte key to 33 does NOT compress it.
+    return secp256k1.Point.fromBytes(publicKeyBytes).toBytes(compressed);
   } catch (_error) {
     return null;
   }
