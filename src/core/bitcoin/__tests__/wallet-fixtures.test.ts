@@ -81,6 +81,14 @@ describe('Wallet Implementation Test Fixtures', () => {
    * stack (a 72-byte DER signature plus hash type, and a 33-byte public key). FreeWallet has no
    * code path that emits one.
    *
+   * The corroborating detail is one directory over. `messageVerifier/__tests__/verifier.real-world.
+   * test.ts` holds a genuine FreeWallet signature for **this same address**,
+   * `19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX` — and it is a 65-byte BIP-137 signature, which is what
+   * FreeWallet emits and what it still verifies as. So whoever collected these had the key to that
+   * address loaded in two wallets, signed one message in FreeWallet and another here, and filed
+   * both under FreeWallet's name. This extension could produce the witness stack, via
+   * `signBIP322P2PKH`; FreeWallet could not.
+   *
    * What FreeWallet does get wrong is a different thing, and one this change does not touch: it
    * uses that P2PKH-keyed legacy format for *every* address type it supports, bech32 included, the
    * same way Ledger and Sparrow do for taproot. That is what loose BIP-137 verification is for, and
