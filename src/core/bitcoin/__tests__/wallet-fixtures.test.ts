@@ -1,10 +1,44 @@
 /**
  * Wallet Test Fixtures
  * Test signatures from various wallet implementations to ensure cross-platform compatibility
+ *
+ * Reference material, kept as documentation rather than as tests. It used to
+ * live in it() blocks that only console.log-ed it, which inflated the passing
+ * count with five checks that asserted nothing.
+ *
+ * What each wallet does:
+ * - Our extension: signs BIP-322 only; verifies BIP-322, BIP-137 (loose and
+ *   strict) and legacy, for P2PKH, P2WPKH, P2SH-P2WPKH and P2TR.
+ * - Bitcore: BIP-137/legacy. P2PKH verifies; P2TR unsupported.
+ * - FreeWallet: BIP-137, and BIP-322 over legacy addresses - see the fixture
+ *   below, whose witness-stack signature only the BIP-322 path can accept.
+ * - Electrum: BIP-137. Flags 27-30 uncompressed, 31-34 compressed, 35-42 SegWit.
+ * - Bitcoin Core: strict BIP-137, correct flags per address type, and does not
+ *   sign P2TR with BIP-137 at all.
+ * - Ledger/Sparrow: BIP-137 including for Taproot, so P2TR needs loose verification.
+ * - Trezor: BIP-137 for all address types; Taproot is firmware dependent.
+ *
+ * Known gaps, unchanged by this file:
+ * - Testnet addresses are not supported alongside mainnet.
+ * - P2SH multisig and P2WSH are not supported; that would need full script
+ *   evaluation.
+ *
+ * Wallets with no fixtures yet (Electrum, Bitcoin Core, Trezor) simply have no
+ * tests here. An empty it() that prints their expected format is not coverage.
+ *
+ * One former fixture is deliberately gone. It paired address
+ * 1HnhWpkMHMjgt167kvgcPyurMmsCQ2WPgg with a "Hello World" signature, and no
+ * key can satisfy that pair: recovering the signature over that message across
+ * every recovery id, in both point encodings, and deriving P2PKH, P2WPKH and
+ * P2SH-P2WPKH from each, never produces that address. The signature itself is
+ * sound - it recovers to 1QDZfWJTVXqHFmJFRkyrnidvHyPyG5bynY - so the fixture
+ * was a real signature filed under the wrong address. Correcting it to the
+ * address we derived ourselves would only assert that our recovery agrees with
+ * our recovery, which is why it was dropped rather than patched.
  */
 
 import { describe, expect, it } from 'vitest';
-import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
+import { verifyLooseBIP137, verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('Wallet Implementation Test Fixtures', () => {
   describe('Bitcore/FreeWallet Fixtures', () => {
@@ -14,13 +48,6 @@ describe('Wallet Implementation Test Fixtures', () => {
         address: '1F3sAm6ZtwLAUnj7d38pGFxtP3RVEvtsbV',
         message: 'This is an example of a signed message.',
         signature: 'H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=',
-        wallet: 'bitcore',
-        expected: true
-      },
-      {
-        address: '1HnhWpkMHMjgt167kvgcPyurMmsCQ2WPgg',
-        message: 'Hello World',
-        signature: 'IAtVrymJqo43BCt9f7Dhl6ET4Gg3SmhyvdlW6wn9iWc9PweD7tNM5+qw7xE9/bzlw/Et789AQ2F59YKEnSzQudo=',
         wallet: 'bitcore',
         expected: true
       }
@@ -34,222 +61,87 @@ describe('Wallet Implementation Test Fixtures', () => {
           fixture.address
         );
 
-        console.log(`${fixture.wallet} verification:`, result);
-
-        // For known issues, we'll just check it doesn't throw
-        if (fixture.expected) {
-          expect(result.valid || typeof result.valid === 'boolean').toBe(true);
-        }
+        // This used to read `result.valid || typeof result.valid === 'boolean'`,
+        // which is true for any boolean and so could never fail.
+        expect(result.valid).toBe(fixture.expected);
       });
     }
   });
 
-  describe('Electrum Fixtures', () => {
-    // Electrum uses standard BIP-137 for P2PKH addresses
-    // TODO: Add real Electrum fixtures when available
+  describe('FreeWallet Fixtures', () => {
+    // A BIP-322 signature over a legacy address, which is the combination the
+    // BIP-137 fixtures above cannot reach. The 108-byte witness-stack encoding
+    // is rejected outright by every BIP-137 and legacy path on signature
+    // length, so a pass here can only have come from the BIP-322 verifier.
+    const fixture = {
+      address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
+      message: 'Hello World',
+      signature:
+        'AkgwRQIhAKwLGWnYM9idetpSZLcZ3AQyycuyxuBUUYi1jr2+HozyAiB42v9dg03JyrEDJzRrGbmXMNlM+NJM1dLHBwU1WaNzVwEhAy7800wgcNj8nqpNtZnrdyxygC5U1XWnsFpLK+/B9+dv'
+    };
 
-    it('should handle Electrum signature format', async () => {
-      // Document Electrum's expected behavior
-      console.log('Electrum signature format:');
-      console.log('- Uses BIP-137 for P2PKH addresses');
-      console.log('- Flag 31-34 for compressed keys');
-      console.log('- Flag 27-30 for uncompressed keys');
-      console.log('- Supports SegWit with flags 35-42');
+    it('should verify a FreeWallet BIP-322 signature for a P2PKH address', async () => {
+      const result = await verifyMessageWithMethod(
+        fixture.message,
+        fixture.signature,
+        fixture.address
+      );
+
+      expect(result.valid).toBe(true);
+      expect(result.method).toContain('BIP-322');
+    });
+
+    it('should reject that signature against a different message', async () => {
+      const result = await verifyMessageWithMethod(
+        'Goodbye World',
+        fixture.signature,
+        fixture.address
+      );
+
+      expect(result.valid).toBe(false);
+    });
+
+    it('should reject that signature against a different address', async () => {
+      const result = await verifyMessageWithMethod(
+        fixture.message,
+        fixture.signature,
+        '1F3sAm6ZtwLAUnj7d38pGFxtP3RVEvtsbV'
+      );
+
+      expect(result.valid).toBe(false);
     });
   });
 
   describe('Ledger/Sparrow Fixtures', () => {
-    // From bip322-js issue #1
-    const ledgerFixtures = [
-      {
-        taprootAddress: 'bc1ps5pt865e77nr9t9z7fdefryx27lsz0ced875lxcc68lszvc7x3qsxx25fy',
-        p2pkhAddress: '19C7EwHP5FN32YPrMRfW7mkFKg3FYwyAzr',
-        message: 'bitcheckdiuq5gh179v9r5vwmw58ijtkea1vb4idr92khiu',
-        signature: 'HxOxevYmNjW58m/TBcewrpLbOC0NXjwnWO+jccW9tq8JbdtjI8modbmYbJNVO6PpE9MATfiZeU/S/GbmozNhV4Y=',
-        wallet: 'Ledger/Sparrow',
-        note: 'BIP-137 signature for Taproot address'
-      }
-    ];
+    // From bip322-js issue #1. One signature, one key, two address encodings:
+    // Ledger and Sparrow sign Taproot addresses with BIP-137, which the spec
+    // does not cover, so P2TR only verifies through loose verification.
+    const fixture = {
+      taprootAddress: 'bc1ps5pt865e77nr9t9z7fdefryx27lsz0ced875lxcc68lszvc7x3qsxx25fy',
+      p2pkhAddress: '19C7EwHP5FN32YPrMRfW7mkFKg3FYwyAzr',
+      message: 'bitcheckdiuq5gh179v9r5vwmw58ijtkea1vb4idr92khiu',
+      signature: 'HxOxevYmNjW58m/TBcewrpLbOC0NXjwnWO+jccW9tq8JbdtjI8modbmYbJNVO6PpE9MATfiZeU/S/GbmozNhV4Y=',
+      wallet: 'Ledger/Sparrow'
+    };
 
-    for (const fixture of ledgerFixtures) {
-      it(`should handle ${fixture.wallet} Taproot signatures`, async () => {
-        // Test with P2PKH address (should work)
-        const p2pkhResult = await verifyMessage(
-          fixture.message,
-          fixture.signature,
-          fixture.p2pkhAddress
-        );
+    it(`should verify ${fixture.wallet} signatures against the P2PKH form of the key`, async () => {
+      const result = await verifyMessage(
+        fixture.message,
+        fixture.signature,
+        fixture.p2pkhAddress
+      );
 
-        console.log(`${fixture.wallet} P2PKH verification:`, p2pkhResult);
-
-        // Test with Taproot address using loose verification
-        const { verifyLooseBIP137 } = await import('../messageVerifier');
-        const taprootResult = await verifyLooseBIP137(
-          fixture.message,
-          fixture.signature,
-          fixture.taprootAddress
-        );
-
-        console.log(`${fixture.wallet} Taproot verification (loose):`, taprootResult);
-        console.log(`Note: ${fixture.note}`);
-      });
-    }
-  });
-
-  describe('Bitcoin Core Fixtures', () => {
-    // Bitcoin Core uses standard BIP-137
-    // TODO: Add actual Bitcoin Core test fixtures when available
-    // Expected format:
-    // - address: Bitcoin address
-    // - message: Message that was signed
-    // - signature: Base64 encoded signature from Bitcoin Core
-    // - Uses strict BIP-137 implementation with correct header flags
-
-    it('should document Bitcoin Core signature format', async () => {
-      console.log('Bitcoin Core signature format:');
-      console.log('- Strict BIP-137 implementation');
-      console.log('- Correct header flags for address types');
-      console.log('- P2PKH: flags 27-34');
-      console.log('- P2SH-P2WPKH: flags 35-38');
-      console.log('- P2WPKH: flags 39-42');
-      console.log('- Does not sign for P2TR addresses with BIP-137');
+      expect(result.valid).toBe(true);
     });
-  });
 
-  describe('Trezor Fixtures', () => {
-    // TODO: Add actual Trezor hardware wallet test fixtures when available
-    // Expected format:
-    // - address: Bitcoin address (including segwit)
-    // - message: Message that was signed
-    // - signature: Base64 encoded signature from Trezor
-    // - Uses BIP-137 format for all address types
+    it(`should verify ${fixture.wallet} Taproot signatures only loosely`, async () => {
+      const loose = await verifyLooseBIP137(
+        fixture.message,
+        fixture.signature,
+        fixture.taprootAddress
+      );
 
-    it('should document Trezor signature format', async () => {
-      console.log('Trezor signature format:');
-      console.log('- Uses BIP-137 for all address types');
-      console.log('- Proper header flags for address types');
-      console.log('- Supports P2PKH, P2SH-P2WPKH, P2WPKH');
-      console.log('- May not support Taproot signing yet');
-    });
-  });
-
-  describe('Cross-Wallet Compatibility Matrix', () => {
-    it('should document wallet compatibility', () => {
-      const compatibilityMatrix = {
-        'Our Extension': {
-          signing: 'BIP-322 only',
-          verification: 'BIP-322, BIP-137 (loose & strict), Legacy',
-          P2PKH: '✅ Sign & Verify',
-          P2WPKH: '✅ Sign & Verify',
-          'P2SH-P2WPKH': '✅ Sign & Verify',
-          P2TR: '✅ Sign & Verify'
-        },
-        'Bitcore/FreeWallet': {
-          signing: 'BIP-137/Legacy',
-          verification: 'BIP-137/Legacy',
-          P2PKH: '✅ Verify',
-          P2WPKH: '❓ May not support',
-          'P2SH-P2WPKH': '❓ May not support',
-          P2TR: '❌ Not supported'
-        },
-        'Electrum': {
-          signing: 'BIP-137',
-          verification: 'BIP-137',
-          P2PKH: '✅ Verify',
-          P2WPKH: '✅ Verify',
-          'P2SH-P2WPKH': '✅ Verify',
-          P2TR: '❓ Version dependent'
-        },
-        'Ledger': {
-          signing: 'BIP-137 (including for Taproot)',
-          verification: 'BIP-137',
-          P2PKH: '✅ Verify',
-          P2WPKH: '✅ Verify',
-          'P2SH-P2WPKH': '✅ Verify',
-          P2TR: '⚠️ Verify with loose BIP-137'
-        },
-        'Sparrow': {
-          signing: 'BIP-137 (including for Taproot)',
-          verification: 'BIP-137',
-          P2PKH: '✅ Verify',
-          P2WPKH: '✅ Verify',
-          'P2SH-P2WPKH': '✅ Verify',
-          P2TR: '⚠️ Verify with loose BIP-137'
-        },
-        'Bitcoin Core': {
-          signing: 'BIP-137 (strict)',
-          verification: 'BIP-137 (strict)',
-          P2PKH: '✅ Verify',
-          P2WPKH: '✅ Verify',
-          'P2SH-P2WPKH': '✅ Verify',
-          P2TR: '❌ Not BIP-137 compatible'
-        },
-        'Trezor': {
-          signing: 'BIP-137',
-          verification: 'BIP-137',
-          P2PKH: '✅ Verify',
-          P2WPKH: '✅ Verify',
-          'P2SH-P2WPKH': '✅ Verify',
-          P2TR: '❓ Firmware dependent'
-        }
-      };
-
-      console.log('\n=== Wallet Compatibility Matrix ===\n');
-
-      for (const [wallet, details] of Object.entries(compatibilityMatrix)) {
-        console.log(`${wallet}:`);
-        for (const [key, value] of Object.entries(details)) {
-          console.log(`  ${key}: ${value}`);
-        }
-        console.log('');
-      }
-
-      console.log('Legend:');
-      console.log('✅ = Fully supported');
-      console.log('⚠️ = Supported with caveats');
-      console.log('❓ = Unknown/Version dependent');
-      console.log('❌ = Not supported');
-    });
-  });
-
-  describe('Known Issues and Workarounds', () => {
-    it('should document known compatibility issues', () => {
-      const knownIssues = [
-        {
-          issue: 'Ledger/Sparrow Taproot signatures',
-          description: 'These wallets sign Taproot addresses using BIP-137 format instead of BIP-322',
-          workaround: 'Use loose BIP-137 verification to check if recovered pubkey can derive the Taproot address',
-          implemented: true
-        },
-        {
-          issue: 'Header flag mismatches',
-          description: 'Some wallets use incorrect header flags (e.g., P2PKH flag for SegWit address)',
-          workaround: 'Loose verification ignores flag type and checks pubkey match',
-          implemented: true
-        },
-        {
-          issue: 'Testnet addresses',
-          description: 'Some test vectors use testnet addresses which may not verify on mainnet',
-          workaround: 'Support both mainnet and testnet address formats',
-          implemented: false
-        },
-        {
-          issue: 'Multi-signature addresses',
-          description: 'P2SH multisig and P2WSH are not supported',
-          workaround: 'Not implemented - would require full script evaluation',
-          implemented: false
-        }
-      ];
-
-      console.log('\n=== Known Issues and Workarounds ===\n');
-
-      for (const issue of knownIssues) {
-        console.log(`Issue: ${issue.issue}`);
-        console.log(`Description: ${issue.description}`);
-        console.log(`Workaround: ${issue.workaround}`);
-        console.log(`Implemented: ${issue.implemented ? '✅ Yes' : '❌ No'}`);
-        console.log('');
-      }
+      expect(loose.valid).toBe(true);
     });
   });
 });
