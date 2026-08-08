@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate, useParams } from "react-router";
 import { Banner } from "@/components/ui/banner";
@@ -8,8 +8,8 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useSecretReveal } from "@/hooks/useSecretReveal";
 
 const PATHS = {
   BACK: -1,
@@ -23,11 +23,45 @@ export default function ShowPrivateKeyPage(): ReactElement {
   const { pending } = useFormStatus();
 
   const [privateKey, setPrivateKey] = useState("");
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [submissionError, setSubmissionError] = useState("");
   const [walletType, setWalletType] = useState<"mnemonic" | "privateKey" | "hardware" | null>(null);
   const { copy, isCopied } = useCopyToClipboard();
-  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isRevealed: isConfirmed,
+    submissionError,
+    setSubmissionError,
+    clearError,
+    passwordInputRef,
+    formAction: handleFormAction,
+  } = useSecretReveal({
+    walletId,
+    verifyPassword,
+    onVerified: async () => {
+      // Checked after the password, as it was before: a missing path is not a
+      // reason to tell someone whether their password was right.
+      if (walletType === "mnemonic" && !addressPath) {
+        throw new Error("Address derivation path is missing.");
+      }
+      try {
+        // Load the wallet to decrypt its secret
+        await selectWallet(walletId!);
+        const privKeyData =
+          walletType === "privateKey"
+            ? await getPrivateKey(walletId!)
+            : await getPrivateKey(walletId!, addressPath);
+
+        if (!privKeyData) throw new Error("Failed to retrieve private key");
+        if (!privKeyData.wif) throw new Error("Private key WIF format not available");
+
+        setPrivateKey(privKeyData.wif);
+      } catch (err) {
+        console.error("Error revealing private key:", err);
+        throw new Error(
+          err instanceof Error ? err.message : "Failed to reveal private key."
+        );
+      }
+    },
+  });
 
   useEffect(() => {
     if (walletId) {
@@ -47,61 +81,6 @@ export default function ShowPrivateKeyPage(): ReactElement {
     });
   }, [walletId, wallets, setHeaderProps, navigate]);
 
-  useEffect(() => {
-    passwordInputRef.current?.focus();
-  }, []);
-
-
-  async function handleFormAction(formData: FormData) {
-    setSubmissionError("");
-
-    const password = formData.get("password") as string;
-    if (!walletId) {
-      setSubmissionError("Invalid wallet.");
-      return;
-    }
-    if (!password) {
-      setSubmissionError("Password is required.");
-      return;
-    }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    let passwordValid = false;
-    try {
-      passwordValid = await verifyPassword(password);
-    } catch {
-      passwordValid = false;
-    }
-    if (!passwordValid) {
-      setSubmissionError("Incorrect password.");
-      return;
-    }
-    if (walletType === "mnemonic" && !addressPath) {
-      setSubmissionError("Address derivation path is missing.");
-      return;
-    }
-
-    try {
-      // Load the wallet to decrypt its secret
-      await selectWallet(walletId);
-      const privKeyData =
-        walletType === "privateKey"
-          ? await getPrivateKey(walletId)
-          : await getPrivateKey(walletId, addressPath);
-
-      if (!privKeyData) throw new Error("Failed to retrieve private key");
-      if (!privKeyData.wif) throw new Error("Private key WIF format not available");
-
-      setPrivateKey(privKeyData.wif);
-      setIsConfirmed(true);
-    } catch (err) {
-      console.error("Error revealing private key:", err);
-      setSubmissionError(err instanceof Error ? err.message : "Failed to reveal private key.");
-    }
-  }
-
   const handleCopyPrivateKey = async () => {
     // useCopyToClipboard auto-clears the clipboard after 30 seconds
     await copy(privateKey);
@@ -110,7 +89,7 @@ export default function ShowPrivateKeyPage(): ReactElement {
   return (
     <section className="flex flex-col h-full p-4" aria-labelledby="show-private-key-title">
       <h2 id="show-private-key-title" className="sr-only">Show Private Key</h2>
-      {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
+      {submissionError && <ErrorAlert message={submissionError} onClose={clearError} />}
       {!isConfirmed ? (
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <Banner
