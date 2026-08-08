@@ -834,12 +834,19 @@ export interface FairminterDetails {
   tx_hash: string;
   asset: string;
   status: string;
+  /** The address that opened the fairminter, and where the payment goes unless it is burned. */
+  source?: string;
   /** XCP charged per lot, in base units. */
   price: ApiQuantity;
   price_normalized?: DisplayUnits;
   /** Assets released per lot paid for. */
   quantity_by_price: ApiQuantity;
   quantity_by_price_normalized?: DisplayUnits;
+  /** True burns the payment, false sends it to `source`. Not whether the mint is free. */
+  burn_payment?: boolean;
+  /** While this is unmet, core escrows both the payment and the minted assets. */
+  soft_cap?: ApiQuantity;
+  soft_cap_normalized?: DisplayUnits;
 }
 
 /**

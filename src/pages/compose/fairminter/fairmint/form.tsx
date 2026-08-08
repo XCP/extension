@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
+import { FairmintSummary } from "@/components/domain/asset/fairmint-summary";
 import { type Fairminter, FairminterSelectInput } from "@/components/domain/asset/fairminter-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
 import { BalanceHeader } from "@/components/domain/balance/balance-header";
@@ -255,17 +256,22 @@ export function FairmintForm({
             label="Fairminter Asset"
             required
             showHelpText={showHelpText}
-            description={`Select an available fairminter asset${currencyType ? ` that uses ${currencyType}` : ""}`}
+            description={currencyType === "BTC" ? "Select a free fairminter — these cost only the Bitcoin network fee" : currencyType === "XCP" ? "Select a fairminter that charges XCP" : "Select an available fairminter"}
             currencyFilter={currencyType}
           />
 
-          {/* Show info message for free mints */}
+          {/* What this mint costs and where the payment goes, stated whether or not help text is
+              on. Free mints have no amount field, so this is the only account of them. */}
+          {formData.asset && selectedFairminter && (
+            <FairmintSummary fairminter={selectedFairminter} quantity={formData.quantity} />
+          )}
+
           {formData.asset && isFreeMint && selectedFairminter && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                <strong>Free Mint</strong> - You'll receive{" "}
-                {selectedFairminter.max_mint_per_tx_normalized || "the maximum allowed"} {formData.asset} tokens.
-                Only BTC transaction fees apply.
+                <strong>Free mint.</strong> The fairminter decides the amount — up to{" "}
+                {selectedFairminter.max_mint_per_tx_normalized || "the maximum allowed"}{" "}
+                {formData.asset} per transaction, and less if that would pass the hard cap.
               </p>
             </div>
           )}
@@ -285,9 +291,11 @@ export function FairmintForm({
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
               maxAmount={calculateMaxQuantity()}
-              label="Amount"
+              label={`Amount to Mint${formData.asset ? ` (${formData.asset})` : ""}`}
               name="amount"
-              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}. ${selectedFairminter && isGreaterThan(selectedFairminter.quantity_by_price_normalized, 1) ? `Amount must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size). ` : ""}${selectedFairminter ? `Price: ${multiply(selectedFairminter.price_normalized, selectedFairminter.quantity_by_price_normalized)} ${currencyType || 'XCP'} per ${selectedFairminter.quantity_by_price_normalized} ${formData.asset}` : ""}`}
+              // The price used to live here too, where it only rendered with help text on. It is
+              // in the summary above instead; this keeps the rules for the field itself.
+              description={`Enter the amount to mint${selectedFairminter?.divisible ? " (up to 8 decimal places)" : " (whole numbers only)"}.${selectedFairminter && isGreaterThan(selectedFairminter.quantity_by_price_normalized, 1) ? ` Must be a multiple of ${selectedFairminter.quantity_by_price_normalized} (lot size).` : ""}`}
               disableMaxButton={false}
               onMaxClick={() => {
                 const maxQty = calculateMaxQuantity();
