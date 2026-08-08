@@ -3,6 +3,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { hashes } from '@noble/secp256k1';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { verifyBIP322Signature } from '@/core/bitcoin/bip322';
 import { getSigningCapabilities, signMessage } from '@/core/bitcoin/messageSigner';
 import { verifyMessage } from '@/core/bitcoin/messageVerifier/verifier';
 
@@ -78,8 +79,10 @@ describe('messageSign', () => {
       expect(result).toHaveProperty('address');
       expect(result.signature).toBeTruthy();
       expect(result.address).toMatch(/^bc1p/); // P2TR addresses start with bc1p
-      // Taproot signatures have a different format
-      expect(result.signature).toMatch(/^tr:/);
+      // A standard BIP-322 simple signature is a base64 witness stack, not the `tr:` string this
+      // used to emit. Asserted by verifying it rather than by its shape: the old format also had
+      // a recognisable shape, and was still unverifiable by anything but itself.
+      expect(await verifyBIP322Signature(testMessage, result.signature, result.address)).toBe(true);
     });
 
     it('should sign a message with Counterwallet address type', async () => {
