@@ -91,7 +91,8 @@ export function TextAreaInput({
     return true;
   };
 
-  // Validate on change
+  // Validate on change. The deps name the values validate reads rather than the function, which
+  // is redefined every render.
   useEffect(() => {
     const valid = validate(localValue);
     setIsValid(valid);

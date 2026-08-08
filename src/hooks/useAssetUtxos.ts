@@ -130,6 +130,8 @@ export function useAssetUtxos(asset: string) {
         abortControllerRef.current = null;
       }
     };
+    // state.utxos is deliberately not a dep: the BTC branch above assigns a fresh [] each run, so
+    // the identity check always sees a change and listing it here spins forever.
   }, [asset, activeAddress?.address]);
 
   return state;

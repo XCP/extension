@@ -80,7 +80,7 @@ function CreateMnemonicPage() {
         disabled: isPending,
       },
     });
-  }, [navigate, setHeaderProps, keychainExists, isPending]);
+  }, [navigate, setHeaderProps, keychainExists, isPending, PATHS.BACK]);
 
   function handleGenerateWallet() {
     const newMnemonic = generateNewMnemonic();

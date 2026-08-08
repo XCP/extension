@@ -117,7 +117,7 @@ export default function AssetsPage(): ReactElement {
   // Sync pinned assets from wallet
   useEffect(() => {
     if (settings) setPinnedAssets(settings.pinnedAssets || []);
-  }, [settings?.pinnedAssets]);
+  }, [settings, settings?.pinnedAssets]);
 
   /**
    * Handles search input changes and updates URL params.

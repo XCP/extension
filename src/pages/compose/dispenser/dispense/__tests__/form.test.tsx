@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
+import { useComposer } from '@/contexts/composer-context-object';
 import * as counterpartyApi from '@/core/counterparty/api';
 import * as utxoSelection from '@/core/counterparty/utxoSelection';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
@@ -336,6 +337,73 @@ describe('DispenseForm', () => {
     // Should show insufficient balance error
     await waitFor(() => {
       expect(screen.getByText(/Insufficient BTC balance/i)).toBeInTheDocument();
+    });
+  });
+
+  // The shortfall message quotes a fee computed from the composer's fee rate, which is refreshed
+  // while the form is open. `maxDispenses` recomputes from the live rate on every render, so if
+  // the Max handler holds an older one the two disagree and the user is quoted a fee at a rate
+  // that is no longer in effect.
+  it('quotes the shortfall at the current fee rate, not the one in effect when Max was built', async () => {
+    const mockDispensers = [createMockDispenser({
+      asset: 'EXPENSIVE',
+      satoshirate: asBaseUnits(100000000), // 1 BTC per dispense, far above the balance below
+      satoshirate_normalized: asDisplayUnits('1.00000000'),
+    })];
+
+    mockFetchAddressDispensers.mockResolvedValue({
+      result: mockDispensers,
+      result_count: 1,
+    });
+
+    mockSelectUtxosForTransaction.mockResolvedValue({
+      utxos: [
+        { txid: 'abc123', vout: 0, value: 100000, status: { confirmed: true, block_height: 800000, block_hash: 'hash', block_time: 1234567890 } }
+      ],
+      inputsSet: 'abc123:0',
+      totalValue: 100000,
+      excludedWithAssets: 0,
+      excludedValue: 0,
+    });
+
+    let setFeeRate!: (rate: number) => void;
+    function FeeRateDriver() {
+      setFeeRate = useComposer().setFeeRate;
+      return null;
+    }
+
+    render(
+      <MemoryRouter>
+        <ComposerProvider composeApi={vi.fn()} initialTitle="Dispense" composeType="dispense">
+          <FeeRateDriver />
+          <DispenseForm formAction={mockFormAction} initialFormData={null} />
+        </ComposerProvider>
+      </MemoryRouter>
+    );
+
+    await userEvent.type(screen.getByLabelText(/Dispenser Address/i), '1CounterpartyXXXXXXXXXXXXXXXUWLpVr');
+    await waitFor(() => expect(screen.getByText('EXPENSIVE')).toBeInTheDocument());
+
+    const quotedFee = () => {
+      const message = screen.getByText(/Insufficient BTC balance/i).textContent ?? '';
+      const match = message.match(/~(\d+) sats fee/);
+      if (!match) throw new Error(`No fee in shortfall message: ${message}`);
+      return Number(match[1]);
+    };
+
+    await act(async () => { setFeeRate(1); });
+    await userEvent.click(screen.getByText('Max'));
+    await waitFor(() => expect(screen.getByText(/Insufficient BTC balance/i)).toBeInTheDocument());
+    const feeAtRate1 = quotedFee();
+
+    // Fees spike; the form's fee rate is updated underneath the mounted component.
+    await act(async () => { setFeeRate(100); });
+    await userEvent.click(screen.getByText('Max'));
+
+    await waitFor(() => {
+      // 100× the rate over the same transaction means ~100× the fee. A handler holding the old
+      // rate keeps quoting feeAtRate1.
+      expect(quotedFee()).toBeGreaterThan(feeAtRate1 * 50);
     });
   });
 

@@ -115,7 +115,7 @@ function ImportMnemonicPage() {
         ariaLabel: showMnemonic ? "Hide recovery phrase" : "Show recovery phrase",
       },
     });
-  }, [navigate, setHeaderProps, showMnemonic, keychainExists]);
+  }, [navigate, setHeaderProps, showMnemonic, keychainExists, PATHS.BACK]);
 
   useEffect(() => {
     inputRefs.current[0]?.focus();

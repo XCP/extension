@@ -57,7 +57,8 @@ export default function UtxoPage(): ReactElement {
     }
   };
 
-  // Configure header
+  // Configure header. handleCopyUtxo is redefined every render; listing it would call
+  // setHeaderProps on every render and re-trigger this effect.
   useEffect(() => {
     setHeaderProps({
       title: "UTXO Details",
