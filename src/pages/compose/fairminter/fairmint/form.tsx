@@ -31,7 +31,7 @@ export function FairmintForm({
   const { activeAddress, showHelpText, feeRate } = useComposer();
   
   // Form status from React hook
-  const {} = useFormStatus();
+  useFormStatus();
   
   // Determine if we're minting with BTC or XCP based on the route
   const currencyType = asset === "BTC" ? "BTC" : asset === "XCP" ? "XCP" : "";

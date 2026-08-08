@@ -707,7 +707,7 @@ function packMpma(sends: MpmaSend[], globalMemo: string | null, globalMemoIsHex:
   const lutBytes = new Uint8Array(2 + lut.length * 21);
   lutBytes[0] = lut.length >> 8;
   lutBytes[1] = lut.length & 0xff;
-  lut.forEach((packed, index) => lutBytes.set(packed, 2 + index * 21));
+  lut.forEach((packed, index) => { lutBytes.set(packed, 2 + index * 21); });
 
   const body = new Uint8Array([...lutBytes, ...writer.toBytes()]);
   return withPrefix(MessageTypeId.MPMA_SEND, body);

@@ -24,8 +24,8 @@ function createMockPort(name: string) {
       addListener: vi.fn((fn: PortDisconnectListener) => disconnectListeners.push(fn)),
       removeListener: vi.fn(),
     },
-    _fireMessage: (msg: any) => messageListeners.forEach(fn => fn(msg)),
-    _fireDisconnect: () => disconnectListeners.forEach(fn => fn()),
+    _fireMessage: (msg: any) => messageListeners.forEach(fn => { fn(msg); }),
+    _fireDisconnect: () => disconnectListeners.forEach(fn => { fn(); }),
   };
 }
 
@@ -124,7 +124,7 @@ describe('Proxy Service Integration', () => {
       });
 
       // Notify background of new connection
-      setTimeout(() => onConnectListeners.forEach(fn => fn(serverPort)), 0);
+      setTimeout(() => onConnectListeners.forEach(fn => { fn(serverPort); }), 0);
 
       return clientPort;
     });

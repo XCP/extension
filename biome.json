@@ -1,7 +1,12 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts"]
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "e2e/**/*.ts",
+      "!src/core/qr-code/qrcodegen.ts"
+    ]
   },
   "formatter": {
     "enabled": false
@@ -27,11 +32,17 @@
         "useSemanticElements": "error"
       },
       "correctness": {
+        "noEmptyPattern": "error",
+        "noSwitchDeclarations": "error",
         "noUnusedImports": "error",
         "noUnusedVariables": "warn"
       },
       "style": {
         "useImportType": "error"
+      },
+      "suspicious": {
+        "noImplicitAnyLet": "error",
+        "useIterableCallbackReturn": "error"
       }
     }
   }

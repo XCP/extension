@@ -289,7 +289,7 @@ describe('sessionManager', () => {
       const secrets = ['secret1', 'secret2', 'secret3'];
       
       // Simulate concurrent writes
-      secrets.forEach(secret => storeUnlockedSecret(walletId, secret));
+      secrets.forEach(secret => { storeUnlockedSecret(walletId, secret); });
       
       // Should have the last value
       expect(await getUnlockedSecret(walletId)).toBe('secret3');

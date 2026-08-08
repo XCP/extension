@@ -7,8 +7,8 @@ import { SweepForm } from "@/pages/compose/sweep/form";
 import { ReviewSweep } from "@/pages/compose/sweep/review";
 
 function ComposeSweepPage() {
-  const {} = useParams<{ address?: string }>();
-  const {} = useWallet();
+  useParams<{ address?: string }>();
+  useWallet();
   
 
   return (
