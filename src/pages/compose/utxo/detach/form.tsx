@@ -58,6 +58,9 @@ export function UtxoDetachForm({
         setUtxoBalances(response.result || []);
       }).catch(err => {
         console.error('Failed to fetch UTXO balances:', err);
+        // Without this the form silently shows "0 Balances", which reads as an
+        // empty UTXO rather than as a failed lookup.
+        setValidationError('Could not load balances for this UTXO.');
         setUtxoBalances([]);
       }).finally(() => {
         setIsLoadingBalances(false);
