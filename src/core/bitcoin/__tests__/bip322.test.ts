@@ -2,6 +2,7 @@
  * Tests for BIP-322 Generic Signed Message Format
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
 import { hex } from '@scure/base';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -79,14 +80,12 @@ describe('BIP-322 Implementation', () => {
     });
 
     it('should create a valid to_sign transaction', () => {
-      const toSpendTxId = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      // Create a mock to_spend transaction bytes
       const message = 'Test message';
       const messageHash = bip322MessageHash(message);
       const scriptPubKey = new Uint8Array([0x00, 0x14, ...new Uint8Array(20)]); // P2WPKH
       const toSpendBytes = createToSpendTransaction(messageHash, scriptPubKey);
 
-      const tx = createToSignTransaction(toSpendTxId, toSpendBytes);
+      const tx = createToSignTransaction(toSpendBytes);
 
       // Check that we get raw bytes
       expect(tx).toBeInstanceOf(Uint8Array);
@@ -101,13 +100,11 @@ describe('BIP-322 Implementation', () => {
       // Has one input
       expect(tx[4]).toBe(1);
 
-      // Check that it contains the reversed txid bytes
-      const txidBytes = hex.decode(toSpendTxId);
-      let txidMatch = true;
-      for (let i = 0; i < 32; i++) {
-        if (tx[5 + i] !== txidBytes[31 - i]) txidMatch = false;
-      }
-      expect(txidMatch).toBe(true);
+      // The prevout hash is to_spend's double-SHA256 in its natural byte order. This used to assert
+      // the reverse of it — the *displayed* txid — which is the orientation that made the whole
+      // segwit path non-interoperable. The spec's own `to_sign_tx_hash` settles it; see the
+      // structural-intermediates block in `bip322-standardness.test.ts`.
+      expect(hex.encode(tx.slice(5, 37))).toBe(hex.encode(sha256(sha256(toSpendBytes))));
     });
   });
 

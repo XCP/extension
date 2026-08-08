@@ -26,6 +26,18 @@ if (!hashes.hmacSha256) {
 const BIP322_TAG = 'BIP0322-signed-message';
 
 /**
+ * `@noble/secp256k1` v3 hashes the message before signing **by default** — `prehash: opts.prehash
+ * ?? true`. A Bitcoin sighash is already a digest, so signing it under that default signs
+ * `sha256(sighash)` instead, and verifying under the same default checks the same wrong value.
+ *
+ * That is self-consistent, which is exactly why it went unnoticed: this wallet's ECDSA signatures
+ * round-tripped against its own verifier while being unreadable by every other wallet, and every
+ * other wallet's signatures were rejected. It has to be passed at all four call sites; there is no
+ * module-level way to change the default. `messageVerifier/secp-recovery.ts` already passes it.
+ */
+const SIGHASH_IS_ALREADY_A_DIGEST = { prehash: false } as const;
+
+/**
  * Safely extract script from payment object with explicit error
  */
 function requireScript(payment: { script?: Uint8Array }, type: string): Uint8Array {
@@ -236,9 +248,10 @@ function taprootSigningKey(privateKey: Uint8Array): {
  * OP_RETURN output of value 0, version 0, locktime 0 — so every field below is a constant except
  * the outpoint and the scriptPubKey being spent. That is why this does not build a transaction.
  *
- * The prevout hash is the double-SHA256 of `to_spend` in its natural byte order. The displayed txid
- * is that value reversed, and the surrounding code carries it around already reversed under the
- * name `toSpendTxId`, so this deliberately recomputes from the raw bytes rather than reusing it.
+ * The prevout hash is the double-SHA256 of `to_spend` in its natural byte order; the displayed txid
+ * is that value reversed. Taking `to_spend`'s bytes and hashing them here, rather than accepting a
+ * "txid" whose orientation the caller has to get right, is what kept this path correct while the
+ * segwit and legacy paths were reversing it — those now take the bytes for the same reason.
  *
  * `hashType` is part of the preimage, which is why SIGHASH_DEFAULT (0x00) and SIGHASH_ALL (0x01)
  * are not interchangeable even though they commit to the same fields.
@@ -326,9 +339,23 @@ function verifyBIP322TaprootWitness(
 }
 
 /**
- * Manually serialize the to_sign transaction (unsigned)
+ * Manually serialize the to_sign transaction (unsigned).
+ *
+ * Takes the `to_spend` bytes rather than a txid string, and hashes them here. The previous shape
+ * took a hex "txid" and reversed it, which is what made the whole segwit path non-interoperable:
+ * `vin[0].prevout.hash` in a serialized transaction is the double-SHA256 in its **natural** byte
+ * order, and every caller was already passing exactly that. Reversing it produced the *displayed*
+ * txid and put the wrong outpoint in `to_sign`.
+ *
+ * Checked against the spec's own `to_sign_tx_hash` (`basic-test-vectors.json`), which commits to
+ * this field and to nothing about the signature, so it pins the orientation on its own:
+ * `1e9654e951a5ba44c8604c4de6c67fd78a27e81dcadcfe1edf638ba3aaebaed6` for the empty message at
+ * `bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l`.
+ *
+ * `to_sign` is unsigned here, so `vin[0].scriptSig` is empty and the spent scriptPubKey does not
+ * appear anywhere in these bytes — which is why it is no longer a parameter.
  */
-function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array): Uint8Array {
+function serializeToSignUnsigned(toSpendBytes: Uint8Array): Uint8Array {
   const parts: Uint8Array[] = [];
 
   // Version (4 bytes) - 0
@@ -338,13 +365,8 @@ function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array):
   parts.push(writeCompactSize(1));
 
   // Input 0:
-  // - Previous output hash (32 bytes) - toSpendTxId (reversed for little-endian)
-  const txidBytes = hex.decode(toSpendTxId);
-  const reversedTxid = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    reversedTxid[i] = txidBytes[31 - i]!;
-  }
-  parts.push(reversedTxid);
+  // - Previous output hash (32 bytes) - to_spend's double-SHA256, natural order
+  parts.push(sha256(sha256(toSpendBytes)));
 
   // - Previous output index (4 bytes) - 0
   parts.push(writeUint32LE(0));
@@ -390,7 +412,9 @@ function serializeToSignUnsigned(toSpendTxId: string, scriptPubKey: Uint8Array):
  * This matches the exchange server's approach in bip322-verify.ts.
  *
  * @param toSignBytes - The unsigned to_sign transaction bytes. Used to extract
- *   the prevout txid (bytes 5-36) for reconstructing the signing transaction.
+ *   the prevout hash (bytes 5-36) for reconstructing the signing transaction.
+ *   Reading it back out of the serialized form is what keeps this in step with
+ *   `serializeToSignUnsigned`: the two cannot disagree about byte order.
  * @param _inputIndex - Unused (always input 0 for BIP-322).
  * @param scriptPubKey - The locking script to insert for signing.
  * @param hashType - SIGHASH flag (default ALL = 0x01).
@@ -401,9 +425,9 @@ function calculateLegacySighashManual(
   scriptPubKey: Uint8Array,
   hashType: number = 0x01
 ): Uint8Array {
-  // Extract the prevout txid from the unsigned to_sign transaction.
-  // Layout: version(4) + input_count(1) + txid(32) starts at byte 5.
-  const reversedTxid = toSignBytes.slice(5, 37);
+  // Extract the prevout hash from the unsigned to_sign transaction.
+  // Layout: version(4) + input_count(1) + prevout hash(32) starts at byte 5.
+  const prevoutHash = toSignBytes.slice(5, 37);
 
   const opReturn = new Uint8Array([0x6a]); // OP_RETURN
 
@@ -412,7 +436,7 @@ function calculateLegacySighashManual(
   const parts: Uint8Array[] = [
     writeUint32LE(0),                        // nVersion
     writeCompactSize(1),                     // input count
-    reversedTxid,                            // prevout txid (already reversed in to_sign)
+    prevoutHash,                             // prevout hash, natural order, as in to_sign
     writeUint32LE(0),                        // prevout index
     writeCompactSize(scriptPubKey.length),   // scriptSig length = scriptPubKey length
     scriptPubKey,                            // scriptSig = scriptPubKey (for signing)
@@ -520,18 +544,14 @@ export async function signBIP322P2PKH(
 
   // Manually create and serialize to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
   // Create unsigned to_sign transaction
-  const toSignUnsigned = serializeToSignUnsigned(toSpendTxId, scriptPubKey);
+  const toSignUnsigned = serializeToSignUnsigned(toSpendBytes);
 
   // Calculate sighash
   const sighash = calculateLegacySighashManual(toSignUnsigned, 0, scriptPubKey, 0x01);
 
-  // Debug removed - verification working
-
-  // Sign with ECDSA - no prehash option, secp256k1 will handle appropriately
-  const signature = secp256k1.sign(sighash, privateKey);
+  const signature = secp256k1.sign(sighash, privateKey, SIGHASH_IS_ALREADY_A_DIGEST);
 
   // Create DER-encoded signature with SIGHASH_ALL
   const r = signature.slice(0, 32);
@@ -549,10 +569,17 @@ export async function signBIP322P2PKH(
 }
 
 /**
- * Calculate BIP-143 witness v0 sighash
+ * Calculate BIP-143 witness v0 sighash for the BIP-322 `to_sign` transaction.
+ *
+ * Field order is BIP-143's: nVersion, hashPrevouts, hashSequence, outpoint, scriptCode, amount,
+ * nSequence, hashOutputs, nLockTime, sighash type. Every field except the outpoint and scriptCode
+ * is a constant here, because BIP-322 fixes `to_sign` entirely.
+ *
+ * Like `serializeToSignUnsigned`, this takes `to_spend`'s bytes and hashes them, rather than a
+ * "txid" string it would have to guess the orientation of.
  */
 function calculateWitnessV0SighashManual(
-  toSpendTxId: string,
+  toSpendBytes: Uint8Array,
   scriptCode: Uint8Array,
   amount: bigint,
   hashType: number = 0x01
@@ -564,13 +591,8 @@ function calculateWitnessV0SighashManual(
   parts.push(writeUint32LE(0));
 
   // 2. hashPrevouts (32 bytes) - hash of all prevouts
-  const txidBytes = hex.decode(toSpendTxId);
-  const reversedTxid = new Uint8Array(32);
-  for (let i = 0; i < 32; i++) {
-    reversedTxid[i] = txidBytes[31 - i]!;
-  }
   const prevout = new Uint8Array(36);
-  prevout.set(reversedTxid, 0);
+  prevout.set(sha256(sha256(toSpendBytes)), 0);
   prevout.set(writeUint32LE(0), 32);
   parts.push(sha256(sha256(prevout)));
 
@@ -633,17 +655,14 @@ export async function signBIP322P2WPKH(
 
   // Create to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
   // Calculate witness v0 sighash - need to use P2PKH-style scriptCode for BIP-143
   const pubkeyHash = p2wpkh.hash;
   const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
 
-  // Debug removed - verification working
-  const sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, BigInt(0), 0x01);
+  const sighash = calculateWitnessV0SighashManual(toSpendBytes, scriptCode, BigInt(0), 0x01);
 
-  // Sign with ECDSA
-  const signature = secp256k1.sign(sighash, privateKey);
+  const signature = secp256k1.sign(sighash, privateKey, SIGHASH_IS_ALREADY_A_DIGEST);
 
   // Create DER-encoded signature with SIGHASH_ALL
   const r = signature.slice(0, 32);
@@ -678,15 +697,13 @@ export async function signBIP322P2SH_P2WPKH(
 
   // Create to_spend transaction
   const toSpendBytes = serializeToSpend(messageHash, scriptPubKey);
-  const toSpendTxId = hex.encode(sha256(sha256(toSpendBytes)));
 
   // For P2SH-P2WPKH, sign with the P2PKH-style scriptCode (not the P2WPKH script directly)
   const pubkeyHash = btc.p2wpkh(publicKey).hash;
   const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
-  const sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, BigInt(0), 0x01);
+  const sighash = calculateWitnessV0SighashManual(toSpendBytes, scriptCode, BigInt(0), 0x01);
 
-  // Sign with ECDSA
-  const signature = secp256k1.sign(sighash, privateKey);
+  const signature = secp256k1.sign(sighash, privateKey, SIGHASH_IS_ALREADY_A_DIGEST);
 
   // Create DER-encoded signature with SIGHASH_ALL
   const r = signature.slice(0, 32);
@@ -851,49 +868,30 @@ export async function verifyBIP322Signature(
       return false;
     }
 
-    // Parse DER signature - remove the sighash type byte if present
-    let sigBytes = sigDER;
-    if (sigBytes.length > 0 && sigBytes[sigBytes.length - 1] === 0x01) {
-      sigBytes = sigBytes.slice(0, -1);
-    }
-
-    const sig = parseDERSignature(sigBytes);
-    if (!sig) {
-      console.error('Failed to parse DER signature');
-      return false;
-    }
+    // A witness signature item is `DER || hashType`, so the last byte is the hash type and is not
+    // part of the DER. It used to be dropped only when it happened to equal 0x01, which read a
+    // conditional into a field that is always present. Only SIGHASH_ALL is accepted: BIP-322 fixes
+    // `to_sign`'s single output, and NONE/SINGLE/ANYONECANPAY would stop committing to it.
+    if (sigDER.length < 2) return false;
+    const hashType = sigDER[sigDER.length - 1]!;
+    if (hashType !== 0x01) return false;
+    const sigBytes = sigDER.slice(0, -1);
 
     // Create the sighash based on address type
     let sighash: Uint8Array;
 
+    const toSpend = serializeToSpend(messageHash, scriptPubKey);
+
     if (addressType === 'P2PKH') {
       // Legacy sighash calculation
-      const toSpend = serializeToSpend(messageHash, scriptPubKey);
-      const toSpendTxId = hex.encode(sha256(sha256(toSpend)));
-      const toSign = serializeToSignUnsigned(toSpendTxId, scriptPubKey);
-
-      // Debug removed - verification working
-
-      sighash = calculateLegacySighashManual(toSign, 0, scriptPubKey, 0x01);
+      const toSign = serializeToSignUnsigned(toSpend);
+      sighash = calculateLegacySighashManual(toSign, 0, scriptPubKey, hashType);
     } else {
-      // Witness v0 sighash calculation (P2WPKH and P2SH-P2WPKH)
-      const toSpend = serializeToSpend(messageHash, scriptPubKey);
-      const toSpendTxId = hex.encode(sha256(sha256(toSpend)));
-
-      // Calculate proper scriptCode for witness
-      let scriptCode: Uint8Array;
-      if (addressType === 'P2WPKH') {
-        // For P2WPKH, scriptCode is P2PKH-style
-        const pubkeyHash = btc.p2wpkh(pubkey).hash;
-        scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
-        // Debug removed - verification working
-      } else {
-        // For P2SH-P2WPKH, also P2PKH-style
-        const pubkeyHash = btc.p2wpkh(pubkey).hash;
-        scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
-      }
-
-      sighash = calculateWitnessV0SighashManual(toSpendTxId, scriptCode, 0n, 0x01);
+      // Witness v0 sighash calculation. Both P2WPKH and P2SH-P2WPKH commit to the P2PKH-style
+      // scriptCode BIP-143 defines for a P2WPKH witness program: 0x1976a914{20-byte-hash}88ac.
+      const pubkeyHash = btc.p2wpkh(pubkey).hash;
+      const scriptCode = btc.Script.encode(['DUP', 'HASH160', pubkeyHash, 'EQUALVERIFY', 'CHECKSIG']);
+      sighash = calculateWitnessV0SighashManual(toSpend, scriptCode, 0n, hashType);
     }
 
     // Implement proper cryptographic verification
@@ -906,12 +904,7 @@ export async function verifyBIP322Signature(
       }
 
       // Verify the signature using the calculated sighash
-      const isValidSignature = secp256k1.verify(signature64, sighash, pubkey);
-
-      if (!isValidSignature) {
-        return false;
-      }
-      return true; // Full cryptographic verification passed
+      return secp256k1.verify(signature64, sighash, pubkey, SIGHASH_IS_ALREADY_A_DIGEST);
     } catch (error) {
       console.error('BIP-322 cryptographic verification error:', error);
       return false;

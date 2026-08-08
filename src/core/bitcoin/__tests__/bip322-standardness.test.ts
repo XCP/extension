@@ -4,14 +4,18 @@
  * https://github.com/ACken2/bip322-js
  */
 
+import { sha256 } from '@noble/hashes/sha2.js';
 import * as secp256k1 from '@noble/secp256k1';
 import { base64, hex } from '@scure/base';
 import * as btc from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import {
+  bip322MessageHash,
+  createToSignTransaction,
+  createToSpendTransaction,
   signBIP322P2PKH,
   signBIP322P2SH_P2WPKH,
-  signBIP322P2TR, 
+  signBIP322P2TR,
   signBIP322P2WPKH,
   taprootOutputKey,
   verifyBIP322Signature
@@ -20,22 +24,21 @@ import { verifyMessage, verifyMessageWithMethod } from '../messageVerifier';
 
 describe('BIP-322 Standardness Tests from bip322-js', () => {
   describe('Legacy P2PKH Signature Verification', () => {
-    it('should verify legacy P2PKH signature', async () => {
+    // The canonical BIP-137 vector from bip322-js. This asserted only that the result was an object
+    // with a boolean field, which is true of every possible outcome.
+    it('verifies the reference BIP-137 P2PKH signature', async () => {
       const address = '1F3sAm6ZtwLAUnj7d38pGFxtP3RVEvtsbV';
       const message = 'This is an example of a signed message.';
       const signature = 'H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=';
 
-      const result = await verifyMessage(message, signature, address);
-      console.log('Legacy P2PKH verification result:', result);
+      expect((await verifyMessage(message, signature, address)).valid).toBe(true);
+      expect((await verifyMessageWithMethod(message, signature, address)).valid).toBe(true);
+    });
 
-      // This may fail if the signature was created with a different implementation
-      // Let's log more details for debugging
-      const resultWithMethod = await verifyMessageWithMethod(message, signature, address);
-      console.log('Verification details:', resultWithMethod);
-
-      // For now, we'll check that it at least runs without error
-      expect(typeof result).toBe('object');
-      expect(typeof result.valid).toBe('boolean');
+    it('rejects the reference signature against a different message or address', async () => {
+      const signature = 'H9L5yLFjti0QTHhPyFrZCT1V/MMnBtXKmoiKDZ78NDBjERki6ZTQZdSMCtkgoNmp17By9ItJr8o7ChX0XxY91nk=';
+      expect((await verifyMessage('This is an example of a signed message', signature, '1F3sAm6ZtwLAUnj7d38pGFxtP3RVEvtsbV')).valid).toBe(false);
+      expect((await verifyMessage('This is an example of a signed message.', signature, '1HnhWpkMHMjgt167kvgcPyurMmsCQ2WPgg')).valid).toBe(false);
     });
   });
 
@@ -78,68 +81,112 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       }
     });
 
-    it('should handle Ledger/Sparrow Taproot signatures', async () => {
-      // Example from issue #1 in bip322-js
-      // Sparrow/Ledger signs Taproot addresses using BIP-137 format
+    // Sparrow and Ledger sign taproot addresses with a BIP-137 recoverable signature rather than
+    // BIP-322. Vector from bip322-js issue #1. This asserted only `typeof result === 'object'`,
+    // which held whichever way the verification went, so it recorded no behaviour at all. Pinned
+    // here to whatever the verifier actually does, so that a change to it has to be deliberate.
+    it('handles a Ledger/Sparrow BIP-137 signature over a taproot address', async () => {
       const address = 'bc1ps5pt865e77nr9t9z7fdefryx27lsz0ced875lxcc68lszvc7x3qsxx25fy';
       const message = 'bitcheckdiuq5gh179v9r5vwmw58ijtkea1vb4idr92khiu';
       const signature = 'HxOxevYmNjW58m/TBcewrpLbOC0NXjwnWO+jccW9tq8JbdtjI8modbmYbJNVO6PpE9MATfiZeU/S/GbmozNhV4Y=';
 
-      // This signature is BIP-137 format but for a Taproot address
-      // The verifier should handle this by checking if the recovered
-      // public key matches the Taproot address
+      expect((await verifyMessageWithMethod(message, signature, address)).valid).toBe(true);
 
-      // Note: Our current implementation may not support this exact case
-      // as it requires deriving different address types from the same pubkey
-      const result = await verifyMessageWithMethod(message, signature, address);
-      console.log('Ledger/Sparrow Taproot signature verification:', result);
-
-      // The signature should verify with the P2PKH address derived from same key
+      // A BIP-137 signature is recoverable, so it proves control of the key rather than of one
+      // address, and loose verification accepts every address type that key derives. The P2PKH
+      // spelling of the same key therefore also verifies. What must stay narrow is *which key* is
+      // accepted, not which spelling of it — that boundary is the "rejects a signature that belongs
+      // to another address" test above, which is where a widening would actually be a defect.
       const p2pkhAddress = '19C7EwHP5FN32YPrMRfW7mkFKg3FYwyAzr';
-      const p2pkhResult = await verifyMessage(message, signature, p2pkhAddress);
-      console.log('P2PKH address verification result:', p2pkhResult);
-
-      // This is a known compatibility issue - log for investigation
-      if (!p2pkhResult) {
-        console.log('Known issue: Ledger/Sparrow Taproot signature not verifying with our implementation');
-        console.log('This requires further investigation into the exact signature format used');
-      }
-
-      // For now, we'll check that it at least runs without error
-      expect(typeof p2pkhResult).toBe('object');
-      expect(typeof p2pkhResult.valid).toBe('boolean');
+      expect((await verifyMessage(message, signature, p2pkhAddress)).valid).toBe(true);
     });
   });
 
+  /**
+   * The vectors published with BIP-322 itself, in `bip-0322/basic-test-vectors.json`.
+   *
+   * These previously sat here in a corrupted form — the trailing bytes of both signatures differed
+   * from the spec's (`...O5XyRMZwLpM=` for the spec's `...sMvViHI=`), so the encoded public key did
+   * not belong to the address — under a test that only asserted `typeof result === 'boolean'`. That
+   * is true whether verification passes or fails, so it recorded a total interoperability failure
+   * as a pass. Two separate defects were behind it:
+   *
+   *   1. `to_sign`'s `vin[0].prevout.hash` was byte-reversed. A prevout hash is the double-SHA256
+   *      in natural order; the code reversed it into the *displayed* txid form.
+   *   2. `@noble/secp256k1` v3 defaults to `prehash: true`, so both signing and verification ran
+   *      over `sha256(sighash)`. Self-consistent, and therefore invisible to a round-trip test.
+   *
+   * Either one alone makes the wallet non-interoperable, and fixing either one alone leaves it
+   * non-interoperable — which is why these have to be checked against externally produced
+   * signatures rather than against our own.
+   */
   describe('BIP-322 P2WPKH Test Vectors', () => {
-    it('should verify BIP-322 P2WPKH signatures from reference implementation', async () => {
-      const testVectors = [
-        {
-          address: 'bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l',
-          message: '',
-          signature: 'AkcwRAIgM2gBAQqvZX15ZiysmKmQpDrG83avLIT492QBzLnQIxYCIBaTpOaD20qRlEylyxFSeEA2ba9YOixpX8z46TSDtS40ASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO5XyRMZwLpM=',
-          description: 'Empty message'
-        },
-        {
-          address: 'bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l',
-          message: 'Hello World',
-          signature: 'AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO5XyRMZwLpM=',
-          description: 'Hello World message'
-        }
+    const SPEC_ADDRESS = 'bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l';
+
+    // Both encodings the spec publishes per message: ECDSA leaves r and s free, so the same key and
+    // message legitimately produce more than one valid signature.
+    const SPEC_VECTORS = [
+      { message: '', signature: 'AkcwRAIgM2gBAQqvZX15ZiysmKmQpDrG83avLIT492QBzLnQIxYCIBaTpOaD20qRlEylyxFSeEA2ba9YOixpX8z46TSDtS40ASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=' },
+      { message: '', signature: 'AkgwRQIhAPkJ1Q4oYS0htvyuSFHLxRQpFAY56b70UvE7Dxazen0ZAiAtZfFz1S6T6I23MWI2lK/pcNTWncuyL8UL+oMdydVgzAEhAsfxIAMZZEKUPYWI4BruhAQjzFT8FSFSajuFwrDL1Yhy' },
+      { message: 'Hello World', signature: 'AkcwRAIgZRfIY3p7/DoVTty6YZbWS71bc5Vct9p9Fia83eRmw2QCICK/ENGfwLtptFluMGs2KsqoNSk89pO7F29zJLUx9a/sASECx/EgAxlkQpQ9hYjgGu6EBCPMVPwVIVJqO4XCsMvViHI=' },
+      { message: 'Hello World', signature: 'AkgwRQIhAOzyynlqt93lOKJr+wmmxIens//zPzl9tqIOua93wO6MAiBi5n5EyAcPScOjf1lAqIUIQtr3zKNeavYabHyR8eGhowEhAsfxIAMZZEKUPYWI4BruhAQjzFT8FSFSajuFwrDL1Yhy' },
+    ];
+
+    it.each(SPEC_VECTORS)('verifies the spec vector for $message', async ({ message, signature }) => {
+      expect(await verifyBIP322Signature(message, signature, SPEC_ADDRESS)).toBe(true);
+    });
+
+    it('rejects a spec vector paired with the wrong message', async () => {
+      // The two messages' signatures are interchangeable only if the sighash ignores the message.
+      expect(await verifyBIP322Signature('Hello World', SPEC_VECTORS[0]!.signature, SPEC_ADDRESS)).toBe(false);
+      expect(await verifyBIP322Signature('', SPEC_VECTORS[2]!.signature, SPEC_ADDRESS)).toBe(false);
+    });
+
+    it('rejects a spec vector against a different address', async () => {
+      const other = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+      expect(await verifyBIP322Signature('', SPEC_VECTORS[0]!.signature, other)).toBe(false);
+    });
+
+    it('rejects a tampered spec vector', async () => {
+      const bytes = base64.decode(SPEC_VECTORS[0]!.signature);
+      bytes[10] = bytes[10]! ^ 0x01;
+      expect(await verifyBIP322Signature('', base64.encode(bytes), SPEC_ADDRESS)).toBe(false);
+    });
+
+    /**
+     * The spec's `to_sign_tx_hash` commits to the prevout, version, sequence, outputs and locktime,
+     * and to nothing about the signature. It therefore pins the byte order on its own — this is the
+     * assertion that localises defect 1 above, without any cryptography in the way.
+     */
+    describe('structural intermediates', () => {
+      const TX_HASHES = [
+        { message: '', messageHash: 'c90c269c4f8fcbe6880f72a721ddfbf1914268a794cbb21cfafee13770ae19f1', toSpend: 'c5680aa69bb8d860bf82d4e9cd3504b55dde018de765a91bb566283c545a99a7', toSign: '1e9654e951a5ba44c8604c4de6c67fd78a27e81dcadcfe1edf638ba3aaebaed6' },
+        { message: 'Hello World', messageHash: 'f0eb03b1a75ac6d9847f55c624a99169b5dccba2a31f5b23bea77ba270de0a7a', toSpend: 'b79d196740ad5217771c1098fc4a4b51e0535c32236c71f1ea4d61a2d603352b', toSign: '88737ae86f2077145f93cc4b153ae9a1cb8d56afa511988c149c5c8c9d93bddf' },
+        { message: 'UTF-8 support: öäüéàè 测试文本 😄', messageHash: '43936b237ea38c7794eb5d755e0d220b6db92ebfc5c8f482759d22b1286376d7', toSpend: 'c8f4f525fe8afb1bc09b44175bd2096f079c98425e8a1be676b712add1fb62f0', toSign: '8f488e06b89eafd019ec528109eafaf7f1d1811fd617aa1eeb9658f1c1be6586' },
       ];
 
-      for (const vector of testVectors) {
-        const result = await verifyBIP322Signature(vector.message, vector.signature, vector.address);
-        console.log(`P2WPKH ${vector.description} verification:`, result);
+      /** A txid is the double-SHA256 displayed in reverse; the serialized bytes carry it natural. */
+      const txid = (tx: Uint8Array) => hex.encode(Uint8Array.from(sha256(sha256(tx))).reverse());
 
-        if (!result) {
-          console.log('Failed to verify:', vector);
-          console.log('This may be due to differences in BIP-322 implementation details');
-        }
+      const scriptPubKey = btc.p2wpkh(
+        hex.decode('02c7f12003196442943d8588e01aee840423cc54fc1521526a3b85c2b0cbd58872')
+      ).script;
 
-        // For now, we'll check that it at least runs without error
-        expect(typeof result).toBe('boolean');
-      }
+      it.each(TX_HASHES)('matches the spec hashes for $message', (vector) => {
+        const messageHash = bip322MessageHash(vector.message);
+        expect(hex.encode(messageHash)).toBe(vector.messageHash);
+
+        const toSpend = createToSpendTransaction(messageHash, scriptPubKey);
+        expect(txid(toSpend)).toBe(vector.toSpend);
+
+        expect(txid(createToSignTransaction(toSpend))).toBe(vector.toSign);
+      });
+
+      it('derives the spec address from the vectors public key', () => {
+        // Guards the vectors themselves: the stored ones were corrupted in exactly this field.
+        expect(btc.p2wpkh(hex.decode('02c7f12003196442943d8588e01aee840423cc54fc1521526a3b85c2b0cbd58872')).address)
+          .toBe(SPEC_ADDRESS);
+      });
     });
   });
 
@@ -197,6 +244,23 @@ describe('BIP-322 Standardness Tests from bip322-js', () => {
       expect(fromAddress).not.toBeNull();
       expect(hex.encode(fromAddress!)).toBe(hex.encode(payment.tweakedPubkey));
       expect(hex.encode(fromAddress!)).not.toBe(hex.encode(internalKey));
+    });
+
+    // BIP-322's own `basic-test-vectors.json`, which #294's bip322-js vector did not cover.
+    it('verifies the spec P2TR vector', async () => {
+      expect(await verifyBIP322Signature(
+        'No prefix fallback',
+        'AUCJYOwOjxYAvatTAGYaVlNXBVyFuc4MwNQkOuK2tl8xhfKDONd0NjfYyNSYcRqeCp8hsAnCEPHAVEkO9h6vbQ/R',
+        'bc1pss0zhytly75awhm6x2hhvd5lnzv3vssgrf9axfheq8ldyzn88ges79fler'
+      )).toBe(true);
+    });
+
+    it('rejects the spec P2TR vector against a different message', async () => {
+      expect(await verifyBIP322Signature(
+        'No prefix fallback ',
+        'AUCJYOwOjxYAvatTAGYaVlNXBVyFuc4MwNQkOuK2tl8xhfKDONd0NjfYyNSYcRqeCp8hsAnCEPHAVEkO9h6vbQ/R',
+        'bc1pss0zhytly75awhm6x2hhvd5lnzv3vssgrf9axfheq8ldyzn88ges79fler'
+      )).toBe(false);
     });
 
     it('verifies a P2TR SIGHASH_ALL signature', async () => {
