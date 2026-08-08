@@ -11,8 +11,12 @@ vi.mock("react-router", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-const mockActiveWallet = { id: "wallet1", name: "Test Wallet" };
-const mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
+// `let`, like the search mocks below, so a test can take the wallet or the address away.
+let mockActiveWallet: { id: string; name: string } | null = { id: "wallet1", name: "Test Wallet" };
+let mockActiveAddress: { address: string; name: string } | null = {
+  address: "bc1qtest123",
+  name: "Test Address",
+};
 vi.mock("@/contexts/wallet-context", () => ({
   useWallet: () => ({
     activeWallet: mockActiveWallet,
@@ -170,6 +174,8 @@ describe("BalanceList", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockActiveWallet = { id: "wallet1", name: "Test Wallet" };
+    mockActiveAddress = { address: "bc1qtest123", name: "Test Address" };
     mockFetchBTCBalance.mockResolvedValue(100000000); // 1 BTC in sats
     mockFetchTokenBalance.mockResolvedValue(null);
     mockFetchTokenBalances.mockResolvedValue([]);
@@ -556,10 +562,23 @@ describe("BalanceList", () => {
     });
   });
 
-  it("should handle missing activeWallet or activeAddress", async () => {
-    // This test would require mocking the context differently
-    // Skip for now as it requires complex module-level mocking
-    expect(true).toBe(true);
+  // Was `expect(true).toBe(true)` under a comment saying the test was skipped. Both halves matter
+  // in a wallet: a balance fetched for an address the wallet does not currently have is a balance
+  // shown against the wrong address, and this list is what a send is started from.
+  it.each([
+    ['activeAddress', () => { mockActiveAddress = null; }],
+    ['activeWallet', () => { mockActiveWallet = null; }],
+  ])("fetches no balances when %s is missing", async (_name, clear) => {
+    clear();
+
+    render(<BalanceList />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+    expect(mockFetchBTCBalance).not.toHaveBeenCalled();
+    expect(mockFetchTokenBalances).not.toHaveBeenCalled();
+    expect(mockFetchTokenBalance).not.toHaveBeenCalled();
   });
 
   it("should reset when pinnedAssets change", async () => {

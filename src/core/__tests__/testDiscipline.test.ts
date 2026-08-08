@@ -4,6 +4,7 @@ import {
   blank,
   canFail,
   collectAssertingNames,
+  expectCalls,
   helperFiles,
   SRC,
   testBlocks,
@@ -26,6 +27,14 @@ import {
  * `wallet-fixtures.test.ts`), asserting nothing while its comment claimed the verification "should
  * work". Both survived a deliberate sweep for exactly this defect, because a sweep is a memory and
  * this is a rule.
+ *
+ * The rule now has a second half, for the same reason it has a first. Requiring only that a test
+ * assert *something* let `expect(typeof result).toBe('boolean')` stand in for a real check in that
+ * same file, and underneath it BIP-322 verification of the spec's own published P2WPKH vectors had
+ * never worked in either direction. An assertion that holds whichever way the subject behaves is a
+ * test with no assertion spelled differently, so a test whose assertions are all of that kind is
+ * reported the same way. One strong assertion is enough; a weak one beside a real one is not a
+ * defect, and flagging it would be the rule inventing a violation.
  *
  * The detector lives in `helpers/testDiscipline.ts`; this file is the rule and its self-tests.
  */
@@ -59,7 +68,7 @@ describe('every test can fail', () => {
     expect(assertingNames.has('assertComposeUrlCalled')).toBe(true);
   });
 
-  it('has no test without an assertion', () => {
+  it('has no test that cannot fail', () => {
     const offenders: string[] = [];
     for (const file of files) {
       const blocks = testBlocks(readFileSync(file, 'utf8'), relative(file));
@@ -67,7 +76,11 @@ describe('every test can fail', () => {
         if (block.modifier.includes('todo')) continue;
         const id = `${block.file}:${block.line} :: ${block.name}`;
         if (EXEMPT.has(id)) continue;
-        if (!canFail(block.body, assertingNames)) offenders.push(id);
+        if (canFail(block.body, assertingNames)) continue;
+        // Naming which of the two it is, because the fixes are different: one test needs an
+        // assertion, the other needs its assertion to be about the value rather than the type.
+        const reason = expectCalls(block.body).length > 0 ? 'every assertion is weak' : 'no assertion';
+        offenders.push(`${id} [${reason}]`);
       }
     }
     expect(offenders).toEqual([]);
@@ -148,6 +161,133 @@ describe('every test can fail', () => {
     it('leaves todo alone', () => {
       const blocks = testBlocks(`it.todo('later');`);
       expect(blocks[0]!.modifier).toContain('todo');
+    });
+
+    // An assertion that cannot fail is the same defect as no assertion, one level up. The rule only
+    // learned this after `expect(typeof result).toBe('boolean')` hid a total BIP-322 segwit
+    // interoperability failure for the entire life of that test.
+    describe('and a new tautological one', () => {
+      const weak = (source: string) => canFail(testBlocks(source)[0]!.body, asserting);
+
+      it('flags a type-only assertion', () => {
+        expect(weak(`it('x', async () => { const r = await verify(a, b); expect(typeof r).toBe('boolean'); });`)).toBe(false);
+      });
+
+      it('flags a type-only assertion on a property', () => {
+        expect(weak(`it('x', async () => { const r = await f(); expect(typeof r.valid).toBe('boolean'); });`)).toBe(false);
+      });
+
+      it('flags a literal tautology', () => {
+        expect(weak(`it('x', () => { const a = f(); expect(a || !a).toBe(true); });`)).toBe(false);
+        expect(weak(`it('x', () => { const a = f(); expect(!a || a).toBeTruthy(); });`)).toBe(false);
+      });
+
+      it('flags a self-comparison', () => {
+        expect(weak(`it('x', () => { const r = f(); expect(r).toBe(r); });`)).toBe(false);
+        expect(weak(`it('x', () => { expect(r.length).toEqual(r.length); });`)).toBe(false);
+      });
+
+      it('flags asserting a constant against itself', () => {
+        expect(weak(`it('x', () => { doWork(); expect(true).toBe(true); });`)).toBe(false);
+        expect(weak(`it('x', () => { doWork(); expect(1).toBe(1); });`)).toBe(false);
+      });
+
+      it('accepts a weak assertion standing next to a strong one', () => {
+        // The rule is "every assertion is weak", not "any assertion is weak". A typeof check used
+        // as a narrowing step before a real assertion is ordinary code.
+        expect(weak(`it('x', async () => { const r = await f(); expect(typeof r).toBe('object'); expect(r.valid).toBe(true); });`)).toBe(true);
+      });
+
+      it('does not read two different string literals as a self-comparison', () => {
+        // `blank()` erases string contents, so `'a'` and `'b'` arrive here as the same run of
+        // spaces. Comparing them would report a genuine assertion as a tautology.
+        expect(weak(`it('x', () => { expect(name).toBe('expected'); });`)).toBe(true);
+        expect(weak(`it('x', () => { expect('a').toBe('b'); });`)).toBe(true);
+      });
+
+      it('does not read two different regex literals as a self-comparison', () => {
+        // Blanking leaves a regex literal as pure whitespace, delimiters included.
+        expect(weak(`it('x', () => { expect(pattern).toEqual(/abc/); });`)).toBe(true);
+      });
+
+      it('leaves a negated self-comparison alone', () => {
+        // `expect(x).not.toBe(x)` always fails. That is a different defect, and not this rule's.
+        expect(weak(`it('x', () => { const r = f(); expect(r).not.toBe(r); });`)).toBe(true);
+      });
+
+      it('does not flag a comparison against a different value', () => {
+        expect(weak(`it('x', () => { expect(a.b).toBe(a.c); });`)).toBe(true);
+        expect(weak(`it('x', () => { expect(total).toBe(1); });`)).toBe(true);
+      });
+
+      it('does not flag an unrelated || that is not a tautology', () => {
+        expect(weak(`it('x', () => { expect(a || b).toBe(true); });`)).toBe(true);
+        expect(weak(`it('x', () => { expect(!a || !b).toBe(true); });`)).toBe(true);
+      });
+
+      it('treats assertion forms it cannot take apart as strong', () => {
+        // Classifying an `assert()` or a `verifyProperty()` would mean parsing what this does not
+        // parse. Guessing there is how the rule would start inventing violations.
+        expect(weak(`it('x', () => { assert(typeof r === 'boolean'); });`)).toBe(true);
+        expect(weak(`it('x', () => { verifyProperty(model); });`)).toBe(true);
+      });
+
+      it('reads the matcher chain past a modifier', () => {
+        const calls = expectCalls(blank(`expect(f()).resolves.toBe(1);`));
+        expect(calls).toHaveLength(1);
+        expect(calls[0]!.subject).toBe('f()');
+        expect(calls[0]!.chain.trim()).toBe('.resolves.toBe(1)');
+      });
+
+      it('does not treat a member named expect as an assertion', () => {
+        // The `\b`-after-a-dot bug that produced most of the first run's false positives.
+        expect(expectCalls(blank(`harness.expect(1);`))).toHaveLength(0);
+      });
+    });
+
+    /**
+     * Found by mutation-testing the rule above: a file of deliberately tautological tests was not
+     * flagged, and the reason was not the new classifier at all.
+     *
+     * `const isBig = (n) => n > 10` has no braces, so the old `indexOf('{')` walked past the whole
+     * definition and returned the next block in the file as the "body". Any assertion in that
+     * unrelated block marked `isBig` as an assertion helper, and every test that called it was
+     * excused. Same defect class as the fixed-4000-characters version the header describes, and
+     * imprecise in the same dangerous direction.
+     */
+    describe('resolves helper bodies, not the next block', () => {
+      const namesIn = (source: string) => collectAssertingNames([blank(source)]);
+
+      it('does not attribute a later block to an expression-bodied arrow', () => {
+        const source = [
+          `const isBig = (n) => n > 10;`,
+          `describe('s', () => {`,
+          `  it('x', () => { expect(isBig(11)).toBe(true); });`,
+          `});`,
+        ].join('\n');
+        expect(namesIn(source).has('isBig')).toBe(false);
+      });
+
+      it('still resolves an arrow with a brace body', () => {
+        expect(namesIn(`const assertBig = (n) => { expect(n).toBeGreaterThan(10); };`).has('assertBig')).toBe(true);
+      });
+
+      it('still resolves a function declaration', () => {
+        expect(namesIn(`function assertBig(n: number): void { expect(n).toBeGreaterThan(10); }`).has('assertBig')).toBe(true);
+      });
+
+      it('resolves a declaration whose parameters contain parens', () => {
+        // The parameter list is skipped by brace matching, not by a `[^)]*` scan.
+        expect(namesIn(`function assertBig(n = fallback(1)) { expect(n).toBeGreaterThan(10); }`).has('assertBig')).toBe(true);
+      });
+
+      it('does not attribute a later body to an overload signature', () => {
+        const source = [
+          `function widen(n: number): void;`,
+          `describe('s', () => { it('x', () => { expect(1).toBe(1); }); });`,
+        ].join('\n');
+        expect(namesIn(source).has('widen')).toBe(false);
+      });
     });
   });
 });
