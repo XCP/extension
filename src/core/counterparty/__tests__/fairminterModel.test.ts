@@ -5,6 +5,8 @@ import {
   getFairmintCost,
   getFairminterLotCost,
   getFairminterPaymentModel,
+  getMaxFairmintLots,
+  getQuantityForLots,
   isPaidFairminter,
 } from "../fairminterModel";
 
@@ -111,6 +113,87 @@ describe("getFairmintCost", () => {
     const fairminter = { price: 25000000000, quantity_by_price_normalized: "5000" };
     expect(getFairminterLotCost(fairminter)).toBe("250");
     expect(getFairmintCost(fairminter, "20000")).toBe("1000");
+  });
+});
+
+describe("getMaxFairmintLots", () => {
+  // 1 XCP per lot of 1,000 tokens.
+  const base = { price: 100000000, quantity_by_price_normalized: "1000" };
+
+  it("is what the balance affords, floored to whole lots", () => {
+    expect(getMaxFairmintLots({ fairminter: base, balance: "10" })).toBe("10");
+    expect(getMaxFairmintLots({ fairminter: base, balance: "10.9" })).toBe("10");
+    expect(getMaxFairmintLots({ fairminter: base, balance: "0" })).toBe("0");
+  });
+
+  it("caps at max_mint_per_tx", () => {
+    const fairminter = { ...base, max_mint_per_tx_normalized: "3000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100" })).toBe("3");
+  });
+
+  // Core rejects `asset_supply + quantity > hard_cap`, which the old Max never checked, so it
+  // could offer a quantity that was always going to fail.
+  it("caps at the headroom left under the hard cap", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100", assetSupply: "7000" })).toBe("3");
+    expect(getMaxFairmintLots({ fairminter, balance: "100", assetSupply: "10000" })).toBe("0");
+  });
+
+  it("caps at what this address has left of its allowance", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "3000" })).toBe("2");
+    expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "5000" })).toBe("0");
+  });
+
+  it("takes the tightest bound when several apply", () => {
+    const fairminter = {
+      ...base,
+      max_mint_per_tx_normalized: "8000",
+      hard_cap_normalized: "20000",
+      max_mint_per_address_normalized: "6000",
+    };
+    expect(
+      getMaxFairmintLots({
+        fairminter,
+        balance: "100",
+        assetSupply: "16000",
+        alreadyMinted: "1000",
+      })
+    ).toBe("4"); // hard cap leaves 4,000; the others allow 8, 5 and 100
+  });
+
+  // An unknown supply is not a full cap. Skipping the bound lets compose reject it, which is the
+  // safe direction; guessing zero headroom would block a mint that is actually fine.
+  it("skips a bound whose input is missing rather than guessing", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    expect(getMaxFairmintLots({ fairminter, balance: "3" })).toBe("3");
+  });
+
+  it("is zero when there is no lot size or no price", () => {
+    expect(getMaxFairmintLots({ fairminter: { price: 100000000 }, balance: "10" })).toBe("0");
+    expect(
+      getMaxFairmintLots({ fairminter: { price: 0, quantity_by_price_normalized: "1" }, balance: "10" })
+    ).toBe("0");
+  });
+});
+
+describe("getQuantityForLots", () => {
+  it("multiplies lots by the lot size", () => {
+    expect(getQuantityForLots({ quantity_by_price_normalized: "1000" }, "3")).toBe("3000");
+  });
+
+  it("is zero for no lots or no lot size", () => {
+    expect(getQuantityForLots({ quantity_by_price_normalized: "1000" }, "0")).toBe("0");
+    expect(getQuantityForLots({}, "3")).toBe("0");
+  });
+
+  // The point of the whole shape: a lot count can only compose to a multiple of the lot size, so
+  // core's "quantity is not a multiple of lot_size" cannot be reached from this form.
+  it("always composes to a multiple of the lot size", () => {
+    for (const lots of ["1", "7", "13", "100"]) {
+      const quantity = getQuantityForLots({ quantity_by_price_normalized: "250" }, lots);
+      expect(Number(quantity) % 250).toBe(0);
+    }
   });
 });
 

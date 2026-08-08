@@ -11,7 +11,15 @@
  * costing nothing but miner fees. Price is therefore the first question asked here, not the last.
  */
 
-import { divide, fromSatoshis, isGreaterThan, multiply } from "@/core/numeric";
+import {
+  divide,
+  fromSatoshis,
+  isGreaterThan,
+  maximum,
+  multiply,
+  roundDown,
+  subtract,
+} from "@/core/numeric";
 
 export type FairminterPaymentModel =
   /** price 0: the miner fee is the whole cost. */
@@ -110,6 +118,76 @@ export function getFairmintCost(
   if (lotSize === undefined || lotSize === null || !isGreaterThan(lotSize, 0)) return null;
   if (!isGreaterThan(quantity, 0)) return "0";
   return multiply(divide(quantity, lotSize), getFairminterLotCost(fairminter)).toString();
+}
+
+export interface FairminterLimits extends FairminterLot {
+  max_mint_per_tx_normalized?: string | null;
+  max_mint_per_address_normalized?: string | null;
+  hard_cap_normalized?: string | null;
+}
+
+/**
+ * How many lots can be minted in one transaction, given a balance to spend.
+ *
+ * Every bound core checks, in lots, so the Max button cannot offer a quantity core will reject:
+ * what the balance affords, `max_mint_per_tx`, what is left under the hard cap, and what is left
+ * of this address's allowance. The dispense form does the same with
+ * `Math.min(affordableDispenses, remainingDispenses)`; this had only checked the first two.
+ *
+ * Bounds whose inputs are absent are skipped rather than guessed — an unknown supply is not a full
+ * cap. Those cases still fail at compose, which is the safe direction.
+ */
+export function getMaxFairmintLots({
+  fairminter,
+  balance,
+  assetSupply,
+  alreadyMinted,
+}: {
+  fairminter: FairminterLimits;
+  /** XCP available to spend. */
+  balance: string | number;
+  /** Current supply of the asset, for the hard-cap headroom. */
+  assetSupply?: string | number | null;
+  /** What this address has already minted, for the per-address allowance. */
+  alreadyMinted?: string | number | null;
+}): string {
+  const lotSize = fairminter.quantity_by_price_normalized;
+  const lotCost = getFairminterLotCost(fairminter);
+  if (!lotSize || !isGreaterThan(lotSize, 0) || !isGreaterThan(lotCost, 0)) return "0";
+
+  let lots = roundDown(divide(balance, lotCost));
+
+  const capBy = (quantity: string | number | null | undefined) => {
+    if (quantity === undefined || quantity === null || quantity === "") return;
+    const allowed = roundDown(divide(quantity, lotSize));
+    if (allowed.isLessThan(lots)) lots = allowed;
+  };
+
+  capBy(fairminter.max_mint_per_tx_normalized);
+
+  if (fairminter.hard_cap_normalized && isGreaterThan(fairminter.hard_cap_normalized, 0)) {
+    if (assetSupply !== undefined && assetSupply !== null) {
+      capBy(subtract(fairminter.hard_cap_normalized, assetSupply).toString());
+    }
+  }
+  if (
+    fairminter.max_mint_per_address_normalized &&
+    isGreaterThan(fairminter.max_mint_per_address_normalized, 0)
+  ) {
+    capBy(subtract(fairminter.max_mint_per_address_normalized, alreadyMinted ?? 0).toString());
+  }
+
+  return maximum(lots, 0).toString();
+}
+
+/** The protocol quantity a number of lots composes to. */
+export function getQuantityForLots(
+  fairminter: FairminterLot,
+  lots: string | number
+): string {
+  const lotSize = fairminter.quantity_by_price_normalized;
+  if (!lotSize || !isGreaterThan(lots, 0)) return "0";
+  return multiply(lots, lotSize).toString();
 }
 
 /** One line naming what a single mint costs and yields, for a list row. */
