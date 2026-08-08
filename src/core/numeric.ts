@@ -248,13 +248,30 @@ export const isLessThanOrEqualToSatoshis = (value: string | number, threshold: s
 };
 
 /**
- * Checks if a numeric value is finite.
+ * Checks if a value is a finite number.
+ *
+ * Deliberately does NOT route through toBigNumber. That helper substitutes its default of 0 for
+ * anything it cannot read — NaN, "", "abc", null, undefined — and 0 is finite, so asking it made
+ * this predicate answer true for every one of them. It rejected only Infinity, which made it a
+ * test for "not infinite" wearing the name of a test for "is a number".
  *
  * @param value - The value to check
- * @returns Boolean indicating if the value is finite
+ * @returns Whether the value is a number, and finite
  */
 export const isFiniteNumber = (value: string | number | BigNumber | null | undefined): boolean => {
-  return toBigNumber(value).isFinite();
+  if (value === null || value === undefined) return false;
+  if (BigNumber.isBigNumber(value)) return value.isFinite();
+  if (typeof value === "number") return Number.isFinite(value);
+
+  // Strings get the same comma/space tolerance as toBigNumber, then are parsed directly: this
+  // BigNumber build throws on unparseable input rather than returning NaN.
+  const cleaned = value.replace(/[,\s]/g, "");
+  if (cleaned === "") return false;
+  try {
+    return new BigNumber(cleaned).isFinite();
+  } catch {
+    return false;
+  }
 };
 
 /**

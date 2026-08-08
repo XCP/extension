@@ -7,8 +7,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { buildApprovalWarnings } from '../approval-warnings';
 import type { ApprovalWarningInput } from '../approval-warnings';
+import { buildApprovalWarnings } from '../approval-warnings';
 
 const EMPTY: ApprovalWarningInput = {
   safetyWarnings: [],
@@ -24,7 +24,7 @@ const destination = (over: Record<string, unknown>) =>
     leavesWallet: false,
     sourceInputs: [0],
     destinationVout: 1,
-    destinationAddress: null,
+    destinationAddress: undefined,
     ...over,
   }) as ApprovalWarningInput['attachedAssetDestination'];
 
