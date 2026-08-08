@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { useSecretReveal } from './useSecretReveal';
 
 const form = (password?: string) => {
@@ -9,12 +9,14 @@ const form = (password?: string) => {
 };
 
 describe('useSecretReveal', () => {
-  let verifyPassword: ReturnType<typeof vi.fn>;
-  let onVerified: ReturnType<typeof vi.fn>;
+  // Typed rather than ReturnType<typeof vi.fn>, which infers Mock<Constructable | Procedure> and
+  // matches no call signature the hook accepts.
+  let verifyPassword: Mock<(password: string) => Promise<boolean>>;
+  let onVerified: Mock<() => Promise<void>>;
 
   beforeEach(() => {
-    verifyPassword = vi.fn().mockResolvedValue(true);
-    onVerified = vi.fn().mockResolvedValue(undefined);
+    verifyPassword = vi.fn<(password: string) => Promise<boolean>>().mockResolvedValue(true);
+    onVerified = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
   });
 
   // Takes walletId explicitly: a default parameter would swallow the `undefined`
