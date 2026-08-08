@@ -10,9 +10,9 @@
  * - Our extension: signs BIP-322 only; verifies BIP-322, BIP-137 (loose and
  *   strict) and legacy, for P2PKH, P2WPKH, P2SH-P2WPKH and P2TR.
  * - Bitcore: BIP-137/legacy. P2PKH verifies; P2TR unsupported.
- * - FreeWallet: BIP-137, plus a BIP-322 form over legacy addresses that is not
- *   spec-conformant and no longer verifies here. See the block below - whether
- *   to accept it deliberately is an open question, not a closed one.
+ * - FreeWallet: BIP-137 via bitcore, for every address type it supports -
+ *   bech32 included, the same legacy P2PKH-keyed format Ledger and Sparrow use
+ *   for taproot. Loose verification is what reads those. It emits no BIP-322.
  * - Electrum: BIP-137. Flags 27-30 uncompressed, 31-34 compressed, 35-42 SegWit.
  * - Bitcoin Core: strict BIP-137, correct flags per address type, and does not
  *   sign P2TR with BIP-137 at all.
@@ -70,10 +70,23 @@ describe('Wallet Implementation Test Fixtures', () => {
   });
 
   /**
-   * A real FreeWallet BIP-322 signature over a legacy address. It used to be asserted valid here.
-   * It no longer verifies, and that is a deliberate, user-visible compatibility break.
+   * A witness-stack BIP-322 signature over a legacy address, filed here under FreeWallet's name.
+   * It used to be asserted valid. It no longer verifies, and the provenance is worth stating
+   * carefully, because it was guessed at twice before anyone read FreeWallet's source.
    *
-   * FreeWallet's BIP-322 signing is not spec-conformant. This signature verifies under exactly one
+   * **It is not FreeWallet output.** FreeWallet signs messages with
+   * `bitcore.Message(message).sign(key)` — `js/freewallet-desktop.js:3732` and
+   * `js/util.bitcore.js:143` in jdogresorg/freewallet-desktop. That is BIP-137: base64 of a single
+   * 65-byte recoverable signature. This fixture is base64 of a 108-byte, two-item consensus witness
+   * stack (a 72-byte DER signature plus hash type, and a 33-byte public key). FreeWallet has no
+   * code path that emits one.
+   *
+   * What FreeWallet does get wrong is a different thing, and one this change does not touch: it
+   * uses that P2PKH-keyed legacy format for *every* address type it supports, bech32 included, the
+   * same way Ledger and Sparrow do for taproot. That is what loose BIP-137 verification is for, and
+   * it still works — the bitcore fixture above and the Ledger/Sparrow fixtures below both pass.
+   *
+   * What is certain about this fixture is what it commits to. It verifies under exactly one
    * configuration, and only when *both* of the following hold at once — either alone rejects it:
    *
    *   1. `to_sign`'s prevout hash is byte-reversed, i.e. the displayed txid rather than the natural
@@ -81,25 +94,16 @@ describe('Wallet Implementation Test Fixtures', () => {
    *   2. The signed digest is `sha256(sighash)` rather than the sighash — `@noble/secp256k1` v3
    *      defaults to `prehash: true`, and the old code took that default.
    *
-   * So it commits to a triple hash of the preimage. This extension used to accept it only because
-   * it carried the identical pair of defects; the two implementations agreed with each other and
-   * with nothing else. Fixing ours to match BIP-322 necessarily stops accepting FreeWallet's.
+   * So it commits to a triple hash of the preimage, which no Bitcoin implementation produces, and
+   * this extension accepted it only because it carried both of those defects itself.
    *
-   * **This is a live question, not a settled one.** People are asked to sign with FreeWallet, so
-   * signatures in this shape exist in the wild and users will present them. Whether to add a
-   * deliberate, clearly-labelled compatibility path for them is a policy call about what the
-   * verifier is willing to call valid — it is not something to restore by accident, which is why
-   * the fixture stays here asserting rejection rather than being deleted. If that path is ever
-   * added it must report itself as non-standard, and must not widen which *key* is accepted.
-   *
-   * The fixture also earns its keep as a negative control: it is the only artifact of the old
-   * sighash we have, so it goes green again if both defects are ever reintroduced together.
+   * Kept as a negative control rather than deleted: it is the only artifact of the old sighash we
+   * have, so it is the thing that goes green again if both defects are ever reintroduced together.
    * Conformant external coverage lives in `bip322-standardness.test.ts`, against BIP-322's own
    * published vectors. Note BIP-322 does not define simple-format signatures for legacy addresses
-   * at all — it directs those to the legacy format — so there is no spec vector to check this
-   * against either way.
+   * at all — it directs those to the legacy format — so there is no spec vector either way.
    */
-  describe('FreeWallet legacy BIP-322 fixture (non-conformant)', () => {
+  describe('Non-conformant legacy BIP-322 fixture', () => {
     const fixture = {
       address: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
       message: 'Hello World',
