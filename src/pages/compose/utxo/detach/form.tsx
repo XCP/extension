@@ -1,15 +1,12 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
-import { FaSpinner } from "@/components/icons";
-import { ErrorAlert } from "@/components/ui/error-alert";
+import { UtxoSourceField } from "@/components/domain/utxo/utxo-source-field";
 import { DestinationInput } from "@/components/ui/inputs/destination-input";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchUtxoBalances, type UtxoBalance } from "@/core/counterparty/api";
 import type { DetachOptions } from "@/core/counterparty/compose";
-import { formatTxid } from "@/core/format";
+import { useUtxoSource } from "@/hooks/useUtxoSource";
 
 /**
  * Props for the UtxoDetachForm component, aligned with Composer's formAction.
@@ -30,43 +27,23 @@ export function UtxoDetachForm({
 }: UtxoDetachFormProps): ReactElement {
   // Context hooks
   const { activeAddress, activeWallet, showHelpText } = useComposer();
-  const navigate = useNavigate();
-  
-  // Local error state management
-  const [validationError, setValidationError] = useState<string | null>(null);
-  
+
+  // Source UTXO and the balances it holds
+  const source = useUtxoSource(initialUtxo, initialFormData?.sourceUtxo);
+
   // Form state
   const [destination, setDestination] = useState(initialFormData?.destination || "");
   const [destinationValid, setDestinationValid] = useState(true); // Optional field, so default to true
-  const [utxoBalances, setUtxoBalances] = useState<UtxoBalance[]>([]);
-  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
-  
+
   // Refs
   const destinationRef = useRef<HTMLInputElement>(null);
 
   // Effects
 
-  // Focus destination input on mount and fetch UTXO balances
+  // Focus destination input on mount
   useEffect(() => {
     destinationRef.current?.focus();
-    
-    // Fetch UTXO balances if we have a UTXO
-    const utxo = initialUtxo || initialFormData?.sourceUtxo;
-    if (utxo) {
-      setIsLoadingBalances(true);
-      fetchUtxoBalances(utxo).then(response => {
-        setUtxoBalances(response.result || []);
-      }).catch(err => {
-        console.error('Failed to fetch UTXO balances:', err);
-        // Without this the form silently shows "0 Balances", which reads as an
-        // empty UTXO rather than as a failed lookup.
-        setValidationError('Could not load balances for this UTXO.');
-        setUtxoBalances([]);
-      }).finally(() => {
-        setIsLoadingBalances(false);
-      });
-    }
-  }, [initialUtxo, initialFormData?.sourceUtxo]);
+  }, []);
 
   return (
     <ComposerForm
@@ -78,61 +55,22 @@ export function UtxoDetachForm({
       }
       submitDisabled={!destinationValid}
     >
-      {validationError && (
-        <div className="mb-4">
-          <ErrorAlert
-            message={validationError}
-            onClose={() => setValidationError(null)}
-          />
-        </div>
-      )}
-          {/* Hidden UTXO input - always passed to formAction */}
-          <input 
-            type="hidden" 
-            name="sourceUtxo" 
-            value={initialUtxo || initialFormData?.sourceUtxo || ""}
-          />
-          
-          {/* UTXO Display - styled like an input */}
-          {(initialUtxo || initialFormData?.sourceUtxo) && (
-            <div>
-              <span className="block text-sm font-medium text-gray-700">Output <span className="text-red-500">*</span></span>
-              <button type="button"
-                onClick={() => navigate(`/assets/utxos/${initialUtxo || initialFormData?.sourceUtxo}`)}
-                className="text-left mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-50 hover:bg-gray-100 cursor-pointer flex justify-between items-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                <span className="text-sm font-mono text-blue-600 hover:text-blue-800">
-                  {formatTxid(initialUtxo || initialFormData?.sourceUtxo || '')}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {isLoadingBalances ? (
-                    <span className="flex items-center gap-1">
-                      <FaSpinner className="animate-spin size-4" aria-hidden="true" />
-                      Loading…
-                    </span>
-                  ) : (
-                    `${utxoBalances.length} ${utxoBalances.length === 1 ? 'Balance' : 'Balances'}`
-                  )}
-                </span>
-              </button>
-            </div>
-          )}
-          
-          <input type="hidden" name="destination" value={destination} />
-          <DestinationInput
-            ref={destinationRef}
-            value={destination}
-            onChange={setDestination}
-            onValidationChange={setDestinationValid}
-            placeholder="Leave empty to use UTXO's address"
-            required={false}
-            disabled={false}
-            showHelpText={showHelpText}
-            name="destination_display"
-            label="Destination (Optional)"
-            helpText="The address to detach assets to. If not provided, assets will be detached to the UTXO's owner address."
-          />
+      <UtxoSourceField source={source} />
 
+      <input type="hidden" name="destination" value={destination} />
+      <DestinationInput
+        ref={destinationRef}
+        value={destination}
+        onChange={setDestination}
+        onValidationChange={setDestinationValid}
+        placeholder="Leave empty to use UTXO's address"
+        required={false}
+        disabled={false}
+        showHelpText={showHelpText}
+        name="destination_display"
+        label="Destination (Optional)"
+        helpText="The address to detach assets to. If not provided, assets will be detached to the UTXO's owner address."
+      />
     </ComposerForm>
   );
 }
