@@ -6,6 +6,7 @@
  */
 
 import type { ReactElement } from "react";
+import type { FairminterDetails } from "@/core/counterparty/api";
 import {
   describeFairminterPaymentModel,
   getFairmintCost,
@@ -16,17 +17,6 @@ import {
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 
-export interface FairmintSummaryFairminter {
-  asset: string;
-  source?: string;
-  price?: number | string | null;
-  price_normalized?: string | null;
-  quantity_by_price_normalized?: string | null;
-  burn_payment?: boolean;
-  soft_cap?: number;
-  soft_cap_normalized?: string;
-  divisible?: boolean;
-}
 
 function Row({ label, value }: { label: string; value: string }): ReactElement {
   return (
@@ -41,7 +31,7 @@ export function FairmintSummary({
   fairminter,
   quantity,
 }: {
-  fairminter: FairmintSummaryFairminter;
+  fairminter: FairminterDetails;
   /** What the user has asked to mint, in display units. Blank until they type. */
   quantity: string;
 }): ReactElement {

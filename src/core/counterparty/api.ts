@@ -830,23 +830,42 @@ export async function fetchAssetHolderCount(asset: string): Promise<number | nul
   return typeof data.result_count === 'number' ? data.result_count : null;
 }
 
+/**
+ * A fairminter as the API returns it, from either `/v2/fairminters` or
+ * `/v2/assets/<asset>/fairminters` with verbose=true.
+ *
+ * One type for both endpoints, because they return the same row and the screens that read them —
+ * the mint form, its summary and its review — must agree on what a mint costs. `price` and
+ * `quantity_by_price` are required because the cost cannot be stated without them; everything
+ * verbose adds is optional.
+ */
 export interface FairminterDetails {
   tx_hash: string;
   asset: string;
   status: string;
   /** The address that opened the fairminter, and where the payment goes unless it is burned. */
   source?: string;
+  description?: string;
+  divisible?: boolean;
   /** XCP charged per lot, in base units. */
   price: ApiQuantity;
+  /** XCP per whole unit; core derives it as price / quantity_by_price. */
   price_normalized?: DisplayUnits;
-  /** Assets released per lot paid for. */
+  /** Assets released per lot paid for, i.e. the lot size. */
   quantity_by_price: ApiQuantity;
   quantity_by_price_normalized?: DisplayUnits;
   /** True burns the payment, false sends it to `source`. Not whether the mint is free. */
   burn_payment?: boolean;
+  max_mint_per_tx?: ApiQuantity;
+  max_mint_per_tx_normalized?: DisplayUnits;
+  max_mint_per_address?: ApiQuantity;
+  max_mint_per_address_normalized?: DisplayUnits;
+  hard_cap?: ApiQuantity;
+  hard_cap_normalized?: DisplayUnits;
   /** While this is unmet, core escrows both the payment and the minted assets. */
   soft_cap?: ApiQuantity;
   soft_cap_normalized?: DisplayUnits;
+  soft_cap_deadline_block?: number;
 }
 
 /**
