@@ -178,14 +178,15 @@ function areOwnedAssetsEqual(prev: OwnedAssetCache | undefined, next: OwnedAsset
  */
 function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
   switch (action.type) {
-    case "SET_MAIN_PROPS":
+    case "SET_MAIN_PROPS": {
       const newMainProps = { ...EMPTY_HEADER_PROPS, ...action.payload };
       return arePropsEqual(state.mainHeader, newMainProps)
         ? state
         : { ...state, mainHeader: newMainProps };
+    }
     case "RESET_MAIN":
       return { ...state, mainHeader: EMPTY_HEADER_PROPS };
-    case "SET_ADDRESS":
+    case "SET_ADDRESS": {
       const { address, walletName, formatted } = action.payload;
       const existingAddress = state.subheadings.addresses[address];
       if (
@@ -205,7 +206,8 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
           },
         },
       };
-    case "SET_ASSET":
+    }
+    case "SET_ASSET": {
       const asset = action.payload.asset;
       if (areAssetsEqual(state.subheadings.assets[asset], action.payload)) {
         return state;
@@ -217,7 +219,8 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
           assets: { ...state.subheadings.assets, [asset]: action.payload },
         },
       };
-    case "SET_BALANCE":
+    }
+    case "SET_BALANCE": {
       const balanceAsset = action.payload.asset;
       if (areBalancesEqual(state.subheadings.balances[balanceAsset], action.payload)) {
         return state;
@@ -229,7 +232,8 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
           balances: { ...state.subheadings.balances, [balanceAsset]: action.payload },
         },
       };
-    case "SET_OWNED_ASSET":
+    }
+    case "SET_OWNED_ASSET": {
       const ownedAsset = action.payload.asset;
       if (areOwnedAssetsEqual(state.subheadings.ownedAssets[ownedAsset], action.payload)) {
         return state;
@@ -241,6 +245,7 @@ function headerReducer(state: HeaderState, action: HeaderAction): HeaderState {
           ownedAssets: { ...state.subheadings.ownedAssets, [ownedAsset]: action.payload },
         },
       };
+    }
     case "CACHE_BALANCES": {
       const newBalances = { ...state.subheadings.balances };
       let hasChanges = false;

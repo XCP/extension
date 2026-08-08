@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useNavigate, useParams } from "react-router";
 import { Banner } from "@/components/ui/banner";
@@ -8,7 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { useSecretReveal } from "@/hooks/useSecretReveal";
 
 const PATHS = {
   BACK: "/keychain/wallets",
@@ -22,9 +22,32 @@ export default function ShowPassphrasePage(): ReactElement {
   const { pending } = useFormStatus();
 
   const [passphrase, setPassphrase] = useState("");
-  const [isConfirmed, setIsConfirmed] = useState(false);
-  const [submissionError, setSubmissionError] = useState("");
-  const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    isRevealed: isConfirmed,
+    submissionError,
+    clearError,
+    passwordInputRef,
+    formAction: handleFormAction,
+  } = useSecretReveal({
+    walletId,
+    verifyPassword,
+    onVerified: async () => {
+      let mnemonic: string | null;
+      try {
+        // Load the wallet to decrypt its secret
+        await selectWallet(walletId!);
+        mnemonic = await getUnencryptedMnemonic(walletId!);
+      } catch (err) {
+        console.error("Error revealing passphrase:", err);
+        throw new Error("Incorrect password or failed to reveal recovery phrase.");
+      }
+      // Kept distinct from the failure above: retrieving nothing is not the same
+      // as the retrieval throwing, and the two said different things before.
+      if (!mnemonic) throw new Error("Unable to retrieve recovery phrase.");
+      setPassphrase(mnemonic);
+    },
+  });
 
   useEffect(() => {
     setHeaderProps({
@@ -33,56 +56,10 @@ export default function ShowPassphrasePage(): ReactElement {
     });
   }, [setHeaderProps, navigate]);
 
-  useEffect(() => {
-    passwordInputRef.current?.focus();
-  }, []);
-
-  async function handleFormAction(formData: FormData) {
-    setSubmissionError("");
-
-    const password = formData.get("password") as string;
-    if (!walletId) {
-      setSubmissionError("Invalid wallet.");
-      return;
-    }
-    if (!password) {
-      setSubmissionError("Password is required.");
-      return;
-    }
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setSubmissionError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
-      return;
-    }
-    let passwordValid = false;
-    try {
-      passwordValid = await verifyPassword(password);
-    } catch {
-      passwordValid = false;
-    }
-    if (!passwordValid) {
-      setSubmissionError("Incorrect password.");
-      return;
-    }
-    try {
-      // Load the wallet to decrypt its secret
-      await selectWallet(walletId);
-      const mnemonic = await getUnencryptedMnemonic(walletId);
-      if (mnemonic) {
-        setPassphrase(mnemonic);
-        setIsConfirmed(true);
-      } else {
-        setSubmissionError("Unable to retrieve recovery phrase.");
-      }
-    } catch (err) {
-      console.error("Error revealing passphrase:", err);
-      setSubmissionError("Incorrect password or failed to reveal recovery phrase.");
-    }
-  }
-
   return (
     <section className="flex flex-col h-full p-4" aria-labelledby="show-passphrase-title">
       <h2 id="show-passphrase-title" className="sr-only">Show Recovery Phrase</h2>
-      {submissionError && <ErrorAlert message={submissionError} onClose={() => setSubmissionError("")} />}
+      {submissionError && <ErrorAlert message={submissionError} onClose={clearError} />}
       {!isConfirmed ? (
         <form action={handleFormAction} className="flex flex-col items-center justify-center flex-grow">
           <Banner

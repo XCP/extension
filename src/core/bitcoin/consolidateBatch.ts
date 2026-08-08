@@ -63,7 +63,7 @@ function verifyUtxoAgainstPrevTx(
     prevTxCache.set(utxo.txid, prevTx);
   }
 
-  let prevOutput;
+  let prevOutput: ReturnType<typeof prevTx.getOutput> | undefined;
   try {
     prevOutput = prevTx.getOutput(utxo.vout);
   } catch {

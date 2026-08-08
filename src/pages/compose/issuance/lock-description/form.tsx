@@ -30,7 +30,7 @@ export function LockDescriptionForm({
   initialFormData,
   asset,
 }: LockDescriptionFormProps): ReactElement {
-  const {} = useComposer();
+  useComposer();
   const { error: assetError, data: assetInfo, isLoading: assetLoading } = useAssetInfo(asset);
   const { pending } = useFormStatus();
   const [isChecked, setIsChecked] = useState(false);

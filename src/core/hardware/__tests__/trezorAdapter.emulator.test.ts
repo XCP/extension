@@ -212,7 +212,7 @@ describe.skipIf(!(await isEmulatorAvailable()))('TrezorAdapter Emulator Integrat
       const results = await adapter.getAddresses(AddressFormat.P2WPKH, 0, 0, 5);
 
       console.log('Batch addresses:');
-      results.forEach((addr, i) => console.log(`  [${i}] ${addr.address}`));
+      results.forEach((addr, i) => { console.log(`  [${i}] ${addr.address}`); });
 
       expect(results).toHaveLength(5);
 
@@ -376,7 +376,7 @@ describe.skipIf(!(await isEmulatorAvailable()))('TrezorAdapter Emulator Integrat
       const addresses = await adapter.getAddresses(AddressFormat.P2WPKH, 0, 0, 3);
       expect(addresses.length).toBe(3);
       console.log(`  ✓ Derived ${addresses.length} addresses`);
-      addresses.forEach((a, i) => console.log(`    [${i}] ${a.address}`));
+      addresses.forEach((a, i) => { console.log(`    [${i}] ${a.address}`); });
 
       // This proves our wallet implementation can:
       // - Connect to Trezor devices

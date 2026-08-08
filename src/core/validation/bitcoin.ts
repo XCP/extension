@@ -69,7 +69,7 @@ function validateBech32Address(address: string): AddressValidationResult {
   
   try {
     // Try bech32 first (for witness v0)
-    let decoded;
+    let decoded: ReturnType<typeof bech32.decode>;
     let encoding: 'bech32' | 'bech32m' = 'bech32';
     
     try {

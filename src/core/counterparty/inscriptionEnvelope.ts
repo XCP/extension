@@ -113,7 +113,7 @@ function splitMessage(messageBytes: Uint8Array): {
   const messageTypeId = messageBytes[prefix.length]!;
   const body = messageBytes.slice(prefix.length + 1);
 
-  let decoded;
+  let decoded: ReturnType<typeof decodeCbor>;
   try {
     decoded = decodeCbor(body);
   } catch {

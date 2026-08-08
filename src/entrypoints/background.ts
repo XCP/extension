@@ -411,11 +411,12 @@ export default defineBackground(() => {
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
       switch (alarm.name) {
-        case SESSION_EXPIRY_ALARM_NAME:
+        case SESSION_EXPIRY_ALARM_NAME: {
           console.log('[Background] Session expired via alarm');
           const walletService = getWalletService();
           await walletService.lockKeychain();
           break;
+        }
           
         case KEEP_ALIVE_ALARM_NAME:
           // Perform minimal activity to keep service worker alive

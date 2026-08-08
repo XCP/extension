@@ -88,8 +88,6 @@ function ImportTestAddressPage() {
                     }
                   }}
                   disabled={isLoading}
-                  // biome-ignore lint/a11y/noAutofocus: this screen redirects away unless NODE_ENV is development, so the focus grab never reaches a user
-                  autoFocus
                 />
               </div>
               

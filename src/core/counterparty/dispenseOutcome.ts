@@ -60,7 +60,7 @@ export async function resolveDispensersAt(
   address: string,
   satoshis: number
 ): Promise<DispensePayout[]> {
-  let dispensers;
+  let dispensers: NonNullable<Awaited<ReturnType<typeof fetchAddressDispensers>>['result']>;
   try {
     const response = await fetchAddressDispensers(address, { limit: 50 });
     dispensers = response.result ?? [];
