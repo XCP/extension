@@ -109,6 +109,41 @@ export function isPaidFairminter(model: FairminterPaymentModel): boolean {
   return model !== "free";
 }
 
+export interface FairminterSchedule {
+  status?: string;
+  start_block?: number | null;
+}
+
+/**
+ * Whether a fairmint composed now could still be valid when it confirms.
+ *
+ * Core decides this at the *confirming* block, not at broadcast: `parse_block` runs
+ * `fairminter.before_block` — which flips a fairminter to `open` once the height reaches its
+ * `start_block` — before it parses that block's transactions. So a fairmint landing in the start
+ * block itself is already valid.
+ *
+ * The timing runs the opposite way to intuition. A pre-broadcast mint is only safe when the sale
+ * opens *very soon*, because the transaction has to be slow enough to land at or after the open;
+ * one confirming earlier is written to `fairmints` as `invalid: fairminter is not open`, which
+ * costs the miner fee and mints nothing. The earliest any broadcast can confirm is the next block,
+ * so a sale opening on that block is the only pending case that cannot land early — which is why
+ * the window is one block and not a tolerance.
+ *
+ * Without a height there is no window to measure, so a pending fairminter is left out rather than
+ * guessed at.
+ */
+export function isFairminterMintableNow(
+  fairminter: FairminterSchedule,
+  currentHeight: number | null | undefined
+): boolean {
+  if (fairminter.status === "open") return true;
+  if (fairminter.status !== "pending") return false;
+  if (currentHeight === null || currentHeight === undefined) return false;
+  const start = fairminter.start_block;
+  if (start === null || start === undefined) return false;
+  return start <= currentHeight + 1;
+}
+
 export interface FairminterLot {
   /** XCP charged per lot, in base units — core's own figure. */
   price?: number | string | null;

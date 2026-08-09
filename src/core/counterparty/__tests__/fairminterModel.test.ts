@@ -7,6 +7,7 @@ import {
   getFairminterPaymentModel,
   getMaxFairmintLots,
   getQuantityForLots,
+  isFairminterMintableNow,
   isPaidFairminter,
   readFairminterPaymentModel,
 } from "../fairminterModel";
@@ -106,6 +107,60 @@ describe("getFairminterPaymentModel", () => {
     expect(getFairminterPaymentModel({ price: undefined, burnPayment: true })).toBe("burned");
     expect(getFairminterPaymentModel({ price: null })).toBe("issuer");
     expect(getFairminterPaymentModel({ price: "" })).toBe("issuer");
+  });
+});
+
+/**
+ * Core decides this at the confirming block, not at broadcast: `parse_block` runs
+ * `fairminter.before_block` — which opens a fairminter once the height reaches its `start_block` —
+ * before parsing that block's transactions.
+ *
+ * So the safe window runs the opposite way to intuition. A pre-broadcast mint needs to be *slow*
+ * enough to land at or after the open; one confirming earlier is recorded as
+ * `invalid: fairminter is not open`, costing the miner fee and minting nothing. The earliest a
+ * broadcast can confirm is the next block, which makes one block the only window that cannot land
+ * early — a tolerance rather than a bound would be a fee-burning trap.
+ */
+describe("isFairminterMintableNow", () => {
+  const HEIGHT = 961734;
+
+  it("accepts an open fairminter whatever its start block says", () => {
+    expect(isFairminterMintableNow({ status: "open" }, HEIGHT)).toBe(true);
+    expect(isFairminterMintableNow({ status: "open", start_block: 999999 }, HEIGHT)).toBe(true);
+  });
+
+  it("accepts a sale opening on the next block", () => {
+    // The earliest this mint can confirm is HEIGHT + 1, which is the block it opens on.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, HEIGHT)).toBe(true);
+  });
+
+  it("refuses a sale two blocks out, which a fast mint would land ahead of", () => {
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 2 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses the parked placeholders that make up the real pending set", () => {
+    // NUMBERSGAME and NIPSEYPEPE both sit at start_block 999999, about nine months out.
+    expect(isFairminterMintableNow({ status: "pending", start_block: 999999 }, HEIGHT)).toBe(false);
+    expect(isFairminterMintableNow({ status: "pending", start_block: 1401678 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses a closed fairminter", () => {
+    expect(isFairminterMintableNow({ status: "closed", start_block: 1 }, HEIGHT)).toBe(false);
+  });
+
+  it("refuses a pending fairminter when there is no height to measure against", () => {
+    // Without a height there is no window, and guessing would be guessing with a fee.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, null)).toBe(false);
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT + 1 }, undefined)).toBe(false);
+  });
+
+  it("refuses a pending fairminter with no start block", () => {
+    expect(isFairminterMintableNow({ status: "pending" }, HEIGHT)).toBe(false);
+  });
+
+  it("accepts a pending fairminter whose start block has already passed", () => {
+    // The status flips in before_block, so a row read just before that can lag reality.
+    expect(isFairminterMintableNow({ status: "pending", start_block: HEIGHT }, HEIGHT)).toBe(true);
   });
 });
 

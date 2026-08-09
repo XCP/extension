@@ -10,8 +10,13 @@ import { type ReactElement, useEffect, useState } from "react";
 import { FaCheck, FiChevronDown } from "@/components/icons";
 import { useSettings } from "@/contexts/settings-context";
 import type { FairminterDetails } from "@/core/counterparty/api";
-import { describeFairminterLot } from "@/core/counterparty/fairminterModel";
+import { fetchAssetFairminter } from "@/core/counterparty/api";
+import {
+  describeFairminterLot,
+  isFairminterMintableNow,
+} from "@/core/counterparty/fairminterModel";
 import { isGreaterThan } from "@/core/numeric";
+import { useBlockHeight } from "@/hooks/useBlockHeight";
 
 /**
  * The list and the per-asset endpoint return the same row, so they share one type. Re-exported
@@ -49,16 +54,24 @@ export function FairminterSelectInput({
   const [fairminters, setFairminters] = useState<Fairminter[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Needed to tell a sale opening on the next block from one parked years out.
+  const { blockHeight } = useBlockHeight();
 
   // Load the open fairminters once, at mount. The fetch calls onChange(selectedAsset, ...), so
   // listing either would refetch the whole list on every selection change.
+  //
+  // `blockHeight` is deliberately not a dependency: refetching the list when a block arrives would
+  // reset a selection mid-form. A sale that becomes mintable one block later is picked up the next
+  // time this screen is opened.
   useEffect(() => {
     const fetchFairminters = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        // Fetch fairminters with status "open"
+        // Open only. The pending set is in practice parked placeholders with a start block years
+        // out, so listing it would be noise; a genuinely imminent sale is reached by typing its
+        // name, which triggers the lookup below.
         const response = await fetch(
           `${settings.counterpartyApiBase}/v2/fairminters?status=open&verbose=true`,
         );
@@ -102,6 +115,39 @@ export function FairminterSelectInput({
 
     fetchFairminters();
   }, []);
+
+  /**
+   * A name the open list does not hold may still be mintable: a sale opening on the *next* block
+   * accepts a mint composed now, because core opens it before parsing that block's transactions.
+   *
+   * Looked up one asset at a time rather than listed, because the pending set is dominated by
+   * fairminters parked years out — `isFairminterMintableNow` is what keeps those out, and offering
+   * one would cost a miner fee and mint nothing.
+   */
+  useEffect(() => {
+    const name = query.trim().toUpperCase();
+    if (!name || fairminters.some((f) => f.asset === name)) return;
+    // Cheap shape check first: no point asking the node about a half-typed name.
+    if (!/^[A-Z][A-Z0-9.]{2,}$/.test(name)) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const found = await fetchAssetFairminter(name);
+        if (cancelled || !found || !isFairminterMintableNow(found, blockHeight)) return;
+        setFairminters((current) =>
+          current.some((f) => f.asset === found.asset) ? current : [...current, found]
+        );
+      } catch {
+        // A miss is the common case — most names are simply not fairminters.
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [query, fairminters, blockHeight]);
 
   // Filter fairminters based on query and currency type
   let filteredFairminters = fairminters;

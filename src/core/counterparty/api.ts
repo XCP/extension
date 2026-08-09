@@ -842,7 +842,10 @@ export async function fetchAssetHolderCount(asset: string): Promise<number | nul
 export interface FairminterDetails {
   tx_hash: string;
   asset: string;
+  /** `pending` until `start_block`, then `open`, then `closed`. */
   status: string;
+  /** The block the sale opens on. Core flips the status in `before_block`, ahead of that block's transactions. */
+  start_block?: number;
   /** The address that opened the fairminter, and where the payment goes unless it is burned. */
   source?: string;
   description?: string;
