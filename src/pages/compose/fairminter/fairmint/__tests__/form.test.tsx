@@ -199,6 +199,46 @@ describe('FairmintForm', () => {
     expect(screen.queryByText(/XCP Fee \(to issuer\)/i)).not.toBeInTheDocument();
   });
 
+  /**
+   * Core refuses a paid mint that would take the supply past the hard cap — it rejects the whole
+   * transaction rather than minting the remainder, so the last mint of a sale must be floored to
+   * what is left. The Max button already respected that bound; a typed figure did not, and only
+   * found out at compose, where the creator got core's wording instead of ours.
+   *
+   * Driven here through the per-transaction cap, which `maxLots` carries alongside the hard-cap,
+   * per-address and balance bounds — one check covers all four.
+   */
+  it('refuses a lot count above what is still mintable, before composing', async () => {
+    mockFairmintersResponse([
+      createMockFairminter({ max_mint_per_tx_normalized: asDisplayUnits('2000') }),
+    ]);
+    renderForm();
+    await selectFairminter();
+
+    const lots = await screen.findByLabelText(/Lots to Mint/i);
+    // 2,000 tokens per transaction at 1,000 per lot leaves two lots.
+    fireEvent.change(lots, { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: /continue|review/i }));
+
+    expect(await screen.findByText(/at most 2 lots/i)).toBeInTheDocument();
+    expect(mockFormAction).not.toHaveBeenCalled();
+  });
+
+  it('still composes a lot count within the bound', async () => {
+    mockFairmintersResponse([
+      createMockFairminter({ max_mint_per_tx_normalized: asDisplayUnits('2000') }),
+    ]);
+    renderForm();
+    await selectFairminter();
+
+    const lots = await screen.findByLabelText(/Lots to Mint/i);
+    fireEvent.change(lots, { target: { value: '2' } });
+    fireEvent.click(screen.getByRole('button', { name: /continue|review/i }));
+
+    await waitFor(() => expect(mockFormAction).toHaveBeenCalled());
+    expect((mockFormAction.mock.calls[0]![0] as FormData).get('quantity')).toBe('2000');
+  });
+
   it('submits the quantity the lot count implies, not the lot count', async () => {
     renderForm();
     await selectFairminter();

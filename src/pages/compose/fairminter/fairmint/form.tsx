@@ -207,6 +207,29 @@ export function FairmintForm({
       return;
     }
 
+    // Core refuses a paid mint that would push the supply past the hard cap — it rejects the whole
+    // transaction rather than minting the remainder, so the last mint of a sale has to be floored
+    // to what is left. `maxLots` already carries that bound along with the per-address, per-tx and
+    // balance ones, and the Max button respects it; a typed figure did not, and only found out at
+    // compose. Nothing was ever at risk — the rejection happens before signing — but the creator
+    // got core's wording instead of being told here.
+    //
+    // Free mints are exempt: since `partial_mint_to_reach_hard_cap` they are clamped to the
+    // remainder rather than refused, and they compose with quantity 0 anyway.
+    if (!isFreeMint) {
+      const available = maxLots();
+      if (!isGreaterThan(available, 0)) {
+        setValidationError(
+          "There is nothing left to mint here — the sale has reached a limit, or your XCP balance is too low."
+        );
+        return;
+      }
+      if (isGreaterThan(formData.lots, available)) {
+        setValidationError(`You can mint at most ${available} lots right now.`);
+        return;
+      }
+    }
+
     if (!feeRate || feeRate <= 0) {
       setValidationError("Fee rate must be greater than zero.");
       return;
