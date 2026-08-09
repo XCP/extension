@@ -13,6 +13,7 @@ import {
   fetchAddressPoolByLpAsset,
   fetchAddressPools,
   fetchAssetDetails,
+  fetchAssetFairminter,
   fetchDispenserByHash,
   fetchMempoolDispenses,
   fetchOrder,
@@ -444,6 +445,41 @@ describe('counterparty/api.ts', () => {
       mockedApiClient.get.mockRejectedValue(new Error('Network error'));
 
       await expect(fetchTokenUtxos(mockAddress, 'XCP')).rejects.toThrow(CounterpartyApiError);
+    });
+  });
+
+  describe('fetchAssetFairminter', () => {
+    const row = (status: string, extra: Record<string, unknown> = {}) => ({
+      tx_hash: `hash-${status}`, asset: 'LAUNCHCOIN', status, price: 1000000,
+      quantity_by_price: 100000000000, ...extra,
+    });
+
+    const respond = (rows: unknown[]) => {
+      mockedApiClient.get.mockResolvedValue({
+        data: { result: rows }, status: 200, statusText: 'OK', headers: {}, config: {},
+      } as any);
+    };
+
+    it('prefers the open fairminter over anything else', async () => {
+      respond([row('closed'), row('open'), row('pending')]);
+      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('open');
+    });
+
+    // An asset can carry several fairminters over its life, and the closed one is often first.
+    // Falling straight to row zero hid the live sale behind it.
+    it('falls back to a pending fairminter rather than a closed one', async () => {
+      respond([row('closed'), row('pending')]);
+      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('pending');
+    });
+
+    it('returns the first row when none is open or pending', async () => {
+      respond([row('closed')]);
+      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('closed');
+    });
+
+    it('returns null when the asset has no fairminter', async () => {
+      respond([]);
+      expect(await fetchAssetFairminter('NOPE')).toBeNull();
     });
   });
 

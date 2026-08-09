@@ -889,8 +889,16 @@ export async function fetchAssetFairminter(asset: string): Promise<FairminterDet
     `/v2/assets/${encodePath(asset)}/fairminters`,
     { verbose: true, limit: 5, offset: 0 }
   );
-  const open = (data.result ?? []).find((f) => f.status === 'open');
-  return open ?? data.result?.[0] ?? null;
+  // An asset can carry more than one fairminter over its life, so falling straight to the first row
+  // can hand back a closed one while a live sale sits behind it. `pending` matters as much as
+  // `open` now that a sale opening on the next block can be minted from.
+  const rows = data.result ?? [];
+  return (
+    rows.find((f) => f.status === 'open') ??
+    rows.find((f) => f.status === 'pending') ??
+    rows[0] ??
+    null
+  );
 }
 
 /**
