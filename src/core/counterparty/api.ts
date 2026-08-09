@@ -883,22 +883,31 @@ export interface FairminterDetails {
 
 /**
  * The fairminter behind an asset, whose price is what a fairmint of it costs.
+ *
+ * Defaults to the live one. An asset accumulates fairminters over its life and the endpoint returns
+ * them unfiltered, so asking without a status can hand back a closed sale while the current one
+ * sits behind it. `pending` counts as live because a sale opening on the next block can already be
+ * minted from — see `isFairminterMintableNow`.
+ *
+ * At most one row comes back for the default: core writes `fair_minting` on the asset when a
+ * fairminter is created, whatever its start block, and refuses another while it is set
+ * (`messages/fairminter.py`, "Fair minter already opened"). So there is no open-versus-pending tie
+ * to break here.
  */
-export async function fetchAssetFairminter(asset: string): Promise<FairminterDetails | null> {
+export async function fetchAssetFairminter(
+  asset: string,
+  options: PaginationOptions & { status?: string } = {}
+): Promise<FairminterDetails | null> {
   const data = await cpApiGet<{ result: FairminterDetails[] | null }>(
     `/v2/assets/${encodePath(asset)}/fairminters`,
-    { verbose: true, limit: 5, offset: 0 }
+    {
+      verbose: options.verbose ?? true,
+      status: options.status ?? 'open,pending',
+      limit: options.limit ?? 5,
+      offset: options.offset ?? 0,
+    }
   );
-  // An asset can carry more than one fairminter over its life, so falling straight to the first row
-  // can hand back a closed one while a live sale sits behind it. `pending` matters as much as
-  // `open` now that a sale opening on the next block can be minted from.
-  const rows = data.result ?? [];
-  return (
-    rows.find((f) => f.status === 'open') ??
-    rows.find((f) => f.status === 'pending') ??
-    rows[0] ??
-    null
-  );
+  return data.result?.[0] ?? null;
 }
 
 /**

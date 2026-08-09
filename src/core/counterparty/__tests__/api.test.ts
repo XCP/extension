@@ -449,37 +449,49 @@ describe('counterparty/api.ts', () => {
   });
 
   describe('fetchAssetFairminter', () => {
-    const row = (status: string, extra: Record<string, unknown> = {}) => ({
-      tx_hash: `hash-${status}`, asset: 'LAUNCHCOIN', status, price: 1000000,
-      quantity_by_price: 100000000000, ...extra,
-    });
-
     const respond = (rows: unknown[]) => {
       mockedApiClient.get.mockResolvedValue({
         data: { result: rows }, status: 200, statusText: 'OK', headers: {}, config: {},
       } as any);
     };
 
-    it('prefers the open fairminter over anything else', async () => {
-      respond([row('closed'), row('open'), row('pending')]);
-      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('open');
+    /**
+     * The endpoint returns every fairminter an asset has ever had, so asking without a status can
+     * hand back a closed sale while the live one sits behind it. `pending` is live too: a sale
+     * opening on the next block can already be minted from.
+     */
+    it('asks the node for the live fairminter rather than filtering rows here', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'open' }]);
+
+      await fetchAssetFairminter('LAUNCHCOIN');
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        `${mockApiBase}/v2/assets/LAUNCHCOIN/fairminters`,
+        expect.objectContaining({
+          params: expect.objectContaining({ status: 'open,pending' }),
+        })
+      );
     });
 
-    // An asset can carry several fairminters over its life, and the closed one is often first.
-    // Falling straight to row zero hid the live sale behind it.
-    it('falls back to a pending fairminter rather than a closed one', async () => {
-      respond([row('closed'), row('pending')]);
+    it('returns the row the node selected', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'pending' }]);
       expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('pending');
     });
 
-    it('returns the first row when none is open or pending', async () => {
-      respond([row('closed')]);
-      expect((await fetchAssetFairminter('LAUNCHCOIN'))?.status).toBe('closed');
-    });
-
-    it('returns null when the asset has no fairminter', async () => {
+    it('returns null when the asset has no live fairminter', async () => {
       respond([]);
       expect(await fetchAssetFairminter('NOPE')).toBeNull();
+    });
+
+    it('lets a caller ask for another status', async () => {
+      respond([{ tx_hash: 'h', asset: 'LAUNCHCOIN', status: 'closed' }]);
+
+      await fetchAssetFairminter('LAUNCHCOIN', { status: 'closed' });
+
+      expect(mockedApiClient.get).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ params: expect.objectContaining({ status: 'closed' }) })
+      );
     });
   });
 
