@@ -169,13 +169,26 @@ describe('FairmintForm', () => {
     // Unconditionally, not behind showHelpText — which is false in these tests.
     expect(await screen.findByText(/1 XCP per lot/i)).toBeInTheDocument();
     expect(screen.getByText(/XCP Fee \(to issuer\)/i)).toBeInTheDocument();
-    expect(screen.getByText('bc1qissuer')).toBeInTheDocument();
+  });
+
+  /**
+   * The form says what a lot costs and where the money goes; it does not total the order or name
+   * the issuer. Both belong to the review screen, and carrying them here made the form a worse
+   * copy of it — the running total in particular read as a bare "— XCP" until something was typed.
+   */
+  it('leaves the running total and the issuer address to the review screen', async () => {
+    renderForm();
+    await selectFairminter();
+    await screen.findByText(/1 XCP per lot/i);
+
+    expect(screen.queryByText('bc1qissuer')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^— XCP$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/You pay/i)).not.toBeInTheDocument();
   });
 
   // A fairminter that seeds a liquidity pool pays the pool, not the address that opened it. This
-  // screen read only price and burn_payment, so it called a pool mint "XCP Fee (to issuer)" and
-  // printed the issuer's address under "Paid to" — naming an address that receives none of it.
-  it('names the pool, and no address, when the payment seeds one', async () => {
+  // screen read only price and burn_payment, so it called a pool mint "XCP Fee (to issuer)".
+  it('names the pool when the payment seeds one', async () => {
     mockFairmintersResponse([
       createMockFairminter({ pool_quantity: asBaseUnits(3100000000000000) }),
     ]);
@@ -184,7 +197,6 @@ describe('FairmintForm', () => {
 
     expect(await screen.findByText(/XCP Fee \(to liquidity pool\)/i)).toBeInTheDocument();
     expect(screen.queryByText(/XCP Fee \(to issuer\)/i)).not.toBeInTheDocument();
-    expect(screen.queryByText('bc1qissuer')).not.toBeInTheDocument();
   });
 
   it('submits the quantity the lot count implies, not the lot count', async () => {

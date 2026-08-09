@@ -1,15 +1,19 @@
 /**
- * What a fairmint costs and where the payment goes.
+ * What a fairmint costs per lot, and where the payment goes.
  *
  * The form's only price text lived in the amount field's help text, which renders only when
  * showHelpText is on — off by default. This is shown unconditionally.
+ *
+ * Deliberately not a review screen. The running total and the issuer's address both used to appear
+ * here, and between them they turned the form into a worse copy of the screen that follows it —
+ * the total in particular rendered as a bare "— XCP" until something was typed. Both are on the
+ * review screen, which is where the figures being signed for belong.
  */
 
 import type { ReactElement } from "react";
 import type { FairminterDetails } from "@/core/counterparty/api";
 import {
   describeFairminterPaymentModel,
-  getFairmintCost,
   getFairminterLotCost,
   isPaidFairminter,
   readFairminterPaymentModel,
@@ -40,7 +44,6 @@ export function FairmintSummary({
   const hasQuantity = isGreaterThan(quantity || 0, 0);
   const decimals = fairminter.divisible === false ? 0 : 8;
 
-  const totalCost = paid ? getFairmintCost(fairminter, quantity || 0) : "0";
   const hasSoftCap = isGreaterThan(fairminter.soft_cap_normalized ?? fairminter.soft_cap ?? 0, 0);
 
   return (
@@ -57,22 +60,13 @@ export function FairmintSummary({
       )}
 
       {paid ? (
-        <>
-          <Row label="Price" value={`${getFairminterLotCost(fairminter)} XCP per lot`} />
-          {totalCost !== null && (
-            <Row label="You pay" value={hasQuantity ? `${totalCost} XCP` : "— XCP"} />
-          )}
-        </>
+        <Row label="Price" value={`${getFairminterLotCost(fairminter)} XCP per lot`} />
       ) : (
         // A free mint's whole cost is the miner fee, and its amount is set by the fairminter.
-        <Row label="You pay" value="Bitcoin network fee only" />
+        <Row label="Price" value="Bitcoin network fee only" />
       )}
 
       <Row label="Payment" value={describeFairminterPaymentModel(model)} />
-
-      {model === "issuer" && fairminter.source && (
-        <Row label="Paid to" value={fairminter.source} />
-      )}
 
       {hasSoftCap && (
         // Core sends both the payment and the assets to UNSPENDABLE until the soft cap is met.
