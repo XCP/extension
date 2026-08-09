@@ -101,7 +101,11 @@ const NORMALIZATION_CONFIG: Record<string, {
     // a base-unit balance), so "1" composed a price of 0.00000001 XCP and offered the whole
     // supply for a hundred-millionth of what was intended. Byte-equality verification cannot
     // catch this, because the packer packs the same wrong number the form produced.
-    quantityFields: ['premint_quantity', 'lot_size', 'lot_price', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap'],
+    // `pool_quantity` belongs here for the same reason `lot_price` does. It is denominated in the
+    // asset being minted — core checks `supply + premint_quantity + pool_quantity >= hard_cap`
+    // against base units in messages/fairminter.py — so leaving it out sends the form's figure
+    // through untouched and reserves a hundred-millionth of the intended pool.
+    quantityFields: ['premint_quantity', 'lot_size', 'lot_price', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap', 'pool_quantity'],
     assetFields: {
       premint_quantity: 'asset',
       lot_size: 'asset',
@@ -109,7 +113,8 @@ const NORMALIZATION_CONFIG: Record<string, {
       max_mint_per_tx: 'asset',
       max_mint_per_address: 'asset',
       hard_cap: 'asset',
-      soft_cap: 'asset'
+      soft_cap: 'asset',
+      pool_quantity: 'asset'
     },
     booleanFields: ['burn_payment', 'lock_description', 'lock_quantity', 'divisible']
   },

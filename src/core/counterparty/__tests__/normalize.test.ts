@@ -186,6 +186,24 @@ describe('normalize.ts', () => {
         expect(mockToSatoshis).toHaveBeenCalledWith('0.01');
         expect(result.normalizedData.lot_price).toBe('1000000');
       });
+
+      it('scales fairminter pool_quantity to base units', async () => {
+        // Same omission as lot_price, one field over: pool_quantity was not in quantityFields, so
+        // an XCP-69 launch would have reserved 0.31 tokens instead of 31,000,000. Core compares it
+        // against the hard cap in base units (supply + premint + pool >= hard_cap), so an unscaled
+        // figure is not rejected — it just reserves a hundred-millionth of the intended pool.
+        const formData = new FormData();
+        formData.set('pool_quantity', '31000000');
+        formData.set('asset', 'LAUNCHCOIN');
+        formData.set('divisible', 'true');
+
+        mockToSatoshis.mockReturnValue('3100000000000000');
+
+        const result = await normalizeFormData(formData, 'fairminter');
+
+        expect(mockToSatoshis).toHaveBeenCalledWith('31000000');
+        expect(result.normalizedData.pool_quantity).toBe('3100000000000000');
+      });
     });
 
     describe('Divisible asset normalization', () => {
