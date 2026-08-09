@@ -35,7 +35,7 @@
  * </ComposerProvider>
  * ```
  */
-import { fromSatoshis } from '@/core/numeric';
+
 import {
   type ReactElement,
   type ReactNode,
@@ -78,6 +78,7 @@ import { packAddress } from "@/core/counterparty/unpack/address";
 import { bytesToHex } from "@/core/counterparty/unpack/binary";
 import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
+import { fromSatoshis } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 

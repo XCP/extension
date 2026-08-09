@@ -1,4 +1,3 @@
-import { fromSatoshis } from '@/core/numeric';
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useWallet } from "@/contexts/wallet-context";
@@ -8,6 +7,7 @@ import {
   type ConsolidationReport,
   consolidationApi,
 } from "@/core/bitcoin/consolidationApi";
+import { fromSatoshis } from '@/core/numeric';
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 import { getWalletService } from "@/services/walletService";
 

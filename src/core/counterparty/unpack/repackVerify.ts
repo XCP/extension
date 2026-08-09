@@ -30,7 +30,6 @@
  * never "verified".
  */
 
-import { fromSatoshis } from '@/core/numeric';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
@@ -48,6 +47,7 @@ import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 import type { OrderData } from '@/core/counterparty/unpack/messages/order';
 import type { PoolDepositData, PoolWithdrawData } from '@/core/counterparty/unpack/messages/pool';
 import type { SweepData } from '@/core/counterparty/unpack/messages/sweep';
+import { fromSatoshis } from '@/core/numeric';
 
 /** Why a decode could not be proved complete. Never surfaced as an accusation. */
 export type RepackUnproved =
