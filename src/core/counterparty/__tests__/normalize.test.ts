@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as numeric from '@/core/numeric';
-import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits } from '@/core/numeric';
 import type { AssetInfo } from '../api';
 import * as api from '../api';
-import { getComposeType, normalizeFormData } from '../normalize';
+import { normalizeFormData } from '../normalize';
 
 // Mock the API module
 vi.mock('../api', () => ({
@@ -34,97 +34,6 @@ describe('normalize.ts', () => {
 
   afterEach(() => {
     vi.resetAllMocks();
-  });
-
-  describe('getComposeType', () => {
-    it('should detect order type from give_asset and get_asset fields', () => {
-      const formData = { give_asset: 'BTC', get_asset: 'XCP' };
-      expect(getComposeType(formData)).toBe('order');
-    });
-
-    it('should detect dividend type from dividend_asset field', () => {
-      const formData = { dividend_asset: 'XCP' };
-      expect(getComposeType(formData)).toBe('dividend');
-    });
-
-    it('should detect dispenser type from escrow_quantity field', () => {
-      const formData = { escrow_quantity: asBaseUnits('1000') };
-      expect(getComposeType(formData)).toBe('dispenser');
-    });
-
-    it('should detect sweep type from flags and destination without quantity', () => {
-      const formData = { flags: 1, destination: 'address123' };
-      expect(getComposeType(formData)).toBe('sweep');
-    });
-
-    it('should detect utxo type from utxos field', () => {
-      const formData = { utxos: [] };
-      expect(getComposeType(formData)).toBe('utxo');
-    });
-
-    it('should detect mpma type from sends field', () => {
-      const formData = { sends: [] };
-      expect(getComposeType(formData)).toBe('mpma');
-    });
-
-    it('should detect broadcast type from text field', () => {
-      const formData = { text: 'Hello World' };
-      expect(getComposeType(formData)).toBe('broadcast');
-    });
-
-    it('should detect send type from quantity and asset fields', () => {
-      const formData = { quantity: asBaseUnits('1.5'), asset: 'XCP' };
-      expect(getComposeType(formData)).toBe('send');
-    });
-
-    it('should detect issuance type from quantity and asset_name fields', () => {
-      const formData = { quantity: asBaseUnits('1000'), asset_name: 'MYTOKEN' };
-      expect(getComposeType(formData)).toBe('issuance');
-    });
-
-    it('should detect attach type from destination and asset fields', () => {
-      const formData = { destination: 'address123', asset: 'XCP' };
-      expect(getComposeType(formData)).toBe('attach');
-    });
-
-    it('should detect movetoutxo type from utxo_address field', () => {
-      const formData = { utxo_address: 'address123' };
-      expect(getComposeType(formData)).toBe('movetoutxo');
-    });
-
-    it('should detect pool deposit type from pool deposit fields', () => {
-      const formData = {
-        asset_a: 'XCP',
-        asset_b: 'POOLTEST',
-        quantity_a: '1',
-        quantity_b: '2',
-      };
-      expect(getComposeType(formData)).toBe('pooldeposit');
-    });
-
-    it('should detect pool withdraw type from LP asset withdraw fields', () => {
-      const formData = {
-        lp_asset: 'A77777777777777777',
-        quantity: asBaseUnits('1'),
-        min_quantity_a: '0',
-      };
-      expect(getComposeType(formData)).toBe('poolwithdraw');
-    });
-
-    it('should use explicit type mapping from __type field', () => {
-      const formData = { __type: 'SendOptions' };
-      expect(getComposeType(formData)).toBe('send');
-    });
-
-    it('should use explicit type mapping from type field', () => {
-      const formData = { type: 'OrderOptions' };
-      expect(getComposeType(formData)).toBe('order');
-    });
-
-    it('should return undefined for unknown form data', () => {
-      const formData = { unknown_field: 'value' };
-      expect(getComposeType(formData)).toBeUndefined();
-    });
   });
 
   describe('normalizeFormData', () => {

@@ -172,60 +172,6 @@ export const NORMALIZATION_CONFIG: Record<string, {
 };
 
 /**
- * Detects the compose type from form data
- */
-export function getComposeType(formData: Record<string, any>): string | undefined {
-  // Map of Options type names to compose types
-  const typeMapping: Record<string, string> = {
-    'SendOptions': 'send',
-    'ExtendedSendOptions': 'send',
-    'OrderOptions': 'order',
-    'IssuanceOptions': 'issuance',
-    'DestroyOptions': 'destroy',
-    'DispenserOptions': 'dispenser',
-    'DispenseOptions': 'dispense',
-    'DividendOptions': 'dividend',
-    'BurnOptions': 'burn',
-    'BroadcastOptions': 'broadcast',
-    'SweepOptions': 'sweep',
-    'FairminterOptions': 'fairminter',
-    'FairmintOptions': 'fairmint',
-    'AttachOptions': 'attach',
-    'DetachOptions': 'detach',
-    'MoveOptions': 'move',
-    'BTCPayOptions': 'btcpay',
-    'CancelOptions': 'cancel',
-    'MPMAOptions': 'mpma',
-    'MPMAData': 'mpma',
-    'PoolDepositOptions': 'pooldeposit',
-    'PoolWithdrawOptions': 'poolwithdraw',
-  };
-  
-  // Try to detect based on presence of specific fields
-  if ('give_asset' in formData && 'get_asset' in formData) return 'order';
-  if ('dividend_asset' in formData) return 'dividend';
-  if ('escrow_quantity' in formData) return 'dispenser';
-  if ('flags' in formData && 'destination' in formData && !('quantity' in formData)) return 'sweep';
-  if ('utxos' in formData) return 'utxo';
-  if ('sends' in formData) return 'mpma';
-  if ('text' in formData) return 'broadcast';
-  if ('quantity' in formData && 'asset' in formData) return 'send';
-  if ('quantity' in formData && 'asset_name' in formData) return 'issuance';
-  if ('destination' in formData && 'asset' in formData) return 'attach';
-  if ('utxo_address' in formData) return 'movetoutxo';
-  if ('asset_a' in formData && 'asset_b' in formData && 'quantity_a' in formData && 'quantity_b' in formData) return 'pooldeposit';
-  if ('lp_asset' in formData && 'quantity' in formData && ('min_quantity_a' in formData || 'min_quantity_b' in formData)) return 'poolwithdraw';
-  
-  // Fallback: check if type is explicitly provided
-  const typeName = formData.__type || formData.type;
-  if (typeName && typeMapping[typeName]) {
-    return typeMapping[typeName];
-  }
-  
-  return undefined;
-}
-
-/**
  * Cache for asset info to avoid duplicate fetches
  */
 type AssetInfoCache = Map<string, AssetInfo | null>;
