@@ -4,8 +4,8 @@ import { type FairminterDetails, fetchAssetFairminter } from "@/core/counterpart
 import {
   describeFairminterPaymentModel,
   getFairmintCost,
-  getFairminterPaymentModel,
   isPaidFairminter,
+  readFairminterPaymentModel,
 } from "@/core/counterparty/fairminterModel";
 import { isGreaterThan } from "@/core/numeric";
 
@@ -67,10 +67,7 @@ export function ReviewFairmint({
   ];
 
   if (fairminter) {
-    const model = getFairminterPaymentModel({
-      price: fairminter.price ?? fairminter.price_normalized,
-      burnPayment: fairminter.burn_payment,
-    });
+    const model = readFairminterPaymentModel(fairminter);
     const escrowed = isGreaterThan(fairminter.soft_cap_normalized ?? fairminter.soft_cap ?? 0, 0);
 
     if (isPaidFairminter(model)) {

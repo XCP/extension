@@ -55,6 +55,44 @@ export function getFairminterPaymentModel({
   return burnPayment ? "burned" : "issuer";
 }
 
+/**
+ * The fields of a fairminter — or of a fairminter message's params — that decide the destination.
+ *
+ * Both spellings of each quantity are accepted because only zero-ness is read, so the base-unit and
+ * normalized figures answer the question equally well and callers have whichever core gave them.
+ * `pool_quantity` in particular has no `_normalized` companion on the fairminters endpoint.
+ */
+export interface FairminterPaymentFields {
+  price?: string | number | null;
+  price_normalized?: string | null;
+  burn_payment?: boolean | null;
+  pool_quantity?: string | number | null;
+  pool_quantity_normalized?: string | null;
+}
+
+/**
+ * The payment model of a fairminter as core reports it.
+ *
+ * This exists because the extraction is the part that goes wrong, not the rule. Four screens each
+ * spelled out `{price, burnPayment}` by hand and three of them omitted `poolQuantity`, so the
+ * `pool` branch below was unreachable from the entire fairmint flow: LAUNCHCOIN, which sets
+ * `pool_quantity` to 31,000,000 XCP, described itself as "XCP Fee (to issuer)" and named the
+ * issuer's address under "Paid to" — an address that receives none of it. The form, the summary and
+ * the review screen were all wrong together, which is the pairing that matters, because the review
+ * screen is the one being signed from.
+ *
+ * Prefer this over calling `getFairminterPaymentModel` directly with hand-picked fields.
+ */
+export function readFairminterPaymentModel(
+  fairminter: FairminterPaymentFields
+): FairminterPaymentModel {
+  return getFairminterPaymentModel({
+    price: fairminter.price ?? fairminter.price_normalized,
+    burnPayment: fairminter.burn_payment,
+    poolQuantity: fairminter.pool_quantity ?? fairminter.pool_quantity_normalized,
+  });
+}
+
 const LABELS: Record<FairminterPaymentModel, string> = {
   free: "BTC Fee Only (to miners)",
   burned: "XCP Fee (burned)",
@@ -121,9 +159,39 @@ export function getFairmintCost(
 }
 
 export interface FairminterLimits extends FairminterLot {
+  max_mint_per_tx?: string | number | null;
   max_mint_per_tx_normalized?: string | null;
+  max_mint_per_address?: string | number | null;
   max_mint_per_address_normalized?: string | null;
+  hard_cap?: string | number | null;
   hard_cap_normalized?: string | null;
+  /** Absent is treated as divisible, which is core's default and the conservative reading here. */
+  divisible?: boolean | null;
+}
+
+/**
+ * One fairminter quantity in display units, preferring core's own normalized figure.
+ *
+ * Not every quantity has one. `/v2/fairminters` sends `max_mint_per_address` and `pool_quantity`
+ * with **no** `_normalized` companion — checked across 100 fairminters, where every other quantity
+ * carried one and those two never did. Reading only the normalized spelling silently drops them:
+ * the per-address bound below was skipped for every fairminter that sets one, which is the same
+ * "Max offers a quantity core will reject" defect that bound was added to close.
+ *
+ * Falling back to base units means dividing, and only for a divisible asset. An unknown
+ * divisibility is read as divisible: that under-reports the bound rather than over-reporting it,
+ * so Max offers too few lots rather than too many, and compose still succeeds.
+ */
+function displayQuantity(
+  normalized: string | null | undefined,
+  base: string | number | null | undefined,
+  divisible: boolean | null | undefined
+): string | null {
+  if (normalized !== undefined && normalized !== null && normalized !== "") return normalized;
+  if (base === undefined || base === null || base === "") return null;
+  return divisible === false
+    ? String(base)
+    : fromSatoshis(base, { removeTrailingZeros: true });
 }
 
 /**
@@ -163,18 +231,33 @@ export function getMaxFairmintLots({
     if (allowed.isLessThan(lots)) lots = allowed;
   };
 
-  capBy(fairminter.max_mint_per_tx_normalized);
+  const divisible = fairminter.divisible;
+  const perTx = displayQuantity(
+    fairminter.max_mint_per_tx_normalized,
+    fairminter.max_mint_per_tx,
+    divisible
+  );
+  const hardCap = displayQuantity(
+    fairminter.hard_cap_normalized,
+    fairminter.hard_cap,
+    divisible
+  );
+  // The one core never normalizes, and so the one that used to be dropped entirely.
+  const perAddress = displayQuantity(
+    fairminter.max_mint_per_address_normalized,
+    fairminter.max_mint_per_address,
+    divisible
+  );
 
-  if (fairminter.hard_cap_normalized && isGreaterThan(fairminter.hard_cap_normalized, 0)) {
+  capBy(perTx);
+
+  if (hardCap && isGreaterThan(hardCap, 0)) {
     if (assetSupply !== undefined && assetSupply !== null) {
-      capBy(subtract(fairminter.hard_cap_normalized, assetSupply).toString());
+      capBy(subtract(hardCap, assetSupply).toString());
     }
   }
-  if (
-    fairminter.max_mint_per_address_normalized &&
-    isGreaterThan(fairminter.max_mint_per_address_normalized, 0)
-  ) {
-    capBy(subtract(fairminter.max_mint_per_address_normalized, alreadyMinted ?? 0).toString());
+  if (perAddress && isGreaterThan(perAddress, 0)) {
+    capBy(subtract(perAddress, alreadyMinted ?? 0).toString());
   }
 
   return maximum(lots, 0).toString();

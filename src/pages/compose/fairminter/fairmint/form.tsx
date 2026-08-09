@@ -11,10 +11,10 @@ import { fetchAddressFairmintTotal } from "@/core/counterparty/api";
 import type { FairmintOptions } from "@/core/counterparty/compose";
 import {
   getFairminterLotCost,
-  getFairminterPaymentModel,
   getMaxFairmintLots,
   getQuantityForLots,
   isPaidFairminter,
+  readFairminterPaymentModel,
 } from "@/core/counterparty/fairminterModel";
 import { asDisplayUnits, divide, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -119,12 +119,7 @@ export function FairmintForm({
   // Asked through the shared rule rather than reading price_normalized here, so this screen and
   // its summary cannot disagree about whether a mint is free.
   const isFreeMint = selectedFairminter
-    ? !isPaidFairminter(
-        getFairminterPaymentModel({
-          price: selectedFairminter.price ?? selectedFairminter.price_normalized,
-          burnPayment: selectedFairminter.burn_payment,
-        })
-      )
+    ? !isPaidFairminter(readFairminterPaymentModel(selectedFairminter))
     : false;
 
   // Focus input on mount

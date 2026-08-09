@@ -11,8 +11,8 @@ import {
   describeFairminterPaymentModel,
   getFairmintCost,
   getFairminterLotCost,
-  getFairminterPaymentModel,
   isPaidFairminter,
+  readFairminterPaymentModel,
 } from "@/core/counterparty/fairminterModel";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
@@ -35,10 +35,7 @@ export function FairmintSummary({
   /** What the user has asked to mint, in display units. Blank until they type. */
   quantity: string;
 }): ReactElement {
-  const model = getFairminterPaymentModel({
-    price: fairminter.price ?? fairminter.price_normalized,
-    burnPayment: fairminter.burn_payment,
-  });
+  const model = readFairminterPaymentModel(fairminter);
   const paid = isPaidFairminter(model);
   const hasQuantity = isGreaterThan(quantity || 0, 0);
   const decimals = fairminter.divisible === false ? 0 : 8;

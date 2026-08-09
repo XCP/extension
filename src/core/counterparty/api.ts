@@ -856,6 +856,16 @@ export interface FairminterDetails {
   quantity_by_price_normalized?: DisplayUnits;
   /** True burns the payment, false sends it to `source`. Not whether the mint is free. */
   burn_payment?: boolean;
+  /**
+   * XCP set aside to seed a liquidity pool once the soft cap is reached. When this is set the
+   * payment goes to the pool, not to `source` — so it decides the destination ahead of
+   * `burn_payment`, and ahead of `source` being worth naming at all.
+   *
+   * Core returns no `_normalized` companion for this one, unlike every other quantity here.
+   */
+  pool_quantity?: ApiQuantity;
+  /** The LP asset the pool issues, e.g. `A690210627902342169`. */
+  lp_asset?: string;
   max_mint_per_tx?: ApiQuantity;
   max_mint_per_tx_normalized?: DisplayUnits;
   max_mint_per_address?: ApiQuantity;

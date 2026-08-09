@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import {
   describeFairminterPaymentModel,
-  getFairminterPaymentModel,
   isPaidFairminter,
+  readFairminterPaymentModel,
 } from "@/core/counterparty/fairminterModel";
 import { formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
@@ -36,11 +36,7 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
 
   // Mint model. Derived from the price first: burn_payment says where a payment goes, not whether
   // there is one, so reading it alone reported ordinary pay-the-issuer fairminters as free.
-  const paymentModel = getFairminterPaymentModel({
-    price: params.price_normalized ?? params.price,
-    burnPayment: params.burn_payment,
-    poolQuantity: params.pool_quantity_normalized ?? params.pool_quantity,
-  });
+  const paymentModel = readFairminterPaymentModel(params);
 
   fields.push({
     label: "Mint Model",
