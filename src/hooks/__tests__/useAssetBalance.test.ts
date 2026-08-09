@@ -84,6 +84,31 @@ describe('useAssetBalance', () => {
     expect(fetchAssetDetailsAndBalance).not.toHaveBeenCalled();
   });
 
+  /**
+   * The other half of that cache dependency. Reading the cache must never cause a fetch, however
+   * often the cache changes — otherwise a second writer with a different value (which is what
+   * BalanceHeader used to be) makes this hook fetch, cache, get overwritten and fetch again.
+   */
+  it('does not refetch when the shared cache keeps changing under it', async () => {
+    (fetchAssetDetailsAndBalance as any).mockResolvedValue({
+      availableBalance: '100.00000000',
+      isDivisible: true,
+      assetInfo: mockXCPAssetInfo,
+    });
+
+    const { rerender } = renderHook(() => useAssetBalance('XCP'));
+    await waitFor(() => expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1));
+
+    for (const amount of ['0.00000000', '100.00000000', '0.00000000', '7.00000000']) {
+      headerCache.balances = {
+        XCP: { asset: 'XCP', quantity_normalized: asDisplayUnits(amount), asset_info: { divisible: true } },
+      };
+      rerender();
+    }
+
+    await waitFor(() => expect(fetchAssetDetailsAndBalance).toHaveBeenCalledTimes(1));
+  });
+
   it('picks up a divisibility correction from the shared cache', async () => {
     headerCache.balances = {
       RAREPEPE: {

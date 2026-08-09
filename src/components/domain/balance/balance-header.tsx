@@ -1,6 +1,5 @@
-import { type ReactElement, useEffect } from 'react';
+import type { ReactElement } from 'react';
 import { AssetIcon } from '@/components/domain/asset/asset-icon';
-import { useHeader } from '@/contexts/header-context';
 import type { TokenBalance } from '@/core/counterparty/api';
 import { formatAmount } from '@/core/format';
 
@@ -31,14 +30,15 @@ interface BalanceHeaderProps {
  * />
  * ```
  */
+/**
+ * Displays a balance. It must not write the shared balance cache.
+ *
+ * It used to, unguarded, from a `balance` prop every caller builds inline — so it wrote on every
+ * render, with a value the caller was still catching up to. `useAssetBalance` owns that cache and
+ * (since #291) depends on it, so the two overwrote each other and the dispenser form's balance
+ * alternated between 0 and the real amount at render speed.
+ */
 export const BalanceHeader = ({ balance, className = '' }: BalanceHeaderProps): ReactElement => {
-  const { setBalanceHeader } = useHeader();
-
-  // Update cache with the current balance data
-  useEffect(() => {
-    setBalanceHeader(balance.asset, balance);
-  }, [balance, setBalanceHeader]);
-
   // Format the balance based on divisibility
   const formattedBalance = balance.quantity_normalized
     ? formatAmount({

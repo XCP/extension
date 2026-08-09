@@ -134,19 +134,18 @@ describe('BalanceHeader', () => {
     expect(screen.getByText(/Balance: 0/)).toBeInTheDocument();
   });
 
-  it('should update cache when balance changes', () => {
+  it('should show the new balance when it changes', () => {
     const { rerender } = render(<BalanceHeader balance={mockBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', mockBalance);
-    
+
     const updatedBalance = {
       ...mockBalance,
       quantity_normalized: asDisplayUnits('600000000')
     };
-    
+
     rerender(<BalanceHeader balance={updatedBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', updatedBalance);
+
+    // Displaying it is the whole job; caching it belongs to whoever fetched it.
+    expect(screen.getByText(/600000000\.00000000/)).toBeInTheDocument();
   });
 
   it('should apply correct CSS classes', () => {
@@ -292,7 +291,6 @@ describe('BalanceHeader', () => {
     rerender(<BalanceHeader balance={differentBalance} />);
     
     expect(screen.getByTestId('asset-icon')).toHaveTextContent('XCP Icon (lg)');
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('XCP', differentBalance);
   });
 
   it('should handle numeric quantity_normalized', () => {
@@ -402,21 +400,30 @@ describe('BalanceHeader', () => {
     expect(icon).toHaveTextContent('Icon (lg)');
   });
 
-  it('should always call setBalanceHeader on mount and updates', () => {
+  /**
+   * This used to assert the opposite — that the write always fires — and that is the behaviour
+   * that broke the dispenser form.
+   *
+   * Callers build the `balance` prop inline, so the effect's dependency changed every render and
+   * this component wrote the shared cache every render, with a value the form was still catching up
+   * to. Since #291 `useAssetBalance` depends on that cache, so its own fetched value and this
+   * lagging copy overwrote each other in a loop: the balance visibly alternated between 0 and the
+   * real amount. The cache belongs to whoever fetched it.
+   */
+  it('does not write the shared balance cache', () => {
     const { rerender } = render(<BalanceHeader balance={mockBalance} />);
-    
-    expect(mockSetBalanceHeader).toHaveBeenCalledTimes(1);
-    expect(mockSetBalanceHeader).toHaveBeenCalledWith('PEPECASH', mockBalance);
-    
-    // Re-render with different balance
-    const updatedBalance = {
-      ...mockBalance,
-      quantity_normalized: asDisplayUnits('999999')
-    };
-    rerender(<BalanceHeader balance={updatedBalance} />);
-    
-    // Should be called again with updated balance
-    expect(mockSetBalanceHeader).toHaveBeenCalledTimes(2);
-    expect(mockSetBalanceHeader).toHaveBeenLastCalledWith('PEPECASH', updatedBalance);
+    expect(mockSetBalanceHeader).not.toHaveBeenCalled();
+
+    // Including across re-renders with a new object, which is how every caller passes it.
+    rerender(
+      <BalanceHeader balance={{ ...mockBalance, quantity_normalized: asDisplayUnits('999999') }} />
+    );
+    rerender(
+      <BalanceHeader balance={{ ...mockBalance, quantity_normalized: asDisplayUnits('999999') }} />
+    );
+
+    expect(mockSetBalanceHeader).not.toHaveBeenCalled();
+    // Still renders what it was handed — it is a display component, not a cache writer.
+    expect(screen.getByText(/999999\.00000000/)).toBeInTheDocument();
   });
 });
