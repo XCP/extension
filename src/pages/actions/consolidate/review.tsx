@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import type { ConsolidationData } from "@/core/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/core/format";
-import { divide, multiply, roundDown, roundUp, toNumber, toSatoshis } from "@/core/numeric";
+import { add, divide, fromSatoshis, multiply, roundDown, roundUp, toNumber, toSatoshis } from '@/core/numeric';
 import type { ConsolidationResult } from "@/hooks/useMultiBatchConsolidation";
 
 interface ConsolidationReviewProps {
@@ -229,7 +229,7 @@ export const ConsolidationReview = ({
             <span className="text-gray-700">Network Fee:</span>
             <span className="text-gray-900">
               ~{formatAmount({
-                value: fees.totalNetworkFee / 100000000,
+                value: fromSatoshis(fees.totalNetworkFee),
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
               })}{" "}
@@ -242,7 +242,7 @@ export const ConsolidationReview = ({
               <span className="text-gray-700">Service Fee ({feeConfig.fee_percent}%):</span>
               <span className="text-gray-900">
                 ~{formatAmount({
-                  value: fees.totalServiceFee / 100000000,
+                  value: fromSatoshis(fees.totalServiceFee),
                   minimumFractionDigits: 8,
                   maximumFractionDigits: 8,
                 })}{" "}
@@ -255,7 +255,7 @@ export const ConsolidationReview = ({
             <span className="text-gray-700">Total Fees:</span>
             <span className="text-yellow-900">
               ~{formatAmount({
-                value: (fees.totalNetworkFee + fees.totalServiceFee) / 100000000,
+                value: fromSatoshis(add(fees.totalNetworkFee, fees.totalServiceFee)),
                 minimumFractionDigits: 8,
                 maximumFractionDigits: 8,
               })}{" "}
@@ -275,7 +275,7 @@ export const ConsolidationReview = ({
           <span className="font-semibold text-gray-700">You Will Receive:</span>
           <div className="text-green-700 font-medium bg-green-50 p-2 rounded">
             ~{formatAmount({
-              value: fees.totalOutput / 100000000,
+              value: fromSatoshis(fees.totalOutput),
               minimumFractionDigits: 8,
               maximumFractionDigits: 8,
             })}{" "}

@@ -3,7 +3,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { AssetInfo } from "@/core/counterparty/api";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, fromSatoshis } from '@/core/numeric';
 import { fetchAssetDetailsAndBalance } from "@/hooks/utils/fetchAssetData";
 
 interface BalanceState {
@@ -142,7 +142,10 @@ export function useAssetBalance(asset: string) {
 
         if (asset === 'BTC') {
           const balanceSats = await fetchBTCBalance(activeAddress!.address);
-          balance = (balanceSats / 1e8).toString();
+          // removeTrailingZeros keeps the previous `(sats / 1e8).toString()` shape exactly:
+          // "1" rather than "1.00000000". Routing through the numeric layer is the point here,
+          // not changing what callers see.
+          balance = fromSatoshis(balanceSats, { removeTrailingZeros: true });
           assetInfo = BTC_ASSET_INFO;
           isDivisible = true;
         } else {

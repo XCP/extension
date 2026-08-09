@@ -1,3 +1,4 @@
+import { fromSatoshis } from '@/core/numeric';
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useWallet } from "@/contexts/wallet-context";
@@ -152,7 +153,7 @@ export function useMultiBatchConsolidation() {
       }
 
       if (batchResults.some((result) => result.status === "success")) {
-        analytics.track("consolidate", getBtcBucket(totalOutputSats / 100000000));
+        analytics.track("consolidate", getBtcBucket(fromSatoshis(totalOutputSats, { asNumber: true })));
       }
 
       // Report every batch, successful or not; the results screen breaks them down

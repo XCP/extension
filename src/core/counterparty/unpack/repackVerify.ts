@@ -30,6 +30,7 @@
  * never "verified".
  */
 
+import { fromSatoshis } from '@/core/numeric';
 import { packComposeMessage } from '@/core/counterparty/pack/messages';
 import { bytesToHex } from '@/core/counterparty/unpack/binary';
 import type { AttachData, DetachData, MoveData } from '@/core/counterparty/unpack/messages/attach';
@@ -219,7 +220,7 @@ function paramsFor(messageType: string, data: unknown): { composeType: string; p
         params: {
           text: broadcast.text,
           value: broadcast.value,
-          fee_fraction: broadcast.feeFractionInt / 1e8,
+          fee_fraction: fromSatoshis(broadcast.feeFractionInt, { asNumber: true }),
           timestamp: broadcast.timestamp,
           ...(broadcast.mimeType ? { mime_type: broadcast.mimeType } : {}),
         },

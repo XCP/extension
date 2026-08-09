@@ -35,6 +35,7 @@
  * </ComposerProvider>
  * ```
  */
+import { fromSatoshis } from '@/core/numeric';
 import {
   type ReactElement,
   type ReactNode,
@@ -659,7 +660,7 @@ export function ComposerProvider<T>({
 
       // Track successful broadcast with fee bucket
       const btcFee = apiResponseWithBroadcast?.result?.btc_fee || 0;
-      const btcFeeAmount = btcFee / 100000000;
+      const btcFeeAmount = fromSatoshis(btcFee, { asNumber: true });
       analytics.track('broadcast', getBtcBucket(btcFeeAmount));
 
       // Only skip state update if aborted (user navigated away)
