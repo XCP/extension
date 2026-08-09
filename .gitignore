@@ -53,3 +53,11 @@ MANUAL_TEST_PLAN.txt
 
 test-results.json
 test-results/
+
+# Store submission credentials. `wxt submit init` writes .env.submit, which holds a
+# client secret and a refresh token with publish rights to the live extension —
+# committing one hands over the ability to ship an update. Example files are kept.
+.env
+.env.*
+!.env.example
+!.env.*.example

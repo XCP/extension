@@ -77,6 +77,34 @@ npm run build      # Production build
 npm run zip        # Create extension ZIP
 ```
 
+## Release
+
+```bash
+npm version X.Y.Z --no-git-tag-version   # bumps package.json AND package-lock.json
+npm run zip                              # .output/xcp-wallet-X.Y.Z-chrome.zip
+```
+
+Bump with `npm version`, not by editing `package.json`. The lockfile records the version
+too, and CI builds from the lockfile alone.
+
+Submitting to the Chrome Web Store is wired through `wxt submit`, which needs credentials
+once:
+
+```bash
+npx wxt submit init      # writes .env.submit — gitignored, keep it that way
+```
+
+```bash
+npm run submit:status    # is a review already pending?
+npm run submit:dry       # check auth, upload nothing
+npm run submit           # submit the current version's zip
+```
+
+**A new submission replaces any pending review**, losing that submission's place in the
+queue — so check `submit:status` before submitting. Pass extra flags through with `--`,
+e.g. `npm run submit -- --chrome-cancel-pending` to cancel a pending review explicitly, or
+`-- --chrome-skip-submit-review` to upload without submitting.
+
 ## Test
 
 ```bash
