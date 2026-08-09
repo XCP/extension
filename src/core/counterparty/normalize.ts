@@ -37,7 +37,7 @@ type MemoConfig =
  * - `booleanFields`: Fields that should be converted from strings to booleans
  * - `memoConfig`: How to handle hex memo detection (set boolean or OR flag)
  */
-const NORMALIZATION_CONFIG: Record<string, {
+export const NORMALIZATION_CONFIG: Record<string, {
   quantityFields: string[];
   assetFields: Record<string, string>;
   booleanFields?: string[];
@@ -82,7 +82,11 @@ const NORMALIZATION_CONFIG: Record<string, {
     assetFields: { quantity: 'asset' }
   },
   broadcast: {
-    quantityFields: ['value'],
+    // A broadcast's `value` is a feed reading, not a quantity of anything: core packs it as a raw
+    // double (`packBroadcast`), so scaling it by 1e8 would corrupt it. Listing it here with no
+    // asset field left it skipped by the loop, which produced the right answer for the wrong
+    // reason — and read as if scaling were handled. It is not a quantity field.
+    quantityFields: [],
     assetFields: {}
   },
   burn: {
@@ -124,6 +128,13 @@ const NORMALIZATION_CONFIG: Record<string, {
     memoConfig: { type: 'flag', flagsField: 'flags', flagValue: FLAG_BINARY_MEMO }
   },
   utxo: {
+    quantityFields: [],
+    assetFields: {}
+  },
+  move: {
+    // Moves every asset at a UTXO, so it names no quantity. Declared anyway: an absent key takes
+    // the early return in `normalizeFormData`, which passes the form through untouched, and that
+    // branch cannot tell "nothing to scale" from "nobody wired this up yet".
     quantityFields: [],
     assetFields: {}
   },
