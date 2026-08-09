@@ -68,6 +68,44 @@ export const XCP69_DEFAULT_LEAD_BLOCKS = 6;
 /** A lead the standard cannot tolerate: the launch would very likely confirm past its own start. */
 export const XCP69_MIN_SAFE_LEAD_BLOCKS = 2;
 
+/**
+ * Every form field an XCP-69 launch submits, in the display units `normalize.ts` scales.
+ *
+ * One source, because the alternative shipped a defect: the submit branch used to list these
+ * inline while conformance was checked against `XCP69_BASE`, so the check verified the standard's
+ * constants against themselves and could not see what was actually being sent. It missed
+ * `lot_price_asset` — the hidden field `normalize.ts` keys `lot_price` off — with the result that
+ * the price reached core unscaled and a 690 XCP sale composed for a hundred-millionth of that.
+ *
+ * `lot_price_asset` is here rather than rendered, so it cannot be gated out of existence again.
+ */
+export function xcp69FormFields(params: {
+  lpAsset: string;
+  blocks: Xcp69Blocks | null;
+}): Record<string, string> {
+  return {
+    max_mint_per_tx: XCP69_DISPLAY.max_mint_per_tx,
+    max_mint_per_address: XCP69_DISPLAY.max_mint_per_address,
+    lot_size: XCP69_DISPLAY.lot_size,
+    lot_price: XCP69_DISPLAY.lot_price,
+    // normalize.ts reads this to learn lot_price is priced in XCP, not in the minted asset.
+    lot_price_asset: 'XCP',
+    hard_cap: XCP69_DISPLAY.hard_cap,
+    soft_cap: XCP69_DISPLAY.soft_cap,
+    pool_quantity: XCP69_DISPLAY.pool_quantity,
+    premint_quantity: XCP69_DISPLAY.premint_quantity,
+    minted_asset_commission: '0',
+    lp_asset: params.lpAsset,
+    divisible: 'true',
+    lock_quantity: 'true',
+    lock_description: 'true',
+    burn_payment: 'false',
+    start_block: String(params.blocks?.start_block ?? 0),
+    soft_cap_deadline_block: String(params.blocks?.soft_cap_deadline_block ?? 0),
+    end_block: '0',
+  };
+}
+
 export interface Xcp69Blocks {
   start_block: number;
   soft_cap_deadline_block: number;
@@ -118,7 +156,40 @@ export function generateXcp69LpAsset(): string {
   return name;
 }
 
-/** The composed fairminter parameters, in base units, as the predicate reads them. */
+/** Display units are scaled by 1e8 for a divisible asset, which every XCP-69 launch is. */
+function toBase(display: string): string {
+  const [whole = '0', frac = ''] = display.split('.');
+  return `${whole}${frac.padEnd(8, '0').slice(0, 8)}`.replace(/^0+(?=\d)/, '');
+}
+
+/**
+ * The base-unit view of the fields a launch will submit, for the conformance predicate.
+ *
+ * Scaled here the way `normalize.ts` scales them, so the gate reads the numbers the node will,
+ * rather than the constants they were built from.
+ */
+export function xcp69CandidateFromFields(fields: Record<string, string>): Xcp69Candidate {
+  return {
+    hard_cap: toBase(fields.hard_cap ?? ''),
+    soft_cap: toBase(fields.soft_cap ?? ''),
+    pool_quantity: toBase(fields.pool_quantity ?? ''),
+    quantity_by_price: toBase(fields.lot_size ?? ''),
+    price: toBase(fields.lot_price ?? ''),
+    max_mint_per_address: toBase(fields.max_mint_per_address ?? ''),
+    max_mint_per_tx: toBase(fields.max_mint_per_tx ?? ''),
+    premint_quantity: toBase(fields.premint_quantity ?? ''),
+    minted_asset_commission_int: fields.minted_asset_commission ?? '0',
+    divisible: fields.divisible === 'true',
+    burn_payment: fields.burn_payment === 'true',
+    lock_quantity: fields.lock_quantity === 'true',
+    lock_description: fields.lock_description === 'true',
+    lp_asset: fields.lp_asset ?? null,
+    start_block: Number(fields.start_block ?? 0),
+    soft_cap_deadline_block: Number(fields.soft_cap_deadline_block ?? 0),
+    end_block: Number(fields.end_block ?? 0),
+  };
+}
+
 export interface Xcp69Candidate {
   asset?: string;
   hard_cap?: string | number | bigint | null;

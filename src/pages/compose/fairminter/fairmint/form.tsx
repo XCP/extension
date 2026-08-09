@@ -132,7 +132,16 @@ export function FairmintForm({
   const [alreadyMinted, setAlreadyMinted] = useState<string | null>(null);
   useEffect(() => {
     const address = activeAddress?.address;
-    const hasAllowance = isGreaterThan(selectedFairminter?.max_mint_per_address_normalized ?? 0, 0);
+    // Either spelling. Gating on the normalized one alone meant this never ran — core does not
+    // send `max_mint_per_address_normalized` for any fairminter — so the per-address bound was
+    // handed `alreadyMinted = null` and subtracted nothing, which is the very defect that bound
+    // exists to prevent.
+    const hasAllowance = isGreaterThan(
+      selectedFairminter?.max_mint_per_address_normalized ??
+        selectedFairminter?.max_mint_per_address ??
+        0,
+      0
+    );
     if (!address || !selectedFairminter || !hasAllowance) {
       setAlreadyMinted(null);
       return;

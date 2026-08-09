@@ -12,6 +12,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
+import type { FairminterOptions } from '@/core/counterparty/compose';
 import { XCP69_BASE, XCP69_WINDOW_BLOCKS } from '@/core/counterparty/xcp69';
 import { FairminterForm } from '../form';
 
@@ -168,6 +169,45 @@ describe('FairminterForm — XCP-69', () => {
     expect(submitted.get('lock_description')).toBe('true');
     expect(submitted.get('burn_payment')).toBe('false');
     expect(submitted.get('end_block')).toBe('0');
+    // normalize.ts keys lot_price off this. Without it the price is skipped rather than scaled,
+    // and a 690 XCP sale composes for a hundred-millionth of that. The end-to-end check is in
+    // xcp69.test.ts, which runs the real normalizeFormData over these fields.
+    expect(submitted.get('lot_price_asset')).toBe('XCP');
+  });
+
+  /**
+   * Returning from review must not silently change the model.
+   *
+   * The composer stores raw form values, so `burn_payment` comes back as the string 'false' — and
+   * 'false' is truthy. Reading it directly put an XCP-69 launch back on the form as XCP Fee
+   * (Burned) carrying all the XCP-69 numbers; resubmitting burned the payments and issued no LP
+   * token. A pool reserve is what identifies the model on the way back.
+   */
+  it('comes back as XCP-69 when returning from review, not as burned', async () => {
+    render(
+      <MemoryRouter>
+        <ComposerProvider
+          composeApi={vi.fn().mockResolvedValue({ result: { tx_hash: 'test' } })}
+          initialTitle="Fairminter"
+          composeType="fairminter"
+        >
+          <FairminterForm
+            formAction={mockFormAction}
+            initialFormData={{
+              asset: 'LAUNCHCOIN',
+              // As the composer hands them back: raw form values, so strings not booleans.
+              burn_payment: 'false',
+              pool_quantity: '31000000',
+            } as unknown as FairminterOptions}
+            asset=""
+          />
+        </ComposerProvider>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText('XCP-69 Model (Pooled)')).toBeInTheDocument();
+    expect(screen.getByText(/Pool reserve/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Hard Cap/i)).not.toBeInTheDocument();
   });
 
   it('submits a sale window of exactly the standard length, offset by the chosen lead', async () => {

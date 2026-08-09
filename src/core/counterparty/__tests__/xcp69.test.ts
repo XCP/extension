@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isNumericAsset } from "@/core/validation/asset";
+import { normalizeFormData } from "../normalize";
 import {
   checkXcp69Conformance,
   deriveXcp69Blocks,
@@ -9,6 +10,8 @@ import {
   XCP69_DEFAULT_LEAD_BLOCKS,
   XCP69_DISPLAY,
   XCP69_WINDOW_BLOCKS,
+  xcp69CandidateFromFields,
+  xcp69FormFields,
 } from "../xcp69";
 
 /** A conforming launch, in the base units core stores. */
@@ -61,6 +64,73 @@ describe("XCP69 constants", () => {
     expect(BigInt(XCP69_DISPLAY.max_mint_per_address) * 100000000n).toBe(XCP69_BASE.max_mint_per_address);
     // 0.01 XCP, which is divisible, so it scales the same way.
     expect(Math.round(Number(XCP69_DISPLAY.lot_price) * 1e8)).toBe(Number(XCP69_BASE.price));
+  });
+});
+
+/**
+ * The end of the pipe, not the start.
+ *
+ * The form test asserted `lot_price === '0.01'` in the FormData and passed while the price was
+ * shipping unscaled: `normalize.ts` keys `lot_price` off a hidden `lot_price_asset` field that the
+ * XCP-69 branch never sent, so it was skipped and reached core as display units. A 690 XCP sale
+ * would have composed for a hundred-millionth of that. Checking what the form *hands over* is not
+ * checking what the node *receives*.
+ */
+describe("xcp69FormFields through normalizeFormData", () => {
+  const submit = async () => {
+    const fields = xcp69FormFields({
+      lpAsset: "A691234567890123456",
+      blocks: deriveXcp69Blocks(961512, XCP69_DEFAULT_LEAD_BLOCKS),
+    });
+    const formData = new FormData();
+    formData.set("asset", "LAUNCHCOIN");
+    for (const [k, v] of Object.entries(fields)) formData.set(k, v);
+    const { normalizedData } = await normalizeFormData(formData, "fairminter");
+    return normalizedData;
+  };
+
+  it("scales every quantity to the base units core reads", async () => {
+    const data = await submit();
+    expect(data.lot_price).toBe(XCP69_BASE.price.toString());
+    expect(data.lot_size).toBe(XCP69_BASE.quantity_by_price.toString());
+    expect(data.hard_cap).toBe(XCP69_BASE.hard_cap.toString());
+    expect(data.soft_cap).toBe(XCP69_BASE.soft_cap.toString());
+    expect(data.pool_quantity).toBe(XCP69_BASE.pool_quantity.toString());
+    expect(data.max_mint_per_address).toBe(XCP69_BASE.max_mint_per_address.toString());
+    expect(data.max_mint_per_tx).toBe(XCP69_BASE.max_mint_per_tx.toString());
+  });
+
+  it("carries the field normalize.ts needs to price the lot in XCP", async () => {
+    // The one that was missing. Without it lot_price is skipped entirely rather than scaled.
+    const fields = xcp69FormFields({ lpAsset: "A69", blocks: null });
+    expect(fields.lot_price_asset).toBe("XCP");
+  });
+
+  it("raises exactly 690 XCP at the composed price", async () => {
+    // The figure the standard promises, computed from what actually reaches the node.
+    const data = await submit();
+    const lots = BigInt(data.soft_cap as string) / BigInt(data.lot_size as string);
+    expect((lots * BigInt(data.lot_price as string)) / 100000000n).toBe(690n);
+  });
+});
+
+describe("xcp69CandidateFromFields", () => {
+  it("hands the conformance check the values being submitted", () => {
+    const fields = xcp69FormFields({
+      lpAsset: "A691234567890123456",
+      blocks: deriveXcp69Blocks(961512, XCP69_DEFAULT_LEAD_BLOCKS),
+    });
+    expect(checkXcp69Conformance({ ...xcp69CandidateFromFields(fields), asset: "LAUNCHCOIN" }))
+      .toEqual({ conformant: true, failures: [] });
+  });
+
+  it("fails conformance when the submitted price is wrong", () => {
+    // The gate used to be fed XCP69_BASE, so it could not see the submission at all and showed
+    // green over a launch about to ship the wrong price.
+    const fields = { ...xcp69FormFields({ lpAsset: "A69", blocks: null }), lot_price: "0.02" };
+    const result = checkXcp69Conformance({ ...xcp69CandidateFromFields(fields), asset: "LAUNCHCOIN" });
+    expect(result.conformant).toBe(false);
+    expect(result.failures).toContain("Price must be 0.01 XCP per lot");
   });
 });
 

@@ -29,12 +29,12 @@ import {
   deriveXcp69Blocks,
   describeXcp69LeadRisk,
   generateXcp69LpAsset,
-  XCP69_BASE,
   XCP69_DEFAULT_LEAD_BLOCKS,
-  XCP69_DISPLAY,
   XCP69_WINDOW_BLOCKS,
+  xcp69CandidateFromFields,
+  xcp69FormFields,
 } from "@/core/counterparty/xcp69";
-import { asDisplayUnits } from '@/core/numeric';
+import { asDisplayUnits, isGreaterThan } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 import { useBlockHeight } from "@/hooks/useBlockHeight";
 
@@ -58,6 +58,18 @@ const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
   { value: FAIRMINTER_MODELS.XCP_69_POOLED, label: "XCP-69 Model (Pooled)" },
 ];
+
+/**
+ * A boolean as it survives a round trip through the composer, which stores raw form values.
+ *
+ * `false` comes back as the string `'false'`, and `'false'` is truthy — so reading these fields
+ * directly inverts them on back-navigation.
+ */
+function toFormBoolean(value: unknown): boolean | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  return String(value) === 'true';
+}
 
 /**
  * Props for the FairminterForm component, aligned with Composer's formAction.
@@ -119,10 +131,22 @@ export function FairminterForm({
     }
   }, [isExistingAsset, assetInfo]);
 
-  // Mint method state
-  const initialMintMethod = initialFormData?.burn_payment === false
+  // Mint method state.
+  //
+  // The composer hands back raw form values, so booleans arrive as the strings 'true'/'false' —
+  // and 'false' is truthy. Without the pool check an XCP-69 launch came back as XCP Fee (Burned)
+  // carrying all the XCP-69 numbers, and resubmitting burned the payments and issued no LP token.
+  // A pool reserve is what distinguishes it, and only XCP-69 sets one here.
+  const returningXcp69 =
+    initialFormData?.pool_quantity !== undefined &&
+    initialFormData?.pool_quantity !== null &&
+    isGreaterThan(initialFormData.pool_quantity, 0);
+  const burnPayment = toFormBoolean(initialFormData?.burn_payment);
+  const initialMintMethod = returningXcp69
+    ? FAIRMINTER_MODELS.XCP_69_POOLED
+    : burnPayment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
-    : initialFormData?.burn_payment
+    : burnPayment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
   const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
@@ -132,7 +156,13 @@ export function FairminterForm({
   const isXcp69 = selectedMintMethod === FAIRMINTER_MODELS.XCP_69_POOLED;
   const [leadBlocks, setLeadBlocks] = useState<string>(String(XCP69_DEFAULT_LEAD_BLOCKS));
   const [lpAsset] = useState<string>(() => generateXcp69LpAsset());
-  const { blockHeight } = useBlockHeight({ autoFetch: isXcp69 });
+  // Refreshed while the form is open. `start_block` is measured from this, and conformance is
+  // decided at the confirming block — so a height read once and left to go stale silently moves
+  // the sale window into the past. A form left open for the length of a description is enough.
+  const { blockHeight } = useBlockHeight({
+    autoFetch: isXcp69,
+    refreshInterval: isXcp69 ? 60_000 : null,
+  });
 
   const leadNumber = Number.parseInt(leadBlocks, 10);
   const hasLead = Number.isFinite(leadNumber) && leadNumber >= 0;
@@ -141,30 +171,18 @@ export function FairminterForm({
     : null;
   const leadRisk = isXcp69 && hasLead ? describeXcp69LeadRisk(leadNumber) : null;
 
+  /** Exactly what submit will send, so the check and the transaction cannot diverge. */
+  const xcp69Fields = xcp69FormFields({ lpAsset, blocks: xcp69Blocks });
+
   /**
-   * The clauses that can actually vary here.
+   * Conformance judged on the values being submitted, scaled the way normalize.ts scales them.
    *
-   * The fixed quantities are supplied from `XCP69_DISPLAY` on submit, and that they scale to
-   * `XCP69_BASE` is pinned by a unit test rather than re-derived on every keystroke — checking
-   * constants against themselves in the UI would assert nothing. What is worth checking is
-   * everything the creator or the network can change: the asset name, the sale window, and whether
-   * a block height was available to compute it from.
+   * This used to spread `XCP69_BASE`, which meant nine of its clauses compared the standard's
+   * constants against themselves and the gate could not see the submission at all. It showed green
+   * over a launch whose price was about to ship a hundred-millionth of its intended value.
    */
   const xcp69Conformance = isXcp69
-    ? checkXcp69Conformance({
-        ...Object.fromEntries(
-          Object.entries(XCP69_BASE).map(([key, value]) => [key, value.toString()])
-        ),
-        asset: assetName,
-        divisible: true,
-        burn_payment: false,
-        lock_quantity: true,
-        lock_description: true,
-        lp_asset: lpAsset,
-        start_block: xcp69Blocks?.start_block ?? 0,
-        soft_cap_deadline_block: xcp69Blocks?.soft_cap_deadline_block ?? 0,
-        end_block: 0,
-      })
+    ? checkXcp69Conformance({ ...xcp69CandidateFromFields(xcp69Fields), asset: assetName })
     : null;
 
   // Helper function to get input step based on divisibility
@@ -221,25 +239,12 @@ export function FairminterForm({
     processedFormData.set('divisible', isDivisible.toString());
 
     if (isXcp69) {
-      // Every quantity is the standard's, in the display units normalize.ts scales by 1e8 for a
-      // divisible asset. Nothing here is read from the fields above, because none of them render.
-      processedFormData.set('max_mint_per_tx', XCP69_DISPLAY.max_mint_per_tx);
-      processedFormData.set('max_mint_per_address', XCP69_DISPLAY.max_mint_per_address);
-      processedFormData.set('lot_size', XCP69_DISPLAY.lot_size);
-      processedFormData.set('lot_price', XCP69_DISPLAY.lot_price);
-      processedFormData.set('hard_cap', XCP69_DISPLAY.hard_cap);
-      processedFormData.set('soft_cap', XCP69_DISPLAY.soft_cap);
-      processedFormData.set('pool_quantity', XCP69_DISPLAY.pool_quantity);
-      processedFormData.set('premint_quantity', XCP69_DISPLAY.premint_quantity);
-      processedFormData.set('minted_asset_commission', '0');
-      processedFormData.set('lp_asset', lpAsset);
-      processedFormData.set('divisible', 'true');
-      processedFormData.set('lock_quantity', 'true');
-      processedFormData.set('lock_description', 'true');
-      processedFormData.set('burn_payment', 'false');
-      processedFormData.set('start_block', String(xcp69Blocks?.start_block ?? 0));
-      processedFormData.set('soft_cap_deadline_block', String(xcp69Blocks?.soft_cap_deadline_block ?? 0));
-      processedFormData.set('end_block', '0');
+      // The same map conformance was checked against, so the two cannot describe different
+      // launches. Includes lot_price_asset, which normalize.ts needs and which used to be a
+      // rendered field this branch gated out.
+      for (const [field, value] of Object.entries(xcp69Fields)) {
+        processedFormData.set(field, value);
+      }
     } else {
       // Set controlled quantity fields from state
       if (maxMintPerTx) processedFormData.set('max_mint_per_tx', maxMintPerTx);

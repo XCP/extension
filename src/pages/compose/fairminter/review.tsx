@@ -1,4 +1,5 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
+import { isGreaterThan } from "@/core/numeric";
 
 /**
  * Props for the ReviewFairminter component.
@@ -33,6 +34,28 @@ export function ReviewFairminter({
       ? [{ label: "Mint per Address", value: result.params.max_mint_per_address }]
       : []),
     { label: "Hard Cap", value: result.params.hard_cap },
+    // The three fields that make a pooled launch what it is were composed but never shown here,
+    // so the pool terms were signed from a screen that did not mention them. The soft cap decides
+    // whether anything is credited at all, and the window decides when.
+    ...(isGreaterThan(result.params.pool_quantity ?? 0, 0)
+      ? [
+          { label: "Pool Reserve", value: String(result.params.pool_quantity) },
+          ...(result.params.lp_asset
+            ? [{ label: "LP Asset", value: String(result.params.lp_asset) }]
+            : []),
+        ]
+      : []),
+    ...(isGreaterThan(result.params.soft_cap ?? 0, 0)
+      ? [{ label: "Soft Cap", value: String(result.params.soft_cap) }]
+      : []),
+    ...(Number(result.params.start_block ?? 0) > 0
+      ? [
+          {
+            label: "Sale Window",
+            value: `${result.params.start_block} → ${result.params.soft_cap_deadline_block ?? "—"}`,
+          },
+        ]
+      : []),
     ...(result.params.description ? [{ label: "Description", value: result.params.description }] : []),
   ];
 
