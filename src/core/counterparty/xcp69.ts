@@ -256,10 +256,14 @@ export function checkXcp69Conformance(candidate: Xcp69Candidate): Xcp69Conforman
     if (asInteger(candidate[field]) !== XCP69_BASE[field]) failures.push(message);
   }
 
-  // A numeric asset can be issued by anyone holding the name; XCP-69 launches are named assets so
-  // the ticker is the thing being launched.
+  // A top-level named asset: the ticker is the thing being launched.
+  //
+  // Deliberately stricter than the launchpad's own predicate, which only rejects names beginning
+  // `A`. `isNamedAsset` also rejects subassets, so `PARENT.CHILD` cannot be launched here even
+  // though xcp.fun would list it. That is a chosen restriction, not an oversight — but it does
+  // mean the message has to say so, since "not numeric" explains nothing to someone typing a dot.
   if (!candidate.asset || !isNamedAsset(candidate.asset)) {
-    failures.push("Asset must be a named asset, not numeric");
+    failures.push("Asset must be a top-level named asset — not numeric (A…), not a subasset");
   }
 
   if (candidate.divisible !== true) failures.push("Asset must be divisible");

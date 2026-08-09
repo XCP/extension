@@ -268,7 +268,7 @@ describe('FairminterForm — XCP-69', () => {
     await waitFor(() =>
       expect(screen.getByText(/would not be XCP-69/i)).toBeInTheDocument()
     );
-    expect(screen.getByText(/Asset must be a named asset/i)).toBeInTheDocument();
+    expect(screen.getByText(/must be a top-level named asset/i)).toBeInTheDocument();
     expect(continueButton()).toBeDisabled();
   });
 

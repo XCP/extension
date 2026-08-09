@@ -185,9 +185,27 @@ describe("checkXcp69Conformance", () => {
     expect(result.failures).toContain(message);
   });
 
+  const NAME_FAILURE = "Asset must be a top-level named asset — not numeric (A…), not a subasset";
+
   it("rejects a numeric asset", () => {
     const result = checkXcp69Conformance({ ...conforming, asset: "A690210627902342169" });
-    expect(result.failures).toContain("Asset must be a named asset, not numeric");
+    expect(result.failures).toContain(NAME_FAILURE);
+  });
+
+  /**
+   * Stricter than xcp.fun's own predicate, which only rejects names beginning `A`, so a subasset
+   * launch this refuses would be listed there. Chosen, not accidental — but it is why the message
+   * names subassets rather than saying only "not numeric".
+   */
+  it("rejects a subasset, and says so", () => {
+    const result = checkXcp69Conformance({ ...conforming, asset: "PARENT.CHILD" });
+    expect(result.conformant).toBe(false);
+    expect(result.failures).toContain(NAME_FAILURE);
+  });
+
+  it("accepts an ordinary named asset", () => {
+    expect(checkXcp69Conformance({ ...conforming, asset: "LAUNCHCOIN" }).failures)
+      .not.toContain(NAME_FAILURE);
   });
 
   it("rejects a burned payment, which would leave nothing to seed the pool", () => {
