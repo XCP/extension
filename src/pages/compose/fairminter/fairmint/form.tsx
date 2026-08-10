@@ -9,9 +9,11 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposer } from "@/contexts/composer-context-object";
 import { fetchAddressFairmintTotal } from "@/core/counterparty/api";
 import type { FairmintOptions } from "@/core/counterparty/compose";
+import type { FairmintBound } from "@/core/counterparty/fairminterModel";
 import {
+  describeFairmintBound,
   getFairminterLotCost,
-  getMaxFairmintLots,
+  getFairmintLots,
   getQuantityForLots,
   isPaidFairminter,
   readFairminterPaymentModel,
@@ -128,7 +130,7 @@ export function FairmintForm({
   }, []);
 
   // What this address has already minted of the asset, for the per-address allowance. Null while
-  // loading or if the lookup fails, which getMaxFairmintLots treats as "unknown" rather than zero.
+  // loading or if the lookup fails, which getFairmintLots treats as "unknown" rather than zero.
   const [alreadyMinted, setAlreadyMinted] = useState<string | null>(null);
   useEffect(() => {
     const address = activeAddress?.address;
@@ -155,10 +157,10 @@ export function FairmintForm({
     };
   }, [activeAddress?.address, selectedFairminter]);
 
-  // Every bound core checks, expressed in lots — see getMaxFairmintLots.
-  const maxLots = useCallback(() => {
-    if (!selectedFairminter || isFreeMint) return "0";
-    return getMaxFairmintLots({
+  // Every bound core checks, expressed in lots, plus which one bound — see getFairmintLots.
+  const mintable = useCallback((): { lots: string; binding: FairmintBound } => {
+    if (!selectedFairminter || isFreeMint) return { lots: "0", binding: "unavailable" };
+    return getFairmintLots({
       fairminter: selectedFairminter,
       balance: currencyBalance,
       // The minted asset's supply, for the hard-cap headroom.
@@ -166,6 +168,8 @@ export function FairmintForm({
       alreadyMinted,
     });
   }, [selectedFairminter, isFreeMint, currencyBalance, mintedAssetDetails, alreadyMinted]);
+
+  const maxLots = useCallback(() => mintable().lots, [mintable]);
 
   // Coming back from review, the composed quantity is converted back into lots once the
   // fairminter (and so the lot size) is known.
@@ -217,11 +221,9 @@ export function FairmintForm({
     // Free mints are exempt: since `partial_mint_to_reach_hard_cap` they are clamped to the
     // remainder rather than refused, and they compose with quantity 0 anyway.
     if (!isFreeMint) {
-      const available = maxLots();
+      const { lots: available, binding } = mintable();
       if (!isGreaterThan(available, 0)) {
-        setValidationError(
-          "There is nothing left to mint here — the sale has reached a limit, or your XCP balance is too low."
-        );
+        setValidationError(describeFairmintBound(binding));
         return;
       }
       if (isGreaterThan(formData.lots, available)) {
@@ -350,7 +352,14 @@ export function FairmintForm({
                 description={`Each lot is ${selectedFairminter.quantity_by_price_normalized} ${formData.asset} for ${getFairminterLotCost(selectedFairminter)} XCP.`}
                 disableMaxButton={false}
                 onMaxClick={() => {
-                  setFormData(prev => ({ ...prev, lots: maxLots() }));
+                  // Filling in "0" and clearing the error is how this used to answer an address
+                  // that had minted its allowance: the button appeared to do nothing at all.
+                  const { lots, binding } = mintable();
+                  if (!isGreaterThan(lots, 0)) {
+                    setValidationError(describeFairmintBound(binding));
+                    return;
+                  }
+                  setFormData(prev => ({ ...prev, lots }));
                   setValidationError(null);
                 }}
                 hasError={!!validationError}

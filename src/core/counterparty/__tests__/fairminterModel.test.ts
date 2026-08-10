@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  describeFairmintBound,
   describeFairminterLot,
   describeFairminterPaymentModel,
   getFairmintCost,
   getFairminterLotCost,
   getFairminterPaymentModel,
+  getFairmintLots,
   getMaxFairmintLots,
   getQuantityForLots,
   isFairminterMintableNow,
@@ -384,5 +386,97 @@ describe("isPaidFairminter", () => {
     expect(isPaidFairminter("burned")).toBe(true);
     expect(isPaidFairminter("pool")).toBe(true);
     expect(isPaidFairminter("issuer")).toBe(true);
+  });
+});
+
+/**
+ * A count of zero is the same number whichever bound produced it, and the Max button had nothing
+ * to say about it: it filled the field with "0" and cleared the error, so an address that had
+ * already minted its allowance clicked Max and watched nothing happen.
+ *
+ * Naming the bound is the whole fix, so each one is checked for the sentence it earns rather than
+ * for the zero it shares.
+ */
+describe("getFairmintLots names what limited the count", () => {
+  const base = { price: 100000000, quantity_by_price_normalized: "1000" };
+
+  it("reports the per-address allowance, which is what a repeat minter hits", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const result = getFairmintLots({ fairminter, balance: "100", alreadyMinted: "5000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("per_address");
+    expect(describeFairmintBound(result.binding)).toContain("per address");
+  });
+
+  it("reports the hard cap when the sale itself is finished", () => {
+    const fairminter = { ...base, hard_cap_normalized: "10000" };
+    const result = getFairmintLots({ fairminter, balance: "100", assetSupply: "10000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("hard_cap");
+  });
+
+  it("reports the balance when the address simply cannot afford a lot", () => {
+    const result = getFairmintLots({ fairminter: base, balance: "0.5" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("balance");
+  });
+
+  it("reports a missing price rather than blaming the balance", () => {
+    const result = getFairmintLots({ fairminter: { quantity_by_price_normalized: "1000" }, balance: "100" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("unavailable");
+  });
+
+  // Distinguishing the causes only matters if the tightest one wins when several are non-zero.
+  it("names the bound that actually decided a non-zero count", () => {
+    const fairminter = {
+      ...base,
+      max_mint_per_tx_normalized: "8000",
+      hard_cap_normalized: "20000",
+      max_mint_per_address_normalized: "6000",
+    };
+    const result = getFairmintLots({
+      fairminter,
+      balance: "100",
+      assetSupply: "16000",
+      alreadyMinted: "1000",
+    });
+
+    expect(result.lots).toBe("4"); // hard cap leaves 4,000; the others allow 8, 5 and 100
+    expect(result.binding).toBe("hard_cap");
+  });
+
+  /**
+   * Both statements are true for an address that is broke and maxed out. Keeping the earlier bound
+   * on a tie means the sentence shown is never one that is false — which is the failure mode that
+   * matters here, since telling someone their balance is fine when it is not sends them to buy
+   * XCP they cannot use.
+   */
+  it("keeps the earlier bound on a tie, so the sentence is still true", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const result = getFairmintLots({ fairminter, balance: "0", alreadyMinted: "5000" });
+
+    expect(result.lots).toBe("0");
+    expect(result.binding).toBe("balance");
+  });
+
+  it("gives every bound a distinct sentence", () => {
+    const bounds = ["balance", "per_tx", "hard_cap", "per_address", "unavailable"] as const;
+    const sentences = bounds.map(describeFairmintBound);
+
+    expect(new Set(sentences).size).toBe(bounds.length);
+    for (const sentence of sentences) expect(sentence.length).toBeGreaterThan(20);
+  });
+
+  it("still answers the plain count the same way", () => {
+    const fairminter = { ...base, max_mint_per_address_normalized: "5000" };
+    const args = { fairminter, balance: "100", alreadyMinted: "3000" };
+
+    expect(getMaxFairmintLots(args)).toBe(getFairmintLots(args).lots);
+    expect(getMaxFairmintLots(args)).toBe("2");
   });
 });

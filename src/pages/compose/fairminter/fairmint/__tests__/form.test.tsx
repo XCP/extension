@@ -12,7 +12,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ComposerProvider } from '@/contexts/composer-context';
-import type { FairminterDetails } from '@/core/counterparty/api';
+import { clearApiCache, type FairminterDetails } from '@/core/counterparty/api';
 import { asBaseUnits, asDisplayUnits } from '@/core/numeric';
 import { FairmintForm } from '../form';
 
@@ -146,6 +146,9 @@ describe('FairmintForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // cpApiGet caches by URL, so without this the second test to ask for an address's fairmint
+    // history is handed the first one's answer and never calls fetch at all.
+    clearApiCache();
     mockFairmintersResponse([createMockFairminter()]);
   });
 
@@ -295,6 +298,103 @@ describe('FairmintForm', () => {
       await waitFor(() => expect(mockFormAction).toHaveBeenCalled());
       const submitted = mockFormAction.mock.calls[0]![0] as FormData;
       expect(submitted.get('quantity')).toBe('0');
+    });
+  });
+
+  /**
+   * The reported bug. An address that has already minted its per-address allowance clicked Max and
+   * nothing happened at all: the handler filled the field with `maxLots()` — "0" — and then cleared
+   * the validation error, so the one control that could have explained the situation wiped the
+   * explanation instead.
+   *
+   * A zero is the same number whichever bound produced it, so the fix is that the button says which.
+   */
+  describe('Max when there is nothing left to mint', () => {
+    /**
+     * Route the fairminter list and this address's fairmint history to different answers.
+     *
+     * `text()` and a JSON content-type, not `json()`: `apiClient` parses every response through
+     * `parseJsonLossless(await response.text())`, because JSON.parse rounds a 64-bit quantity
+     * while parsing. A mock offering only `json()` makes the read throw, and
+     * `fetchAddressFairmintTotal` swallows that into `null` — which reads as "allowance unknown"
+     * and quietly offers the whole allowance back.
+     */
+    const mockMintedTotal = (fairminter: FairminterDetails, earned: string) => {
+      (global.fetch as any).mockImplementation((url: string) => {
+        const body = String(url).includes('/fairmints/')
+          ? { result: [{ earn_quantity_normalized: earned }] }
+          : { result: [fairminter] };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: (name: string) =>
+            name.toLowerCase() === 'content-type' ? 'application/json' : null },
+          text: async () => JSON.stringify(body),
+          json: async () => body,
+        });
+      });
+    };
+
+    /**
+     * The allowance already spent is fetched only once a fairminter is chosen. Clicking before it
+     * lands reads `alreadyMinted` as unknown, which bounds by the whole allowance and offers lots
+     * that are gone — so the wait is part of what is being tested, not a workaround for it.
+     */
+    const waitForMintedTotal = () =>
+      waitFor(() =>
+        expect(
+          (global.fetch as any).mock.calls.some((call: unknown[]) =>
+            String(call[0]).includes('/fairmints/')
+          )
+        ).toBe(true)
+      );
+
+    // 5 lots of 1,000 allowed per address, all 5 already minted.
+    const cappedFairminter = () =>
+      createMockFairminter({ max_mint_per_address: asBaseUnits(5000) });
+
+    it('says the allowance is spent instead of doing nothing', async () => {
+      const fairminter = cappedFairminter();
+      mockMintedTotal(fairminter, '5000');
+      renderForm();
+      await selectFairminter();
+
+      const max = await screen.findByRole('button', { name: /Use maximum available amount/i });
+      await waitForMintedTotal();
+      await userEvent.setup({ pointerEventsCheck: 0 }).click(max);
+
+      expect(await screen.findByText(/already minted the most this fairminter allows per address/i))
+        .toBeInTheDocument();
+    });
+
+    it('does not blame the balance, which is fine', async () => {
+      const fairminter = cappedFairminter();
+      mockMintedTotal(fairminter, '5000');
+      renderForm();
+      await selectFairminter();
+
+      const max = await screen.findByRole('button', { name: /Use maximum available amount/i });
+      await waitForMintedTotal();
+      await userEvent.setup({ pointerEventsCheck: 0 }).click(max);
+
+      await screen.findByText(/per address/i);
+      expect(screen.queryByText(/balance is too low/i)).not.toBeInTheDocument();
+    });
+
+    it('still fills in the count when there is an allowance left', async () => {
+      const fairminter = cappedFairminter();
+      mockMintedTotal(fairminter, '2000'); // 3 lots of the 5 remain
+      renderForm();
+      await selectFairminter();
+
+      const max = await screen.findByRole('button', { name: /Use maximum available amount/i });
+      await waitForMintedTotal();
+      await userEvent.setup({ pointerEventsCheck: 0 }).click(max);
+
+      await waitFor(() =>
+        expect(screen.getByRole('textbox', { name: /Lots to Mint/i })).toHaveValue('3')
+      );
+      expect(screen.queryByText(/per address/i)).not.toBeInTheDocument();
     });
   });
 

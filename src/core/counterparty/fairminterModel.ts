@@ -230,7 +230,21 @@ function displayQuantity(
 }
 
 /**
- * How many lots can be minted in one transaction, given a balance to spend.
+ * Which bound decided the answer. A count of zero is the same number whatever produced it, and
+ * the four causes want four different sentences: "you have minted your allowance" and "the sale
+ * is over" are not the same news, and telling someone their balance is too low when it is not is
+ * worse than saying nothing.
+ */
+export type FairmintBound =
+  | "balance"
+  | "per_tx"
+  | "hard_cap"
+  | "per_address"
+  /** Lot size or price is missing, so no count can be derived at all. */
+  | "unavailable";
+
+/**
+ * How many lots can be minted in one transaction, given a balance to spend, and what limited it.
  *
  * Every bound core checks, in lots, so the Max button cannot offer a quantity core will reject:
  * what the balance affords, `max_mint_per_tx`, what is left under the hard cap, and what is left
@@ -239,8 +253,12 @@ function displayQuantity(
  *
  * Bounds whose inputs are absent are skipped rather than guessed — an unknown supply is not a full
  * cap. Those cases still fail at compose, which is the safe direction.
+ *
+ * On a tie the earlier bound is kept, so `binding` names something that is genuinely true rather
+ * than the last one evaluated: an address that is both broke and maxed out is told about the
+ * balance, and both statements hold.
  */
-export function getMaxFairmintLots({
+export function getFairmintLots({
   fairminter,
   balance,
   assetSupply,
@@ -253,17 +271,23 @@ export function getMaxFairmintLots({
   assetSupply?: string | number | null;
   /** What this address has already minted, for the per-address allowance. */
   alreadyMinted?: string | number | null;
-}): string {
+}): { lots: string; binding: FairmintBound } {
   const lotSize = fairminter.quantity_by_price_normalized;
   const lotCost = getFairminterLotCost(fairminter);
-  if (!lotSize || !isGreaterThan(lotSize, 0) || !isGreaterThan(lotCost, 0)) return "0";
+  if (!lotSize || !isGreaterThan(lotSize, 0) || !isGreaterThan(lotCost, 0)) {
+    return { lots: "0", binding: "unavailable" };
+  }
 
   let lots = roundDown(divide(balance, lotCost));
+  let binding: FairmintBound = "balance";
 
-  const capBy = (quantity: string | number | null | undefined) => {
+  const capBy = (quantity: string | number | null | undefined, cause: FairmintBound) => {
     if (quantity === undefined || quantity === null || quantity === "") return;
     const allowed = roundDown(divide(quantity, lotSize));
-    if (allowed.isLessThan(lots)) lots = allowed;
+    if (allowed.isLessThan(lots)) {
+      lots = allowed;
+      binding = cause;
+    }
   };
 
   const divisible = fairminter.divisible;
@@ -284,18 +308,39 @@ export function getMaxFairmintLots({
     divisible
   );
 
-  capBy(perTx);
+  capBy(perTx, "per_tx");
 
   if (hardCap && isGreaterThan(hardCap, 0)) {
     if (assetSupply !== undefined && assetSupply !== null) {
-      capBy(subtract(hardCap, assetSupply).toString());
+      capBy(subtract(hardCap, assetSupply).toString(), "hard_cap");
     }
   }
   if (perAddress && isGreaterThan(perAddress, 0)) {
-    capBy(subtract(perAddress, alreadyMinted ?? 0).toString());
+    capBy(subtract(perAddress, alreadyMinted ?? 0).toString(), "per_address");
   }
 
-  return maximum(lots, 0).toString();
+  return { lots: maximum(lots, 0).toString(), binding };
+}
+
+/** Why there is nothing to mint, for the form to say instead of doing nothing. */
+export function describeFairmintBound(binding: FairmintBound): string {
+  switch (binding) {
+    case "per_address":
+      return "You have already minted the most this fairminter allows per address.";
+    case "hard_cap":
+      return "This sale has minted out — there is nothing left.";
+    case "per_tx":
+      return "This fairminter's per-transaction limit is smaller than one lot.";
+    case "balance":
+      return "Your XCP balance is too low to mint a lot.";
+    case "unavailable":
+      return "This fairminter does not price a lot, so there is nothing to mint.";
+  }
+}
+
+/** @see getFairmintLots — the count alone, for callers with nothing to explain. */
+export function getMaxFairmintLots(args: Parameters<typeof getFairmintLots>[0]): string {
+  return getFairmintLots(args).lots;
 }
 
 /** The protocol quantity a number of lots composes to. */
