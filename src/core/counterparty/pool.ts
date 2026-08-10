@@ -139,3 +139,62 @@ export function calculateLimitingLpEstimate(
     .integerValue(BigNumber.ROUND_DOWN)
     .toString();
 }
+
+/**
+ * Why a swap quote produced nothing, when it produced nothing.
+ *
+ * `estimated_output: 0` and `give_remaining: <the whole input>` is what the endpoint returns both
+ * when the pair has no pool and when the pool is deep but the input is too small to buy a single
+ * unit of the other asset. The screen read only the output, so it answered "No liquidity available
+ * for this pair" for a pool that had just quoted the opposite direction at 1% impact — and then
+ * advised trying a *smaller* amount, which is the one change guaranteed not to help.
+ *
+ * Live, for a PEPECASH/XCP pool holding both sides: 157 sats in returns 0 out with
+ * `pool_exists: true`, 245 likewise, and 300 returns 1. Nothing is missing from the pool at 157;
+ * 157 PEPECASH is worth 0.64 satoshis of XCP, and a quantity is an integer.
+ */
+export type SwapQuoteOutcome =
+  /** Fills completely. */
+  | "fillable"
+  /** Fills partly: the pool really does run out inside this trade. */
+  | "partial"
+  /** The pool can trade, but this input rounds down to zero of the other asset. */
+  | "dust"
+  /** No pool to trade against. */
+  | "no_pool";
+
+interface SwapQuoteFields {
+  estimated_output?: number;
+  give_remaining?: string | number | null;
+  pool_exists?: boolean;
+}
+
+export function readSwapQuoteOutcome(quote: SwapQuoteFields | null | undefined): SwapQuoteOutcome {
+  if (!quote) return "no_pool";
+
+  const output = toBigNumber(quote.estimated_output ?? 0);
+  // A 64-bit asset quantity, so it can arrive as a string: "10" > 0 compares as text.
+  const remaining = toBigNumber(quote.give_remaining ?? 0);
+
+  if (output.isGreaterThan(0)) return remaining.isGreaterThan(0) ? "partial" : "fillable";
+  // Only claim the amount is the problem when the pool is known to exist. An absent `pool_exists`
+  // is not evidence of one, and "too small" would be a worse wrong answer than the generic one.
+  return quote.pool_exists === true ? "dust" : "no_pool";
+}
+
+/** What to tell someone, or null when the quote is fine. */
+export function describeSwapQuoteOutcome(
+  outcome: SwapQuoteOutcome,
+  assets: { giveAsset: string; getAsset: string }
+): string | null {
+  switch (outcome) {
+    case "fillable":
+      return null;
+    case "partial":
+      return "Not enough liquidity to fill this amount right now. Try a smaller amount, or place a DEX order to rest on the book.";
+    case "dust":
+      return `This amount is too small to swap: it works out to less than the smallest unit of ${assets.getAsset}, so the pool would return nothing. Try a larger amount of ${assets.giveAsset}.`;
+    case "no_pool":
+      return "No liquidity available for this pair.";
+  }
+}

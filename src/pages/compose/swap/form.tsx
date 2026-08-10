@@ -11,7 +11,12 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
 import type { PoolQuote } from "@/core/counterparty/api";
 import type { OrderOptions } from "@/core/counterparty/compose";
-import { applyPoolSlippage, resolvePoolSlippage } from "@/core/counterparty/pool";
+import {
+  applyPoolSlippage,
+  describeSwapQuoteOutcome,
+  readSwapQuoteOutcome,
+  resolvePoolSlippage,
+} from "@/core/counterparty/pool";
 import { formatAmount } from "@/core/format";
 import {
   fromSatoshis,
@@ -149,9 +154,13 @@ export function SwapForm({
     isGiveDivisible,
     enabled: canQuote,
   });
-  // Compared as a BigNumber: give_remaining is a 64-bit asset quantity, so it can arrive as a
-  // string, and "0" > 0 is false but "10" > 0 compares as text rather than as a number.
-  const unfilled = toBigNumber(quote?.give_remaining ?? 0).gt(0);
+  // Why this quote came back empty, when it did. A zero output means "no pool" and "your amount
+  // is too small for this pool" alike, and those want opposite advice.
+  const outcome = readSwapQuoteOutcome(quote);
+  const outcomeMessage = quote && !isLoadingQuote
+    ? describeSwapQuoteOutcome(outcome, { giveAsset, getAsset })
+    : null;
+  const unfilled = outcome === "partial";
 
   // Auto reads the tolerance off this quote's own price impact; a stored percent is used as-is.
   const slippage = resolvePoolSlippage(slippageSetting, quote?.price_impact);
@@ -360,7 +369,9 @@ export function SwapForm({
       {quoteError && <ErrorAlert message={quoteError} />}
       {canQuote && !isLoadingQuote && quote && !quoteView && (
         <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-          {quote.message || "No liquidity available for this pair."}
+          {/* The endpoint's own message wins when it has one, but it does not send one for a
+              zero-output quote — which is the case that was being described wrongly. */}
+          {quote.message || outcomeMessage}
         </div>
       )}
 
@@ -418,10 +429,9 @@ export function SwapForm({
         </div>
       )}
 
-      {unfilled && (
+      {unfilled && outcomeMessage && (
         <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-          Not enough liquidity to fill this amount right now. Try a smaller
-          amount, or place a DEX order to rest on the book.
+          {outcomeMessage}
         </div>
       )}
 

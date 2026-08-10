@@ -5,11 +5,13 @@ import {
   applyPoolSlippage,
   calculateInitialLpEstimate,
   calculateLimitingLpEstimate,
+  describeSwapQuoteOutcome,
   getAutoSlippage,
   getPoolDisplayAssets,
   getPoolDisplayPair,
   isAutoPoolSlippage,
   normalizePoolPosition,
+  readSwapQuoteOutcome,
   resolvePoolSlippage,
 } from "../pool";
 
@@ -123,5 +125,86 @@ describe("counterparty pool utilities", () => {
       const alreadyNormalized = { ...position, quantity_normalized: asDisplayUnits("47434.1649") };
       expect(normalizePoolPosition(alreadyNormalized).quantity_normalized).toBe("47434.1649");
     });
+  });
+});
+
+/**
+ * A zero-output quote is the same shape whether the pair has no pool or the input is too small to
+ * buy one unit of the other asset, and the two want opposite advice. The screen read only the
+ * output, so a PEPECASH/XCP pool that had just quoted 17.26 XCP -> 4231.50 PEPECASH at 1% impact
+ * reported "No liquidity available for this pair" in the other direction — and then told the user
+ * to try a *smaller* amount, the one change that cannot help.
+ *
+ * The fixtures are `/v2/pools/{a}/{b}/quote` verbatim, so the distinction is tested against what
+ * the node sends rather than against what we assumed it sends.
+ */
+describe("readSwapQuoteOutcome", () => {
+  /** 17.26246519 XCP -> PEPECASH: the direction that worked. */
+  const FILLS = {
+    estimated_output: 423150280251,
+    give_remaining: 0,
+    pool_exists: true,
+    price_impact: 1.0638,
+  };
+
+  /** 0.00000157 PEPECASH -> XCP: the reported bug. 157 sats is 0.64 satoshis of XCP. */
+  const DUST = {
+    estimated_output: 0,
+    give_remaining: 157,
+    pool_exists: true,
+    price_impact: 100.0,
+  };
+
+  const ASSETS = { giveAsset: "PEPECASH", getAsset: "XCP" };
+
+  it("calls a complete fill fillable, and says nothing about it", () => {
+    expect(readSwapQuoteOutcome(FILLS)).toBe("fillable");
+    expect(describeSwapQuoteOutcome("fillable", ASSETS)).toBeNull();
+  });
+
+  it("does not blame liquidity for an amount too small to buy one unit", () => {
+    expect(readSwapQuoteOutcome(DUST)).toBe("dust");
+
+    const message = describeSwapQuoteOutcome("dust", ASSETS)!;
+    expect(message).toContain("too small");
+    expect(message).toContain("larger");
+    // The two things it used to say, both wrong for this quote.
+    expect(message).not.toContain("No liquidity");
+    expect(message).not.toContain("smaller");
+  });
+
+  it("still reports a genuine partial fill, and there advises a smaller amount", () => {
+    const partial = { estimated_output: 5, give_remaining: 900, pool_exists: true };
+    expect(readSwapQuoteOutcome(partial)).toBe("partial");
+    expect(describeSwapQuoteOutcome("partial", ASSETS)).toContain("smaller");
+  });
+
+  it("reports a missing pool as a missing pool", () => {
+    expect(readSwapQuoteOutcome({ estimated_output: 0, give_remaining: 500, pool_exists: false }))
+      .toBe("no_pool");
+    expect(readSwapQuoteOutcome(null)).toBe("no_pool");
+    expect(describeSwapQuoteOutcome("no_pool", ASSETS)).toContain("No liquidity");
+  });
+
+  /**
+   * An absent `pool_exists` is not evidence of a pool. Guessing "dust" there would tell someone
+   * their amount is wrong when the pair may simply not trade — a worse wrong answer than the
+   * generic one, because it sends them to try again.
+   */
+  it("does not infer a pool from a field the response omitted", () => {
+    expect(readSwapQuoteOutcome({ estimated_output: 0, give_remaining: 157 })).toBe("no_pool");
+  });
+
+  it("compares give_remaining as a number even when it arrives as a string", () => {
+    // A 64-bit quantity can arrive as a string; "900" > 0 as text is not the same comparison.
+    expect(readSwapQuoteOutcome({ estimated_output: 5, give_remaining: "900", pool_exists: true }))
+      .toBe("partial");
+    expect(readSwapQuoteOutcome({ estimated_output: 5, give_remaining: "0", pool_exists: true }))
+      .toBe("fillable");
+  });
+
+  it("names the asset you would receive nothing of", () => {
+    expect(describeSwapQuoteOutcome("dust", ASSETS)).toContain("XCP");
+    expect(describeSwapQuoteOutcome("dust", ASSETS)).toContain("PEPECASH");
   });
 });
