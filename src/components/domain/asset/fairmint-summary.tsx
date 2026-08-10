@@ -44,8 +44,6 @@ export function FairmintSummary({
   const hasQuantity = isGreaterThan(quantity || 0, 0);
   const decimals = fairminter.divisible === false ? 0 : 8;
 
-  const hasSoftCap = isGreaterThan(fairminter.soft_cap_normalized ?? fairminter.soft_cap ?? 0, 0);
-
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
       {hasQuantity && (
@@ -67,15 +65,6 @@ export function FairmintSummary({
       )}
 
       <Row label="Payment" value={describeFairminterPaymentModel(model)} />
-
-      {hasSoftCap && (
-        // Core sends both the payment and the assets to UNSPENDABLE until the soft cap is met.
-        <p className="pt-1 text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded p-2">
-          This fairminter has a soft cap. Until it is reached, your payment and the tokens are both
-          held in escrow — nothing is credited when this transaction confirms, and your XCP is
-          refunded if the cap is missed by its deadline.
-        </p>
-      )}
     </div>
   );
 }
