@@ -55,11 +55,27 @@ function WalletsPage() {
     });
   }, [setHeaderProps, navigate, handleAddWallet]);
 
+  /**
+   * The wallet a click has chosen but the keychain has not finished loading.
+   *
+   * Selecting decrypts the secret and derives every address, which is work — and until it
+   * returned, nothing on this screen moved: the radio still showed the wallet you were leaving,
+   * so a click read as having missed. Showing the choice immediately is the honest answer, since
+   * the choice really has been made; it reverts if the load fails.
+   */
+  const [pendingWallet, setPendingWallet] = useState<Wallet | null>(null);
+
   const handleSelectWalletInternal = async (wallet: Wallet) => {
     if (wallet.type === 'hardware' && !canUseHardwareWallet) {
       return;
     }
+    // `withStateLock` queues rather than drops, so a second click while the first is in flight
+    // does not replace it — it waits behind it and then derives every address over again.
+    if (pendingWallet) {
+      return;
+    }
 
+    setPendingWallet(wallet);
     try {
       // Load wallet (decrypts secret and derives addresses)
       await selectWallet(wallet.id);
@@ -67,6 +83,7 @@ function WalletsPage() {
     } catch (err) {
       console.error('Error selecting wallet:', err);
       setError('Failed to select wallet. Please try again.');
+      setPendingWallet(null);
     }
   };
 
@@ -82,8 +99,11 @@ function WalletsPage() {
         </h2>
         <WalletList
           wallets={wallets}
-          selectedWallet={activeWallet}
-          selectedAddress={activeAddress}
+          selectedWallet={pendingWallet ?? activeWallet}
+          // A wallet that is still loading has no derived addresses yet — its secret is decrypted
+          // as part of the work being waited on — so the card falls back to its preview address
+          // rather than showing the address of the wallet being left.
+          selectedAddress={pendingWallet ? null : activeAddress}
           onSelectWallet={handleSelectWalletInternal}
           disableHardwareWallets={!canUseHardwareWallet}
           hardwareWalletDisabledMessage="Open in sidepanel"
