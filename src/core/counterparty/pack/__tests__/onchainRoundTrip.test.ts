@@ -71,6 +71,14 @@ const PARAMS_FROM_DECODED: Record<string, (data: Record<string, any>) => Record<
   }),
   destroy: (data) => ({ asset: data.asset, quantity: data.quantity, tag: data.tag ?? '' }),
   cancel: (data) => ({ offer_hash: data.offerHash }),
+  // btcpay is here rather than in the compose oracle because core cannot compose one on request:
+  // it needs a *pending* order match in the ledger, so a synthetic id is refused ("no such order
+  // match"). On-chain samples need no such arrangement.
+  btcpay: (data) => ({ order_match_id: data.orderMatchId }),
+  // The decoder reports core's literal "0" — its stand-in for "no destination, use the sender's
+  // address" — as an empty string, and `packDetach` writes that byte back. Passing it through
+  // unchanged is what makes the round trip test that pair rather than skip it.
+  detach: (data) => ({ destination: data.destination }),
   order: (data) => ({
     give_asset: data.giveAsset,
     give_quantity: data.giveQuantity,
@@ -183,6 +191,8 @@ const COMPOSE_TYPE_FOR: Record<string, string> = {
   fairminter: 'fairminter',
   broadcast: 'broadcast',
   mpma: 'mpma',
+  btcpay: 'btcpay',
+  detach: 'detach',
 };
 
 async function recentTransactions(type: string): Promise<OnChainTransaction[]> {
