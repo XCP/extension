@@ -21,9 +21,15 @@ export function DispenserCloseByHashForm({
 }: DispenserCloseByHashFormProps): ReactElement {
   const { activeAddress, activeWallet, showHelpText } = useComposer();
   const { pending } = useFormStatus();
-  const [txHash, setTxHash] = useState<string>(initialTxHash || initialFormData?.open_address || "");
+  // Not seeded from initialFormData: DispenserOptions carries no transaction hash,
+  // and open_address — the only address-shaped field on it — is the dispenser's
+  // host, which the hash input rejects as "must be 64 hexadecimal characters".
+  const [txHash, setTxHash] = useState<string>(initialTxHash || "");
   const [selectedDispenser, setSelectedDispenser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const closingOnAnotherAddress =
+    !!selectedDispenser && selectedDispenser.source !== activeAddress?.address;
 
   // Fetch dispenser data when initialTxHash is provided or when txHash changes
   useEffect(() => {
@@ -108,8 +114,18 @@ export function DispenserCloseByHashForm({
           )}
           <input type="hidden" name="asset" value={selectedDispenser?.asset || ""} />
           <input type="hidden" name="status" value="10" />
-          {/* open_address is the dispenser's source address (for closing dispensers at different addresses) */}
-          <input type="hidden" name="open_address" value={selectedDispenser?.source || ""} />
+          {/* open_address names the address the dispenser sits on, and only belongs
+              in the request when that is not the address we are signing from. Core
+              packs an action address into a close only when it differs from the
+              source, so sending our own address here composes a message without one
+              and verification fails the close as an open-address mismatch. */}
+          {closingOnAnotherAddress && (
+            <input
+              type="hidden"
+              name="open_address"
+              value={selectedDispenser?.source ?? ""}
+            />
+          )}
         </>
       )}
     </ComposerForm>
