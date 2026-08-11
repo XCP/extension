@@ -177,7 +177,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
       
       fields.push({
         label: "Expiration",
-        value: `${params.expiration} blocks (${blocksRemaining > 0 ? `${blocksRemaining} remaining` : "Expired"})`,
+        value: `${params.expiration} block${params.expiration === 1 ? "" : "s"} (${blocksRemaining > 0 ? `${blocksRemaining} remaining` : "Expired"})`,
       });
     }
   }

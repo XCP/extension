@@ -267,9 +267,8 @@ export default function ApproveConnectionPage(): ReactElement {
                   Share paired Legacy and SegWit addresses
                 </span>
                 <span className="mt-1 block text-xs text-blue-800">
-                  This lets the site associate both addresses and request signatures that spend
-                  inputs belonging to either address. Each request still shows the inputs, outputs,
-                  fees, and signature rules for your approval. Access lasts until you disconnect the site.
+                  The site can then request signatures spending inputs from either address. Access
+                  lasts until you disconnect the site.
                 </span>
                 {pairedAddressError && (
                   <span className="mt-2 block text-xs font-medium text-red-700">

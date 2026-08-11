@@ -62,12 +62,12 @@ describe('OrderCard', () => {
     mockFetchPoolQuote.mockResolvedValue(quote(10_100_000_000));
     render(<OrderCard order={order()} />);
 
-    expect(await screen.findByText(/~101\.00000000 at the pool price right now/)).toBeInTheDocument();
-    expect(screen.getByText(/not supplied by the site/)).toBeInTheDocument();
+    expect(await screen.findByText(/~101\.00000000 estimated/)).toBeInTheDocument();
     expect(screen.queryByText(/Make sure that is the slippage/)).not.toBeInTheDocument();
   });
 
-  it('describes a book-routed estimate as the order book, not the pool', async () => {
+  it('shows the estimate whichever venue it came from', async () => {
+    // Book-only and split routes are the same figure to the reader: an estimate, not a promise.
     mockFetchPoolQuote.mockResolvedValue({
       estimated_output: 10_100_000_000,
       pool_output: 0,
@@ -75,18 +75,20 @@ describe('OrderCard', () => {
     });
     render(<OrderCard order={order()} />);
 
-    expect(await screen.findByText(/at the current order book price/)).toBeInTheDocument();
+    expect(await screen.findByText(/~101\.00000000 estimated/)).toBeInTheDocument();
   });
 
-  it('describes a split route as the market', async () => {
+  it('withholds an estimate with neither a pool nor a book behind it', async () => {
+    // A total with no venue reporting it describes no market the order could fill against.
     mockFetchPoolQuote.mockResolvedValue({
       estimated_output: 10_100_000_000,
-      pool_output: 5_000_000_000,
-      book_output: 5_100_000_000,
+      pool_output: 0,
+      book_output: 0,
     });
     render(<OrderCard order={order()} />);
 
-    expect(await screen.findByText(/at the current market price/)).toBeInTheDocument();
+    await waitFor(() => expect(mockFetchPoolQuote).toHaveBeenCalled());
+    expect(screen.queryByText(/estimated/)).not.toBeInTheDocument();
   });
 
   it('warns once the minimum sits 5% or more below the estimate', async () => {
@@ -113,7 +115,7 @@ describe('OrderCard', () => {
 
     expect(await screen.findByText(/likely to rest unfilled/)).toBeInTheDocument();
     // The estimate line is for a cushion, not a shortfall — it would read as reassurance.
-    expect(screen.queryByText(/not supplied by the site/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/estimated/)).not.toBeInTheDocument();
   });
 
   it('shows the minimum alone when the node cannot be reached', async () => {
@@ -122,7 +124,7 @@ describe('OrderCard', () => {
 
     await waitFor(() => expect(mockFetchPoolQuote).toHaveBeenCalled());
     expect(screen.getByText('You receive at least')).toBeInTheDocument();
-    expect(screen.queryByText(/at the/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/estimated/)).not.toBeInTheDocument();
     expect(screen.queryByText(/likely to rest unfilled/)).not.toBeInTheDocument();
   });
 
@@ -138,7 +140,7 @@ describe('OrderCard', () => {
     render(<OrderCard order={order({ getDivisor: null })} />);
 
     await waitFor(() => expect(mockFetchPoolQuote).toHaveBeenCalled());
-    expect(screen.queryByText(/at the pool price/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/estimated/)).not.toBeInTheDocument();
   });
 
   it('asks the node for the give quantity in base units', async () => {

@@ -105,7 +105,9 @@ export function buildApprovalWarnings({
       key: 'unknown-status',
       severity: 'warning',
       title: "Couldn't verify asset status",
-      description: `The balance lookup failed for ${signedInputsUnknownStatus.length === 1 ? 'an input' : 'some inputs'} you are signing, so attached Counterparty assets can't be confirmed either way. Proceed only if you trust this transaction.`,
+      // The inputs are listed below and the severity already carries the "be careful" — a closing
+      // "proceed only if you trust this" sentence adds words the reader cannot act on.
+      description: "The balance lookup failed, so attached assets can't be ruled out.",
       children: (
         <ul className="mt-2 space-y-1 text-xs font-medium">
           {signedInputsUnknownStatus.map(entry => (

@@ -234,7 +234,7 @@ export default function ApprovePsbtPage() {
       severity: redirectable ? 'danger' : 'warning',
       title: redirectable ? 'Some of your funds can be redirected' : 'This transaction can still change',
       description: redirectable
-        ? 'Part of the amount shown returning to your wallet can be sent somewhere else after you sign. Only approve this if you trust the site with that amount.'
+        ? 'Part of the amount shown returning to your wallet can be sent somewhere else after you sign.'
         : 'Inputs or outputs can be added after you sign. Check the amounts above before approving.',
       children: (
         <ul className="mt-2 space-y-1 text-xs font-medium">

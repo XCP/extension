@@ -95,10 +95,7 @@ export function ReviewFairmint({
     if (escrowed) {
       customFields.push({
         label: "⚠️ Soft Cap",
-        value:
-          "Your payment and the tokens are held in escrow until the soft cap is reached. " +
-          "Nothing is credited when this transaction confirms, and the XCP is refunded if the " +
-          "cap is missed by its deadline.",
+        value: "Payment and tokens are held in escrow until the cap is reached, refunded if it is missed.",
       });
     }
   } else {

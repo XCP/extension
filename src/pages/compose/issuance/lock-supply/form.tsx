@@ -98,7 +98,7 @@ export function LockSupplyForm({
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the token supply is an irreversible action. Once locked, you will not be able to create additional tokens.
+            Locking the supply is permanent. No more {asset} can ever be created.
           </p>
           {assetInfo?.supply && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
@@ -116,7 +116,7 @@ export function LockSupplyForm({
         
         <CheckboxInput
           name="confirm"
-          label={`I understand that locking the supply of ${asset} is permanent and cannot be undone`}
+          label="I understand this cannot be undone"
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

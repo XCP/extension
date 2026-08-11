@@ -51,8 +51,7 @@ export function ResetSupplyForm({
       </div>
       <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
         <p className="text-sm text-yellow-700">
-          Warning: Resetting the token supply will destroy all existing tokens. This action cannot be
-          undone.
+          Resetting destroys all existing {asset}. This cannot be undone.
         </p>
       </div>
         <input type="hidden" name="asset" value={asset} />
@@ -61,7 +60,7 @@ export function ResetSupplyForm({
         <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
         <CheckboxInput
           name="confirm"
-          label={`I understand that resetting the supply of ${asset} will destroy all existing tokens.`}
+          label="I understand this cannot be undone"
           disabled={pending}
         />
 

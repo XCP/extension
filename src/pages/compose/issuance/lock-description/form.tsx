@@ -96,7 +96,7 @@ export function LockDescriptionForm({
       <Field>
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
           <p className="text-sm text-yellow-700">
-            Locking the description is permanent and irreversible. Once locked, you will never be able to change the asset description again.
+            Locking the description is permanent. It can never be changed again.
           </p>
           {currentDescription && (
             <div className="mt-3 pt-3 border-t border-yellow-200">
@@ -112,7 +112,7 @@ export function LockDescriptionForm({
         
         <CheckboxInput
           name="confirm"
-          label={`I understand that locking the description for ${asset} is permanent and cannot be undone`}
+          label="I understand this cannot be undone"
           disabled={pending}
           checked={isChecked}
           onChange={handleCheckboxChange}

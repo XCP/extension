@@ -159,7 +159,8 @@ export function buildOrderAction(source: OrderSource): OrderAction | null {
  *
  * `estimated_output` spans the pool *and* the order book — the API reports `pool_output` and
  * `book_output` separately and this is their sum — so the figure is a market estimate, not a pool
- * price, and the wording says so.
+ * price. It is labelled "estimated", which is true of either venue; the venue breakdown is still
+ * read, but only to tell an estimate backed by a real market from one backed by neither.
  *
  * `null` while loading, when the pair has no market, or when the node cannot be reached. In every
  * one of those cases the card shows the decoded minimum alone: the estimate is decoration, the
@@ -224,13 +225,6 @@ function useOwnMarketQuote(order: OrderAction): OwnQuote | null {
   return quote;
 }
 
-/** How the estimate is described, given where it came from. */
-const ROUTE_LABEL: Record<NonNullable<OwnQuote['route']>, string> = {
-  pool: 'at the pool price right now',
-  book: 'at the current order book price',
-  both: 'at the current market price',
-};
-
 /** The give/receive card, with a rate the user can flip. */
 export function OrderCard({ order }: { order: OrderAction }) {
   const [priceFlipped, setPriceFlipped] = useState(false);
@@ -250,7 +244,8 @@ export function OrderCard({ order }: { order: OrderAction }) {
     ownQuote && minRaw.isGreaterThan(0)
       ? toNumber(subtract(1, divide(minRaw, ownQuote.estimatedRaw)))
       : null;
-  const routeLabel = ownQuote?.route ? ROUTE_LABEL[ownQuote.route] : null;
+  /** An estimate with no pool and no book behind it describes nothing, so it is not shown. */
+  const hasVenue = ownQuote?.route != null;
 
   return (
     <div className="mb-3">
@@ -286,23 +281,21 @@ export function OrderCard({ order }: { order: OrderAction }) {
 
       <div
         className="bg-gray-50 rounded-lg p-4"
-        title={`This amount is guaranteed by the transaction itself. If the market can't deliver at least this much, the order rests or refunds and you keep your ${order.giveAsset}.`}
+        title={`Guaranteed by the transaction. If the market can't deliver this much, you keep your ${order.giveAsset}.`}
       >
         <p className="text-xs text-gray-500 mb-1">You receive at least</p>
         <p className="text-xl font-bold text-gray-900">
           {order.getAmount}{' '}
           <span className="text-base font-normal text-gray-500">{order.getAsset}</span>
         </p>
-        {estimateDisplay !== null && routeLabel !== null && impliedSlippage !== null
+        {estimateDisplay !== null && hasVenue && impliedSlippage !== null
           && impliedSlippage >= 0 && (
-          <>
-            <p className="text-xs text-gray-500 mt-1.5">
-              ~{estimateDisplay} {routeLabel}
-            </p>
-            <p className="text-[11px] text-gray-400">
-              Checked by your wallet, not supplied by the site.
-            </p>
-          </>
+          <p
+            className="text-xs text-gray-500 mt-1.5"
+            title="Estimated by your wallet from its own node, not supplied by the site."
+          >
+            ~{estimateDisplay} estimated
+          </p>
         )}
         {impliedSlippage !== null && impliedSlippage < 0 && (
           <p className="text-xs text-red-600 mt-1.5">
@@ -321,7 +314,7 @@ export function OrderCard({ order }: { order: OrderAction }) {
       <p className="text-xs text-gray-400 text-center mt-2">
         {order.expiration === 0
           ? 'Never expires'
-          : `Expires in ${order.expiration.toLocaleString()} blocks`}
+          : `Expires in ${order.expiration.toLocaleString()} block${order.expiration === 1 ? '' : 's'}`}
       </p>
     </div>
   );

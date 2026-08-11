@@ -7,7 +7,9 @@ import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 
 const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
-  return blocks === 0 ? "Never expires" : `${blocks.toLocaleString()} blocks`;
+  return blocks === 0
+    ? "Never expires"
+    : `${blocks.toLocaleString()} block${blocks === 1 ? "" : "s"}`;
 };
 
 /**
