@@ -8,12 +8,13 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ComposerForm } from "@/components/composer/composer-form";
 import { AddressHeader } from "@/components/domain/address/address-header";
 import { FaCheck, FaCopy, FiChevronDown } from "@/components/icons";
 import { useComposer } from "@/contexts/composer-context-object";
+import type { DispenserDetails } from "@/core/counterparty/api";
 import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
@@ -44,14 +45,15 @@ export function DispenserCloseForm({
 
   // Form state
   const [selectedTxHash, setSelectedTxHash] = useState<string | null>(null);
-  const [dispensers, setDispensers] = useState<any[]>([]);
+  const [dispensers, setDispensers] = useState<DispenserDetails[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Computed values
   const asset = initialAsset || initialFormData?.asset || "";
-  const relevantDispensers = asset
-    ? dispensers.filter((d) => d.asset === asset)
-    : dispensers;
+  const relevantDispensers = useMemo(
+    () => (asset ? dispensers.filter((d) => d.asset === asset) : dispensers),
+    [dispensers, asset],
+  );
   const selectedDispenser = relevantDispensers.find(
     (d) => d.tx_hash === selectedTxHash,
   );
@@ -86,6 +88,13 @@ export function DispenserCloseForm({
     loadDispensers();
   }, [activeAddress]);
 
+  // Arriving from a dispenser card narrows the list to one; select it so the
+  // asset is submitted without the user re-picking what they already picked.
+  useEffect(() => {
+    const only = relevantDispensers.length === 1 ? relevantDispensers[0] : null;
+    if (only) setSelectedTxHash(only.tx_hash);
+  }, [relevantDispensers]);
+
   // Handlers
   const AssetIcon = ({ asset }: { asset: string }): ReactElement => (
     <img
@@ -101,6 +110,7 @@ export function DispenserCloseForm({
   return (
     <ComposerForm
       formAction={formAction}
+      submitDisabled={!selectedDispenser}
       header={
         activeAddress && (
           <AddressHeader
@@ -196,7 +206,13 @@ export function DispenserCloseForm({
                   </ListboxOptions>
                 </div>
               </Listbox>
-              <input type="hidden" name="asset" value={asset} />
+              {/* The asset is what identifies the dispenser to close, so it has
+                  to come from the selection, not from the route. */}
+              <input
+                type="hidden"
+                name="asset"
+                value={selectedDispenser?.asset ?? ""}
+              />
               <input type="hidden" name="status" value="10" />
               {selectedDispenser && (
                 <div className="mt-3 text-sm p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">

@@ -16,8 +16,9 @@ import { enableValidationBypass } from '../../../compose-test-helpers';
 walletTest.describe('Compose Dispenser Close Page (/compose/dispenser/close)', () => {
   walletTest.beforeEach(async ({ page }) => {
     await enableValidationBypass(page);
-    // Route requires asset parameter: /compose/dispenser/close/:asset?
-    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close/XCP'));
+    // The asset is optional: this is the bare route the Actions page links to, and
+    // the asset comes from the dispenser picked in the dropdown.
+    await page.goto(page.url().replace(/\/index.*/, '/compose/dispenser/close'));
     await page.waitForLoadState('networkidle');
   });
 

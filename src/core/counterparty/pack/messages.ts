@@ -868,16 +868,27 @@ function packBtcPay(params: Params): PackedMessage | null {
 }
 
 /**
+ * Dispenser statuses, as core names them (`dispenser.py`). Which trailing addresses a message
+ * carries depends entirely on these.
+ */
+const DISPENSER_STATUS = { OPEN: 0n, OPEN_EMPTY_ADDRESS: 1n, CLOSED: 10n } as const;
+
+/**
  * dispenser: `">QQQQB"` — asset_id, give_quantity, escrow_quantity, mainchainrate, status —
  * optionally followed by a 21-byte action address and a 21-byte oracle address (dispenser.py).
  */
 function packDispenser(params: Params): PackedMessage | null {
   const asset = requireString(params, 'asset');
-  const give = requireQuantity(params, 'give_quantity');
-  const escrow = requireQuantity(params, 'escrow_quantity');
-  const rate = requireQuantity(params, 'mainchainrate');
-  const status = requireQuantity(params, 'status');
-  if (!asset || give === null || escrow === null || rate === null || status === null) return null;
+  if (!asset) return null;
+
+  // Defaults mirror `composeDispenser`, which is what actually reaches the API: an open omits
+  // `status` and a close omits the three quantities, and it sends 0 for each. Requiring them here
+  // meant no dispenser request could be packed at all, so byte equality — the strongest check —
+  // silently never ran for this type and every dispenser fell back to field comparison.
+  const give = requireQuantity(params, 'give_quantity') ?? 0n;
+  const escrow = requireQuantity(params, 'escrow_quantity') ?? 0n;
+  const rate = requireQuantity(params, 'mainchainrate') ?? 0n;
+  const status = requireQuantity(params, 'status') ?? 0n;
   if (status > 255n) return null;
 
   let assetId: bigint;
@@ -895,21 +906,39 @@ function packDispenser(params: Params): PackedMessage | null {
     Number(status),
   ];
 
-  // Optional trailing addresses, packed legacy-style as core does for this message.
-  for (const key of ['open_address', 'oracle_address']) {
-    const value = params[key];
-    if (typeof value === 'string' && value !== '') {
-      const packed = packAddressLegacy(value);
-      if (!packed) return null;
-      body.push(...packed);
-    }
+  // Trailing addresses, packed legacy-style as core does for this message — but only for the
+  // statuses that carry them. Core appends `open_address` when opening on an empty address, or
+  // when closing a dispenser held on a *different* address than the one signing; it appends
+  // `oracle_address` only while opening (`dispenser.py`). Appending whichever address the request
+  // happened to carry produced bytes core never composes, and byte equality is fail-closed, so it
+  // blocked the transaction outright — a close naming its own address was refused on those 21
+  // extra bytes.
+  const source = requireString(params, 'sourceAddress') ?? '';
+  const openAddress = requireString(params, 'open_address') ?? '';
+  const oracleAddress = requireString(params, 'oracle_address') ?? '';
+
+  const trailing: string[] = [];
+  if (openAddress !== ''
+    && (status === DISPENSER_STATUS.OPEN_EMPTY_ADDRESS
+      || (status === DISPENSER_STATUS.CLOSED && openAddress !== source))) {
+    trailing.push(openAddress);
+  }
+  if (oracleAddress !== ''
+    && (status === DISPENSER_STATUS.OPEN || status === DISPENSER_STATUS.OPEN_EMPTY_ADDRESS)) {
+    trailing.push(oracleAddress);
+  }
+
+  for (const address of trailing) {
+    const packed = packAddressLegacy(address);
+    if (!packed) return null;
+    body.push(...packed);
   }
 
   return withPrefix(MessageTypeId.DISPENSER, new Uint8Array(body));
 }
 
 /** pooldeposit: `">QQQQQQ"` — asset ids, quantities, min LP quantity, LP asset id. */
-function packPoolDeposit(params: Params): PackedMessage | null {
+function packPoolDeposit(params: Params, observed: Observed): PackedMessage | null {
   const assetA = requireString(params, 'asset_a');
   const assetB = requireString(params, 'asset_b');
   const qtyA = requireQuantity(params, 'quantity_a');
@@ -917,10 +946,41 @@ function packPoolDeposit(params: Params): PackedMessage | null {
   const minLp = requireQuantity(params, 'min_lp_quantity') ?? 0n;
   if (!assetA || !assetB || qtyA === null || qtyB === null) return null;
 
+  // The LP asset id core packs is not a function of the request alone.
+  //
+  //     if existing_pool is None and lp_asset is None:
+  //         lp_asset = assetnames.generate_random_asset(f"{sorted_a}:{sorted_b}")
+  //     ...
+  //     lp_asset_id = generate_asset_id(lp_asset) if existing_pool is None and lp_asset else 0
+  //
+  // So it is 0 for a deposit into an existing pool, the named asset's id when the request names
+  // one, and a *random* draw for the first deposit into a new pool that names none — which the
+  // wallet's own form allows, since the LP name is optional there. Packing 0 for that case made
+  // byte equality reject every first deposit; the LP field is only offered on a new pool, so
+  // leaving it blank was the ordinary path.
+  //
+  // Borrowing the id is safe for the same reason a new subasset's id is: core requires an LP asset
+  // to be numeric and unused (`pooldeposit.py` — "lp_asset ... is already in use", "must be a
+  // numeric asset"), so a substituted id is rejected by consensus and the deposit never executes.
+  // A named LP asset is the user's own choice and is packed from the request, where a substitution
+  // still fails equality.
   const lpAsset = requireString(params, 'lp_asset');
+  const drawn = observed?.lpAssetId;
+  // Absent from the request: 0 unless the composed message drew one, and only a draw from the
+  // numeric-asset range is one core could have generated. Anything else — an existing named
+  // asset's id, say — is declined rather than blessed by borrowing it.
+  const borrowedLpId = typeof drawn !== 'bigint' || drawn === 0n
+    ? 0n
+    : drawn > 26n ** 12n && drawn < 1n << 64n ? drawn : null;
+  if (lpAsset === null && borrowedLpId === null) return null;
+
   let ids: [bigint, bigint, bigint];
   try {
-    ids = [assetNameToId(assetA), assetNameToId(assetB), lpAsset ? assetNameToId(lpAsset) : 0n];
+    ids = [
+      assetNameToId(assetA),
+      assetNameToId(assetB),
+      lpAsset === null ? borrowedLpId! : assetNameToId(lpAsset),
+    ];
   } catch {
     return null;
   }
@@ -1002,7 +1062,7 @@ export function packComposeMessage(
     case 'dispenser':
       return packDispenser(params);
     case 'pooldeposit':
-      return packPoolDeposit(params);
+      return packPoolDeposit(params, observed);
     case 'poolwithdraw':
       return packPoolWithdraw(params);
     default:

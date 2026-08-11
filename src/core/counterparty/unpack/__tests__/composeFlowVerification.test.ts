@@ -17,6 +17,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { bytesToHex, packAddressLegacy } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
 import { verifyTransaction } from '../verify';
 
@@ -35,20 +36,49 @@ interface Flow {
 
 const ASSET_ID_XCP = u64(1n);
 
+/**
+ * An address other than the one signing, and the 21 bytes a dispenser message carries it as.
+ *
+ * Legacy packing, not the modern tagged form: core imports `pack_legacy`/`unpack_legacy` for this
+ * message specifically (`dispenser.py`), so `00 || hash160` is what a close on another address
+ * actually contains. `unpackAddress` reads both, so the modern form would pass here too — and
+ * would be this file testing our own encoding rather than core's.
+ */
+const ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+const PACKED_ADDRESS = bytesToHex(packAddressLegacy(ADDRESS));
+
 const FLOWS: Flow[] = [
   {
     // Submits asset, give_remaining_normalized, status=10. The composer zeroes the three
     // quantities, which the request never named.
+    //
+    // Dispensers now pack, so production compares bytes (`packDispenser`) and reaches this path
+    // only if that ever returns null again. The rows stay as the fallback's coverage; the
+    // authority on what core composes for a dispenser is `pack/__tests__/dispenserGating.test.ts`.
     form: 'dispenser/close/form.tsx',
     type: 'dispenser',
     message: PREFIX + '0c' + ASSET_ID_XCP + u64(0n) + u64(0n) + u64(0n) + '0a',
     params: { asset: 'XCP', status: 10 },
   },
   {
+    // Closing a dispenser that sits on the signing address. The form used to submit
+    // open_address here regardless, and core packs no action address when it matches
+    // the source, so this row read `open_address: undefined` while the form sent a
+    // string — the assumption the header warns against, and it hid a real failure:
+    // every close by hash was blocked as an open-address mismatch.
     form: 'dispenser/close-by-hash/form.tsx',
     type: 'dispenser',
     message: PREFIX + '0c' + ASSET_ID_XCP + u64(0n) + u64(0n) + u64(0n) + '0a',
-    params: { asset: 'XCP', status: 10, open_address: undefined },
+    params: { asset: 'XCP', status: 10 },
+  },
+  {
+    // The same form closing a dispenser held on another address: open_address is
+    // submitted, and the composed close carries the packed action address.
+    form: 'dispenser/close-by-hash/form.tsx',
+    type: 'dispenser',
+    message:
+      PREFIX + '0c' + ASSET_ID_XCP + u64(0n) + u64(0n) + u64(0n) + '0a' + PACKED_ADDRESS,
+    params: { asset: 'XCP', status: 10, open_address: ADDRESS },
   },
   {
     // The open flow, for contrast: it does supply all three.
