@@ -144,8 +144,9 @@ const TYPE_LABELS: Record<string, string> = {
   poolwithdraw: 'Pool Withdrawal',
   utxo: 'UTXO Move',
   utxo_move: 'UTXO Move',
-  fairminter: 'Fair Minter',
-  fairmint: 'Fair Mint',
+  // One word, the way the protocol and the rest of this wallet spell them.
+  fairminter: 'Fairminter',
+  fairmint: 'Fairmint',
 };
 
 export function labelFor(messageType: string): string {
