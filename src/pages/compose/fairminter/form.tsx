@@ -24,39 +24,22 @@ import { TextField } from "@/components/ui/inputs/text-field";
 import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { FairminterOptions } from "@/core/counterparty/compose";
-import {
-  checkXcp69Conformance,
-  deriveXcp69Blocks,
-  describeXcp69LeadRisk,
-  generateXcp69LpAsset,
-  XCP69_DEFAULT_LEAD_BLOCKS,
-  XCP69_WINDOW_BLOCKS,
-  xcp69CandidateFromFields,
-  xcp69FormFields,
-} from "@/core/counterparty/xcp69";
-import { asDisplayUnits, isGreaterThan } from '@/core/numeric';
+import { asDisplayUnits } from '@/core/numeric';
 import { useAssetInfo } from "@/hooks/useAssetInfo";
-import { useBlockHeight } from "@/hooks/useBlockHeight";
 
 const FAIRMINTER_MODELS = {
   MINER_FEE_ONLY: "MINER_FEE_ONLY",
   XCP_FEE_TO_ISSUER: "XCP_FEE_TO_ISSUER",
   XCP_FEE_BURNED: "XCP_FEE_BURNED",
-  XCP_69_POOLED: "XCP_69_POOLED",
 } as const;
 
 type FairminterModel = typeof FAIRMINTER_MODELS[keyof typeof FAIRMINTER_MODELS];
 
-/**
- * The first three are modifiers: each decides where the payment goes and leaves the numbers to the
- * creator. XCP-69 is not one of those — it fixes every number, so selecting it removes the fields
- * rather than adding any. See `core/counterparty/xcp69.ts`.
- */
+/** Each model decides where the payment goes and leaves the numbers to the creator. */
 const FAIRMINTER_MODEL_OPTIONS = [
   { value: FAIRMINTER_MODELS.MINER_FEE_ONLY, label: "BTC Fee Model (Miners)" },
   { value: FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER, label: "XCP Fee Model (To You)" },
   { value: FAIRMINTER_MODELS.XCP_FEE_BURNED, label: "XCP Fee Model (Burned)" },
-  { value: FAIRMINTER_MODELS.XCP_69_POOLED, label: "XCP-69 Model (Pooled)" },
 ];
 
 /**
@@ -134,56 +117,14 @@ export function FairminterForm({
   // Mint method state.
   //
   // The composer hands back raw form values, so booleans arrive as the strings 'true'/'false' —
-  // and 'false' is truthy. Without the pool check an XCP-69 launch came back as XCP Fee (Burned)
-  // carrying all the XCP-69 numbers, and resubmitting burned the payments and issued no LP token.
-  // A pool reserve is what distinguishes it, and only XCP-69 sets one here.
-  const returningXcp69 =
-    initialFormData?.pool_quantity !== undefined &&
-    initialFormData?.pool_quantity !== null &&
-    isGreaterThan(initialFormData.pool_quantity, 0);
+  // and 'false' is truthy, so reading `burn_payment` directly inverts the model on back-navigation.
   const burnPayment = toFormBoolean(initialFormData?.burn_payment);
-  const initialMintMethod = returningXcp69
-    ? FAIRMINTER_MODELS.XCP_69_POOLED
-    : burnPayment === false
+  const initialMintMethod = burnPayment === false
     ? FAIRMINTER_MODELS.MINER_FEE_ONLY
     : burnPayment
     ? FAIRMINTER_MODELS.XCP_FEE_BURNED
     : FAIRMINTER_MODELS.XCP_FEE_TO_ISSUER;
   const [selectedMintMethod, setSelectedMintMethod] = useState<FairminterModel>(initialMintMethod);
-
-  // XCP-69 state. The lead is the only parameter the standard leaves open, and the LP asset is
-  // generated once per form so the review screen and the composed transaction name the same one.
-  const isXcp69 = selectedMintMethod === FAIRMINTER_MODELS.XCP_69_POOLED;
-  const [leadBlocks, setLeadBlocks] = useState<string>(String(XCP69_DEFAULT_LEAD_BLOCKS));
-  const [lpAsset] = useState<string>(() => generateXcp69LpAsset());
-  // Refreshed while the form is open. `start_block` is measured from this, and conformance is
-  // decided at the confirming block — so a height read once and left to go stale silently moves
-  // the sale window into the past. A form left open for the length of a description is enough.
-  const { blockHeight } = useBlockHeight({
-    autoFetch: isXcp69,
-    refreshInterval: isXcp69 ? 60_000 : null,
-  });
-
-  const leadNumber = Number.parseInt(leadBlocks, 10);
-  const hasLead = Number.isFinite(leadNumber) && leadNumber >= 0;
-  const xcp69Blocks = isXcp69 && blockHeight !== null && hasLead
-    ? deriveXcp69Blocks(blockHeight, leadNumber)
-    : null;
-  const leadRisk = isXcp69 && hasLead ? describeXcp69LeadRisk(leadNumber) : null;
-
-  /** Exactly what submit will send, so the check and the transaction cannot diverge. */
-  const xcp69Fields = xcp69FormFields({ lpAsset, blocks: xcp69Blocks });
-
-  /**
-   * Conformance judged on the values being submitted, scaled the way normalize.ts scales them.
-   *
-   * This used to spread `XCP69_BASE`, which meant nine of its clauses compared the standard's
-   * constants against themselves and the gate could not see the submission at all. It showed green
-   * over a launch whose price was about to ship a hundred-millionth of its intended value.
-   */
-  const xcp69Conformance = isXcp69
-    ? checkXcp69Conformance({ ...xcp69CandidateFromFields(xcp69Fields), asset: assetName })
-    : null;
 
   // Helper function to get input step based on divisibility
   const getInputStep = () => isDivisible ? "0.00000001" : "1";
@@ -238,22 +179,13 @@ export function FairminterForm({
     // Add divisible value
     processedFormData.set('divisible', isDivisible.toString());
 
-    if (isXcp69) {
-      // The same map conformance was checked against, so the two cannot describe different
-      // launches. Includes lot_price_asset, which normalize.ts needs and which used to be a
-      // rendered field this branch gated out.
-      for (const [field, value] of Object.entries(xcp69Fields)) {
-        processedFormData.set(field, value);
-      }
-    } else {
-      // Set controlled quantity fields from state
-      if (maxMintPerTx) processedFormData.set('max_mint_per_tx', maxMintPerTx);
-      if (maxMintPerAddress) processedFormData.set('max_mint_per_address', maxMintPerAddress);
-      if (lotSize) processedFormData.set('lot_size', lotSize);
-      if (hardCap) processedFormData.set('hard_cap', hardCap);
-      if (premintQuantity) processedFormData.set('premint_quantity', premintQuantity);
-      if (softCap) processedFormData.set('soft_cap', softCap);
-    }
+    // Set controlled quantity fields from state
+    if (maxMintPerTx) processedFormData.set('max_mint_per_tx', maxMintPerTx);
+    if (maxMintPerAddress) processedFormData.set('max_mint_per_address', maxMintPerAddress);
+    if (lotSize) processedFormData.set('lot_size', lotSize);
+    if (hardCap) processedFormData.set('hard_cap', hardCap);
+    if (premintQuantity) processedFormData.set('premint_quantity', premintQuantity);
+    if (softCap) processedFormData.set('soft_cap', softCap);
 
     // Call the original formAction with the processed FormData
     formAction(processedFormData);
@@ -288,13 +220,7 @@ export function FairminterForm({
         </div>
       }
       submitText="Continue"
-      submitDisabled={
-        pending ||
-        (!isExistingAsset && !isAssetNameValid) ||
-        // Blocked, not warned. A non-conforming launch is a valid fairminter forever, and nothing
-        // on-chain records that it meant to be XCP-69, so there is no correcting it afterwards.
-        (isXcp69 && !xcp69Conformance?.conformant)
-      }
+      submitDisabled={pending || (!isExistingAsset && !isAssetNameValid)}
     >
           {localError && (
             <div className="mb-4">
@@ -355,80 +281,6 @@ export function FairminterForm({
             />
           )}
           
-          {isXcp69 && (
-            <>
-              <TextField
-                label="Announcement Lead"
-                id="xcp69_lead"
-                name="xcp69_lead"
-                type="text"
-                inputMode="numeric"
-                value={leadBlocks}
-                onChange={(e) => setLeadBlocks(e.target.value.replace(/[^\d]/g, ''))}
-                placeholder={String(XCP69_DEFAULT_LEAD_BLOCKS)}
-                required
-                disabled={pending}
-                showHelpText={showHelpText}
-                description="Blocks between now and the sale opening. The launch must confirm before the start block."
-              />
-
-              {leadRisk && (
-                <div className="text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded p-2">
-                  {leadRisk}
-                </div>
-              )}
-
-              <div className="rounded-lg border border-gray-200 bg-white p-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Supply</span>
-                  <span className="font-medium">100,000,000</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Public sale</span>
-                  <span className="font-medium">69,000,000 · 0.01 XCP per 1,000</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Pool reserve</span>
-                  <span className="font-medium">31,000,000</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Per address</span>
-                  <span className="font-medium">1,000,000 · 10 XCP</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Sale window</span>
-                  <span className="font-medium">
-                    {xcp69Blocks
-                      ? `${xcp69Blocks.start_block.toLocaleString()} → ${xcp69Blocks.soft_cap_deadline_block.toLocaleString()}`
-                      : "—"}
-                    {` (${XCP69_WINDOW_BLOCKS} blocks)`}
-                  </span>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <span className="text-gray-500 flex-shrink-0">LP asset</span>
-                  <span className="font-medium text-right break-all">{lpAsset}</span>
-                </div>
-                <p className="pt-1 text-xs text-gray-500">
-                  Raises exactly 690 XCP. Nothing is credited until the soft cap is reached, and
-                  every payment is refunded if it is missed by the deadline.
-                </p>
-              </div>
-
-              {xcp69Conformance && !xcp69Conformance.conformant && (
-                // Blocking rather than warning: a launch that misses the standard is a valid
-                // fairminter forever, and nothing on-chain records the near miss afterwards.
-                <div className="text-xs text-red-800 bg-red-50 border border-red-200 rounded p-2">
-                  <p className="font-medium">This launch would not be XCP-69</p>
-                  <ul className="mt-1 list-disc list-inside space-y-0.5">
-                    {xcp69Conformance.failures.map((failure) => (
-                      <li key={failure}>{failure}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
-          )}
-
           {selectedMintMethod === FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <TextField
               label="Mint per TX"
@@ -447,23 +299,21 @@ export function FairminterForm({
             />
           )}
 
-          {!isXcp69 && (
-            <TextField
-              label="Mint per Address"
-              id="max_mint_per_address"
-              name="max_mint_per_address"
-              type="text"
-              inputMode="decimal"
-              value={maxMintPerAddress}
-              onChange={handleQuantityChange(setMaxMintPerAddress)}
-              step={getInputStep()}
-              placeholder="No limit"
-              disabled={pending}
-              showHelpText={showHelpText}
-              description="Optional maximum amount each address can mint. Leave blank for no per-address limit."
-            />
-          )}
-          {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && !isXcp69 && (
+          <TextField
+            label="Mint per Address"
+            id="max_mint_per_address"
+            name="max_mint_per_address"
+            type="text"
+            inputMode="decimal"
+            value={maxMintPerAddress}
+            onChange={handleQuantityChange(setMaxMintPerAddress)}
+            step={getInputStep()}
+            placeholder="No limit"
+            disabled={pending}
+            showHelpText={showHelpText}
+            description="Optional maximum amount each address can mint. Leave blank for no per-address limit."
+          />
+          {selectedMintMethod !== FAIRMINTER_MODELS.MINER_FEE_ONLY && (
             <>
               <TextField
                 label="Tokens per Mint"
@@ -497,7 +347,7 @@ export function FairminterForm({
             </>
           )}
           
-          {!isInitializing && !isExistingAsset && !isXcp69 && (
+          {!isInitializing && !isExistingAsset && (
             <CheckboxInput
               name="divisible"
               label="Divisible"
@@ -537,38 +387,33 @@ export function FairminterForm({
             />
           )}
           
-          {!isXcp69 && (
-            <>
-              <CheckboxInput
-                name="lock_description"
-                label="Lock Description"
-                defaultChecked={initialFormData?.lock_description || false}
-                disabled={pending}
-              />
-              <TextField
-                label="Hard Cap"
-                id="hard_cap"
-                name="hard_cap"
-                type="text"
-                inputMode="decimal"
-                value={hardCap}
-                onChange={handleQuantityChange(setHardCap)}
-                step={getInputStep()}
-                placeholder={getInputPlaceholder()}
-                disabled={pending}
-                showHelpText={showHelpText}
-                description="Maximum total supply that can be minted."
-              />
-              <CheckboxInput
-                name="lock_quantity"
-                label="Lock Quantity"
-                defaultChecked={initialFormData?.lock_quantity || false}
-                disabled={pending}
-              />
-            </>
-          )}
+          <CheckboxInput
+            name="lock_description"
+            label="Lock Description"
+            defaultChecked={initialFormData?.lock_description || false}
+            disabled={pending}
+          />
+          <TextField
+            label="Hard Cap"
+            id="hard_cap"
+            name="hard_cap"
+            type="text"
+            inputMode="decimal"
+            value={hardCap}
+            onChange={handleQuantityChange(setHardCap)}
+            step={getInputStep()}
+            placeholder={getInputPlaceholder()}
+            disabled={pending}
+            showHelpText={showHelpText}
+            description="Maximum total supply that can be minted."
+          />
+          <CheckboxInput
+            name="lock_quantity"
+            label="Lock Quantity"
+            defaultChecked={initialFormData?.lock_quantity || false}
+            disabled={pending}
+          />
 
-          {!isXcp69 && (
           <Collapsible title="Advanced Options">
                   <BlockHeightInput
                     name="start_block"
@@ -643,7 +488,6 @@ export function FairminterForm({
                     </>
                   )}
           </Collapsible>
-          )}
     </ComposerForm>
   );
 }
