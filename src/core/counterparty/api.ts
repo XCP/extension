@@ -1123,6 +1123,30 @@ export async function fetchDispenserDispenses(
   });
 }
 
+/**
+ * Ledger movements the node has parsed out of its own mempool for these addresses.
+ *
+ * The events are the same DEBIT/CREDIT core emits for confirmed transactions, so a caller can total
+ * what is in flight without re-deriving which message types debit what — see
+ * `core/balances/pending.ts`.
+ *
+ * Two things about this endpoint shape the caller. It matches addresses with a SQL `LIKE` against a
+ * joined column, so results are a superset and must be filtered on each event's own
+ * `params.address`. And it is never cached: a pending balance read from a minute-old response is
+ * the staleness this is meant to cure.
+ */
+export async function fetchMempoolLedgerEvents(
+  addresses: string[],
+  options: { limit?: number; verbose?: boolean } = {}
+): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
+  return cpApiGet('/v2/addresses/mempool', {
+    addresses: addresses.join(','),
+    event_name: 'DEBIT,CREDIT',
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? 100,
+  }, { skipCache: true });
+}
+
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
   const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
     verbose: true,
