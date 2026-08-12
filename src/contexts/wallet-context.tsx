@@ -46,6 +46,7 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import type { AddressFormat } from '@/core/bitcoin/address';
+import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
@@ -384,6 +385,24 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       }
     });
   }, [walletService]); // Removed walletState - using ref instead to prevent stale closures
+
+  // Give the compose layer a way to look up an address's public key. Compose needs it as the
+  // recovery key when a message overflows into bare-multisig encoding, and core cannot find one
+  // for a never-spent address (see core/counterparty/sourcePubkey.ts). Registered over the loaded
+  // wallets rather than just the active address: some flows compose from an address that is not
+  // the active one, and the lookup is a scan of state already in memory.
+  useEffect(() => {
+    setSourcePubkeyProvider((address: string) => {
+      for (const wallet of walletStateRef.current.wallets) {
+        for (const walletAddress of wallet.addresses) {
+          if (walletAddress.address === address) return walletAddress.pubKey || null;
+        }
+      }
+      return null;
+    });
+    return () => setSourcePubkeyProvider(null);
+    // walletStateRef is read at call time, so the provider needs registering once, not per change.
+  }, []);
 
   useEffect(() => {
     // Initial load with retry for cold-start race condition

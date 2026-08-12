@@ -72,6 +72,7 @@ import {
   withPinnedDestinations,
 } from "@/core/counterparty/outputPolicy";
 import { packComposeMessage } from "@/core/counterparty/pack/messages";
+import { getSourcePubkey } from "@/core/counterparty/sourcePubkey";
 import { fetchInputValues } from "@/core/counterparty/transaction";
 import { unpackCounterpartyMessage } from "@/core/counterparty/unpack";
 import { packAddress } from "@/core/counterparty/unpack/address";
@@ -466,6 +467,11 @@ export function ComposerProvider<T>({
           rawTransaction: response.result.rawtransaction,
           ownAddresses: [activeAddress.address],
           intendedDestinations: accountedFor,
+          // The same key the compose request sent as multisig_pubkey (both read the provider), so
+          // any data output embedding a different recovery key is a substituted response, not a
+          // choice this wallet made. Null when the wallet had no key to send, which turns the
+          // check off rather than inventing an expectation.
+          expectedRecoveryPubkey: getSourcePubkey(activeAddress.address) ?? undefined,
           // An ownership transfer names its new owner nowhere in the message; the node reads it
           // from the output ahead of the data output.
           positionalDestination: composeType === 'issuance' && typeof dataForApi.transfer_destination === 'string'

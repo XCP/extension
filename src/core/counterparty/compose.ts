@@ -1,6 +1,7 @@
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
+import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
@@ -476,6 +477,13 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
+  // Sent on every compose, read by core only when the message overflows an OP_RETURN and falls
+  // back to bare multisig — where it becomes each data output's recovery key. Without it, core
+  // scans the address's spends for a key, and a never-spent address has revealed none: every
+  // long-data compose from a fresh wallet failed on "Pubkey not found". Harmless otherwise, and
+  // it also pins the recovery key to a value the wallet chose, which is what lets verification
+  // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
+  const multisigPubkey = getSourcePubkey(sourceAddress);
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
@@ -487,6 +495,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
     const response = await apiClient.get<ApiResponse | { error: string }>(
@@ -529,6 +538,9 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
   const settings = getActiveSettings();
+  // Same as composeTransaction: the recovery key for multisig-encoded data, which MPMA — this
+  // path's caller — produces on almost every send.
+  const multisigPubkey = getSourcePubkey(sourceAddress);
 
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
@@ -540,6 +552,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
     // Array params must be repeated plain keys: core's `query_params()` builds lists from
