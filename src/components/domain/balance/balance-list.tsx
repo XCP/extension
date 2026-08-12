@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -11,11 +11,25 @@ import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
+import { usePendingStatus } from "@/hooks/usePendingStatus";
+import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 
 
-export const BalanceList = (): ReactElement => {
+interface BalanceListProps {
+  /**
+   * Changes to ask for a fresh load. A counter rather than a boolean so two presses are two
+   * refreshes; the caller clears the relevant caches first, or this reads them straight back.
+   */
+  refreshNonce?: number;
+  /** Called when a requested refresh has finished, successfully or not, so the caller can stop
+   * showing it as in flight. Fires on completion rather than on success: a refresh that failed is
+   * still over, and a spinner that never stops is a worse lie than a stale number. */
+  onRefreshed?: () => void;
+}
+
+export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();
@@ -32,6 +46,19 @@ export const BalanceList = (): ReactElement => {
   useEffect(() => {
     setInitialLoaded(false);
   }, [settings?.pinnedAssets]);
+
+  // A refresh reuses the same lever the pinned-asset list already pulls, rather than adding a
+  // second path through the loading code.
+  useRefreshSignal(refreshNonce, () => setInitialLoaded(false));
+
+  // Read alongside the balances and on the same refresh, so the amount and what is happening to it
+  // never come from two different moments.
+  const { byAsset: pendingByAssetLabel } = usePendingStatus(activeAddress?.address, refreshNonce);
+
+  // Held in a ref for the same reason as in useRefreshSignal: callers pass an inline arrow, and
+  // depending on it would restart the load on every render of the parent.
+  const latestOnRefreshed = useRef(onRefreshed);
+  latestOnRefreshed.current = onRefreshed;
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
@@ -110,6 +137,10 @@ export const BalanceList = (): ReactElement => {
           setOffset(0);
           setHasMore(true);
         }
+        // Outside the isCancelled guard on purpose. A cancelled load still ends the refresh the
+        // caller is showing a spinner for; leaving it spinning because the address changed
+        // mid-flight would strand it there.
+        latestOnRefreshed.current?.();
       }
     };
 
@@ -213,10 +244,10 @@ export const BalanceList = (): ReactElement => {
       ) : (
         <>
           {pinnedBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+            <BalanceCard token={balance} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           {otherBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+            <BalanceCard token={balance} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (

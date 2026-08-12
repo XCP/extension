@@ -1,4 +1,4 @@
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import { type ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { UtxoCard } from "@/components/domain/utxo/utxo-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
 import { Spinner } from "@/components/ui/spinner";
@@ -6,10 +6,19 @@ import { useWallet } from "@/contexts/wallet-context";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
+import { usePendingStatus } from "@/hooks/usePendingStatus";
+import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 
 const PAGE_SIZE = 20;
 
-export const UtxoList = (): ReactElement => {
+interface UtxoListProps {
+  /** Changes to ask for a fresh load; see `useRefreshSignal`. */
+  refreshNonce?: number;
+  /** Called when a requested refresh finishes, successfully or not. */
+  onRefreshed?: () => void;
+}
+
+export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const [balances, setBalances] = useState<UtxoBalance[]>([]);
   const [offset, setOffset] = useState(0);
@@ -19,6 +28,18 @@ export const UtxoList = (): ReactElement => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
+
+  // No `initialLoaded` flag here: this list reloads when the address changes, so a refresh is
+  // expressed as another reason to re-run that same effect.
+  const [reloadCount, setReloadCount] = useState(0);
+  useRefreshSignal(refreshNonce, () => setReloadCount((previous) => previous + 1));
+
+  // Keyed on the UTXO, not the asset: moving one attached output should mark one row.
+  const { byUtxo: pendingByUtxoLabel } = usePendingStatus(activeAddress?.address, refreshNonce);
+
+  // Ref, not a dependency: callers pass an inline arrow that changes every parent render.
+  const latestOnRefreshed = useRef(onRefreshed);
+  latestOnRefreshed.current = onRefreshed;
 
   // Initial load (and reset) when address changes
   useEffect(() => {
@@ -61,13 +82,16 @@ export const UtxoList = (): ReactElement => {
         if (!isCancelled) setHasMore(false);
       } finally {
         if (!isCancelled) setIsInitialLoading(false);
+        // Outside the cancelled guard: a cancelled load still ends the refresh the caller is
+        // showing a spinner for.
+        latestOnRefreshed.current?.();
       }
     };
 
     loadInitial();
 
     return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet]);
+  }, [activeAddress, activeWallet, reloadCount]);
 
   // Load more on scroll
   useEffect(() => {
@@ -142,7 +166,7 @@ export const UtxoList = (): ReactElement => {
         <div className="text-center py-4 text-gray-500">No matching UTXOs</div>
       ) : (
         filteredBalances.map((token) => (
-          <UtxoCard token={token} key={token.utxo} />
+          <UtxoCard token={token} key={token.utxo} pendingStatus={pendingByUtxoLabel.get(token.utxo)} />
         ))
       )}
       {!searchQuery && (

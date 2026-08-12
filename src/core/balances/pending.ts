@@ -132,6 +132,58 @@ export function pendingByAsset(
 }
 
 /**
+ * The same fold, keyed on the UTXO a movement touches rather than the asset.
+ *
+ * A UTXO row asks a different question from a balance row. "Is this particular output being
+ * detached" is not answered by "something is happening to XCP", and an address moving one of five
+ * attached outputs should mark one row rather than all of them. Ledger events name the UTXO they
+ * concern, so this groups on that; events without one are address-level and belong to
+ * {@link pendingByAsset}.
+ */
+export function pendingByUtxo(
+  events: MempoolLedgerEvent[],
+  address: string
+): Map<string, PendingDelta> {
+  const byUtxo = new Map<string, PendingDelta>();
+
+  for (const event of events) {
+    if (event.event !== 'DEBIT' && event.event !== 'CREDIT') continue;
+
+    const params = event.params as
+      | (NonNullable<MempoolLedgerEvent['params']> & { utxo?: string; utxo_address?: string })
+      | undefined;
+    if (!params) continue;
+
+    const utxo = params.utxo;
+    if (typeof utxo !== 'string' || utxo.length === 0) continue;
+    // A UTXO-held balance names its owner in `utxo_address`; `address` is unset for these.
+    if (params.utxo_address !== undefined && params.utxo_address !== address) continue;
+
+    const asset = params.asset;
+    const quantity = toBaseUnits(params.quantity);
+    if (!asset || quantity === null) continue;
+
+    let delta = byUtxo.get(utxo);
+    if (!delta) {
+      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [] };
+      byUtxo.set(utxo, delta);
+    }
+
+    if (event.event === 'DEBIT') {
+      delta.debited += quantity;
+      addReason(delta, params.action);
+    } else {
+      delta.credited += quantity;
+      addReason(delta, params.calling_function);
+    }
+
+    if (!delta.txHashes.includes(event.tx_hash)) delta.txHashes.push(event.tx_hash);
+  }
+
+  return byUtxo;
+}
+
+/**
  * Events for this address that could not be folded in — an unreadable quantity, a missing asset.
  *
  * Reported rather than ignored. "Something is pending that I could not total" is a different
