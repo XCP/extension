@@ -133,7 +133,7 @@ export function SwapForm({
   const giveDetailsReady = giveDetails?.assetInfo?.asset === giveAsset;
   const isGiveDivisible = giveDetailsReady && giveDetails ? giveDetails.isDivisible : true;
   const isGetDivisible = getDetails?.assetInfo?.asset === getAsset ? getDetails.isDivisible : true;
-  const availableBalance = giveDetailsReady && giveDetails ? giveDetails.availableBalance : "";
+  const availableBalance = giveDetailsReady && giveDetails ? (giveDetails.spendableBalance ?? giveDetails.availableBalance) : "";
 
   const hasBtc = giveAsset === "BTC" || getAsset === "BTC";
   const pairSelected = Boolean(giveAsset && getAsset && giveAsset !== getAsset);

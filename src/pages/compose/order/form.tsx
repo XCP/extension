@@ -137,8 +137,8 @@ export function OrderForm({
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
-  const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
+  const availableBalance = giveAssetDetails?.spendableBalance ?? giveAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.spendableBalance ?? quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : baseAsset;

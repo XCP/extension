@@ -141,13 +141,13 @@ export function DestroySupplyForm({
 
           <AmountWithMaxInput
             asset={asset}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={amount}
             onChange={handleAmountChange}
             feeRate={feeRate}
             setError={(message) => {}}
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount to Destroy"
             name="quantity"

@@ -100,12 +100,14 @@ export const DispenserForm = memo(function DispenserForm({
     }
   }, [asset]);
 
-  // Update available balance when asset details load
+  // The escrow comes out of the same balance, so what can be escrowed is what is spendable. Falls
+  // back to the confirmed figure, which is what this offered before pending was tracked.
   useEffect(() => {
-    if (assetDetails?.availableBalance) {
-      setAvailableBalance(assetDetails.availableBalance);
+    const offerable = assetDetails?.spendableBalance ?? assetDetails?.availableBalance;
+    if (offerable) {
+      setAvailableBalance(offerable);
     }
-  }, [assetDetails?.availableBalance]);
+  }, [assetDetails?.spendableBalance, assetDetails?.availableBalance]);
 
 
   // Reset form fields when initialFormData changes to null
@@ -183,7 +185,7 @@ export const DispenserForm = memo(function DispenserForm({
           <BalanceHeader
             balance={{
               asset: selectedAsset,
-              quantity_normalized: asDisplayUnits(availableBalance),
+              quantity_normalized: asDisplayUnits(assetDetails?.availableBalance ?? availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',

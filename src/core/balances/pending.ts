@@ -23,6 +23,8 @@
  * this feeds should describe what is known rather than assert what is spendable.
  */
 
+import { toBigNumber } from '@/core/numeric';
+
 /** A DEBIT or CREDIT the node has parsed out of a mempool transaction. */
 export interface MempoolLedgerEvent {
   tx_hash: string;
@@ -36,6 +38,15 @@ export interface MempoolLedgerEvent {
     action?: string;
     /** Why the credit happened, e.g. "issuance". CREDIT only. */
     calling_function?: string;
+    /**
+     * The same quantity in display units, as core computed it.
+     *
+     * Preferred over converting `quantity` here, because converting needs the asset's divisibility
+     * and this codebase's balance hook defaults that to `true` when it does not know — a wrong
+     * `true` is a factor-of-1e8 error in a figure that gates spending. Core knows, so core's number
+     * is used and no divisibility is assumed anywhere in this module.
+     */
+    quantity_normalized?: string;
   };
 }
 
@@ -50,6 +61,15 @@ export interface PendingDelta {
   reasons: string[];
   /** Distinct transactions contributing, so the UI can link to them. */
   txHashes: string[];
+  /**
+   * Total leaving, in display units, or null when it cannot be stated exactly.
+   *
+   * Null when any contributing debit arrived without a normalized figure. It means "there is
+   * something outgoing but I cannot total it", which callers must treat as unknown rather than
+   * zero: reducing a spendable balance by a number that is missing a term would understate what is
+   * committed, and quietly let through the overspend this exists to prevent.
+   */
+  debitedNormalized: string | null;
 }
 
 /**
@@ -67,6 +87,18 @@ function toBaseUnits(value: number | string | undefined): bigint | null {
   }
   const trimmed = value.trim();
   return /^-?\d+$/.test(trimmed) ? BigInt(trimmed) : null;
+}
+
+/**
+ * Running total of display-unit debits, where a single missing figure poisons the total.
+ *
+ * Once null it stays null: a sum missing one of its terms is not a smaller sum, it is an unknown
+ * one, and the difference matters when the result decides how much someone may spend.
+ */
+function addNormalized(running: string | null, next: string | undefined): string | null {
+  if (running === null) return null;
+  if (next === undefined || !/^-?\d*\.?\d+$/.test(next.trim())) return null;
+  return toBigNumber(running).plus(toBigNumber(next.trim())).toString();
 }
 
 function addReason(delta: PendingDelta, reason: string | undefined): void {
@@ -103,12 +135,13 @@ export function pendingByAsset(
 
     let delta = byAsset.get(asset);
     if (!delta) {
-      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [] };
+      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0' };
       byAsset.set(asset, delta);
     }
 
     if (event.event === 'DEBIT') {
       delta.debited += quantity;
+      delta.debitedNormalized = addNormalized(delta.debitedNormalized, params.quantity_normalized);
       addReason(delta, params.action);
     } else if (event.event === 'CREDIT') {
       delta.credited += quantity;
@@ -165,12 +198,13 @@ export function pendingByUtxo(
 
     let delta = byUtxo.get(utxo);
     if (!delta) {
-      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [] };
+      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0' };
       byUtxo.set(utxo, delta);
     }
 
     if (event.event === 'DEBIT') {
       delta.debited += quantity;
+      delta.debitedNormalized = addNormalized(delta.debitedNormalized, params.quantity_normalized);
       addReason(delta, params.action);
     } else {
       delta.credited += quantity;

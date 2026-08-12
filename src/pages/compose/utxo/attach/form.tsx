@@ -98,13 +98,13 @@ export function UtxoAttachForm({
           />
           <AmountWithMaxInput
             asset={initialAsset || initialFormData?.asset || "XCP"}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={quantity}
             onChange={setQuantity}
             feeRate={feeRate}
             setError={() => {}} // No-op since Composer handles errors
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount"
             name="quantity"

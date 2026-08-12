@@ -1132,8 +1132,10 @@ export async function fetchDispenserDispenses(
  *
  * Two things about this endpoint shape the caller. It matches addresses with a SQL `LIKE` against a
  * joined column, so results are a superset and must be filtered on each event's own
- * `params.address`. And it is never cached: a pending balance read from a minute-old response is
- * the staleness this is meant to cure.
+ * `params.address`. And it goes through the ordinary short-lived cache: several parts of a screen
+ * ask this at once — a pool form reads two assets, a list reads many — and collapsing those into
+ * one call matters more than a few seconds of freshness. The refresh button clears the cache for
+ * the address before reloading, so the moment freshness is promised is the moment it is delivered.
  */
 export async function fetchMempoolLedgerEvents(
   addresses: string[],
@@ -1144,7 +1146,7 @@ export async function fetchMempoolLedgerEvents(
     event_name: 'DEBIT,CREDIT',
     verbose: options.verbose ?? true,
     limit: options.limit ?? 100,
-  }, { skipCache: true });
+  });
 }
 
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {

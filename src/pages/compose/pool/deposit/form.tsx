@@ -219,14 +219,14 @@ export function PoolDepositForm({
 
           <AmountWithMaxInput
             asset={assetA}
-            availableBalance={assetADetails?.availableBalance || "0"}
+            availableBalance={assetADetails?.spendableBalance ?? assetADetails?.availableBalance ?? "0"}
             value={quantityA}
             onChange={setQuantityA}
             feeRate={feeRate}
             setError={setLocalError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
-            maxAmount={assetADetails?.availableBalance || "0"}
+            maxAmount={assetADetails?.spendableBalance ?? assetADetails?.availableBalance ?? "0"}
             label="Amount"
             name="quantity_a_display"
             disabled={pending || !assetA}
@@ -243,14 +243,14 @@ export function PoolDepositForm({
 
           <AmountWithMaxInput
             asset={assetB}
-            availableBalance={assetBDetails?.availableBalance || "0"}
+            availableBalance={assetBDetails?.spendableBalance ?? assetBDetails?.availableBalance ?? "0"}
             value={quantityB}
             onChange={setQuantityB}
             feeRate={feeRate}
             setError={setLocalError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
-            maxAmount={assetBDetails?.availableBalance || "0"}
+            maxAmount={assetBDetails?.spendableBalance ?? assetBDetails?.availableBalance ?? "0"}
             label="Amount"
             name="quantity_b_display"
             disabled={pending || !assetB}

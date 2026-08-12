@@ -204,13 +204,13 @@ export function SendForm({
 
           <AmountWithMaxInput
             asset={initialAsset || initialFormData?.asset || "BTC"}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={amount}
             onChange={handleAmountChange}
             feeRate={feeRate}
             setError={setValidationError}
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount"
             name="quantity"

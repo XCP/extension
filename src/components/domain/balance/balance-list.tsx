@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useRef, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -6,12 +6,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { pendingLabel } from "@/core/balances/pendingLabel";
+import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
-import { usePendingStatus } from "@/hooks/usePendingStatus";
+import { usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
@@ -53,12 +55,38 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
 
   // Read alongside the balances and on the same refresh, so the amount and what is happening to it
   // never come from two different moments.
-  const { byAsset: pendingByAssetLabel } = usePendingStatus(activeAddress?.address, refreshNonce);
+  const { byAsset: pendingDeltas } = usePendingDeltas(activeAddress?.address, refreshNonce);
+
+  /**
+   * The figure on the card is what is spendable, not what the ledger has confirmed.
+   *
+   * The alternative was showing the confirmed balance here and the spendable one in the forms, but
+   * two screens disagreeing about the same asset is worse than one number that differs from an
+   * explorer — and the italic status beside it is what explains the difference. Everywhere in this
+   * wallet, the number means the same thing: what you can spend right now.
+   */
+  const displayBalance = useCallback((balance: TokenBalance): TokenBalance => {
+    const pending = pendingDeltas.get(balance.asset);
+    if (!pending || !tracksPendingLedgerDebits(balance.asset)) return balance;
+
+    const { spendable } = spendableBalance(balance.quantity_normalized, pending.debitedNormalized);
+    if (spendable === balance.quantity_normalized) return balance;
+    return { ...balance, quantity_normalized: asDisplayUnits(spendable) };
+  }, [pendingDeltas]);
 
   // Held in a ref for the same reason as in useRefreshSignal: callers pass an inline arrow, and
   // depending on it would restart the load on every render of the parent.
   const latestOnRefreshed = useRef(onRefreshed);
   latestOnRefreshed.current = onRefreshed;
+
+  const pendingByAssetLabel = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const [asset, delta] of pendingDeltas) {
+      const label = pendingLabel(delta.reasons);
+      if (label) labels.set(asset, label);
+    }
+    return labels;
+  }, [pendingDeltas]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
@@ -244,10 +272,10 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
       ) : (
         <>
           {pinnedBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
+            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           {otherBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
+            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (
