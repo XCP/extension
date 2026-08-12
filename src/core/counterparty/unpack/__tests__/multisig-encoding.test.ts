@@ -11,11 +11,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { setSourcePubkeyProvider } from '../../sourcePubkey';
 import { analyzeTransactionSafety } from '../../transactionSafety';
-import { bareMultisigRecoveryPubkey } from '../multisig';
 import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';
 import { unpackCounterpartyMessage } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
+import { bareMultisigRecoveryPubkey } from '../multisig';
 import { extractPayloadFromOutputs } from '../opReturn';
 import { verifyTransaction } from '../verify';
 
