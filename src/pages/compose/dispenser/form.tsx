@@ -185,7 +185,7 @@ export const DispenserForm = memo(function DispenserForm({
           <BalanceHeader
             balance={{
               asset: selectedAsset,
-              quantity_normalized: asDisplayUnits(assetDetails?.availableBalance ?? availableBalance),
+              quantity_normalized: asDisplayUnits(assetDetails?.spendableBalance ?? availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',
@@ -203,6 +203,9 @@ export const DispenserForm = memo(function DispenserForm({
               },
             }}
             className="mt-1 mb-5"
+            pendingOutgoing={assetDetails.pendingOutgoing}
+            pendingIncoming={assetDetails.pendingIncoming}
+            unknownPending={assetDetails.unknownPending}
           />
         ) : activeAddress ? (
           <AddressHeader

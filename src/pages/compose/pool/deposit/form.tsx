@@ -113,7 +113,7 @@ export function PoolDepositForm({
   const assetABalanceHeader: TokenBalance | null = assetADetailsReady && assetADetails
     ? {
         asset: assetA,
-        quantity_normalized: assetADetails.availableBalance,
+        quantity_normalized: assetADetails.spendableBalance ?? assetADetails.availableBalance,
         asset_info: assetADetails.assetInfo ? {
           asset_longname: assetADetails.assetInfo.asset_longname,
           description: assetADetails.assetInfo.description || "",
@@ -160,7 +160,7 @@ export function PoolDepositForm({
       {pool ? (
         <PoolHeader pool={pool} className="mt-1 mb-5" />
       ) : assetABalanceHeader ? (
-        <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" />
+        <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" pendingOutgoing={assetADetails?.pendingOutgoing} pendingIncoming={assetADetails?.pendingIncoming} unknownPending={assetADetails?.unknownPending} />
       ) : null}
       {/* Deposit/Withdraw tabs with the settings cog, mirroring the DEX order form */}
       <div className="flex justify-between items-center mb-2">

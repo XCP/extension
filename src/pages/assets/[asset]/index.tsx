@@ -294,7 +294,7 @@ export default function AssetPage(): ReactElement {
           <div className="flex justify-between">
             <span className="text-sm text-gray-500">Your Balance</span>
             <span className="text-sm text-gray-900">
-              {assetDetails?.availableBalance || (isLoading ? "Loading…" : "0")}
+              {assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? (isLoading ? "Loading…" : "0")}
             </span>
           </div>
         </div>

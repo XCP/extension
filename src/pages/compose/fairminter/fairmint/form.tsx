@@ -111,7 +111,9 @@ export function FairmintForm({
   // Update currency balance when details are loaded
   useEffect(() => {
     if (currencyDetails) {
-      setCurrencyBalance(currencyDetails.availableBalance || "0");
+      // Spendable: max lots are derived from this figure, so XCP already committed in the
+      // mempool must not buy lots twice.
+      setCurrencyBalance(currencyDetails.spendableBalance ?? currencyDetails.availableBalance ?? "0");
     }
   }, [currencyDetails]);
   
@@ -271,7 +273,7 @@ export function FairmintForm({
             <BalanceHeader 
               balance={{
                 asset: currencyType,
-                quantity_normalized: asDisplayUnits(currencyDetails.availableBalance || "0"),
+                quantity_normalized: asDisplayUnits(currencyDetails.spendableBalance ?? currencyDetails.availableBalance ?? "0"),
                 asset_info: currencyDetails.assetInfo ? {
                   asset_longname: currencyDetails.assetInfo.asset_longname,
                   description: currencyDetails.assetInfo.description || '',
@@ -281,7 +283,10 @@ export function FairmintForm({
                   supply: currencyDetails.assetInfo.supply,
                 } : undefined,
               }}
-              className="mt-1 mb-5" 
+              className="mt-1 mb-5"
+              pendingOutgoing={currencyDetails.pendingOutgoing}
+            pendingIncoming={currencyDetails.pendingIncoming}
+              unknownPending={currencyDetails.unknownPending}
             />
           ) : null}
           

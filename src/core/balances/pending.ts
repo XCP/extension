@@ -70,6 +70,12 @@ export interface PendingDelta {
    * committed, and quietly let through the overspend this exists to prevent.
    */
   debitedNormalized: string | null;
+  /**
+   * Total arriving, in display units, under the same null-poisoning rule. Informational — nothing
+   * gates on it, since unconfirmed money in is not money out at risk — but a partial figure shown
+   * as a total would still be a wrong statement, so unknown stays unknown here too.
+   */
+  creditedNormalized: string | null;
 }
 
 /**
@@ -135,7 +141,7 @@ export function pendingByAsset(
 
     let delta = byAsset.get(asset);
     if (!delta) {
-      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0' };
+      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0', creditedNormalized: '0' };
       byAsset.set(asset, delta);
     }
 
@@ -145,6 +151,7 @@ export function pendingByAsset(
       addReason(delta, params.action);
     } else if (event.event === 'CREDIT') {
       delta.credited += quantity;
+      delta.creditedNormalized = addNormalized(delta.creditedNormalized, params.quantity_normalized);
       addReason(delta, params.calling_function);
     } else {
       continue;
@@ -202,7 +209,7 @@ export function pendingByUtxo(
 
     let delta = byUtxo.get(utxo);
     if (!delta) {
-      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0' };
+      delta = { asset, debited: 0n, credited: 0n, reasons: [], txHashes: [], debitedNormalized: '0', creditedNormalized: '0' };
       byUtxo.set(utxo, delta);
     }
 
@@ -212,6 +219,7 @@ export function pendingByUtxo(
       addReason(delta, params.action);
     } else {
       delta.credited += quantity;
+      delta.creditedNormalized = addNormalized(delta.creditedNormalized, params.quantity_normalized);
       addReason(delta, params.calling_function);
     }
 

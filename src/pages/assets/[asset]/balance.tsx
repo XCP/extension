@@ -153,7 +153,9 @@ export default function AssetBalancePage(): ReactElement {
           locked: info?.locked ?? false,
           supply: info?.supply,
         },
-        quantity_normalized: asDisplayUnits(assetDetails.availableBalance || "0"),
+        // Spendable, not confirmed: the number a balance page answers for is "what can I do with
+        // this right now", and the pending line beside it carries the in-flight remainder.
+        quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance ?? "0"),
       };
     }
     // Fall back to cached data for instant display
@@ -200,7 +202,7 @@ export default function AssetBalancePage(): ReactElement {
 
   return (
     <section className="p-4 space-y-6" aria-labelledby="balance-title">
-      <BalanceHeader balance={balanceData} className="mt-1 mb-5" />
+      <BalanceHeader balance={balanceData} className="mt-1 mb-5" pendingOutgoing={assetDetails?.pendingOutgoing} pendingIncoming={assetDetails?.pendingIncoming} unknownPending={assetDetails?.unknownPending} />
       {poolDetails && (
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-sm font-medium text-gray-900">Pool Position</h2>

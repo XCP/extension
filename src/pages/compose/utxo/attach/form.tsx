@@ -74,9 +74,12 @@ export function UtxoAttachForm({
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply
               },
-              quantity_normalized: asDisplayUnits(assetDetails.availableBalance)
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
+            pendingOutgoing={assetDetails.pendingOutgoing}
+            pendingIncoming={assetDetails.pendingIncoming}
+            unknownPending={assetDetails.unknownPending}
           />
         )
       }

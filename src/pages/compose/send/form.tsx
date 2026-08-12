@@ -166,7 +166,7 @@ export function SendForm({
           <BalanceHeader
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
-              quantity_normalized: asDisplayUnits(assetDetails.availableBalance),
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',
@@ -177,6 +177,9 @@ export function SendForm({
               } : undefined,
             }}
             className="mt-1 mb-5"
+            pendingOutgoing={assetDetails.pendingOutgoing}
+            pendingIncoming={assetDetails.pendingIncoming}
+            unknownPending={assetDetails.unknownPending}
           />
         ) : null
       }

@@ -110,6 +110,25 @@ describe('pendingByAsset', () => {
   });
 });
 
+describe('creditedNormalized', () => {
+  it('totals incoming display units', () => {
+    const events = [
+      credit(100, { quantity_normalized: '1' } as never),
+      credit(50, { quantity_normalized: '0.5' } as never, 'tx2'),
+    ];
+    expect(pendingByAsset(events, MINE).get('XCP')?.creditedNormalized).toBe('1.5');
+  });
+
+  // Same null-poisoning as the outgoing side: a total missing a term is unknown, not smaller.
+  it('goes unknown when any credit lacks a readable figure', () => {
+    const events = [
+      credit(100, { quantity_normalized: '1' } as never),
+      credit(50, {} as never, 'tx2'),
+    ];
+    expect(pendingByAsset(events, MINE).get('XCP')?.creditedNormalized).toBeNull();
+  });
+});
+
 describe('pendingByUtxo ownership', () => {
   const utxoEvent = (overrides: Record<string, unknown>): MempoolLedgerEvent => ({
     tx_hash: 'tx1',
