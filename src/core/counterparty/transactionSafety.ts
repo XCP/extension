@@ -7,6 +7,8 @@
  */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
+import { bareMultisigRecoveryPubkey } from '@/core/counterparty/unpack/multisig';
 
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
@@ -45,10 +47,13 @@ const CP_MULTISIG_DATA_SCRIPT = /^51(21[0-9a-f]{66}){2,3}5[23]ae$/i;
 /**
  * True when the script matches the Counterparty multisig data-encoding shape.
  *
- * Edge case not yet checked: compose accepts a `multisig_pubkey` override, so
- * the embedded recovery key is *normally* the signer's but a hostile composer
- * could point it elsewhere. The info wording hedges accordingly; verifying the
- * third key against the signer's pubkey needs pubkey plumbing into this layer.
+ * The embedded recovery key is checked separately: compose accepts a
+ * `multisig_pubkey` override, so a hostile composer could point the recovery
+ * key — and every data output's dust with it — at a key that is not the
+ * signer's. `analyzeTransactionSafety` compares the third slot against the
+ * signer's own pubkey wherever the wallet holds that address, and the wallet's
+ * own compose path refuses the mismatch outright (`outputPolicy.ts`, which can
+ * be exact because that path also *sent* the key).
  */
 export function isCounterpartyDataScript(script: string | undefined): boolean {
   return !!script && CP_MULTISIG_DATA_SCRIPT.test(script);
@@ -210,6 +215,15 @@ export function analyzeTransactionSafety(
       .map(normalizeAddressForComparison)
   );
   const suspiciousOutputs: Array<{ address: string; value: number }> = [];
+  // The signers' own pubkeys, where this wallet holds them. A dApp transaction can name signer
+  // addresses the wallet does not hold (other participants of a PSBT); those contribute nothing,
+  // and with no keys known the recovery check below stays silent rather than guessing.
+  const signerPubkeys = new Set(
+    (Array.isArray(signerAddress) ? signerAddress : [signerAddress])
+      .map((address) => getSourcePubkey(address)?.toLowerCase())
+      .filter((pubkey): pubkey is string => !!pubkey)
+  );
+  let misdirectedRecoveryKeys = 0;
   /** Non-dust outputs whose script could not be resolved to any address. */
   const unattributableOutputs: Array<{ value: number }> = [];
   /** Recognized Counterparty multisig data outputs (payload, not payments). */
@@ -224,6 +238,10 @@ export function analyzeTransactionSafety(
     // pattern alone must not silence the warning for an unread payload.
     if (!output.address && messageType && isCounterpartyDataScript(output.script)) {
       dataOutputs.push({ value: output.value });
+      const recoveryKey = output.script ? bareMultisigRecoveryPubkey(output.script) : null;
+      if (recoveryKey && signerPubkeys.size > 0 && !signerPubkeys.has(recoveryKey)) {
+        misdirectedRecoveryKeys += 1;
+      }
       continue;
     }
 
@@ -241,6 +259,21 @@ export function analyzeTransactionSafety(
       // such an output raised nothing and showed only as "Unknown address" in the movement list.
       unattributableOutputs.push({ value: output.value });
     }
+  }
+
+  if (misdirectedRecoveryKeys > 0) {
+    // Each data output carries ~1,000 sats of dust, recoverable by whoever holds the embedded
+    // key. Normally that is the signer; a composer that points it elsewhere is quietly donating
+    // the signer's dust, forever. A warning rather than a block: the message itself may still be
+    // exactly what the user asked for, and the dust is bounded — but nobody chooses this
+    // knowingly, so it must not pass in silence.
+    warnings.push({
+      severity: 'warning',
+      title: 'Data Outputs Not Recoverable By You',
+      message:
+        `${misdirectedRecoveryKeys} data output${misdirectedRecoveryKeys > 1 ? 's embed' : ' embeds'} ` +
+        'a recovery key that is not yours, so their dust would be spendable by someone else.',
+    });
   }
 
   if (suspiciousOutputs.length > 0) {

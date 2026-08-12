@@ -34,6 +34,22 @@ export function isBareMultisigDataOutput(scriptHex: string): boolean {
   return extractMultisigDataBytes(scriptHex) !== null;
 }
 
+/**
+ * The recovery key of a bare-multisig data output: the third slot, which core fills with the
+ * source's real public key (`prepare_multisig_output`) so the source can later spend the dust
+ * back. Unlike the two data slots it is not obfuscated — it must be a real key the network can
+ * check a signature against — so it reads straight out of the script.
+ *
+ * Null for anything that is not the 1-of-3 data shape. The historical 1-of-2 encoding also ends
+ * in the source's key, but nothing current composes it, and a shape this function does not
+ * recognize is one it must not claim to have read.
+ */
+export function bareMultisigRecoveryPubkey(scriptHex: string): string | null {
+  if (extractMultisigDataBytes(scriptHex) === null) return null;
+  // OP_1 (1) + [push33 + key] ×2 (68) + push33 (1) → third key at bytes 70..102.
+  return scriptHex.slice(70 * 2, 103 * 2).toLowerCase();
+}
+
 function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
   let bytes: Uint8Array;
   try {
