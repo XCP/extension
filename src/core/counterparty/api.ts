@@ -201,6 +201,26 @@ export interface Order {
   block_time: number;
   give_asset: string;
   get_asset: string;
+  /**
+   * Present on verbose responses. A subasset's `give_asset`/`get_asset` is its numeric name
+   * (A123…); the PARENT.child the user knows lives in `asset_longname` here, and displays must
+   * prefer it — an order list showing A95428956661682177 names nothing anyone typed. The shapes
+   * are the ones OrderDetails always declared, hoisted so plain order lists get them too.
+   */
+  give_asset_info?: {
+    divisible: boolean;
+    asset_longname: string | null;
+    description: string;
+    locked: boolean;
+    issuer: string | null;
+  };
+  get_asset_info?: {
+    asset_longname: string | null;
+    description: string;
+    issuer: string;
+    divisible: boolean;
+    locked: boolean;
+  };
   give_quantity_normalized: DisplayUnits;
   get_quantity_normalized: DisplayUnits;
   give_remaining_normalized: DisplayUnits;
@@ -221,20 +241,6 @@ export interface OrderDetails extends Order {
   give_price: number;
   get_price: number;
   confirmed: boolean;
-  give_asset_info?: {
-    divisible: boolean;
-    asset_longname: string | null;
-    description: string;
-    locked: boolean;
-    issuer: string | null;
-  };
-  get_asset_info?: {
-    asset_longname: string | null;
-    description: string;
-    issuer: string;
-    divisible: boolean;
-    locked: boolean;
-  };
   give_price_normalized?: DisplayUnits;
   get_price_normalized?: DisplayUnits;
   fee_provided_normalized?: DisplayUnits;

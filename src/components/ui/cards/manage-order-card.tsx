@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import type { Order } from "@/core/counterparty/api";
-import { formatAmount } from "@/core/format";
+import { formatAmount, formatAsset } from "@/core/format";
 import { getOrderBaseAmount, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
 interface ManageOrderCardProps {
@@ -24,7 +24,13 @@ export function ManageOrderCard({
   // Determine canonical trading pair and direction
   const [baseAsset, quoteAsset] = getTradingPair(order.give_asset, order.get_asset);
   const isBuy = isBuyOrder(order.give_asset, order.get_asset);
-  const baseDisplay = baseAsset;
+  // A subasset's canonical name is numeric; the longname is what the user recognizes. Each side's
+  // info is whichever of give/get that side came from — the sibling market card matched only the
+  // base side and this one matched neither, so a cancel list read A95428956661682177.
+  const infoFor = (asset: string) =>
+    asset === order.give_asset ? order.give_asset_info : order.get_asset_info;
+  const baseDisplay = formatAsset(baseAsset, { assetInfo: infoFor(baseAsset) });
+  const quoteDisplay = formatAsset(quoteAsset, { assetInfo: infoFor(quoteAsset) });
 
   // Get remaining amount in base asset terms
   const remainingAmount = getOrderBaseAmount(order, baseAsset);
@@ -53,7 +59,7 @@ export function ManageOrderCard({
           <AssetIcon asset={baseAsset} size="md" />
           <div className="flex-1 min-w-0">
             <div className="font-medium text-gray-900 text-sm truncate">
-              {baseDisplay}/{quoteAsset}
+              {baseDisplay}/{quoteDisplay}
             </div>
             <div className="text-xs text-gray-500">
               <span className={isBuy ? "text-green-600 font-medium" : "text-red-600 font-medium"}>

@@ -23,6 +23,33 @@ const openOrder: any = {
 describe('ManageOrderCard', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  // Regression: the pair line read each side's canonical name, and a subasset's canonical name
+  // is numeric (A123...). The order Goat wanted to cancel showed a number nobody typed. Both
+  // sides must prefer the longname, and navigation must keep using the numeric name -- it is
+  // what the API routes by.
+  it('shows a subasset by its longname, on either side of the pair', () => {
+    const subassetOrder = {
+      ...openOrder,
+      give_asset: 'A95428956661682177',
+      give_asset_info: { asset_longname: 'PARENT.child' },
+      get_asset: 'XCP',
+    };
+    render(<ManageOrderCard order={subassetOrder} />);
+
+    expect(screen.getByText('PARENT.child/XCP')).toBeInTheDocument();
+    expect(screen.queryByText(/A95428956661682177/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /PARENT\.child/ }));
+    expect(mockNavigate).toHaveBeenCalledWith('/market/orders/A95428956661682177/XCP');
+  });
+
+  it('falls back to the numeric name when no longname is carried', () => {
+    const bare = { ...openOrder, give_asset: 'A95428956661682177', get_asset: 'XCP' };
+    render(<ManageOrderCard order={bare} />);
+
+    expect(screen.getByText('A95428956661682177/XCP')).toBeInTheDocument();
+  });
+
   it('opens the order when the card body is clicked', () => {
     render(<ManageOrderCard order={openOrder} />);
 
