@@ -26,6 +26,13 @@ export default defineConfig({
         'alarms',
         'scripting', // Required for Trezor Connect to inject content scripts
       ],
+      // Optional rather than required, deliberately. A new *required* permission disables the
+      // extension on update until every existing user re-consents — an unreasonable toll for a
+      // feature most of them will never switch on. Declared here, it costs nothing until someone
+      // turns notifications on, at which point `chrome.permissions.request()` asks once.
+      optional_permissions: [
+        'notifications',
+      ],
       host_permissions: [
         '*://connect.trezor.io/9/*', // Required for Trezor Connect popup communication
         'http://localhost:21325/*', // Trezor Bridge for emulator testing

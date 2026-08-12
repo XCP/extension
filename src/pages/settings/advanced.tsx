@@ -1,5 +1,5 @@
 import { Description, Field, Label, RadioGroup } from "@headlessui/react";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiHelpCircle } from "@/components/icons";
@@ -8,7 +8,9 @@ import { ApiUrlInput } from "@/components/ui/inputs/api-url-input";
 import { SettingSwitch } from "@/components/ui/inputs/setting-switch";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
+import { useWallet } from "@/contexts/wallet-context";
 import type { AutoLockTimer } from "@/core/settings";
+import { setNotificationWatch } from "@/services/notificationService";
 
 /**
  * Constants for navigation paths and auto-lock options.
@@ -40,7 +42,40 @@ export default function AdvancedSettingsPage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { settings, updateSettings, isLoading } = useSettings();
+  const { wallets } = useWallet();
   const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+
+  /**
+   * Turning notifications on has to ask Chrome first, and the request must come from this click —
+   * `chrome.permissions.request()` requires a user gesture, so it cannot be deferred to the poller.
+   * If the prompt is declined the setting stays off rather than reading as on and never firing.
+   */
+  const handleNotificationsChange = async (checked: boolean): Promise<void> => {
+    setNotificationError(null);
+
+    if (!checked) {
+      await updateSettings({ notificationsEnabled: false });
+      await setNotificationWatch(false, []);
+      return;
+    }
+
+    let granted = false;
+    try {
+      granted = await chrome.permissions.request({ permissions: ['notifications'] });
+    } catch (error) {
+      console.error('[Settings] Notification permission request failed:', error);
+    }
+
+    if (!granted) {
+      setNotificationError('Chrome denied the notification permission, so this stays off.');
+      return;
+    }
+
+    const addresses = wallets.flatMap((wallet) => wallet.addresses.map((a) => a.address));
+    await updateSettings({ notificationsEnabled: true });
+    await setNotificationWatch(true, addresses);
+  };
 
 
   // Configure header
@@ -130,6 +165,17 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <SettingSwitch
+          label="Notifications"
+          description="Get notified when a dispenser sells or an order fills. Checks your addresses in the background once per block, and stores them unencrypted so it can keep checking while the wallet is locked. Turning this off clears them."
+          checked={settings.notificationsEnabled === true}
+          onChange={handleNotificationsChange}
+          showHelpText={shouldShowHelpText}
+        />
+        {notificationError && (
+          <p className="text-sm text-red-600" role="status">{notificationError}</p>
+        )}
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">
@@ -197,7 +243,7 @@ function SettingsSection({
 }: {
   id: string;
   title: string;
-  children: ReactElement | ReactElement[];
+  children: ReactNode;
 }): ReactElement {
   return (
     <section aria-labelledby={id} className="space-y-4">

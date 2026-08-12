@@ -119,6 +119,15 @@ export interface AppSettings {
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
 
+  /**
+   * Notify on dispenser sales and order status changes.
+   *
+   * The poller cannot read this — settings live in the keychain and read as defaults while locked,
+   * which is most of the time. `notificationService` mirrors it into extension-local storage
+   * instead; this field is what the settings screen renders, and the source of truth when unlocked.
+   */
+  notificationsEnabled?: boolean;
+
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
 
@@ -155,6 +164,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
+  notificationsEnabled: false,
   hasVisitedRecoverBitcoin: false,
 };
 

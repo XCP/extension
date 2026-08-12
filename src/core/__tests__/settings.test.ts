@@ -172,6 +172,7 @@ describe('DEFAULT_SETTINGS', () => {
       'hasVisitedRecoverBitcoin',
       'lastActiveAddress',
       'lastActiveWalletId',
+      'notificationsEnabled',
       'pinnedAssets',
       'priceUnit',
       'providerCapabilities',
