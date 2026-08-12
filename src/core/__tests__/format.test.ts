@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAddress, formatAmount, formatAsset, formatDate } from '@/core/format';
+import { formatAddress, formatAmount, formatAsset, formatDate, normalizeAssetQuery } from '@/core/format';
 
 describe('format utilities', () => {
   describe('formatAmount', () => {
@@ -377,5 +377,23 @@ describe('formatAmount, given the string a quantity arrived as', () => {
     expect(formatAmount({ value: 'not a number' })).toBe('N/A');
     expect(formatAmount({ value: '' })).toBe('N/A');
     expect(formatAmount({ value: null })).toBe('N/A');
+  });
+});
+
+describe('normalizeAssetQuery', () => {
+  it('uppercases a named-asset query, the charset convention', () => {
+    expect(normalizeAssetQuery('pepecash')).toBe('PEPECASH');
+    expect(normalizeAssetQuery('  xcp ')).toBe('XCP');
+  });
+
+  // A subasset longname is case-sensitive; uppercasing PARENT.child names a different asset,
+  // which is why a fully and correctly typed longname found nothing in the market search.
+  it('leaves a subasset query exactly as typed', () => {
+    expect(normalizeAssetQuery('PARENT.child')).toBe('PARENT.child');
+    expect(normalizeAssetQuery(' A95428956661682177.sub ')).toBe('A95428956661682177.sub');
+  });
+
+  it('the dot decides, even for a lowercase parent', () => {
+    expect(normalizeAssetQuery('parent.Child')).toBe('parent.Child');
   });
 });
