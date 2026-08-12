@@ -116,7 +116,6 @@ export function DestroySupplyForm({
               quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
-            pendingOutgoing={assetDetails.pendingOutgoing}
             pendingIncoming={assetDetails.pendingIncoming}
             unknownPending={assetDetails.unknownPending}
           />

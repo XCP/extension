@@ -13,13 +13,6 @@ interface BalanceHeaderProps {
   /** Optional CSS classes */
   className?: string;
   /**
-   * Display units already committed by unconfirmed transactions. When present and non-zero, a
-   * "pending" line renders under the balance — which is what lets the balance itself be the
-   * spendable figure without silently disagreeing with an explorer: the two lines together are
-   * the whole story (what you can spend now, and what is in flight).
-   */
-  pendingOutgoing?: string;
-  /**
    * Display units arriving from unconfirmed transactions. Never part of the balance figure —
    * unconfirmed money in is not money you can spend — so it renders with an explicit plus.
    */
@@ -60,11 +53,9 @@ interface BalanceHeaderProps {
 export const BalanceHeader = ({
   balance,
   className = '',
-  pendingOutgoing,
   pendingIncoming,
   unknownPending,
 }: BalanceHeaderProps): ReactElement => {
-  const hasPending = !!pendingOutgoing && toBigNumber(pendingOutgoing).isGreaterThan(0);
   const hasIncoming = !!pendingIncoming && toBigNumber(pendingIncoming).isGreaterThan(0);
   const pendingDigits = {
     minimumFractionDigits: 0,
@@ -92,20 +83,18 @@ export const BalanceHeader = ({
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">
           Balance: {formattedBalance}
-          {/* Signed, because unsigned was genuinely ambiguous: "9 (1 pending)" reads as
-              about-to-be-10 as easily as about-to-be-8. Minus means leaving and already excluded
-              from the figure; plus means arriving and not yet included. */}
-          {hasPending && (
-            <span className="text-xs italic text-gray-400">
-              {' '}(−{formatAmount({ value: pendingOutgoing!, ...pendingDigits })} pending)
-            </span>
-          )}
+          {/* No note for outgoing: the balance already IS the spendable figure, so there is
+              nothing to clarify — a "(−N pending)" line was reconciliation against a number the
+              wallet no longer shows anywhere. Incoming is different information (money arriving,
+              never part of the figure until confirmed), and the unknown flag marks the one case
+              where the figure could NOT be reduced to spendable, which is exactly when a note is
+              owed. Plus sign kept on incoming so it cannot be misread as a deduction. */}
           {hasIncoming && (
             <span className="text-xs italic text-gray-400">
               {' '}(+{formatAmount({ value: pendingIncoming!, ...pendingDigits })} incoming)
             </span>
           )}
-          {!hasPending && unknownPending && (
+          {unknownPending && (
             <span className="text-xs italic text-gray-400"> (pending amount unknown)</span>
           )}
         </p>

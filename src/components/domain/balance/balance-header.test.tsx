@@ -49,55 +49,33 @@ describe('BalanceHeader', () => {
     vi.clearAllMocks();
   });
 
-  describe('pending line', () => {
-    // What lets the balance itself be the spendable figure: the in-flight remainder is stated
-    // beside it rather than silently missing from it.
-    it('shows what is pending when a total is known', () => {
-      render(<BalanceHeader balance={mockBalance} pendingOutgoing="1.5" />);
-
-      expect(screen.getByText(/−1\.5 pending/)).toBeInTheDocument();
-    });
-
-    it('shows nothing when nothing is pending', () => {
-      render(<BalanceHeader balance={mockBalance} pendingOutgoing="0" />);
-
-      expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
-    });
-
-    it('shows nothing when the props are not supplied', () => {
-      render(<BalanceHeader balance={mockBalance} />);
-
-      expect(screen.queryByText(/pending/)).not.toBeInTheDocument();
-    });
-
-    // A pending debit exists but could not be totalled, so nothing was subtracted from the
-    // balance. Saying so beats showing a number nobody has.
-    it('says the amount is unknown rather than inventing one', () => {
-      render(<BalanceHeader balance={mockBalance} unknownPending />);
-
-      expect(screen.getByText(/pending amount unknown/)).toBeInTheDocument();
-    });
-
-    it('shows incoming with an explicit plus, separate from the balance', () => {
+  describe('pending note', () => {
+    // The outgoing note is gone by decision: the balance IS the spendable figure everywhere, so
+    // "(-N pending)" clarified a number the wallet no longer shows. These pin what remains.
+    it('shows incoming with an explicit plus', () => {
       render(<BalanceHeader balance={mockBalance} pendingIncoming="5" />);
 
       expect(screen.getByText(/\+5 incoming/)).toBeInTheDocument();
     });
 
-    it('can say both directions at once', () => {
-      render(<BalanceHeader balance={mockBalance} pendingOutgoing="1" pendingIncoming="5" />);
+    it('shows nothing when nothing is incoming', () => {
+      render(<BalanceHeader balance={mockBalance} pendingIncoming="0" />);
 
-      expect(screen.getByText(/−1 pending/)).toBeInTheDocument();
-      expect(screen.getByText(/\+5 incoming/)).toBeInTheDocument();
+      expect(screen.queryByText(/incoming/)).not.toBeInTheDocument();
     });
 
-    // A known total wins over the unknown flag: the flag says "a term was missing", and when a
-    // figure is present anyway the figure is the more useful of the two statements.
-    it('prefers a known figure over the unknown message', () => {
-      render(<BalanceHeader balance={mockBalance} pendingOutgoing="2" unknownPending />);
+    // The one case where the figure could NOT be reduced to spendable -- a pending debit existed
+    // but could not be totalled, so nothing was subtracted. That is exactly when a note is owed.
+    it('flags an unknown pending amount', () => {
+      render(<BalanceHeader balance={mockBalance} unknownPending />);
 
-      expect(screen.getByText(/−2 pending/)).toBeInTheDocument();
-      expect(screen.queryByText(/pending amount unknown/)).not.toBeInTheDocument();
+      expect(screen.getByText(/pending amount unknown/)).toBeInTheDocument();
+    });
+
+    it('shows nothing at all by default', () => {
+      render(<BalanceHeader balance={mockBalance} />);
+
+      expect(screen.queryByText(/incoming|pending/)).not.toBeInTheDocument();
     });
   });
 
