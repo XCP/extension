@@ -46,6 +46,7 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import type { AddressFormat } from '@/core/bitcoin/address';
+import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
@@ -624,7 +625,14 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     isAddressInAnyWallet: walletService.isAddressInAnyWallet,
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
-    broadcastTransaction: walletService.broadcastTransaction,
+    // Wrapped rather than passed through: the spent-UTXO cache is per-context, and compose runs
+    // HERE, in the popup. Recording only in the background (where the broadcast executes) left
+    // this context's copy empty, so quick back-to-back transactions re-picked just-spent inputs.
+    broadcastTransaction: async (signedTxHex: string) => {
+      const result = await walletService.broadcastTransaction(signedTxHex);
+      recordSpentInputsFromRawTx(signedTxHex);
+      return result;
+    },
     isKeychainLocked,
   }), [
     walletState,

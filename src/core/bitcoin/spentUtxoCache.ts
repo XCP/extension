@@ -1,3 +1,5 @@
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
+
 /**
  * Spent UTXO Cache — Prevents race conditions in rapid transactions.
  *
@@ -5,8 +7,17 @@
  * subsequent UTXO selections can exclude them before mempool propagation
  * catches up (typically 1-10 seconds).
  *
- * In-memory only — clears on service worker restart, which is fine since
- * mempool will have caught up by then. Uses lazy TTL expiry (no timers).
+ * In-memory only — clears on restart, which is fine since the mempool will
+ * have caught up by then. Uses lazy TTL expiry (no timers).
+ *
+ * THE MAP IS PER-CONTEXT, and that bit us: the background worker recorded on
+ * broadcast (transactionBroadcaster) while compose and UTXO selection read in
+ * the POPUP — two contexts, two maps, so the popup consulted a permanently
+ * empty copy and quick back-to-back transactions re-picked just-spent inputs
+ * ("UTXO not found for input 0"). Every context that composes must therefore
+ * record on its own side of the boundary: the popup does so in
+ * wallet-context's broadcastTransaction wrapper, from the signed hex it just
+ * sent across.
  */
 
 const SPENT_UTXO_TTL_MS = 60_000; // 60 seconds
@@ -41,6 +52,20 @@ export function isUtxoRecentlySpent(txid: string, vout: number): boolean {
     return false;
   }
   return true;
+}
+
+/**
+ * Record every input of a signed transaction as spent, from its raw hex.
+ *
+ * For callers that hold the transaction they just broadcast rather than a
+ * parsed input list. Unparseable hex records nothing — a transaction that
+ * cannot be parsed was not broadcast by us, and guessing inputs would
+ * exclude UTXOs that are still spendable.
+ */
+export function recordSpentInputsFromRawTx(rawTxHex: string): void {
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed) return;
+  recordSpentUtxos(parsed.inputs.map(({ txid, vout }) => ({ txid, vout })));
 }
 
 /**

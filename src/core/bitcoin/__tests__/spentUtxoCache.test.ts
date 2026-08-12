@@ -1,8 +1,11 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSpentUtxoCache,
   getSpentUtxoCacheSize,
   isUtxoRecentlySpent,
+  recordSpentInputsFromRawTx,
   recordSpentUtxos,
 } from '../spentUtxoCache';
 
@@ -79,6 +82,32 @@ describe('spentUtxoCache', () => {
 
   it('should handle recording empty inputs array', () => {
     recordSpentUtxos([]);
+    expect(getSpentUtxoCacheSize()).toBe(0);
+  });
+});
+
+describe('recordSpentInputsFromRawTx', () => {
+  beforeEach(() => clearSpentUtxoCache());
+
+  // The popup-side half of the split-brain fix: the context that composes must be able to record
+  // from the one thing it holds at broadcast time, the signed hex.
+  it('records every input of a parseable transaction', () => {
+    const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+    tx.addInput({ txid: hexToBytes('11'.repeat(32)), index: 0 });
+    tx.addInput({ txid: hexToBytes('22'.repeat(32)), index: 3 });
+    tx.addOutput({ script: new Uint8Array([0x6a, 0x01, 0x00]), amount: 0n });
+    recordSpentInputsFromRawTx(bytesToHex(tx.unsignedTx));
+
+    expect(isUtxoRecentlySpent('11'.repeat(32), 0)).toBe(true);
+    expect(isUtxoRecentlySpent('22'.repeat(32), 3)).toBe(true);
+    expect(isUtxoRecentlySpent('33'.repeat(32), 0)).toBe(false);
+  });
+
+  // Guessing inputs from bytes we cannot read would exclude UTXOs that are still spendable.
+  it('records nothing for unparseable hex', () => {
+    recordSpentInputsFromRawTx('not-a-transaction');
+    recordSpentInputsFromRawTx('deadbeef');
+
     expect(getSpentUtxoCacheSize()).toBe(0);
   });
 });
