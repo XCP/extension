@@ -22,6 +22,7 @@ import {
   legacySighashAll,
   offCurveFakeKey,
   parseWireTx,
+  toSegwitSerialization,
   txidOf,
   type WireOutput,
 } from './helpers/bareMultisigFixtures';
@@ -155,6 +156,50 @@ describe('consolidateBareMultisigBatch', () => {
       await expect(
         consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
       ).rejects.toThrow(/Script mismatch for UTXO/);
+    });
+
+    // Regression: the cross-check hashed prev_tx_hex directly, which for a SegWit funding
+    // transaction computes the wtxid rather than the txid — so every recovery whose dust was
+    // funded by a SegWit spend failed as "Previous transaction data does not match its txid".
+    // The fixture builder only ever produced legacy serializations, where the two hashes agree,
+    // which is how the confusion stayed green. Reported live: a 12-UTXO batch on a P2PKH address
+    // rejected on its first UTXO because the funding tx spent a P2WPKH input.
+    it('should accept a SegWit previous transaction whose stripped hash is the txid', async () => {
+      const legacyBytes = buildPrevTx([{ amount: 100_000n, script: historicalScript }], 77);
+      const utxo: ConsolidationUTXO = {
+        txid: txidOf(legacyBytes), // the real txid: sha256d over the stripped form
+        vout: 0,
+        amount: 100_000,
+        prev_tx_hex: bytesToHex(toSegwitSerialization(legacyBytes)),
+        script: bytesToHex(historicalScript),
+        position: 0,
+        script_type: 'bare_multisig',
+      };
+      const batchData = createBatchData({ utxos: [utxo] });
+
+      const result = await consolidateBareMultisigBatch(
+        TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10
+      );
+      expect(result.totalInput).toBe(100_000);
+      expect(parseWireTx(hexToBytes(result.signedTxHex)).inputs).toHaveLength(1);
+    });
+
+    it('should still reject a SegWit previous transaction with the wrong txid', async () => {
+      const legacyBytes = buildPrevTx([{ amount: 100_000n, script: historicalScript }], 78);
+      const utxo: ConsolidationUTXO = {
+        txid: '11'.repeat(32),
+        vout: 0,
+        amount: 100_000,
+        prev_tx_hex: bytesToHex(toSegwitSerialization(legacyBytes)),
+        script: bytesToHex(historicalScript),
+        position: 0,
+        script_type: 'bare_multisig',
+      };
+      const batchData = createBatchData({ utxos: [utxo] });
+
+      await expect(
+        consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10)
+      ).rejects.toThrow(/does not match its txid/);
     });
 
     it('should reject prev_tx_hex that does not hash to the txid', async () => {

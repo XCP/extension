@@ -3,7 +3,6 @@
  * Builds and signs recovery transactions from xcp.io recovery API batch data.
  */
 
-import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { Transaction } from '@scure/btc-signer';
@@ -52,14 +51,23 @@ function verifyUtxoAgainstPrevTx(
 ): void {
   let prevTx = prevTxCache.get(utxo.txid);
   if (!prevTx) {
-    const prevTxBytes = hexToBytes(utxo.prev_tx_hex);
-    const computedTxid = bytesToHex(sha256(sha256(prevTxBytes)).reverse());
-    if (computedTxid !== utxo.txid.toLowerCase()) {
+    // Parse first and compare the parser's txid, rather than hashing the raw bytes. A txid is
+    // sha256d over the transaction WITHOUT witnesses; hashing the full serialization of a SegWit
+    // transaction computes the wtxid instead, so the old direct hash rejected every UTXO whose
+    // funding transaction spent a SegWit input — a false positive that blocked real recoveries
+    // ("Previous transaction data does not match its txid"). `Transaction.id` is
+    // sha256d(toBytes(true)): scriptSigs in, witnesses out, which is the definition.
+    //
+    // Equally binding: if the parser's re-serialization hashes to the claimed txid, collision
+    // resistance says the parser's view of the outputs IS that transaction's — which is the only
+    // thing the amount and script checks below rely on.
+    const parsed = Transaction.fromRaw(hexToBytes(utxo.prev_tx_hex), PREV_TX_PARSE_OPTS);
+    if (parsed.id !== utxo.txid.toLowerCase()) {
       throw new Error(
         `Previous transaction data does not match its txid for UTXO ${utxo.txid}:${utxo.vout}`
       );
     }
-    prevTx = Transaction.fromRaw(prevTxBytes, PREV_TX_PARSE_OPTS);
+    prevTx = parsed;
     prevTxCache.set(utxo.txid, prevTx);
   }
 
