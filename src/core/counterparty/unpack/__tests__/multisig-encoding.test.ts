@@ -8,12 +8,14 @@
  * and classified, so the block applies regardless of encoding.
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setSourcePubkeyProvider } from '../../sourcePubkey';
 import { analyzeTransactionSafety } from '../../transactionSafety';
 import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';
 import { unpackCounterpartyMessage } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
+import { bareMultisigRecoveryPubkey } from '../multisig';
 import { extractPayloadFromOutputs } from '../opReturn';
 import { verifyTransaction } from '../verify';
 
@@ -323,5 +325,69 @@ describe('unclassified transactions fail toward unknown', () => {
 
     expect(safety.warnings).toEqual([]);
     expect(safety.blocked).toBe(false);
+  });
+});
+
+describe('the recovery key rides in the third slot', () => {
+  const signerPubkey = '02' + '11'.repeat(32);
+  const strangerPubkey = '03' + '22'.repeat(32);
+
+  /** A data script embedding `recovery` where core puts the source pubkey. */
+  const scriptWithRecoveryKey = (recovery: string): string =>
+    bytesToHex(new Uint8Array([
+      0x51,
+      0x21, ...new Uint8Array(33).fill(0x02),
+      0x21, ...new Uint8Array(33).fill(0x04),
+      0x21, ...hexToBytes(recovery),
+      0x53,
+      0xae,
+    ]));
+
+  afterEach(() => setSourcePubkeyProvider(null));
+
+  it('reads the third slot back out of a data script', () => {
+    expect(bareMultisigRecoveryPubkey(scriptWithRecoveryKey(signerPubkey))).toBe(signerPubkey);
+  });
+
+  it.each([
+    ['an OP_RETURN', '6a04deadbeef'],
+    ['a P2PKH script', '76a914' + '11'.repeat(20) + '88ac'],
+    ['a truncated multisig', ('51' + '21' + '02'.repeat(33) + '53ae')],
+  ])('claims nothing about %s', (_label, scriptHex) => {
+    expect(bareMultisigRecoveryPubkey(scriptHex)).toBeNull();
+  });
+
+  // The gap the old comment on isCounterpartyDataScript documented: compose accepts a
+  // multisig_pubkey override, so a hostile composer can point every data output's dust at a key
+  // that is not the signer's. Checkable exactly when the wallet holds the signer's key.
+  it('warns when a data output embeds a recovery key that is not the signers own', () => {
+    setSourcePubkeyProvider((address) => (address === 'bc1qsigner' ? signerPubkey : null));
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(strangerPubkey) },
+    ], 'bc1qsigner');
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(true);
+  });
+
+  it('stays quiet when the recovery key is the signers own', () => {
+    setSourcePubkeyProvider(() => signerPubkey);
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(signerPubkey) },
+    ], 'bc1qsigner');
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
+  });
+
+  // With no key to compare against there is nothing to claim. Silence is the pre-existing
+  // behaviour, and a warning built on a guess would cry wolf on every PSBT whose signers this
+  // wallet does not hold.
+  it('stays quiet when the wallet holds no key for any signer', () => {
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(strangerPubkey) },
+    ], 'bc1qsigner');
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
   });
 });

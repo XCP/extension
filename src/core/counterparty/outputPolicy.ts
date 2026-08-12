@@ -55,7 +55,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
-import { isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
+import { bareMultisigRecoveryPubkey, isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
 import { toSafeInteger } from '@/core/numeric';
 
 /** An output the user's request accounts for. */
@@ -77,6 +77,17 @@ export interface OutputPolicyInput {
    * `checkPositionalDestination`.
    */
   positionalDestination?: string;
+  /**
+   * The recovery key every bare-multisig data output must embed, when the request named one.
+   *
+   * The compose request sends `multisig_pubkey` — the signer's own key — and core honors it
+   * verbatim (`get_source_pubkey` returns the parameter before searching anything), so a data
+   * output carrying a different key is a tampered response: its dust would be spendable by
+   * whoever holds that key instead of the signer. Roughly 1,000 sats per data output, forever,
+   * to a stranger. Unset when the wallet had no key to send, which leaves the check off exactly
+   * when nothing pinned the value — an absent expectation must not manufacture a failure.
+   */
+  expectedRecoveryPubkey?: string;
 }
 
 /** An output that could not be explained, described for the error message. */
@@ -295,8 +306,23 @@ export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult 
 
     const scriptHex = bytesToHex(script);
 
-    // Data outputs carry the Counterparty message, not value.
-    if (isDataOutput(script, scriptHex)) continue;
+    // Data outputs carry the Counterparty message, not value — but their recovery slot is still
+    // checkable when the request pinned it (see `expectedRecoveryPubkey`).
+    if (isDataOutput(script, scriptHex)) {
+      if (input.expectedRecoveryPubkey) {
+        const embedded = bareMultisigRecoveryPubkey(scriptHex);
+        if (embedded !== null && embedded !== input.expectedRecoveryPubkey.toLowerCase()) {
+          return {
+            ok: false,
+            error:
+              'The composed transaction embeds a recovery key that is not yours in its data '
+              + 'outputs, so their dust would be spendable by someone else.',
+            unexplained: [],
+          };
+        }
+      }
+      continue;
+    }
 
     const address = decodeAddressFromScript(scriptHex);
     if (!address) {

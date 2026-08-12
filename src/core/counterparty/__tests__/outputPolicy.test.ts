@@ -168,6 +168,56 @@ describe('checkOutputPolicy', () => {
     expect(result.ok).toBe(true);
   });
 
+  describe('recovery key in data outputs', () => {
+    const dataPubkeyA = getPublicKey(hexToBytes('22'.repeat(32)), true);
+    const dataPubkeyB = getPublicKey(hexToBytes('44'.repeat(32)), true);
+    const strangerPubkey = getPublicKey(hexToBytes('55'.repeat(32)), true);
+
+    const dataScriptWithRecoveryKey = (recovery: Uint8Array) => new Uint8Array([
+      0x51, 0x21, ...dataPubkeyA, 0x21, ...dataPubkeyB, 0x21, ...recovery, 0x53, 0xae,
+    ]);
+
+    const policyInput = (recovery: Uint8Array, expected?: string) => ({
+      rawTransaction: rawTxWithScripts([
+        { scriptHex: bytesToHex(dataScriptWithRecoveryKey(recovery)), value: 546n },
+        { scriptHex: bytesToHex(p2wpkh(OWNER_PUBKEY).script), value: 190_000n },
+      ]),
+      ownAddresses: [OWNER],
+      intendedDestinations: [],
+      expectedRecoveryPubkey: expected,
+    });
+
+    it('accepts data outputs embedding the key the request sent', () => {
+      const result = checkOutputPolicy(policyInput(OWNER_PUBKEY, bytesToHex(OWNER_PUBKEY)));
+      expect(result.ok).toBe(true);
+    });
+
+    it('is not case-sensitive about the expected key', () => {
+      const result = checkOutputPolicy(
+        policyInput(OWNER_PUBKEY, bytesToHex(OWNER_PUBKEY).toUpperCase())
+      );
+      expect(result.ok).toBe(true);
+    });
+
+    // The compose request named the recovery key and core honors that parameter verbatim, so a
+    // different key in the response is a substitution: the dust would be spendable by whoever
+    // holds it. This is the check the request-side multisig_pubkey parameter exists to enable.
+    it('rejects data outputs embedding a key the request did not send', () => {
+      const result = checkOutputPolicy(policyInput(strangerPubkey, bytesToHex(OWNER_PUBKEY)));
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toMatch(/recovery key/);
+    });
+
+    // No expectation, no check: an absent key means the wallet sent none, and core then chose one
+    // from the address's own history. Manufacturing a failure there would block every compose
+    // from a wallet that cannot supply keys (test-only wallets), which all worked before.
+    it('checks nothing when the request sent no key', () => {
+      const result = checkOutputPolicy(policyInput(strangerPubkey, undefined));
+      expect(result.ok).toBe(true);
+    });
+  });
+
   it('rejects an output whose script cannot be attributed to any address', () => {
     // An unattributable script might pay anyone, so it cannot be explained — unknown is not safe.
     const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
