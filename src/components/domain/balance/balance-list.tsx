@@ -6,14 +6,14 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { pendingLabel } from "@/core/balances/pendingLabel";
+
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
-import { usePendingDeltas } from "@/hooks/usePendingStatus";
+import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
 import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
@@ -50,8 +50,21 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   }, [settings?.pinnedAssets]);
 
   // A refresh reuses the same lever the pinned-asset list already pulls, rather than adding a
-  // second path through the loading code.
-  useRefreshSignal(refreshNonce, () => setInitialLoaded(false));
+  // second path through the loading code. The ref records that a refresh was asked for, so the
+  // completion callback fires for refreshes alone — the load path also runs on mount, on address
+  // changes and on pinned-asset changes, and announcing those as "your refresh finished" made the
+  // callback's contract a lie the current caller merely happened to tolerate.
+  const refreshRequestedRef = useRef(false);
+  useRefreshSignal(refreshNonce, () => {
+    refreshRequestedRef.current = true;
+    setInitialLoaded(false);
+  });
+  const settleRefresh = () => {
+    if (refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      latestOnRefreshed.current?.();
+    }
+  };
 
   // Read alongside the balances and on the same refresh, so the amount and what is happening to it
   // never come from two different moments.
@@ -79,14 +92,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   const latestOnRefreshed = useRef(onRefreshed);
   latestOnRefreshed.current = onRefreshed;
 
-  const pendingByAssetLabel = useMemo(() => {
-    const labels = new Map<string, string>();
-    for (const [asset, delta] of pendingDeltas) {
-      const label = pendingLabel(delta.reasons);
-      if (label) labels.set(asset, label);
-    }
-    return labels;
-  }, [pendingDeltas]);
+  const pendingByAssetLabel = useMemo(() => labelsFromDeltas(pendingDeltas), [pendingDeltas]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
@@ -113,6 +119,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         setAllBalances([]);
         setOffset(0);
         setHasMore(true);
+        // A refresh that raced the address going away is still over; leaving the spinner running
+        // because there was nothing to load would strand it.
+        settleRefresh();
       }
       return;
     }
@@ -168,7 +177,7 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         // Outside the isCancelled guard on purpose. A cancelled load still ends the refresh the
         // caller is showing a spinner for; leaving it spinning because the address changed
         // mid-flight would strand it there.
-        latestOnRefreshed.current?.();
+        settleRefresh();
       }
     };
 

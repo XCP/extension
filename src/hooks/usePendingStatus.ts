@@ -64,6 +64,16 @@ export function usePendingDeltas(
   return { byAsset, byUtxo };
 }
 
+/** Each delta reduced to one display word, dropping the ones with nothing to say. */
+export function labelsFromDeltas(deltas: Map<string, PendingDelta>): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const [key, delta] of deltas) {
+    const label = pendingLabel(delta.reasons);
+    if (label) labels.set(key, label);
+  }
+  return labels;
+}
+
 /**
  * The same reading, reduced to one word per row for the balance and UTXO lists.
  */
@@ -73,15 +83,8 @@ export function usePendingStatus(
 ): { byAsset: Map<string, string>; byUtxo: Map<string, string> } {
   const { byAsset, byUtxo } = usePendingDeltas(address, refreshNonce);
 
-  return useMemo(() => {
-    const toLabels = (deltas: Map<string, PendingDelta>) => {
-      const labels = new Map<string, string>();
-      for (const [key, delta] of deltas) {
-        const label = pendingLabel(delta.reasons);
-        if (label) labels.set(key, label);
-      }
-      return labels;
-    };
-    return { byAsset: toLabels(byAsset), byUtxo: toLabels(byUtxo) };
-  }, [byAsset, byUtxo]);
+  return useMemo(
+    () => ({ byAsset: labelsFromDeltas(byAsset), byUtxo: labelsFromDeltas(byUtxo) }),
+    [byAsset, byUtxo]
+  );
 }

@@ -32,7 +32,18 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
   // No `initialLoaded` flag here: this list reloads when the address changes, so a refresh is
   // expressed as another reason to re-run that same effect.
   const [reloadCount, setReloadCount] = useState(0);
-  useRefreshSignal(refreshNonce, () => setReloadCount((previous) => previous + 1));
+  // See BalanceList: the ref confines the completion callback to refreshes that were requested.
+  const refreshRequestedRef = useRef(false);
+  useRefreshSignal(refreshNonce, () => {
+    refreshRequestedRef.current = true;
+    setReloadCount((previous) => previous + 1);
+  });
+  const settleRefresh = () => {
+    if (refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      latestOnRefreshed.current?.();
+    }
+  };
 
   // Keyed on the UTXO, not the asset: moving one attached output should mark one row.
   const { byUtxo: pendingByUtxoLabel } = usePendingStatus(activeAddress?.address, refreshNonce);
@@ -46,6 +57,8 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
     if (!activeAddress || !activeWallet) {
       setBalances([]);
       setIsInitialLoading(false);
+      // A refresh that raced the address going away is still over.
+      settleRefresh();
       return;
     }
 
@@ -84,7 +97,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
         if (!isCancelled) setIsInitialLoading(false);
         // Outside the cancelled guard: a cancelled load still ends the refresh the caller is
         // showing a spinner for.
-        latestOnRefreshed.current?.();
+        settleRefresh();
       }
     };
 

@@ -3,6 +3,7 @@ import {
   countUnreadable,
   type MempoolLedgerEvent,
   pendingByAsset,
+  pendingByUtxo,
   summarize,
 } from '../pending';
 
@@ -106,6 +107,43 @@ describe('pendingByAsset', () => {
 
   it('returns nothing for an empty mempool', () => {
     expect(pendingByAsset([], MINE).size).toBe(0);
+  });
+});
+
+describe('pendingByUtxo ownership', () => {
+  const utxoEvent = (overrides: Record<string, unknown>): MempoolLedgerEvent => ({
+    tx_hash: 'tx1',
+    event: 'DEBIT',
+    params: {
+      asset: 'XCP',
+      quantity: 5,
+      action: 'detach from utxo',
+      utxo: 'aabb:0',
+      ...overrides,
+    } as MempoolLedgerEvent['params'],
+  });
+
+  it('counts a movement on a UTXO this address owns', () => {
+    const result = pendingByUtxo([utxoEvent({ utxo_address: MINE })], MINE);
+    expect(result.get('aabb:0')?.debited).toBe(5n);
+  });
+
+  // The endpoint matches addresses with SQL LIKE, so strangers arrive in the result set.
+  it('ignores a movement on a stranger UTXO', () => {
+    const result = pendingByUtxo([utxoEvent({ utxo_address: THEIRS })], MINE);
+    expect(result.size).toBe(0);
+  });
+
+  // The regression: an event naming us in neither field used to pass the old exclude-on-mismatch
+  // guard whenever utxo_address was simply absent.
+  it('ignores an event that names this address in no field at all', () => {
+    const result = pendingByUtxo([utxoEvent({ address: THEIRS })], MINE);
+    expect(result.size).toBe(0);
+  });
+
+  it('accepts ownership via the address field when utxo_address is unset', () => {
+    const result = pendingByUtxo([utxoEvent({ address: MINE })], MINE);
+    expect(result.get('aabb:0')?.debited).toBe(5n);
   });
 });
 

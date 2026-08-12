@@ -189,8 +189,12 @@ export function pendingByUtxo(
 
     const utxo = params.utxo;
     if (typeof utxo !== 'string' || utxo.length === 0) continue;
-    // A UTXO-held balance names its owner in `utxo_address`; `address` is unset for these.
-    if (params.utxo_address !== undefined && params.utxo_address !== address) continue;
+    // Ownership must be positive, not merely unexcluded. The endpoint matches addresses with a
+    // SQL LIKE, so its results are a superset, and a UTXO-held balance names its owner in
+    // `utxo_address` (with `address` unset) while an address-level movement does the reverse. An
+    // event naming us in neither field is someone else's, whatever fields it happens to omit —
+    // the earlier exclude-on-mismatch guard let an event with both fields absent through.
+    if (params.utxo_address !== address && params.address !== address) continue;
 
     const asset = params.asset;
     const quantity = toBaseUnits(params.quantity);

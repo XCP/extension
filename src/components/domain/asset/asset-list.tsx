@@ -29,7 +29,18 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
-  useRefreshSignal(refreshNonce, () => setInitialLoaded(false));
+  // See BalanceList: the ref confines the completion callback to refreshes that were requested.
+  const refreshRequestedRef = useRef(false);
+  useRefreshSignal(refreshNonce, () => {
+    refreshRequestedRef.current = true;
+    setInitialLoaded(false);
+  });
+  const settleRefresh = () => {
+    if (refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      latestOnRefreshed.current?.();
+    }
+  };
 
   // Ref, not a dependency: callers pass an inline arrow that changes every parent render.
   const latestOnRefreshed = useRef(onRefreshed);
@@ -59,7 +70,12 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
 
   // Initial load
   useEffect(() => {
-    if (!activeAddress?.address || initialLoaded) return;
+    if (!activeAddress?.address || initialLoaded) {
+      // A refresh that raced the address going away is still over; without this the caller's
+      // spinner would wait on a load that is never going to start.
+      if (!activeAddress?.address) settleRefresh();
+      return;
+    }
 
     let isCancelled = false;
 
@@ -80,7 +96,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
         if (!isCancelled) setIsLoading(false);
         // Outside the cancelled guard: a cancelled load still ends the refresh the caller is
         // showing a spinner for.
-        latestOnRefreshed.current?.();
+        settleRefresh();
       }
     };
 
