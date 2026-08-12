@@ -117,7 +117,6 @@ export function DestroySupplyForm({
             }}
             className="mt-1 mb-5"
             pendingIncoming={assetDetails.pendingIncoming}
-            unknownPending={assetDetails.unknownPending}
           />
         ) : null
       }

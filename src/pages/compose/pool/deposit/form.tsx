@@ -160,7 +160,7 @@ export function PoolDepositForm({
       {pool ? (
         <PoolHeader pool={pool} className="mt-1 mb-5" />
       ) : assetABalanceHeader ? (
-        <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" pendingIncoming={assetADetails?.pendingIncoming} unknownPending={assetADetails?.unknownPending} />
+        <BalanceHeader balance={assetABalanceHeader} className="mt-1 mb-5" pendingIncoming={assetADetails?.pendingIncoming} />
       ) : null}
       {/* Deposit/Withdraw tabs with the settings cog, mirroring the DEX order form */}
       <div className="flex justify-between items-center mb-2">

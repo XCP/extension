@@ -64,14 +64,6 @@ describe('BalanceHeader', () => {
       expect(screen.queryByText(/incoming/)).not.toBeInTheDocument();
     });
 
-    // The one case where the figure could NOT be reduced to spendable -- a pending debit existed
-    // but could not be totalled, so nothing was subtracted. That is exactly when a note is owed.
-    it('flags an unknown pending amount', () => {
-      render(<BalanceHeader balance={mockBalance} unknownPending />);
-
-      expect(screen.getByText(/pending amount unknown/)).toBeInTheDocument();
-    });
-
     it('shows nothing at all by default', () => {
       render(<BalanceHeader balance={mockBalance} />);
 

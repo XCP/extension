@@ -202,7 +202,7 @@ export default function AssetBalancePage(): ReactElement {
 
   return (
     <section className="p-4 space-y-6" aria-labelledby="balance-title">
-      <BalanceHeader balance={balanceData} className="mt-1 mb-5" pendingIncoming={assetDetails?.pendingIncoming} unknownPending={assetDetails?.unknownPending} />
+      <BalanceHeader balance={balanceData} className="mt-1 mb-5" pendingIncoming={assetDetails?.pendingIncoming} />
       {poolDetails && (
         <div className="bg-white rounded-lg p-4 shadow-sm">
           <h2 className="text-sm font-medium text-gray-900">Pool Position</h2>

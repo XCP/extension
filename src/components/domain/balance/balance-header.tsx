@@ -17,12 +17,6 @@ interface BalanceHeaderProps {
    * unconfirmed money in is not money you can spend — so it renders with an explicit plus.
    */
   pendingIncoming?: string;
-  /**
-   * Something is pending whose total could not be read. The balance then shows the confirmed
-   * figure (nothing was subtracted — a partial subtraction would understate what is committed),
-   * and the note says so instead of showing a number nobody has.
-   */
-  unknownPending?: boolean;
 }
 
 /**
@@ -54,7 +48,6 @@ export const BalanceHeader = ({
   balance,
   className = '',
   pendingIncoming,
-  unknownPending,
 }: BalanceHeaderProps): ReactElement => {
   const hasIncoming = !!pendingIncoming && toBigNumber(pendingIncoming).isGreaterThan(0);
   const pendingDigits = {
@@ -83,19 +76,17 @@ export const BalanceHeader = ({
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">
           Balance: {formattedBalance}
-          {/* No note for outgoing: the balance already IS the spendable figure, so there is
-              nothing to clarify — a "(−N pending)" line was reconciliation against a number the
-              wallet no longer shows anywhere. Incoming is different information (money arriving,
-              never part of the figure until confirmed), and the unknown flag marks the one case
-              where the figure could NOT be reduced to spendable, which is exactly when a note is
-              owed. Plus sign kept on incoming so it cannot be misread as a deduction. */}
+          {/* The only annotation left, and it says something the number cannot: money arriving,
+              never part of the figure until confirmed. Plus sign so it cannot be misread as a
+              deduction. Outgoing needs no note (the figure already IS spendable), and the
+              unreadable-pending state renders nothing either — it occurs only on malformed node
+              responses, the shown figure is still the true confirmed balance, and a note nobody
+              can act on or explain is noise (the flag still exists on AssetDetails for anything
+              that later wants to gate on it). */}
           {hasIncoming && (
             <span className="text-xs italic text-gray-400">
               {' '}(+{formatAmount({ value: pendingIncoming!, ...pendingDigits })} incoming)
             </span>
-          )}
-          {unknownPending && (
-            <span className="text-xs italic text-gray-400"> (pending amount unknown)</span>
           )}
         </p>
       </div>

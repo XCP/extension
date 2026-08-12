@@ -216,7 +216,6 @@ export function OrderForm({
           }}
           className="mt-1 mb-5"
             pendingIncoming={giveAssetDetails.pendingIncoming}
-          unknownPending={giveAssetDetails.unknownPending}
         />
       ) : activeAddress ? (
         <AddressHeader

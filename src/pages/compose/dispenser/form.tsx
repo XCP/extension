@@ -204,7 +204,6 @@ export const DispenserForm = memo(function DispenserForm({
             }}
             className="mt-1 mb-5"
             pendingIncoming={assetDetails.pendingIncoming}
-            unknownPending={assetDetails.unknownPending}
           />
         ) : activeAddress ? (
           <AddressHeader

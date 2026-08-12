@@ -285,8 +285,7 @@ export function FairmintForm({
               }}
               className="mt-1 mb-5"
               pendingIncoming={currencyDetails.pendingIncoming}
-              unknownPending={currencyDetails.unknownPending}
-            />
+              />
           ) : null}
           
           {/* Display asset error message if any */}
