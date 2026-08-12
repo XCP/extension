@@ -11,6 +11,7 @@ import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
+import { handleNotificationClick, POLL_PERIOD_MINUTES, pollOnce } from '@/services/notificationService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
 import { getUpdateService } from '@/services/updateService';
@@ -400,13 +401,20 @@ export default defineBackground(() => {
   // Set up Chrome alarms for session management and keep-alive
   const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
   const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
-  
+  const NOTIFICATION_POLL_ALARM_NAME = 'notification-poll';
+
   // Create keep-alive alarm to prevent service worker termination
   // This replaces the memory-leaking setTimeout approach
   chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
     periodInMinutes: 0.4 // 24 seconds (less than Chrome's 30s timeout)
   });
-  
+
+  // Notification polling. One request covers every watched address, and `pollOnce` makes none at
+  // all unless the feature is on and permitted — so an install that never enables it costs nothing.
+  chrome.alarms.create(NOTIFICATION_POLL_ALARM_NAME, {
+    periodInMinutes: POLL_PERIOD_MINUTES
+  });
+
   // Consolidated alarm handler to avoid multiple listeners
   if (chrome?.alarms?.onAlarm) {
     chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -422,7 +430,25 @@ export default defineBackground(() => {
           // Perform minimal activity to keep service worker alive
           await serviceKeepAlive('background');
           break;
+
+        case NOTIFICATION_POLL_ALARM_NAME:
+          // No-ops, without making a request, unless the user enabled notifications and Chrome
+          // granted the permission.
+          try {
+            await pollOnce();
+          } catch (error) {
+            console.error('[Background] Notification poll failed:', error);
+          }
+          break;
       }
+    });
+  }
+
+  // Registered unconditionally and at the top level of the worker: a notification can outlive the
+  // worker that raised it, and the click has to be able to wake a fresh one.
+  if (chrome?.notifications?.onClicked) {
+    chrome.notifications.onClicked.addListener((notificationId) => {
+      void handleNotificationClick(notificationId);
     });
   }
 

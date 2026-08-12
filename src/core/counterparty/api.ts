@@ -1123,6 +1123,34 @@ export async function fetchDispenserDispenses(
   });
 }
 
+/** One row of core's `address_events` feed. `params` varies by event type. */
+export interface AddressEventRecord {
+  event_index: number;
+  event: string;
+  params?: Record<string, unknown>;
+}
+
+/**
+ * Events touching any of several addresses, in one request.
+ *
+ * The plural route matters: core takes a comma-separated list and filters server-side by event
+ * name, so watching a wallet costs one call rather than one per address per event type. Results
+ * come back newest-first keyed on `event_index`, which is the cursor — but note it pages
+ * *backwards* (it means "start here and go older"), so it cannot express "everything since X".
+ * Callers watermark on `event_index` themselves.
+ */
+export async function fetchAddressEvents(
+  addresses: string[],
+  options: { eventNames?: readonly string[]; limit?: number; verbose?: boolean } = {}
+): Promise<PaginatedResponse<AddressEventRecord>> {
+  return cpApiGet<PaginatedResponse<AddressEventRecord>>('/v2/addresses/events', {
+    addresses: addresses.join(','),
+    ...(options.eventNames?.length ? { event_name: options.eventNames.join(',') } : {}),
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? DEFAULT_LIMIT,
+  }, { skipCache: true });
+}
+
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
   const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
     verbose: true,
