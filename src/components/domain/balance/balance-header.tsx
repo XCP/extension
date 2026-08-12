@@ -13,23 +13,10 @@ interface BalanceHeaderProps {
   /** Optional CSS classes */
   className?: string;
   /**
-   * Display units already committed by unconfirmed transactions. When present and non-zero, a
-   * "pending" line renders under the balance — which is what lets the balance itself be the
-   * spendable figure without silently disagreeing with an explorer: the two lines together are
-   * the whole story (what you can spend now, and what is in flight).
-   */
-  pendingOutgoing?: string;
-  /**
    * Display units arriving from unconfirmed transactions. Never part of the balance figure —
    * unconfirmed money in is not money you can spend — so it renders with an explicit plus.
    */
   pendingIncoming?: string;
-  /**
-   * Something is pending whose total could not be read. The balance then shows the confirmed
-   * figure (nothing was subtracted — a partial subtraction would understate what is committed),
-   * and the note says so instead of showing a number nobody has.
-   */
-  unknownPending?: boolean;
 }
 
 /**
@@ -60,11 +47,8 @@ interface BalanceHeaderProps {
 export const BalanceHeader = ({
   balance,
   className = '',
-  pendingOutgoing,
   pendingIncoming,
-  unknownPending,
 }: BalanceHeaderProps): ReactElement => {
-  const hasPending = !!pendingOutgoing && toBigNumber(pendingOutgoing).isGreaterThan(0);
   const hasIncoming = !!pendingIncoming && toBigNumber(pendingIncoming).isGreaterThan(0);
   const pendingDigits = {
     minimumFractionDigits: 0,
@@ -92,21 +76,17 @@ export const BalanceHeader = ({
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">
           Balance: {formattedBalance}
-          {/* Signed, because unsigned was genuinely ambiguous: "9 (1 pending)" reads as
-              about-to-be-10 as easily as about-to-be-8. Minus means leaving and already excluded
-              from the figure; plus means arriving and not yet included. */}
-          {hasPending && (
-            <span className="text-xs italic text-gray-400">
-              {' '}(−{formatAmount({ value: pendingOutgoing!, ...pendingDigits })} pending)
-            </span>
-          )}
+          {/* The only annotation left, and it says something the number cannot: money arriving,
+              never part of the figure until confirmed. Plus sign so it cannot be misread as a
+              deduction. Outgoing needs no note (the figure already IS spendable), and the
+              unreadable-pending state renders nothing either — it occurs only on malformed node
+              responses, the shown figure is still the true confirmed balance, and a note nobody
+              can act on or explain is noise (the flag still exists on AssetDetails for anything
+              that later wants to gate on it). */}
           {hasIncoming && (
             <span className="text-xs italic text-gray-400">
               {' '}(+{formatAmount({ value: pendingIncoming!, ...pendingDigits })} incoming)
             </span>
-          )}
-          {!hasPending && unknownPending && (
-            <span className="text-xs italic text-gray-400"> (pending amount unknown)</span>
           )}
         </p>
       </div>

@@ -177,9 +177,7 @@ export function SendForm({
               } : undefined,
             }}
             className="mt-1 mb-5"
-            pendingOutgoing={assetDetails.pendingOutgoing}
             pendingIncoming={assetDetails.pendingIncoming}
-            unknownPending={assetDetails.unknownPending}
           />
         ) : null
       }
