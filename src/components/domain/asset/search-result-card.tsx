@@ -69,7 +69,7 @@ export function SearchResultCard({
   
   return (
     <button type="button"
-      className={`text-left relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
+      className={`w-full text-left relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       onClick={handleClick}
       aria-label={`View ${symbol}`}
     >
