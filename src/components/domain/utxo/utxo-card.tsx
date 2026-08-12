@@ -1,15 +1,22 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import { UtxoMenu } from "@/components/domain/utxo/utxo-menu";
 import type { UtxoBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset, formatTxid } from "@/core/format";
 
 interface UtxoCardProps {
   token: UtxoBalance;
+  /**
+   * What the mempool is doing to this UTXO, e.g. "Detaching". Takes the place of the transaction
+   * id rather than crowding in beside it: while a UTXO is being moved or detached, what is
+   * happening to it is the more useful of the two, and the id is one tap away on the card itself.
+   */
+  pendingStatus?: string;
 }
 
-export function UtxoCard({ token }: UtxoCardProps): ReactElement {
+export function UtxoCard({ token, pendingStatus }: UtxoCardProps): ReactElement {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -42,9 +49,13 @@ export function UtxoCard({ token }: UtxoCardProps): ReactElement {
                 useGrouping: true,
               })}
             </span>
-            <span className="text-xs text-gray-400 font-mono ml-2">
-              {formatTxid(token.utxo)}
-            </span>
+            {pendingStatus ? (
+              <PendingStatus label={pendingStatus} className="ml-2" />
+            ) : (
+              <span className="text-xs text-gray-400 font-mono ml-2">
+                {formatTxid(token.utxo)}
+              </span>
+            )}
           </div>
         </div>
       </button>

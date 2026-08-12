@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/domain/balance/balance-menu";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 
@@ -17,6 +18,11 @@ interface BalanceCardProps {
   showMenu?: boolean;
   /** Optional custom CSS classes */
   className?: string;
+  /**
+   * What the mempool is doing to this asset, e.g. "Sending". Shown bottom-right in italics beside
+   * the amount. The amount itself is the confirmed balance and is never adjusted to match.
+   */
+  pendingStatus?: string;
 }
 
 /**
@@ -44,7 +50,8 @@ export function BalanceCard({
   token,
   onClick,
   showMenu = true,
-  className = ""
+  className = "",
+  pendingStatus,
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
 
@@ -79,14 +86,18 @@ export function BalanceCard({
             {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
           </div>
 
-          {/* Balance Amount */}
-          <div className="text-sm text-gray-500">
-            {formatAmount({
-              value: token.quantity_normalized,
-              minimumFractionDigits: isDivisible ? 8 : 0,
-              maximumFractionDigits: isDivisible ? 8 : 0,
-              useGrouping: true,
-            })}
+          {/* Balance amount, with whatever the mempool is doing to it on the right. */}
+          <div className="flex justify-between items-baseline">
+            <span className="text-sm text-gray-500">
+              {formatAmount({
+                value: token.quantity_normalized,
+                minimumFractionDigits: isDivisible ? 8 : 0,
+                maximumFractionDigits: isDivisible ? 8 : 0,
+                useGrouping: true,
+              })}
+            </span>
+            {/* Reserve room for the menu button, which floats over the card's top right. */}
+            {pendingStatus && <PendingStatus label={pendingStatus} className="ml-2 mr-6" />}
           </div>
         </div>
       </button>

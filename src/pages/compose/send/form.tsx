@@ -166,7 +166,7 @@ export function SendForm({
           <BalanceHeader
             balance={{
               asset: initialAsset || initialFormData?.asset || "BTC",
-              quantity_normalized: asDisplayUnits(assetDetails.availableBalance),
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance),
               asset_info: assetDetails.assetInfo ? {
                 asset_longname: assetDetails.assetInfo.asset_longname,
                 description: assetDetails.assetInfo.description || '',
@@ -177,6 +177,9 @@ export function SendForm({
               } : undefined,
             }}
             className="mt-1 mb-5"
+            pendingOutgoing={assetDetails.pendingOutgoing}
+            pendingIncoming={assetDetails.pendingIncoming}
+            unknownPending={assetDetails.unknownPending}
           />
         ) : null
       }
@@ -204,13 +207,13 @@ export function SendForm({
 
           <AmountWithMaxInput
             asset={initialAsset || initialFormData?.asset || "BTC"}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={amount}
             onChange={handleAmountChange}
             feeRate={feeRate}
             setError={setValidationError}
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount"
             name="quantity"

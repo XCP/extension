@@ -137,8 +137,8 @@ export function OrderForm({
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
   const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
-  const availableBalance = giveAssetDetails?.availableBalance ?? "0";
-  const quoteAssetBalance = quoteAssetDetails?.availableBalance ?? "0";
+  const availableBalance = giveAssetDetails?.spendableBalance ?? giveAssetDetails?.availableBalance ?? "0";
+  const quoteAssetBalance = quoteAssetDetails?.spendableBalance ?? quoteAssetDetails?.availableBalance ?? "0";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : baseAsset;
@@ -204,7 +204,7 @@ export function OrderForm({
         <BalanceHeader
           balance={{
             asset: baseAsset,
-            quantity_normalized: asDisplayUnits(giveAssetDetails.availableBalance),
+            quantity_normalized: asDisplayUnits(giveAssetDetails.spendableBalance ?? giveAssetDetails.availableBalance),
             asset_info: giveAssetDetails.assetInfo ? {
               asset_longname: giveAssetDetails.assetInfo.asset_longname,
               description: giveAssetDetails.assetInfo.description || '',
@@ -215,6 +215,9 @@ export function OrderForm({
             } : undefined,
           }}
           className="mt-1 mb-5"
+          pendingOutgoing={giveAssetDetails.pendingOutgoing}
+            pendingIncoming={giveAssetDetails.pendingIncoming}
+          unknownPending={giveAssetDetails.unknownPending}
         />
       ) : activeAddress ? (
         <AddressHeader

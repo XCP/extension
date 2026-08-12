@@ -36,6 +36,12 @@ export function DividendForm({
   );
   const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
   const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
+  /**
+   * A dividend is paid out of this balance, so what can be paid is what is spendable. The directly
+   * fetched figure stands in until the hook resolves; it is the confirmed balance, which is the
+   * behaviour this had before pending was tracked at all — no reduction rather than a wrong one.
+   */
+  const spendableDividendBalance = dividendAssetInfo?.spendableBalance ?? dividendAssetBalance;
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit != null ? String(initialFormData.quantity_per_unit) : ""
   );
@@ -81,12 +87,12 @@ export function DividendForm({
 
   // Handlers
   const calculateMaxAmountPerUnit = () => {
-    if (!assetInfo?.assetInfo?.supply || !dividendAssetBalance) {
+    if (!assetInfo?.assetInfo?.supply || !spendableDividendBalance) {
       return "0";
     }
 
     const maxPerUnitBN = calculateMaxDividendPerUnit(
-      dividendAssetBalance,
+      spendableDividendBalance,
       assetInfo.assetInfo.supply,
       assetInfo.assetInfo.divisible ?? false
     );
@@ -155,7 +161,7 @@ export function DividendForm({
 
           <AmountWithMaxInput
             asset={selectedDividendAsset}
-            availableBalance={dividendAssetBalance}
+            availableBalance={spendableDividendBalance}
             value={quantityPerUnit}
             onChange={setQuantityPerUnit}
             setError={setError}

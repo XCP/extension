@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { AssetList } from "@/components/domain/asset/asset-list";
 import { BalanceList } from "@/components/domain/balance/balance-list";
@@ -12,11 +12,12 @@ import {
   FaLock,
   FaPaperPlane,
   FaQrcode,
-  TbPinned
+  FiRefreshCw
 } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { invalidateAddressBalances } from "@/core/balances/invalidate";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 
@@ -28,7 +29,6 @@ const PATHS = {
   SEND_BTC: "/compose/send/BTC",
   ADDRESS_HISTORY: "/addresses/history",
   SELECT_ADDRESS: "/addresses",
-  PINNED_ASSETS: "/settings/pinned-assets",
   BUY_XCP: "/market/dispensers/XCP",
 } as const;
 
@@ -42,6 +42,34 @@ export default function HomePage(): ReactElement {
   const [copiedToClipboard, setCopiedToClipboard] = useState(false);
   const [hasUtxos, setHasUtxos] = useState(false);
   const [utxoCheckDone, setUtxoCheckDone] = useState(false);
+  /**
+   * A counter per tab, because all three lists stay mounted behind `display: none` and the refresh
+   * button sits in a header shared by all of them. One shared counter would reload whichever list
+   * you were *not* looking at as well, tripling the work; a single counter handed only to the
+   * active list would look like a change to the others every time you switched tabs.
+   *
+   * A counter rather than a boolean so pressing twice is two refreshes — a flag would swallow the
+   * second press while the first is in flight, which is exactly when people press again.
+   */
+  const [refreshNonces, setRefreshNonces] = useState({ Balances: 0, Assets: 0, UTXOs: 0 });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  /**
+   * Forget what is cached for this address, then ask the visible list for it again.
+   *
+   * Clearing is the whole job: two independent caches serve this screen, and a reload without
+   * dropping them repaints the same stale numbers within their TTL. See
+   * `core/balances/invalidate.ts`. The clear is address-wide rather than per-tab, so switching tabs
+   * after a refresh also shows fresh data — only the reload is scoped to what you can see.
+   */
+  const handleRefresh = (): void => {
+    if (!activeAddress?.address || isRefreshing) return;
+    invalidateAddressBalances(activeAddress.address);
+    setIsRefreshing(true);
+    setRefreshNonces((previous) => ({ ...previous, [activeTab]: previous[activeTab] + 1 }));
+  };
+
+  const stopRefreshing = useCallback(() => setIsRefreshing(false), []);
 
   useEffect(() => {
     setHeaderProps({
@@ -210,12 +238,19 @@ export default function HomePage(): ReactElement {
           >
             Get XCP
           </button>
+          {/* Refresh rather than the pinned-assets shortcut, which moved to Settings. The thing
+              people do at this screen while waiting on a transaction is look again, and there was
+              nothing here to press. */}
           <button type="button"
-            onClick={() => navigate(PATHS.PINNED_ASSETS)}
-            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Manage Pinned Assets"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default"
+            aria-label="Refresh balances"
           >
-            <TbPinned className="size-5 text-gray-600" aria-hidden="true" />
+            <FiRefreshCw
+              className={`size-5 text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />
           </button>
         </div>
       </div>
@@ -242,14 +277,14 @@ export default function HomePage(): ReactElement {
           {content}
         </div>
         <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Balances" ? "block" : "none" }}>
-          <BalanceList />
+          <BalanceList refreshNonce={refreshNonces.Balances} onRefreshed={stopRefreshing} />
         </div>
         <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "Assets" ? "block" : "none" }}>
-          <AssetList />
+          <AssetList refreshNonce={refreshNonces.Assets} onRefreshed={stopRefreshing} />
         </div>
         {hasUtxos && (
           <div className="flex-grow overflow-y-auto no-scrollbar px-4 pb-4" style={{ display: activeTab === "UTXOs" ? "block" : "none" }}>
-            <UtxoList />
+            <UtxoList refreshNonce={refreshNonces.UTXOs} onRefreshed={stopRefreshing} />
           </div>
         )}
       </div>

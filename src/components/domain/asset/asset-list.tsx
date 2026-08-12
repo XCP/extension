@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AssetCard } from "@/components/domain/asset/asset-card";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -7,11 +7,19 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { fetchOwnedAssets, type OwnedAsset } from "@/core/counterparty/api";
 import { useInView } from "@/hooks/useInView";
+import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 const PAGE_SIZE = 20;
 
-export const AssetList = (): React.ReactElement => {
+interface AssetListProps {
+  /** Changes to ask for a fresh load; see `useRefreshSignal`. */
+  refreshNonce?: number;
+  /** Called when a requested refresh finishes, successfully or not. */
+  onRefreshed?: () => void;
+}
+
+export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): React.ReactElement => {
   const { activeAddress } = useWallet();
   const { cacheOwnedAssets } = useHeader();
   const [ownedAssets, setOwnedAssets] = useState<OwnedAsset[]>([]);
@@ -20,6 +28,23 @@ export const AssetList = (): React.ReactElement => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [initialLoaded, setInitialLoaded] = useState(false);
+
+  // See BalanceList: the ref confines the completion callback to refreshes that were requested.
+  const refreshRequestedRef = useRef(false);
+  useRefreshSignal(refreshNonce, () => {
+    refreshRequestedRef.current = true;
+    setInitialLoaded(false);
+  });
+  const settleRefresh = () => {
+    if (refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      latestOnRefreshed.current?.();
+    }
+  };
+
+  // Ref, not a dependency: callers pass an inline arrow that changes every parent render.
+  const latestOnRefreshed = useRef(onRefreshed);
+  latestOnRefreshed.current = onRefreshed;
   const { searchQuery, setSearchQuery, searchResults, isSearching } = useSearchQuery();
 
   const { ref: loadMoreRef, inView } = useInView({ rootMargin: "300px", threshold: 0 });
@@ -45,7 +70,12 @@ export const AssetList = (): React.ReactElement => {
 
   // Initial load
   useEffect(() => {
-    if (!activeAddress?.address || initialLoaded) return;
+    if (!activeAddress?.address || initialLoaded) {
+      // A refresh that raced the address going away is still over; without this the caller's
+      // spinner would wait on a load that is never going to start.
+      if (!activeAddress?.address) settleRefresh();
+      return;
+    }
 
     let isCancelled = false;
 
@@ -64,6 +94,9 @@ export const AssetList = (): React.ReactElement => {
         console.error("Error fetching owned assets:", error);
       } finally {
         if (!isCancelled) setIsLoading(false);
+        // Outside the cancelled guard: a cancelled load still ends the refresh the caller is
+        // showing a spinner for.
+        settleRefresh();
       }
     };
 

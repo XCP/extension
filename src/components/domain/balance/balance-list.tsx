@@ -1,4 +1,4 @@
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchResultCard } from "@/components/domain/asset/search-result-card";
 import { BalanceCard } from "@/components/domain/balance/balance-card";
 import { SearchInput } from "@/components/ui/inputs/search-input";
@@ -6,16 +6,32 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+
+import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
 import { fetchTokenBalance, fetchTokenBalances } from "@/core/counterparty/api";
 import { asDisplayUnits, fromSatoshis, isGreaterThan } from '@/core/numeric';
 import { useInView } from "@/hooks/useInView";
+import { labelsFromDeltas, usePendingDeltas } from "@/hooks/usePendingStatus";
+import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
 
 
-export const BalanceList = (): ReactElement => {
+interface BalanceListProps {
+  /**
+   * Changes to ask for a fresh load. A counter rather than a boolean so two presses are two
+   * refreshes; the caller clears the relevant caches first, or this reads them straight back.
+   */
+  refreshNonce?: number;
+  /** Called when a requested refresh has finished, successfully or not, so the caller can stop
+   * showing it as in flight. Fires on completion rather than on success: a refresh that failed is
+   * still over, and a spinner that never stops is a worse lie than a stale number. */
+  onRefreshed?: () => void;
+}
+
+export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}): ReactElement => {
   const { activeWallet, activeAddress } = useWallet();
   const { settings } = useSettings();
   const { cacheBalances } = useHeader();
@@ -32,6 +48,51 @@ export const BalanceList = (): ReactElement => {
   useEffect(() => {
     setInitialLoaded(false);
   }, [settings?.pinnedAssets]);
+
+  // A refresh reuses the same lever the pinned-asset list already pulls, rather than adding a
+  // second path through the loading code. The ref records that a refresh was asked for, so the
+  // completion callback fires for refreshes alone — the load path also runs on mount, on address
+  // changes and on pinned-asset changes, and announcing those as "your refresh finished" made the
+  // callback's contract a lie the current caller merely happened to tolerate.
+  const refreshRequestedRef = useRef(false);
+  useRefreshSignal(refreshNonce, () => {
+    refreshRequestedRef.current = true;
+    setInitialLoaded(false);
+  });
+  const settleRefresh = () => {
+    if (refreshRequestedRef.current) {
+      refreshRequestedRef.current = false;
+      latestOnRefreshed.current?.();
+    }
+  };
+
+  // Read alongside the balances and on the same refresh, so the amount and what is happening to it
+  // never come from two different moments.
+  const { byAsset: pendingDeltas } = usePendingDeltas(activeAddress?.address, refreshNonce);
+
+  /**
+   * The figure on the card is what is spendable, not what the ledger has confirmed.
+   *
+   * The alternative was showing the confirmed balance here and the spendable one in the forms, but
+   * two screens disagreeing about the same asset is worse than one number that differs from an
+   * explorer — and the italic status beside it is what explains the difference. Everywhere in this
+   * wallet, the number means the same thing: what you can spend right now.
+   */
+  const displayBalance = useCallback((balance: TokenBalance): TokenBalance => {
+    const pending = pendingDeltas.get(balance.asset);
+    if (!pending || !tracksPendingLedgerDebits(balance.asset)) return balance;
+
+    const { spendable } = spendableBalance(balance.quantity_normalized, pending.debitedNormalized);
+    if (spendable === balance.quantity_normalized) return balance;
+    return { ...balance, quantity_normalized: asDisplayUnits(spendable) };
+  }, [pendingDeltas]);
+
+  // Held in a ref for the same reason as in useRefreshSignal: callers pass an inline arrow, and
+  // depending on it would restart the load on every render of the parent.
+  const latestOnRefreshed = useRef(onRefreshed);
+  latestOnRefreshed.current = onRefreshed;
+
+  const pendingByAssetLabel = useMemo(() => labelsFromDeltas(pendingDeltas), [pendingDeltas]);
 
   const upsertBalance = useCallback((balance: TokenBalance) => {
     if (!balance?.asset || balance?.quantity_normalized === undefined) {
@@ -58,6 +119,9 @@ export const BalanceList = (): ReactElement => {
         setAllBalances([]);
         setOffset(0);
         setHasMore(true);
+        // A refresh that raced the address going away is still over; leaving the spinner running
+        // because there was nothing to load would strand it.
+        settleRefresh();
       }
       return;
     }
@@ -110,6 +174,10 @@ export const BalanceList = (): ReactElement => {
           setOffset(0);
           setHasMore(true);
         }
+        // Outside the isCancelled guard on purpose. A cancelled load still ends the refresh the
+        // caller is showing a spinner for; leaving it spinning because the address changed
+        // mid-flight would strand it there.
+        settleRefresh();
       }
     };
 
@@ -213,10 +281,10 @@ export const BalanceList = (): ReactElement => {
       ) : (
         <>
           {pinnedBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           {otherBalances.map((balance) => (
-            <BalanceCard token={balance} key={balance.asset} />
+            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (

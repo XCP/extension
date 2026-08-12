@@ -113,9 +113,12 @@ export function DestroySupplyForm({
                 locked: assetDetails.assetInfo?.locked ?? false,
                 supply: assetDetails.assetInfo?.supply
               },
-              quantity_normalized: asDisplayUnits(assetDetails.availableBalance)
+              quantity_normalized: asDisplayUnits(assetDetails.spendableBalance ?? assetDetails.availableBalance)
             }}
             className="mt-1 mb-5"
+            pendingOutgoing={assetDetails.pendingOutgoing}
+            pendingIncoming={assetDetails.pendingIncoming}
+            unknownPending={assetDetails.unknownPending}
           />
         ) : null
       }
@@ -141,13 +144,13 @@ export function DestroySupplyForm({
 
           <AmountWithMaxInput
             asset={asset}
-            availableBalance={assetDetails?.availableBalance || "0"}
+            availableBalance={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             value={amount}
             onChange={handleAmountChange}
             feeRate={feeRate}
             setError={(message) => {}}
             sourceAddress={activeAddress}
-            maxAmount={assetDetails?.availableBalance || "0"}
+            maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
             label="Amount to Destroy"
             name="quantity"
