@@ -669,13 +669,29 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs, sighashTypes } = psbtParams as { hex?: string; signInputs?: Record<string, number[]>; sighashTypes?: number[] };
+          const { hex: psbtHex, signInputs, sighashTypes, inscription } = psbtParams as {
+            hex?: string;
+            signInputs?: Record<string, number[]>;
+            sighashTypes?: number[];
+            inscription?: { revealScript?: string; tapInternalKey?: string };
+          };
 
           if (!psbtHex) {
             throw new Error('PSBT hex is required');
           }
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
+          }
+          // Shape-checked here, verified on the approval screen: the context is a claim the site
+          // makes about what the commit funds, and every field of it gets recomputed there.
+          if (inscription !== undefined && (
+            inscription === null || typeof inscription !== 'object'
+            || typeof inscription.revealScript !== 'string'
+            || typeof inscription.tapInternalKey !== 'string'
+            || !/^[0-9a-fA-F]+$/.test(inscription.revealScript)
+            || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
+          )) {
+            throw new Error('inscription must carry revealScript and tapInternalKey as hex strings');
           }
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
@@ -786,6 +802,12 @@ export function createProviderService(): ProviderService {
                 psbtHex,
                 signInputs,
                 sighashTypes,
+                ...(inscription ? {
+                  inscription: {
+                    revealScript: inscription.revealScript!,
+                    tapInternalKey: inscription.tapInternalKey!,
+                  },
+                } : {}),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

@@ -8,6 +8,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { SigningError, ValidationError } from '@/core/errors';
 import { toSafeInteger } from '@/core/numeric';
@@ -178,6 +179,12 @@ export interface DecodedInput {
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
+  /**
+   * Tapleaf scripts this input would reveal, hex, leaf-version byte stripped. An inscription
+   * reveal carries its ord envelope — and therefore its Counterparty message — here rather than
+   * in any output, so approval-side decoding needs the leaves the signature will commit to.
+   */
+  tapLeafScripts?: string[];
 }
 
 /**
@@ -349,6 +356,11 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         totalInputValue += value;
       }
 
+      // The PSBT stores each leaf as script bytes with the leaf version appended.
+      const tapLeafScripts = input.tapLeafScript?.map(([, scriptWithVersion]) =>
+        bytesToHex(scriptWithVersion.subarray(0, -1))
+      );
+
       inputs.push({
         index: i,
         txid: txidHex,
@@ -356,6 +368,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         address,
         value,
         sighashType: input.sighashType,
+        ...(tapLeafScripts && tapLeafScripts.length > 0 ? { tapLeafScripts } : {}),
       });
     }
   }
@@ -499,6 +512,27 @@ export function signPSBT(
         }
       }
 
+      // A key-path taproot input can only be matched to a key via tapInternalKey, and dApp PSBTs
+      // routinely omit it (a site cannot know the internal key behind an address). When the
+      // prevout provably pays this signer's own taproot address, supplying the key is completion,
+      // not trust: the signer re-derives tweak(internalKey) and refuses to sign unless it equals
+      // the prevout's witness program, so a wrong or foreign input stays unsigned.
+      if (addressFormat === AddressFormat.P2TR) {
+        const input = tx.getInput(inputIdx);
+        const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+          ?? input.witnessUtxo;
+        const prevoutAddress = prevout?.script
+          ? decodeAddressFromScript(bytesToHex(prevout.script))
+          : undefined;
+        const ownAddress = encodeAddress(pubkeyBytes, addressFormat);
+        if (
+          input && !input.tapInternalKey && prevoutAddress
+          && normalizeAddressForComparison(prevoutAddress) === normalizeAddressForComparison(ownAddress)
+        ) {
+          tx.updateInput(inputIdx, { tapInternalKey: pubkeyBytes.slice(1, 33) });
+        }
+      }
+
       // Determine sighash: use the explicit sighashTypes param if provided,
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
@@ -523,7 +557,25 @@ export function signPSBT(
         tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
         signedCount++;
       } catch (inputErr) {
-        if (!bestEffort) throw inputErr;
+        // A tapscript spend of this signer's own taproot address — an inscription reveal — names
+        // the address's *output* key in the leaf, and that key is the tweak of the private key
+        // held here. The signer only matches raw keys against leaf scripts, so retry with the
+        // tweaked key. This can only produce a signature verifying against the signer's own
+        // tweaked key; a leaf naming anyone else's key still finds no match and stays unsigned.
+        const input = tx.getInput(inputIdx);
+        if (addressFormat === AddressFormat.P2TR && input?.tapLeafScript?.length) {
+          const tweakedKey = taprootTweakPrivKey(privateKeyBytes);
+          try {
+            tx.signIdx(tweakedKey, inputIdx, [sighashType]);
+            signedCount++;
+          } catch (leafErr) {
+            if (!bestEffort) throw leafErr;
+          } finally {
+            tweakedKey.fill(0);
+          }
+        } else if (!bestEffort) {
+          throw inputErr;
+        }
         // Best-effort mode: skip inputs we can't sign (e.g., other party's UTXO)
       }
     }

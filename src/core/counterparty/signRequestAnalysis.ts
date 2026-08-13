@@ -21,6 +21,10 @@ import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
 import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
+  type InscriptionCommitContext,
+  verifyInscriptionCommit,
+} from '@/core/counterparty/providerInscriptions';
+import {
   type CounterpartyMessage,
   decodeCounterpartyMessage,
   describeMpmaSend,
@@ -72,9 +76,18 @@ export interface SignRequestAnalysisInput {
    * overlap. Passed as a promise rather than a value to keep that overlap.
    */
   attachedAssets: Promise<InputAttachedAssets[]>;
+  /**
+   * The site's claim that this PSBT funds an inscription commit. Verified here, never trusted:
+   * on proof, the envelope's message becomes the transaction's Counterparty payload and the
+   * commit output is reported instead of flagged; on any failure, the request is hard-blocked
+   * with the specific reason.
+   */
+  inscriptionContext?: InscriptionCommitContext;
 }
 
 export interface SignRequestAnalysis {
+  /** The verified inscription commit, when the request carried a context that proved out. */
+  verifiedCommit?: { address: string; value: number };
   /** The API's rendering of the message, when it could supply one. Never used to decide safety. */
   counterpartyMessage: CounterpartyMessage | undefined;
   verification: ProviderVerificationResult;
@@ -96,13 +109,34 @@ export async function analyzeSignRequest(
   input: SignRequestAnalysisInput
 ): Promise<SignRequestAnalysis> {
   const {
-    counterpartyDataHex,
     inputs,
     outputs,
     signerAddresses,
     signedInputIndices,
     transactionId,
   } = input;
+  let counterpartyDataHex = input.counterpartyDataHex;
+
+  // A commit context is a claim to be proven, and proof changes what the transaction *is*: the
+  // envelope's message becomes its Counterparty payload, exactly as though an OP_RETURN carried
+  // it. Failure is a hard block with the reason — a site that names an envelope it cannot back
+  // has described a different transaction than the one it asked to sign.
+  let verifiedCommit: { address: string; value: number } | undefined;
+  let commitRefusal: string | undefined;
+  if (!counterpartyDataHex && input.inscriptionContext) {
+    const signer = signerAddresses[0];
+    if (signer) {
+      const check = verifyInscriptionCommit(input.inscriptionContext, outputs, signer);
+      if (check.ok && check.envelope && check.commitAddress) {
+        counterpartyDataHex = check.envelope.messageHex;
+        verifiedCommit = { address: check.commitAddress, value: check.commitValue ?? 0 };
+      } else {
+        commitRefusal = check.error ?? 'The inscription context did not verify.';
+      }
+    } else {
+      commitRefusal = 'The inscription context names no signing address to verify against.';
+    }
+  }
 
   // The API's rendering is for display only — richer than the local unpack, and not trusted by
   // anything below that decides whether signing is safe.
@@ -120,7 +154,21 @@ export async function analyzeSignRequest(
   const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
 
   const messageType = counterpartyMessage?.messageType ?? verification.localUnpack?.messageType;
-  const safety = analyzeTransactionSafety(messageType, outputs, signerAddresses);
+  const safety = analyzeTransactionSafety(messageType, outputs, signerAddresses, { verifiedCommit });
+
+  if (commitRefusal) {
+    safety.warnings = [
+      {
+        severity: 'block',
+        title: 'Blocked: Inscription Did Not Verify',
+        message:
+          `${commitRefusal} The site's description of this inscription could not be proven ` +
+          'against the transaction, so it will not be signed.',
+      },
+      ...safety.warnings,
+    ];
+    safety.blocked = true;
+  }
 
   // mpma_send is described from the bytes, not from the API's rendering of them — see
   // resolveMpmaRecipients for why the API cannot be used for this type. Without it the screen says
@@ -194,6 +242,7 @@ export async function analyzeSignRequest(
   );
 
   return {
+    verifiedCommit,
     counterpartyMessage,
     verification,
     safety,

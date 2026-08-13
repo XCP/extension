@@ -4,7 +4,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2pkh, p2wpkh, Transaction } from '@scure/btc-signer';
+import { Address, p2pkh, p2tr, p2wpkh, SigHash, TAPROOT_UNSPENDABLE_KEY, Transaction } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '../address';
 import {
@@ -357,6 +357,94 @@ describe('validateSignInputs', () => {
 
     const result = validateSignInputs(signInputs, walletAddresses);
     expect(result.valid).toBe(true);
+  });
+});
+
+
+/**
+ * The two taproot shapes an inscription flow hands this signer, built exactly as the launchpad
+ * builds them (`buildCommitFundingPsbt` / `buildRevealPsbt`): a key-path funding input with
+ * witnessUtxo but NO tapInternalKey (a site cannot know the internal key behind an address), and
+ * a script-path reveal whose leaf names the address's tweaked output key.
+ */
+describe('signPSBT taproot inscription shapes', () => {
+  const privKey = TEST_PRIVATE_KEY;
+  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const addrP2tr = p2tr(internalKey, undefined, undefined, true);
+  const outputKey = (Address().decode(addrP2tr.address!) as { type: 'tr'; pubkey: Uint8Array }).pubkey;
+
+  // A minimal ord-shaped leaf ending in <output key> OP_CHECKSIG, as the launchpad emits.
+  const leaf = new Uint8Array([
+    0x00, 0x63, 0x03, 0x6f, 0x72, 0x64, 0x68, 0x20, ...outputKey, 0xac,
+  ]);
+  const commitP2tr = p2tr(TAPROOT_UNSPENDABLE_KEY, { script: leaf, leafVersion: 0xc0 }, undefined, true);
+
+  it('signs a commit funding input that carries no tapInternalKey', () => {
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('11'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: addrP2tr.script, amount: 100_000n },
+      sighashType: SigHash.ALL,
+    });
+    tx.addOutputAddress(commitP2tr.address!, 60_000n);
+    tx.addOutputAddress(addrP2tr.address!, 35_000n);
+
+    const signed = signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR);
+
+    const parsed = Transaction.fromPSBT(hexToBytes(signed));
+    expect(parsed.getInput(0).tapKeySig).toBeDefined();
+    // Finalizable straight to broadcastable bytes, as the site will do.
+    parsed.finalize();
+    expect(parsed.extract().length).toBeGreaterThan(0);
+  });
+
+  it('signs a reveal whose leaf names the tweaked output key', () => {
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({
+      txid: hexToBytes('22'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: commitP2tr.script, amount: 60_000n },
+      tapLeafScript: commitP2tr.tapLeafScript,
+      sighashType: SigHash.ALL,
+    });
+    tx.addOutput({ script: hexToBytes('6a08434e545250525459'), amount: 0n });
+    tx.addOutputAddress(addrP2tr.address!, 546n);
+
+    const signed = signPSBT(bytesToHex(tx.toPSBT()), privKey, [0], AddressFormat.P2TR);
+
+    // Finalized with the options the launchpad's finalizeSignedPsbt uses — allowUnknownInputs is
+    // what lets the finalizer assemble a witness for a leaf script it has no template for.
+    const parsed = Transaction.fromPSBT(hexToBytes(signed), {
+      allowUnknownInputs: true,
+      allowUnknownOutputs: true,
+      disableScriptCheck: true,
+    });
+    expect(parsed.getInput(0).tapScriptSig?.length).toBe(1);
+    parsed.finalize();
+    const raw = parsed.extract();
+    // The finalized witness is the 3-element shape core requires: signature, leaf, control block.
+    const reparsed = Transaction.fromRaw(raw, { allowUnknownOutputs: true, disableScriptCheck: true });
+    expect(reparsed.getInput(0).finalScriptWitness?.length).toBe(3);
+  });
+
+  it('does not sign a foreign taproot input in best-effort mode', () => {
+    const strangerScript = p2tr(
+      hexToBytes('c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'),
+      undefined, undefined, true
+    );
+    const tx = new Transaction();
+    tx.addInput({
+      txid: hexToBytes('33'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: strangerScript.script, amount: 100_000n },
+      sighashType: SigHash.ALL,
+    });
+    tx.addOutputAddress(addrP2tr.address!, 90_000n);
+
+    expect(() => signPSBT(bytesToHex(tx.toPSBT()), privKey, [], AddressFormat.P2TR)).toThrow(
+      /No inputs could be signed/
+    );
   });
 });
 
