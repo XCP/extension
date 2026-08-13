@@ -16,6 +16,7 @@ import {
   resolveRevealMessage,
   verifyInscriptionCommit,
 } from '@/core/counterparty/providerInscriptions';
+import { analyzeTransactionSafety } from '@/core/counterparty/transactionSafety';
 
 // A fixed internal key for the "user": secp generator point x-coordinate is a valid x-only key.
 const USER_INTERNAL_KEY = hexToBytes(
@@ -238,5 +239,24 @@ describe('resolveRevealMessage', () => {
     ).toBeNull();
     expect(resolveRevealMessage(revealInputs(undefined), markerOutputs)).toBeNull();
     expect(resolveRevealMessage(revealInputs(['51']), markerOutputs)).toBeNull();
+  });
+});
+
+describe('reveal safety with the burn output', () => {
+  // The launchpad burns the inscription output on purpose: 546 sats to the Counterparty burn
+  // address. That sits exactly at the dust threshold the analyzer already treats as normal
+  // Counterparty behavior, so a recognized reveal raises no warnings for it.
+  it('raises nothing for marker plus burn dust once the message is recognized', () => {
+    const analysis = analyzeTransactionSafety(
+      'fairminter',
+      [
+        { value: 0, type: 'op_return', script: '6a08434e545250525459' },
+        { value: 546, type: 'p2pkh', address: '1CounterpartyXXXXXXXXXXXXXXXUWLpVr' },
+      ],
+      SIGNER_ADDRESS
+    );
+
+    expect(analysis.blocked).toBe(false);
+    expect(analysis.warnings.filter((w) => w.severity !== 'info')).toEqual([]);
   });
 });

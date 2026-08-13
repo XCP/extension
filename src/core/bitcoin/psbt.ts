@@ -7,7 +7,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { Address, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { SigningError, ValidationError } from '@/core/errors';
@@ -427,6 +427,33 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     unfunded,
     hasOpReturn,
   };
+}
+
+/**
+ * The address a tapleaf-bearing input is spendable by, when that can be read from the PSBT.
+ *
+ * An inscription reveal spends a P2TR commit whose *address* belongs to nobody — it is derived
+ * from the envelope — but whose single leaf ends in `<key> OP_CHECKSIG`. The address whose
+ * witness program is that key is the leaf's owner: the spending condition names it directly.
+ * Ownership validation uses this so a reveal counts as the signer's own input, without any
+ * blanket exemption — a declared leaf that is not really in the commit's tree yields a signature
+ * that finalizes into an unbroadcastable transaction, never someone else's coins.
+ *
+ * Only single-leaf inputs resolve: with several leaves the one that will be revealed is unknown,
+ * and no ownership claim can be made.
+ */
+export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
+  if (input.tapLeafScripts?.length !== 1) return undefined;
+  const script = input.tapLeafScripts[0]!;
+  // The leaf must end `20 <32-byte key> ac` — a push of the x-only key, then OP_CHECKSIG.
+  if (script.length < 68 || !script.endsWith('ac')) return undefined;
+  if (script.slice(-68, -66) !== '20') return undefined;
+  try {
+    const key = hexToBytes(script.slice(-66, -2));
+    return Address().encode({ type: 'tr', pubkey: key });
+  } catch {
+    return undefined;
+  }
 }
 
 /**

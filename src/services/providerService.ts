@@ -10,7 +10,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
-import { extractPsbtDetails, validateSignInputs } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
@@ -739,11 +739,14 @@ export function createProviderService(): ProviderService {
               activeAddress.address,
               ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
             ];
+            // Ownership per input: normally the prevout's own address, but an inscription
+            // reveal spends a commit output whose address belongs to nobody — there the input is
+            // owned by whoever the declared leaf's checksig key encodes to (tapLeafOwnerAddress).
             const validation = validateSignInputs(
               signInputs,
               allowedAddresses,
               psbtDetails.inputs.length,
-              psbtDetails.inputs.map(input => input.address)
+              psbtDetails.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address)
             );
             if (!validation.valid) throw new Error(validation.error);
 

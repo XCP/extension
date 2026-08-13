@@ -16,6 +16,7 @@ import {
   parsePSBT,
   resolvePsbtSighashType,
   signPSBT,
+  tapLeafOwnerAddress,
   validateSignInputs,
 } from '../psbt';
 
@@ -367,6 +368,41 @@ describe('validateSignInputs', () => {
  * witnessUtxo but NO tapInternalKey (a site cannot know the internal key behind an address), and
  * a script-path reveal whose leaf names the address's tweaked output key.
  */
+
+describe('tapLeafOwnerAddress', () => {
+  const privKey = TEST_PRIVATE_KEY;
+  const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
+  const addr = p2tr(internalKey, undefined, undefined, true);
+  const outputKey = (Address().decode(addr.address!) as { type: 'tr'; pubkey: Uint8Array }).pubkey;
+  const leaf = new Uint8Array([0x00, 0x63, 0x03, 0x6f, 0x72, 0x64, 0x68, 0x20, ...outputKey, 0xac]);
+
+  // The reveal case: the input pays the commit address (nobody's), the leaf names the signer.
+  it("resolves a reveal input to the leaf key's address, and validation accepts it", () => {
+    const input = {
+      index: 0, txid: '22'.repeat(32), vout: 0,
+      address: 'bc1p_commit_address_stand_in',
+      tapLeafScripts: [bytesToHex(leaf)],
+    };
+    expect(tapLeafOwnerAddress(input)).toBe(addr.address);
+
+    const validation = validateSignInputs(
+      { [addr.address!]: [0] },
+      [addr.address!],
+      1,
+      [tapLeafOwnerAddress(input) ?? input.address]
+    );
+    expect(validation.valid).toBe(true);
+  });
+
+  it('resolves nothing for multiple leaves, no leaves, or a malformed tail', () => {
+    const base = { index: 0, txid: '22'.repeat(32), vout: 0 };
+    expect(tapLeafOwnerAddress({ ...base, tapLeafScripts: [bytesToHex(leaf), bytesToHex(leaf)] })).toBeUndefined();
+    expect(tapLeafOwnerAddress(base)).toBeUndefined();
+    // Ends in OP_CHECKSIG but the push before it is not a 32-byte key.
+    expect(tapLeafOwnerAddress({ ...base, tapLeafScripts: ['00630368'.padEnd(70, '1') + 'ac'] })).toBeUndefined();
+  });
+});
+
 describe('signPSBT taproot inscription shapes', () => {
   const privKey = TEST_PRIVATE_KEY;
   const internalKey = getPublicKey(hexToBytes(privKey), true).slice(1, 33);
