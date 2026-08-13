@@ -3,8 +3,10 @@ import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSpentUtxoCache,
+  getPendingChangeUtxos,
   getSpentUtxoCacheSize,
   isUtxoRecentlySpent,
+  recordPendingChange,
   recordSpentInputsFromRawTx,
   recordSpentUtxos,
 } from '../spentUtxoCache';
@@ -109,5 +111,47 @@ describe('recordSpentInputsFromRawTx', () => {
     recordSpentInputsFromRawTx('deadbeef');
 
     expect(getSpentUtxoCacheSize()).toBe(0);
+  });
+});
+
+// The symmetric twin: what a broadcast gave back, not what it took away. Which outputs are safe
+// to register is decided in core/counterparty/pendingChange; this registry just remembers.
+describe('pendingChange registry', () => {
+  beforeEach(() => {
+    clearSpentUtxoCache();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('returns registered change for its address only', () => {
+    recordPendingChange([
+      { txid: 'tx1', vout: 1, address: 'addr-a', value: 4000 },
+      { txid: 'tx2', vout: 0, address: 'addr-b', value: 3000 },
+    ]);
+
+    expect(getPendingChangeUtxos('addr-a')).toEqual([{ txid: 'tx1', vout: 1, value: 4000 }]);
+    expect(getPendingChangeUtxos('addr-b')).toEqual([{ txid: 'tx2', vout: 0, value: 3000 }]);
+    expect(getPendingChangeUtxos('addr-c')).toEqual([]);
+  });
+
+  // By expiry the mempool lists the change for real, so the virtual copy must bow out.
+  it('drops entries after the TTL', () => {
+    recordPendingChange([{ txid: 'tx1', vout: 1, address: 'addr-a', value: 4000 }]);
+    expect(getPendingChangeUtxos('addr-a')).toHaveLength(1);
+
+    vi.advanceTimersByTime(61_000);
+
+    expect(getPendingChangeUtxos('addr-a')).toEqual([]);
+  });
+
+  it('clears with the rest of the cache', () => {
+    recordPendingChange([{ txid: 'tx1', vout: 1, address: 'addr-a', value: 4000 }]);
+
+    clearSpentUtxoCache();
+
+    expect(getPendingChangeUtxos('addr-a')).toEqual([]);
   });
 });
