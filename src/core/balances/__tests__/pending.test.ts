@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   countUnreadable,
   type MempoolLedgerEvent,
+  type MempoolStatusEvent,
   pendingByAsset,
   pendingByUtxo,
+  pendingCancellations,
   summarize,
 } from '../pending';
 
@@ -224,5 +226,54 @@ describe('summarize', () => {
     expect(summary.incoming).toBe(50n);
     // Unconfirmed money in is not money you can spend.
     expect(summary.spendable).toBe(400n);
+  });
+});
+
+describe('pendingCancellations', () => {
+  const cancel = (overrides: Partial<MempoolStatusEvent['params']> = {}): MempoolStatusEvent => ({
+    tx_hash: 'canceltx',
+    event: 'CANCEL_ORDER',
+    params: { source: MINE, offer_hash: 'order1', status: 'valid', ...overrides },
+  });
+  const close = (overrides: Partial<MempoolStatusEvent['params']> = {}): MempoolStatusEvent => ({
+    tx_hash: 'closetx',
+    event: 'DISPENSER_UPDATE',
+    params: { source: MINE, tx_hash: 'dispenser1', status: 10, ...overrides },
+  });
+
+  it('claims an order whose valid cancel is in the mempool', () => {
+    expect(pendingCancellations([cancel()], MINE).orderHashes).toEqual(new Set(['order1']));
+  });
+
+  // A cancel core judged invalid changes nothing when it confirms, so the button stays live.
+  it('ignores a cancel core judged invalid', () => {
+    const result = pendingCancellations([cancel({ status: 'invalid: offer not open' })], MINE);
+    expect(result.orderHashes.size).toBe(0);
+  });
+
+  // The endpoint address-matches with a LIKE superset; only the event's own source counts.
+  it("ignores a neighbour's cancel", () => {
+    expect(pendingCancellations([cancel({ source: THEIRS })], MINE).orderHashes.size).toBe(0);
+  });
+
+  it('claims a dispenser whose close is in the mempool, keyed by its own hash', () => {
+    expect(pendingCancellations([close()], MINE).dispenserHashes).toEqual(new Set(['dispenser1']));
+    // Status 11 is a delayed close still counting down; the ending is no less in flight.
+    expect(
+      pendingCancellations([close({ status: 11 })], MINE).dispenserHashes
+    ).toEqual(new Set(['dispenser1']));
+  });
+
+  // Refills update the same table without a status; they are not an ending.
+  it('ignores dispenser updates that are not closes', () => {
+    const refill = close({ status: undefined });
+    expect(pendingCancellations([refill], MINE).dispenserHashes.size).toBe(0);
+    expect(pendingCancellations([close({ status: 0 })], MINE).dispenserHashes.size).toBe(0);
+  });
+
+  it('returns empty sets for no events', () => {
+    const result = pendingCancellations([], MINE);
+    expect(result.orderHashes.size).toBe(0);
+    expect(result.dispenserHashes.size).toBe(0);
   });
 });

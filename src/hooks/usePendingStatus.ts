@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useState } from 'react';
-import { type PendingDelta, pendingByAsset, pendingByUtxo } from '@/core/balances/pending';
+import {
+  type PendingCancellations,
+  type PendingDelta,
+  pendingByAsset,
+  pendingByUtxo,
+  pendingCancellations,
+} from '@/core/balances/pending';
 import { pendingLabel } from '@/core/balances/pendingLabel';
-import { fetchMempoolLedgerEvents } from '@/core/counterparty/api';
+import { fetchMempoolLedgerEvents, fetchMempoolStatusEvents } from '@/core/counterparty/api';
 import { useRefreshSignal } from '@/hooks/useRefreshSignal';
 
 const EMPTY = new Map<string, PendingDelta>();
+const NO_CANCELLATIONS: PendingCancellations = {
+  orderHashes: new Set(),
+  dispenserHashes: new Set(),
+};
 
 /**
  * What the mempool is currently doing to an address's rows.
@@ -62,6 +72,47 @@ export function usePendingDeltas(
   }, [address, reloadCount]);
 
   return { byAsset, byUtxo };
+}
+
+/**
+ * Which of an address's orders and dispensers already have a cancel or close in the mempool.
+ *
+ * Read so the Cancel and Close buttons can stand down while the ending they would compose is
+ * already in flight — a second cancel of the same order can only fail and burn its fee. Same
+ * read-when-looking contract and silent-empty failure mode as {@link usePendingDeltas}.
+ */
+export function usePendingCancellations(
+  address: string | undefined,
+  refreshNonce?: number
+): PendingCancellations {
+  const [cancellations, setCancellations] = useState<PendingCancellations>(NO_CANCELLATIONS);
+  const [reloadCount, setReloadCount] = useState(0);
+
+  useRefreshSignal(refreshNonce, () => setReloadCount((previous) => previous + 1));
+
+  useEffect(() => {
+    if (!address) {
+      setCancellations(NO_CANCELLATIONS);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const read = async () => {
+      try {
+        const response = await fetchMempoolStatusEvents([address]);
+        if (isCancelled) return;
+        setCancellations(pendingCancellations(response.result ?? [], address));
+      } catch {
+        if (!isCancelled) setCancellations(NO_CANCELLATIONS);
+      }
+    };
+
+    read();
+    return () => { isCancelled = true; };
+  }, [address, reloadCount]);
+
+  return cancellations;
 }
 
 /** Each delta reduced to one display word, dropping the ones with nothing to say. */

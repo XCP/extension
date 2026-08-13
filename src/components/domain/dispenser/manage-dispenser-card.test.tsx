@@ -21,6 +21,16 @@ const openDispenser: any = {
 describe('ManageDispenserCard', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  // A close already in the mempool means closing again fails and refilling escrows into a
+  // dispenser that is ending; both give way to the balance list's italic in-flight word.
+  it('stands Refill and Close down while a close is in the mempool', () => {
+    render(<ManageDispenserCard dispenser={openDispenser} isClosing />);
+
+    expect(screen.getByText('Closing')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Refill' })).not.toBeInTheDocument();
+  });
+
   it('opens the dispenser when the card body is clicked', () => {
     render(<ManageDispenserCard dispenser={openDispenser} />);
 

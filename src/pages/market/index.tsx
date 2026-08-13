@@ -31,6 +31,7 @@ import { getTradingPair } from "@/core/tradingPair";
 import { useInView } from "@/hooks/useInView";
 import { useMarketData } from "@/hooks/useMarketData";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
+import { usePendingCancellations } from "@/hooks/usePendingStatus";
 
 // Constants
 const COPY_FEEDBACK_MS = 2000;
@@ -115,6 +116,11 @@ export default function MarketPage(): ReactElement {
     searchQuery,
     inView,
   });
+
+  // Which of this address's orders and dispensers already have their ending in the mempool, so
+  // the Manage lists can stand their Cancel/Close buttons down instead of inviting a duplicate.
+  const { orderHashes: cancellingOrders, dispenserHashes: closingDispensers } =
+    usePendingCancellations(viewMode === "manage" ? activeAddress?.address : undefined);
 
   // Pool state (explore = all pools, manage = user's LP positions)
   const [pools, setPools] = useState<Pool[]>([]);
@@ -481,7 +487,7 @@ export default function MarketPage(): ReactElement {
                         <>
                           <div className="space-y-2">
                             {filteredUserDispensers.map((d) => (
-                              <ManageDispenserCard key={d.tx_hash} dispenser={d} />
+                              <ManageDispenserCard key={d.tx_hash} dispenser={d} isClosing={closingDispensers.has(d.tx_hash)} />
                             ))}
                           </div>
                           <div ref={loadMoreRef} className="flex justify-center py-2">
@@ -595,7 +601,7 @@ export default function MarketPage(): ReactElement {
                         <>
                           <div className="space-y-2">
                             {filteredUserOrders.map((o) => (
-                              <ManageOrderCard key={o.tx_hash} order={o} />
+                              <ManageOrderCard key={o.tx_hash} order={o} isCancelling={cancellingOrders.has(o.tx_hash)} />
                             ))}
                           </div>
                           <div ref={loadMoreRef} className="flex justify-center py-2">

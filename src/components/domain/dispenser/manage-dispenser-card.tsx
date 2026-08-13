@@ -1,12 +1,18 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { DispenserDetails } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { fromSatoshis } from "@/core/numeric";
 
 interface ManageDispenserCardProps {
   dispenser: DispenserDetails;
+  /**
+   * True when a close of this dispenser is already in the mempool. Refill and Close stand down —
+   * closing twice fails, and refilling a dispenser that is about to close escrows into it anyway.
+   */
+  isClosing?: boolean;
   className?: string;
 }
 
@@ -16,6 +22,7 @@ interface ManageDispenserCardProps {
  */
 export function ManageDispenserCard({
   dispenser,
+  isClosing = false,
   className = "",
 }: ManageDispenserCardProps): ReactElement {
   const navigate = useNavigate();
@@ -67,6 +74,9 @@ export function ManageDispenserCard({
           </div>
         </button>
         {isOpen ? (
+          isClosing ? (
+            <PendingStatus label="Closing" className="px-3 py-1.5" />
+          ) : (
           <div className="flex gap-2">
             <button type="button"
               onClick={handleRefill}
@@ -81,6 +91,7 @@ export function ManageDispenserCard({
               Close
             </button>
           </div>
+          )
         ) : (
           <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
             Closed

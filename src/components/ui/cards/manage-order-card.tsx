@@ -1,12 +1,18 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
+import { PendingStatus } from "@/components/domain/balance/pending-status";
 import type { Order } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 import { getOrderBaseAmount, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
 interface ManageOrderCardProps {
   order: Order;
+  /**
+   * True when a cancel of this order is already in the mempool. The Cancel button stands down —
+   * a second cancel of the same order can only fail and burn its fee.
+   */
+  isCancelling?: boolean;
   className?: string;
 }
 
@@ -16,6 +22,7 @@ interface ManageOrderCardProps {
  */
 export function ManageOrderCard({
   order,
+  isCancelling = false,
   className = "",
 }: ManageOrderCardProps): ReactElement {
   const navigate = useNavigate();
@@ -70,12 +77,16 @@ export function ManageOrderCard({
           </div>
         </button>
         {isOpen ? (
-          <button type="button"
-            onClick={handleCancel}
-            className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
-          >
-            Cancel
-          </button>
+          isCancelling ? (
+            <PendingStatus label="Cancelling" className="px-3 py-1.5" />
+          ) : (
+            <button type="button"
+              onClick={handleCancel}
+              className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+            >
+              Cancel
+            </button>
+          )
         ) : (
           <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 capitalize">
             {order.status}

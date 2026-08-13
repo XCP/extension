@@ -23,6 +23,15 @@ const openOrder: any = {
 describe('ManageOrderCard', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  // A cancel already in the mempool means a second cancel can only fail and burn its fee: the
+  // button gives way to the same italic word the balance list uses for in-flight activity.
+  it('stands the Cancel button down while a cancel is in the mempool', () => {
+    render(<ManageOrderCard order={openOrder} isCancelling />);
+
+    expect(screen.getByText('Cancelling')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+  });
+
   // Regression: the pair line read each side's canonical name, and a subasset's canonical name
   // is numeric (A123...). The order Goat wanted to cancel showed a number nobody typed. Both
   // sides must prefer the longname, and navigation must keep using the numeric name -- it is

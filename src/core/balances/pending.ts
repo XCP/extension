@@ -287,3 +287,61 @@ export function summarize(confirmed: bigint, delta: PendingDelta | undefined): P
     inconsistent,
   };
 }
+
+/** A status-changing event core parsed out of a mempool transaction. */
+export interface MempoolStatusEvent {
+  tx_hash: string;
+  event: string;
+  params?: {
+    /** Who signed the cancel or close. */
+    source?: string;
+    /** CANCEL_ORDER: the order being cancelled. */
+    offer_hash?: string;
+    /** CANCEL_ORDER: core's validity string; only "valid" cancels change anything. */
+    status?: number | string;
+    /** DISPENSER_UPDATE: the dispenser's own transaction hash. */
+    tx_hash?: string;
+  };
+}
+
+/** Which of an address's rows already have their ending sitting in the mempool. */
+export interface PendingCancellations {
+  /** Order hashes with an in-mempool cancel. */
+  orderHashes: Set<string>;
+  /** Dispenser tx hashes with an in-mempool close. */
+  dispenserHashes: Set<string>;
+}
+
+/**
+ * Fold cancel/close events into the set of rows whose ending is already in flight.
+ *
+ * The point is the Cancel and Close buttons: offering one for a row whose cancel is already in
+ * the mempool invites a second transaction that can only fail and burn its fee. Same sourcing
+ * rule as {@link pendingByAsset} — the endpoint's address match is a LIKE superset, so each event
+ * is admitted only on its own `params.source`.
+ *
+ * A cancel core judged invalid changes nothing when it confirms, so it does not claim the row. A
+ * `DISPENSER_UPDATE` is only a closing when it says so: refills update the same table with no
+ * status, and status 0 reopens — only 10 (closed) and 11 (closing) mean the row is ending.
+ */
+export function pendingCancellations(
+  events: MempoolStatusEvent[],
+  address: string
+): PendingCancellations {
+  const orderHashes = new Set<string>();
+  const dispenserHashes = new Set<string>();
+
+  for (const event of events) {
+    const params = event.params;
+    if (!params || params.source !== address) continue;
+
+    if (event.event === 'CANCEL_ORDER') {
+      if (params.status === 'valid' && params.offer_hash) orderHashes.add(params.offer_hash);
+    } else if (event.event === 'DISPENSER_UPDATE') {
+      const status = Number(params.status);
+      if ((status === 10 || status === 11) && params.tx_hash) dispenserHashes.add(params.tx_hash);
+    }
+  }
+
+  return { orderHashes, dispenserHashes };
+}

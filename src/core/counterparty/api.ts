@@ -1155,6 +1155,26 @@ export async function fetchMempoolLedgerEvents(
   });
 }
 
+/**
+ * Cancel and close events the node has parsed out of its own mempool for these addresses.
+ *
+ * The companion to `fetchMempoolLedgerEvents`, asking a different question: not "what quantities
+ * are in flight" but "which orders and dispensers already have their ending pending". Same
+ * endpoint, same LIKE-superset address matching (filter on each event's own `params.source` —
+ * `core/balances/pending.ts` does), same short-lived cache for the same reason.
+ */
+export async function fetchMempoolStatusEvents(
+  addresses: string[],
+  options: { limit?: number; verbose?: boolean } = {}
+): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
+  return cpApiGet('/v2/addresses/mempool', {
+    addresses: addresses.join(','),
+    event_name: 'CANCEL_ORDER,DISPENSER_UPDATE',
+    verbose: options.verbose ?? true,
+    limit: options.limit ?? 100,
+  });
+}
+
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {
   const data = await cpApiGet<PaginatedResponse<{ params: Dispense }>>('/v2/mempool/events/DISPENSE', {
     verbose: true,
