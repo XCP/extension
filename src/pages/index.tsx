@@ -248,7 +248,7 @@ export default function HomePage(): ReactElement {
             aria-label="Refresh balances"
           >
             <FiRefreshCw
-              className={`size-5 text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
+              className={`size-4 text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
               aria-hidden="true"
             />
           </button>
