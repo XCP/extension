@@ -105,6 +105,21 @@ export function formatAddress(address: string | null | undefined, shorten: boole
  * formatAsset("XCP") // "XCP"
  * formatAsset("MYLONGASSETNAME", { shorten: true }) // "MYLONGASSET..."
  */
+/**
+ * An asset query as the API wants it: named assets uppercased, subassets left alone.
+ *
+ * Named assets are uppercase by charset, so uppercasing a partial or sloppy query is a
+ * convenience. A subasset longname is case-sensitive — its child part draws on a 68-character
+ * set with both cases — so the same convenience destroys it: PARENT.child uppercased names a
+ * different (usually nonexistent) asset, and the market search failed even on a fully typed,
+ * fully correct longname. The dot decides which rule applies; it is not a legal character in a
+ * named asset.
+ */
+export function normalizeAssetQuery(query: string): string {
+  const trimmed = query.trim();
+  return trimmed.includes(".") ? trimmed : trimmed.toUpperCase();
+}
+
 export function formatAsset(
   assetName: string,
   options?: {

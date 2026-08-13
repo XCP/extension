@@ -10,6 +10,7 @@ import {
   type Order,
   type OrderDetails,
 } from "@/core/counterparty/api";
+import { normalizeAssetQuery } from "@/core/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 
 // Key extractors for deduplication
@@ -141,9 +142,13 @@ export function useMarketData({
   const filteredUserOrders = useMemo(() => {
     if (!searchQuery.trim()) return userOrders.data;
     const query = searchQuery.toLowerCase();
+    // Longnames too, like the dispenser filter five lines up: a subasset's give/get_asset is its
+    // numeric name, so matching only those made every longname fragment come back empty.
     return userOrders.data.filter((o) =>
       o.give_asset.toLowerCase().includes(query) ||
-      o.get_asset.toLowerCase().includes(query)
+      o.get_asset.toLowerCase().includes(query) ||
+      (o.give_asset_info?.asset_longname?.toLowerCase() || "").includes(query) ||
+      (o.get_asset_info?.asset_longname?.toLowerCase() || "").includes(query)
     );
   }, [userOrders.data, searchQuery]);
 
@@ -158,7 +163,7 @@ export function useMarketData({
     setDispenserSearchLoading(true);
     setDispenserSearchError(null);
     try {
-      const res = await fetchAssetDispensers(query.toUpperCase(), { status: "open", limit: PAGE_SIZE });
+      const res = await fetchAssetDispensers(normalizeAssetQuery(query), { status: "open", limit: PAGE_SIZE });
       setDispenserResults(res.result);
     } catch (err) {
       console.error("Failed to search dispensers:", err);
@@ -179,7 +184,9 @@ export function useMarketData({
     setOrderSearchLoading(true);
     setOrderSearchError(null);
     try {
-      const res = await fetchAssetOrders(query.toUpperCase(), { status: "open", limit: PAGE_SIZE });
+      // normalizeAssetQuery, not toUpperCase: uppercasing a subasset longname names a different
+      // asset, so even an exactly typed PARENT.child found nothing here.
+      const res = await fetchAssetOrders(normalizeAssetQuery(query), { status: "open", limit: PAGE_SIZE });
       setOrderResults(res.result);
     } catch (err) {
       console.error("Failed to search orders:", err);

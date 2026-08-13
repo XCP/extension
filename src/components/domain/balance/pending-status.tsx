@@ -19,7 +19,10 @@ interface PendingStatusProps {
  */
 export function PendingStatus({ label, className = "" }: PendingStatusProps): ReactElement {
   return (
-    <span className={`text-xs italic text-gray-400 ${className}`}>
+    // text-right: the flex row places this at the right edge, but the span's own box can be
+    // wider than its text (the menu-clearance margin, or a wrapped two-word label), and then the
+    // text sat left inside a right-positioned box.
+    <span className={`text-xs italic text-gray-400 text-right ${className}`}>
       {label}
     </span>
   );

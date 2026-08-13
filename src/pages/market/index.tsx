@@ -24,7 +24,7 @@ import {
   type PoolPosition,
 } from "@/core/counterparty/api";
 import { normalizePoolPosition } from "@/core/counterparty/pool";
-import { formatAddress } from "@/core/format";
+import { formatAddress, normalizeAssetQuery } from "@/core/format";
 import { toNumber } from "@/core/numeric";
 import { formatPrice } from "@/core/priceFormat";
 import { getTradingPair } from "@/core/tradingPair";
@@ -408,7 +408,7 @@ export default function MarketPage(): ReactElement {
                   {isSearching ? (
                     <div>
                       <p className="text-sm text-gray-500 mb-2">
-                        Results for "{searchQuery.toUpperCase()}"
+                        Results for "{normalizeAssetQuery(searchQuery)}"
                       </p>
                       {dispenserSearchLoading ? (
                         <Spinner message="Searching..." />
@@ -426,15 +426,15 @@ export default function MarketPage(): ReactElement {
                           ))}
                           {dispenserResults.length >= PAGE_SIZE && (
                             <button type="button"
-                              onClick={() => navigate(`/market/dispensers/${searchQuery.toUpperCase()}`)}
+                              onClick={() => navigate(`/market/dispensers/${normalizeAssetQuery(searchQuery)}`)}
                               className="w-full py-2 text-sm text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                             >
-                              View all dispensers for {searchQuery.toUpperCase()} →
+                              View all dispensers for {normalizeAssetQuery(searchQuery)} →
                             </button>
                           )}
                         </div>
                       ) : (
-                        <EmptyState message={`No open dispensers for ${searchQuery.toUpperCase()}`} />
+                        <EmptyState message={`No open dispensers for ${normalizeAssetQuery(searchQuery)}`} />
                       )}
                     </div>
                   ) : dispensers.isLoading ? (
@@ -524,7 +524,7 @@ export default function MarketPage(): ReactElement {
                   {isSearching ? (
                     <div>
                       <p className="text-sm text-gray-500 mb-2">
-                        Results for "{searchQuery.toUpperCase()}"
+                        Results for "{normalizeAssetQuery(searchQuery)}"
                       </p>
                       {orderSearchLoading ? (
                         <Spinner message="Searching..." />

@@ -96,8 +96,8 @@ export function BalanceCard({
                 useGrouping: true,
               })}
             </span>
-            {/* Reserve room for the menu button, which floats over the card's top right. */}
-            {pendingStatus && <PendingStatus label={pendingStatus} className="ml-2 mr-6" />}
+            {/* The floating menu button sits a row above this line, so no room is reserved. */}
+            {pendingStatus && <PendingStatus label={pendingStatus} className="ml-2" />}
           </div>
         </div>
       </button>
