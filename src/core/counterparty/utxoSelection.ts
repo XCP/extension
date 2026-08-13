@@ -7,7 +7,7 @@
  * This follows the same approach as Horizon Wallet.
  */
 
-import { isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
+import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchTokenBalances } from '@/core/counterparty/api';
 
@@ -74,7 +74,23 @@ export async function selectUtxosForTransaction(
     fetchTokenBalances(address, { type: 'utxo', limit: 1000, verbose: false }),
   ]);
 
-  if (allUtxos.length === 0) {
+  // Our own just-broadcast change, registered at broadcast time (core/counterparty/pendingChange)
+  // because mempool.space takes a beat to list it. Deduped against the fetch — once the indexer
+  // catches up the same outpoint arrives with real status and the virtual copy is redundant.
+  // Virtual entries are unconfirmed by definition, so they answer to the same allowUnconfirmed
+  // gate as everything else below.
+  const fetched = new Set(allUtxos.map((utxo) => `${utxo.txid}:${utxo.vout}`));
+  const virtualChange: UTXO[] = getPendingChangeUtxos(address)
+    .filter(({ txid, vout }) => !fetched.has(`${txid}:${vout}`))
+    .map(({ txid, vout, value }) => ({
+      txid,
+      vout,
+      value,
+      status: { confirmed: false, block_height: 0, block_hash: '', block_time: 0 },
+    }));
+  const candidateUtxos = [...allUtxos, ...virtualChange];
+
+  if (candidateUtxos.length === 0) {
     throw new Error('No UTXOs available for this address');
   }
 
@@ -91,7 +107,7 @@ export async function selectUtxosForTransaction(
   let excludedValue = 0;
   const eligibleUtxos: UTXO[] = [];
 
-  for (const utxo of allUtxos) {
+  for (const utxo of candidateUtxos) {
     // Skip unconfirmed if not allowed
     if (!allowUnconfirmed && !utxo.status.confirmed) {
       continue;

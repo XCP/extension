@@ -46,6 +46,8 @@ import {
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
 import type { AddressFormat } from '@/core/bitcoin/address';
+import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
+import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { keychainExists as checkKeychainExists, watchKeychainRecord } from "@/platform/storage/walletStorage";
@@ -624,7 +626,21 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     isAddressInAnyWallet: walletService.isAddressInAnyWallet,
     removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
     signTransaction: walletService.signTransaction,
-    broadcastTransaction: walletService.broadcastTransaction,
+    // Wrapped rather than passed through: the spent-UTXO cache is per-context, and compose runs
+    // HERE, in the popup. Recording only in the background (where the broadcast executes) left
+    // this context's copy empty, so quick back-to-back transactions re-picked just-spent inputs.
+    broadcastTransaction: async (signedTxHex: string) => {
+      const result = await walletService.broadcastTransaction(signedTxHex);
+      recordSpentInputsFromRawTx(signedTxHex);
+      // The symmetric half: our own change becomes spendable immediately, so an address whose
+      // only UTXO was just consumed can chain without waiting for the indexer. pendingChange
+      // owns the safety judgment about which outputs qualify.
+      recordOwnChangeFromRawTx(
+        signedTxHex,
+        walletStateRef.current.wallets.flatMap((wallet) => wallet.addresses.map((a) => a.address))
+      );
+      return result;
+    },
     isKeychainLocked,
   }), [
     walletState,
