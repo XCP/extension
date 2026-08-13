@@ -237,25 +237,29 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   // BTC is always pinned, plus user's pinned assets
   const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
 
-  const pinnedBalances = allBalances.filter((balance) => {
-    const assetUpper = balance.asset.toUpperCase();
-    const isPinned = pinnedAssets.includes(assetUpper);
-    if (!isPinned) return false;
-
-    // BTC always shows even if 0
-    if (assetUpper === "BTC") return true;
-
-    // XCP shows even if 0 only when pinned
-    if (assetUpper === "XCP" && isPinned) return true;
-
-    // Other pinned assets only show if non-zero
-    return balance.quantity_normalized !== undefined
-      && isGreaterThan(balance.quantity_normalized, 0);
-  });
+  const pinnedBalances = allBalances.filter((balance) =>
+    pinnedAssets.includes(balance.asset.toUpperCase())
+  );
 
   const otherBalances = allBalances.filter((balance) =>
     !pinnedAssets.includes(balance.asset.toUpperCase())
   );
+
+  // A spendable balance of zero is not worth a row: once the debit confirms, the ledger drops the
+  // row itself, so skipping it now just gets there early. The zero test runs on the figure the
+  // card would show — an asset fully escrowed on an in-mempool order reads 0 and is skipped even
+  // though the ledger still lists it. BTC always shows, and XCP shows at zero while pinned, so an
+  // empty wallet still has somewhere to say "0".
+  const visibleBalances = (balances: TokenBalance[]) =>
+    balances
+      .map((balance) => ({ balance, shown: displayBalance(balance) }))
+      .filter(({ balance, shown }) => {
+        const assetUpper = balance.asset.toUpperCase();
+        if (assetUpper === "BTC") return true;
+        if (assetUpper === "XCP" && pinnedAssets.includes("XCP")) return true;
+        return shown.quantity_normalized !== undefined
+          && isGreaterThan(shown.quantity_normalized, 0);
+      });
 
   if (isInitialLoading) return <Spinner message="Loading balances…" />;
 
@@ -280,11 +284,11 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         )
       ) : (
         <>
-          {pinnedBalances.map((balance) => (
-            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
+          {visibleBalances(pinnedBalances).map(({ balance, shown }) => (
+            <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
-          {otherBalances.map((balance) => (
-            <BalanceCard token={displayBalance(balance)} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
+          {visibleBalances(otherBalances).map(({ balance, shown }) => (
+            <BalanceCard token={shown} key={balance.asset} pendingStatus={pendingByAssetLabel.get(balance.asset)} />
           ))}
           <div ref={loadMoreRef} className="flex flex-col justify-center items-center py-1">
             {hasMore ? (

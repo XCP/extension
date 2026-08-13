@@ -48,9 +48,11 @@ vi.mock("@/core/bitcoin/balance", () => ({
 
 const mockFetchTokenBalance = vi.fn();
 const mockFetchTokenBalances = vi.fn();
+const mockFetchMempoolLedgerEvents = vi.fn();
 vi.mock("@/core/counterparty/api", () => ({
   fetchTokenBalance: (...args: any[]) => mockFetchTokenBalance(...args),
   fetchTokenBalances: (...args: any[]) => mockFetchTokenBalances(...args),
+  fetchMempoolLedgerEvents: (...args: any[]) => mockFetchMempoolLedgerEvents(...args),
 }));
 
 vi.mock("@/core/format", () => ({
@@ -179,10 +181,56 @@ describe("BalanceList", () => {
     mockFetchBTCBalance.mockResolvedValue(100000000); // 1 BTC in sats
     mockFetchTokenBalance.mockResolvedValue(null);
     mockFetchTokenBalances.mockResolvedValue([]);
+    mockFetchMempoolLedgerEvents.mockResolvedValue({ result: [] });
     mockSearchQuery = "";
     mockSearchResults = [];
     mockIsSearching = false;
     mockInView.mockReturnValue(false);
+  });
+
+  // The rule from live testing: an asset fully escrowed on an in-mempool order shows a spendable
+  // balance of 0, and a 0 row says nothing — the ledger drops it once the debit confirms anyway.
+  // Pinned XCP is the exception, so an empty wallet still has somewhere to read "0".
+  it("skips rows whose whole balance is pending out, except pinned XCP", async () => {
+    mockFetchTokenBalance
+      .mockResolvedValueOnce(mockTokenBalances[0]) // XCP, 100
+      .mockResolvedValueOnce(mockTokenBalances[1]); // PEPECASH, 1000000
+    mockFetchMempoolLedgerEvents.mockResolvedValue({
+      result: [
+        {
+          event: "DEBIT",
+          tx_hash: "tx1",
+          params: {
+            address: "bc1qtest123",
+            asset: "PEPECASH",
+            quantity: 1000000,
+            quantity_normalized: "1000000",
+            action: "open order",
+          },
+        },
+        {
+          event: "DEBIT",
+          tx_hash: "tx2",
+          params: {
+            address: "bc1qtest123",
+            asset: "XCP",
+            quantity: 10000000000,
+            quantity_normalized: "100.00000000",
+            action: "open order",
+          },
+        },
+      ],
+    });
+
+    render(<BalanceList />);
+
+    await waitFor(() => {
+      expect(screen.getByText("XCP")).toBeInTheDocument();
+    });
+    // Pinned XCP stays, showing its spendable figure of zero.
+    expect(screen.getByText("0.00000000")).toBeInTheDocument();
+    // The fully escrowed asset is not listed at all.
+    expect(screen.queryByText("PEPECASH")).not.toBeInTheDocument();
   });
 
   it("should render loading spinner initially", () => {
