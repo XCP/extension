@@ -119,8 +119,11 @@ export default function MarketPage(): ReactElement {
 
   // Which of this address's orders and dispensers already have their ending in the mempool, so
   // the Manage lists can stand their Cancel/Close buttons down instead of inviting a duplicate.
+  // Gated to the two tabs that render those buttons — the read skips the response cache for
+  // freshness, so it should not fire for a pools view that never consults it.
+  const wantsCancellations = viewMode === "manage" && (activeTab === 0 || activeTab === 1);
   const { orderHashes: cancellingOrders, dispenserHashes: closingDispensers } =
-    usePendingCancellations(viewMode === "manage" ? activeAddress?.address : undefined);
+    usePendingCancellations(wantsCancellations ? activeAddress?.address : undefined);
 
   // Pool state (explore = all pools, manage = user's LP positions)
   const [pools, setPools] = useState<Pool[]>([]);

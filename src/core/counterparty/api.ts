@@ -1161,18 +1161,24 @@ export async function fetchMempoolLedgerEvents(
  * The companion to `fetchMempoolLedgerEvents`, asking a different question: not "what quantities
  * are in flight" but "which orders and dispensers already have their ending pending". Same
  * endpoint, same LIKE-superset address matching (filter on each event's own `params.source` —
- * `core/balances/pending.ts` does), same short-lived cache for the same reason.
+ * `core/balances/pending.ts` does).
+ *
+ * Unlike its sibling this skips the response cache: the moment that matters is right after the
+ * user's own cancel broadcasts, and a cached "nothing pending" from 59 seconds ago would leave
+ * the Cancel button live for exactly the duplicate this read exists to prevent. One caller, one
+ * light call per Manage view — freshness is worth more than collapsing requests here. Raw params
+ * carry everything the fold reads, so no verbose enrichment either.
  */
 export async function fetchMempoolStatusEvents(
   addresses: string[],
-  options: { limit?: number; verbose?: boolean } = {}
+  options: { limit?: number } = {}
 ): Promise<PaginatedResponse<{ tx_hash: string; event: string; params?: Record<string, unknown> }>> {
   return cpApiGet('/v2/addresses/mempool', {
     addresses: addresses.join(','),
     event_name: 'CANCEL_ORDER,DISPENSER_UPDATE',
-    verbose: options.verbose ?? true,
+    verbose: false,
     limit: options.limit ?? 100,
-  });
+  }, { skipCache: true });
 }
 
 export async function fetchMempoolDispenses(dispenserAddress: string): Promise<Dispense[]> {

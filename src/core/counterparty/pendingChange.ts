@@ -21,7 +21,7 @@
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
-import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
+import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
 /**
  * Message types that put assets on outputs of their own transaction. `utxo` is the legacy
@@ -43,11 +43,15 @@ export function recordOwnChangeFromRawTx(
   ownAddresses: Iterable<string>
 ): void {
   const parsed = parseRawTransactionLocally(rawTxHex);
-  if (!parsed) return;
+  if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return;
 
   // The safety gate: a Counterparty payload that names an asset-binding type — or one that does
-  // not decode — means these outputs are not ours to call plain change.
-  const payload = extractCounterpartyPayload(rawTxHex);
+  // not decode — means these outputs are not ours to call plain change. The parse above already
+  // holds the scripts and the ARC4 key (first input txid, display order), so the payload is read
+  // from those rather than parsing the same bytes a second time. An op_return output carries its
+  // script in `opReturnData`.
+  const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
+  const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);
   if (payload) {
     const unpacked = unpackCounterpartyMessage(payload);
     if (!unpacked.success || !unpacked.messageType) return;

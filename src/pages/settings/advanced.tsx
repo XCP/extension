@@ -89,6 +89,9 @@ export default function AdvancedSettingsPage(): ReactElement {
           </RadioGroup>
         </Field>
 
+      </SettingsSection>
+
+      <SettingsSection id="adv-transactions" title="Transactions">
         <SettingSwitch
           label="Strict TXs Verification"
           description="Block signing if local transaction verification fails. When off, a warning is shown but signing is allowed."
@@ -96,9 +99,7 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ strictTransactionVerification: checked })}
           showHelpText={shouldShowHelpText}
         />
-      </SettingsSection>
 
-      <SettingsSection id="adv-transactions" title="Transactions">
         <SettingSwitch
           label="Use Unconfirmed TXs"
           description="Enable this to chain transactions that haven't been confirmed yet."
