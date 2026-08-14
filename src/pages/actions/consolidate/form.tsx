@@ -39,6 +39,28 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // The tracker's pending count, re-checked against the chain before it is asserted to the user.
+  // Null while unchecked or uncheckable, in which case the tracker's own number is all there is.
+  const [verifiedPending, setVerifiedPending] = useState<number | null>(null);
+
+  const trackerPending =
+    formData.consolidationData?.mempool_status.pending_consolidations ?? 0;
+  useEffect(() => {
+    if (trackerPending === 0 || !activeAddress?.address) {
+      setVerifiedPending(null);
+      return;
+    }
+    let cancelled = false;
+    consolidationApi.chainVerifiedPendingCount(activeAddress.address).then((count) => {
+      if (!cancelled) setVerifiedPending(count);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trackerPending, activeAddress?.address]);
+  // The chain outranks the bookkeeper: a recovery the chain has confirmed is not pending no
+  // matter what a lagging or freshly recovered tracker still says.
+  const pendingRecoveries = verifiedPending ?? trackerPending;
 
   // Fetch recovery data for the active address.
   useEffect(() => {
@@ -144,27 +166,14 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
           </div>
         )}
 
-        {/* Mempool warning */}
-        {!isLoading &&
-          formData.consolidationData?.mempool_status &&
-          formData.consolidationData.mempool_status.pending_consolidations >
-            0 && (
-            <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
-              <strong>Warning:</strong> You have{" "}
-              {formData.consolidationData.mempool_status.pending_consolidations}{" "}
-              pending recovery transaction
-              {formData.consolidationData.mempool_status
-                .pending_consolidations > 1
-                ? "s"
-                : ""}
-              . Please wait for{" "}
-              {formData.consolidationData.mempool_status
-                .pending_consolidations > 1
-                ? "them"
-                : "it"}{" "}
-              to confirm before starting new ones.
-            </div>
-          )}
+        {/* Mempool warning — only for recoveries the chain itself has not yet confirmed. */}
+        {!isLoading && pendingRecoveries > 0 && (
+          <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
+            <strong>Warning:</strong> You have {pendingRecoveries} pending recovery transaction
+            {pendingRecoveries > 1 ? "s" : ""}. Please wait for{" "}
+            {pendingRecoveries > 1 ? "them" : "it"} to confirm before starting new ones.
+          </div>
+        )}
 
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">

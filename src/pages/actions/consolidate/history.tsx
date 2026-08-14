@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
 import { type ConsolidationStatusResponse, consolidationApi } from "@/core/bitcoin/consolidationApi";
+import { fetchTransactionChainStatus } from "@/core/bitcoin/utxo";
 import { formatAmount } from "@/core/format";
 
 interface ConsolidationHistoryProps {
@@ -47,7 +48,37 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
           const data = await consolidationApi.getConsolidationStatus(address);
           setStatus(data);
         } catch (_err) {
-          // Silently fail for refresh
+          // The tracker could not answer, which is precisely when its last word must not be
+          // repeated: an outage once left a confirmed recovery reading "Pending" on this screen
+          // while mempool.space knew better. Ask the chain about the rows shown as pending and
+          // promote the ones it has confirmed; an unreachable explorer changes nothing.
+          setStatus((current) => {
+            if (!current) return current;
+            const pending = current.recent_consolidations.filter((tx) => tx.status === "pending");
+            if (pending.length > 0) {
+              Promise.all(
+                pending.map(async (tx) => [tx.txid, await fetchTransactionChainStatus(tx.txid)] as const),
+              ).then((checks) => {
+                const confirmed = new Set(
+                  checks.filter(([, chain]) => chain?.confirmed).map(([txid]) => txid),
+                );
+                if (confirmed.size === 0) return;
+                setStatus((latest) =>
+                  latest
+                    ? {
+                        ...latest,
+                        recent_consolidations: latest.recent_consolidations.map((tx) =>
+                          confirmed.has(tx.txid)
+                            ? { ...tx, status: "confirmed" as const, confirmations: Math.max(1, tx.confirmations) }
+                            : tx,
+                        ),
+                      }
+                    : latest,
+                );
+              });
+            }
+            return current;
+          });
         }
       }
       refreshHistory();
