@@ -15,6 +15,10 @@ import { useSearchParams } from 'react-router';
 import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
+  type InscriptionCommitContext,
+  resolveRevealMessage,
+} from '@/core/counterparty/providerInscriptions';
+import {
   analyzeSignRequest,
   type SignRequestAnalysis,
 } from '@/core/counterparty/signRequestAnalysis';
@@ -46,7 +50,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
   const decodePsbt = useCallback(async (
     psbtHex: string,
     signerAddresses?: string[],
-    signedInputIndices?: number[]
+    signedInputIndices?: number[],
+    inscriptionContext?: InscriptionCommitContext
   ): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
@@ -67,6 +72,16 @@ export function useSignPsbtRequest(signerAddress?: string) {
         psbtDetails.outputs.map((output) => output.script ?? ''),
         firstInputTxid
       ) ?? undefined;
+    }
+
+    // An inscription reveal carries its message in input 0's tapleaf instead of any output — the
+    // outputs hold only the bare CNTRPRTY marker. Recognized under core's own conditions
+    // (`providerInscriptions.ts`), the envelope's message takes the payload's place and the
+    // ordinary gate and display apply to it. Raw-transaction requests have no equivalent: an
+    // unsigned raw transaction cannot carry the leaf it will reveal, so that path stays blocked.
+    if (!counterpartyDataHex) {
+      const reveal = resolveRevealMessage(psbtDetails.inputs, psbtDetails.outputs);
+      if (reveal) counterpartyDataHex = reveal.messageHex;
     }
 
     // Enrich the outputs before analysing them, so the safety checks see every address that could
@@ -101,6 +116,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
       signedInputIndices: signedInputIndices ?? [],
       transactionId: txid,
       attachedAssets: attachedAssetsPromise,
+      inscriptionContext,
     });
 
     return {
@@ -137,7 +153,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
         const decoded = await decodePsbt(
           req.psbtHex,
           requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
-          Object.values(req.signInputs ?? {}).flat()
+          Object.values(req.signInputs ?? {}).flat(),
+          req.inscription
         );
         setDecodedInfo(decoded);
       } catch (err) {
@@ -164,7 +181,8 @@ export function useSignPsbtRequest(signerAddress?: string) {
             const decoded = await decodePsbt(
               req.psbtHex,
               requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
-              Object.values(req.signInputs ?? {}).flat()
+              Object.values(req.signInputs ?? {}).flat(),
+              req.inscription
             );
             setDecodedInfo(decoded);
           }

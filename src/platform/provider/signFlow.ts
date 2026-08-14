@@ -38,6 +38,13 @@ export type SignPsbtRequest = SignFlowEntry<{
   psbtHex: string;
   signInputs?: Record<string, number[]>;
   sighashTypes?: number[];
+  /**
+   * A site's claim about the inscription commit this PSBT funds: the reveal's tapleaf script and
+   * the taproot internal key, both hex. Never trusted — the approval screen recomputes the commit
+   * address and message from it and hard-refuses on any mismatch
+   * (`core/counterparty/providerInscriptions.ts`).
+   */
+  inscription?: { revealScript: string; tapInternalKey: string };
 }>;
 
 /**

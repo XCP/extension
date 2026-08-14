@@ -156,7 +156,16 @@ const DATA_CARRYING_OUTPUT_TYPES = new Set([
 export function analyzeTransactionSafety(
   messageType: string | undefined,
   outputs: AnalyzableOutput[],
-  signerAddress: string | string[]
+  signerAddress: string | string[],
+  options: {
+    /**
+     * An inscription commit output the caller has already verified — address re-derived from the
+     * declared envelope, keys proven to be the signer's (`providerInscriptions.ts`). Reported as
+     * information rather than flagged: the coins stay under the signer's key, which is the fact
+     * the external-address warning exists to check.
+     */
+    verifiedCommit?: { address: string; value: number };
+  } = {}
 ): SafetyAnalysis {
   const warnings: SecurityWarning[] = [];
   let blocked = false;
@@ -248,6 +257,9 @@ export function analyzeTransactionSafety(
     // Skip outputs back to the signer (change)
     if (output.address && normalizedSigners.has(normalizeAddressForComparison(output.address))) continue;
 
+    // Skip the verified inscription commit — described by its own info entry below.
+    if (options.verifiedCommit && output.address === options.verifiedCommit.address) continue;
+
     // Skip dust outputs — normal for Counterparty (multisig encoding, dispenser triggers)
     if (output.value <= DUST_THRESHOLD) continue;
 
@@ -259,6 +271,18 @@ export function analyzeTransactionSafety(
       // such an output raised nothing and showed only as "Unknown address" in the movement list.
       unattributableOutputs.push({ value: output.value });
     }
+  }
+
+  if (options.verifiedCommit) {
+    const btcAmount = (options.verifiedCommit.value / 100_000_000).toFixed(8);
+    warnings.push({
+      severity: 'info',
+      title: 'Inscription Commit',
+      message:
+        `This funds an inscription: ${btcAmount} BTC goes to ${options.verifiedCommit.address.slice(0, 12)}…, ` +
+        'an address derived from the inscription itself and spendable only by your key. ' +
+        'The follow-up reveal transaction publishes the content and returns the remainder.',
+    });
   }
 
   if (misdirectedRecoveryKeys > 0) {

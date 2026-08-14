@@ -10,7 +10,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
-import { extractPsbtDetails, validateSignInputs } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
@@ -669,13 +669,29 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs, sighashTypes } = psbtParams as { hex?: string; signInputs?: Record<string, number[]>; sighashTypes?: number[] };
+          const { hex: psbtHex, signInputs, sighashTypes, inscription } = psbtParams as {
+            hex?: string;
+            signInputs?: Record<string, number[]>;
+            sighashTypes?: number[];
+            inscription?: { revealScript?: string; tapInternalKey?: string };
+          };
 
           if (!psbtHex) {
             throw new Error('PSBT hex is required');
           }
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
+          }
+          // Shape-checked here, verified on the approval screen: the context is a claim the site
+          // makes about what the commit funds, and every field of it gets recomputed there.
+          if (inscription !== undefined && (
+            inscription === null || typeof inscription !== 'object'
+            || typeof inscription.revealScript !== 'string'
+            || typeof inscription.tapInternalKey !== 'string'
+            || !/^[0-9a-fA-F]+$/.test(inscription.revealScript)
+            || !/^[0-9a-fA-F]{64}$/.test(inscription.tapInternalKey)
+          )) {
+            throw new Error('inscription must carry revealScript and tapInternalKey as hex strings');
           }
           if (signInputs !== undefined && (
             signInputs === null || typeof signInputs !== 'object' || Array.isArray(signInputs)
@@ -723,11 +739,14 @@ export function createProviderService(): ProviderService {
               activeAddress.address,
               ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
             ];
+            // Ownership per input: normally the prevout's own address, but an inscription
+            // reveal spends a commit output whose address belongs to nobody — there the input is
+            // owned by whoever the declared leaf's checksig key encodes to (tapLeafOwnerAddress).
             const validation = validateSignInputs(
               signInputs,
               allowedAddresses,
               psbtDetails.inputs.length,
-              psbtDetails.inputs.map(input => input.address)
+              psbtDetails.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address)
             );
             if (!validation.valid) throw new Error(validation.error);
 
@@ -786,6 +805,12 @@ export function createProviderService(): ProviderService {
                 psbtHex,
                 signInputs,
                 sighashTypes,
+                ...(inscription ? {
+                  inscription: {
+                    revealScript: inscription.revealScript!,
+                    tapInternalKey: inscription.tapInternalKey!,
+                  },
+                } : {}),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

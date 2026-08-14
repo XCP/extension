@@ -1,3 +1,5 @@
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
 import { assetIdToName } from '@/core/counterparty/unpack/assetId';
 import { type CborValue, decodeCbor } from '@/core/counterparty/unpack/cbor';
 
@@ -39,6 +41,23 @@ function flag(value: CborValue, field: string): boolean {
 function text(value: CborValue, field: string): string {
   if (typeof value === 'string') return value;
   if (value instanceof Uint8Array) return new TextDecoder('utf-8', { fatal: true }).decode(value);
+  throw new Error(`Invalid fairminter ${field}`);
+}
+
+/**
+ * A description that arrived as bytes, read the way core reads it (`helpers.bytes_to_content`):
+ * textual MIME types decode as UTF-8, everything else hexlifies. An image-carrying fairminter —
+ * an inscription — has PNG bytes here, and decoding those as strict UTF-8 threw, which failed the
+ * whole unpack for a message core parses fine.
+ */
+function content(value: CborValue, mimeType: string, field: string): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof Uint8Array) {
+    if (isTextualMimeType(mimeType || 'text/plain')) {
+      return new TextDecoder('utf-8', { fatal: true }).decode(value);
+    }
+    return bytesToHex(value);
+  }
   throw new Error(`Invalid fairminter ${field}`);
 }
 
@@ -89,6 +108,10 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
     // none, and any comparison against the request would then reject honest transactions. Callers
     // that need a default for display should apply it themselves.
     mimeType: text(fields[mimeTypeIndex]!, 'MIME type'),
-    description: text(fields[descriptionIndex]!, 'description'),
+    description: content(
+      fields[descriptionIndex]!,
+      text(fields[mimeTypeIndex]!, 'MIME type'),
+      'description'
+    ),
   };
 }

@@ -7,7 +7,8 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { Address, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { taprootTweakPrivKey } from '@scure/btc-signer/utils.js';
 import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { SigningError, ValidationError } from '@/core/errors';
 import { toSafeInteger } from '@/core/numeric';
@@ -178,6 +179,12 @@ export interface DecodedInput {
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
+  /**
+   * Tapleaf scripts this input would reveal, hex, leaf-version byte stripped. An inscription
+   * reveal carries its ord envelope — and therefore its Counterparty message — here rather than
+   * in any output, so approval-side decoding needs the leaves the signature will commit to.
+   */
+  tapLeafScripts?: string[];
 }
 
 /**
@@ -349,6 +356,11 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         totalInputValue += value;
       }
 
+      // The PSBT stores each leaf as script bytes with the leaf version appended.
+      const tapLeafScripts = input.tapLeafScript?.map(([, scriptWithVersion]) =>
+        bytesToHex(scriptWithVersion.subarray(0, -1))
+      );
+
       inputs.push({
         index: i,
         txid: txidHex,
@@ -356,6 +368,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         address,
         value,
         sighashType: input.sighashType,
+        ...(tapLeafScripts && tapLeafScripts.length > 0 ? { tapLeafScripts } : {}),
       });
     }
   }
@@ -414,6 +427,33 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
     unfunded,
     hasOpReturn,
   };
+}
+
+/**
+ * The address a tapleaf-bearing input is spendable by, when that can be read from the PSBT.
+ *
+ * An inscription reveal spends a P2TR commit whose *address* belongs to nobody — it is derived
+ * from the envelope — but whose single leaf ends in `<key> OP_CHECKSIG`. The address whose
+ * witness program is that key is the leaf's owner: the spending condition names it directly.
+ * Ownership validation uses this so a reveal counts as the signer's own input, without any
+ * blanket exemption — a declared leaf that is not really in the commit's tree yields a signature
+ * that finalizes into an unbroadcastable transaction, never someone else's coins.
+ *
+ * Only single-leaf inputs resolve: with several leaves the one that will be revealed is unknown,
+ * and no ownership claim can be made.
+ */
+export function tapLeafOwnerAddress(input: DecodedInput): string | undefined {
+  if (input.tapLeafScripts?.length !== 1) return undefined;
+  const script = input.tapLeafScripts[0]!;
+  // The leaf must end `20 <32-byte key> ac` — a push of the x-only key, then OP_CHECKSIG.
+  if (script.length < 68 || !script.endsWith('ac')) return undefined;
+  if (script.slice(-68, -66) !== '20') return undefined;
+  try {
+    const key = hexToBytes(script.slice(-66, -2));
+    return Address().encode({ type: 'tr', pubkey: key });
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -499,6 +539,27 @@ export function signPSBT(
         }
       }
 
+      // A key-path taproot input can only be matched to a key via tapInternalKey, and dApp PSBTs
+      // routinely omit it (a site cannot know the internal key behind an address). When the
+      // prevout provably pays this signer's own taproot address, supplying the key is completion,
+      // not trust: the signer re-derives tweak(internalKey) and refuses to sign unless it equals
+      // the prevout's witness program, so a wrong or foreign input stays unsigned.
+      if (addressFormat === AddressFormat.P2TR) {
+        const input = tx.getInput(inputIdx);
+        const prevout = (input.index !== undefined ? input.nonWitnessUtxo?.outputs[input.index] : undefined)
+          ?? input.witnessUtxo;
+        const prevoutAddress = prevout?.script
+          ? decodeAddressFromScript(bytesToHex(prevout.script))
+          : undefined;
+        const ownAddress = encodeAddress(pubkeyBytes, addressFormat);
+        if (
+          input && !input.tapInternalKey && prevoutAddress
+          && normalizeAddressForComparison(prevoutAddress) === normalizeAddressForComparison(ownAddress)
+        ) {
+          tx.updateInput(inputIdx, { tapInternalKey: pubkeyBytes.slice(1, 33) });
+        }
+      }
+
       // Determine sighash: use the explicit sighashTypes param if provided,
       // then fall back to the sighash embedded in the PSBT input, then default to ALL
       const input = tx.getInput(inputIdx);
@@ -523,7 +584,25 @@ export function signPSBT(
         tx.signIdx(privateKeyBytes, inputIdx, [sighashType]);
         signedCount++;
       } catch (inputErr) {
-        if (!bestEffort) throw inputErr;
+        // A tapscript spend of this signer's own taproot address — an inscription reveal — names
+        // the address's *output* key in the leaf, and that key is the tweak of the private key
+        // held here. The signer only matches raw keys against leaf scripts, so retry with the
+        // tweaked key. This can only produce a signature verifying against the signer's own
+        // tweaked key; a leaf naming anyone else's key still finds no match and stays unsigned.
+        const input = tx.getInput(inputIdx);
+        if (addressFormat === AddressFormat.P2TR && input?.tapLeafScript?.length) {
+          const tweakedKey = taprootTweakPrivKey(privateKeyBytes);
+          try {
+            tx.signIdx(tweakedKey, inputIdx, [sighashType]);
+            signedCount++;
+          } catch (leafErr) {
+            if (!bestEffort) throw leafErr;
+          } finally {
+            tweakedKey.fill(0);
+          }
+        } else if (!bestEffort) {
+          throw inputErr;
+        }
         // Best-effort mode: skip inputs we can't sign (e.g., other party's UTXO)
       }
     }
