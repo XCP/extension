@@ -32,12 +32,30 @@ import {
   oracleDispenseWarning,
 } from '@/core/counterparty/oraclePolicy';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
-import { fromSatoshis, isGreaterThan, toBigNumber } from '@/core/numeric';
+import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, toBigNumber } from '@/core/numeric';
 
 export type { ProtocolContext };
 
 /** Core: `fee = int(0.0002 * UNIT * holder_count)` in `messages/dividend.py`. */
 const DIVIDEND_FEE_XCP_PER_HOLDER = '0.0002';
+
+/**
+ * A figure as a row on the approval screen should read it: at most eight decimals, no trailing
+ * zeros.
+ *
+ * Core's normalized values carry their full working precision, and they were reaching the screen
+ * verbatim — a fairminter priced at 0.00001 XCP arrived as `price_normalized`
+ * "0.00001000000000000" and was signed off from a row reading exactly that. Eight places is where
+ * the ledger itself stops, so everything past them is noise on the number being agreed to.
+ *
+ * A value too small to show at that precision is stated as a bound rather than rounded down to
+ * "0", which on a price row would read as free.
+ */
+function toDisplayAmount(value: string | number | BigNumber): string {
+  const amount = toBigNumber(value);
+  const shown = formatDecimal(amount);
+  return shown === '0' && amount.isGreaterThan(0) ? '<0.00000001' : shown;
+}
 
 export interface ProtocolContextInput {
   messageType: string | undefined;
@@ -75,7 +93,7 @@ export async function resolveProtocolContext(
   // `gas.get_transaction_fee`), always paid in XCP — a cost beyond the Bitcoin fee.
   const fee = apiMessageData?.fee;
   if (fee != null && isGreaterThan(String(fee), 0)) {
-    context.protocolFeeXcp = fromSatoshis(String(fee));
+    context.protocolFeeXcp = toDisplayAmount(fromSatoshis(String(fee)));
   }
 
   if (!messageType || data == null) return { context, warnings };
@@ -116,16 +134,15 @@ export async function resolveProtocolContext(
           const total = toBigNumber(details.supply_normalized).times(
             toBigNumber(fromSatoshis(String(perUnit)))
           );
-          context.dividendTotal = total.toFixed(8).replace(/\.?0+$/, '');
+          context.dividendTotal = toDisplayAmount(total);
         }
       }
       // The XCP half of the bill, which is charged per distinct holder rather than per unit.
       const holders = await fetchAssetHolderCount(fields.asset);
       if (holders != null && holders > 0) {
-        context.dividendFeeXcp = toBigNumber(DIVIDEND_FEE_XCP_PER_HOLDER)
-          .times(holders)
-          .toFixed(8)
-          .replace(/\.?0+$/, '');
+        context.dividendFeeXcp = toDisplayAmount(
+          toBigNumber(DIVIDEND_FEE_XCP_PER_HOLDER).times(holders)
+        );
       }
     }
 
@@ -133,7 +150,7 @@ export async function resolveProtocolContext(
       // A fairmint's cost is the fairminter's price, which is not in the message.
       const fairminter = await fetchAssetFairminter(fields.asset);
       if (fairminter?.price_normalized) {
-        context.protocolFeeXcp = String(fairminter.price_normalized);
+        context.protocolFeeXcp = toDisplayAmount(String(fairminter.price_normalized));
       }
     }
 
