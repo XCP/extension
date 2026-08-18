@@ -44,7 +44,7 @@ export default function AssetPage(): ReactElement {
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
   // The asset summary carries no `fair_minting`; core reads it off the latest issuance, so we do
   // too. The same row is what core's `issuance.validate` calls `last_issuance`.
-  const { data: latestIssuance } = useAssetLatestIssuance(asset || "");
+  const { data: latestIssuance, isLoading: isIssuanceLoading } = useAssetLatestIssuance(asset || "");
 
   // Get cached data for instant display
   const cachedAsset = useMemo(() => getCachedOwnedAsset(asset || ""), [getCachedOwnedAsset, asset]);
@@ -108,14 +108,23 @@ export default function AssetPage(): ReactElement {
   /**
    * The actions this address can actually take on this asset.
    *
-   * Each entry is gated on the same conditions counterparty-core validates, so the list only
-   * offers transactions the node would accept: an action core would reject is not shown at all
-   * rather than shown and refused at compose time. Every gate below cites the rule it mirrors.
+   * Each entry is gated on the conditions counterparty-core validates, so the list only offers
+   * transactions the node would accept: an action core would reject is not shown at all rather
+   * than shown and refused at compose time. Every gate below cites the rule it mirrors, and the
+   * one gate that is ours rather than core's — Pay Dividend during a fairmint — says so.
    *
    * @returns {ActionSection[]} The list of actionable options for the asset.
    */
   const getActionSections = (): ActionSection[] => {
     if (!assetDetails?.assetInfo || !asset) return [];
+    // Both lookups start together, but the summary often answers first — from cache, even
+    // instantly. Reading a still-loading fairminter state as "not minting" drew the full list and
+    // then tore most of it back out a moment later, which is worse than a beat with no list: the
+    // Asset Details card jumps up the page, and anything the owner reached for is gone by the time
+    // they press it. An empty list is what this already renders while the summary loads, so
+    // waiting for the second answer only widens that window rather than adding a new state. A
+    // failed lookup settles as unknown, not loading, and still lets everything through.
+    if (isIssuanceLoading) return [];
 
     const info = assetDetails.assetInfo;
     const actions = [];
@@ -143,9 +152,10 @@ export default function AssetPage(): ReactElement {
     const ownerBalance = assetDetails.availableBalance || "0";
 
     // Shared precondition for every action that reissues *this* asset. Core rejects all of them
-    // while a fairminter is live: `issuance.validate` → "cannot issue during fair minting". Two
-    // actions below are deliberately not covered by it — Issue Subasset creates a new asset with
-    // its own empty issuance history, and Pay Dividend is not an issuance at all. An unestablished
+    // while a fairminter is live: `issuance.validate` → "cannot issue during fair minting". One
+    // action below is deliberately not covered by it — Issue Subasset creates a new asset with its
+    // own empty issuance history, so the parent's fairminter never enters the check. Pay Dividend
+    // is withheld too, but on our own judgement rather than core's; see there. An unestablished
     // state reads as "not minting" and blocks nothing; see `useAssetLatestIssuance`.
     const isFairMinting = latestIssuance?.fair_minting === true;
     const canReissue = canAct && !isFairMinting;
@@ -180,30 +190,6 @@ export default function AssetPage(): ReactElement {
       );
     }
 
-    // Subassets cannot nest, and core checks only that the parent is owned by the source — a
-    // locked or fair-minting parent still accepts new children.
-    if (canAct && !isSubasset) {
-      actions.push({
-        id: "issue-subasset",
-        title: "Issue Subasset",
-        description: "Create a new asset under this namespace",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/${asset}`),
-      });
-    }
-
-    // `dividend.validate`: "only issuer can pay dividends" — where core's "issuer" is the latest
-    // issuance's, i.e. the current owner (`ledger.issuances.get_asset_issuer`). Dividends on BTC
-    // or XCP are banned outright, and with no supply there are no holders, which core rejects as
-    // "zero dividend".
-    if (canAct && hasSupply) {
-      actions.push({
-        id: "pay-dividend",
-        title: "Pay Dividend",
-        description: "Distribute dividends to token holders",
-        onClick: () => navigate(`${PATHS.COMPOSE}/dividend/${asset}`),
-      });
-    }
-
     // Reset rewrites supply and description together, so core blocks it on either lock
     // ("cannot reset a locked asset" / "Cannot reset issuance with locked description") and
     // requires the owner to be the sole holder of the whole supply. Display units on both sides:
@@ -220,6 +206,40 @@ export default function AssetPage(): ReactElement {
         title: "Reset Supply",
         description: "Destroy the supply and re-issue the asset",
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
+      });
+    }
+
+    // Subassets cannot nest, and core checks only that the parent is owned by the source — a
+    // locked or fair-minting parent still accepts new children.
+    if (canAct && !isSubasset) {
+      actions.push({
+        id: "issue-subasset",
+        title: "Issue Subasset",
+        description: "Create a new asset under this namespace",
+        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/${asset}`),
+      });
+    }
+
+    // `dividend.validate`: "only issuer can pay dividends" — where core's "issuer" is the latest
+    // issuance's, i.e. the current owner (`ledger.issuances.get_asset_issuer`). Dividends on BTC
+    // or XCP are banned outright, and with no supply there are no holders, which core rejects as
+    // "zero dividend".
+    //
+    // The fairminter clause is ours, not core's — `dividend.validate` says nothing about fair
+    // minting, and the node would accept this. It is withheld because paying one mid-sale loses
+    // money quietly. Until a soft cap settles, every minted token is credited to
+    // `config.UNSPENDABLE` (`fairmint.parse`), and `supplies.holders` selects every address with a
+    // balance, so the burn address is paid as an ordinary holder and that share is destroyed — for
+    // a sale whose only other holder is the issuer, who `no_dividend_to_self` skips, that is the
+    // whole payout. `pool_quantity` and an unopened premint sit at the same address. Supply also
+    // moves every block a mint confirms, so the per-unit figure quoted here is stale by the time it
+    // signs and the transaction fails on funds. Offering nothing beats offering that.
+    if (canAct && !isFairMinting && hasSupply) {
+      actions.push({
+        id: "pay-dividend",
+        title: "Pay Dividend",
+        description: "Distribute dividends to token holders",
+        onClick: () => navigate(`${PATHS.COMPOSE}/dividend/${asset}`),
       });
     }
 

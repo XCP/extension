@@ -184,9 +184,9 @@ const ALL_ACTIONS = [
   'Start Mint',
   'Issue Supply',
   'Lock Supply',
+  'Reset Supply',
   'Issue Subasset',
   'Pay Dividend',
-  'Reset Supply',
   'Lock Description',
   'Update Description',
   'Transfer Ownership',
@@ -293,16 +293,29 @@ describe('AssetPage - actions hidden by asset state', () => {
 
   it('drops every issuance action while a fairminter is live', () => {
     // Each of those is a reissuance of this asset, which core refuses outright: "cannot issue
-    // during fair minting". Two survive. Issue Subasset creates a *new* asset with its own empty
-    // issuance history, so the parent's fairminter never enters the check; Pay Dividend is not an
-    // issuance at all and dividend.validate says nothing about fair minting. Start Mint goes
-    // because one is already open ("Fair minter already opened").
+    // during fair minting". One survives: Issue Subasset creates a *new* asset with its own empty
+    // issuance history, so the parent's fairminter never enters the check. Start Mint goes because
+    // one is already open ("Fair minter already opened"). Pay Dividend goes on our own judgement,
+    // not core's — the node would accept it, but until a soft cap settles the minted supply is
+    // held at `config.UNSPENDABLE`, which `supplies.holders` pays like any other address, so the
+    // payout is burned.
     mockUseAssetDetails.mockReturnValue(details(assetInfo(), '1000'));
     mockUseLatestIssuance.mockReturnValue(issuanceRow(true));
 
     render(<AssetPage />);
 
-    expect(visibleActions()).toEqual(['Issue Subasset', 'Pay Dividend']);
+    expect(visibleActions()).toEqual(['Issue Subasset']);
+  });
+
+  it('offers nothing until the fairminter state is known, rather than a list that shrinks', () => {
+    // The summary answers from cache while the issuance lookup is still out, and reading that gap
+    // as "not minting" drew all nine actions and then pulled eight back out.
+    mockUseAssetDetails.mockReturnValue(details(assetInfo(), '1000'));
+    mockUseLatestIssuance.mockReturnValue({ isLoading: true, error: null, data: null });
+
+    render(<AssetPage />);
+
+    expect(visibleActions()).toEqual([]);
   });
 
   it('keeps every action when the issuance lookup fails and the state is unknown', () => {
