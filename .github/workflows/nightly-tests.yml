@@ -14,6 +14,19 @@ jobs:
   full-test-suite:
     name: Full Test Suite
     runs-on: ubuntu-latest
+    # The official Playwright image ships Chromium and every system library it needs, so the
+    # browser-install and `install-deps` steps below are gone. `playwright install-deps` ran apt
+    # against the runner's Ubuntu mirror on every job and routinely stalled there, timing out
+    # 4-6 batches per run; the retry loop could not help, because the whole loop shared one
+    # `timeout-minutes` budget that a single stalled attempt exhausted.
+    #
+    # The tag MUST track the `@playwright/test` version in package.json. The image's browsers are
+    # built for that exact release, and Playwright refuses to launch a build it did not expect.
+    #
+    # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
+    # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     timeout-minutes: 120  # Hard backstop so a stalled setup can't burn the 6h job cap
 
     steps:
@@ -63,34 +76,6 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
-      
-      - name: Cache Playwright browsers
-        id: pw-cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 16
-        run: |
-          # The browser download can stall on the CDN; cap each attempt and retry
-          # so a stall fails in minutes instead of hanging to the job timeout.
-          for attempt in 1 2 3; do
-            echo "Installing Playwright Chromium (attempt $attempt)..."
-            if timeout 300 npx playwright install chromium; then
-              exit 0
-            fi
-            echo "Attempt $attempt stalled or failed; retrying."
-            sleep 5
-          done
-          echo "Playwright browser install failed after 3 attempts" >&2
-          exit 1
-
-      - name: Install Playwright system dependencies
-        timeout-minutes: 5
-        run: npx playwright install-deps chromium
       
       - name: Run all E2E tests
         timeout-minutes: 60
