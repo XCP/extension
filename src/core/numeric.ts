@@ -568,7 +568,7 @@ function normalizedAssetSupply(supply: string | number, isDivisible: boolean): B
  * calculateMaxDividendPerUnit("500", "100", false) // Returns BigNumber(5)
  */
 export function calculateMaxDividendPerUnit(
-  dividendBalance: string | number,
+  dividendBalance: string | number | BigNumber,
   assetSupply: string | number, 
   assetIsDivisible: boolean
 ): BigNumber {

@@ -4,12 +4,18 @@ import { ComposerForm } from "@/components/composer/composer-form";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { AssetSelectInput } from "@/components/domain/asset/asset-select-input";
 import { AmountWithMaxInput } from "@/components/domain/balance/amount-with-max-input";
+import { Banner } from "@/components/ui/banner";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
-import { fetchTokenBalance } from "@/core/counterparty/api";
+import { fetchAssetHolderCount } from "@/core/counterparty/api";
 import type { DividendOptions } from "@/core/counterparty/compose";
-import { calculateMaxDividendPerUnit, formatDecimal } from "@/core/numeric";
+import {
+  describeDividendFee,
+  describeDividendFeeShortfall,
+  getDividendFeeXcp,
+  getMaxDividendPerUnit,
+} from "@/core/counterparty/dividendModel";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 interface DividendFormProps {
@@ -25,7 +31,7 @@ export function DividendForm({
   initialFormData
 }: DividendFormProps): ReactElement {
   // Context hooks
-  const { activeAddress, showHelpText, state } = useComposer();
+  const { activeAddress, showHelpText } = useComposer();
   
   // Data fetching hooks
   const { data: assetInfo, error: assetError, isLoading: assetLoading } = useAssetDetails(asset);
@@ -35,24 +41,28 @@ export function DividendForm({
     initialFormData?.dividend_asset || "XCP"
   );
   const { data: dividendAssetInfo } = useAssetDetails(selectedDividendAsset);
-  const [dividendAssetBalance, setDividendAssetBalance] = useState<string>("0");
   /**
-   * A dividend is paid out of this balance, so what can be paid is what is spendable. The directly
-   * fetched figure stands in until the hook resolves; it is the confirmed balance, which is the
-   * behaviour this had before pending was tracked at all — no reduction rather than a wrong one.
+   * A dividend is paid out of this balance, so what can be paid is what is spendable. This used to
+   * be fetched a second time by hand next to the hook that already answers it; two sources for one
+   * number is one more than the form can keep honest.
    */
-  const spendableDividendBalance = dividendAssetInfo?.spendableBalance ?? dividendAssetBalance;
+  const spendableDividendBalance =
+    dividendAssetInfo?.spendableBalance ?? dividendAssetInfo?.availableBalance ?? "0";
+  /**
+   * The XCP fee is billed per holder whatever the dividend is paid in, so this balance matters even
+   * when it is not the one being distributed. When the dividend *is* XCP the two are the same
+   * balance, which is exactly why core checks them together.
+   */
+  const { data: xcpDetails } = useAssetDetails("XCP");
+  // Null until it is actually known: a balance that reads 0 while it loads would warn that a fee
+  // cannot be covered by someone who covers it comfortably, then take the warning back.
+  const spendableXcp = xcpDetails?.spendableBalance ?? xcpDetails?.availableBalance ?? null;
+  /** null while loading or if the lookup failed — unknown, which is not the same as no holders. */
+  const [holderCount, setHolderCount] = useState<number | null>(null);
   const [quantityPerUnit, setQuantityPerUnit] = useState<string>(
     initialFormData?.quantity_per_unit != null ? String(initialFormData.quantity_per_unit) : ""
   );
   const [error, setError] = useState<string | null>(null);
-
-  // Effects - composer error first
-  useEffect(() => {
-    if (state.error) {
-      // Error is shown through composer state
-    }
-  }, [state.error]);
 
   // Focus on amount input on mount
   useEffect(() => {
@@ -63,27 +73,26 @@ export function DividendForm({
     }, 100);
   }, []);
 
-  // Fetch dividend asset balance when it changes
+  // How many addresses the fee is billed for. Counted on the asset being paid *on*, which does not
+  // change with the dividend asset, so this runs once per asset rather than per selection.
   useEffect(() => {
-    const fetchBalance = async () => {
-      if (activeAddress?.address && selectedDividendAsset) {
-        try {
-          const balance = await fetchTokenBalance(
-            activeAddress.address,
-            selectedDividendAsset,
-            { verbose: true }
-          );
-          if (balance?.quantity_normalized) {
-            setDividendAssetBalance(balance.quantity_normalized);
-          }
-        } catch (err) {
-          console.error("Failed to fetch dividend asset balance:", err);
-          setDividendAssetBalance("0");
-        }
-      }
+    let cancelled = false;
+    setHolderCount(null);
+    fetchAssetHolderCount(asset)
+      .then((count) => {
+        if (!cancelled) setHolderCount(count);
+      })
+      .catch(() => {
+        // Leave it unknown. The Max below is then a fee too generous, which compose still catches.
+      });
+    return () => {
+      cancelled = true;
     };
-    fetchBalance();
-  }, [activeAddress?.address, selectedDividendAsset]);
+  }, [asset]);
+
+  const feeXcp = getDividendFeeXcp(holderCount);
+  const feeShortfall = describeDividendFeeShortfall({ feeXcp, xcpBalance: spendableXcp });
+  const feeNote = describeDividendFee(feeXcp, holderCount);
 
   // Handlers
   const calculateMaxAmountPerUnit = () => {
@@ -91,15 +100,13 @@ export function DividendForm({
       return "0";
     }
 
-    const maxPerUnitBN = calculateMaxDividendPerUnit(
-      spendableDividendBalance,
-      assetInfo.assetInfo.supply,
-      assetInfo.assetInfo.divisible ?? false
-    );
-
-    // Round down to 8 decimal places to avoid exceeding available balance
-    const rounded = maxPerUnitBN.decimalPlaces(8, 1); // ROUND_DOWN = 1
-    return formatDecimal(rounded);
+    return getMaxDividendPerUnit({
+      spendableBalance: spendableDividendBalance,
+      assetSupply: assetInfo.assetInfo.supply,
+      assetIsDivisible: assetInfo.assetInfo.divisible ?? false,
+      dividendAsset: selectedDividendAsset,
+      feeXcp,
+    });
   };
 
   const handleDividendAssetChange = (newAsset: string) => {
@@ -135,6 +142,14 @@ export function DividendForm({
       header={
         <>
           {error && <ErrorAlert message={error} onClose={() => setError(null)} />}
+          {feeShortfall && (
+            <Banner
+              severity="warning"
+              title="Not enough XCP for the dividend fee"
+              description={feeShortfall}
+              className="mb-4"
+            />
+          )}
           <AssetHeader
           assetInfo={{
             ...assetInfo.assetInfo,
@@ -170,7 +185,9 @@ export function DividendForm({
             maxAmount={calculateMaxAmountPerUnit()}
             label="Amount Per Unit"
             name="quantity_per_unit"
-            description={`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}`}
+            description={[`Amount of ${selectedDividendAsset} to be paid per unit of ${asset}.`, feeNote]
+              .filter(Boolean)
+              .join(" ")}
             disableMaxButton={false}
             isDivisible={dividendAssetInfo?.assetInfo?.divisible ?? true}
           />

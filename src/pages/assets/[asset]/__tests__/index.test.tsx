@@ -1,16 +1,19 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { AssetInfo } from '@/core/counterparty/api';
+import type { AssetInfo, Dividend, PaginatedResponse } from '@/core/counterparty/api';
+import { fetchDividendsByAsset } from '@/core/counterparty/api';
 import { asDisplayUnits } from '@/core/numeric';
 import type { AssetDetails } from '@/hooks/useAssetDetails';
 
 const OWNER = 'bc1qownerownerownerownerownerownerownerow';
 
 const mockNavigate = vi.fn();
+/** Which asset the route is on. Mutable, because the page must survive a change of it. */
+let routeAsset = 'MYASSET';
 vi.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
-  useParams: () => ({ asset: 'MYASSET' }),
+  useParams: () => ({ asset: routeAsset }),
 }));
 
 vi.mock('@/components/domain/asset/asset-header', () => ({
@@ -348,5 +351,73 @@ describe('AssetPage - actions hidden by asset state', () => {
     expect(screen.queryByText('Pay Dividend')).not.toBeInTheDocument();
     // Reset is still on offer: no supply means no holders to strand.
     expect(screen.getByText('Reset Supply')).toBeInTheDocument();
+  });
+});
+
+/** A dividend row as the history list reads it; only the hash is asserted on. */
+function dividendRow(txHash: string): Dividend {
+  return {
+    tx_hash: txHash,
+    block_index: 800000,
+    block_time: 1700000000,
+    source: OWNER,
+    asset: 'MYASSET',
+    dividend_asset: 'XCP',
+    quantity_per_unit: 1000 as Dividend['quantity_per_unit'],
+    quantity_per_unit_normalized: asDisplayUnits('0.00001'),
+    total_distributed: 1000,
+    total_distributed_normalized: asDisplayUnits('0.00001'),
+    fee_paid: 20000,
+    fee_paid_normalized: asDisplayUnits('0.0002'),
+  };
+}
+
+/** One page of history, as the endpoint returns it. */
+function page(result: Dividend[]): PaginatedResponse<Dividend> {
+  return { result, result_count: result.length };
+}
+
+describe('AssetPage — dividend history belongs to its asset', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routeAsset = 'MYASSET';
+    mockUseLatestIssuance.mockReturnValue(issuanceRow(false));
+    mockUseAssetDetails.mockReturnValue(details(assetInfo(), '1000'));
+    vi.mocked(fetchDividendsByAsset).mockImplementation(async (asset: string) =>
+      page(asset === 'MYASSET' ? [dividendRow('hash-for-myasset')] : [dividendRow('hash-for-other')])
+    );
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('reloads for the asset navigated to, rather than keeping the previous rows', async () => {
+    // /assets/:asset is one Route with one element, so this component is reused across the change
+    // and its state came with it. The guard was "the list is empty", which a loaded list is not.
+    const { rerender } = render(<AssetPage />);
+    fireEvent.click(screen.getByText('Dividend History'));
+    expect(await screen.findByText(/hash-for-myasset/)).toBeInTheDocument();
+
+    routeAsset = 'OTHERASSET';
+    rerender(<AssetPage />);
+
+    expect(await screen.findByText(/hash-for-other/)).toBeInTheDocument();
+    expect(screen.queryByText(/hash-for-myasset/)).toBeNull();
+  });
+
+  it('does not refetch an asset whose history is genuinely empty', async () => {
+    // The other half of the latch: an empty result is an answer, not a reason to ask again.
+    vi.mocked(fetchDividendsByAsset).mockResolvedValue(page([]));
+
+    const { rerender } = render(<AssetPage />);
+    fireEvent.click(screen.getByText('Dividend History'));
+    expect(
+      await screen.findByText('No dividends have been distributed for this asset')
+    ).toBeInTheDocument();
+
+    rerender(<AssetPage />);
+
+    await waitFor(() => expect(fetchDividendsByAsset).toHaveBeenCalledTimes(1));
   });
 });

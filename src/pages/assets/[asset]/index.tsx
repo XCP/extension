@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { AssetHeader } from "@/components/domain/asset/asset-header";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
@@ -56,44 +56,64 @@ export default function AssetPage(): ReactElement {
   const [showDividends, setShowDividends] = useState(false);
   const [hasMoreDividends, setHasMoreDividends] = useState(true);
   const [dividendsOffset, setDividendsOffset] = useState(0);
+  /**
+   * Which asset the rows above describe, or null before any load has finished.
+   *
+   * Keyed rather than counted, because "this asset has no dividends" and "nothing loaded yet" are
+   * both an empty list, and `/assets/:asset` is one Route with one element — React reuses this
+   * component across a change of asset, so state written for one survives into the next.
+   */
+  const [dividendsAsset, setDividendsAsset] = useState<string | null>(null);
+
+  /**
+   * The asset a load was started for, read after the await. A slow response for the asset just
+   * navigated away from must not overwrite the rows of the one now on screen.
+   */
+  const currentAsset = useRef(asset);
+  currentAsset.current = asset;
 
   /**
    * Loads dividend history for the asset
    */
-  const loadDividends = async () => {
+  const loadDividends = async (offset: number) => {
     if (!asset || dividendsLoading) return;
-    
+    const requested = asset;
+
     setDividendsLoading(true);
     setDividendsError(null);
-    
+
     try {
-      const response: PaginatedResponse<Dividend> = await fetchDividendsByAsset(asset, {
+      const response: PaginatedResponse<Dividend> = await fetchDividendsByAsset(requested, {
         limit: 10,
-        offset: dividendsOffset,
+        offset,
       });
-      
-      if (dividendsOffset === 0) {
-        setDividends(response.result);
-      } else {
-        setDividends(prev => [...prev, ...response.result]);
-      }
-      
+      if (currentAsset.current !== requested) return;
+
+      setDividends(prev => (offset === 0 ? response.result : [...prev, ...response.result]));
       setHasMoreDividends(response.result.length === 10);
-      setDividendsOffset(prev => prev + response.result.length);
+      setDividendsOffset(offset + response.result.length);
+      // Last, and only on success: a failed load leaves the rows unclaimed so expanding again
+      // retries rather than showing an empty history as if it were the answer.
+      setDividendsAsset(requested);
     } catch (err) {
+      if (currentAsset.current !== requested) return;
       setDividendsError(err instanceof Error ? err.message : "Failed to load dividend history");
     } finally {
-      setDividendsLoading(false);
+      if (currentAsset.current === requested) setDividendsLoading(false);
     }
   };
 
-  // Load dividends when the section is first expanded. The guard is a one-shot latch: an asset
-  // with no dividends still reads as empty and idle afterwards, so making it reactive refetches
-  // forever.
+  // Load dividends when the section is first expanded, and again when the asset underneath it
+  // changes. Latched on which asset the rows belong to rather than on the list being empty: an
+  // asset with genuinely no dividends is loaded and empty, and would otherwise refetch forever,
+  // while an asset switched to after a loaded one is empty of *its* dividends and would never
+  // fetch at all — it would show the previous asset's history instead.
   useEffect(() => {
-    if (showDividends && dividends.length === 0 && !dividendsLoading) {
-      loadDividends();
-    }
+    if (!showDividends || dividendsAsset === asset || dividendsLoading) return;
+    setDividends([]);
+    setDividendsOffset(0);
+    setHasMoreDividends(true);
+    loadDividends(0);
   }, [showDividends, asset]);
 
   // Configure header
@@ -443,7 +463,7 @@ export default function AssetPage(): ReactElement {
                   <button type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      loadDividends();
+                      loadDividends(dividendsOffset);
                     }}
                     disabled={dividendsLoading}
                     className="w-full py-2 text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"

@@ -27,6 +27,7 @@ import {
 } from '@/core/counterparty/api';
 import type { ProtocolContext } from '@/core/counterparty/describe';
 import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispenseOutcome';
+import { DIVIDEND_FEE_XCP_PER_HOLDER } from '@/core/counterparty/dividendModel';
 import {
   oracleDispenserWarning,
   oracleDispenseWarning,
@@ -35,9 +36,6 @@ import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, toBigNumber } from '@/core/numeric';
 
 export type { ProtocolContext };
-
-/** Core: `fee = int(0.0002 * UNIT * holder_count)` in `messages/dividend.py`. */
-const DIVIDEND_FEE_XCP_PER_HOLDER = '0.0002';
 
 /**
  * A figure as a row on the approval screen should read it: at most eight decimals, no trailing
