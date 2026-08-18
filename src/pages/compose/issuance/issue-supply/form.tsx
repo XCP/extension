@@ -9,7 +9,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { formatAmount } from "@/core/format";
-import { asDisplayUnits, toBigNumber } from '@/core/numeric';
+import { asDisplayUnits, fromSatoshis, toBigNumber } from '@/core/numeric';
+import { MAX_SUPPLY } from "@/core/validation/amount";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
 /**
@@ -50,21 +51,22 @@ export function IssueSupplyForm({
     const isDivisible = assetInfo.divisible ?? false;
     const currentSupply = toBigNumber(assetInfo.supply || "0");
     
-    // Max int is 2^63 - 1 = 9223372036854775807
-    const maxInt = toBigNumber("9223372036854775807");
-    const maxIssuable = maxInt.minus(currentSupply);
+    // Unlike a reset, an issuance adds to the supply, so the headroom is the ceiling less what
+    // already exists — core checks the sum ("total quantity overflow"), not the addend.
+    const maxIssuable = toBigNumber(MAX_SUPPLY).minus(currentSupply);
     
     if (maxIssuable.isLessThanOrEqualTo(0)) {
       return "0";
     }
     
     // Convert to normalized amount (divide by 10^8 if divisible)
-    const normalizedMax = isDivisible 
-      ? maxIssuable.dividedBy(100000000).toString()
-      : maxIssuable.toString();
+    const normalizedMax = isDivisible ? fromSatoshis(maxIssuable) : maxIssuable.toString();
     
     return formatAmount({
-      value: Number(normalizedMax),
+      // The decimal string, not a double: `MAX_SUPPLY` needs 19 digits and a double carries 15,
+      // so `Number()` here rendered a max the user could not actually reach — the exact trap
+      // `AmountFormatterOptions.value` documents.
+      value: normalizedMax,
       maximumFractionDigits: isDivisible ? 8 : 0,
       minimumFractionDigits: 0
     });

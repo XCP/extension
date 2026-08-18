@@ -79,17 +79,24 @@ export async function lookupAssetOwner(assetName: string): Promise<AssetOwnerLoo
 
     // Fetch asset details from Counterparty API
     const assetInfo = await fetchAssetDetails(queryName);
-    
-    if (!assetInfo || !assetInfo.issuer) {
+
+    // `owner` is the address that currently controls the asset; `issuer` is whoever created it and
+    // is never rewritten (core sets it on first issuance only, and moves `owner` alone on every
+    // ASSET_TRANSFER). Resolving a typed asset name to `issuer` therefore addressed a send to the
+    // previous owner of any asset that had ever changed hands. Falling back to `issuer` keeps
+    // never-transferred assets — where the two agree — working if `owner` is absent.
+    const ownerAddress = assetInfo?.owner || assetInfo?.issuer;
+
+    if (!ownerAddress) {
       return {
         isValid: false,
-        error: 'Asset not found or has no issuer'
+        error: 'Asset not found or has no owner'
       };
     }
 
     return {
       isValid: true,
-      ownerAddress: assetInfo.issuer,
+      ownerAddress,
       assetName: queryName
     };
 

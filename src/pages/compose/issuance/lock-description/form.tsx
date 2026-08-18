@@ -22,8 +22,12 @@ interface LockDescriptionFormProps {
 
 /**
  * Form for locking asset description using React 19 Actions.
- * This form creates an issuance transaction with description="LOCK" 
- * which permanently prevents future description changes.
+ *
+ * The transaction is an issuance whose description is the sentinel "LOCK_DESCRIPTION", which
+ * `issuance.parse` matches to set `description_locked` while leaving the stored description
+ * untouched. Note that "LOCK" is a *different* sentinel handled in the same branch: it sets
+ * `lock`, permanently freezing the supply. The two are one `elif` apart and neither is reversible,
+ * so this string is not a label — it is the instruction.
  */
 export function LockDescriptionForm({
   formAction,
@@ -52,9 +56,12 @@ export function LockDescriptionForm({
     return <div className="p-4 text-red-500">Cannot lock description of BTC</div>;
   }
 
-  // Check if description is already locked
+  // The description being frozen here, shown so the user can see what they are freezing.
   const currentDescription = assetInfo?.description || "";
-  const isAlreadyLocked = currentDescription === "LOCK";
+  // Whether the description is locked is its own field. Comparing the description text to "LOCK"
+  // asked whether the sentinel had been stored as the description, which core never does: it
+  // rewrites the description back to the previous one and records the lock in a flag.
+  const isAlreadyLocked = assetInfo?.description_locked ?? false;
 
   if (isAlreadyLocked) {
     return (
@@ -121,7 +128,7 @@ export function LockDescriptionForm({
         {/* Hidden fields for the issuance parameters */}
         <input type="hidden" name="asset" value={asset} />
         <input type="hidden" name="quantity" value="0" />
-        <input type="hidden" name="description" value="LOCK" />
+        <input type="hidden" name="description" value="LOCK_DESCRIPTION" />
         <input type="hidden" name="divisible" value={String(assetInfo?.divisible ?? false)} />
       </Field>
     </ComposerForm>
