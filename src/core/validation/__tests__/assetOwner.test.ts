@@ -114,6 +114,44 @@ describe('Asset Owner Validation', () => {
       expect(mockFetchAssetDetails).toHaveBeenCalledWith('DROPLISTER.xcp');
     });
 
+    it('should prefer the current owner over the original issuer', async () => {
+      // Core sets `issuer` once, at first issuance, and moves `owner` alone on every
+      // ASSET_TRANSFER. Resolving a typed asset name to `issuer` would address the send to
+      // whoever gave the asset away.
+      mockFetchAssetDetails.mockResolvedValue({
+        asset: 'DROPLISTER.xcp',
+        asset_longname: null,
+        issuer: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
+        owner: 'bc1q6yy9jshvvyzxdqy8j4wv74jgjhzrmppj7u9ful',
+        divisible: true,
+        locked: false,
+        supply_normalized: asDisplayUnits('1000000000')
+      });
+
+      const result = await lookupAssetOwner('DROPLISTER.xcp');
+
+      expect(result.isValid).toBe(true);
+      expect(result.ownerAddress).toBe('bc1q6yy9jshvvyzxdqy8j4wv74jgjhzrmppj7u9ful');
+    });
+
+    it('should fall back to the issuer when the asset has never been transferred', async () => {
+      // Assets that never changed hands report the two fields identically, and older responses
+      // may omit `owner` entirely; neither case should stop a lookup from resolving.
+      mockFetchAssetDetails.mockResolvedValue({
+        asset: 'DROPLISTER.xcp',
+        asset_longname: null,
+        issuer: '19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX',
+        divisible: true,
+        locked: false,
+        supply_normalized: asDisplayUnits('1000000000')
+      });
+
+      const result = await lookupAssetOwner('DROPLISTER.xcp');
+
+      expect(result.isValid).toBe(true);
+      expect(result.ownerAddress).toBe('19QWXpMXeLkoEKEJv2xo9rn8wkPCyxACSX');
+    });
+
     it('should handle case insensitive input', async () => {
       const mockAssetInfo = {
         asset: 'DROPLISTER.xcp',
@@ -139,7 +177,7 @@ describe('Asset Owner Validation', () => {
       const result = await lookupAssetOwner('NONEXISTENT.xcp');
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Asset not found or has no issuer');
+      expect(result.error).toBe('Asset not found or has no owner');
     });
 
     it('should return error for asset without issuer', async () => {
@@ -157,7 +195,7 @@ describe('Asset Owner Validation', () => {
       const result = await lookupAssetOwner('NOISSUER.xcp');
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Asset not found or has no issuer');
+      expect(result.error).toBe('Asset not found or has no owner');
     });
 
     it('should return error for invalid asset format', async () => {

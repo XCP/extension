@@ -15,6 +15,7 @@ import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
 import { asDisplayUnits, toBigNumber } from '@/core/numeric';
+import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 /** Maximum file size for inscriptions in KB */
@@ -66,20 +67,7 @@ export function IssuanceForm({
   const showAddress = !showAsset && activeAddress && !isInitializing;
   
   // Calculate maximum amount based on divisibility
-  const MAX_INT_STR = "9223372036854775807";
-  const getMaxAmount = () => {
-    if (isDivisible) {
-      // For divisible assets, the actual max quantity is MAX_INT,
-      // but we need to show it in decimal form (divide by 10^8)
-      const maxInt = toBigNumber(MAX_INT_STR);
-      const divisor = toBigNumber("100000000"); // 10^8
-      const maxDivisible = maxInt.dividedBy(divisor);
-      return maxDivisible.toFixed();
-    } else {
-      // For indivisible assets, max is MAX_INT
-      return MAX_INT_STR;
-    }
-  };
+  const getMaxAmount = () => maxSupplyForDivisibility(isDivisible);
 
   
   // Update asset name when initialParentAsset changes

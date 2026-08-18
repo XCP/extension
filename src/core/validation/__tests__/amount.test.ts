@@ -8,6 +8,8 @@ import {
   isDustAmount,
   isValidNumber,
   MAX_SATOSHIS,
+  MAX_SUPPLY,
+  maxSupplyForDivisibility,
   SATOSHIS_PER_BTC, 
   validateAmount,
   validateBalance,
@@ -351,5 +353,25 @@ describe('isDustAmount', () => {
     expect(isDustAmount(DUST_LIMIT)).toBe(false);
     expect(isDustAmount(1000)).toBe(false);
     expect(isDustAmount(-100)).toBe(false);
+  });
+});
+
+describe('maxSupplyForDivisibility', () => {
+  it('offers the raw ceiling for an indivisible asset', () => {
+    // Base units and display units are the same thing when there are no fractions.
+    expect(maxSupplyForDivisibility(false)).toBe(MAX_SUPPLY);
+  });
+
+  it('shifts the ceiling eight places for a divisible asset', () => {
+    // MAX_SUPPLY is a base-unit limit. Offering it undivided as a divisible maximum would offer
+    // 1e8 times what core accepts, and every amount input built on it would validate against a
+    // number no issuance can reach.
+    expect(maxSupplyForDivisibility(true)).toBe('92233720368.54775807');
+  });
+
+  it('stays exact at the ceiling, where a double cannot', () => {
+    // 19 significant digits; a double carries 15. The helper must never round-trip through one.
+    expect(maxSupplyForDivisibility(false)).toBe('9223372036854775807');
+    expect(Number(maxSupplyForDivisibility(false)).toString()).not.toBe(MAX_SUPPLY);
   });
 });

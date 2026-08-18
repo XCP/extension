@@ -192,6 +192,41 @@ export interface OwnedAsset {
   locked: boolean;
 }
 
+/**
+ * One row of an asset's issuance history.
+ *
+ * The most recent valid row is the asset's live state as counterparty-core sees it:
+ * `issuance.validate` reads `fair_minting`, `description_locked`, `locked` and `issuer` off
+ * exactly this record (`last_issuance`), and core keeps it current by *appending* rows rather
+ * than mutating the asset — closing a fairminter, for instance, writes a fresh issuance with
+ * `fair_minting: false` and any `lock_quantity`/`lock_description` the sale asked for
+ * (`messages/fairminter.py`, `close_fairminter`).
+ */
+export interface AssetIssuance {
+  tx_hash: string;
+  block_index: number;
+  asset: string;
+  asset_longname: string | null;
+  quantity: ApiQuantity;
+  quantity_normalized: DisplayUnits;
+  divisible: boolean;
+  source: string;
+  /** The owner as of this issuance — a transfer records the destination here. */
+  issuer: string;
+  transfer: boolean;
+  description: string;
+  /** Supply frozen. Sticky: once any issuance sets it, the asset stays locked. */
+  locked: boolean;
+  /** Description frozen — core refuses any later issuance that carries a description. */
+  description_locked?: boolean;
+  /** A fairminter is open or pending on this asset; every reissuance is refused while set. */
+  fair_minting?: boolean;
+  reset: boolean;
+  status?: string;
+  asset_events?: string;
+  block_time?: number;
+}
+
 // =============================================================================
 // TYPES - Orders & Trading
 // =============================================================================
@@ -641,6 +676,25 @@ export async function fetchTokenUtxos(
     { verbose: options.verbose ?? true }
   );
   return (data.result ?? []).filter((b) => b.utxo !== null);
+}
+
+/**
+ * The asset's most recent valid issuance — the record core validates against.
+ *
+ * `/v2/assets/{asset}` cannot answer this: its `assets_info` projection carries no `fair_minting`
+ * column at all, so that flag reads `undefined` for every asset including ones actively minting.
+ * The issuances endpoint already filters to `status: "valid"` and returns newest first, so one row
+ * is the whole answer.
+ *
+ * Returns null when the asset has no issuance history or the lookup fails — an unknown state, not
+ * a negative one.
+ */
+export async function fetchAssetLatestIssuance(asset: string): Promise<AssetIssuance | null> {
+  const data = await cpApiGet<PaginatedResponse<AssetIssuance>>(
+    `/v2/assets/${encodePath(asset)}/issuances`,
+    { verbose: true, limit: 1, offset: 0 }
+  );
+  return data.result?.[0] ?? null;
 }
 
 /**

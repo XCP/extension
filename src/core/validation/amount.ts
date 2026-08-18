@@ -3,12 +3,17 @@
  * Handles validation for Bitcoin amounts, token quantities, and numeric inputs
  */
 
-import { BigNumber, toBigNumber } from '@/core/numeric';
+import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 // Constants
 export const DUST_LIMIT = 546; // satoshis
 export const MAX_SATOSHIS = 2100000000000000; // 21 million BTC in satoshis
 export const SATOSHIS_PER_BTC = 100000000;
+/**
+ * The largest supply an asset can hold, in base units: SQLite3's signed 64-bit ceiling, which
+ * `issuance.validate` checks every quantity against ("total quantity overflow").
+ */
+export const MAX_SUPPLY = '9223372036854775807';
 
 export interface AmountValidationResult {
   isValid: boolean;
@@ -127,7 +132,7 @@ export function validateQuantity(
   const {
     divisible = true,
     allowZero = false,
-    maxSupply = '9223372036854775807', // Max int64
+    maxSupply = MAX_SUPPLY,
     minQuantity = '0'
   } = options;
 
@@ -259,6 +264,20 @@ export function validateBalance(
   return { isValid: true };
 }
 
+
+/**
+ * The largest issuable supply, in the display units an amount input works in.
+ *
+ * `MAX_SUPPLY` is a base-unit ceiling, so a divisible asset can only reach it with eight decimal
+ * places of headroom — offering the raw figure as a divisible maximum would offer 1e8 times what
+ * core accepts.
+ *
+ * @param divisible - Whether the asset being issued is divisible
+ * @returns The maximum, in display units
+ */
+export function maxSupplyForDivisibility(divisible: boolean): string {
+  return divisible ? fromSatoshis(MAX_SUPPLY) : MAX_SUPPLY;
+}
 
 /**
  * Converts BTC to satoshis

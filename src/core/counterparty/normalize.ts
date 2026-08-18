@@ -266,6 +266,20 @@ export async function normalizeFormData(
       continue;
     }
 
+    // A reset issuance is the one path that may change divisibility: core gates "cannot change
+    // divisibility" on `not reset` (`messages/issuance.py`), and the reset branch of `parse`
+    // records the message's own `divisible` on the new issuance. So the quantity here is scaled by
+    // the divisibility the user is choosing, not the one the asset has today — reading the ledger
+    // would scale a new divisible supply by the old indivisible rule and land 1e8 off. Same reason
+    // the fairminter branch below trusts the form.
+    if (composeType === 'issuance' && toBoolean(rawData['reset'])) {
+      const isDivisible = toBoolean(rawData['divisible']);
+      normalizedData[quantityField] = isDivisible
+        ? toSatoshis(value.toString())
+        : toBigNumber(value.toString()).integerValue().toString();
+      continue;
+    }
+
     // For issuance of NEW assets, use the divisible field from the form
     if (composeType === 'issuance' && !assetInfoCache.has(assetName)) {
       try {

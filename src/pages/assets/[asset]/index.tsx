@@ -10,8 +10,9 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type Dividend, fetchDividendsByAsset, type PaginatedResponse } from "@/core/counterparty/api";
 import { formatAddress, formatAmount, formatTimeAgo } from "@/core/format";
-import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
+import { asDisplayUnits, isEqualTo, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useAssetLatestIssuance } from "@/hooks/useAssetLatestIssuance";
 
 
 /**
@@ -41,6 +42,9 @@ export default function AssetPage(): ReactElement {
   const { setHeaderProps, getCachedOwnedAsset } = useHeader();
   const { activeAddress } = useWallet();
   const { data: assetDetails, isLoading, error } = useAssetDetails(asset || "");
+  // The asset summary carries no `fair_minting`; core reads it off the latest issuance, so we do
+  // too. The same row is what core's `issuance.validate` calls `last_issuance`.
+  const { data: latestIssuance } = useAssetLatestIssuance(asset || "");
 
   // Get cached data for instant display
   const cachedAsset = useMemo(() => getCachedOwnedAsset(asset || ""), [getCachedOwnedAsset, asset]);
@@ -102,34 +106,53 @@ export default function AssetPage(): ReactElement {
   }, [setHeaderProps, navigate]);
 
   /**
-   * Generates a list of available actions based on asset details and ownership.
-   * @returns {Action[]} The list of actionable options for the asset.
+   * The actions this address can actually take on this asset.
+   *
+   * Each entry is gated on the same conditions counterparty-core validates, so the list only
+   * offers transactions the node would accept: an action core would reject is not shown at all
+   * rather than shown and refused at compose time. Every gate below cites the rule it mirrors.
+   *
+   * @returns {ActionSection[]} The list of actionable options for the asset.
    */
   const getActionSections = (): ActionSection[] => {
     if (!assetDetails?.assetInfo || !asset) return [];
 
+    const info = assetDetails.assetInfo;
     const actions = [];
-    const isOwner = assetDetails.assetInfo.issuer === activeAddress?.address;
-    const isLocked = assetDetails.assetInfo.locked;
-    const totalSupply = assetDetails.assetInfo.supply || "0";
-    const hasSupply = isGreaterThan(totalSupply ?? 0, 0);
-    const issuerBalance = assetDetails.availableBalance || "0";
-    const canResetSupply = !isLocked && isOwner && (!hasSupply || issuerBalance === totalSupply);
-    const hasFairMinting = assetDetails.assetInfo.fair_minting;
 
-    // Add Start Mint (fairminter) option based on counterparty-core rules:
-    // 1. Asset cannot be BTC or XCP
-    // 2. Must be the owner (issuer) of the asset
-    // 3. Asset must not be locked
-    // 4. No fairminter already exists (fair_minting must be false)
-    const canStartFairminter = 
-      asset !== "BTC" && 
-      asset !== "XCP" && 
-      isOwner && 
-      !isLocked && 
-      !hasFairMinting;
+    // Ownership follows `owner`, not `issuer`. Core writes `assets_info.issuer` once, at first
+    // issuance, and never again; every ASSET_TRANSFER moves `owner` alone (`api/apiwatcher.py`).
+    // Core's own `issuance.validate` compares the source against the *latest* issuance's issuer,
+    // which a transfer rewrites to the destination — that is `owner`. Keying off `issuer` gave
+    // every action to the address that gave the asset away and none to the one now holding it.
+    const controller = info.owner ?? info.issuer;
+    const isOwner = Boolean(controller) && controller === activeAddress?.address;
 
-    if (canStartFairminter) {
+    // BTC has no issuance at all and XCP's supply came from burns; neither carries an owner, so
+    // `isOwner` is already false for both. Naming the case anyway keeps the dividend and
+    // fairminter bans below readable rather than incidental.
+    const isProtocolAsset = asset === "BTC" || asset === "XCP";
+    /** The precondition every action shares: you control it, and it is not a protocol asset. */
+    const canAct = isOwner && !isProtocolAsset;
+    const isLocked = info.locked;
+    const isDescriptionLocked = info.description_locked ?? false;
+    const isSubasset = Boolean(info.asset_longname);
+
+    const totalSupply = info.supply_normalized || "0";
+    const hasSupply = isGreaterThan(totalSupply, 0);
+    const ownerBalance = assetDetails.availableBalance || "0";
+
+    // Shared precondition for every action that reissues *this* asset. Core rejects all of them
+    // while a fairminter is live: `issuance.validate` → "cannot issue during fair minting". Two
+    // actions below are deliberately not covered by it — Issue Subasset creates a new asset with
+    // its own empty issuance history, and Pay Dividend is not an issuance at all. An unestablished
+    // state reads as "not minting" and blocks nothing; see `useAssetLatestIssuance`.
+    const isFairMinting = latestIssuance?.fair_minting === true;
+    const canReissue = canAct && !isFairMinting;
+
+    // Start Mint — `fairminter.validate`: the asset must exist, be unlocked, be issued by the
+    // source, and have no fairminter already open.
+    if (canAct && !isLocked && !isFairMinting) {
       actions.push({
         id: "start-mint",
         title: "Start Mint",
@@ -138,7 +161,9 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (!isLocked) {
+    // A locked supply is exactly what these two change, so both go once `locked` is set —
+    // core: "locked asset and non‐zero quantity" for the first, and a second lock is a no-op.
+    if (canReissue && !isLocked) {
       actions.push(
         {
           id: "issue-supply",
@@ -155,7 +180,9 @@ export default function AssetPage(): ReactElement {
       );
     }
 
-    if (!assetDetails.assetInfo.asset_longname) {
+    // Subassets cannot nest, and core checks only that the parent is owned by the source — a
+    // locked or fair-minting parent still accepts new children.
+    if (canAct && !isSubasset) {
       actions.push({
         id: "issue-subasset",
         title: "Issue Subasset",
@@ -164,7 +191,11 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (isOwner && hasSupply) {
+    // `dividend.validate`: "only issuer can pay dividends" — where core's "issuer" is the latest
+    // issuance's, i.e. the current owner (`ledger.issuances.get_asset_issuer`). Dividends on BTC
+    // or XCP are banned outright, and with no supply there are no holders, which core rejects as
+    // "zero dividend".
+    if (canAct && hasSupply) {
       actions.push({
         id: "pay-dividend",
         title: "Pay Dividend",
@@ -173,35 +204,54 @@ export default function AssetPage(): ReactElement {
       });
     }
 
-    if (isOwner && canResetSupply) {
+    // Reset rewrites supply and description together, so core blocks it on either lock
+    // ("cannot reset a locked asset" / "Cannot reset issuance with locked description") and
+    // requires the owner to be the sole holder of the whole supply. Display units on both sides:
+    // `info.supply` is base units, `availableBalance` is already divided by divisibility.
+    const canResetSupply =
+      canReissue &&
+      !isLocked &&
+      !isDescriptionLocked &&
+      (!hasSupply || isEqualTo(ownerBalance, totalSupply));
+
+    if (canResetSupply) {
       actions.push({
         id: "reset-supply",
         title: "Reset Supply",
-        description: "Reset asset description and other properties",
+        description: "Destroy the supply and re-issue the asset",
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/reset-supply/${asset}`),
       });
     }
 
-    actions.push(
-      {
-        id: "lock-description",
-        title: "Lock Description", 
-        description: "Permanently lock the asset description",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-description/${asset}`),
-      },
-      {
-        id: "update-description",
-        title: "Update Description",
-        description: "Update the asset description",
-        onClick: () => navigate(`${PATHS.COMPOSE}/issuance/update-description/${asset}`),
-      },
-      {
+    // Both write a description, which core refuses once `description_locked` is set: "Cannot
+    // update a locked description". A second lock would be refused for the same reason.
+    if (canReissue && !isDescriptionLocked) {
+      actions.push(
+        {
+          id: "lock-description",
+          title: "Lock Description",
+          description: "Permanently lock the asset description",
+          onClick: () => navigate(`${PATHS.COMPOSE}/issuance/lock-description/${asset}`),
+        },
+        {
+          id: "update-description",
+          title: "Update Description",
+          description: "Update the asset description",
+          onClick: () => navigate(`${PATHS.COMPOSE}/issuance/update-description/${asset}`),
+        }
+      );
+    }
+
+    // A transfer carries no description and no quantity, so neither lock blocks it — only
+    // ownership and the fairminter do.
+    if (canReissue) {
+      actions.push({
         id: "transfer-ownership",
         title: "Transfer Ownership",
         description: "Transfer asset ownership to another address",
         onClick: () => navigate(`${PATHS.COMPOSE}/issuance/transfer-ownership/${asset}`),
-      }
-    );
+      });
+    }
 
     return [{ items: actions }];
   };
