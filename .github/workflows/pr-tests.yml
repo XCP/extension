@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check for unpinned dependencies
         run: |
@@ -49,10 +49,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -80,10 +80,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload unit test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: unit-test-results-shard-${{ matrix.shard }}
           path: test-results.json
@@ -110,6 +110,19 @@ jobs:
   e2e-tests:
     name: E2E Tests (Batch ${{ matrix.batch }})
     runs-on: ubuntu-latest
+    # The official Playwright image ships Chromium and every system library it needs, so the
+    # browser-install and `install-deps` steps below are gone. `playwright install-deps` ran apt
+    # against the runner's Ubuntu mirror on every job and routinely stalled there, timing out
+    # 4-6 batches per run; the retry loop could not help, because the whole loop shared one
+    # `timeout-minutes` budget that a single stalled attempt exhausted.
+    #
+    # The tag MUST track the `@playwright/test` version in package.json. The image's browsers are
+    # built for that exact release, and Playwright refuses to launch a build it did not expect.
+    #
+    # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
+    # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     timeout-minutes: 30  # Hard backstop so a stalled setup can't burn the 6h job cap
     needs: lint-and-type-check
     strategy:
@@ -121,10 +134,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
@@ -134,46 +147,6 @@ jobs:
 
       - name: Build extension
         run: npm run build
-
-      - name: Cache Playwright browsers
-        id: pw-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.pw-cache.outputs.cache-hit != 'true'
-        timeout-minutes: 16
-        run: |
-          # The browser download can stall on the CDN; cap each attempt and retry
-          # so a stall fails in minutes instead of hanging to the job timeout.
-          for attempt in 1 2 3; do
-            echo "Installing Playwright Chromium (attempt $attempt)..."
-            if timeout 300 npx playwright install chromium; then
-              exit 0
-            fi
-            echo "Attempt $attempt stalled or failed; retrying."
-            sleep 5
-          done
-          echo "Playwright browser install failed after 3 attempts" >&2
-          exit 1
-
-      - name: Install Playwright system dependencies
-        timeout-minutes: 8
-        run: |
-          # apt can stall on a slow Ubuntu mirror while fetching fonts; retry
-          # so a stalled mirror fails in minutes instead of timing out the step.
-          for attempt in 1 2 3; do
-            if npx playwright install-deps chromium; then
-              exit 0
-            fi
-            echo "install-deps attempt $attempt failed; retrying..."
-            sudo apt-get clean || true
-            sleep $((attempt * 10))
-          done
-          echo "install-deps failed after 3 attempts"
-          exit 1
 
       - name: Configure Xvfb (MetaMask style)
         run: |
@@ -215,7 +188,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-test-results-batch-${{ matrix.batch }}
           path: test-results/
@@ -224,7 +197,7 @@ jobs:
 
       - name: Upload playwright report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report-batch-${{ matrix.batch }}
           path: playwright-report/
@@ -268,10 +241,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version-file: '.nvmrc'
           cache: 'npm'
