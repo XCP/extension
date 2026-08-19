@@ -1,4 +1,5 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
+import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
 import { formatAddress, formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -7,8 +8,8 @@ const btc = (sats: number) =>
 
 interface MoneyMovementViewProps {
   movement: MoneyMovement;
-  /** ANYONECANPAY: inputs/outputs may be added after signing, so the net can change. */
-  flexible?: boolean;
+  /** The exact flexibility left by the requested ANYONECANPAY signatures. */
+  flexibility?: PsbtFlexibilityKind;
   /** Highlight the network fee as unusually high. */
   hasHighFee?: boolean;
   /** The outputs exceed the inputs, so the fee depends on inputs someone else has yet to add. */
@@ -28,7 +29,7 @@ interface MoneyMovementViewProps {
  * would just re-create habituation); genuine anomalies escalate via the warning
  * stack, not here.
  */
-export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, showHeadline = true }: MoneyMovementViewProps) {
+export function MoneyMovementView({ movement, flexibility, hasHighFee, unfunded, showHeadline = true }: MoneyMovementViewProps) {
   const { net, external, backToYou, atRisk, fee, incomplete } = movement;
   const sending = net < 0;
 
@@ -92,7 +93,7 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
           <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
         )}
       </div>
-      {(incomplete || flexible || atRisk > 0) && (
+      {(incomplete || flexibility || atRisk > 0) && (
         <div className="mt-2 space-y-1 text-center text-xs">
           {incomplete && (
             <p className="text-warning-600">Some amounts couldn't be determined — review the details.</p>
@@ -102,8 +103,15 @@ export function MoneyMovementView({ movement, flexible, hasHighFee, unfunded, sh
               This can be sent elsewhere after you sign, so the total above counts it as leaving.
             </p>
           )}
-          {flexible && atRisk === 0 && (
-            <p className="text-gray-400">More inputs or outputs may be added after you sign.</p>
+          {flexibility === 'inputs-only' && atRisk === 0 && (
+            <p className="text-gray-400">
+              Other inputs may be added; every current output is fixed by your signature.
+            </p>
+          )}
+          {flexibility === 'outputs-flexible' && atRisk === 0 && (
+            <p className="text-warning-600">
+              Other inputs or outputs may be added or changed after you sign.
+            </p>
           )}
         </div>
       )}

@@ -69,8 +69,8 @@ export function VerificationStatus({
           {warning && <p className="text-xs mt-1">{warning}</p>}
           {shouldBlock && (
             <p className="text-xs mt-2">
-              Strict transaction verification is enabled. You can disable this in
-              Settings &gt; Advanced to proceed with warnings only.
+              Retry the request or ask the site to rebuild it. Do not approve a replacement
+              transaction you cannot verify.
             </p>
           )}
         </div>

@@ -286,6 +286,13 @@ export async function analyzeSignRequest(
         ...safety.warnings,
       ];
       safety.blocked = true;
+    } else if (bitcoinPaymentProof?.proved) {
+      // BitcoinPaymentCard shows the exact, full destinations proved against the versioned
+      // intent. The generic safety analyzer has only a truncated duplicate; keeping both spends
+      // attention without adding a second fact.
+      safety.warnings = safety.warnings.filter(
+        (warning) => warning.code !== 'expected_btc_payment'
+      );
     }
     // The Counterparty-only gate remains the default. Plain Bitcoin signing is reachable only
     // through the separate capability above, never because an origin was allowlisted.

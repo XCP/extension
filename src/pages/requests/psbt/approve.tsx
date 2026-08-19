@@ -10,6 +10,7 @@ import { CounterpartyDetailsCard } from '@/components/domain/approval/counterpar
 import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-review-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
+import { describePsbtFlexibility } from '@/components/domain/approval/psbt-flexibility';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
@@ -190,7 +191,6 @@ export default function ApprovePsbtPage() {
     ),
   }));
   const anyoneCanPaySighashes = effectiveSighashes.filter(({ type }) => (type & 0x80) !== 0);
-  const userSignsWithAnyoneCanPay = anyoneCanPaySighashes.length > 0;
   const usesPairedAddress = requestedAddressSpends.some(
     ({ address }) => normalizeAddressForComparison(address)
       !== normalizeAddressForComparison(activeAddress.address)
@@ -224,6 +224,10 @@ export default function ApprovePsbtPage() {
     fee: psbtDetails.fee,
     committedOutputs,
   });
+  const flexibilityReview = describePsbtFlexibility(
+    effectiveSighashes.map(({ index, type }) => ({ index, sighashType: type })),
+    movement.atRisk
+  );
 
   const warningItems: WarningItem[] = buildApprovalWarnings({
     safetyWarnings,
@@ -236,17 +240,14 @@ export default function ApprovePsbtPage() {
   });
 
   // PSBT-only: a raw transaction is signed SIGHASH_ALL throughout and cannot change after signing.
-  if (userSignsWithAnyoneCanPay && !semanticMarketplaceReview) {
-    // Money the signature leaves redirectable is a different order of risk from a transaction that
-    // can merely gain inputs, so it reads as danger rather than caution.
-    const redirectable = movement.atRisk > 0;
+  if (flexibilityReview && !semanticMarketplaceReview) {
+    // ALL|ANYONECANPAY commits every present output; SINGLE|ANYONECANPAY does not. Keep that
+    // distinction visible so normal collaborative funding does not look like output redirection.
     warningItems.push({
       key: 'anyonecanpay',
-      severity: redirectable ? 'danger' : 'warning',
-      title: redirectable ? 'Some of your funds can be redirected' : 'This transaction can still change',
-      description: redirectable
-        ? 'Part of the amount shown returning to your wallet can be sent somewhere else after you sign.'
-        : 'Inputs or outputs can be added after you sign. Check the amounts above before approving.',
+      severity: flexibilityReview.severity,
+      title: flexibilityReview.title,
+      description: flexibilityReview.description,
       children: (
         <ul className="mt-2 space-y-1 text-xs font-medium">
           {anyoneCanPaySighashes.map(({ index, type }) => (
@@ -312,7 +313,7 @@ export default function ApprovePsbtPage() {
             txAction={txAction}
             order={order}
             movement={movement}
-            flexible={userSignsWithAnyoneCanPay}
+            flexibility={semanticMarketplaceReview ? undefined : flexibilityReview?.kind}
             hasHighFee={hasHighFee}
             protocolFeeXcp={counterpartyMessage?.messageData?.fee != null
               ? toFiniteNumber(counterpartyMessage.messageData.fee) ?? null

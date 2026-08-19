@@ -241,6 +241,24 @@ is the output sharing the signed input's index; any *other* output paying the
 signer is shown as "may not return to you", the headline reflects that worst
 case, and signing is gated until the signer acknowledges the amount.
 
+The warning copy preserves the same distinction. `ALL | ANYONECANPAY` is an
+informational note that other funding inputs may be added and explicitly says
+that every current output is fixed. `SINGLE | ANYONECANPAY` says that only the
+paired output is fixed; redirectable signer funds escalate to danger. The
+screen does not use the generic and inaccurate “inputs or outputs may be added”
+copy for both flags.
+
+Attached-asset review likewise presents one outcome, not several warnings for
+the same movement. When the destination is resolved, the destination and exact
+asset list share one row: movement to the wallet's own output or a detach back
+to its own address is information, while delivery outside the wallet or a
+signature that leaves delivery flexible is danger. A failed asset lookup
+remains a warning because an unknown UTXO is never treated as asset-free.
+
+When local transaction verification blocks approval, the popup recommends
+retrying or asking the site to rebuild the request. It does not instruct the
+user to disable strict verification from the signing screen.
+
 For a marketplace listing this means:
 
 - Put the seller's proceeds at the **same index as the input being signed**.
@@ -352,7 +370,8 @@ The capability requires all of the following before approval:
 An extra output, substituted address or amount, unreadable output script, OP_RETURN, failed asset
 lookup, or attached asset hard-blocks signing. The approval always appears and shows the full
 destination and amount. The `description`, `reference`, and requesting origin can change wording,
-but can never make an unsafe PSBT signable.
+but can never make an unsafe PSBT signable. A proved payment is shown once in that exact-output
+card; the generic analyzer's truncated payment notice is omitted rather than duplicating it.
 
 The existing permissioned paired-address capability also applies to this method. A payment that
 spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and

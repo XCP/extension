@@ -167,8 +167,7 @@ describe('the separate plain Bitcoin payment capability', () => {
       totalSats: 21_600,
       outputs: [{ index: 0, address: VAULT, amountSats: 21_600 }],
     });
-    expect(analysis.safety.warnings).toContainEqual(expect.objectContaining({
-      severity: 'info',
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
       title: 'Bitcoin Payment',
     }));
   });

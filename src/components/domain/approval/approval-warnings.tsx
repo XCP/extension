@@ -38,7 +38,13 @@ export function buildApprovalWarnings({
   signedInputsWithAssets,
   signedInputsUnknownStatus,
 }: ApprovalWarningInput): WarningItem[] {
-  const warningItems: WarningItem[] = safetyWarnings.map((warning, idx) => ({
+  // A resolved attached destination below says where every attached balance goes. The generic
+  // detach warning says only that every balance moves, so showing both turns one fact into two
+  // alarms and makes a routine detach look more suspicious than it is.
+  const presentedSafetyWarnings = attachedAssetDestination
+    ? safetyWarnings.filter((warning) => warning.code !== 'detach_all')
+    : safetyWarnings;
+  const warningItems: WarningItem[] = presentedSafetyWarnings.map((warning, idx) => ({
     key: `safety-${idx}`,
     severity: warning.severity === 'block' ? 'danger' : warning.severity,
     title: warning.title,
@@ -48,6 +54,18 @@ export function buildApprovalWarnings({
   // Where the attached assets land. Spending an attached UTXO moves its balances with no
   // Counterparty message, so without this the screen can say only that assets move, never where —
   // and for an atomic swap that is the whole question.
+  const attachedAssetList = signedInputsWithAssets.length > 0 ? (
+    <ul className="mt-2 space-y-1 text-xs font-medium">
+      {signedInputsWithAssets.flatMap(entry =>
+        entry.assets.map(asset => (
+          <li key={`${entry.inputIndex}-${asset.asset}`}>
+            Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
+          </li>
+        ))
+      )}
+    </ul>
+  ) : undefined;
+
   if (attachedAssetDestination) {
     const dest = attachedAssetDestination;
     if (!dest.destinationCommitted) {
@@ -60,11 +78,12 @@ export function buildApprovalWarnings({
           `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} does not fix the asset destination. ` +
           'Whoever completes this PSBT may choose an explicit detach address or a different first ' +
           'output. Review the exact authorization below.',
+        children: attachedAssetList,
       });
     } else {
     warningItems.push({
       key: 'attached-destination',
-      severity: dest.leavesWallet ? 'danger' : 'warning',
+      severity: dest.leavesWallet ? 'danger' : 'info',
       title: dest.detaches
         ? 'Attached assets are detached to your address'
         : dest.leavesWallet
@@ -81,6 +100,7 @@ export function buildApprovalWarnings({
           `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
           `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
           `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
+      children: attachedAssetList,
     });
     }
   }
@@ -97,23 +117,13 @@ export function buildApprovalWarnings({
     });
   }
 
-  if (signedInputsWithAssets.length > 0) {
+  if (!attachedAssetDestination && signedInputsWithAssets.length > 0) {
     warningItems.push({
       key: 'attached-assets',
       severity: 'warning',
       title: 'Spends UTXOs holding Counterparty assets',
       description: 'Inputs you are signing carry attached assets. Signing moves them, not just BTC.',
-      children: (
-        <ul className="mt-2 space-y-1 text-xs font-medium">
-          {signedInputsWithAssets.flatMap(entry =>
-            entry.assets.map(asset => (
-              <li key={`${entry.inputIndex}-${asset.asset}`}>
-                Input #{entry.inputIndex}: {asset.quantity_normalized} {asset.asset_longname ?? asset.asset}
-              </li>
-            ))
-          )}
-        </ul>
-      ),
+      children: attachedAssetList,
     });
   }
 

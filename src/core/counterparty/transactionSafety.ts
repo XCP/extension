@@ -13,8 +13,12 @@ import { bareMultisigRecoveryPubkey } from '@/core/counterparty/unpack/multisig'
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
+/** Stable identifiers for warnings that another presentation layer may describe more precisely. */
+export type SecurityWarningCode = 'detach_all' | 'expected_btc_payment';
+
 /** A single security warning */
 export interface SecurityWarning {
+  code?: SecurityWarningCode;
   severity: WarningSeverity;
   title: string;
   message: string;
@@ -194,6 +198,7 @@ export function analyzeTransactionSafety(
       });
     } else if (MOVES_EVERYTHING_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
+        code: 'detach_all',
         severity: 'warning',
         title: 'Moves Everything on the UTXO',
         message:
@@ -312,6 +317,7 @@ export function analyzeTransactionSafety(
     warnings.push(
       expected
         ? {
+            code: 'expected_btc_payment',
             // The payment is the transaction, so this is information rather than a warning.
             // The address and amount still need checking, hence the wording.
             severity: 'info',

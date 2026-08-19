@@ -1,6 +1,7 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
+import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -32,8 +33,8 @@ interface ApprovalSummaryCardProps {
   order?: OrderAction | null;
   /** Structural net effect on the signer's wallet. */
   movement: MoneyMovement;
-  /** ANYONECANPAY — the movement can change after signing. */
-  flexible: boolean;
+  /** The exact flexibility left by the requested ANYONECANPAY signatures. */
+  flexibility?: PsbtFlexibilityKind;
   hasHighFee: boolean;
   /** Outputs exceed inputs; the fee depends on inputs the counterparty has yet to add. */
   unfunded?: boolean;
@@ -52,7 +53,7 @@ export function ApprovalSummaryCard({
   txAction,
   order,
   movement,
-  flexible,
+  flexibility,
   hasHighFee,
   unfunded,
   protocolFeeXcp,
@@ -77,7 +78,7 @@ export function ApprovalSummaryCard({
           })()}
         </div>
       )}
-      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction && !order} />
+      <MoneyMovementView movement={movement} flexibility={flexibility} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction && !order} />
       {protocolFeeXcp != null && protocolFeeXcp > 0 && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>

@@ -8,7 +8,7 @@ const movement = (over: Partial<MoneyMovement> = {}): MoneyMovement => ({
   spent: 100000, backToYou: 5000, atRisk: 0, external: [{ address: 'bc1qexternaldest', value: 90000 }], fee: 5000, net: -95000, incomplete: false, ...over,
 });
 
-const base = { movement: movement(), flexible: false, hasHighFee: false, protocolFeeXcp: null } as const;
+const base = { movement: movement(), hasHighFee: false, protocolFeeXcp: null } as const;
 
 describe('ApprovalSummaryCard', () => {
   it('leads with the Counterparty action and shows money-movement beneath (no BTC headline)', () => {
