@@ -142,6 +142,7 @@ describe("readSwapQuoteOutcome", () => {
   /** 17.26246519 XCP -> PEPECASH: the direction that worked. */
   const FILLS = {
     estimated_output: 423150280251,
+    pool_output: 423150280251,
     give_remaining: 0,
     pool_exists: true,
     price_impact: 1.0638,
@@ -173,8 +174,25 @@ describe("readSwapQuoteOutcome", () => {
     expect(message).not.toContain("smaller");
   });
 
-  it("still reports a genuine partial fill, and there advises a smaller amount", () => {
-    const partial = { estimated_output: 5, give_remaining: 900, pool_exists: true };
+  it("does not mistake Core's refunded pool rounding dust for exhausted liquidity", () => {
+    // Live TESTNETPEPE/XCP quote for one token. Core's compute_pool_fill intentionally consumes
+    // the cheapest input that produces 47,103 output sats and refunds the redundant 1,164 sats.
+    const roundedPoolFill = {
+      estimated_output: 47103,
+      pool_output: 47103,
+      give_remaining: 1164,
+      pool_exists: true,
+    };
+    expect(readSwapQuoteOutcome(roundedPoolFill)).toBe("fillable");
+  });
+
+  it("still reports a genuine book-only partial fill, and advises a smaller amount", () => {
+    const partial = {
+      estimated_output: 5,
+      pool_output: 0,
+      give_remaining: 900,
+      pool_exists: false,
+    };
     expect(readSwapQuoteOutcome(partial)).toBe("partial");
     expect(describeSwapQuoteOutcome("partial", ASSETS)).toContain("smaller");
   });

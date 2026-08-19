@@ -156,7 +156,7 @@ export function calculateLimitingLpEstimate(
 export type SwapQuoteOutcome =
   /** Fills completely. */
   | "fillable"
-  /** Fills partly: the pool really does run out inside this trade. */
+  /** Fills partly: a book-only route runs out inside this trade. */
   | "partial"
   /** The pool can trade, but this input rounds down to zero of the other asset. */
   | "dust"
@@ -165,6 +165,7 @@ export type SwapQuoteOutcome =
 
 interface SwapQuoteFields {
   estimated_output?: number;
+  pool_output?: string | number | null;
   give_remaining?: string | number | null;
   pool_exists?: boolean;
 }
@@ -175,8 +176,15 @@ export function readSwapQuoteOutcome(quote: SwapQuoteFields | null | undefined):
   const output = toBigNumber(quote.estimated_output ?? 0);
   // A 64-bit asset quantity, so it can arrive as a string: "10" > 0 compares as text.
   const remaining = toBigNumber(quote.give_remaining ?? 0);
+  const poolOutput = toBigNumber(quote.pool_output ?? 0);
 
-  if (output.isGreaterThan(0)) return remaining.isGreaterThan(0) ? "partial" : "fillable";
+  if (output.isGreaterThan(0)) {
+    // Core deliberately trims a pool fill to the least input that still buys the same floored
+    // integer output. The small give_remaining is refunded rounding dust, not exhausted
+    // liquidity. Only a book-only quote can genuinely run out part-way through an input.
+    if (poolOutput.isGreaterThan(0)) return "fillable";
+    return remaining.isGreaterThan(0) ? "partial" : "fillable";
+  }
   // Only claim the amount is the problem when the pool is known to exist. An absent `pool_exists`
   // is not evidence of one, and "too small" would be a worse wrong answer than the generic one.
   return quote.pool_exists === true ? "dust" : "no_pool";
@@ -191,7 +199,7 @@ export function describeSwapQuoteOutcome(
     case "fillable":
       return null;
     case "partial":
-      return "Not enough liquidity to fill this amount right now. Try a smaller amount, or place a DEX order to rest on the book.";
+      return "Not enough order-book liquidity to fill this amount right now. Try a smaller amount, or place a DEX order to rest on the book.";
     case "dust":
       return `This amount is too small to swap: it works out to less than the smallest unit of ${assets.getAsset}, so the pool would return nothing. Try a larger amount of ${assets.giveAsset}.`;
     case "no_pool":
