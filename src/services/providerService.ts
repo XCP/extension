@@ -10,8 +10,10 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
+import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
@@ -661,7 +663,9 @@ export function createProviderService(): ProviderService {
           });
         }
 
-        case 'xcp_signPsbt': {
+        case 'xcp_signPsbt':
+        case 'xcp_signBitcoinPsbt': {
+          const isBitcoinPayment = method === 'xcp_signBitcoinPsbt';
           const psbtParams = params?.[0];
 
           // Validate params structure
@@ -669,11 +673,12 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs, sighashTypes, inscription } = psbtParams as {
+          const { hex: psbtHex, signInputs, sighashTypes, inscription, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
+            intent?: unknown;
           };
 
           if (!psbtHex) {
@@ -681,6 +686,15 @@ export function createProviderService(): ProviderService {
           }
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
+          }
+          const bitcoinPaymentIntent = isBitcoinPayment
+            ? parseBitcoinPaymentIntent(intent)
+            : undefined;
+          const marketplaceIntent = !isBitcoinPayment && intent !== undefined
+            ? parseMarketplaceIntent(intent)
+            : undefined;
+          if (isBitcoinPayment && inscription !== undefined) {
+            throw new Error('Plain Bitcoin payment requests cannot carry inscription context');
           }
           // Shape-checked here, verified on the approval screen: the context is a claim the site
           // makes about what the commit funds, and every field of it gets recomputed there.
@@ -698,12 +712,20 @@ export function createProviderService(): ProviderService {
           )) {
             throw new Error('signInputs must be an address-to-input-indices object');
           }
+          if (isBitcoinPayment && (!signInputs || Object.keys(signInputs).length === 0)) {
+            throw new Error('Plain Bitcoin payment requests require explicit signInputs');
+          }
           if (sighashTypes !== undefined) {
             if (!Array.isArray(sighashTypes) || sighashTypes.some(
-              value => ![0x01, 0x81, 0x83].includes(value)
+              value => !(isBitcoinPayment ? [0x01] : [0x01, 0x81, 0x83]).includes(value)
             )) {
-              throw new Error('Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
+              throw new Error(isBitcoinPayment
+                ? 'Plain Bitcoin payment requests support only SIGHASH_ALL'
+                : 'Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
             }
+          }
+          if (isBitcoinPayment && sighashTypes === undefined) {
+            throw new Error('Plain Bitcoin payment requests require explicit SIGHASH_ALL entries');
           }
 
           // Check if connected
@@ -719,6 +741,14 @@ export function createProviderService(): ProviderService {
           }
 
           const psbtDetails = extractPsbtDetails(psbtHex);
+          if (isBitcoinPayment && (
+            psbtDetails.unfunded
+            || psbtDetails.inputs.some(input => input.value === undefined)
+          )) {
+            throw new Error(
+              'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
+            );
+          }
           if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
             throw new Error('sighashTypes contains more entries than the PSBT has inputs');
           }
@@ -805,6 +835,9 @@ export function createProviderService(): ProviderService {
                 psbtHex,
                 signInputs,
                 sighashTypes,
+                signingPurpose: isBitcoinPayment ? 'bitcoin-payment' : 'counterparty',
+                ...(bitcoinPaymentIntent ? { bitcoinPaymentIntent } : {}),
+                ...(marketplaceIntent ? { marketplaceIntent } : {}),
                 ...(inscription ? {
                   inscription: {
                     revealScript: inscription.revealScript!,

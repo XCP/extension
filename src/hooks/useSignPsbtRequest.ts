@@ -12,8 +12,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { extractPsbtDetails, type PsbtDetails } from '@/core/bitcoin/psbt';
+import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import {
+  extractPsbtDetails,
+  type PsbtDetails,
+  resolvePsbtSighashType,
+} from '@/core/bitcoin/psbt';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
+import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import {
   type InscriptionCommitContext,
   resolveRevealMessage,
@@ -51,7 +57,11 @@ export function useSignPsbtRequest(signerAddress?: string) {
     psbtHex: string,
     signerAddresses?: string[],
     signedInputIndices?: number[],
-    inscriptionContext?: InscriptionCommitContext
+    requestedSighashTypes?: number[],
+    inscriptionContext?: InscriptionCommitContext,
+    signingPurpose: 'counterparty' | 'bitcoin-payment' = 'counterparty',
+    bitcoinPaymentIntent?: BitcoinPaymentIntentV1,
+    marketplaceIntent?: MarketplaceIntentClaimV1,
   ): Promise<DecodedPsbtInfo> => {
     // First, extract pure Bitcoin details (no API calls)
     const psbtDetails = extractPsbtDetails(psbtHex);
@@ -114,9 +124,19 @@ export function useSignPsbtRequest(signerAddress?: string) {
       outputs: psbtDetails.outputs,
       signerAddresses: signerAddresses ?? [],
       signedInputIndices: signedInputIndices ?? [],
+      signedInputs: (signedInputIndices ?? []).map(index => ({
+        index,
+        sighashType: resolvePsbtSighashType(
+          requestedSighashTypes?.[index],
+          psbtDetails.inputs[index]?.sighashType,
+        ),
+      })),
       transactionId: txid,
       attachedAssets: attachedAssetsPromise,
       inscriptionContext,
+      signingPurpose,
+      bitcoinPaymentIntent,
+      marketplaceIntent,
     });
 
     return {
@@ -154,7 +174,11 @@ export function useSignPsbtRequest(signerAddress?: string) {
           req.psbtHex,
           requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
           Object.values(req.signInputs ?? {}).flat(),
-          req.inscription
+          req.sighashTypes,
+          req.inscription,
+          req.signingPurpose,
+          req.bitcoinPaymentIntent,
+          req.marketplaceIntent,
         );
         setDecodedInfo(decoded);
       } catch (err) {
@@ -182,7 +206,11 @@ export function useSignPsbtRequest(signerAddress?: string) {
               req.psbtHex,
               requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
               Object.values(req.signInputs ?? {}).flat(),
-              req.inscription
+              req.sighashTypes,
+              req.inscription,
+              req.signingPurpose,
+              req.bitcoinPaymentIntent,
+              req.marketplaceIntent,
             );
             setDecodedInfo(decoded);
           }

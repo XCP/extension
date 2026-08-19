@@ -39,6 +39,37 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+const BITCOIN_PAYMENT_INTENT = {
+  standard: 'xcp-wallet/bitcoin-payment',
+  version: 1,
+  action: 'pay',
+  outputs: [{
+    address: 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq',
+    amountSats: 21_600,
+  }],
+  description: 'Fund Emblem Vault',
+  reference: 'vault-63',
+} as const;
+const MARKETPLACE_LISTING_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'create_listing',
+  operationId: 'preflight-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  guaranteedSellerPaymentSats: 250_546,
+  delivery: { mode: 'buyer_selected_detach' },
+  signingRequestExpiresAt: 2_000_000_000,
+  marketplaceExpiresAt: null,
+  bitcoinExpiresAt: null,
+} as const;
 
 // Mock the imports
 vi.mock('../walletService');
@@ -813,6 +844,122 @@ describe('ProviderService', () => {
             psbtHex
           })
         );
+      });
+
+      it('stores a bounded marketplace claim for independent approval proof', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x83],
+            intent: MARKETPLACE_LISTING_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_LISTING_INTENT,
+          })
+        );
+      });
+
+      describe('xcp_signBitcoinPsbt', () => {
+        const paymentParams = {
+          hex: VALID_PSBT_HEX,
+          signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+          sighashTypes: [0x01],
+          intent: BITCOIN_PAYMENT_INTENT,
+        };
+
+        it('requires a versioned payment intent before approval', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, intent: undefined }]
+          )).rejects.toThrow('intent must be an object');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('requires an explicit owned-input map', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, signInputs: undefined }]
+          )).rejects.toThrow('require explicit signInputs');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it.each([undefined, [0x81], [0x83]])(
+          'requires explicit SIGHASH_ALL entries (%j)',
+          async (sighashTypes) => {
+            const connection = vi.mocked(connectionService.getConnectionService)();
+            connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+            await expect(providerService.handleRequest(
+              'https://emblem.finance',
+              'xcp_signBitcoinPsbt',
+              [{ ...paymentParams, sighashTypes }]
+            )).rejects.toThrow(/SIGHASH_ALL/);
+
+            expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+          }
+        );
+
+        it('still requires normal site connection permission', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(false);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [paymentParams]
+          )).rejects.toThrow('Unauthorized - not connected to wallet');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('stores the proved-capability context without trusting the origin', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+          providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [paymentParams]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              origin: 'https://emblem.finance',
+              psbtHex: VALID_PSBT_HEX,
+              signInputs: paymentParams.signInputs,
+              sighashTypes: [0x01],
+              signingPurpose: 'bitcoin-payment',
+              bitcoinPaymentIntent: BITCOIN_PAYMENT_INTENT,
+            })
+          );
+        });
       });
     });
 

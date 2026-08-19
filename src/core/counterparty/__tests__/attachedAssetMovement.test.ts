@@ -12,6 +12,7 @@ import {
 
 const MINE = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
 const THEIRS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+const all = (index = 0) => [{ index, sighashType: 0x01 }];
 
 const withAssets = (inputIndex: number) => ({
   inputIndex,
@@ -36,7 +37,8 @@ describe('where attached assets go', () => {
       ],
       [withAssets(0)],
       [0],
-      [MINE]
+      [MINE],
+      all()
     );
 
     expect(result?.destinationVout).toBe(1);
@@ -51,7 +53,8 @@ describe('where attached assets go', () => {
       [{ index: 0, type: 'p2pkh', address: THEIRS }],
       [withAssets(0)],
       [0],
-      [MINE]
+      [MINE],
+      all()
     );
 
     expect(result?.destinationVout).toBe(0);
@@ -63,7 +66,8 @@ describe('where attached assets go', () => {
       [{ index: 0, type: 'unknown' }],
       [withAssets(0)],
       [0],
-      [MINE]
+      [MINE],
+      all()
     );
 
     expect(result?.destinationAddress).toBeUndefined();
@@ -77,7 +81,8 @@ describe('where attached assets go', () => {
       [{ index: 0, type: 'op_return' }],
       [withAssets(0)],
       [0],
-      [MINE]
+      [MINE],
+      all()
     );
 
     expect(result?.detaches).toBe(true);
@@ -91,7 +96,8 @@ describe('where attached assets go', () => {
       [{ index: 0, type: 'p2wpkh', address: MINE }],
       [withAssets(1)],
       [0],
-      [MINE]
+      [MINE],
+      all()
     );
 
     expect(result).toBeNull();
@@ -103,9 +109,65 @@ describe('where attached assets go', () => {
         [{ index: 0, type: 'p2wpkh', address: MINE }],
         [empty(0)],
         [0],
-        [MINE]
+        [MINE],
+        all()
       )
     ).toBeNull();
+  });
+
+  it('uses a locally decoded detach destination instead of the first ordinary output', () => {
+    const result = resolveAttachedAssetDestination(
+      [
+        { index: 0, type: 'op_return' },
+        { index: 1, type: 'p2wpkh', address: MINE },
+      ],
+      [withAssets(1)],
+      [1],
+      [MINE],
+      all(1),
+      { messageType: 'detach', data: { destination: THEIRS } }
+    );
+
+    expect(result).toMatchObject({
+      detaches: true,
+      mode: 'explicit-detach',
+      destinationCommitted: true,
+      destinationVout: null,
+      destinationAddress: THEIRS,
+      leavesWallet: true,
+    });
+  });
+
+  it('does not claim a listing placeholder fixes delivery under SINGLE|ANYONECANPAY', () => {
+    const result = resolveAttachedAssetDestination(
+      [
+        { index: 0, type: 'p2wpkh', address: MINE },
+        { index: 1, type: 'p2pkh', address: MINE },
+      ],
+      [withAssets(1)],
+      [1],
+      [MINE],
+      [{ index: 1, sighashType: 0x83 }]
+    );
+
+    expect(result).toMatchObject({
+      mode: 'flexible',
+      destinationCommitted: false,
+      leavesWallet: true,
+    });
+  });
+
+  it('treats a missing effective sighash as flexible, never as implicit ALL', () => {
+    const result = resolveAttachedAssetDestination(
+      [{ index: 0, type: 'p2wpkh', address: MINE }],
+      [withAssets(0)],
+      [0],
+      [MINE],
+      []
+    );
+
+    expect(result?.destinationCommitted).toBe(false);
+    expect(result?.mode).toBe('flexible');
   });
 });
 

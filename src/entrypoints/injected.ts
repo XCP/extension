@@ -28,6 +28,7 @@ const INTERACTIVE_METHODS = new Set([
   'xcp_requestAccounts',
   'xcp_signTransaction',
   'xcp_signPsbt',
+  'xcp_signBitcoinPsbt',
   'xcp_signMessage',
 ]);
 

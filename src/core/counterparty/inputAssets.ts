@@ -24,6 +24,8 @@ export interface InputAttachedAssets {
   lookupFailed?: boolean;
   assets: Array<{
     asset: string;
+    /** Exact Counterparty base-unit quantity, preserved as decimal text when the API supplies it. */
+    quantity?: string;
     quantity_normalized: string;
     asset_longname?: string | null;
   }>;
@@ -61,6 +63,7 @@ export async function fetchInputsAttachedAssets(
           .filter((b) => b.asset && b.quantity_normalized)
           .map((b) => ({
             asset: b.asset,
+            ...(b.quantity !== undefined ? { quantity: String(b.quantity) } : {}),
             quantity_normalized: b.quantity_normalized,
             asset_longname: b.asset_info?.asset_longname ?? null,
           }));

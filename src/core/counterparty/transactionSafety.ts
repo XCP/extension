@@ -165,6 +165,8 @@ export function analyzeTransactionSafety(
      * the external-address warning exists to check.
      */
     verifiedCommit?: { address: string; value: number };
+    /** A separate provider capability identified this as an explicit Bitcoin payment request. */
+    plainBitcoinPayment?: boolean;
   } = {}
 ): SafetyAnalysis {
   const warnings: SecurityWarning[] = [];
@@ -304,7 +306,8 @@ export function analyzeTransactionSafety(
     const totalSats = suspiciousOutputs.reduce((sum, o) => sum + o.value, 0);
     const btcAmount = (totalSats / 100_000_000).toFixed(8);
     const addresses = suspiciousOutputs.map(o => o.address);
-    const expected = messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType);
+    const expected = options.plainBitcoinPayment
+      || (messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType));
 
     warnings.push(
       expected
@@ -312,10 +315,12 @@ export function analyzeTransactionSafety(
             // The payment is the transaction, so this is information rather than a warning.
             // The address and amount still need checking, hence the wording.
             severity: 'info',
-            title: 'BTC Payment',
+            title: options.plainBitcoinPayment ? 'Bitcoin Payment' : 'BTC Payment',
             message:
               `This sends ${btcAmount} BTC to ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}, ` +
-              'which is how this type of transaction pays. Check the address is the one you mean.',
+              (options.plainBitcoinPayment
+                ? 'matching the payment outputs the site declared. Check the address is the one you mean.'
+                : 'which is how this type of transaction pays. Check the address is the one you mean.'),
           }
         : {
             severity: 'danger',

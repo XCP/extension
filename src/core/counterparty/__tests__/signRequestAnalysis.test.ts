@@ -9,7 +9,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import type { InputAttachedAssets } from '../inputAssets';
+import { parseMarketplaceIntent } from '../marketplaceIntent';
 import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
 
@@ -38,6 +40,35 @@ const OUTPUTS: AnalyzedOutput[] = [
 ];
 
 const INPUTS = [{ txid: 'a'.repeat(64), vout: 0 }];
+const VAULT = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
+const PAYMENT_INTENT = parseBitcoinPaymentIntent({
+  standard: 'xcp-wallet/bitcoin-payment',
+  version: 1,
+  action: 'pay',
+  outputs: [{ address: VAULT, amountSats: 21_600 }],
+  description: 'Fund Emblem Vault',
+});
+const LISTING_TXID = 'ab'.repeat(32);
+const LISTING_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'create_listing',
+  operationId: 'preflight-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  seller: SIGNER,
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  guaranteedSellerPaymentSats: 250_546,
+  delivery: { mode: 'buyer_selected_detach' },
+  signingRequestExpiresAt: 2_000_000_000,
+  marketplaceExpiresAt: null,
+  bitcoinExpiresAt: null,
+});
 
 /** An input carrying assets, at the given index. */
 function withAssets(inputIndex: number): InputAttachedAssets {
@@ -55,6 +86,7 @@ function run(overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) 
     outputs: OUTPUTS,
     signerAddresses: [SIGNER],
     signedInputIndices: [0],
+    signedInputs: [{ index: 0, sighashType: 0x01 }],
     transactionId: undefined,
     attachedAssets: Promise.resolve([]),
     ...overrides,
@@ -104,6 +136,126 @@ describe('the not-a-Counterparty-transaction gate', () => {
 
     expect(analysis.safety.blocked).toBe(true);
     expect(blockedOnNotCounterparty(analysis.safety.warnings)).toBe(true);
+  });
+});
+
+describe('the separate plain Bitcoin payment capability', () => {
+  beforeEach(() => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);
+    vi.mocked(resolveProtocolContext).mockResolvedValue({
+      context: {} as ProtocolContext,
+      warnings: [],
+    });
+  });
+
+  const payment = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    signingPurpose: 'bitcoin-payment',
+    bitcoinPaymentIntent: PAYMENT_INTENT,
+    outputs: [
+      { index: 0, value: 21_600, type: 'witness_v0_keyhash', address: VAULT },
+      { index: 1, value: 28_982, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    ...overrides,
+  });
+
+  it('allows an exact declared payment after proving clean signed inputs', async () => {
+    const analysis = await payment();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.bitcoinPaymentProof).toMatchObject({
+      proved: true,
+      totalSats: 21_600,
+      outputs: [{ index: 0, address: VAULT, amountSats: 21_600 }],
+    });
+    expect(analysis.safety.warnings).toContainEqual(expect.objectContaining({
+      severity: 'info',
+      title: 'Bitcoin Payment',
+    }));
+  });
+
+  it.each([
+    {
+      name: 'changed destination',
+      overrides: {
+        outputs: [{
+          index: 0, value: 21_600, type: 'witness_v0_keyhash',
+          address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs',
+        }],
+      },
+    },
+    {
+      name: 'Counterparty payload',
+      overrides: { counterpartyDataHex: '434e5452505254590a00' },
+    },
+    {
+      name: 'attached asset',
+      overrides: { attachedAssets: Promise.resolve([withAssets(0)]) },
+    },
+    {
+      name: 'unknown asset status',
+      overrides: {
+        attachedAssets: Promise.resolve([{
+          inputIndex: 0, utxo: `${'a'.repeat(64)}:0`, assets: [], lookupFailed: true,
+        }]),
+      },
+    },
+  ])('blocks $name rather than trusting the site or origin', async ({ overrides }) => {
+    const analysis = await payment(overrides);
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.severity).toBe('block');
+  });
+});
+
+describe('the marketplace intent proof', () => {
+  const listing = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    marketplaceIntent: LISTING_INTENT,
+    inputs: [
+      { index: 0, txid: '0'.repeat(64), vout: 0, hasSignatures: false },
+      { index: 1, txid: LISTING_TXID, vout: 4, address: SIGNER, value: 546 },
+    ],
+    outputs: [
+      { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    signedInputIndices: [1],
+    signedInputs: [{ index: 1, sighashType: 0x83 }],
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{
+        asset: 'RAREPEPE',
+        quantity: '1',
+        quantity_normalized: '1',
+      }],
+    }]),
+    ...overrides,
+  });
+
+  it('allows the proved listing and returns semantic terms', async () => {
+    const analysis = await listing();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'caution',
+      family: 'create_listing',
+      blockers: [],
+    });
+    expect(analysis.attachedAssetDestination).toMatchObject({
+      destinationCommitted: false,
+      mode: 'flexible',
+    });
+  });
+
+  it('hard-blocks a site claim whose seller payment differs from the PSBT', async () => {
+    const analysis = await listing({
+      outputs: [
+        { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 1, value: 250_545, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
   });
 });
 

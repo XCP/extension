@@ -137,6 +137,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       outputs,
       signerAddresses: signerAddress ? [signerAddress] : [],
       signedInputIndices: inputs.map((_, index) => index),
+      signedInputs: inputs.map((_, index) => ({ index, sighashType: 0x01 })),
       transactionId: parsed.txid,
       attachedAssets: attachedAssetsPromise,
     });

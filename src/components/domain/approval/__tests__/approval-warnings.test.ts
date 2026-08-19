@@ -25,6 +25,8 @@ const destination = (over: Record<string, unknown>) =>
     sourceInputs: [0],
     destinationVout: 1,
     destinationAddress: undefined,
+    destinationCommitted: true,
+    mode: 'implicit-output',
     ...over,
   }) as ApprovalWarningInput['attachedAssetDestination'];
 
@@ -95,6 +97,38 @@ describe('buildApprovalWarnings', () => {
       expect(item?.title).toBe('Attached assets are detached to your address');
       expect(item?.description).toContain('credited back to your address');
       expect(item?.description).not.toContain('output #');
+    });
+
+    it('does not present a SINGLE|ANYONECANPAY placeholder as guaranteed delivery', () => {
+      const [item] = buildApprovalWarnings({
+        ...EMPTY,
+        attachedAssetDestination: destination({
+          destinationCommitted: false,
+          mode: 'flexible',
+          destinationVout: 0,
+          destinationAddress: 'bc1qplaceholder',
+        }),
+      });
+
+      expect(item?.severity).toBe('danger');
+      expect(item?.title).toBe('Asset delivery is flexible');
+      expect(item?.description).toContain('does not fix the asset destination');
+      expect(item?.description).not.toContain('credited to output');
+    });
+
+    it('names the destination proved by an explicit detach', () => {
+      const [item] = buildApprovalWarnings({
+        ...EMPTY,
+        attachedAssetDestination: destination({
+          detaches: true,
+          mode: 'explicit-detach',
+          destinationVout: null,
+          destinationAddress: 'bc1qbuyer',
+          leavesWallet: true,
+        }),
+      });
+
+      expect(item?.description).toContain('detached to bc1qbuyer');
     });
 
     it('pluralises the source inputs', () => {

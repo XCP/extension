@@ -10,6 +10,8 @@
  * writes and two removes that had to be kept in step by hand.
  */
 
+import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
 
 export type SignFlowStatus = 'pending' | 'completed' | 'cancelled';
@@ -38,6 +40,10 @@ export type SignPsbtRequest = SignFlowEntry<{
   psbtHex: string;
   signInputs?: Record<string, number[]>;
   sighashTypes?: number[];
+  /** Defaults to counterparty for requests stored by older wallet versions. */
+  signingPurpose?: 'counterparty' | 'bitcoin-payment';
+  bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
+  marketplaceIntent?: MarketplaceIntentClaimV1;
   /**
    * A site's claim about the inscription commit this PSBT funds: the reveal's tapleaf script and
    * the taproot internal key, both hex. Never trusted — the approval screen recomputes the commit

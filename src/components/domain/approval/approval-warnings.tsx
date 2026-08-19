@@ -50,6 +50,18 @@ export function buildApprovalWarnings({
   // and for an atomic swap that is the whole question.
   if (attachedAssetDestination) {
     const dest = attachedAssetDestination;
+    if (!dest.destinationCommitted) {
+      warningItems.push({
+        key: 'attached-destination',
+        severity: 'danger',
+        title: 'Asset delivery is flexible',
+        description:
+          `The signature for attached input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
+          `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} does not fix the asset destination. ` +
+          'Whoever completes this PSBT may choose an explicit detach address or a different first ' +
+          'output. Review the exact authorization below.',
+      });
+    } else {
     warningItems.push({
       key: 'attached-destination',
       severity: dest.leavesWallet ? 'danger' : 'warning',
@@ -59,13 +71,18 @@ export function buildApprovalWarnings({
           ? 'Attached assets leave your wallet'
           : 'Attached assets move to your own output',
       description: dest.detaches
-        ? 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
-          'signing is credited back to your address.'
+        ? dest.mode === 'explicit-detach'
+          ? `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
+            `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is detached to ` +
+            `${dest.destinationAddress ?? 'the source address'}.`
+          : 'This transaction has no ordinary output, so every asset attached to the inputs you are ' +
+            'signing is credited back to your address.'
         : `Every asset attached to input${dest.sourceInputs.length === 1 ? '' : 's'} ` +
           `${dest.sourceInputs.map((i) => `#${i}`).join(', ')} is credited to output ` +
           `#${dest.destinationVout}${dest.destinationAddress ? ` (${dest.destinationAddress})` : ''}` +
           `${dest.leavesWallet ? ', which is not an address you control.' : '.'}`,
     });
+    }
   }
 
   // The message's own references to this transaction, where they do not resolve against it. A

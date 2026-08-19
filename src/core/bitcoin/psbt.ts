@@ -179,6 +179,8 @@ export interface DecodedInput {
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
+  /** Existing signature/finalization material, used to prove marketplace placeholder slots empty. */
+  hasSignatures?: boolean;
   /**
    * Tapleaf scripts this input would reveal, hex, leaf-version byte stripped. An inscription
    * reveal carries its ord envelope — and therefore its Counterparty message — here rather than
@@ -368,6 +370,12 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         address,
         value,
         sighashType: input.sighashType,
+        hasSignatures: Boolean(
+          input.tapKeySig
+          || input.partialSig?.length
+          || input.finalScriptSig?.length
+          || input.finalScriptWitness?.length
+        ),
         ...(tapLeafScripts && tapLeafScripts.length > 0 ? { tapLeafScripts } : {}),
       });
     }

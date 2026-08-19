@@ -115,7 +115,8 @@ All signing methods require an active connection and open a popup for user appro
 #### What this wallet will sign
 
 `xcp_signTransaction` and `xcp_signPsbt` are for Counterparty transactions. A request is refused
-outright when it is not one:
+outright when it is not one. Plain Bitcoin website payments use the narrower
+`xcp_signBitcoinPsbt` capability documented below; origins never bypass either policy.
 
 - **No Counterparty content.** The transaction must either carry a Counterparty message or spend an
   input holding attached assets. Both forms count, because spending an attached UTXO moves its
@@ -249,6 +250,49 @@ For a marketplace listing this means:
 
 A listing built that way has nothing at risk and signs with no extra prompt.
 
+**Versioned marketplace intent.** `xcp_signPsbt` accepts an optional `intent` object. It is an
+untrusted claim used to ask for a semantic approval, not permission to skip validation. Version
+0.9 recognizes the `create_listing` family:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: listingPsbtHex,
+    signInputs: { [seller]: [1] },
+    // Absolute PSBT indices: input 0 is not signed, but occupies slot 0.
+    sighashTypes: [0x01, 0x83],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'create_listing',
+      operationId: 'preflight-id',
+      protocolVersion: 'counterparty_attach_listing_v1',
+      assets: [{
+        asset: 'RAREPEPE',
+        quantityRaw: '1',
+        sourceOutpoint: { txid: '<64-char txid>', vout: 0 }
+      }],
+      seller,
+      priceSats: 250000,
+      carrierValueSats: 546,
+      guaranteedSellerPaymentSats: 250546,
+      delivery: { mode: 'buyer_selected_detach' },
+      signingRequestExpiresAt: 1711130400,
+      marketplaceExpiresAt: null,
+      bitcoinExpiresAt: null
+    }
+  }]
+});
+```
+
+The wallet independently checks the two-input/two-output template, null and unsigned buyer slot,
+exact attached outpoint and raw quantity, seller identity and carrier value, only input 1 requested
+with `SINGLE|ANYONECANPAY`, and exact carrier-plus-price payment at output 1. It also states that
+buyer funding and the detach destination remain flexible. A false claim is blocked; an unavailable
+asset lookup asks the user to retry rather than treating the UTXO as empty. Marketplace expiry is
+displayed as service policy, not Bitcoin signature expiry.
+
 **Mixed sighash flags.** When signed inputs carry different flags, the summary
 prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
 an input is detachable — whoever holds the PSBT can keep it, drop the rest, and
@@ -269,6 +313,46 @@ transaction rather than rendered as an ordinary transfer.
 a listing awaiting a buyer's funding inputs — is accepted. No fee is claimed for
 it; the approval screen reports the fee as set by the other party rather than
 showing a figure that cannot be known yet.
+
+#### `xcp_signBitcoinPsbt`
+
+Sign a fully funded, plain-Bitcoin PSBT for an exact website payment. This is intended for flows
+such as funding an Emblem Vault transaction, where no Counterparty message belongs in the funding
+step. It is not a trusted-site mode and it is not available through `xcp_signPsbt`.
+
+```js
+const result = await xcpwallet.request({
+  method: 'xcp_signBitcoinPsbt',
+  params: [{
+    hex: '<fully funded PSBT hex>',
+    signInputs: { 'bc1q...': [0] },
+    sighashTypes: [0x01],
+    intent: {
+      standard: 'xcp-wallet/bitcoin-payment',
+      version: 1,
+      action: 'pay',
+      outputs: [{ address: 'bc1q...', amountSats: 21600 }],
+      description: 'Fund Emblem Vault', // display context only
+      reference: 'vault-63'             // display context only
+    }
+  }]
+});
+// { hex: '<signed PSBT hex>' }
+```
+
+The capability requires all of the following before approval:
+
+- an existing site connection and explicit non-empty `signInputs` owned by the current wallet;
+- an explicit `SIGHASH_ALL` entry for every requested input;
+- a fully funded PSBT with no Counterparty payload or inscription context;
+- an independent successful lookup proving every requested input has no attached assets; and
+- exact multiset equality between the declared external address/amount pairs and decoded PSBT
+  outputs, after excluding wallet-owned change.
+
+An extra output, substituted address or amount, unreadable output script, OP_RETURN, failed asset
+lookup, or attached asset hard-blocks signing. The approval always appears and shows the full
+destination and amount. The `description`, `reference`, and requesting origin can change wording,
+but can never make an unsafe PSBT signable.
 
 ### Broadcasting
 

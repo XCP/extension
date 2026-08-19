@@ -207,6 +207,21 @@ describe('suspicious output detection', () => {
     expect(result.warnings[0]!.message).toContain('2 addresses');
   });
 
+  it('renders externally paid BTC as information only for the separate payment capability', () => {
+    const outputs = makeOutputs(
+      { value: 21_600, address: 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq' },
+      { value: 28_982, address: SIGNER },
+    );
+    const result = analyzeTransactionSafety(undefined, outputs, SIGNER, {
+      plainBitcoinPayment: true,
+    });
+    expect(result.blocked).toBe(false);
+    expect(result.warnings).toEqual([expect.objectContaining({
+      severity: 'info',
+      title: 'Bitcoin Payment',
+    })]);
+  });
+
   it('should be case-insensitive when comparing Bech32 signer addresses', () => {
     const signer = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
     const outputs = makeOutputs(

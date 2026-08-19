@@ -13,11 +13,21 @@
  */
 
 import {
+  type BitcoinPaymentIntentV1,
+  type BitcoinPaymentProof,
+  proveBitcoinPaymentIntent,
+} from '@/core/bitcoin/providerPayment';
+import {
   type AttachedAssetDestination,
   movesCounterpartyValue,
   resolveAttachedAssetDestination,
 } from '@/core/counterparty/attachedAssetMovement';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
+import {
+  analyzeMarketplaceIntent,
+  type MarketplaceApprovalReview,
+  type MarketplaceIntentClaimV1,
+} from '@/core/counterparty/marketplaceIntent';
 import { checkMessageStructure, type StructureFinding } from '@/core/counterparty/messageStructure';
 import { type ProtocolContext, resolveProtocolContext } from '@/core/counterparty/protocolContext';
 import {
@@ -40,8 +50,12 @@ import type { MPMAData } from '@/core/counterparty/unpack/messages/mpma';
 
 /** An input being signed, identified by the outpoint it spends. */
 export interface AnalyzedInput {
+  index?: number;
   txid: string;
   vout: number;
+  hasSignatures?: boolean;
+  address?: string;
+  value?: number;
 }
 
 /**
@@ -69,6 +83,8 @@ export interface SignRequestAnalysisInput {
    * belong to someone else's side of the transaction.
    */
   signedInputIndices: number[];
+  /** Effective sighash for every requested input, after request/PSBT/default resolution. */
+  signedInputs: Array<{ index: number; sighashType: number }>;
   /** Transaction id, where the caller could establish one. Only the detail lookups use it. */
   transactionId: string | undefined;
   /**
@@ -83,6 +99,12 @@ export interface SignRequestAnalysisInput {
    * with the specific reason.
    */
   inscriptionContext?: InscriptionCommitContext;
+  /** Provider capability selected before approval; defaults to Counterparty-only. */
+  signingPurpose?: 'counterparty' | 'bitcoin-payment';
+  /** Required and independently proved for the bitcoin-payment capability. */
+  bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
+  /** Optional marketplace assertions; every term is proved below before receiving semantic UI. */
+  marketplaceIntent?: MarketplaceIntentClaimV1;
 }
 
 export interface SignRequestAnalysis {
@@ -97,6 +119,9 @@ export interface SignRequestAnalysis {
   structureFindings: StructureFinding[];
   protocolContext: ProtocolContext;
   attachedAssetDestination: AttachedAssetDestination | null;
+  /** Exact external-output proof for a plain Bitcoin provider request. */
+  bitcoinPaymentProof?: BitcoinPaymentProof;
+  marketplaceReview?: MarketplaceApprovalReview;
 }
 
 /**
@@ -154,7 +179,11 @@ export async function analyzeSignRequest(
   const verification = verifyProviderTransaction(counterpartyDataHex, counterpartyMessage);
 
   const messageType = counterpartyMessage?.messageType ?? verification.localUnpack?.messageType;
-  const safety = analyzeTransactionSafety(messageType, outputs, signerAddresses, { verifiedCommit });
+  const signingPurpose = input.signingPurpose ?? 'counterparty';
+  const safety = analyzeTransactionSafety(messageType, outputs, signerAddresses, {
+    verifiedCommit,
+    plainBitcoinPayment: signingPurpose === 'bitcoin-payment',
+  });
 
   if (commitRefusal) {
     safety.warnings = [
@@ -214,12 +243,53 @@ export async function analyzeSignRequest(
 
   const attachedAssets = await input.attachedAssets;
 
-  // The gate: a transaction this wallet signs on a site's behalf either carries a Counterparty
-  // message or spends an input carrying attached assets. Anything else is a plain Bitcoin
-  // transaction, which a site has no Counterparty reason to ask this wallet for and which the user
-  // can make in the wallet directly. Both halves are required — a message alone would miss an
-  // attached UTXO being spent alongside it, and attached assets alone miss every ordinary send.
-  if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices)) {
+  let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
+  if (signingPurpose === 'bitcoin-payment') {
+    const signed = new Set(signedInputIndices);
+    const signedAssets = attachedAssets.filter(
+      (entry) => signed.has(entry.inputIndex) && entry.assets.length > 0
+    );
+    const unknownAssetStatus = attachedAssets.filter(
+      (entry) => signed.has(entry.inputIndex) && entry.lookupFailed
+    );
+    const blockers: string[] = [];
+    if (counterpartyDataHex) {
+      blockers.push('the PSBT carries Counterparty data');
+    }
+    if (signedAssets.length > 0) {
+      blockers.push('a requested input carries attached Counterparty assets');
+    }
+    if (unknownAssetStatus.length > 0) {
+      blockers.push('the wallet could not verify that every requested input is free of attached assets');
+    }
+    if (!input.bitcoinPaymentIntent) {
+      blockers.push('the site supplied no versioned Bitcoin payment intent');
+    } else {
+      bitcoinPaymentProof = proveBitcoinPaymentIntent(
+        input.bitcoinPaymentIntent,
+        outputs,
+        signerAddresses,
+      );
+      blockers.push(...bitcoinPaymentProof.errors);
+    }
+    if (blockers.length > 0) {
+      safety.warnings = [
+        {
+          severity: 'block',
+          title: unknownAssetStatus.length > 0
+            ? 'Retry Required: Asset Status Unknown'
+            : 'Blocked: Bitcoin Payment Did Not Verify',
+          message:
+            `This plain Bitcoin signing request cannot be proved: ${blockers.join('; ')}. ` +
+            'No origin or site label can bypass these checks.',
+        },
+        ...safety.warnings,
+      ];
+      safety.blocked = true;
+    }
+    // The Counterparty-only gate remains the default. Plain Bitcoin signing is reachable only
+    // through the separate capability above, never because an origin was allowlisted.
+  } else if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices)) {
     safety.warnings = [
       {
         severity: 'block',
@@ -238,8 +308,45 @@ export async function analyzeSignRequest(
     outputs,
     attachedAssets,
     signedInputIndices,
-    signerAddresses
+    signerAddresses,
+    input.signedInputs,
+    verification.localUnpack?.success
+      ? {
+          messageType: verification.localUnpack.messageType,
+          data: verification.localUnpack.data,
+        }
+      : undefined
   );
+
+  let marketplaceReview: MarketplaceApprovalReview | undefined;
+  if (input.marketplaceIntent) {
+    marketplaceReview = analyzeMarketplaceIntent({
+      intent: input.marketplaceIntent,
+      inputs: inputs.map((transactionInput, index) => ({
+        ...transactionInput,
+        index: transactionInput.index ?? index,
+      })),
+      outputs,
+      signedInputs: input.signedInputs,
+      signerAddresses,
+      attachedAssets,
+      attachedAssetDestination,
+      hasCounterpartyPayload: Boolean(counterpartyDataHex),
+    });
+    if (marketplaceReview.status === 'blocked' || marketplaceReview.status === 'retry') {
+      safety.warnings = [
+        {
+          severity: 'block',
+          title: marketplaceReview.status === 'retry'
+            ? 'Retry Required: Marketplace Proof Incomplete'
+            : 'Blocked: Marketplace Intent Mismatch',
+          message: marketplaceReview.blockers.join('; '),
+        },
+        ...safety.warnings,
+      ];
+      safety.blocked = true;
+    }
+  }
 
   return {
     verifiedCommit,
@@ -251,5 +358,7 @@ export async function analyzeSignRequest(
     structureFindings,
     protocolContext,
     attachedAssetDestination,
+    bitcoinPaymentProof,
+    marketplaceReview,
   };
 }

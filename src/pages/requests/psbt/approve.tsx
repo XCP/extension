@@ -5,7 +5,9 @@ import {ApprovalExpired, ApprovalFooter,
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
 import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
+import { BitcoinPaymentCard } from '@/components/domain/approval/bitcoin-payment-card';
 import { CounterpartyDetailsCard } from '@/components/domain/approval/counterparty-details-card';
+import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-review-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
@@ -60,9 +62,13 @@ export default function ApprovePsbtPage() {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Sign Transaction",
+      title: request?.signingPurpose === 'bitcoin-payment'
+        ? 'Send Bitcoin'
+        : request?.marketplaceIntent?.action === 'create_listing'
+          ? 'Create Listing'
+          : 'Sign Transaction',
     });
-  }, [setHeaderProps]);
+  }, [request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 
   const handleSign = async () => {
     if (!request || !decodedInfo) return;
@@ -116,6 +122,9 @@ export default function ApprovePsbtPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const { psbtDetails, counterpartyMessage, txid, verification, safety, attachedAssets } = decodedInfo;
+  const isBitcoinPayment = request.signingPurpose === 'bitcoin-payment';
+  const semanticMarketplaceReview = decodedInfo.marketplaceReview?.status === 'proved'
+    || decodedInfo.marketplaceReview?.status === 'caution';
   // The same card the raw-transaction screen shows, so an order looks identical whichever signing
   // method the site called.
   const order = buildOrderAction(decodedInfo);
@@ -218,14 +227,16 @@ export default function ApprovePsbtPage() {
 
   const warningItems: WarningItem[] = buildApprovalWarnings({
     safetyWarnings,
-    attachedAssetDestination: decodedInfo.attachedAssetDestination,
+    attachedAssetDestination: semanticMarketplaceReview
+      ? null
+      : decodedInfo.attachedAssetDestination,
     structureFindings: decodedInfo.structureFindings ?? [],
-    signedInputsWithAssets,
+    signedInputsWithAssets: semanticMarketplaceReview ? [] : signedInputsWithAssets,
     signedInputsUnknownStatus,
   });
 
   // PSBT-only: a raw transaction is signed SIGHASH_ALL throughout and cannot change after signing.
-  if (userSignsWithAnyoneCanPay) {
+  if (userSignsWithAnyoneCanPay && !semanticMarketplaceReview) {
     // Money the signature leaves redirectable is a different order of risk from a transaction that
     // can merely gain inputs, so it reads as danger rather than caution.
     const redirectable = movement.atRisk > 0;
@@ -281,6 +292,17 @@ export default function ApprovePsbtPage() {
           )}
 
           <ApprovalSiteBar origin={request.origin} />
+
+          {isBitcoinPayment && request.bitcoinPaymentIntent && (
+            <BitcoinPaymentCard
+              intent={request.bitcoinPaymentIntent}
+              proof={decodedInfo.bitcoinPaymentProof}
+            />
+          )}
+
+          {decodedInfo.marketplaceReview && (
+            <MarketplaceReviewCard review={decodedInfo.marketplaceReview} />
+          )}
 
           {error && <ErrorAlert message={error} />}
 
@@ -409,11 +431,13 @@ export default function ApprovePsbtPage() {
           <WarningStack items={warningItems} />
 
           {/* Verification Status (compact badge when passed) */}
-          <VerificationStatus
-            passed={verification?.repackProved ? true : verificationPassed}
-            warning={verificationWarning}
-            isStrict={isStrictMode}
-          />
+          {!isBitcoinPayment && !decodedInfo.marketplaceReview && (
+            <VerificationStatus
+              passed={verification?.repackProved ? true : verificationPassed}
+              warning={verificationWarning}
+              isStrict={isStrictMode}
+            />
+          )}
 
           {movement.atRisk > 0 && (
             <div className="rounded-lg border border-danger-200 bg-danger-50 p-3">

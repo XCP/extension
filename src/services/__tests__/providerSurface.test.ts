@@ -63,6 +63,7 @@ const CONTRACTS: Record<string, Contract> = {
   xcp_signMessage: 'needs-grant',
   xcp_signTransaction: 'needs-grant',
   xcp_signPsbt: 'needs-grant',
+  xcp_signBitcoinPsbt: 'needs-grant',
   xcp_broadcastTransaction: 'needs-grant',
   xcp_chainId: 'public-constant',
   xcp_getNetwork: 'public-constant',
@@ -77,6 +78,17 @@ const PLAUSIBLE_PARAMS: Record<string, unknown[]> = {
   xcp_signMessage: ['hello'],
   xcp_signTransaction: ['0200000001' + '00'.repeat(40)],
   xcp_signPsbt: ['70736274ff' + '00'.repeat(20)],
+  xcp_signBitcoinPsbt: [{
+    hex: '70736274ff' + '00'.repeat(20),
+    signInputs: { bc1qexample: [0] },
+    sighashTypes: [0x01],
+    intent: {
+      standard: 'xcp-wallet/bitcoin-payment',
+      version: 1,
+      action: 'pay',
+      outputs: [{ address: 'bc1qdestination', amountSats: 1_000 }],
+    },
+  }],
   xcp_broadcastTransaction: ['0200000001' + '00'.repeat(40)],
 };
 
