@@ -960,6 +960,82 @@ describe('ProviderService', () => {
             })
           );
         });
+
+        it('preserves permissioned mixed Legacy and SegWit signers in the payment profile', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+          const segwitAddress = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+          const legacyAddress = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+          const wallet = vi.mocked(walletService.getWalletService)();
+          wallet.getActiveAddress = vi.fn().mockResolvedValue({
+            id: 'addr1',
+            address: segwitAddress,
+            label: 'SegWit',
+            walletId: 'wallet1',
+            walletName: 'Test Wallet',
+            index: 0,
+            pubKey: '02aa',
+          });
+          wallet.getActiveWallet = vi.fn().mockResolvedValue({
+            id: 'wallet1',
+            name: 'Test Wallet',
+            type: 'mnemonic',
+            addressFormat: 'p2wpkh',
+            addresses: [{
+              address: segwitAddress,
+              path: "m/84'/0'/0'/0/0",
+              pubKey: '02aa',
+              name: 'SegWit',
+            }],
+          });
+          wallet.getPairedAddresses = vi.fn().mockResolvedValue({
+            legacy: {
+              address: legacyAddress,
+              pubKey: '02bb',
+              path: "m/44'/0'/0'/0/0",
+              name: 'Legacy',
+              format: 'p2pkh',
+              type: 'p2pkh',
+            },
+            segwit: {
+              address: segwitAddress,
+              pubKey: '02aa',
+              path: "m/84'/0'/0'/0/0",
+              name: 'SegWit',
+              format: 'p2wpkh',
+              type: 'p2wpkh',
+            },
+          });
+
+          const signInputs = {
+            [legacyAddress]: [0],
+            [segwitAddress]: [1],
+          };
+          providerService.handleRequest(
+            'https://rare-btc-assets.com',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, signInputs, sighashTypes: [0x01, 0x01] }]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
+            'https://rare-btc-assets.com',
+            'wallet1',
+            segwitAddress
+          );
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              origin: 'https://rare-btc-assets.com',
+              psbtHex: VALID_PSBT_HEX,
+              signInputs,
+              sighashTypes: [0x01, 0x01],
+              signingPurpose: 'bitcoin-payment',
+            })
+          );
+        });
       });
     });
 

@@ -354,6 +354,12 @@ lookup, or attached asset hard-blocks signing. The approval always appears and s
 destination and amount. The `description`, `reference`, and requesting origin can change wording,
 but can never make an unsafe PSBT signable.
 
+The existing permissioned paired-address capability also applies to this method. A payment that
+spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and
+their absolute input indices in `signInputs`, with a `SIGHASH_ALL` entry for each input. Both
+addresses are then recognized as wallet-owned when classifying change. This does not relax the
+per-origin paired-address permission, exact-output proof, or attached-asset checks.
+
 ### Broadcasting
 
 #### `xcp_broadcastTransaction`

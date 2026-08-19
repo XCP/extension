@@ -5,6 +5,7 @@ import {
 } from '../providerPayment';
 
 const SIGNER = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+const LEGACY_SIGNER = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
 const VAULT = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
 
 const intent = () => parseBitcoinPaymentIntent({
@@ -46,6 +47,19 @@ describe('plain Bitcoin provider intent', () => {
       { index: 0, value: 21_600, type: 'witness_v0_keyhash', address: VAULT },
       { index: 1, value: 28_982, type: 'witness_v0_keyhash', address: SIGNER.toUpperCase() },
     ], [SIGNER])).toEqual({
+      proved: true,
+      errors: [],
+      outputs: [{ index: 0, address: VAULT, amountSats: 21_600 }],
+      totalSats: 21_600,
+    });
+  });
+
+  it('excludes change to both permissioned Legacy and SegWit signer addresses', () => {
+    expect(proveBitcoinPaymentIntent(intent(), [
+      { index: 0, value: 21_600, type: 'witness_v0_keyhash', address: VAULT },
+      { index: 1, value: 10_000, type: 'pubkeyhash', address: LEGACY_SIGNER },
+      { index: 2, value: 18_982, type: 'witness_v0_keyhash', address: SIGNER },
+    ], [LEGACY_SIGNER, SIGNER])).toEqual({
       proved: true,
       errors: [],
       outputs: [{ index: 0, address: VAULT, amountSats: 21_600 }],
