@@ -29,6 +29,7 @@ const LAUNCHCOIN = {
   price_normalized: "0.0000100000000000",
   burn_payment: false,
   pool_quantity: 3100000000000000,
+  pool_quantity_normalized: "31000000.00000000",
   lp_asset: "A690210627902342169",
   soft_cap: 6900000000000000,
   quantity_by_price_normalized: "1000.00000000",
@@ -45,14 +46,24 @@ describe("readFairminterPaymentModel", () => {
   });
 
   it("still reads an ordinary paid fairminter as paying the issuer", () => {
-    expect(readFairminterPaymentModel({ ...LAUNCHCOIN, pool_quantity: 0 })).toBe("issuer");
-    const { pool_quantity: _omitted, ...noPoolField } = LAUNCHCOIN;
+    expect(
+      readFairminterPaymentModel({
+        ...LAUNCHCOIN,
+        pool_quantity: 0,
+        pool_quantity_normalized: "0.00000000",
+      })
+    ).toBe("issuer");
+    const {
+      pool_quantity: _rawPoolQuantity,
+      pool_quantity_normalized: _normalizedPoolQuantity,
+      ...noPoolField
+    } = LAUNCHCOIN;
     expect(readFairminterPaymentModel(noPoolField)).toBe("issuer");
   });
 
   it("accepts either spelling of each quantity, since only zero-ness is read", () => {
-    // The fairminters endpoint sends `pool_quantity` with no `_normalized` companion; a composed
-    // message's params carry the normalized one. Both have to answer.
+    // Core 11.3 verbose responses carry both, while decoded or non-verbose params may carry raw.
+    // The shared routing rule does not need to convert either representation.
     expect(readFairminterPaymentModel({ price: "1", pool_quantity_normalized: "31000000" }))
       .toBe("pool");
     expect(readFairminterPaymentModel({ price_normalized: "0.00001", pool_quantity: 1 }))
@@ -278,63 +289,26 @@ describe("getMaxFairmintLots", () => {
     expect(getMaxFairmintLots({ fairminter, balance: "3" })).toBe("3");
   });
 
-  /**
-   * The bounds above are written with `_normalized` fields, which is how core sends most
-   * quantities — but not all of them. Across 100 fairminters from `/v2/fairminters`,
-   * `max_mint_per_address` and `pool_quantity` never carry a `_normalized` companion while every
-   * other quantity always does. So the per-address bound was gated on a field that does not exist
-   * and was skipped for every fairminter that sets one, which is the defect it was added to close.
-   */
-  describe("with the fields core actually sends", () => {
-    it("caps at max_mint_per_address given only the base-unit field", () => {
-      // 5,000 tokens of a divisible asset, i.e. 5 lots of 1,000, less 3,000 already minted.
-      const fairminter = { ...base, max_mint_per_address: 500000000000, divisible: true };
-      expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "3000" })).toBe("2");
-      expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "5000" })).toBe("0");
-    });
-
-    it("does not divide the bound of an indivisible asset", () => {
-      const fairminter = { ...base, max_mint_per_address: 5000, divisible: false };
-      expect(getMaxFairmintLots({ fairminter, balance: "100", alreadyMinted: "3000" })).toBe("2");
-    });
-
-    it("reads an unknown divisibility as divisible, which under-offers rather than over-offers", () => {
-      // Core's default. If the asset were really indivisible this bound comes out far too small,
-      // and Max offers too few lots — compose still succeeds, which is the safe direction.
-      const fairminter = { ...base, max_mint_per_address: 500000000000 };
-      expect(getMaxFairmintLots({ fairminter, balance: "100" })).toBe("5");
-    });
-
-    it("still prefers core's normalized figure when it sends one", () => {
-      const fairminter = {
-        ...base,
-        max_mint_per_tx: 999900000000000,
-        max_mint_per_tx_normalized: "3000",
-      };
-      expect(getMaxFairmintLots({ fairminter, balance: "100" })).toBe("3");
-    });
-
-    // LAUNCHCOIN's real bounds: both caps are 1,000,000 tokens at 1,000 per lot.
-    it("matches a live fairminter's bounds", () => {
-      const launchcoin = {
-        price: 1000000,
-        quantity_by_price_normalized: "1000.00000000",
-        max_mint_per_tx_normalized: "1000000.00000000",
-        max_mint_per_address: 100000000000000,
-        hard_cap_normalized: "100000000.00000000",
-        divisible: true,
-      };
-      // 27.26 XCP at 0.01/lot affords 2,726 lots; the per-tx cap allows 1,000.
-      expect(getMaxFairmintLots({ fairminter: launchcoin, balance: "27.26246519" })).toBe("1000");
-      // Having already minted 999,000, only one lot of the per-address allowance is left.
-      expect(
-        getMaxFairmintLots({
-          fairminter: launchcoin,
-          balance: "27.26246519",
-          alreadyMinted: "999000",
-        })
-      ).toBe("1");
-    });
+  // Core 11.3 normalizes the two formerly exceptional fairminter quantities. This live-shaped
+  // fixture ensures the per-address cap is still enforced after removing the base-unit shim.
+  it("matches a Core 11.3 fairminter's normalized bounds", () => {
+    const launchcoin = {
+      price: 1000000,
+      quantity_by_price_normalized: "1000.00000000",
+      max_mint_per_tx_normalized: "1000000.00000000",
+      max_mint_per_address_normalized: "1000000.00000000",
+      hard_cap_normalized: "100000000.00000000",
+    };
+    // 27.26 XCP at 0.01/lot affords 2,726 lots; the per-tx cap allows 1,000.
+    expect(getMaxFairmintLots({ fairminter: launchcoin, balance: "27.26246519" })).toBe("1000");
+    // Having already minted 999,000, only one lot of the per-address allowance is left.
+    expect(
+      getMaxFairmintLots({
+        fairminter: launchcoin,
+        balance: "27.26246519",
+        alreadyMinted: "999000",
+      })
+    ).toBe("1");
   });
 
   it("is zero when there is no lot size or no price", () => {

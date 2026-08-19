@@ -30,16 +30,16 @@ export function ReviewFairminter({
     { label: "Asset", value: result.params.asset },
     { label: "Lot Price", value: result.params.lot_price },
     { label: "Lot Size", value: result.params.lot_size },
-    ...(Number(result.params.max_mint_per_address ?? 0) > 0
-      ? [{ label: "Mint per Address", value: result.params.max_mint_per_address }]
+    ...(Number(result.params.max_mint_per_address_normalized ?? 0) > 0
+      ? [{ label: "Mint per Address", value: result.params.max_mint_per_address_normalized }]
       : []),
     { label: "Hard Cap", value: result.params.hard_cap },
     // The three fields that make a pooled launch what it is were composed but never shown here,
     // so the pool terms were signed from a screen that did not mention them. The soft cap decides
     // whether anything is credited at all, and the window decides when.
-    ...(isGreaterThan(result.params.pool_quantity ?? 0, 0)
+    ...(isGreaterThan(result.params.pool_quantity_normalized ?? 0, 0)
       ? [
-          { label: "Pool Reserve", value: String(result.params.pool_quantity) },
+          { label: "Pool Reserve", value: String(result.params.pool_quantity_normalized) },
           ...(result.params.lp_asset
             ? [{ label: "LP Asset", value: String(result.params.lp_asset) }]
             : []),

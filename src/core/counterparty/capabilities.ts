@@ -19,7 +19,7 @@ interface FeatureRequirement {
 }
 
 const CAPABILITY_CACHE_TTL_MS = 60_000;
-export const MIN_COUNTERPARTY_API_VERSION = '11.2.0';
+export const MIN_COUNTERPARTY_API_VERSION = '11.3.0';
 
 const FEATURE_REQUIREMENTS: Record<CounterpartyFeature, FeatureRequirement> = {
   ammPools: {

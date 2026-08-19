@@ -193,7 +193,10 @@ describe('FairmintForm', () => {
   // screen read only price and burn_payment, so it called a pool mint "XCP Fee (to issuer)".
   it('names the pool when the payment seeds one', async () => {
     mockFairmintersResponse([
-      createMockFairminter({ pool_quantity: asBaseUnits(3100000000000000) }),
+      createMockFairminter({
+        pool_quantity: asBaseUnits(3100000000000000),
+        pool_quantity_normalized: asDisplayUnits('31000000'),
+      }),
     ]);
     renderForm();
     await selectFairminter();
@@ -351,7 +354,10 @@ describe('FairmintForm', () => {
 
     // 5 lots of 1,000 allowed per address, all 5 already minted.
     const cappedFairminter = () =>
-      createMockFairminter({ max_mint_per_address: asBaseUnits(5000) });
+      createMockFairminter({
+        max_mint_per_address: asBaseUnits(5000),
+        max_mint_per_address_normalized: asDisplayUnits('5000'),
+      });
 
     it('says the allowance is spent instead of doing nothing', async () => {
       const fairminter = cappedFairminter();
