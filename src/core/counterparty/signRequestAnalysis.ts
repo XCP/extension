@@ -361,12 +361,16 @@ export async function analyzeSignRequest(
       ];
       safety.blocked = true;
     } else if (
-      marketplaceReview.status === 'proved'
-      && marketplaceReview.family === 'buy_listings'
+      (marketplaceReview.status === 'proved' || marketplaceReview.status === 'caution')
+      && (
+        marketplaceReview.family === 'buy_listings'
+        || marketplaceReview.family === 'authorize_exact_offer'
+        || marketplaceReview.family === 'accept_exact_offer'
+      )
     ) {
-      // The semantic card proves the exact detach destination and every asset-bearing seller
-      // input. The generic warning is intentionally alarming because it lacks those facts; once
-      // they are independently established, keeping it trains users to ignore red warnings.
+      // These semantic cards prove the exact detach destination, attached asset, payments, and
+      // signature scope. The generic warnings are intentionally alarming because they lack those
+      // facts; once independently established, keeping them trains users to ignore red warnings.
       safety.warnings = safety.warnings.filter(
         warning => warning.code !== 'detach_all' && warning.code !== 'external_btc_output',
       );

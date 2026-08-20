@@ -71,7 +71,11 @@ export default function ApprovePsbtPage() {
             ? 'Create Listing'
             : request?.marketplaceIntent?.action === 'buy_listings'
               ? 'Buy Collectibles'
-              : 'Sign Transaction',
+              : request?.marketplaceIntent?.action === 'authorize_exact_offer'
+                ? 'Authorize Offer'
+                : request?.marketplaceIntent?.action === 'accept_exact_offer'
+                  ? 'Accept Offer'
+                  : 'Sign Transaction',
     });
   }, [request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 

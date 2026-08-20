@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type AcceptExactOfferIntentClaim,
   type AttachForListingIntentClaim,
+  type AuthorizeExactOfferIntentClaim,
   analyzeMarketplaceIntent,
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
@@ -15,6 +17,8 @@ const TXID = 'ab'.repeat(32);
 const TXID_TWO = 'cd'.repeat(32);
 const BUY_TXID = 'ef'.repeat(32);
 const ATTACH_TXID = '14'.repeat(32);
+const EXACT_TXID = '18'.repeat(32);
+const BID_TXID = '19'.repeat(32);
 
 const intent: CreateListingIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -190,6 +194,76 @@ const attachBase = () => ({
   },
 });
 
+const authorizeExactIntent: AuthorizeExactOfferIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: TXID, vout: 7 },
+  }],
+  authorizationId: 'authorization-1',
+  bidder: BUYER,
+  seller: SELLER,
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  expectedTxid: EXACT_TXID,
+  delivery: { mode: 'detached', address: BUYER },
+  marketplaceExpiresAt: 2_000_003_600,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: {
+    type: 'spend_funding_outpoint',
+    outpoint: { txid: BID_TXID, vout: 4 },
+  },
+};
+
+const acceptExactIntent: AcceptExactOfferIntentClaim = {
+  ...authorizeExactIntent,
+  action: 'accept_exact_offer',
+};
+
+const exactBase = (accepting = false) => ({
+  intent: accepting ? acceptExactIntent : authorizeExactIntent,
+  inputs: [
+    {
+      index: 0,
+      txid: BID_TXID,
+      vout: 4,
+      address: BUYER,
+      value: 250_000,
+      hasSignatures: accepting,
+    },
+    {
+      index: 1,
+      txid: TXID,
+      vout: 7,
+      address: SELLER,
+      value: 546,
+      hasSignatures: false,
+    },
+  ],
+  outputs: [
+    { index: 0, type: 'op_return', value: 0 },
+    { index: 1, type: 'p2wpkh', address: SELLER, value: 250_046 },
+  ],
+  signedInputs: [{ index: accepting ? 1 : 0, sighashType: 0x01 }],
+  signerAddresses: [accepting ? SELLER : BUYER],
+  attachedAssets: [{
+    inputIndex: 1,
+    utxo: `${TXID}:7`,
+    assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+  }],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: true,
+  transactionId: EXACT_TXID,
+  localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
+});
+
 describe('marketplace intent wire parser', () => {
   it('copies a bounded create-listing claim', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
@@ -201,6 +275,11 @@ describe('marketplace intent wire parser', () => {
 
   it('copies a bounded attach-for-listing claim with a variable XCP fee', () => {
     expect(parseMarketplaceIntent(attachIntent)).toEqual(attachIntent);
+  });
+
+  it('copies bounded exact-offer authorization and acceptance claims', () => {
+    expect(parseMarketplaceIntent(authorizeExactIntent)).toEqual(authorizeExactIntent);
+    expect(parseMarketplaceIntent(acceptExactIntent)).toEqual(acceptExactIntent);
   });
 
   it.each([
@@ -434,5 +513,118 @@ describe('buy-listings proof', () => {
     const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
     expect(review.status).toBe('retry');
     expect(review.blockers.length).toBeGreaterThan(0);
+  });
+});
+
+describe('exact-offer authorization and unilateral acceptance proof', () => {
+  it('proves the buyer authorization while clearly labeling shared-slot authority', () => {
+    const review = analyzeMarketplaceIntent(exactBase());
+
+    expect(review).toMatchObject({
+      status: 'caution',
+      family: 'authorize_exact_offer',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({ label: 'Offer price', value: '250,000 sats' });
+    expect(review.notices[0]?.message).toMatch(/without another approval/i);
+    expect(review.notices[0]?.message).toMatch(/first confirmed spend wins/i);
+  });
+
+  it('proves that the seller signature completes the exact sale without a buyer callback', () => {
+    const review = analyzeMarketplaceIntent(exactBase(true));
+
+    expect(review).toMatchObject({
+      status: 'proved',
+      family: 'accept_exact_offer',
+      blockers: [],
+    });
+    expect(review.notices[0]?.message).toMatch(/without a buyer callback/i);
+    expect(review.notices[0]?.message).toMatch(/asset remains yours/i);
+  });
+
+  it.each([
+    ['detach destination', {
+      localCounterpartyMessage: { messageType: 'detach', data: { destination: SELLER } },
+    }],
+    ['funding outpoint', {
+      inputs: exactBase().inputs.map(transactionInput => transactionInput.index === 0
+        ? { ...transactionInput, vout: 5 }
+        : transactionInput),
+    }],
+    ['asset outpoint', {
+      inputs: exactBase().inputs.map(transactionInput => transactionInput.index === 1
+        ? { ...transactionInput, txid: TXID_TWO }
+        : transactionInput),
+    }],
+    ['buyer value', {
+      inputs: exactBase().inputs.map(transactionInput => transactionInput.index === 0
+        ? { ...transactionInput, value: 249_999 }
+        : transactionInput),
+    }],
+    ['carrier value', {
+      inputs: exactBase().inputs.map(transactionInput => transactionInput.index === 1
+        ? { ...transactionInput, value: 545 }
+        : transactionInput),
+    }],
+    ['seller proceeds', {
+      outputs: [exactBase().outputs[0]!, { ...exactBase().outputs[1]!, value: 250_045 }],
+    }],
+    ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x81 }] }],
+    ['signer', { signerAddresses: [SELLER] }],
+    ['transaction id', { transactionId: TXID_TWO }],
+    ['attached buyer asset', {
+      attachedAssets: [
+        ...exactBase().attachedAssets,
+        {
+          inputIndex: 0,
+          utxo: `${BID_TXID}:4`,
+          assets: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }],
+        },
+      ],
+    }],
+    ['asset quantity', {
+      attachedAssets: [{
+        ...exactBase().attachedAssets[0]!,
+        assets: [{ asset: 'RAREPEPE', quantity: '2', quantity_normalized: '2' }],
+      }],
+    }],
+  ])('blocks an authorization mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...exactBase(), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['missing buyer authorization', {
+      inputs: exactBase(true).inputs.map(transactionInput => transactionInput.index === 0
+        ? { ...transactionInput, hasSignatures: false }
+        : transactionInput),
+    }],
+    ['already-signed seller input', {
+      inputs: exactBase(true).inputs.map(transactionInput => transactionInput.index === 1
+        ? { ...transactionInput, hasSignatures: true }
+        : transactionInput),
+    }],
+    ['buyer input requested again', { signedInputs: [{ index: 0, sighashType: 0x01 }] }],
+    ['wrong seller signer', { signerAddresses: [BUYER] }],
+  ])('blocks a seller-acceptance mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...exactBase(true), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it('requires retry rather than trusting the label when the target asset lookup fails', () => {
+    const review = analyzeMarketplaceIntent({
+      ...exactBase(),
+      attachedAssets: [{
+        inputIndex: 1,
+        utxo: `${TXID}:7`,
+        assets: [],
+        lookupFailed: true,
+      }],
+    });
+
+    expect(review.status).toBe('retry');
+    expect(review.blockers.join(' ')).toMatch(/lookup/i);
   });
 });

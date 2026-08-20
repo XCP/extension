@@ -121,6 +121,33 @@ const MARKETPLACE_BUY_INTENT = {
   delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
   marketplaceExpiresAt: 2_000_003_600,
 } as const;
+const MARKETPLACE_EXACT_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  authorizationId: 'authorization-1',
+  bidder: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  seller: 'bc1qtest123',
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  expectedTxid: 'cd'.repeat(32),
+  delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
+  marketplaceExpiresAt: 2_000_003_600,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: {
+    type: 'spend_funding_outpoint',
+    outpoint: { txid: 'ef'.repeat(32), vout: 1 },
+  },
+} as const;
 
 // Mock the imports
 vi.mock('../walletService');
@@ -974,6 +1001,33 @@ describe('ProviderService', () => {
             origin: 'https://digirare.com',
             signingPurpose: 'counterparty',
             marketplaceIntent: MARKETPLACE_BUY_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded exact-offer claim without granting it origin-based trust', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_EXACT_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_EXACT_INTENT,
           })
         );
       });

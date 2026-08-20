@@ -122,6 +122,39 @@ const CHECKOUT_INTENT = parseMarketplaceIntent({
   delivery: { mode: 'detached', address: SIGNER },
   marketplaceExpiresAt: 2_000_003_600,
 });
+const EXACT_TXID = 'de'.repeat(32);
+const EXACT_FUNDING_TXID = 'ef'.repeat(32);
+const EXACT_AUTHORIZATION_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  authorizationId: 'authorization-1',
+  bidder: SIGNER,
+  seller: VAULT,
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  expectedTxid: EXACT_TXID,
+  delivery: { mode: 'detached', address: SIGNER },
+  marketplaceExpiresAt: 2_000_003_600,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: {
+    type: 'spend_funding_outpoint',
+    outpoint: { txid: EXACT_FUNDING_TXID, vout: 1 },
+  },
+});
+const EXACT_ACCEPTANCE_INTENT = parseMarketplaceIntent({
+  ...EXACT_AUTHORIZATION_INTENT,
+  action: 'accept_exact_offer',
+});
 
 /** An input carrying assets, at the given index. */
 function withAssets(inputIndex: number): InputAttachedAssets {
@@ -360,6 +393,45 @@ describe('the marketplace intent proof', () => {
     }]),
     ...overrides,
   });
+  const exact = (
+    accepting: boolean,
+    overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {},
+  ) => run({
+    counterpartyDataHex: '434e5452505254590000006600',
+    marketplaceIntent: accepting ? EXACT_ACCEPTANCE_INTENT : EXACT_AUTHORIZATION_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: EXACT_FUNDING_TXID,
+        vout: 1,
+        address: SIGNER,
+        value: 250_000,
+        hasSignatures: accepting,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 0, type: 'op_return' },
+      { index: 1, value: 250_046, type: 'witness_v0_keyhash', address: VAULT },
+    ],
+    signerAddresses: [accepting ? VAULT : SIGNER],
+    signedInputIndices: [accepting ? 1 : 0],
+    signedInputs: [{ index: accepting ? 1 : 0, sighashType: 0x01 }],
+    transactionId: EXACT_TXID,
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    }]),
+    ...overrides,
+  });
 
   it('allows the proved listing and returns semantic terms', async () => {
     const analysis = await listing();
@@ -449,6 +521,34 @@ describe('the marketplace intent proof', () => {
 
     expect(analysis.safety.blocked).toBe(true);
     expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+  });
+
+  it.each([
+    { accepting: false, status: 'caution', family: 'authorize_exact_offer' },
+    { accepting: true, status: 'proved', family: 'accept_exact_offer' },
+  ])('allows exact-offer $family and replaces generic alarms with proved terms', async ({
+    accepting,
+    status,
+    family,
+  }) => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: SIGNER },
+      },
+    } as never);
+
+    const analysis = await exact(accepting);
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({ status, family, blockers: [] });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'detach_all',
+    }));
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'external_btc_output',
+    }));
   });
 });
 
