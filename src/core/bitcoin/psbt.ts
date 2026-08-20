@@ -195,6 +195,10 @@ export interface DecodedInput {
 export interface PsbtDetails {
   /** Unsigned transaction id computed locally from the PSBT transaction bytes. */
   transactionId: string;
+  /** Bitcoin transaction version committed to by the PSBT. */
+  transactionVersion: number;
+  /** Bitcoin transaction locktime committed to by the PSBT. */
+  lockTime: number;
   /** Raw transaction hex (if extractable) */
   rawTxHex: string;
   inputs: DecodedInput[];
@@ -429,6 +433,8 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
 
   return {
     transactionId: tx.id,
+    transactionVersion: tx.version,
+    lockTime: tx.lockTime,
     rawTxHex,
     inputs,
     outputs,

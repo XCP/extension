@@ -41,6 +41,7 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+const V3_PSBT_HEX = VALID_PSBT_HEX.replace('ff01009a02000000', 'ff01009a03000000');
 const listingPsbtHex = (): string => {
   const source = Transaction.fromPSBT(hex.decode(VALID_PSBT_HEX), {
     allowUnknownInputs: true,
@@ -1114,6 +1115,26 @@ describe('ProviderService', () => {
             marketplaceIntent: MARKETPLACE_EXACT_INTENT,
           })
         );
+      });
+
+      it('rejects an exact-offer PSBT with an incompatible transaction header', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: V3_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_EXACT_INTENT,
+          }],
+        )).rejects.toThrow(
+          'exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0',
+        );
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
 
       it('stores one atomic exact-acceptance plus CPFP signing flow', async () => {

@@ -15,7 +15,10 @@ import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/c
 import { fetchTokenBalances } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
-import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
+import {
+  marketplaceTransactionHeaderProblem,
+  parseMarketplaceIntent,
+} from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
@@ -760,6 +763,14 @@ export function createProviderService(): ProviderService {
           for (const [requestIndex, request] of parsedRequests.entries()) {
             const details = extractPsbtDetails(request.psbtHex);
             const marketplaceIntent = parsedBundle.intents[requestIndex]!;
+            const headerProblem = marketplaceTransactionHeaderProblem(
+              marketplaceIntent,
+              details.transactionVersion,
+              details.lockTime,
+            );
+            if (headerProblem) {
+              throw new Error(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
+            }
             const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
             const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
               input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
@@ -931,6 +942,14 @@ export function createProviderService(): ProviderService {
           }
 
           const psbtDetails = extractPsbtDetails(psbtHex);
+          if (marketplaceIntent) {
+            const headerProblem = marketplaceTransactionHeaderProblem(
+              marketplaceIntent,
+              psbtDetails.transactionVersion,
+              psbtDetails.lockTime,
+            );
+            if (headerProblem) throw new Error(headerProblem);
+          }
           if (isBitcoinPayment && (
             psbtDetails.unfunded
             || psbtDetails.inputs.some(input => input.value === undefined)

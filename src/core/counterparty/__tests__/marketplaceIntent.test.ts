@@ -6,6 +6,7 @@ import {
   analyzeMarketplaceIntent,
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
+  marketplaceTransactionHeaderProblem,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
@@ -325,6 +326,12 @@ describe('marketplace intent wire parser', () => {
   it('copies bounded exact-offer authorization and acceptance claims', () => {
     expect(parseMarketplaceIntent(authorizeExactIntent)).toEqual(authorizeExactIntent);
     expect(parseMarketplaceIntent(acceptExactIntent)).toEqual(acceptExactIntent);
+  });
+
+  it('pins exact-offer transactions to version 2 with locktime 0', () => {
+    expect(marketplaceTransactionHeaderProblem(authorizeExactIntent, 2, 0)).toBeNull();
+    expect(marketplaceTransactionHeaderProblem(acceptExactIntent, 3, 0)).toMatch(/version 2/);
+    expect(marketplaceTransactionHeaderProblem(acceptExactIntent, 2, 1)).toMatch(/locktime 0/);
   });
 
   it('copies a bounded plain-Bitcoin bulk fan-out claim', () => {

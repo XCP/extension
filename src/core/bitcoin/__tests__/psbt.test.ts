@@ -175,6 +175,12 @@ describe('extractPsbtDetails', () => {
     expect(extractPsbtDetails(psbtHex).transactionId).toBe(parsePSBT(psbtHex).id);
   });
 
+  it('extracts the transaction version and locktime from the PSBT', () => {
+    const details = extractPsbtDetails(createTestPsbt());
+    expect(details.transactionVersion).toBe(2);
+    expect(details.lockTime).toBe(0);
+  });
+
   it('should extract inputs from PSBT', () => {
     const psbtHex = createTestPsbt();
     const details = extractPsbtDetails(psbtHex);

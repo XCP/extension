@@ -190,6 +190,26 @@ export interface MarketplaceAnalysisInput {
   localCounterpartyMessage?: { messageType: string; data: unknown };
 }
 
+/**
+ * Enforce transaction-header invariants that belong to the marketplace protocol itself.
+ * These values are decoded from the PSBT and are never trusted from the requesting site.
+ * A future zero-fee TRUC offer protocol must declare and validate its v3 parent/child shape
+ * separately; exact_offer_v1 deliberately remains version 2 with locktime 0.
+ */
+export function marketplaceTransactionHeaderProblem(
+  intent: { action: string; protocolVersion?: string },
+  transactionVersion: number,
+  lockTime: number,
+): string | null {
+  if (
+    intent.protocolVersion === 'exact_offer_v1'
+    && (transactionVersion !== 2 || lockTime !== 0)
+  ) {
+    return 'exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0';
+  }
+  return null;
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
