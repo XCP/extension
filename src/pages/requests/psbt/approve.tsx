@@ -4,6 +4,7 @@ import {ApprovalExpired, ApprovalFooter,
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
 import { ApprovalSummaryCard } from '@/components/domain/approval/approval-summary-card';
+import { ApprovalTransactionDetails } from '@/components/domain/approval/approval-transaction-details';
 import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
 import { BitcoinPaymentCard } from '@/components/domain/approval/bitcoin-payment-card';
 import { CounterpartyDetailsCard } from '@/components/domain/approval/counterparty-details-card';
@@ -11,10 +12,8 @@ import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { describePsbtFlexibility } from '@/components/domain/approval/psbt-flexibility';
-import { VerificationDetails } from '@/components/domain/approval/verification-details';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { CheckboxInput } from '@/components/ui/inputs/checkbox-input';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
@@ -139,7 +138,6 @@ export default function ApprovePsbtPage() {
   // method the site called.
   const order = buildOrderAction(decodedInfo);
   const txAction = order ? null : getTxActionInfo(decodedInfo, decodedInfo.protocolContext);
-  const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
   // Warn on the fee *rate* as well as its absolute size: a fee under the absolute ceiling can still
   // be absurd on a small transaction, and that case previously drew no warning at all. It warns
   // rather than blocks — an expensive transaction can be legitimate here, the transaction was built
@@ -329,115 +327,17 @@ export default function ApprovePsbtPage() {
               : null}
           />
 
-          {/* Transaction Details (expandable) */}
-
           {txAction && 'protocol' in txAction && (
             <CounterpartyDetailsCard fields={txAction.protocol} />
           )}
-          <Collapsible variant="card" title="Transaction Details">
-                {/* TX Hash */}
-                {txid && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">TX Hash</h4>
-                    <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 break-all">
-                      {txid}
-                    </div>
-                  </div>
-                )}
-
-                {/* Inputs List */}
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({psbtDetails.inputs.length})</h4>
-                  <div className="space-y-2">
-                    {psbtDetails.inputs.map((input) => {
-                      const inputAssets = attachedByInput.get(input.index);
-                      return (
-                      <div key={input.index} className="bg-gray-50 p-2 rounded text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">#{input.index}</span>
-                          {input.value !== undefined && (
-                            <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(input.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
-                          )}
-                        </div>
-                        {input.address && (
-                          <div className="text-gray-500 truncate" title={input.address}>
-                            {formatAddress(input.address, true)}
-                          </div>
-                        )}
-                        <div className="text-gray-400 truncate" title={input.txid}>
-                          {input.txid.slice(0, 8)}...:{input.vout}
-                        </div>
-                        {inputAssets?.assets.map((asset) => (
-                          <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
-                            <span className="truncate" title={asset.asset_longname ?? asset.asset}>
-                              {asset.asset_longname ?? asset.asset}
-                            </span>
-                            <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
-                          </div>
-                        ))}
-                        {inputAssets?.lookupFailed && (
-                          <div className="mt-1 text-amber-600">Asset status unavailable</div>
-                        )}
-                      </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Outputs List */}
-                <div>
-                  <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({psbtDetails.outputs.length})</h4>
-                  <div className="space-y-2">
-                    {psbtDetails.outputs.map((output, idx) => (
-                      <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                        <div className="flex justify-between">
-                          <span className={`${output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}`}>
-                            {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
-                          </span>
-                          <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
-                        </div>
-                        {/* Shown in full and allowed to wrap - see the matching note in the
-                            transaction approval screen. Outputs are where a site's transaction
-                            sends money, so the whole address has to be comparable. */}
-                        {output.address && (
-                          <div className="text-gray-500 break-all font-mono" title={output.address}>
-                            {formatAddress(output.address, false)}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Recipients of a multi-destination send. Carried in the payload rather than as
-                    outputs, so the list above cannot show them and this is the only place they
-                    appear — the same reason the transaction screen lists them. */}
-                {decodedInfo.mpmaRecipients.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                      Recipients ({decodedInfo.mpmaRecipients.length})
-                    </h4>
-                    <div className="space-y-2">
-                      {decodedInfo.mpmaRecipients.map((recipient, idx) => (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <div className="flex justify-between gap-2">
-                            <span className="text-gray-600 truncate">{recipient.asset}</span>
-                            <span className="text-gray-900 font-medium flex-shrink-0">
-                              {recipient.quantity}
-                            </span>
-                          </div>
-                          <div className="text-gray-500 break-all font-mono" title={recipient.address}>
-                            {recipient.address}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <VerificationDetails verification={verification} />
-
-          </Collapsible>
+          <ApprovalTransactionDetails
+            txid={txid}
+            inputs={psbtDetails.inputs}
+            outputs={psbtDetails.outputs}
+            recipients={decodedInfo.mpmaRecipients}
+            attachedAssets={attachedAssets}
+            verification={verification}
+          />
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
           <WarningStack items={warningItems} />

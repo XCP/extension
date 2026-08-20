@@ -4,15 +4,14 @@ import {ApprovalExpired, ApprovalFooter,
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
 import { splitTrailingAddress } from '@/components/domain/approval/approval-summary-card';
+import { ApprovalTransactionDetails } from '@/components/domain/approval/approval-transaction-details';
 import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
 import { CounterpartyDetailsCard } from '@/components/domain/approval/counterparty-details-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
-import { VerificationDetails } from '@/components/domain/approval/verification-details';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
@@ -23,7 +22,7 @@ import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
-import { formatAddress, formatAmount } from '@/core/format';
+import { formatAmount } from '@/core/format';
 import { fromSatoshis, isGreaterThan } from "@/core/numeric";
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
@@ -153,7 +152,6 @@ export default function ApproveTransactionPage() {
   });
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
-  const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
   // The wallet signs inputs it controls, i.e. those belonging to the active address.
   const signerInputIndices = decodedInfo.inputs
     .map((input, index) => ({ input, index }))
@@ -244,109 +242,14 @@ export default function ApproveTransactionPage() {
           {txAction && 'protocol' in txAction && (
             <CounterpartyDetailsCard fields={txAction.protocol} />
           )}
-          {/* Transaction Details (expandable) */}
-          <Collapsible variant="card" title="Transaction Details">
-                  {/* TX Hash */}
-                  {decodedInfo.txid && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">TX Hash</h4>
-                      <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 break-all">
-                        {decodedInfo.txid}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Inputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({decodedInfo.inputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.inputs.map((input, idx) => {
-                        const inputAssets = attachedByInput.get(idx);
-                        return (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <span className="text-gray-600">#{idx}</span>
-                          {input.address && (
-                            <div className="text-gray-500 truncate" title={input.address}>
-                              {formatAddress(input.address, true)}
-                            </div>
-                          )}
-                          <div className="text-gray-400 truncate" title={input.txid}>
-                            {input.txid.slice(0, 8)}...:{input.vout}
-                          </div>
-                          {inputAssets?.assets.map((asset) => (
-                            <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
-                              <span className="truncate" title={asset.asset_longname ?? asset.asset}>
-                                {asset.asset_longname ?? asset.asset}
-                              </span>
-                              <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
-                            </div>
-                          ))}
-                          {inputAssets?.lookupFailed && (
-                            <div className="mt-1 text-amber-600">Asset status unavailable</div>
-                          )}
-                        </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Outputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({decodedInfo.outputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.outputs.map((output, idx) => (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <div className="flex justify-between">
-                            <span className={`${output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}`}>
-                              {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
-                            </span>
-                            <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
-                          </div>
-                          {/* Shown in full and allowed to wrap. This is where the user checks
-                              where a site's transaction sends money, and 6 leading + 6 trailing
-                              characters is grindable for a lookalike - the prefix of a bech32
-                              address is fixed, so only a handful of characters are actually
-                              being compared. */}
-                          {output.address && (
-                            <div className="text-gray-500 break-all font-mono" title={output.address}>
-                              {formatAddress(output.address, false)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recipients of a multi-destination send. These live in the Counterparty
-                      payload rather than in BTC outputs, so the outputs list above cannot show
-                      them and this is the only place they appear. Addresses are shown in full for
-                      the same reason as the outputs above. */}
-                  {decodedInfo.mpmaRecipients.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                        Recipients ({decodedInfo.mpmaRecipients.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {decodedInfo.mpmaRecipients.map((recipient, idx) => (
-                          <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                            <div className="flex justify-between gap-2">
-                              <span className="text-gray-600 truncate">{recipient.asset}</span>
-                              <span className="text-gray-900 font-medium flex-shrink-0">
-                                {recipient.quantity}
-                              </span>
-                            </div>
-                            <div className="text-gray-500 break-all font-mono" title={recipient.address}>
-                              {recipient.address}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <VerificationDetails verification={decodedInfo.verification} />
-
-          </Collapsible>
+          <ApprovalTransactionDetails
+            txid={decodedInfo.txid}
+            inputs={decodedInfo.inputs.map((input, index) => ({ ...input, index }))}
+            outputs={decodedInfo.outputs}
+            recipients={decodedInfo.mpmaRecipients}
+            attachedAssets={decodedInfo.attachedAssets}
+            verification={decodedInfo.verification}
+          />
 
           {/* Warnings, rendered in a fixed severity order (danger → success) */}
           <WarningStack items={warningItems} />
