@@ -170,6 +170,11 @@ describe('parsePSBT', () => {
 });
 
 describe('extractPsbtDetails', () => {
+  it('computes the unsigned transaction id locally from the PSBT', () => {
+    const psbtHex = createTestPsbt();
+    expect(extractPsbtDetails(psbtHex).transactionId).toBe(parsePSBT(psbtHex).id);
+  });
+
   it('should extract inputs from PSBT', () => {
     const psbtHex = createTestPsbt();
     const details = extractPsbtDetails(psbtHex);

@@ -39,7 +39,7 @@ import { getSignFlow, recordSignOutcome, type SignPsbtRequest } from '@/platform
  */
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
-  /** Decoded transaction ID (if available from API) */
+  /** Unsigned transaction ID computed locally from the PSBT. */
   txid?: string;
 }
 
@@ -70,7 +70,10 @@ export function useSignPsbtRequest(signerAddress?: string) {
     // OP_RETURN/txid API decodes below rather than adding a serial round-trip.
     const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
 
-    let txid: string | undefined;
+    // The unsigned transaction id is a local PSBT fact. The remote decoder may enrich scripts we
+    // could not render, but an outage or a dishonest response must not decide whether an exact
+    // marketplace transaction matches its intent.
+    let txid: string | undefined = psbtDetails.transactionId;
     let counterpartyDataHex: string | undefined;
 
     // Resolve any Counterparty payload the outputs carry — plaintext or ARC4 OP_RETURN, or
@@ -99,7 +102,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
     if (psbtDetails.rawTxHex) {
       try {
         const decoded = await decodeRawTransaction(psbtDetails.rawTxHex, true);
-        txid = decoded.txid;
+        txid ??= decoded.txid;
 
         // Fill in addresses the local decode couldn't derive — never replace one
         // it did. The signature commits to the output scripts, so an address the

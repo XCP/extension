@@ -69,6 +69,37 @@ const LISTING_INTENT = parseMarketplaceIntent({
   marketplaceExpiresAt: null,
   bitcoinExpiresAt: null,
 });
+const CHECKOUT_TXID = 'cd'.repeat(32);
+const CHECKOUT_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'buy_listings',
+  operationId: 'checkout-1',
+  protocolVersion: 'direct_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  buyer: SIGNER,
+  items: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+    listingId: 'listing-1',
+    seller: VAULT,
+    carrierValueSats: 546,
+    priceSats: 250_000,
+    sellerPaymentSats: 250_546,
+  }],
+  subtotalSats: 250_000,
+  networkFeeSats: 2_000,
+  platformFeeSats: 5_000,
+  totalSats: 257_000,
+  expectedTxid: CHECKOUT_TXID,
+  delivery: { mode: 'detached', address: SIGNER },
+  marketplaceExpiresAt: 2_000_003_600,
+});
 
 /** An input carrying assets, at the given index. */
 function withAssets(inputIndex: number): InputAttachedAssets {
@@ -229,6 +260,48 @@ describe('the marketplace intent proof', () => {
     }]),
     ...overrides,
   });
+  const checkout = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    counterpartyDataHex: '434e5452505254590000006600',
+    marketplaceIntent: CHECKOUT_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: '11'.repeat(32),
+        vout: 0,
+        address: SIGNER,
+        value: 400_000,
+        hasSignatures: false,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 0, type: 'op_return' },
+      { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: VAULT },
+      {
+        index: 2,
+        value: 5_000,
+        type: 'witness_v0_keyhash',
+        address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs',
+      },
+      { index: 3, value: 143_000, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    signedInputIndices: [0],
+    signedInputs: [{ index: 0, sighashType: 0x01 }],
+    transactionId: CHECKOUT_TXID,
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    }]),
+    ...overrides,
+  });
 
   it('allows the proved listing and returns semantic terms', async () => {
     const analysis = await listing();
@@ -252,6 +325,46 @@ describe('the marketplace intent proof', () => {
         { index: 1, value: 250_545, type: 'witness_v0_keyhash', address: SIGNER },
       ],
     });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+  });
+
+  it('allows a proved checkout and replaces the generic detach alarm with exact semantic terms', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: SIGNER },
+      },
+    } as never);
+
+    const analysis = await checkout();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'proved',
+      family: 'buy_listings',
+      blockers: [],
+    });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'detach_all',
+    }));
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'external_btc_output',
+    }));
+  });
+
+  it('hard-blocks checkout when the locally decoded detach differs from the site claim', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: VAULT },
+      },
+    } as never);
+
+    const analysis = await checkout();
 
     expect(analysis.safety.blocked).toBe(true);
     expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');

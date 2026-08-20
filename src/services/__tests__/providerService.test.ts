@@ -70,6 +70,36 @@ const MARKETPLACE_LISTING_INTENT = {
   marketplaceExpiresAt: null,
   bitcoinExpiresAt: null,
 } as const;
+const MARKETPLACE_BUY_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'buy_listings',
+  operationId: 'checkout-1',
+  protocolVersion: 'direct_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  buyer: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  items: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+    listingId: 'listing-1',
+    seller: 'bc1qtest123',
+    carrierValueSats: 546,
+    priceSats: 250_000,
+    sellerPaymentSats: 250_546,
+  }],
+  subtotalSats: 250_000,
+  networkFeeSats: 2_000,
+  platformFeeSats: 0,
+  totalSats: 252_000,
+  expectedTxid: 'cd'.repeat(32),
+  delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
+  marketplaceExpiresAt: 2_000_003_600,
+} as const;
 
 // Mock the imports
 vi.mock('../walletService');
@@ -869,6 +899,33 @@ describe('ProviderService', () => {
             origin: 'https://digirare.com',
             signingPurpose: 'counterparty',
             marketplaceIntent: MARKETPLACE_LISTING_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded buy-listings claim without granting it origin-based trust', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_BUY_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_BUY_INTENT,
           })
         );
       });

@@ -67,6 +67,8 @@ export default function ApprovePsbtPage() {
         ? 'Send Bitcoin'
         : request?.marketplaceIntent?.action === 'create_listing'
           ? 'Create Listing'
+          : request?.marketplaceIntent?.action === 'buy_listings'
+            ? 'Buy Collectibles'
           : 'Sign Transaction',
     });
   }, [request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);

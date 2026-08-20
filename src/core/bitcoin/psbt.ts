@@ -193,6 +193,8 @@ export interface DecodedInput {
  * Basic PSBT details extracted via pure Bitcoin parsing
  */
 export interface PsbtDetails {
+  /** Unsigned transaction id computed locally from the PSBT transaction bytes. */
+  transactionId: string;
   /** Raw transaction hex (if extractable) */
   rawTxHex: string;
   inputs: DecodedInput[];
@@ -426,6 +428,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
   const fee = totalInputValue > 0 && !unfunded ? totalInputValue - totalOutputValue : 0;
 
   return {
+    transactionId: tx.id,
     rawTxHex,
     inputs,
     outputs,

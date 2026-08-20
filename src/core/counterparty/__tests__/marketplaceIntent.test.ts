@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   analyzeMarketplaceIntent,
+  type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
 
 const SELLER = 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4';
+const SELLER_TWO = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
+const BUYER = 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq';
+const PLATFORM = 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs';
 const TXID = 'ab'.repeat(32);
+const TXID_TWO = 'cd'.repeat(32);
+const BUY_TXID = 'ef'.repeat(32);
 
 const intent: CreateListingIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -58,9 +64,89 @@ const base = () => ({
   hasCounterpartyPayload: false,
 });
 
+const buyIntent: BuyListingsIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'buy_listings',
+  operationId: 'checkout-1',
+  protocolVersion: 'direct_v1',
+  assets: [
+    { asset: 'RAREPEPE', quantityRaw: '1', sourceOutpoint: { txid: TXID, vout: 7 } },
+    { asset: 'SPELLS', quantityRaw: '100000000', sourceOutpoint: { txid: TXID_TWO, vout: 3 } },
+  ],
+  buyer: BUYER,
+  items: [
+    {
+      asset: 'RAREPEPE',
+      quantityRaw: '1',
+      sourceOutpoint: { txid: TXID, vout: 7 },
+      listingId: 'listing-1',
+      seller: SELLER,
+      carrierValueSats: 546,
+      priceSats: 100_000,
+      sellerPaymentSats: 100_546,
+    },
+    {
+      asset: 'SPELLS',
+      quantityRaw: '100000000',
+      sourceOutpoint: { txid: TXID_TWO, vout: 3 },
+      listingId: 'listing-2',
+      seller: SELLER_TWO,
+      carrierValueSats: 330,
+      priceSats: 200_000,
+      sellerPaymentSats: 200_330,
+    },
+  ],
+  subtotalSats: 300_000,
+  networkFeeSats: 1_000,
+  platformFeeSats: 5_000,
+  totalSats: 306_000,
+  expectedTxid: BUY_TXID,
+  delivery: { mode: 'detached', address: BUYER },
+  marketplaceExpiresAt: 2_000_003_600,
+};
+
+const buyBase = () => ({
+  intent: buyIntent,
+  inputs: [
+    { index: 0, txid: '11'.repeat(32), vout: 0, address: BUYER, value: 400_000, hasSignatures: false },
+    { index: 1, txid: TXID, vout: 7, address: SELLER, value: 546, hasSignatures: false },
+    { index: 2, txid: TXID_TWO, vout: 3, address: SELLER_TWO, value: 330, hasSignatures: false },
+  ],
+  outputs: [
+    { index: 0, type: 'op_return', value: 0 },
+    { index: 1, type: 'p2wpkh', address: SELLER, value: 100_546 },
+    { index: 2, type: 'p2wpkh', address: SELLER_TWO, value: 200_330 },
+    { index: 3, type: 'p2wpkh', address: PLATFORM, value: 5_000 },
+    { index: 4, type: 'p2wpkh', address: BUYER, value: 94_000 },
+  ],
+  signedInputs: [{ index: 0, sighashType: 0x01 }],
+  signerAddresses: [BUYER],
+  attachedAssets: [
+    {
+      inputIndex: 1,
+      utxo: `${TXID}:7`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    },
+    {
+      inputIndex: 2,
+      utxo: `${TXID_TWO}:3`,
+      assets: [{ asset: 'SPELLS', quantity: '100000000', quantity_normalized: '1' }],
+    },
+  ],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: true,
+  transactionId: BUY_TXID,
+  localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
+});
+
 describe('marketplace intent wire parser', () => {
   it('copies a bounded create-listing claim', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
+  });
+
+  it('copies a bounded multi-item buy claim', () => {
+    expect(parseMarketplaceIntent(buyIntent)).toEqual(buyIntent);
   });
 
   it.each([
@@ -119,5 +205,78 @@ describe('create-listing proof', () => {
 
     expect(review.status).toBe('retry');
     expect(review.blockers.join(' ')).toMatch(/raw attached quantity/i);
+  });
+});
+
+describe('buy-listings proof', () => {
+  it('proves the complete atomic checkout and detached delivery', () => {
+    const review = analyzeMarketplaceIntent(buyBase());
+
+    expect(review.status).toBe('proved');
+    expect(review.family).toBe('buy_listings');
+    expect(review.blockers).toEqual([]);
+    expect(review.title).toContain('2 collectibles');
+    expect(review.facts).toContainEqual({ label: 'You pay', value: '306,000 sats' });
+    expect(review.facts).toContainEqual({ label: 'Delivery', value: `Detached to ${BUYER}` });
+  });
+
+  it.each([
+    ['detach destination', {
+      localCounterpartyMessage: { messageType: 'detach', data: { destination: SELLER } },
+    }],
+    ['seller payment', {
+      outputs: buyBase().outputs.map(output => output.index === 1 ? { ...output, value: 100_545 } : output),
+    }],
+    ['seller outpoint', {
+      inputs: buyBase().inputs.map(transactionInput => transactionInput.index === 2
+        ? { ...transactionInput, txid: '12'.repeat(32) }
+        : transactionInput),
+    }],
+    ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x83 }] }],
+    ['signer', { signerAddresses: [SELLER] }],
+    ['transaction id', { transactionId: '13'.repeat(32) }],
+    ['duplicate input', {
+      inputs: buyBase().inputs.map(transactionInput => transactionInput.index === 2
+        ? { ...transactionInput, txid: TXID, vout: 7 }
+        : transactionInput),
+    }],
+    ['platform fee', {
+      outputs: buyBase().outputs.map(output => output.index === 3 ? { ...output, value: 4_999 } : output),
+    }],
+    ['unexpected output', {
+      outputs: [...buyBase().outputs, { index: 5, type: 'p2wpkh', address: BUYER, value: 1 }],
+    }],
+    ['attached buyer asset', {
+      attachedAssets: [
+        ...buyBase().attachedAssets,
+        {
+          inputIndex: 0,
+          utxo: `${'11'.repeat(32)}:0`,
+          assets: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }],
+        },
+      ],
+    }],
+  ])('blocks a mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['seller balance', {
+      attachedAssets: buyBase().attachedAssets.map(entry => entry.inputIndex === 1
+        ? { ...entry, assets: [], lookupFailed: true }
+        : entry),
+    }],
+    ['raw quantity', {
+      attachedAssets: buyBase().attachedAssets.map(entry => entry.inputIndex === 2
+        ? { ...entry, assets: [{ asset: 'SPELLS', quantity_normalized: '1' }] }
+        : entry),
+    }],
+    ['transaction id', { transactionId: undefined }],
+  ])('requires a retry when %s cannot be proved', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
+    expect(review.status).toBe('retry');
+    expect(review.blockers.length).toBeGreaterThan(0);
   });
 });

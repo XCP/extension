@@ -339,6 +339,14 @@ export async function analyzeSignRequest(
       attachedAssets,
       attachedAssetDestination,
       hasCounterpartyPayload: Boolean(counterpartyDataHex),
+      transactionId,
+      localCounterpartyMessage: verification.localUnpack?.success
+        && verification.localUnpack.messageType
+        ? {
+            messageType: verification.localUnpack.messageType,
+            data: verification.localUnpack.data,
+          }
+        : undefined,
     });
     if (marketplaceReview.status === 'blocked' || marketplaceReview.status === 'retry') {
       safety.warnings = [
@@ -352,6 +360,16 @@ export async function analyzeSignRequest(
         ...safety.warnings,
       ];
       safety.blocked = true;
+    } else if (
+      marketplaceReview.status === 'proved'
+      && marketplaceReview.family === 'buy_listings'
+    ) {
+      // The semantic card proves the exact detach destination and every asset-bearing seller
+      // input. The generic warning is intentionally alarming because it lacks those facts; once
+      // they are independently established, keeping it trains users to ignore red warnings.
+      safety.warnings = safety.warnings.filter(
+        warning => warning.code !== 'detach_all' && warning.code !== 'external_btc_output',
+      );
     }
   }
 

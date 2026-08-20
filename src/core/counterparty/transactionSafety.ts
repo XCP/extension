@@ -14,7 +14,10 @@ import { bareMultisigRecoveryPubkey } from '@/core/counterparty/unpack/multisig'
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
 /** Stable identifiers for warnings that another presentation layer may describe more precisely. */
-export type SecurityWarningCode = 'detach_all' | 'expected_btc_payment';
+export type SecurityWarningCode =
+  | 'detach_all'
+  | 'expected_btc_payment'
+  | 'external_btc_output';
 
 /** A single security warning */
 export interface SecurityWarning {
@@ -329,6 +332,7 @@ export function analyzeTransactionSafety(
                 : 'which is how this type of transaction pays. Check the address is the one you mean.'),
           }
         : {
+            code: 'external_btc_output',
             severity: 'danger',
             title: 'BTC Sent to External Address',
             message:
