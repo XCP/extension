@@ -70,6 +70,27 @@ const MARKETPLACE_LISTING_INTENT = {
   marketplaceExpiresAt: null,
   bitcoinExpiresAt: null,
 } as const;
+const MARKETPLACE_ATTACH_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'attach-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
+  carrierAddress: 'bc1qtest123',
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+} as const;
 const MARKETPLACE_BUY_INTENT = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -899,6 +920,33 @@ describe('ProviderService', () => {
             origin: 'https://digirare.com',
             signingPurpose: 'counterparty',
             marketplaceIntent: MARKETPLACE_LISTING_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded attach claim without treating its XCP fee quote as authority', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_ATTACH_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_ATTACH_INTENT,
           })
         );
       });

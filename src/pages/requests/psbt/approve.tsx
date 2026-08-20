@@ -65,11 +65,13 @@ export default function ApprovePsbtPage() {
     setHeaderProps({
       title: request?.signingPurpose === 'bitcoin-payment'
         ? 'Send Bitcoin'
-        : request?.marketplaceIntent?.action === 'create_listing'
-          ? 'Create Listing'
-          : request?.marketplaceIntent?.action === 'buy_listings'
-            ? 'Buy Collectibles'
-          : 'Sign Transaction',
+        : request?.marketplaceIntent?.action === 'attach_for_listing'
+          ? 'Attach for Listing'
+          : request?.marketplaceIntent?.action === 'create_listing'
+            ? 'Create Listing'
+            : request?.marketplaceIntent?.action === 'buy_listings'
+              ? 'Buy Collectibles'
+              : 'Sign Transaction',
     });
   }, [request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 

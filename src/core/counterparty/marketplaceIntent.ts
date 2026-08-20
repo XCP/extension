@@ -24,6 +24,28 @@ export interface MarketplaceAssetClaim {
   sourceOutpoint: MarketplaceOutpointClaim;
 }
 
+export interface AttachForListingIntentClaim {
+  standard: typeof MARKETPLACE_INTENT_STANDARD;
+  version: typeof MARKETPLACE_INTENT_VERSION;
+  action: 'attach_for_listing';
+  operationId: string;
+  protocolVersion: 'counterparty_attach_listing_v1';
+  assets: [{ asset: string; quantityRaw: string }];
+  seller: string;
+  expectedAttachedOutpoint: MarketplaceOutpointClaim;
+  carrierAddress: string;
+  carrierValueSats: number;
+  networkFeeSats: number;
+  protocolFee: {
+    asset: 'XCP';
+    quotedAmountRaw: string;
+    actualAmountRaw: string | null;
+    observedBlock: number | null;
+    variableUntilConfirmed: boolean;
+  };
+  operationExpiresAt: number;
+}
+
 export interface CreateListingIntentClaim {
   standard: typeof MARKETPLACE_INTENT_STANDARD;
   version: typeof MARKETPLACE_INTENT_VERSION;
@@ -65,11 +87,14 @@ export interface BuyListingsIntentClaim {
   marketplaceExpiresAt: number;
 }
 
-export type MarketplaceIntentClaimV1 = CreateListingIntentClaim | BuyListingsIntentClaim;
+export type MarketplaceIntentClaimV1 =
+  | AttachForListingIntentClaim
+  | CreateListingIntentClaim
+  | BuyListingsIntentClaim;
 
 export interface MarketplaceApprovalReview {
   status: 'proved' | 'caution' | 'retry' | 'blocked';
-  family: 'create_listing' | 'buy_listings';
+  family: 'attach_for_listing' | 'create_listing' | 'buy_listings';
   title: string;
   facts: Array<{ label: string; value: string }>;
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;
@@ -157,12 +182,36 @@ const asset = (value: unknown, label: string): MarketplaceAssetClaim => {
   };
 };
 
+const assetWithoutOutpoint = (
+  value: unknown,
+  label: string,
+): { asset: string; quantityRaw: string } => {
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
+  const quantityRaw = boundedString(value.quantityRaw, `${label}.quantityRaw`, 24);
+  if (!/^[1-9][0-9]*$/.test(quantityRaw)) {
+    throw new Error(`${label}.quantityRaw must be a positive base-unit integer string`);
+  }
+  return {
+    asset: boundedString(value.asset, `${label}.asset`, 250),
+    quantityRaw,
+  };
+};
+
+const nonNegativeRawInteger = (value: unknown, label: string): string => {
+  const raw = boundedString(value, label, 24);
+  if (!/^[0-9]+$/.test(raw)) {
+    throw new Error(`${label} must be a non-negative base-unit integer string`);
+  }
+  return raw;
+};
+
 /** Bound and copy the v1 wire claim. The result remains untrusted until analyzed. */
 export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1 {
   if (!isRecord(value)) throw new Error('marketplace intent must be an object');
   if (value.standard !== MARKETPLACE_INTENT_STANDARD || value.version !== 1) {
     throw new Error(`marketplace intent must use ${MARKETPLACE_INTENT_STANDARD} version 1`);
   }
+  if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
   if (value.action === 'buy_listings') return parseBuyListingsIntent(value);
   if (value.action !== 'create_listing') {
     throw new Error('marketplace intent action is not supported by this wallet version');
@@ -203,6 +252,64 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     bitcoinExpiresAt: null,
   };
 }
+
+const parseAttachForListingIntent = (
+  value: Record<string, unknown>,
+): AttachForListingIntentClaim => {
+  if (value.protocolVersion !== 'counterparty_attach_listing_v1') {
+    throw new Error('attach_for_listing intent has the wrong protocolVersion');
+  }
+  if (!Array.isArray(value.assets) || value.assets.length !== 1) {
+    throw new Error('attach_for_listing intent must claim exactly one asset');
+  }
+  if (!isRecord(value.protocolFee) || value.protocolFee.asset !== 'XCP') {
+    throw new Error('attach_for_listing protocolFee must be denominated in XCP');
+  }
+  const actualAmountRaw = value.protocolFee.actualAmountRaw === null
+    ? null
+    : nonNegativeRawInteger(value.protocolFee.actualAmountRaw, 'protocolFee.actualAmountRaw');
+  const observedBlock = safeInteger(value.protocolFee.observedBlock, 'protocolFee.observedBlock', {
+    nullable: true,
+  });
+  if (observedBlock !== null && observedBlock < 0) {
+    throw new Error('protocolFee.observedBlock must be a non-negative safe integer or null');
+  }
+  if (typeof value.protocolFee.variableUntilConfirmed !== 'boolean') {
+    throw new Error('protocolFee.variableUntilConfirmed must be boolean');
+  }
+
+  return {
+    standard: MARKETPLACE_INTENT_STANDARD,
+    version: MARKETPLACE_INTENT_VERSION,
+    action: 'attach_for_listing',
+    operationId: boundedString(value.operationId, 'operationId'),
+    protocolVersion: 'counterparty_attach_listing_v1',
+    assets: [assetWithoutOutpoint(value.assets[0], 'assets[0]')],
+    seller: boundedString(value.seller, 'seller', 128),
+    expectedAttachedOutpoint: outpoint(
+      value.expectedAttachedOutpoint,
+      'expectedAttachedOutpoint',
+    ),
+    carrierAddress: boundedString(value.carrierAddress, 'carrierAddress', 128),
+    carrierValueSats: safeInteger(value.carrierValueSats, 'carrierValueSats', {
+      positive: true,
+    })!,
+    networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
+    protocolFee: {
+      asset: 'XCP',
+      quotedAmountRaw: nonNegativeRawInteger(
+        value.protocolFee.quotedAmountRaw,
+        'protocolFee.quotedAmountRaw',
+      ),
+      actualAmountRaw,
+      observedBlock,
+      variableUntilConfirmed: value.protocolFee.variableUntilConfirmed,
+    },
+    operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
+      positive: true,
+    })!,
+  };
+};
 
 const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsIntentClaim => {
   if (value.protocolVersion !== 'direct_v1') {
@@ -291,6 +398,7 @@ function analyzeCreateListingIntent({
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
+
   const sellerInput = inputs[1];
   const sellerOutput = outputs[1];
 
@@ -408,6 +516,204 @@ const safeSum = (values: number[]): number | null => {
   const sum = values.reduce((total, value) => total + value, 0);
   return Number.isSafeInteger(sum) ? sum : null;
 };
+
+const formatXcpRaw = (raw: string): string => {
+  const amount = BigInt(raw);
+  const whole = amount / 100_000_000n;
+  const fraction = (amount % 100_000_000n).toString().padStart(8, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction} XCP` : `${whole} XCP`;
+};
+
+/** Prove the full-input ALL-signed attach that creates one listable carrier UTXO. */
+function analyzeAttachForListingIntent(
+  input: MarketplaceAnalysisInput,
+  intent: AttachForListingIntentClaim,
+): MarketplaceApprovalReview {
+  const {
+    inputs,
+    outputs,
+    signedInputs,
+    signerAddresses,
+    attachedAssets,
+    hasCounterpartyPayload,
+    transactionId,
+    localCounterpartyMessage,
+  } = input;
+  const blockers: string[] = [];
+  const retry: string[] = [];
+  const claim = intent.assets[0];
+
+  if (!intent.protocolFee.variableUntilConfirmed) {
+    blockers.push('the attach XCP fee must be labeled variable until confirmation');
+  }
+  if (intent.protocolFee.actualAmountRaw !== null) {
+    blockers.push('an unsigned attach cannot claim an actual confirmed XCP fee');
+  }
+
+  if (!transactionId) {
+    retry.push('the wallet could not establish the unsigned transaction id');
+  } else if (transactionId.toLowerCase() !== intent.expectedAttachedOutpoint.txid) {
+    blockers.push('the unsigned transaction id differs from the expected attached outpoint');
+  }
+  if (!hasCounterpartyPayload) {
+    blockers.push('the attach request carries no Counterparty payload');
+  }
+  const attachData = isRecord(localCounterpartyMessage?.data)
+    ? localCounterpartyMessage.data
+    : undefined;
+  if (localCounterpartyMessage?.messageType !== 'attach' || !attachData) {
+    blockers.push('the Counterparty payload is not a locally decoded attach');
+  } else {
+    if (attachData.asset !== claim.asset) {
+      blockers.push('the locally decoded attach asset differs from the claim');
+    }
+    if (
+      typeof attachData.quantity !== 'bigint'
+      || attachData.quantity.toString() !== claim.quantityRaw
+    ) {
+      blockers.push('the locally decoded attach raw quantity differs from the claim');
+    }
+    const destinationVout = typeof attachData.destinationVout === 'number'
+      ? attachData.destinationVout
+      : outputs.find(output => output.type !== 'op_return')?.index;
+    if (destinationVout !== intent.expectedAttachedOutpoint.vout) {
+      blockers.push('the locally decoded attach destination vout differs from the claim');
+    }
+  }
+
+  if (inputs.length < 1) blockers.push('the attach request has no funding inputs');
+  const inputOutpoints = inputs.map(transactionInput =>
+    `${transactionInput.txid.toLowerCase()}:${transactionInput.vout}`);
+  if (new Set(inputOutpoints).size !== inputOutpoints.length) {
+    blockers.push('the attach request contains a duplicate input outpoint');
+  }
+  const expectedSignedIndices = inputs.map((_, index) => index);
+  const sortedSignedInputs = [...signedInputs].sort((left, right) => left.index - right.index);
+  if (
+    sortedSignedInputs.length !== expectedSignedIndices.length
+    || sortedSignedInputs.some(
+      (signed, index) => signed.index !== expectedSignedIndices[index] || signed.sighashType !== 0x01,
+    )
+    || new Set(signedInputs.map(signed => signed.index)).size !== signedInputs.length
+  ) {
+    blockers.push('the wallet must sign every attach input exactly once with ALL (0x01)');
+  }
+  if (!sameAddress(inputs[0]?.address, intent.seller)) {
+    blockers.push('Counterparty source input 0 is not controlled by the claimed seller');
+  }
+
+  const inputAddresses = inputs.map(transactionInput => transactionInput.address);
+  if (inputAddresses.some(address => !address)) {
+    blockers.push('the wallet could not resolve every attach input owner');
+  } else {
+    const expectedSigners = new Set(
+      (inputAddresses as string[]).map(normalizeAddressForComparison),
+    );
+    const actualSigners = new Set(signerAddresses.map(normalizeAddressForComparison));
+    if (
+      expectedSigners.size !== actualSigners.size
+      || [...expectedSigners].some(address => !actualSigners.has(address))
+    ) {
+      blockers.push('the requested signer set does not exactly match the attach input owners');
+    }
+  }
+
+  const balances = new Map(attachedAssets.map(entry => [entry.inputIndex, entry]));
+  for (const transactionInput of inputs) {
+    if (transactionInput.hasSignatures !== false) {
+      blockers.push(`input ${transactionInput.index} must be proven unsigned before attach approval`);
+    }
+    if (transactionInput.value === undefined) {
+      retry.push(`attach input ${transactionInput.index} has no authenticated value`);
+    }
+    const balance = balances.get(transactionInput.index);
+    if (balance?.lookupFailed) {
+      retry.push(`the attached-asset lookup for attach input ${transactionInput.index} failed`);
+    } else if (balance && balance.assets.length > 0) {
+      blockers.push(`attach funding input ${transactionInput.index} already carries attached assets`);
+    }
+  }
+
+  const target = outputs[intent.expectedAttachedOutpoint.vout];
+  if (!target) {
+    blockers.push('the claimed attached carrier output is missing');
+  } else {
+    if (!sameAddress(target.address, intent.carrierAddress)) {
+      blockers.push('the attached carrier output is not controlled by the claimed carrier address');
+    }
+    if (target.value !== intent.carrierValueSats) {
+      blockers.push('the attached carrier output value differs from the claim');
+    }
+    if (target.type === 'op_return') {
+      blockers.push('the attached carrier destination cannot be an OP_RETURN output');
+    }
+  }
+  const dataOutputs = outputs.filter(output => output.type === 'op_return');
+  if (dataOutputs.length !== 1 || dataOutputs[0]?.value !== 0) {
+    blockers.push('the attach must contain exactly one zero-value OP_RETURN data output');
+  }
+  const signerSet = new Set(signerAddresses.map(normalizeAddressForComparison));
+  if (!signerSet.has(normalizeAddressForComparison(intent.carrierAddress))) {
+    blockers.push('the attached carrier address is not among the approved wallet signers');
+  }
+  for (const output of outputs) {
+    if (output.type === 'op_return') continue;
+    if (!output.address || !signerSet.has(normalizeAddressForComparison(output.address))) {
+      blockers.push(`attach output ${output.index} is not controlled by an approved signer`);
+    }
+  }
+
+  const allInputValues = inputs.map(transactionInput => transactionInput.value);
+  if (allInputValues.some(value => value === undefined)) {
+    retry.push('the wallet could not authenticate every input value needed to prove the miner fee');
+  } else {
+    const inputTotal = safeSum(allInputValues as number[]);
+    const outputTotal = safeSum(outputs.map(output => output.value));
+    const actualFee = inputTotal === null || outputTotal === null ? null : inputTotal - outputTotal;
+    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
+      blockers.push('the actual Bitcoin miner fee differs from the claim');
+    }
+  }
+
+  const allProblems = [...retry, ...blockers];
+  const status = blockers.length > 0
+    ? 'blocked'
+    : retry.length > 0
+      ? 'retry'
+      : 'caution';
+  return {
+    status,
+    family: 'attach_for_listing',
+    title: `Attach ${claim.quantityRaw} raw unit${claim.quantityRaw === '1' ? '' : 's'} of ${claim.asset}`,
+    facts: [
+      { label: 'Creates', value: `${intent.expectedAttachedOutpoint.txid}:${intent.expectedAttachedOutpoint.vout}` },
+      { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
+      {
+        label: 'Quoted XCP fee',
+        value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
+      },
+      {
+        label: 'Quote block',
+        value: intent.protocolFee.observedBlock === null
+          ? 'Not supplied'
+          : intent.protocolFee.observedBlock.toLocaleString(),
+      },
+      {
+        label: 'Operation expiry',
+        value: new Date(intent.operationExpiresAt * 1000).toLocaleString(),
+      },
+    ],
+    notices: allProblems.length > 0
+      ? []
+      : [{
+          severity: 'warning',
+          message:
+            'The XCP attach fee is a protocol quote, not a Bitcoin or marketplace fee. Counterparty recomputes it at the block that confirms this transaction, so the final XCP debit may change.',
+        }],
+    blockers: allProblems,
+  };
+}
 
 /** Prove an atomic buyer checkout whose complete transaction is committed by SIGHASH_ALL. */
 function analyzeBuyListingsIntent(
@@ -661,7 +967,12 @@ function analyzeBuyListingsIntent(
 }
 
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
-  return input.intent.action === 'buy_listings'
-    ? analyzeBuyListingsIntent(input, input.intent)
-    : analyzeCreateListingIntent(input, input.intent);
+  switch (input.intent.action) {
+    case 'attach_for_listing':
+      return analyzeAttachForListingIntent(input, input.intent);
+    case 'buy_listings':
+      return analyzeBuyListingsIntent(input, input.intent);
+    case 'create_listing':
+      return analyzeCreateListingIntent(input, input.intent);
+  }
 }

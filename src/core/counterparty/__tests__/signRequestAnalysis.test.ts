@@ -69,6 +69,28 @@ const LISTING_INTENT = parseMarketplaceIntent({
   marketplaceExpiresAt: null,
   bitcoinExpiresAt: null,
 });
+const ATTACH_TXID = 'bc'.repeat(32);
+const ATTACH_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'attach-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: SIGNER,
+  expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
+  carrierAddress: SIGNER,
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+});
 const CHECKOUT_TXID = 'cd'.repeat(32);
 const CHECKOUT_INTENT = parseMarketplaceIntent({
   standard: 'counterparty-marketplace',
@@ -237,6 +259,42 @@ describe('the separate plain Bitcoin payment capability', () => {
 });
 
 describe('the marketplace intent proof', () => {
+  const attach = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    counterpartyDataHex: '434e5452505254590000006552415245504550457c317c30',
+    marketplaceIntent: ATTACH_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: '18'.repeat(32),
+        vout: 0,
+        address: SIGNER,
+        value: 100_000,
+        hasSignatures: false,
+      },
+      {
+        index: 1,
+        txid: '19'.repeat(32),
+        vout: 1,
+        address: VAULT,
+        value: 100_000,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 0, type: 'op_return' },
+      { index: 2, value: 198_454, type: 'witness_v0_keyhash', address: VAULT },
+    ],
+    signerAddresses: [SIGNER, VAULT],
+    signedInputIndices: [0, 1],
+    signedInputs: [
+      { index: 0, sighashType: 0x01 },
+      { index: 1, sighashType: 0x01 },
+    ],
+    transactionId: ATTACH_TXID,
+    attachedAssets: Promise.resolve([]),
+    ...overrides,
+  });
   const listing = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
     marketplaceIntent: LISTING_INTENT,
     inputs: [
@@ -315,6 +373,29 @@ describe('the marketplace intent proof', () => {
     expect(analysis.attachedAssetDestination).toMatchObject({
       destinationCommitted: false,
       mode: 'flexible',
+    });
+  });
+
+  it('allows a proved attach while preserving the variable XCP-fee caution', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'attach',
+        data: { asset: 'RAREPEPE', quantity: 1n, destinationVout: 0 },
+      },
+    } as never);
+
+    const analysis = await attach();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'caution',
+      family: 'attach_for_listing',
+      blockers: [],
+    });
+    expect(analysis.marketplaceReview?.facts).toContainEqual({
+      label: 'Quoted XCP fee',
+      value: '0.25 XCP',
     });
   });
 

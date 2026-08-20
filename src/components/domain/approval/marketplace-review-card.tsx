@@ -53,8 +53,9 @@ export function MarketplaceReviewCard({ review }: { review: MarketplaceApprovalR
         </p>
       ))}
       <p className={`mt-3 text-xs ${palette.muted}`}>
-        The website supplied the label. The wallet independently checked the transaction bytes,
-        signer scope, attached assets, payments, fees, and delivery terms that apply to this action.
+        {review.family === 'attach_for_listing'
+          ? 'The website supplied the label and XCP estimate. The wallet independently checked the transaction bytes, signer scope, carrier output, Bitcoin fee, and attach terms.'
+          : 'The website supplied the label. The wallet independently checked the transaction bytes, signer scope, attached assets, payments, fees, and delivery terms that apply to this action.'}
       </p>
     </div>
   );

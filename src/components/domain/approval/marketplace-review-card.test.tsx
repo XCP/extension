@@ -46,4 +46,25 @@ describe('MarketplaceReviewCard', () => {
     expect(screen.getByText('306,000 sats')).toBeInTheDocument();
     expect(screen.getByText(/SIGHASH_ALL fixes every input/i)).toBeInTheDocument();
   });
+
+  it('separates a variable XCP attach quote from wallet-proved Bitcoin terms', () => {
+    render(<MarketplaceReviewCard review={{
+      status: 'caution',
+      family: 'attach_for_listing',
+      title: 'Attach 1 raw unit of RAREPEPE',
+      facts: [
+        { label: 'Network fee', value: '1,000 sats' },
+        { label: 'Quoted XCP fee', value: '0.25 XCP' },
+      ],
+      notices: [{
+        severity: 'warning',
+        message: 'Counterparty recomputes it at the block that confirms this transaction.',
+      }],
+      blockers: [],
+    }} />);
+
+    expect(screen.getByText('0.25 XCP')).toBeInTheDocument();
+    expect(screen.getByText(/website supplied the label and XCP estimate/i)).toBeInTheDocument();
+    expect(screen.getByText(/recomputes it at the block/i)).toBeInTheDocument();
+  });
 });

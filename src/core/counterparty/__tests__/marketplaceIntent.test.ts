@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  type AttachForListingIntentClaim,
   analyzeMarketplaceIntent,
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
@@ -13,6 +14,7 @@ const PLATFORM = 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs';
 const TXID = 'ab'.repeat(32);
 const TXID_TWO = 'cd'.repeat(32);
 const BUY_TXID = 'ef'.repeat(32);
+const ATTACH_TXID = '14'.repeat(32);
 
 const intent: CreateListingIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -140,6 +142,54 @@ const buyBase = () => ({
   localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
 });
 
+const attachIntent: AttachForListingIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'attach-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: SELLER,
+  expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
+  carrierAddress: SELLER,
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+};
+
+const attachBase = () => ({
+  intent: attachIntent,
+  inputs: [
+    { index: 0, txid: '15'.repeat(32), vout: 0, address: SELLER, value: 100_000, hasSignatures: false },
+    { index: 1, txid: '16'.repeat(32), vout: 1, address: SELLER_TWO, value: 100_000, hasSignatures: false },
+  ],
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: SELLER, value: 546 },
+    { index: 1, type: 'op_return', value: 0 },
+    { index: 2, type: 'p2wpkh', address: SELLER_TWO, value: 198_454 },
+  ],
+  signedInputs: [
+    { index: 0, sighashType: 0x01 },
+    { index: 1, sighashType: 0x01 },
+  ],
+  signerAddresses: [SELLER, SELLER_TWO],
+  attachedAssets: [],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: true,
+  transactionId: ATTACH_TXID,
+  localCounterpartyMessage: {
+    messageType: 'attach',
+    data: { asset: 'RAREPEPE', quantity: 1n, destinationVout: 0 },
+  },
+});
+
 describe('marketplace intent wire parser', () => {
   it('copies a bounded create-listing claim', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
@@ -149,6 +199,10 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(buyIntent)).toEqual(buyIntent);
   });
 
+  it('copies a bounded attach-for-listing claim with a variable XCP fee', () => {
+    expect(parseMarketplaceIntent(attachIntent)).toEqual(attachIntent);
+  });
+
   it.each([
     { ...intent, version: 2 },
     { ...intent, action: 'buy_listings' },
@@ -156,6 +210,108 @@ describe('marketplace intent wire parser', () => {
     { ...intent, assets: [] },
   ])('refuses an unsupported or malformed claim', (candidate) => {
     expect(() => parseMarketplaceIntent(candidate)).toThrow();
+  });
+});
+
+describe('attach-for-listing proof', () => {
+  it('proves the attach transaction while labeling the block-dependent XCP fee', () => {
+    const review = analyzeMarketplaceIntent(attachBase());
+
+    expect(review.status).toBe('caution');
+    expect(review.family).toBe('attach_for_listing');
+    expect(review.blockers).toEqual([]);
+    expect(review.facts).toContainEqual({ label: 'Quoted XCP fee', value: '0.25 XCP' });
+    expect(review.notices[0]?.message).toMatch(/recomputes it at the block/i);
+  });
+
+  it('distinguishes the Counterparty source from a paired carrier address', () => {
+    const request = attachBase();
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: { ...attachIntent, carrierAddress: SELLER_TWO },
+      outputs: request.outputs.map(output => output.index === 0
+        ? { ...output, address: SELLER_TWO }
+        : output),
+    });
+
+    expect(review.status).toBe('caution');
+    expect(review.blockers).toEqual([]);
+  });
+
+  it.each([
+    ['message asset', {
+      localCounterpartyMessage: {
+        messageType: 'attach',
+        data: { asset: 'SPELLS', quantity: 1n, destinationVout: 0 },
+      },
+    }],
+    ['message quantity', {
+      localCounterpartyMessage: {
+        messageType: 'attach',
+        data: { asset: 'RAREPEPE', quantity: 2n, destinationVout: 0 },
+      },
+    }],
+    ['destination vout', {
+      localCounterpartyMessage: {
+        messageType: 'attach',
+        data: { asset: 'RAREPEPE', quantity: 1n, destinationVout: 2 },
+      },
+    }],
+    ['source', {
+      inputs: [{ ...attachBase().inputs[0]!, address: BUYER }, attachBase().inputs[1]!],
+    }],
+    ['carrier value', {
+      outputs: attachBase().outputs.map(output => output.index === 0
+        ? { ...output, value: 545 }
+        : output),
+    }],
+    ['signature scope', {
+      signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x81 }],
+    }],
+    ['external output', {
+      outputs: attachBase().outputs.map(output => output.index === 2
+        ? { ...output, address: BUYER }
+        : output),
+    }],
+    ['attached funding asset', {
+      attachedAssets: [{
+        inputIndex: 1,
+        utxo: `${'16'.repeat(32)}:1`,
+        assets: [{ asset: 'BONUS', quantity: '1', quantity_normalized: '1' }],
+      }],
+    }],
+    ['fixed-fee label', {
+      intent: {
+        ...attachIntent,
+        protocolFee: { ...attachIntent.protocolFee, variableUntilConfirmed: false },
+      },
+    }],
+    ['premature actual XCP fee', {
+      intent: {
+        ...attachIntent,
+        protocolFee: { ...attachIntent.protocolFee, actualAmountRaw: '25000000' },
+      },
+    }],
+    ['transaction id', { transactionId: '17'.repeat(32) }],
+  ])('blocks a mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...attachBase(), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it('requires a retry when a signed funding input asset lookup fails', () => {
+    const review = analyzeMarketplaceIntent({
+      ...attachBase(),
+      attachedAssets: [{
+        inputIndex: 0,
+        utxo: `${'15'.repeat(32)}:0`,
+        assets: [],
+        lookupFailed: true,
+      }],
+    });
+
+    expect(review.status).toBe('retry');
+    expect(review.blockers.join(' ')).toMatch(/lookup/i);
   });
 });
 
