@@ -1,4 +1,11 @@
 import { useEffect, useState } from 'react';
+import {
+  ApprovalAttentionScreen,
+  ApprovalNotes,
+  highFeeAttentionItem,
+  partitionApprovalItems,
+  verificationAttentionItem,
+} from '@/components/domain/approval/approval-attention';
 import {ApprovalExpired, ApprovalFooter,
   ApprovalLoading, ApprovalNoWallet,ApprovalSiteBar, 
   ApprovalWalletHeader, 
@@ -24,6 +31,7 @@ import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis, isGreaterThan } from "@/core/numeric";
+import { useFeeRates } from '@/hooks/useFeeRates';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
@@ -65,10 +73,12 @@ export default function ApproveTransactionPage() {
     handleSuccess,
     handleCancel,
   } = useSignTransactionRequest(activeAddress?.address);
+  const { feeRates } = useFeeRates();
   usePopupLifecycle(request?.id, 'sign-transaction');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showAttention, setShowAttention] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -76,6 +86,8 @@ export default function ApproveTransactionPage() {
       title: "Sign Transaction",
     });
   }, [setHeaderProps]);
+
+  useEffect(() => setShowAttention(false), [request?.id]);
 
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress) return;
@@ -135,16 +147,23 @@ export default function ApproveTransactionPage() {
   // transaction was built elsewhere, so an expensive one can be legitimate and the wallet cannot
   // know the intent. The compose path blocks the same condition because it built the transaction
   // itself, and there an absurd fee means the response misbehaved.
-  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
+  const feeRateAbsurd = exceedsSaneFeeRate(
+    decodedInfo.fee,
+    decodedInfo.vsize,
+    feeRates?.fastestFee,
+  );
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
   const isStrictMode = settings?.strictTransactionVerification !== false;
+  const deferredVerificationFailure = verificationPassed === false
+    && !verificationRepackProved
+    && !isStrictMode;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
   // Shared with the PSBT approval screen so the two cannot drift.
-  const blockSigning = shouldBlockSigning({
+  const verificationBlocked = shouldBlockSigning({
     safetyBlocked,
     verificationPassed,
     repackProved: verificationRepackProved,
@@ -178,6 +197,30 @@ export default function ApproveTransactionPage() {
     signedInputsWithAssets,
     signedInputsUnknownStatus,
   });
+
+  // An unavailable asset lookup is a retry state. It cannot be acknowledged away because the
+  // wallet does not know whether signing moves an attached asset.
+  const blockSigning = verificationBlocked || signedInputsUnknownStatus.length > 0;
+  const { informational, attention } = partitionApprovalItems(warningItems);
+  const approvalAttentionItems: WarningItem[] = [
+    ...attention,
+    ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
+    ...(hasHighFee ? [highFeeAttentionItem(decodedInfo.fee, decodedInfo.vsize)] : []),
+  ];
+  const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
+  const attentionTitle = approvalAttentionItems.some(item => item.severity === 'danger')
+    ? 'Review transaction risk'
+    : 'Review before signing';
+  const confirmLabel = decodedInfo.counterpartyMessage?.messageType === 'destroy'
+    ? 'Destroy assets'
+    : 'Confirm and sign';
+  const handleApprovalAction = () => {
+    if (requiresAttention) {
+      setShowAttention(true);
+      return;
+    }
+    void handleSign();
+  };
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -223,7 +266,12 @@ export default function ApproveTransactionPage() {
                 })()}
               </div>
             ) : null}
-            <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
+            <MoneyMovementView
+              movement={movement}
+              hasHighFee={hasHighFee}
+              deferCautions={requiresAttention}
+              showHeadline={!txAction}
+            />
             {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
               isGreaterThan(decodedInfo.counterpartyMessage.messageData.fee as string | number, 0) && (
               <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
@@ -251,12 +299,16 @@ export default function ApproveTransactionPage() {
             verification={decodedInfo.verification}
           />
 
-          {/* Warnings, rendered in a fixed severity order (danger → success) */}
-          <WarningStack items={warningItems} />
+          <ApprovalNotes items={informational} />
+
+          {/* A blocked request explains itself immediately. Signable cautions wait behind Review. */}
+          {blockSigning && <WarningStack items={attention} />}
 
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
-            passed={verificationRepackProved ? true : verificationPassed}
+            passed={deferredVerificationFailure
+              ? undefined
+              : verificationRepackProved ? true : verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
@@ -266,11 +318,25 @@ export default function ApproveTransactionPage() {
 
       <ApprovalFooter
         onCancel={handleReject}
-        onSign={handleSign}
+        onSign={handleApprovalAction}
         busy={isSigning}
         blocked={blockSigning}
         isHardware={activeWallet.type === 'hardware'}
+        signLabel={requiresAttention ? 'Review' : 'Sign'}
       />
+
+      {showAttention && requiresAttention && (
+        <ApprovalAttentionScreen
+          title={attentionTitle}
+          description="Confirm the exceptional transaction behavior below before the wallet adds your signature."
+          items={approvalAttentionItems}
+          confirmLabel={confirmLabel}
+          busy={isSigning}
+          isHardware={activeWallet.type === 'hardware'}
+          onBack={() => setShowAttention(false)}
+          onConfirm={() => void handleSign()}
+        />
+      )}
     </div>
   );
 }

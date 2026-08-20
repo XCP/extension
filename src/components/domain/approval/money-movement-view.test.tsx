@@ -74,4 +74,19 @@ describe('MoneyMovementView', () => {
     render(<MoneyMovementView movement={movement({ net: 10000 })} flexibility="outputs-flexible" />);
     expect(screen.getByText(/inputs or outputs may be added or changed/i)).toBeInTheDocument();
   });
+
+  it('keeps quantified cautions neutral when a focused review step presents the warning', () => {
+    render(
+      <MoneyMovementView
+        movement={movement({ net: -50_000, atRisk: 50_000, fee: 1_000 })}
+        flexibility="outputs-flexible"
+        hasHighFee
+        deferCautions
+      />
+    );
+
+    expect(screen.getByText('Not guaranteed back')).toHaveClass('text-gray-500');
+    expect(screen.queryByText(/unusually high/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/may be added or changed/i)).not.toBeInTheDocument();
+  });
 });

@@ -12,6 +12,8 @@ interface MoneyMovementViewProps {
   flexibility?: PsbtFlexibilityKind;
   /** Highlight the network fee as unusually high. */
   hasHighFee?: boolean;
+  /** A focused Review step presents cautions after the first click; keep this summary neutral. */
+  deferCautions?: boolean;
   /** The outputs exceed the inputs, so the fee depends on inputs someone else has yet to add. */
   unfunded?: boolean;
   /**
@@ -29,7 +31,14 @@ interface MoneyMovementViewProps {
  * would just re-create habituation); genuine anomalies escalate via the warning
  * stack, not here.
  */
-export function MoneyMovementView({ movement, flexibility, hasHighFee, unfunded, showHeadline = true }: MoneyMovementViewProps) {
+export function MoneyMovementView({
+  movement,
+  flexibility,
+  hasHighFee,
+  deferCautions = false,
+  unfunded,
+  showHeadline = true,
+}: MoneyMovementViewProps) {
   const { net, external, backToYou, atRisk, fee, incomplete } = movement;
   const sending = net < 0;
 
@@ -71,13 +80,15 @@ export function MoneyMovementView({ movement, flexibility, hasHighFee, unfunded,
         ))}
         {atRisk > 0 && (
           <div className="flex items-center justify-between gap-2">
-            <span className="text-danger-600">May not return to you</span>
-            <span className="text-danger-600 font-medium flex-shrink-0">{btc(atRisk)} BTC</span>
+            <span className={deferCautions ? 'text-gray-500' : 'text-danger-600'}>Not guaranteed back</span>
+            <span className={`${deferCautions ? 'text-gray-900' : 'text-danger-600'} font-medium flex-shrink-0`}>
+              {btc(atRisk)} BTC
+            </span>
           </div>
         )}
         <div className="flex items-center justify-between gap-2">
           <span className="text-gray-500">Network fee</span>
-          <span className={`font-medium flex-shrink-0 ${hasHighFee ? 'text-warning-600' : 'text-gray-900'}`}>
+          <span className={`font-medium flex-shrink-0 ${hasHighFee && !deferCautions ? 'text-warning-600' : 'text-gray-900'}`}>
             {unfunded ? 'Set by the other party' : `${btc(fee)} BTC`}
           </span>
         </div>
@@ -89,16 +100,18 @@ export function MoneyMovementView({ movement, flexibility, hasHighFee, unfunded,
             <span className="text-gray-400 font-medium flex-shrink-0">{btc(backToYou)} BTC</span>
           </div>
         )}
-        {hasHighFee && (
+        {hasHighFee && !deferCautions && (
           <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
         )}
       </div>
-      {(incomplete || flexibility || atRisk > 0) && (
+      {(incomplete
+        || flexibility === 'inputs-only'
+        || (!deferCautions && (flexibility === 'outputs-flexible' || atRisk > 0))) && (
         <div className="mt-2 space-y-1 text-center text-xs">
           {incomplete && (
             <p className="text-warning-600">Some amounts couldn't be determined — review the details.</p>
           )}
-          {atRisk > 0 && (
+          {atRisk > 0 && !deferCautions && (
             <p className="text-danger-600">
               This can be sent elsewhere after you sign, so the total above counts it as leaving.
             </p>
@@ -108,7 +121,7 @@ export function MoneyMovementView({ movement, flexibility, hasHighFee, unfunded,
               Other inputs may be added; every current output is fixed by your signature.
             </p>
           )}
-          {flexibility === 'outputs-flexible' && atRisk === 0 && (
+          {flexibility === 'outputs-flexible' && atRisk === 0 && !deferCautions && (
             <p className="text-warning-600">
               Other inputs or outputs may be added or changed after you sign.
             </p>

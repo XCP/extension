@@ -42,6 +42,10 @@ export const MAX_SANE_FEE_RATE = 5000;
  * reasons the wallet cannot see (see `transaction/approve.tsx`).
  */
 export const HIGH_FEE_RATE_WARNING = 500;
+/** Never warn below this rate merely because the current mempool is unusually quiet. */
+export const HIGH_FEE_RATE_WARNING_FLOOR = 100;
+/** A site-selected rate this many times the fastest current quote deserves a second look. */
+export const NETWORK_FEE_RATE_WARNING_MULTIPLIER = 10;
 /** When the user chose a fee rate, reject fees beyond this multiple of it. */
 export const USER_FEE_RATE_TOLERANCE = 10;
 /** Absolute floor so tiny transactions aren't rejected by rate rounding. */
@@ -59,10 +63,22 @@ const MIN_BOUND_SATS = 10_000;
  * @param fee - Miner fee in sats, or null when it could not be established.
  * @param vsize - Transaction virtual size in vbytes.
  */
-export function exceedsSaneFeeRate(fee: number | null | undefined, vsize: number | undefined): boolean {
+export function exceedsSaneFeeRate(
+  fee: number | null | undefined,
+  vsize: number | undefined,
+  fastestFeeRate?: number | null,
+): boolean {
   if (fee == null || !Number.isFinite(fee) || fee <= 0) return false;
   if (!vsize || !Number.isFinite(vsize) || vsize <= 0) return false;
-  return fee / vsize > HIGH_FEE_RATE_WARNING;
+  const relativeThreshold = fastestFeeRate != null
+    && Number.isFinite(fastestFeeRate)
+    && fastestFeeRate > 0
+    ? Math.max(
+        HIGH_FEE_RATE_WARNING_FLOOR,
+        fastestFeeRate * NETWORK_FEE_RATE_WARNING_MULTIPLIER,
+      )
+    : HIGH_FEE_RATE_WARNING;
+  return fee / vsize > relativeThreshold;
 }
 
 export interface FeeCheckInput {

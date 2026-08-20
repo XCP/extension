@@ -36,6 +36,8 @@ interface ApprovalSummaryCardProps {
   /** The exact flexibility left by the requested ANYONECANPAY signatures. */
   flexibility?: PsbtFlexibilityKind;
   hasHighFee: boolean;
+  /** The footer opens a focused Review step for caution details. */
+  deferCautions?: boolean;
   /** Outputs exceed inputs; the fee depends on inputs the counterparty has yet to add. */
   unfunded?: boolean;
   /** Counterparty protocol (XCP) fee in sats, if any. */
@@ -55,6 +57,7 @@ export function ApprovalSummaryCard({
   movement,
   flexibility,
   hasHighFee,
+  deferCautions,
   unfunded,
   protocolFeeXcp,
 }: ApprovalSummaryCardProps) {
@@ -78,7 +81,14 @@ export function ApprovalSummaryCard({
           })()}
         </div>
       )}
-      <MoneyMovementView movement={movement} flexibility={flexibility} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction && !order} />
+      <MoneyMovementView
+        movement={movement}
+        flexibility={flexibility}
+        hasHighFee={hasHighFee}
+        deferCautions={deferCautions}
+        unfunded={unfunded}
+        showHeadline={!txAction && !order}
+      />
       {protocolFeeXcp != null && protocolFeeXcp > 0 && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ApprovalAttentionScreen } from '@/components/domain/approval/approval-attention';
 import {
   ApprovalExpired,
   ApprovalFooter,
@@ -10,6 +11,7 @@ import {
 import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-review-card';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
+import type { WarningItem } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
@@ -30,6 +32,7 @@ export default function ApprovePsbtsPage() {
   usePopupLifecycle(request?.id, 'sign-psbts');
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState('');
+  const [showAttention, setShowAttention] = useState(false);
 
   useEffect(() => {
     const title = request?.bundleKind === 'acceptance-cpfp'
@@ -43,6 +46,8 @@ export default function ApprovePsbtsPage() {
             : 'Review Transaction Batch';
     setHeaderProps({ title });
   }, [request?.bundleKind, setHeaderProps]);
+
+  useEffect(() => setShowAttention(false), [request?.id]);
 
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress || !activeWallet) return;
@@ -114,6 +119,26 @@ export default function ApprovePsbtsPage() {
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   const blocked = decodedInfo.review.status === 'blocked' || decodedInfo.review.status === 'retry';
+  // Bulk attach quotes are inherently block-dependent and already visible in the summary. The
+  // durable listing signatures are the exceptional phase that deserves a second decision.
+  const requiresAttention = !blocked
+    && decodedInfo.review.status === 'caution'
+    && request.bundleKind === 'bulk-listing';
+  const attentionItems: WarningItem[] = requiresAttention
+    ? decodedInfo.review.notices.map((notice, index) => ({
+        key: `marketplace-${index}`,
+        severity: notice.severity,
+        title: 'Each listing remains valid after signing',
+        description: notice.message,
+      }))
+    : [];
+  const handleApprovalAction = () => {
+    if (requiresAttention) {
+      setShowAttention(true);
+      return;
+    }
+    void handleSign();
+  };
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4">
@@ -125,10 +150,6 @@ export default function ApprovePsbtsPage() {
           {blocked && decodedInfo.review.blockers.length > 0 && (
             <ErrorAlert message={decodedInfo.review.blockers.join('; ')} />
           )}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-            Every transaction in this phase was reviewed before signing begins. The wallet returns
-            no signatures unless every signing operation finishes successfully.
-          </div>
           <Collapsible variant="card" title="Linked Transaction Details">
             <div className="space-y-3 text-xs">
               {decodedInfo.items.map((item, index) => (
@@ -143,17 +164,33 @@ export default function ApprovePsbtsPage() {
                   </p>
                 </div>
               ))}
+              <p className="border-t border-gray-100 pt-3 text-gray-500">
+                The wallet returns this batch only after every requested signature succeeds.
+              </p>
             </div>
           </Collapsible>
         </div>
       </div>
       <ApprovalFooter
         onCancel={handleReject}
-        onSign={handleSign}
+        onSign={handleApprovalAction}
         busy={isSigning}
         blocked={blocked}
         isHardware={activeWallet.type === 'hardware'}
+        signLabel={requiresAttention ? 'Review' : 'Sign'}
       />
+      {showAttention && requiresAttention && (
+        <ApprovalAttentionScreen
+          title="Review listing authorizations"
+          description="These signatures can be completed later without another seller approval."
+          items={attentionItems}
+          confirmLabel={`Authorize ${request.items.length} listings`}
+          busy={isSigning}
+          isHardware={activeWallet.type === 'hardware'}
+          onBack={() => setShowAttention(false)}
+          onConfirm={() => void handleSign()}
+        />
+      )}
     </div>
   );
 }

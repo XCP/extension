@@ -105,12 +105,15 @@ export function ApprovalFooter({
   busy,
   blocked,
   isHardware,
+  signLabel = 'Sign',
 }: {
   onCancel: () => void;
   onSign: () => void;
   busy: boolean;
   blocked: boolean;
   isHardware: boolean;
+  /** Use "Review" when signing first opens a focused consequence screen. */
+  signLabel?: string;
 }) {
   return (
     <div className="bg-white border-t border-gray-200 p-4">
@@ -119,7 +122,7 @@ export function ApprovalFooter({
           Cancel
         </Button>
         <Button color="blue" onClick={onSign} disabled={busy || blocked} fullWidth>
-          {busy ? (isHardware ? 'Confirm on device…' : 'Signing…') : blocked ? 'Blocked' : 'Sign'}
+          {busy ? (isHardware ? 'Confirm on device…' : 'Signing…') : blocked ? 'Blocked' : signLabel}
         </Button>
       </div>
     </div>

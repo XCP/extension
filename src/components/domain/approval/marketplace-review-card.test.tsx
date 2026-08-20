@@ -20,10 +20,10 @@ describe('MarketplaceReviewCard', () => {
       blockers: [],
     }} />);
 
-    expect(screen.getByText('Terms verified — review authorization')).toBeInTheDocument();
+    expect(screen.getByText('List 1 RAREPEPE for 0.00250000 BTC')).toBeInTheDocument();
+    expect(screen.queryByText('Terms verified — review authorization')).not.toBeInTheDocument();
     expect(screen.getByText('250,546 sats')).toBeInTheDocument();
     expect(screen.getByText(/buyer may add funding inputs/i)).toBeInTheDocument();
-    expect(screen.getByText(/wallet independently checked the transaction bytes/i)).toBeInTheDocument();
   });
 
   it('shows an exact checkout as proved rather than as a scary generic detach', () => {
@@ -42,9 +42,9 @@ describe('MarketplaceReviewCard', () => {
       blockers: [],
     }} />);
 
-    expect(screen.getByText('Marketplace terms verified')).toBeInTheDocument();
+    expect(screen.queryByText('Marketplace terms verified')).not.toBeInTheDocument();
     expect(screen.getByText('306,000 sats')).toBeInTheDocument();
-    expect(screen.getByText(/SIGHASH_ALL fixes every input/i)).toBeInTheDocument();
+    expect(screen.queryByText(/SIGHASH_ALL fixes every input/i)).not.toBeInTheDocument();
   });
 
   it('separates a variable XCP attach quote from wallet-proved Bitcoin terms', () => {
@@ -64,7 +64,7 @@ describe('MarketplaceReviewCard', () => {
     }} />);
 
     expect(screen.getByText('0.25 XCP')).toBeInTheDocument();
-    expect(screen.getByText(/website supplied the label and XCP estimate/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Terms verified/i)).not.toBeInTheDocument();
     expect(screen.getByText(/recomputes it at the block/i)).toBeInTheDocument();
   });
 
