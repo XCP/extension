@@ -59,6 +59,8 @@ export function ComposerForm({
 
   // Determine if form is submitting
   const isSubmitting = isLocalSubmitting || state.isComposing;
+  const feeRateMissing = showFeeRate &&
+    (feeRate === null || !Number.isFinite(feeRate) || feeRate < 0.1);
   
   return (
     <div className={className}>
@@ -79,7 +81,7 @@ export function ComposerForm({
             e.preventDefault();
             e.stopPropagation();
 
-            if (isLocalSubmitting) return;
+            if (isLocalSubmitting || feeRateMissing) return;
 
             setIsLocalSubmitting(true);
             try {
@@ -107,7 +109,7 @@ export function ComposerForm({
             type="submit"
             color="blue"
             fullWidth
-            disabled={isSubmitting || submitDisabled}
+            disabled={isSubmitting || submitDisabled || feeRateMissing}
           >
             {isSubmitting ? "Submitting…" : submitText}
           </Button>

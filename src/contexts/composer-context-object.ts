@@ -25,7 +25,7 @@ export interface ComposerState<T> {
   isComposing: boolean;
   isSigning: boolean;
   composedAt: number | null;
-  /** sat/vB; null means use the network default. */
+  /** sat/vB; null means a valid fee rate has not been selected yet. */
   feeRate: number | null;
 }
 
@@ -42,7 +42,7 @@ export interface ComposerContextType<T> {
   showHelpText: boolean;
   toggleHelpText: () => void;
   feeRate: number | null;
-  setFeeRate: (rate: number) => void;
+  setFeeRate: (rate: number | null) => void;
 
   activeAddress: ReturnType<typeof useWallet>["activeAddress"];
   activeWallet: ReturnType<typeof useWallet>["activeWallet"];

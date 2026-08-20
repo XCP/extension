@@ -44,9 +44,23 @@ describe('FeeRateInput', () => {
         uniquePresetOptions: []
       });
 
-      render(<FeeRateInput />);
+      const { container } = render(<FeeRateInput />);
       
       expect(screen.getByText('Loading fee rates…')).toBeInTheDocument();
+      expect(container.querySelector('input[name="sat_per_vbyte"]')).not.toBeInTheDocument();
+    });
+
+    it('should not preserve an invalid initial fee while loading', () => {
+      mockUseFeeRates.mockReturnValue({
+        feeRates: null,
+        isLoading: true,
+        error: null,
+        uniquePresetOptions: []
+      });
+
+      const { container } = render(<FeeRateInput initialValue={0.01} />);
+
+      expect(container.querySelector('input[name="sat_per_vbyte"]')).not.toBeInTheDocument();
     });
   });
 
@@ -64,6 +78,7 @@ describe('FeeRateInput', () => {
       const input = screen.getByRole('textbox');
       expect(input).toBeInTheDocument();
       expect(input).toHaveAttribute('name', 'sat_per_vbyte');
+      expect(input).toHaveValue('');
     });
   });
 
@@ -375,7 +390,7 @@ describe('FeeRateInput', () => {
       expect(onFeeRateChange).toHaveBeenCalledWith(5);
     });
 
-    it('should not call onFeeRateChange for invalid input', async () => {
+    it('should clear the selected fee rate for empty input', async () => {
       const onFeeRateChange = vi.fn();
 
       render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
@@ -386,8 +401,22 @@ describe('FeeRateInput', () => {
       // User types empty string
       fireEvent.change(input, { target: { value: '' } });
 
-      // Callback should NOT be called for empty input
-      expect(onFeeRateChange).not.toHaveBeenCalled();
+      // An empty custom value must make the parent fail closed.
+      expect(onFeeRateChange).toHaveBeenCalledWith(null);
+    });
+
+    it('should not replace an invalid custom fee with 0.1 on blur', () => {
+      const onFeeRateChange = vi.fn();
+      render(<FeeRateInput onFeeRateChange={onFeeRateChange} initialValue={15} />);
+
+      const input = screen.getByRole('textbox');
+      onFeeRateChange.mockClear();
+      fireEvent.change(input, { target: { value: '0.01' } });
+      fireEvent.blur(input);
+
+      expect(input).toHaveValue('0.01');
+      expect(onFeeRateChange).toHaveBeenLastCalledWith(null);
+      expect(screen.getByRole('alert')).toBeInTheDocument();
     });
   });
 });
