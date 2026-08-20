@@ -82,6 +82,7 @@ import PoolPositionPage from '@/pages/pools/[lpAsset]';
 import ApproveConnectionPage from '@/pages/requests/connect/approve';
 import ApproveMessagePage from '@/pages/requests/message/approve';
 import ApprovePsbtPage from '@/pages/requests/psbt/approve';
+import ApprovePsbtsPage from '@/pages/requests/psbts/approve';
 import ApproveTransactionPage from '@/pages/requests/transaction/approve';
 import SettingsPage from '@/pages/settings';
 // Settings
@@ -153,6 +154,7 @@ export default function App() {
           <Route path="/requests/connect/approve" element={<ApproveConnectionPage />} />
           <Route path="/requests/transaction/approve" element={<ApproveTransactionPage />} />
           <Route path="/requests/psbt/approve" element={<ApprovePsbtPage />} />
+          <Route path="/requests/psbts/approve" element={<ApprovePsbtsPage />} />
           <Route path="/requests/message/approve" element={<ApproveMessagePage />} />
         </Route>
 

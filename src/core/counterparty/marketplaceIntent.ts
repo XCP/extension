@@ -131,7 +131,8 @@ export interface MarketplaceApprovalReview {
     | 'create_listing'
     | 'buy_listings'
     | 'authorize_exact_offer'
-    | 'accept_exact_offer';
+    | 'accept_exact_offer'
+    | 'accept_exact_offer_with_cpfp';
   title: string;
   facts: Array<{ label: string; value: string }>;
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;

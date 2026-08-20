@@ -11,13 +11,14 @@
  */
 
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
 
 export type SignFlowStatus = 'pending' | 'completed' | 'cancelled';
 
 /** Which screen the flow belongs to, and the prefix of the events it emits. */
-export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
+export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-transaction';
 
 /**
  * A signing request in flight.
@@ -51,6 +52,18 @@ export type SignPsbtRequest = SignFlowEntry<{
    * (`core/counterparty/providerInscriptions.ts`).
    */
   inscription?: { revealScript: string; tapInternalKey: string };
+}>;
+
+export interface SignPsbtBundleItem {
+  psbtHex: string;
+  signInputs: Record<string, number[]>;
+  sighashTypes: number[];
+  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+}
+
+/** Atomic provider bundle: every item is proved before any signer is invoked. */
+export type SignPsbtsRequest = SignFlowEntry<{
+  items: [SignPsbtBundleItem, SignPsbtBundleItem];
 }>;
 
 /**

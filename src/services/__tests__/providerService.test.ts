@@ -148,6 +148,25 @@ const MARKETPLACE_EXACT_INTENT = {
     outpoint: { txid: 'ef'.repeat(32), vout: 1 },
   },
 } as const;
+const MARKETPLACE_CPFP_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'bump_acceptance_fee',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: MARKETPLACE_EXACT_INTENT.assets,
+  authorizationId: 'authorization-1',
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  parentExpectedTxid: MARKETPLACE_EXACT_INTENT.expectedTxid,
+  childExpectedTxid: 'ee'.repeat(32),
+  parentSellerProceedsVout: 1,
+  parentSellerProceedsSats: 250_046,
+  parentNetworkFeeSats: 500,
+  childNetworkFeeSats: 1_000,
+  packageFeeSats: 1_500,
+  packageFeeRate: 5,
+  finalSellerProceedsSats: 249_046,
+} as const;
 
 // Mock the imports
 vi.mock('../walletService');
@@ -580,6 +599,39 @@ describe('ProviderService', () => {
             'https://notconnected.com',
             'xcp_signPsbt',
             [{ hex: VALID_PSBT_HEX }]
+          )
+        ).rejects.toThrow('Unauthorized - not connected to wallet');
+      });
+
+      it('should throw error for an unauthorized atomic PSBT bundle', async () => {
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
+        const seller = MARKETPLACE_CPFP_INTENT.seller;
+
+        await expect(
+          providerService.handleRequest(
+            'https://notconnected.com',
+            'xcp_signPsbts',
+            [{
+              requests: [
+                {
+                  hex: VALID_PSBT_HEX,
+                  signInputs: { [seller]: [0] },
+                  sighashTypes: [0x01],
+                  intent: {
+                    ...MARKETPLACE_EXACT_INTENT,
+                    action: 'accept_exact_offer',
+                    seller,
+                  },
+                },
+                {
+                  hex: VALID_PSBT_HEX,
+                  signInputs: { [seller]: [0] },
+                  sighashTypes: [0x01],
+                  intent: MARKETPLACE_CPFP_INTENT,
+                },
+              ],
+            }],
           )
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
@@ -1028,6 +1080,52 @@ describe('ProviderService', () => {
             origin: 'https://digirare.com',
             signingPurpose: 'counterparty',
             marketplaceIntent: MARKETPLACE_EXACT_INTENT,
+          })
+        );
+      });
+
+      it('stores one atomic exact-acceptance plus CPFP signing flow', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+        const acceptIntent = {
+          ...MARKETPLACE_EXACT_INTENT,
+          action: 'accept_exact_offer' as const,
+          seller,
+        };
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: acceptIntent,
+              },
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: MARKETPLACE_CPFP_INTENT,
+              },
+            ],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            items: [
+              expect.objectContaining({ marketplaceIntent: acceptIntent }),
+              expect.objectContaining({ marketplaceIntent: MARKETPLACE_CPFP_INTENT }),
+            ],
           })
         );
       });

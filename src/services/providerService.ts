@@ -13,6 +13,7 @@ import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
@@ -659,6 +660,174 @@ export function createProviderService(): ProviderService {
                 signTxRequestId: requestId,
               }).catch(() => { /* Popup might not be open yet */ });
               await openExtensionPopup(`#/requests/transaction/approve?requestId=${requestId}`);
+            },
+          });
+        }
+
+        case 'xcp_signPsbts': {
+          const bundleParams = params?.[0];
+          if (!bundleParams || typeof bundleParams !== 'object' || Array.isArray(bundleParams)) {
+            throw new Error('PSBT bundle parameters must be an object with requests');
+          }
+          const requests = (bundleParams as { requests?: unknown }).requests;
+          if (!Array.isArray(requests) || requests.length !== 2) {
+            throw new Error('This wallet version supports exactly 2 linked PSBT requests');
+          }
+          const parsedRequests = requests.map((request, requestIndex) => {
+            if (!request || typeof request !== 'object' || Array.isArray(request)) {
+              throw new Error(`PSBT bundle request ${requestIndex} must be an object`);
+            }
+            const candidate = request as {
+              hex?: unknown;
+              signInputs?: unknown;
+              sighashTypes?: unknown;
+              intent?: unknown;
+            };
+            if (typeof candidate.hex !== 'string' || candidate.hex.length === 0) {
+              throw new Error(`PSBT bundle request ${requestIndex} requires hex`);
+            }
+            if (
+              !candidate.signInputs
+              || typeof candidate.signInputs !== 'object'
+              || Array.isArray(candidate.signInputs)
+              || Object.keys(candidate.signInputs).length === 0
+            ) {
+              throw new Error(`PSBT bundle request ${requestIndex} requires explicit signInputs`);
+            }
+            if (
+              !Array.isArray(candidate.sighashTypes)
+              || candidate.sighashTypes.some(value => value !== 0x01)
+            ) {
+              throw new Error(`PSBT bundle request ${requestIndex} supports only SIGHASH_ALL`);
+            }
+            return {
+              psbtHex: candidate.hex,
+              signInputs: candidate.signInputs as Record<string, number[]>,
+              sighashTypes: candidate.sighashTypes as number[],
+              intent: candidate.intent,
+            };
+          });
+          const bundleIntents = parseAcceptanceCpfpBundleIntents(
+            parsedRequests[0]!.intent,
+            parsedRequests[1]!.intent,
+          );
+
+          if (!await connectionService.hasPermission(origin)) {
+            throw new ProviderError(
+              PROVIDER_ERROR_CODES.UNAUTHORIZED,
+              'Unauthorized - not connected to wallet',
+            );
+          }
+          const activeAddress = await walletService.getActiveAddress();
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) throw new Error('No active address');
+
+          const supportsPairedAddresses = Boolean(
+            getPairedAddressFormats(activeWallet.addressFormat),
+          );
+          const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
+            ? await walletService.getPairedAddresses()
+            : null;
+          const allowedAddresses = [
+            activeAddress.address,
+            ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
+          ];
+          const pairedAddressSet = new Set(
+            paired
+              ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
+              : [],
+          );
+          const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+          let usesPairedAddress = false;
+
+          for (const [requestIndex, request] of parsedRequests.entries()) {
+            const details = extractPsbtDetails(request.psbtHex);
+            if (details.unfunded || details.inputs.some(input => input.value === undefined)) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
+              );
+            }
+            if (request.sighashTypes.length > details.inputs.length) {
+              throw new Error(`PSBT bundle request ${requestIndex} has too many sighash entries`);
+            }
+            const validation = validateSignInputs(
+              request.signInputs,
+              allowedAddresses,
+              details.inputs.length,
+              details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address),
+            );
+            if (!validation.valid) {
+              throw new Error(`PSBT bundle request ${requestIndex}: ${validation.error}`);
+            }
+            const requestedInputIndices = Object.values(request.signInputs).flat();
+            const missing = requestedInputIndices.filter(
+              inputIndex => request.sighashTypes[inputIndex] === undefined,
+            );
+            if (missing.length > 0) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
+              );
+            }
+            usesPairedAddress ||= Object.keys(request.signInputs).some(address => {
+              const normalizedAddress = normalizeAddressForComparison(address);
+              return normalizedAddress !== normalizedActiveAddress
+                && pairedAddressSet.has(normalizedAddress);
+            });
+          }
+          if (
+            usesPairedAddress
+            && !await connectionService.hasPairedAddressPermission(
+              origin,
+              activeWallet.id,
+              activeAddress.address,
+            )
+          ) {
+            throw new ProviderError(
+              PROVIDER_ERROR_CODES.UNAUTHORIZED,
+              'Paired Legacy/SegWit address access has not been granted',
+            );
+          }
+
+          return runSignFlow({
+            origin,
+            method,
+            params,
+            approval: {
+              eventPrefix: 'sign-psbts',
+              analyticsEvent: 'psbt_bundle_signed',
+              cancelMessage: 'User cancelled PSBT bundle signing request',
+              timeoutMessage: 'PSBT bundle signing request timeout',
+              mapResult: result => ({ hexes: result.signedPsbtHexes }),
+            },
+            createAndOpen: async (requestId, requestKey) => {
+              await beginSignFlow({
+                id: requestId,
+                origin,
+                requestKey,
+                kind: 'sign-psbts',
+                items: [
+                  {
+                    psbtHex: parsedRequests[0]!.psbtHex,
+                    signInputs: parsedRequests[0]!.signInputs,
+                    sighashTypes: parsedRequests[0]!.sighashTypes,
+                    marketplaceIntent: bundleIntents.parent,
+                  },
+                  {
+                    psbtHex: parsedRequests[1]!.psbtHex,
+                    signInputs: parsedRequests[1]!.signInputs,
+                    sighashTypes: parsedRequests[1]!.sighashTypes,
+                    marketplaceIntent: bundleIntents.child,
+                  },
+                ],
+                address: activeAddress.address,
+                walletId: activeWallet.id,
+                timestamp: Date.now(),
+              });
+              chrome.runtime.sendMessage({
+                type: 'NAVIGATE_TO_APPROVE_PSBTS',
+                signPsbtsRequestId: requestId,
+              }).catch(() => {});
+              await openExtensionPopup(`#/requests/psbts/approve?requestId=${requestId}`);
             },
           });
         }
