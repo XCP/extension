@@ -46,7 +46,8 @@ export function VerificationStatus({
   //
   // Silence also happens to be the most honest option available: it claims nothing at all, which
   // is the right claim to make whether the decode was proved complete or merely not contradicted.
-  // The outcome is still reported, quietly, inside Transaction Details for anyone who looks.
+  // Any decoder disagreement is still reported, quietly, inside Transaction Details for anyone
+  // who looks.
   if (passed === true) {
     return null;
   }

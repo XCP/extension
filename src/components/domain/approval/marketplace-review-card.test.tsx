@@ -20,7 +20,7 @@ describe('MarketplaceReviewCard', () => {
       blockers: [],
     }} />);
 
-    expect(screen.getByText('Marketplace terms verified')).toBeInTheDocument();
+    expect(screen.getByText('Terms verified — review authorization')).toBeInTheDocument();
     expect(screen.getByText('250,546 sats')).toBeInTheDocument();
     expect(screen.getByText(/buyer may add funding inputs/i)).toBeInTheDocument();
     expect(screen.getByText(/wallet independently checked the transaction bytes/i)).toBeInTheDocument();
@@ -66,5 +66,34 @@ describe('MarketplaceReviewCard', () => {
     expect(screen.getByText('0.25 XCP')).toBeInTheDocument();
     expect(screen.getByText(/website supplied the label and XCP estimate/i)).toBeInTheDocument();
     expect(screen.getByText(/recomputes it at the block/i)).toBeInTheDocument();
+  });
+
+  it('distinguishes a retryable incomplete lookup from a proved mismatch', () => {
+    render(<MarketplaceReviewCard review={{
+      status: 'retry',
+      family: 'buy_listings',
+      title: 'Attached-asset lookup is temporarily unavailable',
+      facts: [],
+      notices: [{ severity: 'warning', message: 'Retry after the indexer responds.' }],
+      blockers: ['Asset status is required before signing.'],
+    }} />);
+
+    expect(screen.getByText('Verification incomplete — retry required')).toBeInTheDocument();
+    expect(screen.queryByText('Marketplace terms did not verify')).not.toBeInTheDocument();
+    expect(screen.getByText(/Signing remains blocked until/i)).toBeInTheDocument();
+  });
+
+  it('keeps a proved mismatch visually distinct from a retry', () => {
+    render(<MarketplaceReviewCard review={{
+      status: 'blocked',
+      family: 'buy_listings',
+      title: 'Seller payment does not match the signed listing',
+      facts: [],
+      notices: [],
+      blockers: ['Seller payment differs.'],
+    }} />);
+
+    expect(screen.getByText('Marketplace terms did not verify')).toBeInTheDocument();
+    expect(screen.getByText(/Signing is blocked/i)).toBeInTheDocument();
   });
 });

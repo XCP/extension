@@ -11,6 +11,7 @@ import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { describePsbtFlexibility } from '@/components/domain/approval/psbt-flexibility';
+import { VerificationDetails } from '@/components/domain/approval/verification-details';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
@@ -433,6 +434,8 @@ export default function ApprovePsbtPage() {
                     </div>
                   </div>
                 )}
+
+                <VerificationDetails verification={verification} />
 
           </Collapsible>
 

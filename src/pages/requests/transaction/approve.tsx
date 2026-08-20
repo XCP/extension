@@ -9,6 +9,7 @@ import { CounterpartyDetailsCard } from '@/components/domain/approval/counterpar
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
+import { VerificationDetails } from '@/components/domain/approval/verification-details';
 import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
@@ -342,6 +343,8 @@ export default function ApproveTransactionPage() {
                       </div>
                     </div>
                   )}
+
+                  <VerificationDetails verification={decodedInfo.verification} />
 
           </Collapsible>
 
