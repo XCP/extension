@@ -1,4 +1,4 @@
-/** Provider hook for the atomic exact-acceptance plus CPFP approval flow. */
+/** Provider hook for atomic marketplace multi-PSBT approval phases. */
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -7,6 +7,10 @@ import {
   type DecodedPsbtInfo,
   decodePsbtForApproval,
 } from '@/core/bitcoin/psbtApprovalDecoder';
+import {
+  analyzeMarketplaceBatch,
+  parseMarketplaceBatchIntents,
+} from '@/core/counterparty/marketplaceBatch';
 import {
   analyzeAcceptanceCpfpBundle,
   type BumpAcceptanceFeeIntentClaim,
@@ -23,11 +27,25 @@ import {
   type SignPsbtsRequest,
 } from '@/platform/provider/signFlow';
 
+export interface DecodedPsbtBundleItem {
+  psbtDetails: ReturnType<typeof extractPsbtDetails>;
+  txid?: string;
+  marketplaceReview?: MarketplaceApprovalReview;
+}
+
 export interface DecodedPsbtBundleInfo {
-  parent: DecodedPsbtInfo;
-  child: ReturnType<typeof extractPsbtDetails>;
+  items: DecodedPsbtBundleItem[];
   review: MarketplaceApprovalReview;
 }
+
+const missingReview = (family: MarketplaceApprovalReview['family'], message: string) => ({
+  status: 'blocked' as const,
+  family,
+  title: 'Marketplace transaction did not verify',
+  facts: [],
+  notices: [],
+  blockers: [message],
+});
 
 export function useSignPsbtsRequest() {
   const [searchParams] = useSearchParams();
@@ -49,63 +67,95 @@ export function useSignPsbtsRequest() {
       setError(null);
       try {
         const stored = await getSignFlow(requestId) as SignPsbtsRequest | null;
-        if (!stored || stored.kind !== 'sign-psbts') {
+        if (!stored || stored.kind !== 'sign-psbts' || stored.items.length < 1) {
           throw new Error('PSBT bundle signing request not found or expired');
         }
-        const [parentItem, childItem] = stored.items;
-        if (parentItem.marketplaceIntent.action !== 'accept_exact_offer') {
-          throw new Error('Bundle parent is not an exact-offer acceptance');
-        }
-        if (childItem.marketplaceIntent.action !== 'bump_acceptance_fee') {
-          throw new Error('Bundle child is not an acceptance fee bump');
-        }
-        const parentIntent = parentItem.marketplaceIntent as AcceptExactOfferIntentClaim;
-        const childIntent = childItem.marketplaceIntent as BumpAcceptanceFeeIntentClaim;
-        const parent = await decodePsbtForApproval(
-          parentItem.psbtHex,
-          Object.keys(parentItem.signInputs),
-          Object.values(parentItem.signInputs).flat(),
-          parentItem.sighashTypes,
-          undefined,
-          'counterparty',
-          undefined,
-          parentIntent,
-        );
-        const child = extractPsbtDetails(childItem.psbtHex);
-        const firstChildInputTxid = child.inputs[0]?.txid;
-        const childPayload = firstChildInputTxid
-          ? extractPayloadFromOutputs(
-              child.outputs.map(output => output.script ?? ''),
-              firstChildInputTxid,
-            )
-          : null;
-        const childIndices = Object.values(childItem.signInputs).flat();
-        const review = analyzeAcceptanceCpfpBundle({
-          parentIntent,
-          parentReview: parent.marketplaceReview ?? {
-            status: 'blocked',
-            family: 'accept_exact_offer',
-            title: 'Exact offer parent did not verify',
-            facts: [],
-            notices: [],
-            blockers: ['the parent exact-offer semantic proof is missing'],
-          },
-          childIntent,
-          childInputs: child.inputs,
-          childOutputs: child.outputs,
-          childSignedInputs: childIndices.map(index => ({
-            index,
-            sighashType: resolvePsbtSighashType(
-              childItem.sighashTypes[index],
-              child.inputs[index]?.sighashType,
+
+        if (stored.bundleKind === 'acceptance-cpfp') {
+          if (stored.items.length !== 2) {
+            throw new Error('Exact acceptance fee-bump bundle must contain two transactions');
+          }
+          const [parentItem, childItem] = stored.items;
+          if (parentItem!.marketplaceIntent.action !== 'accept_exact_offer') {
+            throw new Error('Bundle parent is not an exact-offer acceptance');
+          }
+          if (childItem!.marketplaceIntent.action !== 'bump_acceptance_fee') {
+            throw new Error('Bundle child is not an acceptance fee bump');
+          }
+          const parentIntent = parentItem!.marketplaceIntent as AcceptExactOfferIntentClaim;
+          const childIntent = childItem!.marketplaceIntent as BumpAcceptanceFeeIntentClaim;
+          const parent = await decodePsbtForApproval(
+            parentItem!.psbtHex,
+            Object.keys(parentItem!.signInputs),
+            Object.values(parentItem!.signInputs).flat(),
+            parentItem!.sighashTypes,
+            undefined,
+            'counterparty',
+            undefined,
+            parentIntent,
+          );
+          const child = extractPsbtDetails(childItem!.psbtHex);
+          const firstChildInputTxid = child.inputs[0]?.txid;
+          const childPayload = firstChildInputTxid
+            ? extractPayloadFromOutputs(
+                child.outputs.map(output => output.script ?? ''),
+                firstChildInputTxid,
+              )
+            : null;
+          const childIndices = Object.values(childItem!.signInputs).flat();
+          const review = analyzeAcceptanceCpfpBundle({
+            parentIntent,
+            parentReview: parent.marketplaceReview ?? missingReview(
+              'accept_exact_offer',
+              'the parent exact-offer semantic proof is missing',
             ),
-          })),
-          childSignerAddresses: Object.keys(childItem.signInputs),
-          childTransactionId: child.transactionId,
-          childHasCounterpartyPayload: childPayload !== null,
-        });
+            childIntent,
+            childInputs: child.inputs,
+            childOutputs: child.outputs,
+            childSignedInputs: childIndices.map(index => ({
+              index,
+              sighashType: resolvePsbtSighashType(
+                childItem!.sighashTypes[index],
+                child.inputs[index]?.sighashType,
+              ),
+            })),
+            childSignerAddresses: Object.keys(childItem!.signInputs),
+            childTransactionId: child.transactionId,
+            childHasCounterpartyPayload: childPayload !== null,
+          });
+          setRequest(stored);
+          setDecodedInfo({
+            items: [parent, { psbtDetails: child, txid: child.transactionId }],
+            review,
+          });
+          return;
+        }
+
+        const parsed = parseMarketplaceBatchIntents(
+          stored.items.map(item => item.marketplaceIntent),
+        );
+        if (parsed.kind !== stored.bundleKind) {
+          throw new Error('Stored marketplace batch kind differs from its intents');
+        }
+        const decoded: DecodedPsbtInfo[] = await Promise.all(stored.items.map((item, index) =>
+          decodePsbtForApproval(
+            item.psbtHex,
+            Object.keys(item.signInputs),
+            Object.values(item.signInputs).flat(),
+            item.sighashTypes,
+            undefined,
+            'counterparty',
+            undefined,
+            parsed.intents[index],
+          )));
+        const itemReviews = decoded.map((item, index) =>
+          item.marketplaceReview ?? missingReview(
+            parsed.intents[index]!.action,
+            `marketplace semantic proof ${index + 1} is missing`,
+          ));
+        const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, itemReviews);
         setRequest(stored);
-        setDecodedInfo({ parent, child, review });
+        setDecodedInfo({ items: decoded, review });
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Failed to load PSBT bundle');
       } finally {
@@ -116,7 +166,7 @@ export function useSignPsbtsRequest() {
     void load();
   }, [requestId]);
 
-  const handleSuccess = useCallback(async (signedPsbtHexes: [string, string]) => {
+  const handleSuccess = useCallback(async (signedPsbtHexes: string[]) => {
     if (!requestId) return;
     await recordSignOutcome(requestId, 'completed', { signedPsbtHexes });
     emitToBackground(`sign-psbts-complete-${requestId}`, { signedPsbtHexes });

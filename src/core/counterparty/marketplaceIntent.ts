@@ -117,12 +117,32 @@ export interface AuthorizeExactOfferIntentClaim
 export interface AcceptExactOfferIntentClaim
   extends ExactOfferIntentBase<'accept_exact_offer'> {}
 
+export interface PrepareBulkFanoutIntentClaim {
+  standard: typeof MARKETPLACE_INTENT_STANDARD;
+  version: typeof MARKETPLACE_INTENT_VERSION;
+  action: 'prepare_bulk_fanout';
+  operationId: string;
+  protocolVersion: 'counterparty_bulk_attach_v1';
+  assets: [];
+  batchIndex: number;
+  seller: string;
+  fundingOutpoint: MarketplaceOutpointClaim;
+  fundingValueSats: number;
+  slotCount: number;
+  slotValueSats: number;
+  networkFeeSats: number;
+  changeSats: number;
+  expectedTxid: string;
+  operationExpiresAt: number;
+}
+
 export type MarketplaceIntentClaimV1 =
   | AttachForListingIntentClaim
   | CreateListingIntentClaim
   | BuyListingsIntentClaim
   | AuthorizeExactOfferIntentClaim
-  | AcceptExactOfferIntentClaim;
+  | AcceptExactOfferIntentClaim
+  | PrepareBulkFanoutIntentClaim;
 
 export interface MarketplaceApprovalReview {
   status: 'proved' | 'caution' | 'retry' | 'blocked';
@@ -132,7 +152,9 @@ export interface MarketplaceApprovalReview {
     | 'buy_listings'
     | 'authorize_exact_offer'
     | 'accept_exact_offer'
-    | 'accept_exact_offer_with_cpfp';
+    | 'accept_exact_offer_with_cpfp'
+    | 'prepare_bulk_fanout'
+    | 'marketplace_batch';
   title: string;
   facts: Array<{ label: string; value: string }>;
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;
@@ -250,6 +272,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     throw new Error(`marketplace intent must use ${MARKETPLACE_INTENT_STANDARD} version 1`);
   }
   if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
+  if (value.action === 'prepare_bulk_fanout') return parsePrepareBulkFanoutIntent(value);
   if (value.action === 'buy_listings') return parseBuyListingsIntent(value);
   if (value.action === 'authorize_exact_offer' || value.action === 'accept_exact_offer') {
     return parseExactOfferIntent(value, value.action);
@@ -293,6 +316,51 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     bitcoinExpiresAt: null,
   };
 }
+
+const parsePrepareBulkFanoutIntent = (
+  value: Record<string, unknown>,
+): PrepareBulkFanoutIntentClaim => {
+  if (value.protocolVersion !== 'counterparty_bulk_attach_v1') {
+    throw new Error('prepare_bulk_fanout intent has the wrong protocolVersion');
+  }
+  if (!Array.isArray(value.assets) || value.assets.length !== 0) {
+    throw new Error('prepare_bulk_fanout must not claim attached assets');
+  }
+  const expectedTxid = boundedString(value.expectedTxid, 'expectedTxid', 64).toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(expectedTxid)) {
+    throw new Error('expectedTxid must be 32-byte hex');
+  }
+  const batchIndex = safeInteger(value.batchIndex, 'batchIndex');
+  const slotCount = safeInteger(value.slotCount, 'slotCount', { positive: true });
+  if (batchIndex === null || batchIndex < 0) {
+    throw new Error('batchIndex must be a non-negative safe integer');
+  }
+  if (slotCount === null || slotCount > 24) {
+    throw new Error('slotCount must be 1..24');
+  }
+  return {
+    standard: MARKETPLACE_INTENT_STANDARD,
+    version: MARKETPLACE_INTENT_VERSION,
+    action: 'prepare_bulk_fanout',
+    operationId: boundedString(value.operationId, 'operationId'),
+    protocolVersion: 'counterparty_bulk_attach_v1',
+    assets: [],
+    batchIndex,
+    seller: boundedString(value.seller, 'seller', 128),
+    fundingOutpoint: outpoint(value.fundingOutpoint, 'fundingOutpoint'),
+    fundingValueSats: safeInteger(value.fundingValueSats, 'fundingValueSats', {
+      positive: true,
+    })!,
+    slotCount,
+    slotValueSats: safeInteger(value.slotValueSats, 'slotValueSats', { positive: true })!,
+    networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
+    changeSats: nonNegativeSafeInteger(value.changeSats, 'changeSats'),
+    expectedTxid,
+    operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
+      positive: true,
+    })!,
+  };
+};
 
 const parseAttachForListingIntent = (
   value: Record<string, unknown>,
@@ -1289,6 +1357,132 @@ function analyzeExactOfferIntent(
   };
 }
 
+/** Prove a clean-BTC parent that creates same-owner attach funding slots. */
+function analyzePrepareBulkFanoutIntent(
+  input: MarketplaceAnalysisInput,
+  intent: PrepareBulkFanoutIntentClaim,
+): MarketplaceApprovalReview {
+  const {
+    inputs,
+    outputs,
+    signedInputs,
+    signerAddresses,
+    attachedAssets,
+    hasCounterpartyPayload,
+    transactionId,
+  } = input;
+  const blockers: string[] = [];
+  const retry: string[] = [];
+
+  if (!transactionId) {
+    retry.push('the wallet could not establish the fan-out transaction id');
+  } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
+    blockers.push('the fan-out transaction id differs from the claim');
+  }
+  if (hasCounterpartyPayload) {
+    blockers.push('a funding fan-out must not carry a Counterparty payload');
+  }
+  if (inputs.length !== 1) {
+    blockers.push(`expected exactly one fan-out funding input, got ${inputs.length}`);
+  }
+  if (
+    signedInputs.length !== 1
+    || signedInputs[0]?.index !== 0
+    || signedInputs[0]?.sighashType !== 0x01
+  ) {
+    blockers.push('the wallet must sign only fan-out input 0 with ALL (0x01)');
+  }
+  if (signerAddresses.length !== 1 || !sameAddress(signerAddresses[0], intent.seller)) {
+    blockers.push('the requested fan-out signer is not exactly the claimed seller');
+  }
+
+  const fundingInput = inputs[0];
+  if (!fundingInput) {
+    blockers.push('the fan-out funding input is missing');
+  } else {
+    if (!sameOutpoint(fundingInput, intent.fundingOutpoint)) {
+      blockers.push('the fan-out input differs from the claimed funding outpoint');
+    }
+    if (!sameAddress(fundingInput.address, intent.seller)) {
+      blockers.push('the fan-out input is not controlled by the claimed seller');
+    }
+    if (fundingInput.value === undefined) {
+      retry.push('the fan-out input has no authenticated value');
+    } else if (fundingInput.value !== intent.fundingValueSats) {
+      blockers.push('the fan-out input value differs from the claim');
+    }
+    if (fundingInput.hasSignatures !== false) {
+      blockers.push('the fan-out input must be proven unsigned before approval');
+    }
+  }
+
+  const fundingAssets = attachedAssets.find(entry => entry.inputIndex === 0);
+  if (fundingAssets?.lookupFailed) {
+    retry.push('the attached-asset lookup for the fan-out input failed');
+  } else if (fundingAssets && fundingAssets.assets.length > 0) {
+    blockers.push('the fan-out funding input already carries Counterparty assets');
+  }
+
+  const expectedOutputCount = intent.slotCount + (intent.changeSats > 0 ? 1 : 0);
+  if (outputs.length !== expectedOutputCount) {
+    blockers.push(`expected ${expectedOutputCount} fan-out outputs, got ${outputs.length}`);
+  }
+  for (let outputIndex = 0; outputIndex < outputs.length; outputIndex += 1) {
+    const output = outputs[outputIndex]!;
+    const expectedValue = outputIndex < intent.slotCount
+      ? intent.slotValueSats
+      : intent.changeSats;
+    if (output.type === 'op_return' || !sameAddress(output.address, intent.seller)) {
+      blockers.push(`fan-out output ${outputIndex} does not return to the seller`);
+    }
+    if (output.value !== expectedValue) {
+      blockers.push(`fan-out output ${outputIndex} value differs from the plan`);
+    }
+  }
+
+  const slotTotal = safeSum(Array.from({ length: intent.slotCount }, () => intent.slotValueSats));
+  const outputTotal = slotTotal === null ? null : safeSum([slotTotal, intent.changeSats]);
+  const claimedFee = outputTotal === null ? null : intent.fundingValueSats - outputTotal;
+  if (claimedFee === null || claimedFee < 0 || claimedFee !== intent.networkFeeSats) {
+    blockers.push('the claimed fan-out fee does not equal funding minus outputs');
+  }
+  if (fundingInput?.value !== undefined) {
+    const actualOutputTotal = safeSum(outputs.map(output => output.value));
+    const actualFee = actualOutputTotal === null ? null : fundingInput.value - actualOutputTotal;
+    if (actualFee === null || actualFee < 0 || actualFee !== intent.networkFeeSats) {
+      blockers.push('the actual fan-out fee differs from the claim');
+    }
+  }
+
+  const allProblems = [...retry, ...blockers];
+  return {
+    status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
+    family: 'prepare_bulk_fanout',
+    title: `Prepare ${intent.slotCount} listing funding slot${intent.slotCount === 1 ? '' : 's'}`,
+    facts: [
+      { label: 'Funding input', value: `${intent.fundingValueSats.toLocaleString()} sats` },
+      {
+        label: 'Attach slots',
+        value: `${intent.slotCount} × ${intent.slotValueSats.toLocaleString()} sats`,
+      },
+      { label: 'Change', value: `${intent.changeSats.toLocaleString()} sats` },
+      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
+      {
+        label: 'Operation expiry',
+        value: new Date(intent.operationExpiresAt * 1000).toLocaleString(),
+      },
+    ],
+    notices: allProblems.length > 0
+      ? []
+      : [{
+          severity: 'info',
+          message:
+            'Every output remains controlled by this wallet. These plain-Bitcoin slots fund later Counterparty attach transactions; no asset moves in this phase.',
+        }],
+    blockers: allProblems,
+  };
+}
+
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
   switch (input.intent.action) {
     case 'attach_for_listing':
@@ -1300,5 +1494,7 @@ export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): Marke
     case 'authorize_exact_offer':
     case 'accept_exact_offer':
       return analyzeExactOfferIntent(input, input.intent);
+    case 'prepare_bulk_fanout':
+      return analyzePrepareBulkFanoutIntent(input, input.intent);
   }
 }

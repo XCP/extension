@@ -11,6 +11,7 @@
  */
 
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
 import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
 import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
@@ -61,9 +62,10 @@ export interface SignPsbtBundleItem {
   marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
 }
 
-/** Atomic provider bundle: every item is proved before any signer is invoked. */
+/** Fail-closed provider bundle: every item is proved before any signer is invoked. */
 export type SignPsbtsRequest = SignFlowEntry<{
-  items: [SignPsbtBundleItem, SignPsbtBundleItem];
+  bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
+  items: SignPsbtBundleItem[];
 }>;
 
 /**

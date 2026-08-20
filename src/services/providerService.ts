@@ -13,6 +13,7 @@ import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import { parseMarketplaceIntent } from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
@@ -670,8 +671,8 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT bundle parameters must be an object with requests');
           }
           const requests = (bundleParams as { requests?: unknown }).requests;
-          if (!Array.isArray(requests) || requests.length !== 2) {
-            throw new Error('This wallet version supports exactly 2 linked PSBT requests');
+          if (!Array.isArray(requests) || requests.length < 1 || requests.length > 8) {
+            throw new Error('This wallet version supports 1..8 linked PSBT requests');
           }
           const parsedRequests = requests.map((request, requestIndex) => {
             if (!request || typeof request !== 'object' || Array.isArray(request)) {
@@ -696,9 +697,11 @@ export function createProviderService(): ProviderService {
             }
             if (
               !Array.isArray(candidate.sighashTypes)
-              || candidate.sighashTypes.some(value => value !== 0x01)
+              || candidate.sighashTypes.some(value => ![0x01, 0x83].includes(value as number))
             ) {
-              throw new Error(`PSBT bundle request ${requestIndex} supports only SIGHASH_ALL`);
+              throw new Error(
+                `PSBT bundle request ${requestIndex} supports only ALL or SINGLE|ANYONECANPAY`,
+              );
             }
             return {
               psbtHex: candidate.hex,
@@ -707,10 +710,24 @@ export function createProviderService(): ProviderService {
               intent: candidate.intent,
             };
           });
-          const bundleIntents = parseAcceptanceCpfpBundleIntents(
-            parsedRequests[0]!.intent,
-            parsedRequests[1]!.intent,
-          );
+          const firstIntent = parsedRequests[0]!.intent;
+          const exactCpfp = requests.length === 2
+            && firstIntent !== null
+            && typeof firstIntent === 'object'
+            && !Array.isArray(firstIntent)
+            && (firstIntent as { action?: unknown }).action === 'accept_exact_offer';
+          const parsedBundle = exactCpfp
+            ? (() => {
+                const pair = parseAcceptanceCpfpBundleIntents(
+                  parsedRequests[0]!.intent,
+                  parsedRequests[1]!.intent,
+                );
+                return {
+                  kind: 'acceptance-cpfp' as const,
+                  intents: [pair.parent, pair.child],
+                };
+              })()
+            : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent));
 
           if (!await connectionService.hasPermission(origin)) {
             throw new ProviderError(
@@ -742,13 +759,24 @@ export function createProviderService(): ProviderService {
 
           for (const [requestIndex, request] of parsedRequests.entries()) {
             const details = extractPsbtDetails(request.psbtHex);
-            if (details.unfunded || details.inputs.some(input => input.value === undefined)) {
+            const marketplaceIntent = parsedBundle.intents[requestIndex]!;
+            const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
+            const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
+              input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
+            if ((!permitsNullBuyerPlaceholder && details.unfunded) || missingAuthenticatedPrevout) {
               throw new Error(
                 `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
               );
             }
             if (request.sighashTypes.length > details.inputs.length) {
               throw new Error(`PSBT bundle request ${requestIndex} has too many sighash entries`);
+            }
+            if (request.sighashTypes.some(
+              (value, index) => value === 0x83 && index >= details.outputs.length,
+            )) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} uses SINGLE without a paired output`,
+              );
             }
             const validation = validateSignInputs(
               request.signInputs,
@@ -805,20 +833,13 @@ export function createProviderService(): ProviderService {
                 origin,
                 requestKey,
                 kind: 'sign-psbts',
-                items: [
-                  {
-                    psbtHex: parsedRequests[0]!.psbtHex,
-                    signInputs: parsedRequests[0]!.signInputs,
-                    sighashTypes: parsedRequests[0]!.sighashTypes,
-                    marketplaceIntent: bundleIntents.parent,
-                  },
-                  {
-                    psbtHex: parsedRequests[1]!.psbtHex,
-                    signInputs: parsedRequests[1]!.signInputs,
-                    sighashTypes: parsedRequests[1]!.sighashTypes,
-                    marketplaceIntent: bundleIntents.child,
-                  },
-                ],
+                bundleKind: parsedBundle.kind,
+                items: parsedRequests.map((request, index) => ({
+                  psbtHex: request.psbtHex,
+                  signInputs: request.signInputs,
+                  sighashTypes: request.sighashTypes,
+                  marketplaceIntent: parsedBundle.intents[index]!,
+                })),
                 address: activeAddress.address,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),

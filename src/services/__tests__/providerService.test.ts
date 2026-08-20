@@ -1,3 +1,5 @@
+import { hex } from '@scure/base';
+import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
@@ -39,6 +41,18 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+const listingPsbtHex = (): string => {
+  const source = Transaction.fromPSBT(hex.decode(VALID_PSBT_HEX), {
+    allowUnknownInputs: true,
+    allowUnknownOutputs: true,
+  });
+  const listing = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true });
+  listing.addInput({ txid: new Uint8Array(32), index: 0 });
+  listing.addInput(source.getInput(0));
+  listing.addOutput(source.getOutput(0));
+  listing.addOutput(source.getOutput(1));
+  return hex.encode(listing.toPSBT());
+};
 const BITCOIN_PAYMENT_INTENT = {
   standard: 'xcp-wallet/bitcoin-payment',
   version: 1,
@@ -166,6 +180,24 @@ const MARKETPLACE_CPFP_INTENT = {
   packageFeeSats: 1_500,
   packageFeeRate: 5,
   finalSellerProceedsSats: 249_046,
+} as const;
+const MARKETPLACE_FANOUT_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_bulk_fanout',
+  operationId: 'bulk-1',
+  protocolVersion: 'counterparty_bulk_attach_v1',
+  assets: [],
+  batchIndex: 0,
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  fundingOutpoint: { txid: '11'.repeat(32), vout: 0 },
+  fundingValueSats: 5_000,
+  slotCount: 1,
+  slotValueSats: 546,
+  networkFeeSats: 100,
+  changeSats: 4_354,
+  expectedTxid: '22'.repeat(32),
+  operationExpiresAt: 2_000_000_000,
 } as const;
 
 // Mock the imports
@@ -1122,10 +1154,73 @@ describe('ProviderService', () => {
           expect.objectContaining({
             origin: 'https://digirare.com',
             kind: 'sign-psbts',
+            bundleKind: 'acceptance-cpfp',
             items: [
               expect.objectContaining({ marketplaceIntent: acceptIntent }),
               expect.objectContaining({ marketplaceIntent: MARKETPLACE_CPFP_INTENT }),
             ],
+          })
+        );
+      });
+
+      it('stores a bounded homogeneous bulk fan-out phase', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = MARKETPLACE_FANOUT_INTENT.seller;
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [{
+              hex: VALID_PSBT_HEX,
+              signInputs: { [seller]: [0] },
+              sighashTypes: [0x01],
+              intent: MARKETPLACE_FANOUT_INTENT,
+            }],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            bundleKind: 'bulk-fanout',
+            items: [expect.objectContaining({ marketplaceIntent: MARKETPLACE_FANOUT_INTENT })],
+          })
+        );
+      });
+
+      it('permits only the intentional null buyer placeholder in a listing batch', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [{
+              hex: listingPsbtHex(),
+              signInputs: { [seller]: [1] },
+              sighashTypes: [0x01, 0x83],
+              intent: { ...MARKETPLACE_LISTING_INTENT, seller },
+            }],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bundleKind: 'bulk-listing',
+            items: [expect.objectContaining({
+              sighashTypes: [0x01, 0x83],
+            })],
           })
         );
       });

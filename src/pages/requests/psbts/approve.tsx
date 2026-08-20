@@ -18,6 +18,7 @@ import {
   getIdentityMismatchError,
   getPsbtPermissionError,
 } from '@/platform/provider/requestIdentity';
+import { signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
 import { getConnectionService } from '@/services/connectionService';
 import { getWalletService } from '@/services/walletService';
 
@@ -31,8 +32,17 @@ export default function ApprovePsbtsPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    setHeaderProps({ title: 'Accept Offer + Fee Bump' });
-  }, [setHeaderProps]);
+    const title = request?.bundleKind === 'acceptance-cpfp'
+      ? 'Accept Offer + Fee Bump'
+      : request?.bundleKind === 'bulk-fanout'
+        ? 'Prepare Listing Funds'
+        : request?.bundleKind === 'bulk-attach'
+          ? 'Attach Collectibles'
+          : request?.bundleKind === 'bulk-listing'
+            ? 'Authorize Listings'
+            : 'Review Transaction Batch';
+    setHeaderProps({ title });
+  }, [request?.bundleKind, setHeaderProps]);
 
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress || !activeWallet) return;
@@ -63,8 +73,8 @@ export default function ApprovePsbtsPage() {
       setError(permissionError);
       return;
     }
-    if (decodedInfo.review.status !== 'proved') {
-      setError('Both linked transactions must prove before signing begins.');
+    if (decodedInfo.review.status === 'blocked' || decodedInfo.review.status === 'retry') {
+      setError('Every transaction in this phase must verify before signing begins.');
       return;
     }
 
@@ -72,19 +82,15 @@ export default function ApprovePsbtsPage() {
     setError('');
     try {
       const walletService = getWalletService();
-      // Nothing is returned to the site until both signers succeed. A rejection or hardware
-      // cancellation on the child discards the in-memory parent result.
-      const parent = await walletService.signPsbt(
-        request.items[0].psbtHex,
-        request.items[0].signInputs,
-        request.items[0].sighashTypes,
-      );
-      const child = await walletService.signPsbt(
-        request.items[1].psbtHex,
-        request.items[1].signInputs,
-        request.items[1].sighashTypes,
-      );
-      await handleSuccess([parent, child]);
+      // Nothing is returned to the site until every signer succeeds. A rejection or hardware
+      // cancellation on a later item discards every earlier in-memory result.
+      const results = await signPsbtPhaseForDelivery(request.items, item =>
+        walletService.signPsbt(
+          item.psbtHex,
+          item.signInputs,
+          item.sighashTypes,
+        ));
+      await handleSuccess(results);
       window.close();
     } catch (signError) {
       console.error('Failed to sign PSBT bundle:', signError);
@@ -107,7 +113,7 @@ export default function ApprovePsbtsPage() {
   if (loadError || !request || !decodedInfo) return <ApprovalExpired message={loadError} />;
   if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
-  const blocked = decodedInfo.review.status !== 'proved';
+  const blocked = decodedInfo.review.status === 'blocked' || decodedInfo.review.status === 'retry';
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4">
@@ -120,25 +126,22 @@ export default function ApprovePsbtsPage() {
             <ErrorAlert message={decodedInfo.review.blockers.join('; ')} />
           )}
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
-            Both transactions were reviewed together. The wallet returns neither signature unless
-            both signing operations finish successfully.
+            Every transaction in this phase was reviewed before signing begins. The wallet returns
+            no signatures unless every signing operation finishes successfully.
           </div>
           <Collapsible variant="card" title="Linked Transaction Details">
             <div className="space-y-3 text-xs">
-              <div>
-                <p className="font-semibold text-gray-900">1. Exact sale parent</p>
-                <p className="mt-1 break-all text-gray-500">{decodedInfo.parent.txid}</p>
-                <p className="mt-1 text-gray-700">
-                  Fee: {decodedInfo.parent.psbtDetails.fee.toLocaleString()} sats
-                </p>
-              </div>
-              <div className="border-t border-gray-200 pt-3">
-                <p className="font-semibold text-gray-900">2. Seller CPFP child</p>
-                <p className="mt-1 break-all text-gray-500">{decodedInfo.child.transactionId}</p>
-                <p className="mt-1 text-gray-700">
-                  Fee: {decodedInfo.child.fee.toLocaleString()} sats
-                </p>
-              </div>
+              {decodedInfo.items.map((item, index) => (
+                <div key={`${item.txid ?? 'transaction'}-${index}`} className={index > 0 ? 'border-t border-gray-200 pt-3' : ''}>
+                  <p className="font-semibold text-gray-900">
+                    {index + 1}. {request.items[index]?.marketplaceIntent.action.replaceAll('_', ' ')}
+                  </p>
+                  <p className="mt-1 break-all text-gray-500">{item.txid}</p>
+                  <p className="mt-1 text-gray-700">
+                    Fee: {item.psbtDetails.fee.toLocaleString()} sats
+                  </p>
+                </div>
+              ))}
             </div>
           </Collapsible>
         </div>

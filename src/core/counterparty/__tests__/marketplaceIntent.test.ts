@@ -6,6 +6,7 @@ import {
   analyzeMarketplaceIntent,
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
+  type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
 
@@ -19,6 +20,8 @@ const BUY_TXID = 'ef'.repeat(32);
 const ATTACH_TXID = '14'.repeat(32);
 const EXACT_TXID = '18'.repeat(32);
 const BID_TXID = '19'.repeat(32);
+const FANOUT_TXID = '20'.repeat(32);
+const FANOUT_FUNDING_TXID = '21'.repeat(32);
 
 const intent: CreateListingIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -264,6 +267,48 @@ const exactBase = (accepting = false) => ({
   localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
 });
 
+const fanoutIntent: PrepareBulkFanoutIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_bulk_fanout',
+  operationId: 'bulk-1',
+  protocolVersion: 'counterparty_bulk_attach_v1',
+  assets: [],
+  batchIndex: 0,
+  seller: SELLER,
+  fundingOutpoint: { txid: FANOUT_FUNDING_TXID, vout: 2 },
+  fundingValueSats: 100_000,
+  slotCount: 2,
+  slotValueSats: 10_000,
+  networkFeeSats: 1_000,
+  changeSats: 79_000,
+  expectedTxid: FANOUT_TXID,
+  operationExpiresAt: 2_000_000_000,
+};
+
+const fanoutBase = () => ({
+  intent: fanoutIntent,
+  inputs: [{
+    index: 0,
+    txid: FANOUT_FUNDING_TXID,
+    vout: 2,
+    address: SELLER,
+    value: 100_000,
+    hasSignatures: false,
+  }],
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: SELLER, value: 10_000 },
+    { index: 1, type: 'p2wpkh', address: SELLER, value: 10_000 },
+    { index: 2, type: 'p2wpkh', address: SELLER, value: 79_000 },
+  ],
+  signedInputs: [{ index: 0, sighashType: 0x01 }],
+  signerAddresses: [SELLER],
+  attachedAssets: [{ inputIndex: 0, utxo: `${FANOUT_FUNDING_TXID}:2`, assets: [] }],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: false,
+  transactionId: FANOUT_TXID,
+});
+
 describe('marketplace intent wire parser', () => {
   it('copies a bounded create-listing claim', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
@@ -280,6 +325,10 @@ describe('marketplace intent wire parser', () => {
   it('copies bounded exact-offer authorization and acceptance claims', () => {
     expect(parseMarketplaceIntent(authorizeExactIntent)).toEqual(authorizeExactIntent);
     expect(parseMarketplaceIntent(acceptExactIntent)).toEqual(acceptExactIntent);
+  });
+
+  it('copies a bounded plain-Bitcoin bulk fan-out claim', () => {
+    expect(parseMarketplaceIntent(fanoutIntent)).toEqual(fanoutIntent);
   });
 
   it.each([
@@ -626,5 +675,68 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
 
     expect(review.status).toBe('retry');
     expect(review.blockers.join(' ')).toMatch(/lookup/i);
+  });
+});
+
+describe('bulk fan-out funding proof', () => {
+  it('proves that every plain-Bitcoin output remains controlled by the seller', () => {
+    const review = analyzeMarketplaceIntent(fanoutBase());
+
+    expect(review).toMatchObject({
+      status: 'proved',
+      family: 'prepare_bulk_fanout',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({ label: 'Attach slots', value: '2 × 10,000 sats' });
+    expect(review.notices[0]?.message).toMatch(/no asset moves/i);
+  });
+
+  it.each([
+    ['funding outpoint', {
+      inputs: [{ ...fanoutBase().inputs[0]!, vout: 3 }],
+    }],
+    ['funding value', {
+      inputs: [{ ...fanoutBase().inputs[0]!, value: 99_999 }],
+    }],
+    ['external output', {
+      outputs: fanoutBase().outputs.map(output => output.index === 1
+        ? { ...output, address: BUYER }
+        : output),
+    }],
+    ['slot value', {
+      outputs: fanoutBase().outputs.map(output => output.index === 0
+        ? { ...output, value: 9_999 }
+        : output),
+    }],
+    ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x81 }] }],
+    ['signer', { signerAddresses: [BUYER] }],
+    ['payload', { hasCounterpartyPayload: true }],
+    ['existing signature', {
+      inputs: [{ ...fanoutBase().inputs[0]!, hasSignatures: true }],
+    }],
+    ['attached asset', {
+      attachedAssets: [{
+        inputIndex: 0,
+        utxo: `${FANOUT_FUNDING_TXID}:2`,
+        assets: [{ asset: 'XCP', quantity: '1', quantity_normalized: '0.00000001' }],
+      }],
+    }],
+  ])('blocks a mutation of %s', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...fanoutBase(), ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
+  });
+
+  it('requires retry when clean-funding status cannot be proved', () => {
+    const review = analyzeMarketplaceIntent({
+      ...fanoutBase(),
+      attachedAssets: [{
+        inputIndex: 0,
+        utxo: `${FANOUT_FUNDING_TXID}:2`,
+        assets: [],
+        lookupFailed: true,
+      }],
+    });
+    expect(review.status).toBe('retry');
   });
 });
