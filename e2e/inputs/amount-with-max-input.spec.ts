@@ -179,7 +179,9 @@ walletTest.describe('AmountWithMaxInput Component', () => {
 
       // Click Max - should show error (either "No available balance." if API succeeded
       // with empty array, or "Failed to fetch UTXOs." if network request failed,
-      // or generic "Failed to calculate maximum amount" if other error occurred)
+      // or generic "Failed to calculate maximum amount" if other error occurred,
+      // or "Fee rates are still loading" while no valid fee rate is available —
+      // the component fails closed instead of assuming a rate)
       await maxButton.click();
 
       // Wait for the error to appear
@@ -192,7 +194,8 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       const hasExpectedError =
         errorText?.includes('No available balance') ||
         errorText?.includes('Failed to fetch UTXOs') ||
-        errorText?.includes('Failed to calculate maximum amount');
+        errorText?.includes('Failed to calculate maximum amount') ||
+        errorText?.includes('Fee rates are still loading');
       // Log the actual error for debugging if it fails
       if (!hasExpectedError) {
         console.log('Unexpected error text:', errorText);
