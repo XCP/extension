@@ -59,7 +59,7 @@ export function AmountWithMaxInput({
   availableBalance,
   value,
   onChange,
-  feeRate = 0.1,
+  feeRate,
   setError,
   showHelpText = false,
   sourceAddress,
@@ -116,6 +116,11 @@ export function AmountWithMaxInput({
       return;
     }
 
+    if (feeRate === null || feeRate === undefined) {
+      setError("Fee rates are still loading. Please wait.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       setError(null);
@@ -146,8 +151,7 @@ export function AmountWithMaxInput({
       const OP_RETURN_OVERHEAD = 30;
       const totalVbytes = estimatedVbytes + OP_RETURN_OVERHEAD;
 
-      const effectiveFeeRate = feeRate ?? 0.1;
-      const estimatedFee = toNumber(roundUp(multiply(totalVbytes, effectiveFeeRate)));
+      const estimatedFee = toNumber(roundUp(multiply(totalVbytes, feeRate)));
 
       const candidate = totalValue - estimatedFee;
 

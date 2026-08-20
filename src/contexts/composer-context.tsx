@@ -193,7 +193,7 @@ export function ComposerProvider<T>({
     setLocalShowHelpText(prev => prev === null ? !settings?.showHelpText : !prev);
   }, [settings?.showHelpText]);
 
-  const setFeeRate = useCallback((rate: number) => {
+  const setFeeRate = useCallback((rate: number | null) => {
     setState(prev => ({ ...prev, feeRate: rate }));
   }, []);
   

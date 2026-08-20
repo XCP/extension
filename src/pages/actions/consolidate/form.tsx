@@ -20,7 +20,7 @@ export interface ConsolidationFormData {
 }
 
 const DEFAULT_FORM_DATA: ConsolidationFormData = {
-  feeRateSatPerVByte: 1,
+  feeRateSatPerVByte: 0,
   destinationAddress: "",
   consolidationData: null,
   allBatches: [],
@@ -114,8 +114,8 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
     fetchData();
   }, [activeAddress, formData.includeProtectedStamps, isInitialLoad]);
 
-  const handleFeeRateChange = (value: number) => {
-    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value }));
+  const handleFeeRateChange = (value: number | null) => {
+    setFormData((prev) => ({ ...prev, feeRateSatPerVByte: value ?? 0 }));
   };
 
   const handleDestinationChange = (value: string) => {
@@ -136,6 +136,10 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
 
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (formData.feeRateSatPerVByte <= 0) {
+      setError("Enter a valid fee rate before continuing.");
+      return;
+    }
     if (
       !formData.consolidationData ||
       formData.consolidationData.stamp_protection.included !==

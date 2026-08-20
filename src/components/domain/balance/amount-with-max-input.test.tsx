@@ -300,7 +300,7 @@ describe('AmountWithMaxInput', () => {
     });
   });
 
-  it('should fallback to 0.1 feeRate when feeRate is null', async () => {
+  it('should not calculate a BTC maximum before the fee rate loads', async () => {
     const { selectUtxosForTransaction } = await import('@/core/counterparty/utxoSelection');
     (selectUtxosForTransaction as ReturnType<typeof vi.fn>).mockResolvedValue({
       utxos: [createMockUtxo('tx1', 0, 1000000)],
@@ -310,25 +310,22 @@ describe('AmountWithMaxInput', () => {
     });
 
     const onChange = vi.fn();
+    const setError = vi.fn();
     render(<AmountWithMaxInput
       {...defaultProps}
       asset="BTC"
       availableBalance="0.01000000"
       onChange={onChange}
+      setError={setError}
       feeRate={null}
     />);
 
     const maxButton = screen.getByLabelText('Use maximum available amount');
     fireEvent.click(maxButton);
 
-    await waitFor(() => {
-      expect(onChange).toHaveBeenCalled();
-      // vsize = 10.5 + (1 * 68) + (2 * 31) = 140.5 -> 141 (1 destination + 1 change = 2 outputs)
-      // + OP_RETURN overhead (30 vbytes) = 171 vbytes
-      // fee = 171 * 0.1 = 17.1 -> 18 sats (ceil)
-      // max = 1,000,000 - 18 = 999,982 sats = 0.00999982 BTC
-      expect(onChange).toHaveBeenCalledWith('0.00999982');
-    });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(selectUtxosForTransaction).not.toHaveBeenCalled();
+    expect(setError).toHaveBeenCalledWith('Fee rates are still loading. Please wait.');
   });
 
   it('should show error when no spendable UTXOs available', async () => {

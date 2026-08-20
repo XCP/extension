@@ -270,7 +270,9 @@ export function SwapForm({
         )
       }
       submitText="Review Swap"
-      submitDisabled={pending || submitDisabled}
+      submitDisabled={
+        pending || submitDisabled || feeRate === null || !Number.isFinite(feeRate) || feeRate < 0.1
+      }
       showFeeRate={false}
       containerClassName=""
     >

@@ -188,12 +188,12 @@ export function DispenseForm({
   const maxDispenses = (() => {
     if (!selectedDispenser || !activeAddress?.address || spendableBtc.isLoading) return 0;
     if (spendableBtc.utxoCount === 0) return 0;
+    if (feeRate === null) return 0;
 
     // Calculate fee based on actual UTXO count and address type
-    const effectiveFeeRate = feeRate ?? 0.1;
     // Dispense transaction has 1 output to dispenser
     const estimatedVbytes = estimateVsize(spendableBtc.utxoCount, 1, activeAddress.address);
-    const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, effectiveFeeRate)));
+    const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
 
     const affordableDispenses = calculateMaximumDispenses(
       selectedDispenser.satoshirate,
@@ -286,6 +286,11 @@ export function DispenseForm({
       return;
     }
 
+    if (feeRate === null) {
+      setValidationError("Fee rates are still loading. Please wait.");
+      return;
+    }
+
     if (maxDispenses === 0) {
       const remainingDispenses = calculateRemainingDispenses(
         selectedDispenser.dispenser
@@ -301,9 +306,8 @@ export function DispenseForm({
         setValidationError(message);
       } else {
         // Calculate fee for error message
-        const effectiveFeeRate = feeRate ?? 0.1;
         const estimatedVbytes = estimateVsize(spendableBtc.utxoCount || 1, 1, activeAddress?.address || "");
-        const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, effectiveFeeRate)));
+        const estimatedFee = toNumber(roundUp(multiply(estimatedVbytes, feeRate)));
         const requiredSatoshis = selectedDispenser.satoshirate + estimatedFee;
         const requiredBTC = requiredSatoshis / SATOSHIS_PER_BTC;
         setValidationError(`Insufficient BTC balance. You need at least ${formatAmount({

@@ -18,11 +18,19 @@ import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
 interface FeeRateInputProps {
   showHelpText?: boolean;
   disabled?: boolean;
-  onFeeRateChange?: (satPerVbyte: number) => void;
+  onFeeRateChange?: (satPerVbyte: number | null) => void;
   initialValue?: number | null;
 }
 
 type LocalFeeRateOption = FeeRateOption | "custom";
+
+function getValidInitialFeeRate(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const validation = validateFeeRate(value, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
+  return validation.isValid && validation.satsPerVByte !== undefined
+    ? validation.satsPerVByte
+    : null;
+}
 
 /**
  * FeeRateInput provides fee rate selection with presets and custom input option.
@@ -37,8 +45,11 @@ export function FeeRateInput({
   initialValue,
 }: FeeRateInputProps): ReactElement {
   const { feeRates, isLoading, error: fetchError, uniquePresetOptions } = useFeeRates(true);
+  const validInitialValue = getValidInitialFeeRate(initialValue);
   const [selectedOption, setSelectedOption] = useState<LocalFeeRateOption>("fast");
-  const [customInput, setCustomInput] = useState<string>("0.1");
+  const [customInput, setCustomInput] = useState<string>(() =>
+    validInitialValue !== null ? validInitialValue.toString() : ""
+  );
   const [internalError, setInternalError] = useState<string | null>(null);
   const isInitial = useRef(true);
   const hasRunPresetEffect = useRef(false);
@@ -51,27 +62,28 @@ export function FeeRateInput({
   const disabledProps = disabled === true ? { disabled: true } : {};
 
   // Calculate the current fee rate value based on selection
-  const currentFeeRate = selectedOption === "custom" 
-    ? parseFloat(customInput) || 0.1 
-    : feeRates && uniquePresetOptions.find(opt => opt.id === selectedOption)?.value || 0.1;
+  const parsedCustomInput = Number.parseFloat(customInput);
+  const currentFeeRate = selectedOption === "custom"
+    ? (Number.isFinite(parsedCustomInput) ? parsedCustomInput : null)
+    : uniquePresetOptions.find((opt) => opt.id === selectedOption)?.value ?? null;
 
   useEffect(() => {
     if (feeRates && isInitial.current) {
       isInitial.current = false;
 
       // Check if user explicitly set a fee rate (null = use network default)
-      if (initialValue !== undefined && initialValue !== null) {
+      if (validInitialValue !== null) {
         // Check if it matches a preset
-        const matchingPreset = uniquePresetOptions.find(opt => opt.value === initialValue);
+        const matchingPreset = uniquePresetOptions.find(opt => opt.value === validInitialValue);
         if (matchingPreset) {
           setSelectedOption(matchingPreset.id);
-          setCustomInput(initialValue.toString());
+          setCustomInput(validInitialValue.toString());
         } else {
           // Use custom mode for non-preset values
           setSelectedOption("custom");
-          setCustomInput(initialValue.toString());
+          setCustomInput(validInitialValue.toString());
         }
-        onFeeRateChangeRef.current?.(initialValue);
+        onFeeRateChangeRef.current?.(validInitialValue);
       } else {
         // Default to fast preset (fresh load or default value)
         const defaultValue = toNumber(maximum(feeRates.fastestFee, 0.1));
@@ -80,7 +92,7 @@ export function FeeRateInput({
         onFeeRateChangeRef.current?.(defaultValue);
       }
     }
-  }, [feeRates, initialValue, uniquePresetOptions]);
+  }, [feeRates, validInitialValue, uniquePresetOptions]);
 
   useEffect(() => {
     // Skip the first run - initialization is handled by the initialization effect above.
@@ -100,8 +112,8 @@ export function FeeRateInput({
   }, [selectedOption, feeRates, uniquePresetOptions]);
 
   const feeOptions: { id: LocalFeeRateOption; name: string; value: number; }[] = feeRates
-    ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }]
-    : [{ id: "custom", name: "Custom", value: parseFloat(customInput) || 0.1 }];
+    ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: currentFeeRate ?? 0 }]
+    : [{ id: "custom", name: "Custom", value: currentFeeRate ?? 0 }];
 
   const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const trimmed = e.target.value.trim();
@@ -110,6 +122,7 @@ export function FeeRateInput({
     // Allow empty input temporarily while typing
     if (trimmed === "") {
       setCustomInput("");
+      onFeeRateChangeRef.current?.(null);
       return;
     }
     
@@ -130,10 +143,16 @@ export function FeeRateInput({
       const formattedValue = formatAmount({
         value: num,
         maximumFractionDigits: 2,
-        minimumFractionDigits: 0
+        minimumFractionDigits: 0,
+        useGrouping: false,
       });
       setCustomInput(formattedValue);
-      onFeeRateChangeRef.current?.(toNumber(formattedValue));
+      const validation = validateFeeRate(formattedValue, { minRate: 0.1, warnHighFee: false });
+      onFeeRateChangeRef.current?.(
+        validation.isValid && validation.satsPerVByte !== undefined
+          ? validation.satsPerVByte
+          : null
+      );
       return;
     }
     
@@ -142,8 +161,10 @@ export function FeeRateInput({
     
     // Use validation utility to check if value is valid before notifying parent
     const validation = validateFeeRate(num, { minRate: 0.1, warnHighFee: false });
-    if (validation.isValid && validation.satsPerVByte) {
+    if (validation.isValid && validation.satsPerVByte !== undefined) {
       onFeeRateChangeRef.current?.(validation.satsPerVByte);
+    } else {
+      onFeeRateChangeRef.current?.(null);
     }
   };
 
@@ -152,9 +173,8 @@ export function FeeRateInput({
     
     // Handle empty input
     if (trimmed === "") {
-      setCustomInput("0.1");
       setInternalError("Fee rate is required");
-      onFeeRateChangeRef.current?.(0.1);
+      onFeeRateChangeRef.current?.(null);
       return;
     }
     
@@ -164,21 +184,26 @@ export function FeeRateInput({
     if (!validation.isValid) {
       // Use the error message from validation or default
       setInternalError(validation.error || "Invalid fee rate");
-      setCustomInput("0.1");
-      onFeeRateChangeRef.current?.(0.1);
+      onFeeRateChangeRef.current?.(null);
       return;
     }
     
-    const num = validation.satsPerVByte || 0.1;
+    const num = validation.satsPerVByte;
+    if (num === undefined) {
+      setInternalError("Invalid fee rate");
+      onFeeRateChangeRef.current?.(null);
+      return;
+    }
     
     // Format the final value and notify parent
     const formattedValue = formatAmount({
       value: num,
       maximumFractionDigits: 2,
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      useGrouping: false,
     });
     setCustomInput(formattedValue);
-    onFeeRateChange?.(toNumber(formattedValue));
+    onFeeRateChangeRef.current?.(toNumber(formattedValue));
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number } | null) => {
@@ -211,8 +236,9 @@ export function FeeRateInput({
         <div className="mt-1">
           <p>Loading fee rates…</p>
         </div>
-        {/* Always include the hidden input even when loading */}
-        <input type="hidden" name="sat_per_vbyte" value="0.1" />
+        {validInitialValue !== null && (
+          <input type="hidden" name="sat_per_vbyte" value={validInitialValue.toString()} />
+        )}
       </Field>
     );
   }
@@ -286,7 +312,9 @@ export function FeeRateInput({
         ) : (
           <>
             {/* Hidden input that will be included in form submission when using dropdown */}
-            <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
+            {currentFeeRate !== null && (
+              <input type="hidden" name="sat_per_vbyte" value={currentFeeRate.toString()} />
+            )}
             
             {feeRates && feeOptions.length > 0 && (
               <div className="relative">
