@@ -12,7 +12,7 @@ import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
-import { fetchTokenBalances } from '@/core/counterparty/api';
+import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
 import {
@@ -1072,15 +1072,15 @@ export function createProviderService(): ProviderService {
             // Fetch BTC balance
             const btcBalance = await fetchBTCBalance(activeAddress.address);
 
-            // Fetch token balances
-            const tokenBalances = await fetchTokenBalances(activeAddress.address, {
+            // Ask for XCP directly. Enumerating an address's balances is both
+            // wasteful for collectors and wrong once XCP falls outside the
+            // first page of assets.
+            const xcpBalance = await fetchTokenBalance(activeAddress.address, 'XCP', {
               verbose: true,
               // UTXO-attached XCP is not spendable as the address's ordinary
               // balance and must not make a dApp think it can fund an action.
               type: 'address'
             });
-
-            const xcpBalance = tokenBalances?.find((b: any) => b.asset === 'XCP');
 
             return {
               address: activeAddress.address,
@@ -1089,7 +1089,7 @@ export function createProviderService(): ProviderService {
                 unconfirmed: 0,
                 total: btcBalance || 0
               },
-              xcp: xcpBalance?.quantity_normalized || 0
+              xcp: xcpBalance.quantity_normalized ?? '0'
             };
           } catch (error) {
             console.error('[ProviderService] Error fetching balances:', error);

@@ -404,11 +404,17 @@ const result = await xcpwallet.request({
 
 #### `xcp_getBalances`
 
-Get BTC and token balances for the connected address.
+Get the BTC and address-level XCP balances for the connected address. This is
+not a portfolio endpoint: applications should query the Counterparty API for a
+specific asset when they need another token's balance.
 
 ```js
 const result = await xcpwallet.request({ method: 'xcp_getBalances' });
-// { address: 'bc1q...', btc: { ... }, xcp: { ... }, tokens: [...] }
+// {
+//   address: 'bc1q...',
+//   btc: { confirmed: 12345, unconfirmed: 0, total: 12345 },
+//   xcp: '10.5'
+// }
 ```
 
 #### `xcp_getAddresses`

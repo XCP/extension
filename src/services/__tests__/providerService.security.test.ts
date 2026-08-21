@@ -245,7 +245,18 @@ describe('ProviderService Security Tests', () => {
       
       // Mock the API responses
       const apiModule = await import('@/core/counterparty/api');
-      vi.spyOn(apiModule, 'fetchTokenBalances').mockResolvedValue([]);
+      vi.spyOn(apiModule, 'fetchTokenBalance').mockResolvedValue({
+        asset: 'XCP',
+        quantity: '0' as any,
+        quantity_normalized: '0' as any,
+        asset_info: {
+          asset_longname: null,
+          description: '',
+          issuer: '',
+          divisible: true,
+          locked: false
+        }
+      });
       
       const balanceModule = await import('@/core/bitcoin/balance');
       vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue(0);
@@ -279,6 +290,55 @@ describe('ProviderService Security Tests', () => {
 
       const balanceModule = await import('@/core/bitcoin/balance');
       vi.spyOn(balanceModule, 'fetchBTCBalance').mockRejectedValue(new Error('upstream unavailable'));
+
+      await expect(
+        providerService.handleRequest(origin, 'xcp_getBalances', [])
+      ).rejects.toThrow('Unable to fetch wallet balances');
+    });
+
+    it('should fetch XCP directly instead of paging every asset balance', async () => {
+      const origin = 'https://connected.com';
+      vi.mocked(walletManager.getSettings).mockReturnValue({
+        ...DEFAULT_SETTINGS,
+        connectedWebsites: [origin]
+      });
+
+      const balanceModule = await import('@/core/bitcoin/balance');
+      vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue(1250);
+      const apiModule = await import('@/core/counterparty/api');
+      const fetchXcp = vi.spyOn(apiModule, 'fetchTokenBalance').mockResolvedValue({
+        asset: 'XCP',
+        quantity: '1050000000' as any,
+        quantity_normalized: '10.5' as any,
+        asset_info: {
+          asset_longname: null,
+          description: '',
+          issuer: '',
+          divisible: true,
+          locked: false
+        }
+      });
+
+      await expect(
+        providerService.handleRequest(origin, 'xcp_getBalances', [])
+      ).resolves.toMatchObject({ address: expect.any(String), xcp: '10.5' });
+      expect(fetchXcp).toHaveBeenCalledWith(expect.any(String), 'XCP', {
+        verbose: true,
+        type: 'address'
+      });
+    });
+
+    it('should fail closed when the XCP balance API is unavailable', async () => {
+      const origin = 'https://connected.com';
+      vi.mocked(walletManager.getSettings).mockReturnValue({
+        ...DEFAULT_SETTINGS,
+        connectedWebsites: [origin]
+      });
+
+      const balanceModule = await import('@/core/bitcoin/balance');
+      vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue(1250);
+      const apiModule = await import('@/core/counterparty/api');
+      vi.spyOn(apiModule, 'fetchTokenBalance').mockRejectedValue(new Error('upstream unavailable'));
 
       await expect(
         providerService.handleRequest(origin, 'xcp_getBalances', [])
