@@ -121,6 +121,8 @@ export interface SignRequestAnalysis {
   attachedAssetDestination: AttachedAssetDestination | null;
   /** Exact external-output proof for a plain Bitcoin provider request. */
   bitcoinPaymentProof?: BitcoinPaymentProof;
+  /** Every reason a plain Bitcoin request is gated, for the payment card to state directly. */
+  bitcoinPaymentBlockers?: string[];
   marketplaceReview?: MarketplaceApprovalReview;
 }
 
@@ -244,6 +246,7 @@ export async function analyzeSignRequest(
   const attachedAssets = await input.attachedAssets;
 
   let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
+  let bitcoinPaymentBlockers: string[] | undefined;
   if (signingPurpose === 'bitcoin-payment') {
     const signed = new Set(signedInputIndices);
     const signedAssets = attachedAssets.filter(
@@ -273,6 +276,7 @@ export async function analyzeSignRequest(
       blockers.push(...bitcoinPaymentProof.errors);
     }
     if (blockers.length > 0) {
+      bitcoinPaymentBlockers = blockers;
       safety.warnings = [
         {
           // Tagged so the approval screen can let the payment card be the one failure voice
@@ -391,6 +395,7 @@ export async function analyzeSignRequest(
     protocolContext,
     attachedAssetDestination,
     bitcoinPaymentProof,
+    bitcoinPaymentBlockers,
     marketplaceReview,
   };
 }

@@ -15,7 +15,9 @@ const btc = (sats: number) => formatAmount({
  * Semantic context for the dedicated plain-Bitcoin provider capability.
  *
  * In the failure state this card is the screen's one voice: the approval page suppresses its
- * generic warning stack for the payment gate, so the concrete reason must be carried here.
+ * generic warning stack for the payment gate, so the concrete reasons must be carried here —
+ * and the mismatch must be inspectable, which means showing the site's claim beside what the
+ * transaction actually pays.
  */
 export function BitcoinPaymentCard({
   intent,
@@ -24,8 +26,8 @@ export function BitcoinPaymentCard({
 }: {
   intent: BitcoinPaymentIntentV1;
   proof: BitcoinPaymentProof | undefined;
-  /** The gating message from the analyzer, when the payment could not be proved. */
-  failure?: string;
+  /** The gating reasons from the analyzer, when the payment could not be proved. */
+  failure?: string[];
 }) {
   return (
     <div className={`rounded-lg border p-4 ${
@@ -65,9 +67,46 @@ export function BitcoinPaymentCard({
           not authority to sign.
         </p>
       ) : (
-        <p className="mt-3 text-xs leading-5 text-danger-800">
-          {failure ?? 'The wallet could not match the declared payment to the PSBT, so signing is blocked.'}
-        </p>
+        <>
+          {/* The claim beside the bytes, so the mismatch is inspectable rather than asserted. */}
+          <div className="mt-3 space-y-2 border-t border-danger-200 pt-3 text-xs text-danger-950">
+            <p className="font-semibold">Site declared</p>
+            {intent.outputs.map((output, index) => (
+              <div key={`declared-${index}`}>
+                <div className="flex justify-between gap-3">
+                  <span>Payment</span>
+                  <span className="font-semibold">{btc(output.amountSats)} BTC</span>
+                </div>
+                <p className="mt-0.5 break-all font-mono text-danger-800">
+                  {formatAddress(output.address, false)}
+                </p>
+              </div>
+            ))}
+            <p className="pt-1 font-semibold">Transaction pays</p>
+            {proof && proof.outputs.length > 0 ? (
+              proof.outputs.map((output) => (
+                <div key={`actual-${output.index}`}>
+                  <div className="flex justify-between gap-3">
+                    <span>Output #{output.index}</span>
+                    <span className="font-semibold">{btc(output.amountSats)} BTC</span>
+                  </div>
+                  <p className="mt-0.5 break-all font-mono text-danger-800">
+                    {formatAddress(output.address, false)}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <p className="text-danger-800">No external payment output</p>
+            )}
+          </div>
+          {failure && failure.length > 0 && (
+            <ul className="mt-3 space-y-1 border-t border-danger-200 pt-3 text-xs leading-5 text-danger-800">
+              {failure.map((reason) => (
+                <li key={reason}>• {reason}</li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

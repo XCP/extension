@@ -31,15 +31,26 @@ describe('BitcoinPaymentCard', () => {
     expect(screen.getByText(/site name and description are context/i)).toBeInTheDocument();
   });
 
-  it('never presents an unproved request as verified', () => {
-    render(<BitcoinPaymentCard intent={intent} proof={{
-      proved: false,
-      errors: ['destination differs'],
-      outputs: [],
-      totalSats: 0,
-    }} />);
+  it('shows the claim beside the bytes when the payment does not verify', () => {
+    render(<BitcoinPaymentCard
+      intent={intent}
+      proof={{
+        proved: false,
+        errors: ['the external payment outputs do not exactly match the site intent'],
+        outputs: [{ index: 0, address: ADDRESS, amountSats: 21_599 }],
+        totalSats: 21_599,
+      }}
+      failure={['the external payment outputs do not exactly match the site intent']}
+    />);
 
     expect(screen.getByText('Bitcoin payment did not verify')).toBeInTheDocument();
-    expect(screen.queryByText(ADDRESS)).not.toBeInTheDocument();
+    // The mismatch is inspectable: the declared amount and the actual amount both render.
+    expect(screen.getByText('Site declared')).toBeInTheDocument();
+    expect(screen.getByText(/0\.00021600 BTC/)).toBeInTheDocument();
+    expect(screen.getByText('Transaction pays')).toBeInTheDocument();
+    expect(screen.getByText(/0\.00021599 BTC/)).toBeInTheDocument();
+    expect(screen.getByText(/do not exactly match/)).toBeInTheDocument();
+    // No boilerplate framing — the heading and the reasons carry it.
+    expect(screen.queryByText(/cannot be proved/)).not.toBeInTheDocument();
   });
 });

@@ -419,7 +419,7 @@ export default function ApprovePsbtPage() {
             <BitcoinPaymentCard
               intent={request.bitcoinPaymentIntent}
               proof={decodedInfo.bitcoinPaymentProof}
-              failure={bitcoinPaymentGate?.message}
+              failure={decodedInfo.bitcoinPaymentBlockers}
             />
           )}
 
