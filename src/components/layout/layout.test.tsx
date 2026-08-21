@@ -93,7 +93,9 @@ describe('Layout', () => {
     const layoutDiv = container.firstChild as HTMLElement;
     expect(layoutDiv).toHaveClass('flex');
     expect(layoutDiv).toHaveClass('flex-col');
-    expect(layoutDiv).toHaveClass('h-dvh');
+    expect(layoutDiv).toHaveClass('h-full');
+    expect(layoutDiv).toHaveClass('min-h-0');
+    expect(layoutDiv).toHaveClass('overflow-hidden');
     expect(layoutDiv).toHaveClass('bg-gray-100');
   });
 
@@ -101,6 +103,7 @@ describe('Layout', () => {
     render(<Layout />);
     
     const main = screen.getByRole('main');
+    expect(main).toHaveClass('min-h-0');
     expect(main).toHaveClass('flex-1');
     expect(main).toHaveClass('overflow-y-auto');
     expect(main).toHaveClass('no-scrollbar');
@@ -186,10 +189,11 @@ describe('Layout', () => {
     expect(screen.queryByTestId('footer')).not.toBeInTheDocument();
   });
 
-  it('should take full screen height', () => {
+  it('should take the height of its extension container', () => {
     const { container } = render(<Layout />);
     
     const layoutDiv = container.firstChild as HTMLElement;
-    expect(layoutDiv).toHaveClass('h-dvh');
+    expect(layoutDiv).toHaveClass('h-full');
+    expect(layoutDiv).not.toHaveClass('h-dvh');
   });
 });

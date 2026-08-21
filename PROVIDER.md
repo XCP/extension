@@ -119,7 +119,8 @@ All signing methods require an active connection and open a popup for user appro
 #### What this wallet will sign
 
 `xcp_signTransaction` and `xcp_signPsbt` are for Counterparty transactions. A request is refused
-outright when it is not one:
+outright when it is not one. Plain Bitcoin website payments use the narrower
+`xcp_signBitcoinPsbt` capability documented below; origins never bypass either policy.
 
 - **No Counterparty content.** The transaction must either carry a Counterparty message or spend an
   input holding attached assets. Both forms count, because spending an attached UTXO moves its
@@ -247,6 +248,24 @@ is the output sharing the signed input's index; any *other* output paying the
 signer is shown as "may not return to you", the headline reflects that worst
 case, and signing is gated until the signer acknowledges the amount.
 
+The warning copy preserves the same distinction. `ALL | ANYONECANPAY` is an
+informational note that other funding inputs may be added and explicitly says
+that every current output is fixed. `SINGLE | ANYONECANPAY` says that only the
+paired output is fixed; redirectable signer funds escalate to danger. The
+screen does not use the generic and inaccurate “inputs or outputs may be added”
+copy for both flags.
+
+Attached-asset review likewise presents one outcome, not several warnings for
+the same movement. When the destination is resolved, the destination and exact
+asset list share one row: movement to the wallet's own output or a detach back
+to its own address is information, while delivery outside the wallet or a
+signature that leaves delivery flexible is danger. A failed asset lookup
+remains a warning because an unknown UTXO is never treated as asset-free.
+
+When local transaction verification blocks approval, the popup recommends
+retrying or asking the site to rebuild the request. It does not instruct the
+user to disable strict verification from the signing screen.
+
 For a marketplace listing this means:
 
 - Put the seller's proceeds at the **same index as the input being signed**.
@@ -255,6 +274,49 @@ For a marketplace listing this means:
   price it as change.
 
 A listing built that way has nothing at risk and signs with no extra prompt.
+
+**Versioned marketplace intent.** `xcp_signPsbt` accepts an optional `intent` object. It is an
+untrusted claim used to ask for a semantic approval, not permission to skip validation. Version
+0.9 recognizes the `create_listing` family:
+
+```js
+await xcpwallet.request({
+  method: 'xcp_signPsbt',
+  params: [{
+    hex: listingPsbtHex,
+    signInputs: { [seller]: [1] },
+    // Absolute PSBT indices: input 0 is not signed, but occupies slot 0.
+    sighashTypes: [0x01, 0x83],
+    intent: {
+      standard: 'counterparty-marketplace',
+      version: 1,
+      action: 'create_listing',
+      operationId: 'preflight-id',
+      protocolVersion: 'counterparty_attach_listing_v1',
+      assets: [{
+        asset: 'RAREPEPE',
+        quantityRaw: '1',
+        sourceOutpoint: { txid: '<64-char txid>', vout: 0 }
+      }],
+      seller,
+      priceSats: 250000,
+      carrierValueSats: 546,
+      guaranteedSellerPaymentSats: 250546,
+      delivery: { mode: 'buyer_selected_detach' },
+      signingRequestExpiresAt: 1711130400,
+      marketplaceExpiresAt: null,
+      bitcoinExpiresAt: null
+    }
+  }]
+});
+```
+
+The wallet independently checks the two-input/two-output template, null and unsigned buyer slot,
+exact attached outpoint and raw quantity, seller identity and carrier value, only input 1 requested
+with `SINGLE|ANYONECANPAY`, and exact carrier-plus-price payment at output 1. It also states that
+buyer funding and the detach destination remain flexible. A false claim is blocked; an unavailable
+asset lookup asks the user to retry rather than treating the UTXO as empty. Marketplace expiry is
+displayed as service policy, not Bitcoin signature expiry.
 
 **Mixed sighash flags.** When signed inputs carry different flags, the summary
 prices only the outputs that every `ANYONECANPAY` input covers on its own. Such
@@ -276,6 +338,53 @@ transaction rather than rendered as an ordinary transfer.
 a listing awaiting a buyer's funding inputs — is accepted. No fee is claimed for
 it; the approval screen reports the fee as set by the other party rather than
 showing a figure that cannot be known yet.
+
+#### `xcp_signBitcoinPsbt`
+
+Sign a fully funded, plain-Bitcoin PSBT for an exact website payment. This is intended for flows
+such as funding an Emblem Vault transaction, where no Counterparty message belongs in the funding
+step. It is not a trusted-site mode and it is not available through `xcp_signPsbt`.
+
+```js
+const result = await xcpwallet.request({
+  method: 'xcp_signBitcoinPsbt',
+  params: [{
+    hex: '<fully funded PSBT hex>',
+    signInputs: { 'bc1q...': [0] },
+    sighashTypes: [0x01],
+    intent: {
+      standard: 'xcp-wallet/bitcoin-payment',
+      version: 1,
+      action: 'pay',
+      outputs: [{ address: 'bc1q...', amountSats: 21600 }],
+      description: 'Fund Emblem Vault', // display context only
+      reference: 'vault-63'             // display context only
+    }
+  }]
+});
+// { hex: '<signed PSBT hex>' }
+```
+
+The capability requires all of the following before approval:
+
+- an existing site connection and explicit non-empty `signInputs` owned by the current wallet;
+- an explicit `SIGHASH_ALL` entry for every requested input;
+- a fully funded PSBT with no Counterparty payload or inscription context;
+- an independent successful lookup proving every requested input has no attached assets; and
+- exact multiset equality between the declared external address/amount pairs and decoded PSBT
+  outputs, after excluding wallet-owned change.
+
+An extra output, substituted address or amount, unreadable output script, OP_RETURN, failed asset
+lookup, or attached asset hard-blocks signing. The approval always appears and shows the full
+destination and amount. The `description`, `reference`, and requesting origin can change wording,
+but can never make an unsafe PSBT signable. A proved payment is shown once in that exact-output
+card; the generic analyzer's truncated payment notice is omitted rather than duplicating it.
+
+The existing permissioned paired-address capability also applies to this method. A payment that
+spends both the same-index Legacy P2PKH and SegWit P2WPKH addresses must name both addresses and
+their absolute input indices in `signInputs`, with a `SIGHASH_ALL` entry for each input. Both
+addresses are then recognized as wallet-owned when classifying change. This does not relax the
+per-origin paired-address permission, exact-output proof, or attached-asset checks.
 
 ### Broadcasting
 

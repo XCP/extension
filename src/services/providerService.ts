@@ -10,8 +10,15 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
+import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
+import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
+import {
+  marketplaceTransactionHeaderProblem,
+  parseMarketplaceIntent,
+} from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
@@ -658,7 +665,201 @@ export function createProviderService(): ProviderService {
           });
         }
 
-        case 'xcp_signPsbt': {
+        case 'xcp_signPsbts': {
+          const bundleParams = params?.[0];
+          if (!bundleParams || typeof bundleParams !== 'object' || Array.isArray(bundleParams)) {
+            throw new Error('PSBT bundle parameters must be an object with requests');
+          }
+          const requests = (bundleParams as { requests?: unknown }).requests;
+          if (!Array.isArray(requests) || requests.length < 1 || requests.length > 8) {
+            throw new Error('This wallet version supports 1..8 linked PSBT requests');
+          }
+          const parsedRequests = requests.map((request, requestIndex) => {
+            if (!request || typeof request !== 'object' || Array.isArray(request)) {
+              throw new Error(`PSBT bundle request ${requestIndex} must be an object`);
+            }
+            const candidate = request as {
+              hex?: unknown;
+              signInputs?: unknown;
+              sighashTypes?: unknown;
+              intent?: unknown;
+            };
+            if (typeof candidate.hex !== 'string' || candidate.hex.length === 0) {
+              throw new Error(`PSBT bundle request ${requestIndex} requires hex`);
+            }
+            if (
+              !candidate.signInputs
+              || typeof candidate.signInputs !== 'object'
+              || Array.isArray(candidate.signInputs)
+              || Object.keys(candidate.signInputs).length === 0
+            ) {
+              throw new Error(`PSBT bundle request ${requestIndex} requires explicit signInputs`);
+            }
+            if (
+              !Array.isArray(candidate.sighashTypes)
+              || candidate.sighashTypes.some(value => ![0x01, 0x83].includes(value as number))
+            ) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} supports only ALL or SINGLE|ANYONECANPAY`,
+              );
+            }
+            return {
+              psbtHex: candidate.hex,
+              signInputs: candidate.signInputs as Record<string, number[]>,
+              sighashTypes: candidate.sighashTypes as number[],
+              intent: candidate.intent,
+            };
+          });
+          const firstIntent = parsedRequests[0]!.intent;
+          const exactCpfp = requests.length === 2
+            && firstIntent !== null
+            && typeof firstIntent === 'object'
+            && !Array.isArray(firstIntent)
+            && (firstIntent as { action?: unknown }).action === 'accept_exact_offer';
+          const parsedBundle = exactCpfp
+            ? (() => {
+                const pair = parseAcceptanceCpfpBundleIntents(
+                  parsedRequests[0]!.intent,
+                  parsedRequests[1]!.intent,
+                );
+                return {
+                  kind: 'acceptance-cpfp' as const,
+                  intents: [pair.parent, pair.child],
+                };
+              })()
+            : parseMarketplaceBatchIntents(parsedRequests.map(request => request.intent));
+
+          if (!await connectionService.hasPermission(origin)) {
+            throw new ProviderError(
+              PROVIDER_ERROR_CODES.UNAUTHORIZED,
+              'Unauthorized - not connected to wallet',
+            );
+          }
+          const activeAddress = await walletService.getActiveAddress();
+          const activeWallet = await walletService.getActiveWallet();
+          if (!activeAddress || !activeWallet) throw new Error('No active address');
+
+          const supportsPairedAddresses = Boolean(
+            getPairedAddressFormats(activeWallet.addressFormat),
+          );
+          const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
+            ? await walletService.getPairedAddresses()
+            : null;
+          const allowedAddresses = [
+            activeAddress.address,
+            ...(paired ? [paired.legacy.address, paired.segwit.address] : []),
+          ];
+          const pairedAddressSet = new Set(
+            paired
+              ? [paired.legacy.address, paired.segwit.address].map(normalizeAddressForComparison)
+              : [],
+          );
+          const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+          let usesPairedAddress = false;
+
+          for (const [requestIndex, request] of parsedRequests.entries()) {
+            const details = extractPsbtDetails(request.psbtHex);
+            const marketplaceIntent = parsedBundle.intents[requestIndex]!;
+            const headerProblem = marketplaceTransactionHeaderProblem(
+              marketplaceIntent,
+              details.transactionVersion,
+              details.lockTime,
+            );
+            if (headerProblem) {
+              throw new Error(`PSBT bundle request ${requestIndex}: ${headerProblem}`);
+            }
+            const permitsNullBuyerPlaceholder = marketplaceIntent.action === 'create_listing';
+            const missingAuthenticatedPrevout = details.inputs.some((input, inputIndex) =>
+              input.value === undefined && !(permitsNullBuyerPlaceholder && inputIndex === 0));
+            if ((!permitsNullBuyerPlaceholder && details.unfunded) || missingAuthenticatedPrevout) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} must be fully funded with authenticated prevouts`,
+              );
+            }
+            if (request.sighashTypes.length > details.inputs.length) {
+              throw new Error(`PSBT bundle request ${requestIndex} has too many sighash entries`);
+            }
+            if (request.sighashTypes.some(
+              (value, index) => value === 0x83 && index >= details.outputs.length,
+            )) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} uses SINGLE without a paired output`,
+              );
+            }
+            const validation = validateSignInputs(
+              request.signInputs,
+              allowedAddresses,
+              details.inputs.length,
+              details.inputs.map(input => tapLeafOwnerAddress(input) ?? input.address),
+            );
+            if (!validation.valid) {
+              throw new Error(`PSBT bundle request ${requestIndex}: ${validation.error}`);
+            }
+            const requestedInputIndices = Object.values(request.signInputs).flat();
+            const missing = requestedInputIndices.filter(
+              inputIndex => request.sighashTypes[inputIndex] === undefined,
+            );
+            if (missing.length > 0) {
+              throw new Error(
+                `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
+              );
+            }
+            usesPairedAddress ||= Object.keys(request.signInputs).some(address => {
+              const normalizedAddress = normalizeAddressForComparison(address);
+              return normalizedAddress !== normalizedActiveAddress
+                && pairedAddressSet.has(normalizedAddress);
+            });
+          }
+          if (
+            usesPairedAddress
+            && !await connectionService.hasPairedAddressPermission(
+              origin,
+              activeWallet.id,
+              activeAddress.address,
+            )
+          ) {
+            throw new ProviderError(
+              PROVIDER_ERROR_CODES.UNAUTHORIZED,
+              'Paired Legacy/SegWit address access has not been granted',
+            );
+          }
+
+          return runSignFlow({
+            origin,
+            method,
+            params,
+            approval: {
+              eventPrefix: 'sign-psbts',
+              analyticsEvent: 'psbt_bundle_signed',
+              cancelMessage: 'User cancelled PSBT bundle signing request',
+              timeoutMessage: 'PSBT bundle signing request timeout',
+              mapResult: result => ({ hexes: result.signedPsbtHexes }),
+            },
+            createAndOpen: async (requestId, requestKey) => {
+              await beginSignFlow({
+                id: requestId,
+                origin,
+                requestKey,
+                kind: 'sign-psbts',
+                bundleKind: parsedBundle.kind,
+                items: parsedRequests.map((request, index) => ({
+                  psbtHex: request.psbtHex,
+                  signInputs: request.signInputs,
+                  sighashTypes: request.sighashTypes,
+                  marketplaceIntent: parsedBundle.intents[index]!,
+                })),
+                address: activeAddress.address,
+                walletId: activeWallet.id,
+                timestamp: Date.now(),
+              });
+              await openExtensionPopup(`#/requests/psbts/approve?requestId=${requestId}`);
+            },
+          });
+        }
+
+        case 'xcp_signPsbt':
+        case 'xcp_signBitcoinPsbt': {
+          const isBitcoinPayment = method === 'xcp_signBitcoinPsbt';
           const psbtParams = params?.[0];
 
           // Validate params structure
@@ -666,11 +867,12 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs, sighashTypes, inscription } = psbtParams as {
+          const { hex: psbtHex, signInputs, sighashTypes, inscription, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
+            intent?: unknown;
           };
 
           if (!psbtHex) {
@@ -678,6 +880,15 @@ export function createProviderService(): ProviderService {
           }
           if (typeof psbtHex !== 'string') {
             throw new Error('PSBT hex must be a string');
+          }
+          const bitcoinPaymentIntent = isBitcoinPayment
+            ? parseBitcoinPaymentIntent(intent)
+            : undefined;
+          const marketplaceIntent = !isBitcoinPayment && intent !== undefined
+            ? parseMarketplaceIntent(intent)
+            : undefined;
+          if (isBitcoinPayment && inscription !== undefined) {
+            throw new Error('Plain Bitcoin payment requests cannot carry inscription context');
           }
           // Shape-checked here, verified on the approval screen: the context is a claim the site
           // makes about what the commit funds, and every field of it gets recomputed there.
@@ -695,12 +906,20 @@ export function createProviderService(): ProviderService {
           )) {
             throw new Error('signInputs must be an address-to-input-indices object');
           }
+          if (isBitcoinPayment && (!signInputs || Object.keys(signInputs).length === 0)) {
+            throw new Error('Plain Bitcoin payment requests require explicit signInputs');
+          }
           if (sighashTypes !== undefined) {
             if (!Array.isArray(sighashTypes) || sighashTypes.some(
-              value => ![0x01, 0x81, 0x83].includes(value)
+              value => !(isBitcoinPayment ? [0x01] : [0x01, 0x81, 0x83]).includes(value)
             )) {
-              throw new Error('Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
+              throw new Error(isBitcoinPayment
+                ? 'Plain Bitcoin payment requests support only SIGHASH_ALL'
+                : 'Only SIGHASH_ALL, ALL|ANYONECANPAY, and SINGLE|ANYONECANPAY are supported');
             }
+          }
+          if (isBitcoinPayment && sighashTypes === undefined) {
+            throw new Error('Plain Bitcoin payment requests require explicit SIGHASH_ALL entries');
           }
 
           // Check if connected
@@ -716,6 +935,22 @@ export function createProviderService(): ProviderService {
           }
 
           const psbtDetails = extractPsbtDetails(psbtHex);
+          if (marketplaceIntent) {
+            const headerProblem = marketplaceTransactionHeaderProblem(
+              marketplaceIntent,
+              psbtDetails.transactionVersion,
+              psbtDetails.lockTime,
+            );
+            if (headerProblem) throw new Error(headerProblem);
+          }
+          if (isBitcoinPayment && (
+            psbtDetails.unfunded
+            || psbtDetails.inputs.some(input => input.value === undefined)
+          )) {
+            throw new Error(
+              'Plain Bitcoin payment requests must be fully funded with authenticated prevout amounts before review'
+            );
+          }
           if (sighashTypes && sighashTypes.length > psbtDetails.inputs.length) {
             throw new Error('sighashTypes contains more entries than the PSBT has inputs');
           }
@@ -802,6 +1037,9 @@ export function createProviderService(): ProviderService {
                 psbtHex,
                 signInputs,
                 sighashTypes,
+                signingPurpose: isBitcoinPayment ? 'bitcoin-payment' : 'counterparty',
+                ...(bitcoinPaymentIntent ? { bitcoinPaymentIntent } : {}),
+                ...(marketplaceIntent ? { marketplaceIntent } : {}),
                 ...(inscription ? {
                   inscription: {
                     revealScript: inscription.revealScript!,

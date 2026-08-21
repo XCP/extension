@@ -23,7 +23,7 @@ export function ApiStatusBanner(): ReactElement | null {
 
   return (
     <div
-      className={`${bgColor} ${textColor} px-4 py-1.5 text-xs font-medium flex items-center justify-between`}
+      className={`${bgColor} ${textColor} flex shrink-0 items-center justify-between px-4 py-1.5 text-xs font-medium`}
       role="alert"
     >
       <span>{displayMessage}</span>

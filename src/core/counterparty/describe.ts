@@ -21,14 +21,17 @@
 import {
   type DisplayUnits,
   divide,
+  fromSatoshis,
   isGreaterThan,
   isLessThan,
   isLessThanOrEqualTo,
   multiply,
   roundDown,
+  subtract,
   toBigNumber,
   toGroupedString,
 } from '@/core/numeric';
+import { getTradingPair } from '@/core/tradingPair';
 
 /**
  * A decoded message in the shape the describer reads, independent of which decoder produced it.
@@ -88,6 +91,11 @@ export interface DescribableMessage {
   feeRequired?: unknown;
   /** The pool an LP operation belongs to. */
   lpAsset?: string;
+  /** A pool deposit's LP floor: the deposit fails below this many LP tokens minted. */
+  minLpQuantity?: unknown;
+  /** A pool withdrawal's floors: the withdrawal fails below these amounts back. */
+  minQuantityA?: unknown;
+  minQuantityB?: unknown;
   /** MPMA recipients, which travel in the payload rather than in outputs. */
   recipients?: { asset?: string; destination: string; quantity: unknown }[];
   /**
@@ -115,7 +123,7 @@ export interface DescribableMessage {
    * A quantity in display units as a plain number string — no separators, no unit, no caveat.
    *
    * Derived figures (an order's price, a destroy's share of supply) need arithmetic, and `format`'s
-   * output is not a valid input for it: separators must be stripped and the "(decimals unconfirmed)"
+   * output is not a valid input for it: separators must be stripped and the "(base units)"
    * caveat parses to NaN.
    *
    * Returns undefined when divisibility is not established — a derived figure must be withheld
@@ -137,7 +145,8 @@ const DISPENSER_STATUS_CLOSED = 10;
 const TYPE_LABELS: Record<string, string> = {
   enhanced_send: 'Send',
   mpma_send: 'Multi-Send',
-  btcpay: 'BTC Payment',
+  // The protocol's own name for the message type.
+  btcpay: 'BTC Pay',
   lr_issuance: 'Issuance',
   lr_subasset: 'Subasset Issuance',
   pooldeposit: 'Pool Deposit',
@@ -199,9 +208,12 @@ export function describeMessage(
       if (m.dispenserStatus === DISPENSER_STATUS_CLOSED) {
         return `Close the ${n(m.asset)} dispenser`;
       }
-      // giveQuantity, not quantity: a dispenser's payout per trigger. Reading `quantity` here
-      // rendered every dispenser as "? XCP".
-      return `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${toGroupedString((m.mainchainrate ?? 0) as string | number, 0)} sats`;
+      // The escrow is the headline — it is what leaves the wallet — with the rate beneath it.
+      // giveQuantity, not quantity: a dispenser's payout per trigger.
+      return m.escrowQuantity != null
+        ? `${q(m.escrowQuantity, m.asset)} ${n(m.asset)}\n` +
+          `${q(m.giveQuantity, m.asset)} ${n(m.asset)} @ ${fromSatoshis(String(m.mainchainrate ?? 0), { removeTrailingZeros: false })} BTC`
+        : `${q(m.giveQuantity, m.asset)} ${n(m.asset)} per ${toGroupedString((m.mainchainrate ?? 0) as string | number, 0)} sats`;
 
     case 'dispense':
       // The payload is a marker byte; which dispenser is triggered is decided by the outputs,
@@ -213,13 +225,23 @@ export function describeMessage(
     case 'lr_issuance':
     case 'lr_subasset': {
       const asset = m.subassetLongname || n(m.asset);
-      return m.quantity != null && m.quantity !== 0n && m.quantity !== 0
-        ? `${asset} — issue ${q(m.quantity, m.asset)}`
-        : `${asset} — no new supply`;
+      // The message itself carries the divisible switch, so the quantity never needs the
+      // unknown-divisibility caveat here: scale by the flag being signed rather than a lookup.
+      const issued = m.quantity != null && m.quantity !== 0n && m.quantity !== 0
+        ? m.divisible === undefined
+          ? q(m.quantity, m.asset)
+          : m.divisible
+            ? fromSatoshis(String(m.quantity), { removeTrailingZeros: false })
+            : BigInt(String(m.quantity)).toLocaleString()
+        : null;
+      // Two lines: the asset is the headline, the amount reads beneath it — a numeric asset
+      // name and a quantity in one sentence are two long tokens fighting for the same line.
+      return issued !== null ? `${asset}\nIssue ${issued}` : `${asset}\nNo new supply`;
     }
 
     case 'dividend':
-      return `${q(m.quantityPerUnit, m.dividendAsset)} ${n(m.dividendAsset)} per ${n(m.asset)}`;
+      // The rate is the headline; who it is paid across reads beneath it.
+      return `${q(m.quantityPerUnit, m.dividendAsset)} ${n(m.dividendAsset)}\nAll ${n(m.asset)} holders`;
 
     case 'btcpay':
       // Not "BTC Pay for Order Match": that is the label above it, and the eyebrow repeating the
@@ -240,14 +262,35 @@ export function describeMessage(
       // to state, name the asset rather than formatting nothing as "?".
       return m.quantity == null ? n(m.asset) : `${q(m.quantity, m.asset)} ${n(m.asset)}`;
 
-    case 'pooldeposit':
-      return `Deposit liquidity: ${q(m.quantityA, m.assetA)} ${n(m.assetA)} and ${q(m.quantityB, m.assetB)} ${n(m.assetB)}`;
+    case 'pooldeposit': {
+      // The two legs are the headline; the price they imply reads beneath. The ratio is withheld
+      // when either side's divisibility is unknown — a rate on a guessed scale is wrong by 1e8.
+      const legs = `${q(m.quantityA, m.assetA)} ${n(m.assetA)} / ${q(m.quantityB, m.assetB)} ${n(m.assetB)}`;
+      const a = m.numeric?.(m.quantityA, m.assetA);
+      const b = m.numeric?.(m.quantityB, m.assetB);
+      const ratio =
+        a !== undefined && b !== undefined
+        && toBigNumber(a).isFinite() && toBigNumber(b).isFinite()
+        && isGreaterThan(a, 0)
+          ? `1 ${n(m.assetA)} = ${toGroupedString(divide(b, a))} ${n(m.assetB)}`
+          : null;
+      return ratio ? `${legs}\n${ratio}` : legs;
+    }
 
-    case 'poolwithdraw':
-      return `Withdraw liquidity: burn ${q(m.quantity, undefined)} LP tokens from ${n(m.assetA)}/${n(m.assetB)}`;
+    case 'poolwithdraw': {
+      // LP tokens are always divisible (core's own comment in verbose.py), so the burn amount
+      // never needs the unknown-divisibility caveat. The pair beneath uses the same base/quote
+      // order as the market pages, so one pool reads the same way everywhere.
+      const pair = getTradingPair(m.assetA ?? '', m.assetB ?? '').map(n).join(' / ');
+      return m.quantity != null
+        ? `Destroy ${fromSatoshis(String(m.quantity), { removeTrailingZeros: false })} LP Tokens\n${pair}`
+        : `Withdraw liquidity\n${pair}`;
+    }
 
     case 'attach':
-      return `Attach ${q(m.quantity, m.asset)} ${n(m.asset)} to UTXO`;
+      // "to UTXO" says nothing an attach does not already imply; the created outpoint is named
+      // in the detail list.
+      return `Attach ${q(m.quantity, m.asset)} ${n(m.asset)}`;
 
     case 'detach':
       // The payload carries one field — where everything on the UTXO goes.
@@ -320,6 +363,12 @@ export interface ProtocolContext {
   dispensePayouts?: string[];
   /** XCP a dividend costs beyond the distributed asset: core charges a per-holder fee. */
   dividendFeeXcp?: string;
+  /** The LP asset of the pool an LP operation belongs to, when the pool could be resolved. */
+  poolLpAsset?: string;
+  /** The pool's swap fee as a display percentage (e.g. "0.5%"), when the pool exposes one. */
+  poolFeeRate?: string;
+  /** Where a fairmint's XCP payment goes: burned, seeded into a pool, or paid to the issuer. */
+  fairmintPaymentModel?: 'burned' | 'pool' | 'paid';
 }
 
 /** A labelled field of the Counterparty message, for the protocol detail list. */
@@ -433,13 +482,9 @@ export function protocolFields(
       break;
 
     case 'mpma_send':
-      // The headline can only state a count, because the recipients are in the payload rather than
-      // in outputs - so this list is the only account of who is paid. One row per recipient in the
-      // same shape as every other row: the label names the field, the value carries the data.
-      for (const r of m.recipients ?? []) {
-        const paid = amount(r.quantity, r.asset);
-        if (paid) add('Recipient', `${paid} to ${r.destination}`);
-      }
+      // Recipients travel in the payload rather than in outputs, but a label/value row is the
+      // wrong shape for asset + amount + address — the details card renders them as its own
+      // recipient list instead (CounterpartyDetailsCard `recipients`).
       break;
 
     case 'order':
@@ -457,6 +502,10 @@ export function protocolFields(
       // describe the opening case only.
       if (m.dispenserStatus !== DISPENSER_STATUS_CLOSED) {
         add('Escrow', amount(m.escrowQuantity, m.asset));
+        add('Dispense', amount(m.giveQuantity, m.asset));
+        if (m.mainchainrate != null && isGreaterThan(String(m.mainchainrate), 0)) {
+          add('Per dispense', `${fromSatoshis(String(m.mainchainrate), { removeTrailingZeros: false })} BTC`);
+        }
         add('Dispenses', dispensesAvailable(m));
       }
       break;
@@ -477,10 +526,17 @@ export function protocolFields(
       break;
 
     case 'fairmint':
-      // Headline: the amount being minted. Not in it: what it costs. "XCP price" rather than
-      // "Cost", because this is a purchase price and the same screen uses "XCP fee" for the
-      // protocol charge on attach, detach and dividend - one name per concept.
-      add('XCP price', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
+      // Headline: the amount being minted. Not in it: what it costs, and where the payment goes —
+      // a fairminter burns the XCP, seeds a liquidity pool with it, or pays it to the issuer, and
+      // those are different acts to agree to. A BTC-fee-only mint has no row at all.
+      add(
+        context.fairmintPaymentModel === 'burned'
+          ? 'XCP burned'
+          : context.fairmintPaymentModel === 'pool'
+            ? 'XCP to pool'
+            : 'XCP price',
+        context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined
+      );
       break;
 
     case 'issuance':
@@ -497,25 +553,37 @@ export function protocolFields(
       break;
 
     case 'dividend':
-      // Headline: the rate. Here: the bill, before the supply it is measured against.
+      // Headline: the rate. Here: the bill.
       add(
-        'Total payout',
+        'Total dividend',
         context.dividendTotal ? `${context.dividendTotal} ${n(m.dividendAsset)}` : undefined
       );
       add('XCP fee', context.dividendFeeXcp ? `${context.dividendFeeXcp} XCP` : undefined);
-      add('Supply', context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined);
       break;
 
-    case 'destroy':
+    case 'destroy': {
       // Headline: the amount. Without the supply it has no sense of scale - destroying 1,000 of
-      // 1,000 is a very different act from destroying 1,000 of a billion.
-      add('Share of supply', shareOfSupply(m, context.assetSupply));
+      // 1,000 is a very different act from destroying 1,000 of a billion. Before/after states the
+      // ledger's supply is the pre-burn figure, which "Total supply" alone left ambiguous.
       add(
-        'Total supply',
+        'Supply before',
         context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined
       );
+      const destroyed = m.numeric?.(m.quantity, m.asset);
+      if (context.assetSupply && destroyed !== undefined) {
+        const total = context.assetSupply.replace(/,/g, '');
+        if (
+          toBigNumber(total).isFinite() &&
+          toBigNumber(destroyed).isFinite() &&
+          !isLessThan(subtract(total, destroyed), 0)
+        ) {
+          add('Supply after', `${toGroupedString(subtract(total, destroyed))} ${n(m.asset)}`);
+        }
+      }
+      add('Share destroyed', shareOfSupply(m, context.assetSupply));
       add('Tag', m.memo);
       break;
+    }
 
     case 'sweep':
       // Headline: the destination. Not in it: what actually moves, which is the whole question -
@@ -559,10 +627,28 @@ export function protocolFields(
       add('Order hash', m.offerHash);
       break;
 
-    case 'pooldeposit':
+    case 'pooldeposit': {
+      // Both amounts are the headline; the pool they belong to, its fee, and the slippage floor
+      // being signed are not.
+      add('Pool', m.lpAsset ? n(m.lpAsset) : context.poolLpAsset);
+      add('Pool fee', context.poolFeeRate);
+      // LP tokens are always divisible; a zero floor means no slippage protection was set.
+      if (m.minLpQuantity != null && isGreaterThan(String(m.minLpQuantity), 0)) {
+        add('Min LP received', `${fromSatoshis(String(m.minLpQuantity))} LP`);
+      }
+      break;
+    }
+
     case 'poolwithdraw':
-      // Both amounts are the headline; the pool they belong to is not.
-      add('Pool', m.lpAsset ? n(m.lpAsset) : undefined);
+      add('Pool', m.lpAsset ? n(m.lpAsset) : context.poolLpAsset);
+      add('Pool fee', context.poolFeeRate);
+      // The withdrawal's slippage floors: it fails below these amounts back.
+      if (m.minQuantityA != null && isGreaterThan(String(m.minQuantityA), 0)) {
+        add(`Min ${n(m.assetA)} back`, amount(m.minQuantityA, m.assetA, ''));
+      }
+      if (m.minQuantityB != null && isGreaterThan(String(m.minQuantityB), 0)) {
+        add(`Min ${n(m.assetB)} back`, amount(m.minQuantityB, m.assetB, ''));
+      }
       break;
 
     case 'attach':
@@ -579,14 +665,15 @@ export function protocolFields(
 
     case 'detach':
       // The destination is in the headline. What is not is which balances come back.
-      for (const asset of context.detachingAssets ?? []) add('Released', asset);
+      for (const asset of context.detachingAssets ?? []) add('Detached', asset);
       add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
       break;
 
     case 'utxo':
     case 'utxo_move':
-      // Asset, amount and destination are the headline; which UTXO is being emptied is not.
+      // Asset and amount are the headline; the endpoints of the move are not.
       add('From UTXO', m.sourceUtxo);
+      add('To', m.destination);
       break;
 
     default:

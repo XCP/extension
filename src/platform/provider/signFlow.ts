@@ -10,12 +10,16 @@
  * writes and two removes that had to be kept in step by hand.
  */
 
+import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
+import type { MarketplaceBatchKind } from '@/core/counterparty/marketplaceBatch';
+import type { BumpAcceptanceFeeIntentClaim } from '@/core/counterparty/marketplaceBundle';
+import type { MarketplaceIntentClaimV1 } from '@/core/counterparty/marketplaceIntent';
 import { type AuthorizedRequest, RequestStorage } from '@/platform/storage/requestStorage';
 
 export type SignFlowStatus = 'pending' | 'completed' | 'cancelled';
 
 /** Which screen the flow belongs to, and the prefix of the events it emits. */
-export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-transaction';
+export type SignFlowKind = 'sign-message' | 'sign-psbt' | 'sign-psbts' | 'sign-transaction';
 
 /**
  * A signing request in flight.
@@ -38,6 +42,10 @@ export type SignPsbtRequest = SignFlowEntry<{
   psbtHex: string;
   signInputs?: Record<string, number[]>;
   sighashTypes?: number[];
+  /** Defaults to counterparty for requests stored by older wallet versions. */
+  signingPurpose?: 'counterparty' | 'bitcoin-payment';
+  bitcoinPaymentIntent?: BitcoinPaymentIntentV1;
+  marketplaceIntent?: MarketplaceIntentClaimV1;
   /**
    * A site's claim about the inscription commit this PSBT funds: the reveal's tapleaf script and
    * the taproot internal key, both hex. Never trusted — the approval screen recomputes the commit
@@ -45,6 +53,19 @@ export type SignPsbtRequest = SignFlowEntry<{
    * (`core/counterparty/providerInscriptions.ts`).
    */
   inscription?: { revealScript: string; tapInternalKey: string };
+}>;
+
+export interface SignPsbtBundleItem {
+  psbtHex: string;
+  signInputs: Record<string, number[]>;
+  sighashTypes: number[];
+  marketplaceIntent: MarketplaceIntentClaimV1 | BumpAcceptanceFeeIntentClaim;
+}
+
+/** Fail-closed provider bundle: every item is proved before any signer is invoked. */
+export type SignPsbtsRequest = SignFlowEntry<{
+  bundleKind: 'acceptance-cpfp' | MarketplaceBatchKind;
+  items: SignPsbtBundleItem[];
 }>;
 
 /**

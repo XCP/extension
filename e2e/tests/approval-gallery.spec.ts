@@ -86,15 +86,35 @@ function opReturnScriptOf(rawTxHex: string): string {
 }
 
 /** Rebuild a fixture so its change output pays `changeAddress`, leaving the payload untouched. */
-/** The dispenser a `dispense` pays. Real dispenses send BTC to the dispenser's address. */
+/**
+ * The external party a `dispense` or `btcpay` pays. Real dispenses send BTC to the dispenser's
+ * address, and a real BTCPay sends it to the order-match counterparty — without that output the
+ * screen shows a payment type that pays nobody, a state no user encounters.
+ */
 const DISPENSER_ADDRESS_SCRIPT = '76a914' + '11'.repeat(20) + '88ac';
 const DISPENSE_PAYMENT_SATS = 10_000;
+const PAYS_EXTERNAL = new Set(['dispense', 'btcpay']);
+/**
+ * A real attach has three outputs — OP_RETURN, the 546-sat carrier the assets attach to, and
+ * change — and its payload targets vout 1, which is where the fixture's attach points. Without
+ * the dedicated carrier the change output doubled as the attached UTXO, a shape no composer
+ * produces. attach-bad-vout is deliberately absent: its payload must keep pointing past the end.
+ */
+const CARRIER_VALUE = 546;
+const HAS_ATTACH_CARRIER = new Set(['attach']);
 
-function rebuildForSigner(rawTxHex: string, changeAddress: string, payDispenser = false): string {
+function rebuildForSigner(
+  rawTxHex: string,
+  changeAddress: string,
+  payExternal = false,
+  attachCarrier = false,
+): string {
   const { txid, vout } = scenarioFixtures.input;
   const txidLe = txid.match(/../g)!.reverse().join('');
   const opReturnScript = opReturnScriptOf(rawTxHex);
   const changeScript = Buffer.from(OutScript.encode(Address().decode(changeAddress))).toString('hex');
+  const extraCount = (payExternal ? 1 : 0) + (attachCarrier ? 1 : 0);
+  const extraValue = (payExternal ? DISPENSE_PAYMENT_SATS : 0) + (attachCarrier ? CARRIER_VALUE : 0);
 
   return [
     le(2, 4),
@@ -103,12 +123,15 @@ function rebuildForSigner(rawTxHex: string, changeAddress: string, payDispenser 
     le(vout, 4),
     '00',
     'ffffffff',
-    payDispenser ? '03' : '02',
+    le(2 + extraCount, 1),
     le(0, 8), le(opReturnScript.length / 2, 1), opReturnScript,
-    ...(payDispenser
+    ...(payExternal
       ? [le(DISPENSE_PAYMENT_SATS, 8), le(DISPENSER_ADDRESS_SCRIPT.length / 2, 1), DISPENSER_ADDRESS_SCRIPT]
       : []),
-    le(CHANGE_VALUE - (payDispenser ? DISPENSE_PAYMENT_SATS : 0), 8),
+    ...(attachCarrier
+      ? [le(CARRIER_VALUE, 8), le(changeScript.length / 2, 1), changeScript]
+      : []),
+    le(CHANGE_VALUE - extraValue, 8),
     le(changeScript.length / 2, 1), changeScript,
     le(0, 4),
   ].join('');
@@ -186,13 +209,12 @@ function toPsbt(rawTxHex: string): string {
  */
 const EXPECTED_WARNINGS: Record<string, RegExp[]> = {
   'sweep-blocked': [/blocked: sweep/i],
-  destroy: [/asset destruction/i],
-  detach: [/moves everything on the utxo/i],
-  // Paying the dispenser, and paying the order-match counterparty, are what these transactions
-  // are. Both are stated rather than flagged; the red danger banner they used to raise fired on
-  // every correct one of them.
-  dispense: [/btc payment/i],
-  btcpay: [/btc payment/i],
+  destroy: [/supply destruction/i],
+  // The fixture detaches to a foreign address, which genuinely deserves attention; a detach to
+  // your own address is routine and raises nothing (its generic note is info-severity now).
+  detach: [/detached to another address/i],
+  // Paying the dispenser or the order-match counterparty is what those transactions are; the
+  // movement rows state the payment and no warning or note fires on a correct one.
   'attach-bad-vout': [/attaches to an output that does not exist/i],
   'utxo-move-foreign-source': [/moves a utxo this transaction does not spend/i],
 };
@@ -200,8 +222,9 @@ const EXPECTED_WARNINGS: Record<string, RegExp[]> = {
 /** Every warning title the safety layer and the approval screens can raise. */
 const ALL_WARNING_PATTERNS: RegExp[] = [
   /blocked: sweep/i,
-  /asset destruction/i,
+  /supply destruction/i,
   /moves everything on the utxo/i,
+  /detached to another address/i,
   /unknown transaction type/i,
   /unrecognized transaction/i,
   /btc sent to external address/i,
@@ -222,6 +245,110 @@ const ALL_WARNING_PATTERNS: RegExp[] = [
 async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp[]> {
   const body = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
   return ALL_WARNING_PATTERNS.filter((re) => re.test(body));
+}
+
+/**
+ * Ledger answers for the states the live ledger cannot produce on demand. The fixture outpoint
+ * carries no attached assets, the fake dispenser address runs no dispenser, and the pool test
+ * assets do not exist — so detach showed no released balances, dispense no payouts, and pool
+ * amounts fell back to the base-units caveat: states no real user of those flows would see.
+ * These stubs answer only those specific lookups; every other request still hits the real API.
+ */
+async function installScenarioStubs(
+  page: import('@playwright/test').Page,
+  name: string
+): Promise<void> {
+  const fixtureOutpoint = `${scenarioFixtures.input.txid}:${scenarioFixtures.input.vout}`;
+  if (name === 'detach') {
+    await page.route(/\/v2\/utxos\//, (route) => {
+      const match = new URL(route.request().url()).pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
+      if (!match) return route.continue();
+      const utxo = decodeURIComponent(match[1]!);
+      return route.fulfill({
+        json: {
+          result: utxo === fixtureOutpoint
+            ? [
+                { asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1', asset_info: { divisible: false, asset_longname: null } },
+                { asset: 'PEPECASH', quantity: '50000000', quantity_normalized: '0.5', asset_info: { divisible: true, asset_longname: null } },
+              ]
+            : [],
+          next_cursor: null,
+          result_count: utxo === fixtureOutpoint ? 2 : 0,
+        },
+      });
+    });
+  }
+  if (name === 'dispense') {
+    await page.route(/\/dispensers/, (route) => route.fulfill({
+      json: {
+        result: [{
+          asset: 'BAMBOU',
+          status: 0,
+          satoshirate: 1000,
+          give_quantity: 100000000,
+          give_remaining: 2000000000,
+          give_quantity_normalized: '1',
+          asset_info: { divisible: true, asset_longname: null },
+        }],
+        next_cursor: null,
+        result_count: 1,
+      },
+    }));
+  }
+  if (name.startsWith('pool-')) {
+    // The unpack endpoint names an asset its ledger cannot resolve as the literal 0, and the
+    // divisibility enrichment then looks THAT up — so the stub answers both spellings.
+    await page.route(/\/v2\/assets\/(A9542\d+|0)([/?]|$)/, (route) => {
+      const match = new URL(route.request().url()).pathname.match(/\/v2\/assets\/([^/?]+)/);
+      return route.fulfill({
+        json: {
+          result: {
+            asset: decodeURIComponent(match?.[1] ?? ''),
+            divisible: true,
+            asset_longname: null,
+            supply: 10_000_000_000,
+            supply_normalized: '100',
+          },
+        },
+      });
+    });
+    await page.route(/\/v2\/pools\//, (route) => route.fulfill({
+      json: {
+        result: {
+          asset_a: 'XCP',
+          asset_b: 'A95428957068369062',
+          lp_asset: 'A95428957068369099',
+          reserve_a: 0,
+          reserve_b: 0,
+          fee_bps: 50,
+        },
+      },
+    }));
+  }
+}
+
+/**
+ * The approval spreads its statements over two surfaces now: blocking warnings render on the
+ * main screen, and signable cautions wait on the attention screen behind the Review button. A
+ * scan of the main screen alone would call a deliberately deferred caution "missing", so open
+ * the attention screen too, scan both, and capture it alongside the main screenshot.
+ */
+async function collectWarnings(
+  approval: import('@playwright/test').Page,
+  attentionShotPath: string
+): Promise<RegExp[]> {
+  const shown = new Set(await warningsOn(approval));
+
+  const review = approval.getByRole('button', { name: /^review$/i });
+  if (await review.count()) {
+    await review.click();
+    await expect(approval.getByRole('button', { name: 'Back' })).toBeVisible({ timeout: 10_000 });
+    for (const re of await warningsOn(approval)) shown.add(re);
+    await approval.screenshot({ path: attentionShotPath, fullPage: true });
+    await approval.getByRole('button', { name: 'Back' }).click();
+  }
+
+  return ALL_WARNING_PATTERNS.filter((re) => shown.has(re));
 }
 
 walletTest('captures every provider approval screen', async ({ context, page, extensionId }) => {
@@ -252,7 +379,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     );
   };
 
-  const openApproval = async (id: string) => {
+  const openApproval = async (id: string, scenarioName?: string) => {
     await settle(SCREEN_SPACING_MS);
     const approval = await context.newPage();
     // Popup width, because the horizontal-overflow bugs this gallery exists to catch are width
@@ -260,12 +387,13 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     // captures nothing below the fold and warnings and the recipient list were cut off. A tall
     // viewport puts the whole screen in one image.
     await approval.setViewportSize({ width: 380, height: 1400 });
+    if (scenarioName) await installScenarioStubs(approval, scenarioName);
     await approval.goto(
       `chrome-extension://${extensionId}/popup.html#/requests/transaction/approve?requestId=${id}`
     );
     // The screen decodes and cross-checks before it can describe anything, so wait on the footer
-    // rather than a fixed delay.
-    await expect(approval.getByRole('button', { name: /^(sign|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+    // rather than a fixed delay. A signable request with cautions labels the button Review.
+    await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
     return approval;
   };
 
@@ -289,8 +417,8 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
   for (const [name, { rawTxHex }] of scenarios) {
     const id = `gallery-${name}`;
-    await seed(id, rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense'));
-    const approval = await openApproval(id);
+    await seed(id, rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
+    const approval = await openApproval(id, name);
 
     // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
     // for a multi-destination send that panel is the only place the payees appear at all.
@@ -301,7 +429,9 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     await details.click();
     await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
 
-    const shown = (await warningsOn(approval)).map((re) => re.source).sort();
+    const shown = (
+      await collectWarnings(approval, path.join(OUT_DIR, `${name}-attention.png`))
+    ).map((re) => re.source).sort();
     const expected = (EXPECTED_WARNINGS[name] ?? []).map((re) => re.source).sort();
     if (JSON.stringify(shown) !== JSON.stringify(expected)) {
       warningMismatches.push(`${name}
@@ -331,17 +461,18 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
         requestKey: `xcp_signPsbt:${id}`,
         kind: 'sign-psbt',
         status: 'pending',
-        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, name === 'dispense')),
+        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name))),
       }
     );
 
     await settle(SCREEN_SPACING_MS);
     const approval = await context.newPage();
     await approval.setViewportSize({ width: 380, height: 1400 });
+    await installScenarioStubs(approval, name);
     await approval.goto(
       `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
     );
-    await expect(approval.getByRole('button', { name: /^(sign|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+    await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
 
     // Expanded, for the same reason as above: the recipients list and the checks line live in
     // this panel, and they are precisely what was missing from this screen.

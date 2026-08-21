@@ -1,3 +1,5 @@
+import { hex } from '@scure/base';
+import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
@@ -39,6 +41,165 @@ import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
 const VALID_PSBT_HEX = '70736274ff01009a0200000002dcdd8cd287d40de3d260ccfc5fa3008f14ff8f13fc840164715cbb2b925874190000000000ffffffff98f9e476f918cc143cf8a6bd09042d1f2ee7c46bfd29c906166613b2d9c516c90000000000ffffffff022202000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e75c12000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e70000000000010055020000000101010101010101010101010101010101010101010101010101010101010101010000000000ffffffff0122020000000000001976a914a3c6b1ee4a49d9f2af3b3802974744fba924164a88ac000000000001011f8813000000000000160014670caa79e51d78ed0c583b89ff39d9c49b7199e7000000';
+const V3_PSBT_HEX = VALID_PSBT_HEX.replace('ff01009a02000000', 'ff01009a03000000');
+const listingPsbtHex = (): string => {
+  const source = Transaction.fromPSBT(hex.decode(VALID_PSBT_HEX), {
+    allowUnknownInputs: true,
+    allowUnknownOutputs: true,
+  });
+  const listing = new Transaction({ allowUnknownInputs: true, allowUnknownOutputs: true });
+  listing.addInput({ txid: new Uint8Array(32), index: 0 });
+  listing.addInput(source.getInput(0));
+  listing.addOutput(source.getOutput(0));
+  listing.addOutput(source.getOutput(1));
+  return hex.encode(listing.toPSBT());
+};
+const BITCOIN_PAYMENT_INTENT = {
+  standard: 'xcp-wallet/bitcoin-payment',
+  version: 1,
+  action: 'pay',
+  outputs: [{
+    address: 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq',
+    amountSats: 21_600,
+  }],
+  description: 'Fund Emblem Vault',
+  reference: 'vault-63',
+} as const;
+const MARKETPLACE_LISTING_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'create_listing',
+  operationId: 'preflight-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  guaranteedSellerPaymentSats: 250_546,
+  delivery: { mode: 'buyer_selected_detach' },
+  signingRequestExpiresAt: 2_000_000_000,
+  marketplaceExpiresAt: null,
+  bitcoinExpiresAt: null,
+} as const;
+const MARKETPLACE_ATTACH_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'attach-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
+  carrierAddress: 'bc1qtest123',
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+} as const;
+const MARKETPLACE_BUY_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'buy_listings',
+  operationId: 'checkout-1',
+  protocolVersion: 'direct_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  buyer: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  items: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+    listingId: 'listing-1',
+    seller: 'bc1qtest123',
+    carrierValueSats: 546,
+    priceSats: 250_000,
+    sellerPaymentSats: 250_546,
+  }],
+  subtotalSats: 250_000,
+  networkFeeSats: 2_000,
+  platformFeeSats: 0,
+  totalSats: 252_000,
+  expectedTxid: 'cd'.repeat(32),
+  delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
+  marketplaceExpiresAt: 2_000_003_600,
+} as const;
+const MARKETPLACE_EXACT_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
+  }],
+  authorizationId: 'authorization-1',
+  bidder: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  seller: 'bc1qtest123',
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  expectedTxid: 'cd'.repeat(32),
+  delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
+  marketplaceExpiresAt: 2_000_003_600,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: {
+    type: 'spend_funding_outpoint',
+    outpoint: { txid: 'ef'.repeat(32), vout: 1 },
+  },
+} as const;
+const MARKETPLACE_CPFP_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'bump_acceptance_fee',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: MARKETPLACE_EXACT_INTENT.assets,
+  authorizationId: 'authorization-1',
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  parentExpectedTxid: MARKETPLACE_EXACT_INTENT.expectedTxid,
+  childExpectedTxid: 'ee'.repeat(32),
+  parentSellerProceedsVout: 1,
+  parentSellerProceedsSats: 250_046,
+  parentNetworkFeeSats: 500,
+  childNetworkFeeSats: 1_000,
+  packageFeeSats: 1_500,
+  packageFeeRate: 5,
+  finalSellerProceedsSats: 249_046,
+} as const;
+const MARKETPLACE_FANOUT_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_bulk_fanout',
+  operationId: 'bulk-1',
+  protocolVersion: 'counterparty_bulk_attach_v1',
+  assets: [],
+  batchIndex: 0,
+  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  fundingOutpoint: { txid: '11'.repeat(32), vout: 0 },
+  fundingValueSats: 5_000,
+  slotCount: 1,
+  slotValueSats: 546,
+  networkFeeSats: 100,
+  changeSats: 4_354,
+  expectedTxid: '22'.repeat(32),
+  operationExpiresAt: 2_000_000_000,
+} as const;
 
 // Mock the imports
 vi.mock('../walletService');
@@ -475,6 +636,39 @@ describe('ProviderService', () => {
         ).rejects.toThrow('Unauthorized - not connected to wallet');
       });
 
+      it('should throw error for an unauthorized atomic PSBT bundle', async () => {
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
+        const seller = MARKETPLACE_CPFP_INTENT.seller;
+
+        await expect(
+          providerService.handleRequest(
+            'https://notconnected.com',
+            'xcp_signPsbts',
+            [{
+              requests: [
+                {
+                  hex: VALID_PSBT_HEX,
+                  signInputs: { [seller]: [0] },
+                  sighashTypes: [0x01],
+                  intent: {
+                    ...MARKETPLACE_EXACT_INTENT,
+                    action: 'accept_exact_offer',
+                    seller,
+                  },
+                },
+                {
+                  hex: VALID_PSBT_HEX,
+                  signInputs: { [seller]: [0] },
+                  sighashTypes: [0x01],
+                  intent: MARKETPLACE_CPFP_INTENT,
+                },
+              ],
+            }],
+          )
+        ).rejects.toThrow('Unauthorized - not connected to wallet');
+      });
+
       it('should throw error for unauthorized xcp_signTransaction', async () => {
         // Mock connection service to return false
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -826,6 +1020,408 @@ describe('ProviderService', () => {
             psbtHex
           })
         );
+      });
+
+      it('stores a bounded marketplace claim for independent approval proof', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x83],
+            intent: MARKETPLACE_LISTING_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_LISTING_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded attach claim without treating its XCP fee quote as authority', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_ATTACH_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_ATTACH_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded buy-listings claim without granting it origin-based trust', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_BUY_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_BUY_INTENT,
+          })
+        );
+      });
+
+      it('stores a bounded exact-offer claim without granting it origin-based trust', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_EXACT_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_EXACT_INTENT,
+          })
+        );
+      });
+
+      it('rejects an exact-offer PSBT with an incompatible transaction header', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: V3_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_EXACT_INTENT,
+          }],
+        )).rejects.toThrow(
+          'exact_offer_v1 requires Bitcoin transaction version 2 with locktime 0',
+        );
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+      it('stores one atomic exact-acceptance plus CPFP signing flow', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+        const acceptIntent = {
+          ...MARKETPLACE_EXACT_INTENT,
+          action: 'accept_exact_offer' as const,
+          seller,
+        };
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: acceptIntent,
+              },
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: MARKETPLACE_CPFP_INTENT,
+              },
+            ],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            bundleKind: 'acceptance-cpfp',
+            items: [
+              expect.objectContaining({ marketplaceIntent: acceptIntent }),
+              expect.objectContaining({ marketplaceIntent: MARKETPLACE_CPFP_INTENT }),
+            ],
+          })
+        );
+      });
+
+      it('stores a bounded homogeneous bulk fan-out phase', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = MARKETPLACE_FANOUT_INTENT.seller;
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [{
+              hex: VALID_PSBT_HEX,
+              signInputs: { [seller]: [0] },
+              sighashTypes: [0x01],
+              intent: MARKETPLACE_FANOUT_INTENT,
+            }],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            bundleKind: 'bulk-fanout',
+            items: [expect.objectContaining({ marketplaceIntent: MARKETPLACE_FANOUT_INTENT })],
+          })
+        );
+      });
+
+      it('permits only the intentional null buyer placeholder in a listing batch', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [{
+              hex: listingPsbtHex(),
+              signInputs: { [seller]: [1] },
+              sighashTypes: [0x01, 0x83],
+              intent: { ...MARKETPLACE_LISTING_INTENT, seller },
+            }],
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            bundleKind: 'bulk-listing',
+            items: [expect.objectContaining({
+              sighashTypes: [0x01, 0x83],
+            })],
+          })
+        );
+      });
+
+      describe('xcp_signBitcoinPsbt', () => {
+        const paymentParams = {
+          hex: VALID_PSBT_HEX,
+          signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+          sighashTypes: [0x01],
+          intent: BITCOIN_PAYMENT_INTENT,
+        };
+
+        it('requires a versioned payment intent before approval', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, intent: undefined }]
+          )).rejects.toThrow('intent must be an object');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('requires an explicit owned-input map', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, signInputs: undefined }]
+          )).rejects.toThrow('require explicit signInputs');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it.each([undefined, [0x81], [0x83]])(
+          'requires explicit SIGHASH_ALL entries (%j)',
+          async (sighashTypes) => {
+            const connection = vi.mocked(connectionService.getConnectionService)();
+            connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+            await expect(providerService.handleRequest(
+              'https://emblem.finance',
+              'xcp_signBitcoinPsbt',
+              [{ ...paymentParams, sighashTypes }]
+            )).rejects.toThrow(/SIGHASH_ALL/);
+
+            expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+          }
+        );
+
+        it('still requires normal site connection permission', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(false);
+
+          await expect(providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [paymentParams]
+          )).rejects.toThrow('Unauthorized - not connected to wallet');
+
+          expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+        });
+
+        it('stores the proved-capability context without trusting the origin', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+          providerService.handleRequest(
+            'https://emblem.finance',
+            'xcp_signBitcoinPsbt',
+            [paymentParams]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              origin: 'https://emblem.finance',
+              psbtHex: VALID_PSBT_HEX,
+              signInputs: paymentParams.signInputs,
+              sighashTypes: [0x01],
+              signingPurpose: 'bitcoin-payment',
+              bitcoinPaymentIntent: BITCOIN_PAYMENT_INTENT,
+            })
+          );
+        });
+
+        it('preserves permissioned mixed Legacy and SegWit signers in the payment profile', async () => {
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          connection.hasPermission = vi.fn().mockResolvedValue(true);
+          connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+          const segwitAddress = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+          const legacyAddress = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+          const wallet = vi.mocked(walletService.getWalletService)();
+          wallet.getActiveAddress = vi.fn().mockResolvedValue({
+            id: 'addr1',
+            address: segwitAddress,
+            label: 'SegWit',
+            walletId: 'wallet1',
+            walletName: 'Test Wallet',
+            index: 0,
+            pubKey: '02aa',
+          });
+          wallet.getActiveWallet = vi.fn().mockResolvedValue({
+            id: 'wallet1',
+            name: 'Test Wallet',
+            type: 'mnemonic',
+            addressFormat: 'p2wpkh',
+            addresses: [{
+              address: segwitAddress,
+              path: "m/84'/0'/0'/0/0",
+              pubKey: '02aa',
+              name: 'SegWit',
+            }],
+          });
+          wallet.getPairedAddresses = vi.fn().mockResolvedValue({
+            legacy: {
+              address: legacyAddress,
+              pubKey: '02bb',
+              path: "m/44'/0'/0'/0/0",
+              name: 'Legacy',
+              format: 'p2pkh',
+              type: 'p2pkh',
+            },
+            segwit: {
+              address: segwitAddress,
+              pubKey: '02aa',
+              path: "m/84'/0'/0'/0/0",
+              name: 'SegWit',
+              format: 'p2wpkh',
+              type: 'p2wpkh',
+            },
+          });
+
+          const signInputs = {
+            [legacyAddress]: [0],
+            [segwitAddress]: [1],
+          };
+          providerService.handleRequest(
+            'https://rare-btc-assets.com',
+            'xcp_signBitcoinPsbt',
+            [{ ...paymentParams, signInputs, sighashTypes: [0x01, 0x01] }]
+          ).catch(() => {});
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+
+          expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
+            'https://rare-btc-assets.com',
+            'wallet1',
+            segwitAddress
+          );
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+            expect.objectContaining({
+              origin: 'https://rare-btc-assets.com',
+              psbtHex: VALID_PSBT_HEX,
+              signInputs,
+              sighashTypes: [0x01, 0x01],
+              signingPurpose: 'bitcoin-payment',
+            })
+          );
+        });
       });
     });
 

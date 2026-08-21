@@ -12,9 +12,9 @@
  * accounts for every payload byte, and would still pass for a payload that is internally perfect
  * but points at an output that does not exist.
  *
- * Findings are warnings, not blocks. A reference that does not resolve makes the transaction
- * ineffective rather than dangerous — core rejects it — so the honest report is that the screen
- * cannot describe what it claims to do.
+ * Findings block signing. A reference that does not resolve makes the transaction ineffective —
+ * core rejects the message — but the Bitcoin transaction still confirms and still spends real
+ * fees, and no honest composer produces one. There is nothing legitimate to acknowledge through.
  */
 
 import type { AttachData, MoveData } from '@/core/counterparty/unpack/messages/attach';

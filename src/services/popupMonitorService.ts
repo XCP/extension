@@ -20,6 +20,7 @@ type SignRequestKind = SignFlowKind;
 const REQUEST_KINDS = {
   'sign-message': { eventPrefix: 'sign-message' },
   'sign-psbt': { eventPrefix: 'sign-psbt' },
+  'sign-psbts': { eventPrefix: 'sign-psbts' },
   'sign-transaction': { eventPrefix: 'sign-tx' },
 } as const;
 
@@ -141,8 +142,8 @@ class PopupMonitorService {
             eventEmitterService.emit(`sign-message-cancel-${requestId}`, {
               reason: 'Request timeout - popup inactive'
             });
-          } else if (info.type === 'sign-psbt') {
-            eventEmitterService.emit(`sign-psbt-cancel-${requestId}`, {
+          } else if (info.type === 'sign-psbt' || info.type === 'sign-psbts') {
+            eventEmitterService.emit(`${REQUEST_KINDS[info.type].eventPrefix}-cancel-${requestId}`, {
               reason: 'Request timeout - popup inactive'
             });
           }

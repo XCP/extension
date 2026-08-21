@@ -108,15 +108,16 @@ describe('message type safety', () => {
     expect(result.warnings).toHaveLength(0);
   });
 
-  it('warns on detach, which moves every asset on the UTXO', () => {
+  it('states the detach-moves-everything fact as information, not friction', () => {
     // detach credits EVERY balance on the source UTXO to the destination (core detach.py), so the
-    // message states no amount. It was listed as safe and raised nothing, while sweep — the same
-    // idea at address scope — is blocked outright. Not blocked here, because the scope is one
-    // UTXO and a detach without a valid destination credits back to the UTXO owner.
+    // message states no amount — but a detach doing exactly that is routine, and the details list
+    // names each released balance. A detach whose assets leave the wallet escalates through the
+    // attached-asset destination warning instead.
     const result = analyzeTransactionSafety('detach', normalOutputs, SIGNER);
     expect(result.blocked).toBe(false);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]!.title).toMatch(/moves everything/i);
+    expect(result.warnings[0]!.severity).toBe('info');
   });
 
   it('should allow mpma_send without warnings', () => {
@@ -205,6 +206,21 @@ describe('suspicious output detection', () => {
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0]!.message).toContain('0.80000000 BTC');
     expect(result.warnings[0]!.message).toContain('2 addresses');
+  });
+
+  it('renders externally paid BTC as information only for the separate payment capability', () => {
+    const outputs = makeOutputs(
+      { value: 21_600, address: 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq' },
+      { value: 28_982, address: SIGNER },
+    );
+    const result = analyzeTransactionSafety(undefined, outputs, SIGNER, {
+      plainBitcoinPayment: true,
+    });
+    expect(result.blocked).toBe(false);
+    expect(result.warnings).toEqual([expect.objectContaining({
+      severity: 'info',
+      title: 'Bitcoin Payment',
+    })]);
   });
 
   it('should be case-insensitive when comparing Bech32 signer addresses', () => {

@@ -305,8 +305,8 @@ export function OrderCard({ order }: { order: OrderAction }) {
         )}
         {impliedSlippage !== null && impliedSlippage >= 0.05 && (
           <p className="text-xs text-amber-600 mt-1.5">
-            This order accepts up to {(impliedSlippage * 100).toFixed(1)}% less than the wallet's
-            own estimate. Make sure that is the slippage you chose.
+            Accepts up to {(impliedSlippage * 100).toFixed(1)}% below the wallet's estimate —
+            confirm this matches your slippage.
           </p>
         )}
       </div>

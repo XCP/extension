@@ -25,6 +25,8 @@ describe('VerificationStatus', () => {
 
     expect(screen.getByText(/signing blocked/i)).toBeInTheDocument();
     expect(screen.getByText('Quantity differs')).toBeInTheDocument();
+    expect(screen.getByText(/ask the site to rebuild/i)).toBeInTheDocument();
+    expect(screen.queryByText(/disable|settings.*advanced/i)).not.toBeInTheDocument();
   });
 
   it('warns rather than blocks when strict mode is off', () => {

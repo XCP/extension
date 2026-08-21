@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react';
+import {
+  ApprovalAttentionScreen,
+  highFeeAttentionItem,
+  partitionApprovalItems,
+  verificationAttentionItem,
+} from '@/components/domain/approval/approval-attention';
 import {ApprovalExpired, ApprovalFooter,
   ApprovalLoading, ApprovalNoWallet,ApprovalSiteBar, 
   ApprovalWalletHeader, 
 } from '@/components/domain/approval/approval-chrome';
 import { splitTrailingAddress } from '@/components/domain/approval/approval-summary-card';
+import { ApprovalTransactionDetails } from '@/components/domain/approval/approval-transaction-details';
 import { buildApprovalWarnings } from '@/components/domain/approval/approval-warnings';
 import { CounterpartyDetailsCard } from '@/components/domain/approval/counterparty-details-card';
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
-import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
+import { attachDestinationVout, getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
-import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
@@ -22,8 +28,9 @@ import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import type { ProtocolField } from '@/core/counterparty/describe';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
-import { formatAddress, formatAmount } from '@/core/format';
+import { formatAmount } from '@/core/format';
 import { fromSatoshis, isGreaterThan } from "@/core/numeric";
+import { useFeeRates } from '@/hooks/useFeeRates';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import type { DecodedTransactionInfo } from '@/hooks/useSignTransactionRequest';
 import { useSignTransactionRequest } from '@/hooks/useSignTransactionRequest';
@@ -65,10 +72,12 @@ export default function ApproveTransactionPage() {
     handleSuccess,
     handleCancel,
   } = useSignTransactionRequest(activeAddress?.address);
+  const { feeRates } = useFeeRates();
   usePopupLifecycle(request?.id, 'sign-transaction');
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showAttention, setShowAttention] = useState(false);
 
   // Configure header
   useEffect(() => {
@@ -76,6 +85,8 @@ export default function ApproveTransactionPage() {
       title: "Sign Transaction",
     });
   }, [setHeaderProps]);
+
+  useEffect(() => setShowAttention(false), [request?.id]);
 
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress) return;
@@ -135,16 +146,23 @@ export default function ApproveTransactionPage() {
   // transaction was built elsewhere, so an expensive one can be legitimate and the wallet cannot
   // know the intent. The compose path blocks the same condition because it built the transaction
   // itself, and there an absurd fee means the response misbehaved.
-  const feeRateAbsurd = exceedsSaneFeeRate(decodedInfo.fee, decodedInfo.vsize);
+  const feeRateAbsurd = exceedsSaneFeeRate(
+    decodedInfo.fee,
+    decodedInfo.vsize,
+    feeRates?.fastestFee,
+  );
   const hasHighFee = decodedInfo.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
   const verificationPassed = decodedInfo.verification?.passed;
   const verificationRepackProved = decodedInfo.verification?.repackProved ?? false;
   const verificationWarning = decodedInfo.verification?.warning;
   const isStrictMode = settings?.strictTransactionVerification !== false;
+  const deferredVerificationFailure = verificationPassed === false
+    && !verificationRepackProved
+    && !isStrictMode;
   const safetyBlocked = decodedInfo.safety?.blocked ?? false;
   const safetyWarnings = decodedInfo.safety?.warnings ?? [];
   // Shared with the PSBT approval screen so the two cannot drift.
-  const blockSigning = shouldBlockSigning({
+  const verificationBlocked = shouldBlockSigning({
     safetyBlocked,
     verificationPassed,
     repackProved: verificationRepackProved,
@@ -152,7 +170,6 @@ export default function ApproveTransactionPage() {
   });
 
   // Attached-asset status per input. Inputs are dense, so array position is the index.
-  const attachedByInput = new Map(decodedInfo.attachedAssets.map(entry => [entry.inputIndex, entry]));
   // The wallet signs inputs it controls, i.e. those belonging to the active address.
   const signerInputIndices = decodedInfo.inputs
     .map((input, index) => ({ input, index }))
@@ -189,6 +206,34 @@ export default function ApproveTransactionPage() {
     signedInputsUnknownStatus,
   });
 
+  // An unavailable asset lookup is a retry state. It cannot be acknowledged away because the
+  // wallet does not know whether signing moves an attached asset. A structure finding blocks too:
+  // the message provably cannot do what it claims, so signing only spends fees on a broken
+  // transaction no honest composer produces.
+  const blockSigning = verificationBlocked
+    || signedInputsUnknownStatus.length > 0
+    || (decodedInfo.structureFindings ?? []).length > 0;
+  const { attention } = partitionApprovalItems(warningItems);
+  const approvalAttentionItems: WarningItem[] = [
+    ...attention,
+    ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
+    ...(hasHighFee ? [highFeeAttentionItem(decodedInfo.fee, decodedInfo.vsize)] : []),
+  ];
+  const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
+  const attentionTitle = approvalAttentionItems.some(item => item.severity === 'danger')
+    ? 'Review transaction risk'
+    : 'Review before signing';
+  const confirmLabel = decodedInfo.counterpartyMessage?.messageType === 'destroy'
+    ? 'Destroy supply'
+    : 'Confirm and sign';
+  const handleApprovalAction = () => {
+    if (requiresAttention) {
+      setShowAttention(true);
+      return;
+    }
+    void handleSign();
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Content */}
@@ -219,10 +264,13 @@ export default function ApproveTransactionPage() {
                   // the lookalike-grinding problem the outputs list deliberately avoids, and for
                   // an enhanced send the destination lives in the payload, so this headline is
                   // the only place it appears at all.
-                  const { sentence, address } = splitTrailingAddress(txAction.description);
+                  const { sentence, address, subline } = splitTrailingAddress(txAction.description);
                   return (
                     <>
                       <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                      {subline && (
+                        <p className="mt-1 text-sm text-gray-700 break-words">{subline}</p>
+                      )}
                       {address && (
                         <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
                           {address}
@@ -233,7 +281,12 @@ export default function ApproveTransactionPage() {
                 })()}
               </div>
             ) : null}
-            <MoneyMovementView movement={movement} hasHighFee={hasHighFee} showHeadline={!txAction} />
+            <MoneyMovementView
+              movement={movement}
+              hasHighFee={hasHighFee}
+              deferCautions={requiresAttention}
+              showHeadline={!txAction}
+            />
             {decodedInfo.counterpartyMessage?.messageData?.fee != null &&
               isGreaterThan(decodedInfo.counterpartyMessage.messageData.fee as string | number, 0) && (
               <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
@@ -249,117 +302,27 @@ export default function ApproveTransactionPage() {
             )}
           </div>
 
-          {txAction && 'protocol' in txAction && (
-            <CounterpartyDetailsCard fields={txAction.protocol} />
-          )}
-          {/* Transaction Details (expandable) */}
-          <Collapsible variant="card" title="Transaction Details">
-                  {/* TX Hash */}
-                  {decodedInfo.txid && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">TX Hash</h4>
-                      <div className="bg-gray-50 p-2 rounded text-xs text-gray-600 break-all">
-                        {decodedInfo.txid}
-                      </div>
-                    </div>
-                  )}
+          <CounterpartyDetailsCard
+            fields={txAction && 'protocol' in txAction ? txAction.protocol : []}
+            recipients={decodedInfo.mpmaRecipients}
+          />
+          <ApprovalTransactionDetails
+            txid={decodedInfo.txid}
+            inputs={decodedInfo.inputs.map((input, index) => ({ ...input, index }))}
+            outputs={decodedInfo.outputs}
+            attachedAssets={decodedInfo.attachedAssets}
+            verification={decodedInfo.verification}
+            attachVout={attachDestinationVout(decodedInfo)}
+          />
 
-                  {/* Inputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Inputs ({decodedInfo.inputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.inputs.map((input, idx) => {
-                        const inputAssets = attachedByInput.get(idx);
-                        return (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <span className="text-gray-600">#{idx}</span>
-                          {input.address && (
-                            <div className="text-gray-500 truncate" title={input.address}>
-                              {formatAddress(input.address, true)}
-                            </div>
-                          )}
-                          <div className="text-gray-400 truncate" title={input.txid}>
-                            {input.txid.slice(0, 8)}...:{input.vout}
-                          </div>
-                          {inputAssets?.assets.map((asset) => (
-                            <div key={asset.asset} className="mt-1 flex justify-between text-purple-700">
-                              <span className="truncate" title={asset.asset_longname ?? asset.asset}>
-                                {asset.asset_longname ?? asset.asset}
-                              </span>
-                              <span className="font-medium flex-shrink-0 ml-2">{asset.quantity_normalized}</span>
-                            </div>
-                          ))}
-                          {inputAssets?.lookupFailed && (
-                            <div className="mt-1 text-amber-600">Asset status unavailable</div>
-                          )}
-                        </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Outputs List */}
-                  <div>
-                    <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">Outputs ({decodedInfo.outputs.length})</h4>
-                    <div className="space-y-2">
-                      {decodedInfo.outputs.map((output, idx) => (
-                        <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                          <div className="flex justify-between">
-                            <span className={`${output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}`}>
-                              {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
-                            </span>
-                            <span className="text-gray-900 font-medium">{formatAmount({ value: fromSatoshis(output.value, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC</span>
-                          </div>
-                          {/* Shown in full and allowed to wrap. This is where the user checks
-                              where a site's transaction sends money, and 6 leading + 6 trailing
-                              characters is grindable for a lookalike - the prefix of a bech32
-                              address is fixed, so only a handful of characters are actually
-                              being compared. */}
-                          {output.address && (
-                            <div className="text-gray-500 break-all font-mono" title={output.address}>
-                              {formatAddress(output.address, false)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Recipients of a multi-destination send. These live in the Counterparty
-                      payload rather than in BTC outputs, so the outputs list above cannot show
-                      them and this is the only place they appear. Addresses are shown in full for
-                      the same reason as the outputs above. */}
-                  {decodedInfo.mpmaRecipients.length > 0 && (
-                    <div>
-                      <h4 className="text-xs font-medium text-gray-500 uppercase mb-2">
-                        Recipients ({decodedInfo.mpmaRecipients.length})
-                      </h4>
-                      <div className="space-y-2">
-                        {decodedInfo.mpmaRecipients.map((recipient, idx) => (
-                          <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                            <div className="flex justify-between gap-2">
-                              <span className="text-gray-600 truncate">{recipient.asset}</span>
-                              <span className="text-gray-900 font-medium flex-shrink-0">
-                                {recipient.quantity}
-                              </span>
-                            </div>
-                            <div className="text-gray-500 break-all font-mono" title={recipient.address}>
-                              {recipient.address}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-          </Collapsible>
-
-          {/* Warnings, rendered in a fixed severity order (danger → success) */}
-          <WarningStack items={warningItems} />
+          {/* A blocked request explains itself immediately. Signable cautions wait behind Review. */}
+          {blockSigning && <WarningStack items={attention} />}
 
           {/* Verification Status (compact badge when passed) */}
           <VerificationStatus
-            passed={verificationRepackProved ? true : verificationPassed}
+            passed={deferredVerificationFailure
+              ? undefined
+              : verificationRepackProved ? true : verificationPassed}
             warning={verificationWarning}
             isStrict={isStrictMode}
           />
@@ -369,11 +332,25 @@ export default function ApproveTransactionPage() {
 
       <ApprovalFooter
         onCancel={handleReject}
-        onSign={handleSign}
+        onSign={handleApprovalAction}
         busy={isSigning}
         blocked={blockSigning}
         isHardware={activeWallet.type === 'hardware'}
+        signLabel={requiresAttention ? 'Review' : 'Sign'}
       />
+
+      {showAttention && requiresAttention && (
+        <ApprovalAttentionScreen
+          title={attentionTitle}
+          description="Confirm the exceptional transaction behavior below before the wallet adds your signature."
+          items={approvalAttentionItems}
+          confirmLabel={confirmLabel}
+          busy={isSigning}
+          isHardware={activeWallet.type === 'hardware'}
+          onBack={() => setShowAttention(false)}
+          onConfirm={() => void handleSign()}
+        />
+      )}
     </div>
   );
 }

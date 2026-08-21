@@ -5,9 +5,10 @@
  * of each for human review. Intentionally assertion-based rather than pixel
  * golden-image diffing: the app renders in a browser extension and CI (Linux)
  * vs local (Windows) font rendering differs, which would make pixel baselines
- * flaky. These checks fail on real regressions (a missing banner, the amber
- * fee caption disappearing, the Advanced disclosure breaking) without that
- * fragility, and the attached screenshots let a human eyeball the result.
+ * flaky. These checks fail on real regressions (a missing caution on the
+ * attention screen, the Review step disappearing, the Advanced disclosure
+ * breaking) without that fragility, and the attached screenshots let a human
+ * eyeball the result.
  *
  * The approval screen is reached by seeding a pending request into
  * chrome.storage.session (its PSBT decode is local, no dApp connection needed);
@@ -69,9 +70,10 @@ async function seedPsbtAndOpenApproval(page: Page, psbtHex: string, origin = 'ht
   );
   // The PSBT decode is async and its API-enrichment calls fail-and-retry in the
   // test (no dApp backend), so networkidle never settles. Wait for the screen
-  // itself to resolve to either the signable view or an error gate.
+  // itself to resolve to either the signable view or an error gate. A signable
+  // request with cautions labels its footer button Review rather than Sign.
   await expect(
-    page.getByRole('button', { name: 'Sign' }).or(page.getByText('Request Expired'))
+    page.getByRole('button', { name: /^(Sign|Review)$/ }).or(page.getByText('Request Expired'))
   ).toBeVisible({ timeout: 20000 });
 }
 
@@ -96,21 +98,29 @@ walletTest.describe('UX visual check', () => {
     });
   });
 
-  walletTest('approval screen: extracted chrome, amber high-fee caption, severity banner', async ({ page }, testInfo) => {
+  walletTest('approval screen: extracted chrome, Review step with high-fee and severity cautions', async ({ page }, testInfo) => {
     await seedPsbtAndOpenApproval(page, HIGH_FEE_PSBT);
 
-    // Extracted chrome (wallet header dot + site bar + footer).
+    // Extracted chrome (wallet header dot + site bar + footer). The high-fee and
+    // BTC-to-external cautions defer signing behind a Review step, so the footer
+    // reads Review rather than Sign and the main screen stays visually quiet.
     await expect(page.getByText('app.example.com', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sign' })).toBeVisible();
+    const review = page.getByRole('button', { name: 'Review' });
+    await expect(review).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
 
-    // High-fee signal is the amber caption (the standalone banner was removed).
-    await expect(page.getByText(/unusually high/i)).toBeVisible();
+    await testInfo.attach('approval-high-fee', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    });
 
-    // A severity banner renders through WarningStack/Banner.
+    // The cautions themselves live on the attention screen behind Review: the
+    // high-fee item and the BTC-to-external severity item.
+    await review.click();
+    await expect(page.getByText(/unusually high network fee/i)).toBeVisible();
     await expect(page.getByText(/BTC Sent to External Address/i)).toBeVisible();
 
-    await testInfo.attach('approval-high-fee', {
+    await testInfo.attach('approval-high-fee-attention', {
       body: await page.screenshot({ fullPage: true }),
       contentType: 'image/png',
     });

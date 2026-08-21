@@ -6,6 +6,7 @@ const APPROVAL_SOURCES = [
   'src/hooks/useSignMessageRequest.ts',
   'src/hooks/useSignTransactionRequest.ts',
   'src/hooks/useSignPsbtRequest.ts',
+  'src/hooks/useSignPsbtsRequest.ts',
 ] as const;
 
 describe('provider approval routing', () => {
@@ -15,7 +16,7 @@ describe('provider approval routing', () => {
     // Every signing flow opens its own popup. A process-wide navigation broadcast lets an older
     // popup display or sign a second request while still completing under the ID in its URL.
     expect(source).not.toMatch(
-      /NAVIGATE_TO_(?:SIGN_MESSAGE|APPROVE_TRANSACTION|APPROVE_PSBT)/
+      /NAVIGATE_TO_(?:SIGN_MESSAGE|APPROVE_TRANSACTION|APPROVE_PSBTS?)/
     );
   });
 });

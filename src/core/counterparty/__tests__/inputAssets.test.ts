@@ -61,6 +61,19 @@ describe('fetchInputsAttachedAssets', () => {
     expect(assets[0]!.assets[0]!.asset_longname).toBe('MYPROJECT.RARE');
   });
 
+  it('preserves the exact raw quantity for marketplace proofs', async () => {
+    mockedFetch.mockResolvedValue(
+      page([{
+        asset: 'RAREPEPE',
+        quantity: '100000000',
+        quantity_normalized: asDisplayUnits('1.00000000'),
+      }])
+    );
+
+    const assets = await fetchInputsAttachedAssets([input(0)]);
+    expect(assets[0]?.assets[0]?.quantity).toBe('100000000');
+  });
+
   it('reports a failed lookup as unknown status, not as clean', async () => {
     mockedFetch.mockRejectedValue(new Error('indexer down'));
 

@@ -58,6 +58,9 @@ describe('ApprovalFooter', () => {
 
     rerender(<ApprovalFooter {...base} busy isHardware />);
     expect(screen.getByRole('button', { name: 'Confirm on device…' })).toBeInTheDocument();
+
+    rerender(<ApprovalFooter {...base} signLabel="Review" />);
+    expect(screen.getByRole('button', { name: 'Review' })).toBeInTheDocument();
   });
 
   it('wires cancel and sign handlers', () => {

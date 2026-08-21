@@ -44,6 +44,8 @@ const NON_REPLAYABLE_PROVIDER_METHODS = new Set([
   'xcp_signMessage',
   'xcp_signTransaction',
   'xcp_signPsbt',
+  'xcp_signPsbts',
+  'xcp_signBitcoinPsbt',
 ]);
 
 /** A call is replay-safe unless it is a provider request for a non-idempotent method. */

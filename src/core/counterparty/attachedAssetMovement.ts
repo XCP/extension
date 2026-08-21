@@ -35,6 +35,17 @@ export interface AttachedAssetDestination {
   /** True when there is no non-OP_RETURN output, so core detaches to the source address. */
   detaches: boolean;
   /**
+   * How Counterparty resolves the movement. A flexible authorization deliberately does not fix
+   * whether fulfillment uses an explicit detach or the ordinary first-output rule.
+   */
+  mode: 'explicit-detach' | 'implicit-output' | 'implicit-source' | 'flexible';
+  /**
+   * Whether every signature over an attached source input fixes the complete output set.
+   * SINGLE|ANYONECANPAY never does: even when it covers the current first output, a holder can add
+   * an explicit detach message and change delivery without invalidating that signature.
+   */
+  destinationCommitted: boolean;
+  /**
    * True when the destination is an address the signer does not control.
    *
    * The legitimate case for a swap — the buyer receives the asset — and the dangerous case for an
@@ -50,6 +61,23 @@ interface OutputLike {
   address?: string;
 }
 
+interface SignedInputLike {
+  index: number;
+  sighashType: number;
+}
+
+interface CounterpartyMovementMessage {
+  messageType?: string;
+  data?: unknown;
+}
+
+const detachDestination = (message?: CounterpartyMovementMessage): string | undefined | null => {
+  if (message?.messageType !== 'detach') return null;
+  if (typeof message.data !== 'object' || message.data === null) return undefined;
+  const destination = (message.data as Record<string, unknown>).destination;
+  return typeof destination === 'string' ? destination : undefined;
+};
+
 /**
  * @param attachedAssets - per-input lookup results; only entries with assets count as sources
  * @param signedInputIndices - the inputs this wallet is being asked to sign; assets on inputs it
@@ -60,7 +88,9 @@ export function resolveAttachedAssetDestination(
   outputs: OutputLike[],
   attachedAssets: InputAttachedAssets[],
   signedInputIndices: number[],
-  signerAddresses: string[]
+  signerAddresses: string[],
+  signedInputs: SignedInputLike[],
+  counterpartyMessage?: CounterpartyMovementMessage
 ): AttachedAssetDestination | null {
   const signed = new Set(signedInputIndices);
   const sourceInputs = attachedAssets
@@ -70,11 +100,42 @@ export function resolveAttachedAssetDestination(
 
   if (sourceInputs.length === 0) return null;
 
+  const sighashByInput = new Map(signedInputs.map(input => [input.index, input.sighashType]));
+  // ALL and ALL|ANYONECANPAY both bind every output and therefore also bind the absence of an
+  // overriding detach message. A missing effective sighash is unknown, never optimistically ALL.
+  const destinationCommitted = sourceInputs.every(inputIndex =>
+    ((sighashByInput.get(inputIndex) ?? -1) & 0x1f) === 0x01
+  );
+
+  const explicitDestination = detachDestination(counterpartyMessage);
+  if (explicitDestination !== null) {
+    const mine = new Set(signerAddresses.map(normalizeAddressForComparison));
+    const leavesWallet = explicitDestination
+      ? !mine.has(normalizeAddressForComparison(explicitDestination))
+      : false;
+    return {
+      sourceInputs,
+      destinationVout: null,
+      ...(explicitDestination ? { destinationAddress: explicitDestination } : {}),
+      detaches: true,
+      mode: destinationCommitted ? 'explicit-detach' : 'flexible',
+      destinationCommitted,
+      leavesWallet: destinationCommitted ? leavesWallet : true,
+    };
+  }
+
   // Core's destination rule, verbatim: the first output that is not an OP_RETURN.
   const destination = outputs.find((output) => output.type !== 'op_return');
 
   if (!destination) {
-    return { sourceInputs, destinationVout: null, detaches: true, leavesWallet: false };
+    return {
+      sourceInputs,
+      destinationVout: null,
+      detaches: true,
+      mode: destinationCommitted ? 'implicit-source' : 'flexible',
+      destinationCommitted,
+      leavesWallet: !destinationCommitted,
+    };
   }
 
   const mine = new Set(signerAddresses.map(normalizeAddressForComparison));
@@ -89,7 +150,9 @@ export function resolveAttachedAssetDestination(
     destinationVout: destination.index,
     ...(destination.address ? { destinationAddress: destination.address } : {}),
     detaches: false,
-    leavesWallet,
+    mode: destinationCommitted ? 'implicit-output' : 'flexible',
+    destinationCommitted,
+    leavesWallet: destinationCommitted ? leavesWallet : true,
   };
 }
 
