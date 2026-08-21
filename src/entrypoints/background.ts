@@ -502,12 +502,16 @@ export default defineBackground(() => {
       console.log('[Background] Service worker suspending, cleaning up all services...');
       
       // Destroy all services via registry
-      serviceRegistry.destroyAll().catch(console.error);
+      serviceRegistry.destroyAll().catch((error) => {
+        console.error('[Background] Failed to destroy services:', error);
+      });
       
       // Also cleanup provider service (until it's migrated to BaseService)
       const providerService = getProviderService();
       if (providerService.destroy) {
-        providerService.destroy().catch(console.error);
+        providerService.destroy().catch((error) => {
+          console.error('[Background] Failed to destroy provider service:', error);
+        });
       }
 
       // Cleanup update service
