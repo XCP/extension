@@ -105,9 +105,9 @@ export function ApprovalTransactionDetails({
           {outputs.map((output) => (
             <div key={output.index} className="rounded bg-gray-50 p-2 text-xs">
               <div className="flex justify-between">
-                {/* Counterparty pink, not a warning color: the data output is the protocol
+                {/* The buttons' blue, not a warning color: the data output is the protocol
                     working as designed. Indexed so "New UTXO …:1" maps to a row here. */}
-                <span className={output.type === 'op_return' ? 'text-pink-600' : 'text-gray-600'}>
+                <span className={output.type === 'op_return' ? 'text-blue-500' : 'text-gray-600'}>
                   #{output.index}{' '}
                   {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
                 </span>
@@ -121,7 +121,7 @@ export function ApprovalTransactionDetails({
                 </span>
               </div>
               {output.type === 'op_return' && verification?.localUnpack?.success && (
-                <div className="mt-0.5 text-gray-500">Counterparty protocol message</div>
+                <div className="mt-0.5 text-gray-500">Counterparty protocol</div>
               )}
               {/* Destinations are shown in full: short address fragments are grindable. */}
               {output.address && (
