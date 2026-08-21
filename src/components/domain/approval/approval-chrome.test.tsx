@@ -22,8 +22,18 @@ describe('ApprovalExpired', () => {
 describe('ApprovalSiteBar', () => {
   it('shows the origin hostname and the full origin', () => {
     render(<ApprovalSiteBar origin="https://app.example.com/path" />);
-    expect(screen.getByText('app.example.com')).toBeInTheDocument();
-    expect(screen.getByText('https://app.example.com/path')).toBeInTheDocument();
+    expect(screen.getByText('app.example.com')).toHaveClass('break-all');
+    expect(screen.getByText('https://app.example.com/path')).toHaveClass('break-all');
+  });
+
+  it('does not hide the registrable domain of a long subdomain', () => {
+    const origin = `https://${'trusted-looking.'.repeat(12)}attacker.example`;
+    render(<ApprovalSiteBar origin={origin} />);
+
+    const hostname = new URL(origin).hostname;
+    expect(screen.getByText(hostname)).not.toHaveClass('truncate');
+    expect(screen.getByText(hostname)).toHaveAttribute('title', hostname);
+    expect(screen.getByText(origin)).toHaveAttribute('title', origin);
   });
 
   it('falls back to a globe icon when the favicon fails to load', () => {

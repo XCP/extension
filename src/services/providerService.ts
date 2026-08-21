@@ -48,6 +48,8 @@ export type ProviderRequestParams = unknown[];
 export type ProviderMetadata = Record<string, unknown>;
 export type ProviderResponse = unknown;
 
+const CONNECTION_PROOF_PREFIX = 'xcp-wallet\n';
+
 export interface ProviderService {
   /**
    * Handle provider requests from dApps
@@ -557,6 +559,9 @@ export function createProviderService(): ProviderService {
           if (typeof message !== 'string') {
             throw new Error('Message must be a string');
           }
+          if (message.startsWith(CONNECTION_PROOF_PREFIX)) {
+            throw new Error('Messages in the connection-proof namespace are reserved');
+          }
 
           // Validate address type if provided
           if (address !== undefined && typeof address !== 'string') {
@@ -604,10 +609,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              chrome.runtime.sendMessage({
-                type: 'NAVIGATE_TO_SIGN_MESSAGE',
-                signMessageRequestId: requestId,
-              }).catch(() => { /* Popup might not be open yet */ });
               await openExtensionPopup(`#/requests/message/approve?requestId=${requestId}`);
             },
           });
@@ -659,10 +660,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              chrome.runtime.sendMessage({
-                type: 'NAVIGATE_TO_APPROVE_TRANSACTION',
-                signTxRequestId: requestId,
-              }).catch(() => { /* Popup might not be open yet */ });
               await openExtensionPopup(`#/requests/transaction/approve?requestId=${requestId}`);
             },
           });
@@ -855,10 +852,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              chrome.runtime.sendMessage({
-                type: 'NAVIGATE_TO_APPROVE_PSBTS',
-                signPsbtsRequestId: requestId,
-              }).catch(() => {});
               await openExtensionPopup(`#/requests/psbts/approve?requestId=${requestId}`);
             },
           });
@@ -1057,10 +1050,6 @@ export function createProviderService(): ProviderService {
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
-              chrome.runtime.sendMessage({
-                type: 'NAVIGATE_TO_APPROVE_PSBT',
-                signPsbtRequestId: requestId,
-              }).catch(() => { /* Popup might not be open yet */ });
               await openExtensionPopup(`#/requests/psbt/approve?requestId=${requestId}`);
             },
           });

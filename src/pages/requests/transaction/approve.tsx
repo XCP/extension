@@ -178,6 +178,14 @@ export default function ApproveTransactionPage() {
     .map(({ index }) => index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
     classifySignedInputAssets(decodedInfo.attachedAssets, signerInputIndices);
+  const displayedText = txAction?.type === 'order'
+    ? [txAction.order.giveAsset, txAction.order.getAsset]
+    : txAction?.type === 'fallback'
+      ? [txAction.description, ...txAction.protocol.map((field) => field.value)]
+      : [];
+  displayedText.push(...signedInputsWithAssets.flatMap((entry) =>
+    entry.assets.map((asset) => asset.asset_longname ?? asset.asset)
+  ));
 
   // Net effect of this transaction on your wallet — the anti-blind-signing summary.
   const movement = computeMoneyMovement({
@@ -190,6 +198,7 @@ export default function ApproveTransactionPage() {
   });
 
   const warningItems: WarningItem[] = buildApprovalWarnings({
+    displayedText,
     safetyWarnings,
     attachedAssetDestination: decodedInfo.attachedAssetDestination,
     structureFindings: decodedInfo.structureFindings ?? [],

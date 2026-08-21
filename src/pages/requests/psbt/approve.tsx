@@ -203,6 +203,14 @@ export default function ApprovePsbtPage() {
         .map(input => input.index);
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
     classifySignedInputAssets(attachedAssets, requestedInputIndices);
+  const displayedText = order
+    ? [order.giveAsset, order.getAsset]
+    : txAction
+      ? [txAction.description, ...txAction.protocol.map((field) => field.value)]
+      : [];
+  displayedText.push(...signedInputsWithAssets.flatMap((entry) =>
+    entry.assets.map((asset) => asset.asset_longname ?? asset.asset)
+  ));
   const effectiveSighashes = requestedInputIndices.map(index => ({
     index,
     type: resolvePsbtSighashType(
@@ -238,6 +246,7 @@ export default function ApprovePsbtPage() {
   );
 
   const warningItems: WarningItem[] = buildApprovalWarnings({
+    displayedText,
     safetyWarnings,
     attachedAssetDestination: semanticMarketplaceReview
       ? null

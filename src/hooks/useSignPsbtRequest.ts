@@ -76,39 +76,6 @@ export function useSignPsbtRequest(signerAddress?: string) {
     loadRequest();
   }, [requestId, decodePsbt, signerAddress]);
 
-  // Listen for navigation messages from background
-  useEffect(() => {
-    const handleMessage = (message: any) => {
-      if (message.type === 'NAVIGATE_TO_APPROVE_PSBT' && message.signPsbtRequestId) {
-        // Reload the request if we get a navigation message
-        const loadRequest = async () => {
-          const req = (await getSignFlow(message.signPsbtRequestId)) as SignPsbtRequest | null;
-          if (req) {
-            setRequest(req);
-            const requestedSigners = Object.keys(req.signInputs ?? {});
-            const decoded = await decodePsbt(
-              req.psbtHex,
-              requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
-              Object.values(req.signInputs ?? {}).flat(),
-              req.sighashTypes,
-              req.inscription,
-              req.signingPurpose,
-              req.bitcoinPaymentIntent,
-              req.marketplaceIntent,
-            );
-            setDecodedInfo(decoded);
-          }
-        };
-        loadRequest();
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, [decodePsbt, signerAddress]);
-
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedPsbtHex: string) => {
     if (requestId) {

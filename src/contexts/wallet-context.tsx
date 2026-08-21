@@ -485,35 +485,54 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     };
   }, [refreshWalletState, walletService]); // Removed walletState.authState to prevent re-runs
 
+  const emitAccountsChanged = useCallback(async (address?: string) => {
+    const settings = await walletService.getSettings();
+    for (const origin of settings.connectedWebsites) {
+      await walletService.emitProviderEvent(
+        origin,
+        'accountsChanged',
+        address ? [address] : []
+      );
+    }
+  }, [walletService]);
+
   const setActiveWallet = useCallback(
     async (wallet: Wallet | null, useLastActive?: boolean) => {
       return withStateLock('wallet-set-active', async () => {
-        if (wallet) {
-        await walletService.setActiveWallet(wallet.id);
-        const lastActiveAddress = useLastActive ? await walletService.getLastActiveAddress() : undefined;
-        const newActiveAddress =
-          lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
-            ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
-            : wallet.addresses[0];
-        
-        // When switching wallets, maintain unlocked state if keychain is unlocked
-        const isUnlocked = await walletService.isKeychainUnlocked();
+        const oldAddress = walletStateRef.current.activeAddress?.address;
 
-        setWalletState((prev) => ({
-          ...prev,
-          activeWallet: wallet,
-          activeAddress: newActiveAddress ?? null,
-          authState: isUnlocked ? AuthState.Unlocked : prev.authState,
-          keychainLocked: !isUnlocked,
-        }));
-        if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
+        if (wallet) {
+          await walletService.setActiveWallet(wallet.id);
+          const lastActiveAddress = useLastActive
+            ? await walletService.getLastActiveAddress()
+            : undefined;
+          const newActiveAddress =
+            lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
+              ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
+              : wallet.addresses[0];
+
+          // When switching wallets, maintain unlocked state if keychain is unlocked
+          const isUnlocked = await walletService.isKeychainUnlocked();
+
+          setWalletState((prev) => ({
+            ...prev,
+            activeWallet: wallet,
+            activeAddress: newActiveAddress ?? null,
+            authState: isUnlocked ? AuthState.Unlocked : prev.authState,
+            keychainLocked: !isUnlocked,
+          }));
+          if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
+          if (oldAddress !== newActiveAddress?.address) {
+            await emitAccountsChanged(newActiveAddress?.address);
+          }
         } else {
           await walletService.setActiveWallet("");
           setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
+          if (oldAddress) await emitAccountsChanged();
         }
       });
     },
-    [walletService]
+    [emitAccountsChanged, walletService]
   );
 
   const setActiveAddress = useCallback(
@@ -523,26 +542,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         const oldAddress = walletStateRef.current.activeAddress?.address;
         const newAddress = address?.address;
 
-      // Handle address switch - emit accountsChanged to all connected sites
-      if (oldAddress && newAddress && oldAddress !== newAddress) {
-        // Get connected sites from settings (via the service seam, not the singleton)
-        const settings = await walletService.getSettings();
-
-        // Emit accountsChanged event to each connected site with new address
-        // The wallet service proxy will handle the communication to background
-        if (settings.connectedWebsites.length > 0) {
-          // Use the wallet service to emit provider events
-          for (const origin of settings.connectedWebsites) {
-            await walletService.emitProviderEvent(origin, 'accountsChanged', [newAddress]);
-          }
-        }
-      }
-
         setWalletState((prev) => ({ ...prev, activeAddress: address }));
         if (address) await walletService.setLastActiveAddress(address.address);
+        if (oldAddress !== newAddress) await emitAccountsChanged(newAddress);
       });
     },
-    [walletService]
+    [emitAccountsChanged, walletService]
   );
 
   const setLastActiveTime = useCallback(async () => {

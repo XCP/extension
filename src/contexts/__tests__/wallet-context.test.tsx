@@ -84,8 +84,10 @@ const mockWalletService = {
   getWallets: vi.fn().mockResolvedValue([]),
   getActiveWallet: vi.fn().mockResolvedValue(null),
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
+  getSettings: vi.fn().mockResolvedValue({ connectedWebsites: [] }),
   setActiveWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
+  emitProviderEvent: vi.fn().mockResolvedValue(undefined),
   isKeychainUnlocked: vi.fn().mockResolvedValue(false),
   unlockKeychain: vi.fn().mockResolvedValue(undefined),
   lockKeychain: vi.fn().mockResolvedValue(undefined),
@@ -161,9 +163,11 @@ describe('WalletContext', () => {
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
+    mockWalletService.getSettings.mockResolvedValue({ connectedWebsites: [] });
     mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
     mockWalletService.setActiveWallet.mockResolvedValue(undefined);
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
+    mockWalletService.emitProviderEvent.mockResolvedValue(undefined);
 
     // Setup default mocks for other dependencies
     vi.mocked(walletManager.refreshWallets).mockResolvedValue(mockWallets as any);
@@ -468,6 +472,58 @@ describe('WalletContext', () => {
       await waitFor(() => {
         expect(result.current.activeWallet?.id).toBe(mockWallets[1]!.id);
       });
+    });
+
+    it('emits accountsChanged to each connected site when a wallet switch changes the address', async () => {
+      const firstWallet = {
+        ...mockWallets[0],
+        addresses: [{
+          address: 'bc1qfirst',
+          path: "m/84'/0'/0'/0/0",
+          addressFormat: 'P2WPKH' as const,
+          name: 'Address 1',
+          pubKey: '02first',
+        }],
+      };
+      const secondWallet = {
+        ...mockWallets[1],
+        addresses: [{
+          address: '1second',
+          path: "m/44'/0'/0'/0/0",
+          addressFormat: 'P2PKH' as const,
+          name: 'Address 1',
+          pubKey: '02second',
+        }],
+      };
+      mockWalletService.getWallets.mockResolvedValue([firstWallet, secondWallet]);
+      mockWalletService.getActiveWallet.mockResolvedValue(firstWallet);
+      mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qfirst');
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getSettings.mockResolvedValue({
+        connectedWebsites: ['https://one.example', 'https://two.example'],
+      });
+
+      const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+      await waitFor(() => {
+        expect(result.current.activeAddress?.address).toBe('bc1qfirst');
+      });
+
+      await act(async () => {
+        await result.current.setActiveWallet(secondWallet as any);
+      });
+
+      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
+        1,
+        'https://one.example',
+        'accountsChanged',
+        ['1second']
+      );
+      expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
+        2,
+        'https://two.example',
+        'accountsChanged',
+        ['1second']
+      );
     });
 
     it('should set active address', async () => {

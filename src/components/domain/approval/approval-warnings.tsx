@@ -13,12 +13,15 @@
  */
 
 import type { WarningItem } from '@/components/ui/warning-stack';
+import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 import type { StructureFinding } from '@/core/counterparty/messageStructure';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
 
 export interface ApprovalWarningInput {
+  /** Free text actually rendered in the action summary or protocol details. */
+  displayedText?: string[];
   /** Safety analysis warnings, already sorted by severity. */
   safetyWarnings: SecurityWarning[];
   /** Where assets attached to the signed inputs end up, when that could be resolved. */
@@ -32,6 +35,7 @@ export interface ApprovalWarningInput {
 }
 
 export function buildApprovalWarnings({
+  displayedText = [],
   safetyWarnings,
   attachedAssetDestination,
   structureFindings,
@@ -50,6 +54,24 @@ export function buildApprovalWarnings({
     title: warning.title,
     description: warning.message,
   }));
+
+  const renderedText = displayedText.filter((value) => value.length > 0).join('\n');
+  if (renderedText) {
+    for (const risk of getMessageSigningRisks(renderedText)) {
+      if (risk.key === 'empty-message') continue;
+      warningItems.push({
+        key: `display-${risk.key}`,
+        severity: 'warning',
+        title: risk.key === 'deceptive-characters'
+          ? 'Transaction details contain hidden characters'
+          : 'Transaction details contain control characters',
+        description: risk.key === 'deceptive-characters'
+          ? 'A memo, description, or asset label uses characters that can reorder or hide text. '
+            + 'Check the decoded amounts and destinations carefully.'
+          : 'A memo, description, or asset label includes characters that are not displayed.',
+      });
+    }
+  }
 
   // Where the attached assets land. Spending an attached UTXO moves its balances with no
   // Counterparty message, so without this the screen can say only that assets move, never where —

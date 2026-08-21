@@ -99,7 +99,9 @@ export function shouldBlockSigning(input: SigningDecisionInput): boolean {
 function toBigInt(value: unknown): bigint | null {
   if (value === undefined || value === null) return null;
   if (typeof value === 'bigint') return value;
-  if (typeof value === 'number') return BigInt(Math.floor(value));
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? BigInt(Math.floor(value)) : null;
+  }
   if (typeof value === 'string') {
     try {
       return BigInt(value);

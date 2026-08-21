@@ -90,9 +90,9 @@ export function ApprovalSiteBar({ origin }: { origin: string }) {
           />
         )}
       </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">{domain}</p>
-        <p className="text-xs text-gray-400 truncate">{origin}</p>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium text-gray-900 break-all" title={domain}>{domain}</p>
+        <p className="text-xs text-gray-400 break-all" title={origin}>{origin}</p>
       </div>
     </div>
   );

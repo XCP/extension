@@ -47,12 +47,17 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
 import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
 import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync } from '@/core/encryption/encryption';
 // Import modules to get access to mocked functions
 import * as sessionManager from '@/platform/auth/sessionManager';
-import { getKeychainRecord, saveKeychainRecord } from '@/platform/storage/walletStorage';
+import {
+  assertNoKeychainRecord,
+  getKeychainRecord,
+  saveKeychainRecord,
+} from '@/platform/storage/walletStorage';
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;
@@ -88,6 +93,7 @@ describe('WalletManager', () => {
 
     vi.mocked(getKeychainRecord).mockImplementation(mocks.walletStorage.getKeychainRecord);
     vi.mocked(saveKeychainRecord).mockImplementation(mocks.walletStorage.saveKeychainRecord);
+    vi.mocked(assertNoKeychainRecord).mockResolvedValue(undefined);
 
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
     vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
@@ -230,6 +236,17 @@ describe('WalletManager', () => {
 
       expect(vi.mocked(sessionManager.clearAllUnlockedSecrets)).toHaveBeenCalled();
     });
+
+    it('clears in-memory keychain state and the alarm even when storage cleanup fails', async () => {
+      walletManager['keychain'] = createTestKeychain();
+      vi.mocked(sessionManager.clearAllUnlockedSecrets)
+        .mockRejectedValueOnce(new Error('session storage failed'));
+
+      await expect(walletManager.lockKeychain()).rejects.toThrow('session storage failed');
+
+      expect(walletManager['keychain']).toBeNull();
+      expect(sessionManager.clearSessionExpiry).toHaveBeenCalled();
+    });
   });
 
   describe('Address Preview', () => {
@@ -250,6 +267,27 @@ describe('WalletManager', () => {
         mnemonic,
         "m/84'/0'/0'/0",
         AddressFormat.P2WPKH
+      );
+    });
+
+    it('uses the stored hex field for a private-key wallet preview', async () => {
+      const wallet = createPrivateKeyWallet();
+      walletManager['wallets'] = [wallet];
+      const privateKeyHex = '11'.repeat(32);
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(JSON.stringify({
+        wif: 'Ltest',
+        hex: privateKeyHex,
+        compressed: true,
+      }));
+      vi.mocked(getAddressFromPrivateKey).mockReturnValue('1preview');
+
+      await expect(
+        walletManager.getPreviewAddressForFormat(wallet.id, AddressFormat.P2PKH)
+      ).resolves.toBe('1preview');
+      expect(getAddressFromPrivateKey).toHaveBeenCalledWith(
+        privateKeyHex,
+        AddressFormat.P2PKH,
+        true
       );
     });
 
@@ -277,6 +315,18 @@ describe('WalletManager', () => {
   });
 
   describe('Keychain Unlock', () => {
+    it('refuses to create over an existing keychain when the session key is missing', async () => {
+      vi.mocked(sessionManager.getKeychainMasterKey).mockResolvedValueOnce(null);
+      vi.mocked(assertNoKeychainRecord).mockRejectedValue(
+        new Error('A keychain already exists. Unlock it before adding a wallet.')
+      );
+
+      await expect(
+        walletManager['getOrCreateKeychain']('test-password')
+      ).rejects.toThrow('already exists');
+      expect(saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
     it('should unlock keychain with correct password', async () => {
       const testWallet = createTestWallet();
       const keychain = createTestKeychain([testWallet]);
@@ -298,6 +348,11 @@ describe('WalletManager', () => {
       expect(deriveKeyAsync).toHaveBeenCalled();
       // Should have stored master key in session
       expect(mocks.sessionManager.storeKeychainMasterKey).toHaveBeenCalled();
+      expect(
+        vi.mocked(sessionManager.initializeSession).mock.invocationCallOrder[0]!
+      ).toBeLessThan(
+        vi.mocked(sessionManager.storeKeychainMasterKey).mock.invocationCallOrder[0]!
+      );
     });
 
     it('should throw error when no keychain exists', async () => {

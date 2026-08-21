@@ -86,6 +86,19 @@ export function registerSessionExpiredHandler(handler: (() => Promise<void>) | n
   sessionExpiredHandler = handler;
 }
 
+async function handleExpiredSession(): Promise<void> {
+  if (sessionExpiredHandler && !sessionExpiredHandlerRunning) {
+    sessionExpiredHandlerRunning = true;
+    try {
+      await sessionExpiredHandler();
+    } finally {
+      sessionExpiredHandlerRunning = false;
+    }
+  } else {
+    await clearAllUnlockedSecrets();
+  }
+}
+
 /**
  * Maximum session duration (absolute timeout) regardless of activity.
  * Per OWASP Session Management Cheat Sheet: "All sessions should implement
@@ -195,16 +208,7 @@ export async function getUnlockedSecret(walletId: string): Promise<string | null
   // Check if session has expired
   if (await isSessionExpired()) {
     // Session expired - perform a full lock (or at minimum clear secrets)
-    if (sessionExpiredHandler && !sessionExpiredHandlerRunning) {
-      sessionExpiredHandlerRunning = true;
-      try {
-        await sessionExpiredHandler();
-      } finally {
-        sessionExpiredHandlerRunning = false;
-      }
-    } else {
-      await clearAllUnlockedSecrets();
-    }
+    await handleExpiredSession();
     return null;
   }
   
@@ -256,10 +260,20 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
   // Clear all rate limiting data
   clearAllRateLimits();
 
-  // Clear keychain master key
-  await clearCachedKeychainMasterKey();
-
-  await clearSessionMetadata();
+  // Invalidate metadata first so an expiry-aware reader cannot use a cached key even if its
+  // removal fails. Attempt both removals and surface the first error only after both ran.
+  let cleanupError: unknown;
+  try {
+    await clearSessionMetadata();
+  } catch (err) {
+    cleanupError = err;
+  }
+  try {
+    await clearCachedKeychainMasterKey();
+  } catch (err) {
+    cleanupError ??= err;
+  }
+  if (cleanupError) throw cleanupError;
 }
 
 // ============================================================================
@@ -285,6 +299,14 @@ export async function storeKeychainMasterKey(key: CryptoKey): Promise<void> {
 export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
   const keyBase64 = await getCachedKeychainMasterKey();
   if (!keyBase64) {
+    return null;
+  }
+
+  // Alarms are best effort. Enforce the deadline before importing or returning any cached key.
+  // A true first run has neither metadata nor a key; it is merely locked, not an expired session,
+  // and must not emit a full-lock event while wallet creation is starting.
+  if (await isSessionExpired()) {
+    await handleExpiredSession();
     return null;
   }
 

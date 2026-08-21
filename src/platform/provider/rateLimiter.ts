@@ -35,18 +35,6 @@ class RateLimiter {
     // Clean up old entries first
     this.cleanup();
 
-    // Security: Check global rate limit first (defense-in-depth)
-    if (now > this.globalCount.resetTime) {
-      // Reset global counter
-      this.globalCount = { count: 1, resetTime: now + this.windowMs };
-    } else {
-      if (this.globalCount.count >= this.globalMaxRequests) {
-        // Global rate limit exceeded - possible attack
-        return false;
-      }
-      this.globalCount.count++;
-    }
-
     // Security: Limit number of tracked origins to prevent memory exhaustion
     if (!this.requestCounts.has(origin) && this.requestCounts.size >= MAX_TRACKED_ORIGINS) {
       // Too many unique origins - reject new ones to prevent memory exhaustion
@@ -54,23 +42,33 @@ class RateLimiter {
     }
 
     const record = this.requestCounts.get(origin);
-
-    if (!record || now > record.resetTime) {
-      // First request or window expired
-      this.requestCounts.set(origin, {
-        count: 1,
-        resetTime: now + this.windowMs
-      });
-      return true;
-    }
-
-    if (record.count >= this.maxRequests) {
+    const originWindowExpired = !record || now > record.resetTime;
+    if (!originWindowExpired && record.count >= this.maxRequests) {
       // Rate limit exceeded
       return false;
     }
 
-    // Increment count
-    record.count++;
+    // The global counter is a backstop for requests that are actually admitted. Charging it for
+    // a request already rejected above lets one over-limit origin consume every other site's
+    // shared budget without doing any work.
+    const globalWindowExpired = now > this.globalCount.resetTime;
+    const globalCount = globalWindowExpired ? 0 : this.globalCount.count;
+    if (globalCount >= this.globalMaxRequests) {
+      return false;
+    }
+
+    this.globalCount = globalWindowExpired
+      ? { count: 1, resetTime: now + this.windowMs }
+      : { ...this.globalCount, count: globalCount + 1 };
+
+    if (originWindowExpired) {
+      this.requestCounts.set(origin, {
+        count: 1,
+        resetTime: now + this.windowMs
+      });
+    } else {
+      record.count++;
+    }
     return true;
   }
 
