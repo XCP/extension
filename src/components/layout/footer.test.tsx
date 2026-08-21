@@ -191,9 +191,12 @@ describe('Footer', () => {
     
     const footerContainer = container.firstChild as HTMLElement;
     expect(footerContainer).toHaveClass('p-2');
+    expect(footerContainer).toHaveClass('shrink-0');
     expect(footerContainer).toHaveClass('bg-white');
     expect(footerContainer).toHaveClass('border-t');
     expect(footerContainer).toHaveClass('border-gray-300');
+    expect(footerContainer.tagName).toBe('FOOTER');
+    expect(footerContainer).toHaveAttribute('aria-label', 'Primary');
   });
 
   it('should use grid layout for buttons', () => {

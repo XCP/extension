@@ -10,8 +10,8 @@
  * - History
  */
 
-import { walletTest, expect, navigateTo } from '../fixtures';
-import { index, viewAddress, header } from '../selectors';
+import { expect, navigateTo, walletTest } from '../fixtures';
+import { header, index, viewAddress } from '../selectors';
 
 walletTest.describe('Index Page', () => {
   walletTest.describe('Navigation', () => {
@@ -71,6 +71,28 @@ walletTest.describe('Index Page', () => {
         await navigateTo(page, 'wallet');
         await expect(page).toHaveURL(/index/);
       }
+    });
+
+    walletTest('keeps the app shell and footer inside the popup viewport', async ({ page }) => {
+      const metrics = await page.evaluate(() => {
+        const root = document.querySelector<HTMLElement>('#root');
+        const footer = document.querySelector<HTMLElement>('footer[aria-label="Primary"]');
+
+        if (!root || !footer) throw new Error('Popup shell did not render');
+
+        return {
+          viewportHeight: window.innerHeight,
+          rootClientHeight: root.clientHeight,
+          rootScrollHeight: root.scrollHeight,
+          rootOverflow: getComputedStyle(root).overflow,
+          footerBottom: footer.getBoundingClientRect().bottom,
+        };
+      });
+
+      expect(metrics.rootOverflow).toBe('hidden');
+      expect(metrics.rootClientHeight).toBe(metrics.viewportHeight);
+      expect(metrics.rootScrollHeight).toBe(metrics.rootClientHeight);
+      expect(Math.abs(metrics.footerBottom - metrics.viewportHeight)).toBeLessThanOrEqual(1);
     });
 
     walletTest('wallet selector in header is visible and clickable', async ({ page }) => {
