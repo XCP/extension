@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import type { WarningItem } from '@/components/ui/warning-stack';
 import {
   ApprovalAttentionScreen,
-  ApprovalNotes,
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
@@ -23,17 +22,10 @@ const items: WarningItem[] = [
 ];
 
 describe('approval attention presentation', () => {
-  it('partitions routine information away from decision friction', () => {
+  it('keeps only decision friction, dropping routine information entirely', () => {
     expect(partitionApprovalItems(items)).toEqual({
-      informational: [items[0]],
       attention: [items[1], items[2]],
     });
-  });
-
-  it('keeps routine mechanics behind a neutral disclosure', () => {
-    render(<ApprovalNotes items={[items[0]!]} />);
-    expect(screen.getByRole('button', { name: /how this transaction works/i })).toBeInTheDocument();
-    expect(screen.queryByText('Other inputs may be added')).not.toBeInTheDocument();
   });
 
   it('requires a separate action-specific confirmation', () => {

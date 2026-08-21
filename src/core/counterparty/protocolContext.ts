@@ -23,6 +23,7 @@ import {
   fetchAssetHolderCount,
   fetchOrder,
   fetchOrderMatch,
+  fetchPool,
   fetchUtxoBalances,
 } from '@/core/counterparty/api';
 import type { ProtocolContext } from '@/core/counterparty/describe';
@@ -145,10 +146,16 @@ export async function resolveProtocolContext(
     }
 
     if (messageType === 'fairmint' && typeof fields.asset === 'string' && !context.protocolFeeXcp) {
-      // A fairmint's cost is the fairminter's price, which is not in the message.
+      // A fairmint's cost is the fairminter's price, which is not in the message — and neither is
+      // where the payment goes: burned, seeded into the pool, or paid to the issuer.
       const fairminter = await fetchAssetFairminter(fields.asset);
       if (fairminter?.price_normalized) {
         context.protocolFeeXcp = toDisplayAmount(String(fairminter.price_normalized));
+        context.fairmintPaymentModel = isGreaterThan(String(fairminter.pool_quantity ?? 0), 0)
+          ? 'pool'
+          : fairminter.burn_payment
+            ? 'burned'
+            : 'paid';
       }
     }
 
@@ -172,6 +179,26 @@ export async function resolveProtocolContext(
         }
       }
       if (detaching.length > 0) context.detachingAssets = detaching;
+    }
+
+    if (
+      (messageType === 'pooldeposit' || messageType === 'poolwithdraw') &&
+      typeof fields.assetA === 'string' &&
+      typeof fields.assetB === 'string'
+    ) {
+      // The pool's identity and fee are ledger facts: a deposit's wire names the LP asset but a
+      // withdrawal's does not, and neither carries the fee tier.
+      const pool = await fetchPool(fields.assetA, fields.assetB);
+      if (pool?.lp_asset) context.poolLpAsset = pool.lp_asset;
+      // The fee field is not part of the typed Pool shape across core versions, so read it
+      // defensively: a value below 1 is a fraction, at or above 1 it is basis points.
+      const rawFee = [pool?.fee_bps, pool?.fee_rate, pool?.fee].find(
+        (value) => typeof value === 'number' && Number.isFinite(value) && value > 0
+      ) as number | undefined;
+      if (rawFee !== undefined) {
+        const pct = rawFee < 1 ? rawFee * 100 : rawFee / 100;
+        context.poolFeeRate = `${formatDecimal(toBigNumber(pct))}%`;
+      }
     }
 
     if (messageType === 'dispense' && input.outputs?.length) {

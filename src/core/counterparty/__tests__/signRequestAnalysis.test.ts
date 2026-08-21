@@ -467,7 +467,7 @@ describe('the marketplace intent proof', () => {
     });
     expect(analysis.marketplaceReview?.facts).toContainEqual({
       label: 'Quoted XCP fee',
-      value: '0.25 XCP',
+      value: '0.25 XCP (finalized at confirmation)',
     });
   });
 

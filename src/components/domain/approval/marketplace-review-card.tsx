@@ -33,7 +33,7 @@ export function MarketplaceReviewCard({ review }: { review: MarketplaceApprovalR
     <div className={`rounded-lg border p-4 ${palette.box}`}>
       {!showFacts && (
         <p className={`text-sm font-semibold ${palette.heading}`}>
-          {retry ? 'Verification incomplete — retry required' : 'Marketplace terms did not verify'}
+          {retry ? 'Verification incomplete — retry' : 'Marketplace terms did not verify'}
         </p>
       )}
       <p className={`${showFacts ? 'font-semibold' : 'mt-1'} text-sm ${palette.heading}`}>
@@ -56,12 +56,23 @@ export function MarketplaceReviewCard({ review }: { review: MarketplaceApprovalR
           {notice.message}
         </p>
       ))}
+      {/* The one and only failure surface: the approval screens suppress their generic warning
+          stacks and error alerts when this card gates signing, so it must say everything. */}
       {!showFacts && (
-        <p className={`mt-3 text-xs ${palette.muted}`}>
-          {retry
-            ? 'The wallet could not complete every required check. Signing remains blocked until the missing facts are available.'
-            : 'The wallet checked the transaction bytes and found marketplace terms it could not prove. Signing is blocked.'}
-        </p>
+        <>
+          <p className={`mt-3 text-xs ${palette.muted}`}>
+            {retry
+              ? "The wallet couldn't verify this against the ledger. Nothing looks wrong with the request — retry in a moment."
+              : 'The wallet checked the transaction bytes and found marketplace terms it could not prove. Signing is blocked.'}
+          </p>
+          {review.blockers.length > 0 && (
+            <ul className={`mt-2 space-y-1 text-xs ${palette.body}`}>
+              {review.blockers.map((blocker) => (
+                <li key={blocker}>• {blocker}</li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </div>
   );

@@ -311,8 +311,8 @@ export function analyzeAcceptanceCpfpBundle(
     status,
     family: 'accept_exact_offer_with_cpfp',
     title:
-      `Accept ${(parentIntent.priceSats / 100_000_000).toFixed(8)} BTC for `
-      + `${claim.quantityRaw} raw units of ${claim.asset} with fee bump`,
+      `Accept ${(parentIntent.priceSats / 100_000_000).toFixed(8)} BTC for ${claim.asset}`
+      + ' with fee bump',
     facts: [
       { label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
       {

@@ -188,21 +188,24 @@ export function analyzeTransactionSafety(
         severity: 'block',
         title: 'Blocked: Sweep Transaction',
         message:
-          'This transaction would send ALL of your Counterparty assets to another address. ' +
-          'Sweep transactions cannot be signed through a website. Use the wallet directly if you need to sweep.',
+          'This would send ALL Counterparty assets at your address. Websites cannot request ' +
+          'sweeps — use the wallet directly if you mean to.',
       });
     } else if (DANGEROUS_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
         severity: 'danger',
-        title: 'Danger: Asset Destruction',
+        title: 'Danger: Supply Destruction',
         message:
-          'This transaction permanently destroys assets. This action is irreversible. ' +
+          'This transaction permanently destroys supply. This action is irreversible. ' +
           'Make sure you understand exactly what is being destroyed.',
       });
     } else if (MOVES_EVERYTHING_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
         code: 'detach_all',
-        severity: 'warning',
+        // Info, not warning: a detach doing exactly what a detach does is routine, and the
+        // details list names each released balance. A detach whose assets leave the wallet
+        // escalates through the attached-asset destination warning instead.
+        severity: 'info',
         title: 'Moves Everything on the UTXO',
         message:
           'Detaching transfers every asset attached to this UTXO, not a stated amount. ' +
@@ -310,7 +313,9 @@ export function analyzeTransactionSafety(
     });
   }
 
-  if (suspiciousOutputs.length > 0) {
+  // A dispense's payment is already the screen's subject: the movement rows name the dispenser
+  // address and the detail list says what comes back, so a note restating the payment is noise.
+  if (suspiciousOutputs.length > 0 && messageType !== 'dispense') {
     const totalSats = suspiciousOutputs.reduce((sum, o) => sum + o.value, 0);
     const btcAmount = (totalSats / 100_000_000).toFixed(8);
     const addresses = suspiciousOutputs.map(o => o.address);

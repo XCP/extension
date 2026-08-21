@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ApprovalAttentionScreen,
-  ApprovalNotes,
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
@@ -19,7 +18,7 @@ import { MarketplaceReviewCard } from '@/components/domain/approval/marketplace-
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { buildOrderAction } from '@/components/domain/approval/order-card';
 import { describePsbtFlexibility } from '@/components/domain/approval/psbt-flexibility';
-import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
+import { attachDestinationVout, getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ErrorAlert } from '@/components/ui/error-alert';
@@ -272,8 +271,11 @@ export default function ApprovePsbtPage() {
     || marketplaceReview?.status === 'retry';
   // A missing balance answer is uncertainty, not permission to assume an input is clean.
   const assetStatusBlocked = signedInputsUnknownStatus.length > 0;
-  const blockSigning = verificationBlocked || marketplaceBlocked || assetStatusBlocked;
-  const { informational, attention } = partitionApprovalItems(warningItems);
+  // A structure finding blocks: the message provably cannot do what it claims, so signing only
+  // spends fees on a broken transaction no honest composer produces.
+  const structureBlocked = (decodedInfo.structureFindings ?? []).length > 0;
+  const blockSigning = verificationBlocked || marketplaceBlocked || assetStatusBlocked || structureBlocked;
+  const { attention } = partitionApprovalItems(warningItems);
   const genericAttention = movement.atRisk > 0
     ? attention.filter(item => item.key !== 'anyonecanpay')
     : attention;
@@ -281,21 +283,45 @@ export default function ApprovePsbtPage() {
   // second click on every attach would turn that routine protocol fact into warning wallpaper.
   const marketplaceRequiresAttention = marketplaceReview?.status === 'caution'
     && marketplaceReview.family !== 'attach_for_listing';
-  const marketplaceAttention: WarningItem[] = marketplaceRequiresAttention
-    ? marketplaceReview.notices.map((notice, index) => ({
-        key: `marketplace-${index}`,
-        severity: notice.severity,
-        title: marketplaceReview.family === 'authorize_exact_offer'
-          ? 'The seller can accept without another approval'
-          : 'This authorization remains usable after signing',
-        description: notice.message,
-      }))
-    : [];
+  // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
+  // notices state the same facts in protocol terms; this screen is where a person decides.
+  const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
+    ? []
+    : marketplaceReview.family === 'create_listing'
+      ? [{
+          key: 'marketplace-listing',
+          severity: 'warning' as const,
+          title: 'This listing stays open until filled or cancelled',
+          description:
+            'Signing puts this up for sale. Anyone who pays you exactly ' +
+            `${request.marketplaceIntent?.action === 'create_listing'
+              ? request.marketplaceIntent.guaranteedSellerPaymentSats.toLocaleString()
+              : 'the shown'} sats can complete the purchase without asking you again. ` +
+            'To cancel the listing later, spend the asset UTXO.',
+        }]
+      : marketplaceReview.family === 'authorize_exact_offer'
+        ? [{
+            key: 'marketplace-offer',
+            severity: 'warning' as const,
+            title: 'The seller can complete this sale at any time',
+            description:
+              'Signing lets the seller finish this exact trade without asking you again — the ' +
+              'first confirmed spend of your funding wins. To withdraw the offer, spend your ' +
+              'funding UTXO.',
+          }]
+        : marketplaceReview.notices.map((notice, index) => ({
+            key: `marketplace-${index}`,
+            severity: notice.severity,
+            title: 'This authorization remains usable after signing',
+            description: notice.message,
+          }));
   const approvalAttentionItems: WarningItem[] = [
     ...marketplaceAttention,
     ...genericAttention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
-    ...(movement.atRisk > 0 ? [{
+    // A proved marketplace review has already named the flexible amount and its rules, so the
+    // generic redirection alarm would restate it in scarier words.
+    ...(movement.atRisk > 0 && !semanticMarketplaceReview ? [{
       key: 'btc-at-risk',
       severity: 'danger' as const,
       title: `${formatAmount({
@@ -310,7 +336,11 @@ export default function ApprovePsbtPage() {
   ];
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const attentionTitle = marketplaceRequiresAttention
-    ? 'Review authorization'
+    ? marketplaceReview.family === 'create_listing'
+      ? 'Before you list'
+      : marketplaceReview.family === 'authorize_exact_offer'
+        ? 'Before you authorize'
+        : 'Review before signing'
     : approvalAttentionItems.some(item => item.severity === 'danger')
       ? 'Review transaction risk'
       : 'Review before signing';
@@ -319,8 +349,36 @@ export default function ApprovePsbtPage() {
     : marketplaceReview?.family === 'authorize_exact_offer'
       ? 'Authorize offer'
       : counterpartyMessage?.messageType === 'destroy'
-        ? 'Destroy assets'
+        ? 'Destroy supply'
         : 'Confirm and sign';
+  // The payment card is the one voice for a failed plain-Bitcoin payment, exactly as the
+  // marketplace card is for its gate: the generic stack stays silent and the card carries the
+  // analyzer's reason.
+  const bitcoinPaymentGate = isBitcoinPayment
+    ? safetyWarnings.find(warning => warning.code === 'bitcoin_payment_gate')
+    : undefined;
+
+  // The marketplace review is the screen's one voice: proved/caution states take over the
+  // headline and merge their facts into the Counterparty details instead of stacking a second
+  // presentation on top of the generic one. attach_for_listing keeps the standard attach
+  // headline — the semantic title adds nothing over "Attach 1 RAREPEPE".
+  const marketplaceHeadline = semanticMarketplaceReview
+    && marketplaceReview!.family !== 'attach_for_listing'
+    ? { label: '', description: marketplaceReview!.title }
+    : null;
+  const marketplaceFacts = semanticMarketplaceReview ? marketplaceReview!.facts : [];
+  const protocolFields = txAction && 'protocol' in txAction ? txAction.protocol : [];
+  const detailFields = [
+    ...marketplaceFacts,
+    // The quoted marketplace XCP fee supersedes the generic XCP-fee row on an attach.
+    ...protocolFields.filter(field =>
+      !(field.label === 'XCP fee' && marketplaceFacts.some(fact => fact.label === 'Quoted XCP fee'))),
+  ];
+  // An unfunded marketplace authorization moves nothing yet; the facts (or the gating card)
+  // state exactly where things stand, so the movement block would only resolve to an alarming
+  // "Couldn't be determined" beside them.
+  const hideMovement = Boolean(marketplaceReview && psbtDetails.unfunded);
+
   const handleApprovalAction = () => {
     if (requiresAttention) {
       setShowAttention(true);
@@ -361,49 +419,55 @@ export default function ApprovePsbtPage() {
             <BitcoinPaymentCard
               intent={request.bitcoinPaymentIntent}
               proof={decodedInfo.bitcoinPaymentProof}
+              failure={bitcoinPaymentGate?.message}
             />
           )}
 
-          {decodedInfo.marketplaceReview && (
-            <MarketplaceReviewCard review={decodedInfo.marketplaceReview} />
-          )}
-
-          {marketplaceBlocked && marketplaceReview.blockers.length > 0 && (
-            <ErrorAlert message={marketplaceReview.blockers.join('; ')} />
+          {/* A gating failure gets exactly one voice: the review card alone carries the
+              blockers, and the generic warning stack below stays silent for it. Proved and
+              caution reviews render through the standard headline and details instead. */}
+          {marketplaceBlocked && marketplaceReview && (
+            <MarketplaceReviewCard review={marketplaceReview} />
           )}
 
           {error && <ErrorAlert message={error} />}
 
-          {/* Transaction action & fee */}
+          {/* Transaction action & fee. Skipped when there is nothing to put in it — a gated
+              unfunded authorization with no decodable action would render an empty card. */}
+          {(order || marketplaceHeadline || txAction || !hideMovement) && (
           <ApprovalSummaryCard
             unfunded={psbtDetails.unfunded}
-            txAction={txAction}
+            txAction={marketplaceHeadline ?? txAction}
             order={order}
             movement={movement}
             flexibility={semanticMarketplaceReview ? undefined : flexibilityReview?.kind}
             hasHighFee={hasHighFee}
             deferCautions={requiresAttention}
+            hideMovement={hideMovement}
             protocolFeeXcp={counterpartyMessage?.messageData?.fee != null
               ? toFiniteNumber(counterpartyMessage.messageData.fee) ?? null
               : null}
           />
-
-          {txAction && 'protocol' in txAction && (
-            <CounterpartyDetailsCard fields={txAction.protocol} />
           )}
+
+          <CounterpartyDetailsCard
+            fields={detailFields}
+            recipients={decodedInfo.mpmaRecipients}
+          />
           <ApprovalTransactionDetails
             txid={txid}
             inputs={psbtDetails.inputs}
             outputs={psbtDetails.outputs}
-            recipients={decodedInfo.mpmaRecipients}
             attachedAssets={attachedAssets}
             verification={verification}
+            attachVout={attachDestinationVout(decodedInfo)}
           />
 
-          <ApprovalNotes items={informational} />
-
-          {/* A blocked request explains itself immediately. Signable cautions wait behind Review. */}
-          {blockSigning && <WarningStack items={attention} />}
+          {/* A blocked request explains itself. The marketplace and payment gates speak through
+              their own cards above, so their echo warnings stay out of the stack. */}
+          {blockSigning && !marketplaceBlocked && !bitcoinPaymentGate && (
+            <WarningStack items={attention} />
+          )}
 
           {/* Verification Status (compact badge when passed) */}
           {!isBitcoinPayment && !decodedInfo.marketplaceReview && (

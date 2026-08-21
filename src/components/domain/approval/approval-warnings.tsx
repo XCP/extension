@@ -85,7 +85,9 @@ export function buildApprovalWarnings({
       key: 'attached-destination',
       severity: dest.leavesWallet ? 'danger' : 'info',
       title: dest.detaches
-        ? 'Attached assets are detached to your address'
+        ? dest.leavesWallet
+          ? 'Assets are detached to another address'
+          : 'Attached assets are detached to your address'
         : dest.leavesWallet
           ? 'Attached assets leave your wallet'
           : 'Attached assets move to your own output',

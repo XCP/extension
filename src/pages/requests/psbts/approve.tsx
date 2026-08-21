@@ -35,8 +35,10 @@ export default function ApprovePsbtsPage() {
   const [showAttention, setShowAttention] = useState(false);
 
   useEffect(() => {
+    // "Accept Offer", not "Accept Offer + Fee Bump": the longer form truncates at popup width,
+    // and the fee bump is a line item of the acceptance rather than a second act.
     const title = request?.bundleKind === 'acceptance-cpfp'
-      ? 'Accept Offer + Fee Bump'
+      ? 'Accept Offer'
       : request?.bundleKind === 'bulk-fanout'
         ? 'Prepare Listing Funds'
         : request?.bundleKind === 'bulk-attach'
@@ -145,18 +147,18 @@ export default function ApprovePsbtsPage() {
         <div className="max-w-md mx-auto space-y-4">
           <ApprovalWalletHeader walletName={activeWallet.name} address={activeAddress.address} />
           <ApprovalSiteBar origin={request.origin} />
+          {/* One voice for failures: the review card itself carries the blockers. */}
           <MarketplaceReviewCard review={decodedInfo.review} />
           {error && <ErrorAlert message={error} />}
-          {blocked && decodedInfo.review.blockers.length > 0 && (
-            <ErrorAlert message={decodedInfo.review.blockers.join('; ')} />
-          )}
           <Collapsible variant="card" title="Linked Transaction Details">
             <div className="space-y-3 text-xs">
               {decodedInfo.items.map((item, index) => (
                 <div key={`${item.txid ?? 'transaction'}-${index}`} className={index > 0 ? 'border-t border-gray-200 pt-3' : ''}>
                   <p className="font-semibold text-gray-900">
                     {index + 1}. {item.marketplaceReview?.title
-                      ?? request.items[index]?.marketplaceIntent.action.replaceAll('_', ' ')}
+                      ?? request.items[index]?.marketplaceIntent.action
+                        .replaceAll('_', ' ')
+                        .replace(/\b\w/g, (c) => c.toUpperCase())}
                   </p>
                   <p className="mt-1 break-all text-gray-500">{item.txid}</p>
                   <p className="mt-1 text-gray-700">

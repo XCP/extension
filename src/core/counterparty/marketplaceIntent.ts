@@ -651,6 +651,9 @@ function analyzeCreateListingIntent({
   }
 
   const balance = attachedAssets.find(entry => entry.inputIndex === 1);
+  // The ledger-normalized amount, for display: facts only render on proved/caution, where this
+  // lookup has succeeded — so the screen never has to show raw base units.
+  let provedQuantity: string | null = null;
   if (balance?.lookupFailed) {
     retry.push('the attached-asset lookup for seller input 1 failed');
   } else if (!balance || balance.assets.length !== 1) {
@@ -662,12 +665,18 @@ function analyzeCreateListingIntent({
       retry.push('the indexer did not return an exact raw attached quantity');
     } else if (actual.quantity !== claim.quantityRaw) {
       blockers.push('attached asset raw quantity differs from the claim');
+    } else {
+      provedQuantity = actual.quantity_normalized;
     }
   }
 
+  // Unknowable is not disproven: with the balance lookup failed there is no attached-asset
+  // destination to check, and blocking on its absence would present a ledger outage as a lying
+  // site. The retry above already gates signing.
   if (
-    attachedAssetDestination?.destinationCommitted !== false
-    || attachedAssetDestination?.mode !== 'flexible'
+    !balance?.lookupFailed
+    && (attachedAssetDestination?.destinationCommitted !== false
+      || attachedAssetDestination?.mode !== 'flexible')
   ) {
     blockers.push('listing signature does not prove the expected buyer-selected delivery flexibility');
   }
@@ -680,7 +689,7 @@ function analyzeCreateListingIntent({
     title: `List 1 ${claim.asset} for ${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
       { label: 'Seller receives', value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats` },
-      { label: 'Asset quantity', value: `${claim.quantityRaw} raw units` },
+      { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
       { label: 'Delivery', value: 'Detached to the eventual buyer' },
       {
         label: 'Marketplace expiry',
@@ -688,7 +697,7 @@ function analyzeCreateListingIntent({
           ? 'None requested'
           : new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
       },
-      { label: 'Bitcoin expiry', value: 'None — spend the asset UTXO to invalidate the signature' },
+      { label: 'Bitcoin expiry', value: 'None — cancel by spending the asset' },
     ],
     notices: allProblems.length > 0
       ? []
@@ -879,33 +888,22 @@ function analyzeAttachForListingIntent(
   return {
     status,
     family: 'attach_for_listing',
-    title: `Attach ${claim.quantityRaw} raw unit${claim.quantityRaw === '1' ? '' : 's'} of ${claim.asset}`,
+    // The standard attach screen already states the asset, amount, network fee, and the created
+    // outpoint — these facts carry only what is marketplace-specific, so the merged details list
+    // says each thing once.
+    title: `Attach ${claim.asset} for listing`,
     facts: [
-      { label: 'Creates', value: `${intent.expectedAttachedOutpoint.txid}:${intent.expectedAttachedOutpoint.vout}` },
       { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
-      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
       {
         label: 'Quoted XCP fee',
-        value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
-      },
-      {
-        label: 'Quote block',
-        value: intent.protocolFee.observedBlock === null
-          ? 'Not supplied'
-          : intent.protocolFee.observedBlock.toLocaleString(),
+        value: `${formatXcpRaw(intent.protocolFee.quotedAmountRaw)} (finalized at confirmation)`,
       },
       {
         label: 'Operation expiry',
         value: new Date(intent.operationExpiresAt * 1000).toLocaleString(),
       },
     ],
-    notices: allProblems.length > 0
-      ? []
-      : [{
-          severity: 'warning',
-          message:
-            'The XCP attach fee is a protocol quote, not a Bitcoin or marketplace fee. Counterparty recomputes it at the block that confirms this transaction, so the final XCP debit may change.',
-        }],
+    notices: [],
     blockers: allProblems,
   };
 }
@@ -1140,8 +1138,8 @@ function analyzeBuyListingsIntent(
     title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
       { label: 'Items', value: `${itemCount} across ${distinctAssets} asset${distinctAssets === 1 ? '' : 's'}` },
+      // No network-fee row: the money-movement summary beside these facts already states it.
       { label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
-      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
       { label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
       { label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats` },
       { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
@@ -1290,6 +1288,9 @@ function analyzeExactOfferIntent(
     blockers.push('buyer funding input 0 carries attached Counterparty assets');
   }
   const sellerBalance = balances.get(1);
+  // The ledger-normalized amount, for display: the title only needs it on proved/caution, where
+  // this lookup has succeeded — so the screen never has to show raw base units.
+  let provedQuantity: string | null = null;
   if (sellerBalance?.lookupFailed) {
     retry.push('the attached-asset lookup for seller input 1 failed');
   } else if (!sellerBalance || sellerBalance.assets.length !== 1) {
@@ -1303,6 +1304,8 @@ function analyzeExactOfferIntent(
       retry.push('seller input 1 has no exact raw attached quantity');
     } else if (actual.quantity !== claim.quantityRaw) {
       blockers.push('seller input 1 raw attached quantity differs from the claim');
+    } else {
+      provedQuantity = actual.quantity_normalized;
     }
   }
 
@@ -1350,20 +1353,18 @@ function analyzeExactOfferIntent(
   return {
     status,
     family: intent.action,
-    title: authorizing
-      ? `Authorize ${(intent.priceSats / 100_000_000).toFixed(8)} BTC for ${claim.quantityRaw} raw units of ${claim.asset}`
-      : `Accept ${(intent.priceSats / 100_000_000).toFixed(8)} BTC for ${claim.quantityRaw} raw units of ${claim.asset}`,
+    title: `${authorizing ? 'Authorize' : 'Accept'} ${(intent.priceSats / 100_000_000).toFixed(8)} BTC` +
+      ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
     facts: [
       { label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
       { label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
-      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
       { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
       { label: 'Funding slot', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
       {
         label: 'Marketplace expiry',
         value: new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
       },
-      { label: 'Bitcoin expiry', value: 'None — spend the funding outpoint to invalidate it' },
+      { label: 'Bitcoin expiry', value: 'None — cancel by spending the funding UTXO' },
     ],
     notices: allProblems.length > 0
       ? []

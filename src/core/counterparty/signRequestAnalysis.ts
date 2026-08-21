@@ -275,6 +275,9 @@ export async function analyzeSignRequest(
     if (blockers.length > 0) {
       safety.warnings = [
         {
+          // Tagged so the approval screen can let the payment card be the one failure voice
+          // instead of repeating this in its generic warning stack.
+          code: 'bitcoin_payment_gate',
           severity: 'block',
           title: unknownAssetStatus.length > 0
             ? 'Retry Required: Asset Status Unknown'

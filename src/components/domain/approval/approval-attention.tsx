@@ -1,7 +1,5 @@
-import type { ReactNode } from 'react';
-import { FiAlertTriangle, FiInfo } from '@/components/icons';
+import { FiAlertTriangle } from '@/components/icons';
 import { Button } from '@/components/ui/button';
-import { Collapsible } from '@/components/ui/collapsible';
 import type { WarningItem } from '@/components/ui/warning-stack';
 import { divide, roundUp } from '@/core/numeric';
 
@@ -82,32 +80,12 @@ export function ApprovalAttentionScreen({
 }
 
 /**
- * Routine mechanics stay available without competing visually with real warnings.
+ * The items that earn decision friction. Info- and success-severity statements are dropped from
+ * the approval screens entirely — a routine mechanical note next to a signature request reads as
+ * a warning whether or not it is one.
  */
-export function ApprovalNotes({ items }: { items: WarningItem[] }) {
-  if (items.length === 0) return null;
-  return (
-    <Collapsible variant="card" title="How this transaction works">
-      <div className="space-y-3">
-        {items.map(item => (
-          <div key={item.key} className="flex items-start gap-2 text-xs text-gray-600">
-            <FiInfo className="mt-0.5 size-4 flex-shrink-0 text-gray-400" aria-hidden="true" />
-            <div>
-              <p className="font-medium text-gray-700">{item.title}</p>
-              {item.description && <p className="mt-0.5 leading-5">{item.description}</p>}
-              {item.children as ReactNode}
-            </div>
-          </div>
-        ))}
-      </div>
-    </Collapsible>
-  );
-}
-
-/** Preserve the analyzer's fixed ordering while separating routine notes from decision friction. */
 export function partitionApprovalItems(items: WarningItem[]) {
   return {
-    informational: items.filter(item => item.severity === 'info' || item.severity === 'success'),
     attention: items.filter(item => item.severity === 'warning' || item.severity === 'danger'),
   };
 }

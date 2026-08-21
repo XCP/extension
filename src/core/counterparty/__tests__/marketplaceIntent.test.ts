@@ -355,8 +355,12 @@ describe('attach-for-listing proof', () => {
     expect(review.status).toBe('caution');
     expect(review.family).toBe('attach_for_listing');
     expect(review.blockers).toEqual([]);
-    expect(review.facts).toContainEqual({ label: 'Quoted XCP fee', value: '0.25 XCP' });
-    expect(review.notices[0]?.message).toMatch(/recomputes it at the block/i);
+    expect(review.facts).toContainEqual({
+      label: 'Quoted XCP fee',
+      value: '0.25 XCP (finalized at confirmation)',
+    });
+    // The block-dependence lives in the fact row itself; the attach carries no extra notice.
+    expect(review.notices).toEqual([]);
   });
 
   it('distinguishes the Counterparty source from a paired carrier address', () => {

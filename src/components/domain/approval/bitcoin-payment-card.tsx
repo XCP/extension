@@ -11,13 +11,21 @@ const btc = (sats: number) => formatAmount({
   maximumFractionDigits: 8,
 });
 
-/** Semantic context for the dedicated plain-Bitcoin provider capability. */
+/**
+ * Semantic context for the dedicated plain-Bitcoin provider capability.
+ *
+ * In the failure state this card is the screen's one voice: the approval page suppresses its
+ * generic warning stack for the payment gate, so the concrete reason must be carried here.
+ */
 export function BitcoinPaymentCard({
   intent,
   proof,
+  failure,
 }: {
   intent: BitcoinPaymentIntentV1;
   proof: BitcoinPaymentProof | undefined;
+  /** The gating message from the analyzer, when the payment could not be proved. */
+  failure?: string;
 }) {
   return (
     <div className={`rounded-lg border p-4 ${
@@ -51,10 +59,16 @@ export function BitcoinPaymentCard({
           ))}
         </div>
       )}
-      <p className={`mt-3 text-xs ${proof?.proved ? 'text-blue-700' : 'text-danger-700'}`}>
-        The wallet matched these terms to the PSBT. The site name and description are context,
-        not authority to sign.
-      </p>
+      {proof?.proved ? (
+        <p className="mt-3 text-xs text-blue-700">
+          The wallet matched these terms to the PSBT. The site name and description are context,
+          not authority to sign.
+        </p>
+      ) : (
+        <p className="mt-3 text-xs leading-5 text-danger-800">
+          {failure ?? 'The wallet could not match the declared payment to the PSBT, so signing is blocked.'}
+        </p>
+      )}
     </div>
   );
 }

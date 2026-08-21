@@ -20,27 +20,22 @@ interface ApprovalDetailOutput {
   type: string;
 }
 
-interface ApprovalDetailRecipient {
-  asset: string;
-  quantity: string;
-  address: string;
-}
-
 /** The byte-derived transaction facts shared by raw-transaction and PSBT approvals. */
 export function ApprovalTransactionDetails({
   txid,
   inputs,
   outputs,
-  recipients,
   attachedAssets,
   verification,
+  attachVout,
 }: {
   txid?: string;
   inputs: ApprovalDetailInput[];
   outputs: ApprovalDetailOutput[];
-  recipients: ApprovalDetailRecipient[];
   attachedAssets: InputAttachedAssets[];
   verification?: ProviderVerificationResult;
+  /** The output an attach turns into the new asset-bearing UTXO, so the list can mark it. */
+  attachVout?: number;
 }) {
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
 
@@ -110,7 +105,10 @@ export function ApprovalTransactionDetails({
           {outputs.map((output) => (
             <div key={output.index} className="rounded bg-gray-50 p-2 text-xs">
               <div className="flex justify-between">
-                <span className={output.type === 'op_return' ? 'text-purple-600' : 'text-gray-600'}>
+                {/* Counterparty pink, not a warning color: the data output is the protocol
+                    working as designed. Indexed so "New UTXO …:1" maps to a row here. */}
+                <span className={output.type === 'op_return' ? 'text-pink-600' : 'text-gray-600'}>
+                  #{output.index}{' '}
                   {output.type === 'op_return' ? 'OP_RETURN' : output.type.toUpperCase()}
                 </span>
                 <span className="font-medium text-gray-900">
@@ -122,39 +120,22 @@ export function ApprovalTransactionDetails({
                   BTC
                 </span>
               </div>
+              {output.type === 'op_return' && verification?.localUnpack?.success && (
+                <div className="mt-0.5 text-gray-500">Counterparty protocol message</div>
+              )}
               {/* Destinations are shown in full: short address fragments are grindable. */}
               {output.address && (
                 <div className="break-all font-mono text-gray-500" title={output.address}>
                   {formatAddress(output.address, false)}
                 </div>
               )}
+              {attachVout === output.index && (
+                <div className="mt-1 text-purple-700">Assets attach to this output</div>
+              )}
             </div>
           ))}
         </div>
       </div>
-
-      {recipients.length > 0 && (
-        <div>
-          <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">
-            Recipients ({recipients.length})
-          </h4>
-          <div className="space-y-2">
-            {recipients.map((recipient, index) => (
-              <div key={`${recipient.address}-${index}`} className="rounded bg-gray-50 p-2 text-xs">
-                <div className="flex justify-between gap-2">
-                  <span className="truncate text-gray-600">{recipient.asset}</span>
-                  <span className="flex-shrink-0 font-medium text-gray-900">
-                    {recipient.quantity}
-                  </span>
-                </div>
-                <div className="break-all font-mono text-gray-500" title={recipient.address}>
-                  {recipient.address}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <VerificationDetails verification={verification} />
     </Collapsible>

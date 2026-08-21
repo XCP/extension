@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ApprovalAttentionScreen,
-  ApprovalNotes,
   highFeeAttentionItem,
   partitionApprovalItems,
   verificationAttentionItem,
@@ -17,7 +16,7 @@ import { CounterpartyDetailsCard } from '@/components/domain/approval/counterpar
 import { computeMoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { buildOrderAction, type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
-import { getTxActionInfo } from '@/components/domain/tx/tx-action-info';
+import { attachDestinationVout, getTxActionInfo } from '@/components/domain/tx/tx-action-info';
 import { VerificationStatus } from '@/components/domain/tx/verification-status';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { type WarningItem, WarningStack } from '@/components/ui/warning-stack';
@@ -199,9 +198,13 @@ export default function ApproveTransactionPage() {
   });
 
   // An unavailable asset lookup is a retry state. It cannot be acknowledged away because the
-  // wallet does not know whether signing moves an attached asset.
-  const blockSigning = verificationBlocked || signedInputsUnknownStatus.length > 0;
-  const { informational, attention } = partitionApprovalItems(warningItems);
+  // wallet does not know whether signing moves an attached asset. A structure finding blocks too:
+  // the message provably cannot do what it claims, so signing only spends fees on a broken
+  // transaction no honest composer produces.
+  const blockSigning = verificationBlocked
+    || signedInputsUnknownStatus.length > 0
+    || (decodedInfo.structureFindings ?? []).length > 0;
+  const { attention } = partitionApprovalItems(warningItems);
   const approvalAttentionItems: WarningItem[] = [
     ...attention,
     ...(deferredVerificationFailure ? [verificationAttentionItem(verificationWarning)] : []),
@@ -212,7 +215,7 @@ export default function ApproveTransactionPage() {
     ? 'Review transaction risk'
     : 'Review before signing';
   const confirmLabel = decodedInfo.counterpartyMessage?.messageType === 'destroy'
-    ? 'Destroy assets'
+    ? 'Destroy supply'
     : 'Confirm and sign';
   const handleApprovalAction = () => {
     if (requiresAttention) {
@@ -252,10 +255,13 @@ export default function ApproveTransactionPage() {
                   // the lookalike-grinding problem the outputs list deliberately avoids, and for
                   // an enhanced send the destination lives in the payload, so this headline is
                   // the only place it appears at all.
-                  const { sentence, address } = splitTrailingAddress(txAction.description);
+                  const { sentence, address, subline } = splitTrailingAddress(txAction.description);
                   return (
                     <>
                       <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                      {subline && (
+                        <p className="mt-1 text-sm text-gray-700 break-words">{subline}</p>
+                      )}
                       {address && (
                         <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
                           {address}
@@ -287,19 +293,18 @@ export default function ApproveTransactionPage() {
             )}
           </div>
 
-          {txAction && 'protocol' in txAction && (
-            <CounterpartyDetailsCard fields={txAction.protocol} />
-          )}
+          <CounterpartyDetailsCard
+            fields={txAction && 'protocol' in txAction ? txAction.protocol : []}
+            recipients={decodedInfo.mpmaRecipients}
+          />
           <ApprovalTransactionDetails
             txid={decodedInfo.txid}
             inputs={decodedInfo.inputs.map((input, index) => ({ ...input, index }))}
             outputs={decodedInfo.outputs}
-            recipients={decodedInfo.mpmaRecipients}
             attachedAssets={decodedInfo.attachedAssets}
             verification={decodedInfo.verification}
+            attachVout={attachDestinationVout(decodedInfo)}
           />
-
-          <ApprovalNotes items={informational} />
 
           {/* A blocked request explains itself immediately. Signable cautions wait behind Review. */}
           {blockSigning && <WarningStack items={attention} />}

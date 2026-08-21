@@ -78,9 +78,9 @@ describe('MarketplaceReviewCard', () => {
       blockers: ['Asset status is required before signing.'],
     }} />);
 
-    expect(screen.getByText('Verification incomplete — retry required')).toBeInTheDocument();
+    expect(screen.getByText('Verification incomplete — retry')).toBeInTheDocument();
     expect(screen.queryByText('Marketplace terms did not verify')).not.toBeInTheDocument();
-    expect(screen.getByText(/Signing remains blocked until/i)).toBeInTheDocument();
+    expect(screen.getByText(/retry in a moment/i)).toBeInTheDocument();
   });
 
   it('keeps a proved mismatch visually distinct from a retry', () => {
