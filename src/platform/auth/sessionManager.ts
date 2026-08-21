@@ -297,14 +297,16 @@ export async function storeKeychainMasterKey(key: CryptoKey): Promise<void> {
  * Returns null if no key is cached (keychain locked).
  */
 export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
-  // Alarms are best effort. Every master-key read independently enforces the persisted deadline.
-  if (await isSessionExpired()) {
-    await handleExpiredSession();
+  const keyBase64 = await getCachedKeychainMasterKey();
+  if (!keyBase64) {
     return null;
   }
 
-  const keyBase64 = await getCachedKeychainMasterKey();
-  if (!keyBase64) {
+  // Alarms are best effort. Enforce the deadline before importing or returning any cached key.
+  // A true first run has neither metadata nor a key; it is merely locked, not an expired session,
+  // and must not emit a full-lock event while wallet creation is starting.
+  if (await isSessionExpired()) {
+    await handleExpiredSession();
     return null;
   }
 

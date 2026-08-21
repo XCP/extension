@@ -638,10 +638,28 @@ describe('sessionManager', () => {
         },
         keychainMasterKey: 'cached-key-must-not-be-used',
       });
+      await fakeBrowser.storage.session.set({
+        keychainMasterKey: 'cached-key-must-not-be-used',
+      });
 
       try {
         await expect(getKeychainMasterKey()).resolves.toBeNull();
         expect(handler).toHaveBeenCalledTimes(1);
+      } finally {
+        registerSessionExpiredHandler(null);
+      }
+    });
+
+    it('does not emit an expiry lock when no session and no cached key exist', async () => {
+      const { registerSessionExpiredHandler } = await import('../sessionManager');
+      const handler = vi.fn().mockResolvedValue(undefined);
+      registerSessionExpiredHandler(handler);
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({});
+      await fakeBrowser.storage.session.remove('keychainMasterKey');
+
+      try {
+        await expect(getKeychainMasterKey()).resolves.toBeNull();
+        expect(handler).not.toHaveBeenCalled();
       } finally {
         registerSessionExpiredHandler(null);
       }
