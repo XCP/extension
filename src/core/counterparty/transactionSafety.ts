@@ -15,6 +15,7 @@ export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
 /** Stable identifiers for warnings that another presentation layer may describe more precisely. */
 export type SecurityWarningCode =
+  | 'bitcoin_payment_gate'
   | 'detach_all'
   | 'expected_btc_payment'
   | 'external_btc_output';
