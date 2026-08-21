@@ -19,10 +19,10 @@ export function Layout({ showFooter = false }: LayoutProps): ReactElement {
   const { headerProps } = useHeader();
 
   return (
-    <div className="flex flex-col h-dvh bg-gray-100">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gray-100">
       <Header {...headerProps} />
       <ApiStatusBanner />
-      <main className="flex-1 overflow-y-auto no-scrollbar relative">
+      <main className="relative min-h-0 flex-1 overflow-y-auto no-scrollbar">
         <Outlet />
       </main>
       {showFooter && <Footer />}

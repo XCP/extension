@@ -52,7 +52,7 @@ export function Header({
   }, []);
 
   return (
-    <header className="grid grid-cols-4 items-center p-4 h-16 bg-white shadow-md">
+    <header className="grid h-16 shrink-0 grid-cols-4 items-center bg-white p-4 shadow-md">
       {/* Left Section */}
       <div className="col-span-1 flex justify-start">
         {onBack ? (
