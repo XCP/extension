@@ -1074,7 +1074,10 @@ export function createProviderService(): ProviderService {
 
             // Fetch token balances
             const tokenBalances = await fetchTokenBalances(activeAddress.address, {
-              verbose: true
+              verbose: true,
+              // UTXO-attached XCP is not spendable as the address's ordinary
+              // balance and must not make a dApp think it can fund an action.
+              type: 'address'
             });
 
             const xcpBalance = tokenBalances?.find((b: any) => b.asset === 'XCP');
@@ -1090,12 +1093,10 @@ export function createProviderService(): ProviderService {
             };
           } catch (error) {
             console.error('[ProviderService] Error fetching balances:', error);
-            // Return zeros if API fails
-            return {
-              address: activeAddress.address,
-              btc: { confirmed: 0, unconfirmed: 0, total: 0 },
-              xcp: 0
-            };
+            // An unavailable API is not evidence that the wallet is empty.
+            // Returning zeros made connected dApps reject valid transactions
+            // as "insufficient balance" until a refresh happened to succeed.
+            throw new Error('Unable to fetch wallet balances — please try again');
           }
         }
         

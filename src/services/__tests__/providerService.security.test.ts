@@ -245,16 +245,10 @@ describe('ProviderService Security Tests', () => {
       
       // Mock the API responses
       const apiModule = await import('@/core/counterparty/api');
-      vi.spyOn(apiModule, 'fetchTokenBalances').mockResolvedValue({ 
-        result: [],
-        result_count: 0
-      } as any);
+      vi.spyOn(apiModule, 'fetchTokenBalances').mockResolvedValue([]);
       
       const balanceModule = await import('@/core/bitcoin/balance');
-      vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue({ 
-        confirmed: 0, 
-        unconfirmed: 0 
-      } as any);
+      vi.spyOn(balanceModule, 'fetchBTCBalance').mockResolvedValue(0);
       
       // Setup API rate limiter to allow 10 requests then reject
       let callCount = 0;
@@ -274,6 +268,21 @@ describe('ProviderService Security Tests', () => {
       await expect(
         providerService.handleRequest(origin, 'xcp_getBalances', [])
       ).rejects.toThrow(/API rate limit exceeded/);
+    });
+
+    it('should surface balance API failures instead of returning zero balances', async () => {
+      const origin = 'https://connected.com';
+      vi.mocked(walletManager.getSettings).mockReturnValue({
+        ...DEFAULT_SETTINGS,
+        connectedWebsites: [origin]
+      });
+
+      const balanceModule = await import('@/core/bitcoin/balance');
+      vi.spyOn(balanceModule, 'fetchBTCBalance').mockRejectedValue(new Error('upstream unavailable'));
+
+      await expect(
+        providerService.handleRequest(origin, 'xcp_getBalances', [])
+      ).rejects.toThrow('Unable to fetch wallet balances');
     });
     
     it('should have separate rate limits per origin', async () => {
