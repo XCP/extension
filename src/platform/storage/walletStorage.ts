@@ -58,6 +58,29 @@ export async function getKeychainRecord(): Promise<KeychainRecord | null> {
 }
 
 /**
+ * Refuses first-keychain creation unless storage can prove that no record exists.
+ *
+ * Unlike getKeychainRecord(), this deliberately distinguishes absence from a failed/corrupt read:
+ * creation is destructive if it overwrites an existing encrypted vault, so uncertainty must fail
+ * closed rather than look like onboarding.
+ */
+export async function assertNoKeychainRecord(): Promise<void> {
+  let record: unknown;
+  try {
+    record = await keychainRecordItem.getValue();
+  } catch (err) {
+    console.error('Failed to verify keychain absence:', err);
+    throw new Error('Could not verify whether a keychain already exists');
+  }
+
+  if (record === null || record === undefined) return;
+  if (!isValidKeychainRecord(record)) {
+    throw new Error('Stored keychain data is corrupted; refusing to overwrite it');
+  }
+  throw new Error('A keychain already exists. Unlock it before adding a wallet.');
+}
+
+/**
  * Saves the keychain record to storage.
  * Overwrites any existing keychain.
  */

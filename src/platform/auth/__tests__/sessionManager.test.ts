@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   clearAllUnlockedSecrets,
   clearUnlockedSecret,
+  getKeychainMasterKey,
   getLastActiveTime,
   getUnlockedSecret,
   MAX_SESSION_DURATION_MS,
@@ -226,6 +228,16 @@ describe('sessionManager', () => {
       storeUnlockedSecret(walletId, secondSecret);
 
       expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
+    });
+
+    it('attempts cached-key removal even when metadata removal fails', async () => {
+      const cachedKeyRemove = vi.spyOn(fakeBrowser.storage.session, 'remove');
+      vi.mocked(global.chrome.storage.session.remove).mockImplementation(async (key) => {
+        if (String(key) === 'sessionMetadata') throw new Error('metadata cleanup failed');
+      });
+
+      await expect(clearAllUnlockedSecrets()).rejects.toThrow('Failed to clear session metadata');
+      expect(cachedKeyRemove).toHaveBeenCalledWith('keychainMasterKey');
     });
   });
 
@@ -614,6 +626,27 @@ describe('sessionManager', () => {
   });
 
   describe('session expired handler', () => {
+    it('enforces lazy expiry before returning the cached master key', async () => {
+      const { registerSessionExpiredHandler } = await import('../sessionManager');
+      const handler = vi.fn().mockResolvedValue(undefined);
+      registerSessionExpiredHandler(handler);
+      global.chrome.storage.session.get = vi.fn().mockResolvedValue({
+        sessionMetadata: {
+          unlockedAt: Date.now() - MAX_SESSION_DURATION_MS - 1000,
+          timeout: 5 * 60 * 1000,
+          lastActiveTime: Date.now(),
+        },
+        keychainMasterKey: 'cached-key-must-not-be-used',
+      });
+
+      try {
+        await expect(getKeychainMasterKey()).resolves.toBeNull();
+        expect(handler).toHaveBeenCalledTimes(1);
+      } finally {
+        registerSessionExpiredHandler(null);
+      }
+    });
+
     it('should invoke the registered handler on lazy expiry detection', async () => {
       const { registerSessionExpiredHandler } = await import('../sessionManager');
       const handler = vi.fn().mockResolvedValue(undefined);

@@ -657,6 +657,19 @@ describe('ProviderService', () => {
 
   describe('Advanced Provider Features', () => {
     describe('Sign Message Request', () => {
+      it('rejects the reserved connection-proof namespace before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['xcp-wallet\norigin:https://target.example\nnonce:forged\nissued:1']
+        )).rejects.toThrow('connection-proof namespace');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
       it('should handle xcp_signMessage with proper storage', async () => {
         // Mock connection service to return true
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();

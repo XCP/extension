@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { FiClock, FiGlobe } from '@/components/icons';
+import { ApprovalSiteBar } from '@/components/domain/approval/approval-chrome';
+import { FiClock } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { ErrorAlert } from '@/components/ui/error-alert';
 import { WarningStack } from '@/components/ui/warning-stack';
@@ -28,20 +29,6 @@ export default function ApproveMessagePage() {
 
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
-  const [faviconError, setFaviconError] = useState(false);
-
-  // Parse origin to get domain name
-  const getDomain = (url: string) => {
-    try {
-      const urlObj = new URL(url);
-      return urlObj.hostname;
-    } catch {
-      return url;
-    }
-  };
-
-  const domain = request ? getDomain(request.origin) : '';
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
 
   // Configure header
   useEffect(() => {
@@ -188,25 +175,7 @@ export default function ApproveMessagePage() {
             </div>
           </div>
 
-          {/* Site info - slim bar */}
-          <div className="bg-white rounded-lg shadow-sm px-4 py-3 flex items-center gap-3">
-            <div className="flex-shrink-0 inline-flex items-center justify-center size-8 bg-blue-100 rounded-full">
-              {faviconError ? (
-                <FiGlobe className="size-4 text-blue-600" aria-hidden="true" />
-              ) : (
-                <img
-                  src={faviconUrl}
-                  alt={`${domain} favicon`}
-                  className="size-4 rounded-sm"
-                  onError={() => setFaviconError(true)}
-                />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{domain}</p>
-              <p className="text-xs text-gray-400 truncate">{request.origin}</p>
-            </div>
-          </div>
+          <ApprovalSiteBar origin={request.origin} />
 
           {error && <ErrorAlert message={error} />}
 

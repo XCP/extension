@@ -33,6 +33,28 @@ describe('buildApprovalWarnings', () => {
     expect(buildApprovalWarnings(EMPTY)).toEqual([]);
   });
 
+  it('warns when rendered transaction text contains deceptive characters', () => {
+    const items = buildApprovalWarnings({
+      ...EMPTY,
+      displayedText: ['Send 1 XCP', 'memo: pay \u202Eresu\u202C'],
+    });
+
+    expect(items).toContainEqual(expect.objectContaining({
+      key: 'display-deceptive-characters',
+      severity: 'warning',
+      title: 'Transaction details contain hidden characters',
+    }));
+  });
+
+  it('scans asset labels rendered by the approval summary', () => {
+    const items = buildApprovalWarnings({
+      ...EMPTY,
+      displayedText: ['TRUSTED\u200bASSET'],
+    });
+
+    expect(items.map((item) => item.key)).toContain('display-deceptive-characters');
+  });
+
   it('maps a blocking safety warning down to danger', () => {
     // WarningStack has no 'block' severity; unmapped, a blocking warning would render as
     // whatever the component does with an unknown severity.

@@ -41,7 +41,8 @@ export default defineConfig({
         browser_specific_settings: {
           gecko: {
             id: 'wallet@xcpwallet.com',
-            strict_min_version: '109.0',
+            // storage.session, which holds the unlocked session key, was added in Firefox 115.
+            strict_min_version: '115.0',
             data_collection_permissions: {
               // technicalAndInteraction is opt-out by default in Firefox's UI
               // Users can toggle it during install or in about:addons

@@ -3,7 +3,6 @@
  *
  * This hook centralizes the logic for:
  * - Loading sign message request data from storage
- * - Listening for navigation messages
  * - Handling success/cancel callbacks
  * - Cleaning up storage
  */
@@ -51,26 +50,6 @@ export function useSignMessageRequest() {
 
     loadRequest();
   }, [requestId]);
-
-  // Listen for navigation messages from background
-  useEffect(() => {
-    const handleMessage = (message: any) => {
-      if (message.type === 'NAVIGATE_TO_SIGN_MESSAGE' && message.signMessageRequestId) {
-        const loadRequest = async () => {
-          const req = (await getSignFlow(message.signMessageRequestId)) as SignMessageRequest | null;
-          if (req) {
-            setRequest(req);
-          }
-        };
-        loadRequest();
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, []);
 
   // Handle completion for provider requests
   const handleSuccess = useCallback(async (result: { signature: string }) => {

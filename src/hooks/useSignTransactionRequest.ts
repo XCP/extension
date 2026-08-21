@@ -192,29 +192,6 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // computed once with no signer and never revisited.
   }, [requestId, decodeTransaction, signerAddress]);
 
-  // Listen for navigation messages from background
-  useEffect(() => {
-    const handleMessage = (message: any) => {
-      if (message.type === 'NAVIGATE_TO_APPROVE_TRANSACTION' && message.signTxRequestId) {
-        // Reload the request if we get a navigation message
-        const loadRequest = async () => {
-          const req = (await getSignFlow(message.signTxRequestId)) as SignTransactionRequest | null;
-          if (req) {
-            setRequest(req);
-            const decoded = await decodeTransaction(req.rawTxHex, signerAddress);
-            setDecodedInfo(decoded);
-          }
-        };
-        loadRequest();
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(handleMessage);
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleMessage);
-    };
-  }, [decodeTransaction, signerAddress]);
-
   // Handle completion - called when user approves and signs
   const handleSuccess = useCallback(async (signedTxHex: string) => {
     if (requestId) {

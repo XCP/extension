@@ -274,6 +274,22 @@ describe('RateLimiter', () => {
       expect(connectionRateLimiter.getGlobalCount()).toBe(3);
     });
 
+    it('does not charge the global budget for per-origin rejections', () => {
+      const noisyOrigin = 'https://noisy.example';
+      for (let i = 0; i < 100; i++) {
+        expect(apiRateLimiter.isAllowed(noisyOrigin)).toBe(true);
+      }
+
+      expect(apiRateLimiter.getGlobalCount()).toBe(100);
+      for (let i = 0; i < 20; i++) {
+        expect(apiRateLimiter.isAllowed(noisyOrigin)).toBe(false);
+      }
+      expect(apiRateLimiter.getGlobalCount()).toBe(100);
+
+      expect(apiRateLimiter.isAllowed('https://other.example')).toBe(true);
+      expect(apiRateLimiter.getGlobalCount()).toBe(101);
+    });
+
     it('should reset global count with resetAll', () => {
       connectionRateLimiter.isAllowed('https://site1.com');
       connectionRateLimiter.isAllowed('https://site2.com');

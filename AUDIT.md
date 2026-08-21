@@ -171,9 +171,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | WYSIWYS | Full transaction details shown before sign |
 | ✅ | Rate limiting per origin | Tiered: 5 connections, 10 transactions, 100 API calls/min |
 | ✅ | Global rate limit | 500 requests/min backstop |
-| ✅ | Queue size limits | Max 100 pending requests, 10 per origin |
+| ⚠️ | Pending-request bounds | 10-minute expiry and per-origin creation rate; no separate queue-size cap |
 | ✅ | Explicit capability consent | Paired-address access is opt-in and unchecked by default |
-| ✅ | Capability identity binding | Grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
+| ✅ | Paired-address identity binding | Paired-address grants are scoped to origin, wallet ID, and active address, then rechecked immediately before signing |
 | ✅ | Multi-address signing constraints | Only the active address and its same-index Legacy/SegWit sibling pair are accepted; indices are unique and bounded, and each claimed signer must match the embedded prevout |
 | ✅ | Effective sighash enforcement | The resolved sighash (explicit override, else embedded, else ALL) is enforced against an allowlist — DEFAULT, ALL, ALL\|ANYONECANPAY, SINGLE\|ANYONECANPAY — so SIGHASH_NONE and bare SINGLE are rejected whether requested explicitly or embedded in the PSBT. Verified by `psbt.test.ts` |
 | ✅ | Uncommitted outputs priced as at-risk | SINGLE\|ANYONECANPAY commits to one output and leaves the rest free, so the approval summary counts only committed outputs as change and reports the remainder as at-risk; the headline shows the worst case and signing is gated on acknowledging that amount. Verified by `psbt.test.ts`, `money-movement.test.ts`, `marketplace-psbts.test.ts` |

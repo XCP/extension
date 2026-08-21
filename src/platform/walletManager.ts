@@ -35,6 +35,7 @@ import {
   recordFailedUnlockAttempt,
 } from '@/platform/auth/unlockRateLimiter';
 import {
+  assertNoKeychainRecord,
   deleteKeychain,
   getKeychainRecord,
   saveKeychainRecord,
@@ -736,13 +737,17 @@ export class WalletManager {
       throw new Error(`Unsupported keychain version: ${decryptedKeychain.version}. Expected: ${KEYCHAIN_VERSION}`);
     }
 
-    // Store master key in session (survives service worker restarts)
+    // Establish a valid deadline before publishing the cached key. Otherwise a concurrent status
+    // poll can observe the new key with old/absent metadata and correctly (but destructively) treat
+    // it as expired while unlock is still in flight.
+    const settings = decryptedKeychain.settings;
+    const timeout = getAutoLockTimeoutMs(settings.autoLockTimer);
+    await sessionManager.initializeSession(timeout);
+    await sessionManager.scheduleSessionExpiry(timeout);
     await sessionManager.storeKeychainMasterKey(masterKey);
 
-    // Store decrypted keychain in memory (secrets still encrypted)
+    // Publish the decrypted in-memory view only after the session is fully valid.
     this.keychain = decryptedKeychain;
-
-    // Build runtime wallet array from keychain
     this.wallets = decryptedKeychain.wallets.map((record) => ({
       id: record.id,
       name: record.name,
@@ -753,12 +758,6 @@ export class WalletManager {
       isTestOnly: record.isTestOnly,
       previewAddress: record.previewAddress,
     }));
-
-    // Setup session with timeout from keychain settings
-    const settings = this.getSettings();
-    const timeout = getAutoLockTimeoutMs(settings.autoLockTimer);
-    await sessionManager.initializeSession(timeout);
-    await sessionManager.scheduleSessionExpiry(timeout);
 
     // Auto-load last active wallet (from settings inside keychain)
     const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
@@ -912,7 +911,13 @@ export class WalletManager {
    * Creates a new empty keychain with the given password.
    * Used during initial wallet creation.
    */
-  private async createKeychain(password: string): Promise<CryptoKey> {
+  private async createKeychain(password: string): Promise<{
+    masterKey: CryptoKey;
+    keychain: Keychain;
+  }> {
+    // A missing session key means "locked" as well as "first use". Prove absence on disk before
+    // doing any work, then recheck immediately before the destructive write.
+    await assertNoKeychainRecord();
     const salt = generateRandomBytes(16);
     const masterKey = await deriveKey(password, salt, DEFAULT_PBKDF2_ITERATIONS);
 
@@ -929,11 +934,10 @@ export class WalletManager {
       DEFAULT_PBKDF2_ITERATIONS,
     );
 
+    await assertNoKeychainRecord();
     await saveKeychainRecord(keychainRecord);
-    await sessionManager.storeKeychainMasterKey(masterKey);
-    this.keychain = newKeychain;
 
-    return masterKey;
+    return { masterKey, keychain: newKeychain };
   }
 
   /**
@@ -947,12 +951,14 @@ export class WalletManager {
     }
 
     // First wallet - create keychain and initialize session
-    const masterKey = await this.createKeychain(password);
+    const { masterKey, keychain } = await this.createKeychain(password);
 
     // Settings are inside keychain, use default timeout for new keychain
-    const timeout = getAutoLockTimeoutMs(this.keychain?.settings?.autoLockTimer ?? '5m');
+    const timeout = getAutoLockTimeoutMs(keychain.settings.autoLockTimer);
     await sessionManager.initializeSession(timeout);
     await sessionManager.scheduleSessionExpiry(timeout);
+    await sessionManager.storeKeychainMasterKey(masterKey);
+    this.keychain = keychain;
 
     return masterKey;
   }
@@ -970,14 +976,24 @@ export class WalletManager {
   }
 
   public async lockKeychain(): Promise<void> {
-    await sessionManager.clearAllUnlockedSecrets();
-    this.wallets.forEach((wallet) => { wallet.addresses = []; });
+    let cleanupError: unknown;
+    try {
+      await sessionManager.clearAllUnlockedSecrets();
+    } catch (err) {
+      cleanupError = err;
+    }
 
-    // Clear keychain from memory (settings are inside keychain)
+    // The in-memory view must become locked even if browser storage cleanup fails.
+    this.wallets.forEach((wallet) => { wallet.addresses = []; });
     this.keychain = null;
 
-    // Clear session expiry alarm (sessionManager owns the alarm)
-    await sessionManager.clearSessionExpiry();
+    try {
+      await sessionManager.clearSessionExpiry();
+    } catch (err) {
+      cleanupError ??= err;
+    }
+
+    if (cleanupError) throw cleanupError;
   }
 
   public async addAddress(walletId: string): Promise<Address> {
@@ -1204,7 +1220,7 @@ export class WalletManager {
         addressFormat
       );
     } else {
-      const { key: privateKeyHex, compressed } = JSON.parse(secret);
+      const { hex: privateKeyHex, compressed } = JSON.parse(secret);
       return getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
     }
   }

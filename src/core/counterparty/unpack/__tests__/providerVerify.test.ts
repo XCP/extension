@@ -103,6 +103,23 @@ describe('verifyProviderTransaction', () => {
       expect(result.comparedAgainstApi).toBe(true);
     });
 
+    it.each([Infinity, -Infinity, Number.NaN])(
+      'treats a non-finite API quantity (%s) as a mismatch instead of throwing',
+      (quantity) => {
+        const payload = bigintHex(XCP_ID) + bigintHex(1000n) + packedAddressHex(TEST_HASH);
+        const data = buildMessage(MessageTypeId.ENHANCED_SEND, payload);
+        const result = verifyProviderTransaction(data, {
+          messageType: 'enhanced_send',
+          messageTypeId: MessageTypeId.ENHANCED_SEND,
+          messageData: { asset: 'XCP', quantity },
+          description: 'send',
+        });
+
+        expect(result.passed).toBe(false);
+        expect(result.mismatches.join(' ')).toContain('Quantity');
+      }
+    );
+
     it('reports comparedAgainstApi=false when the payload is not Counterparty data', () => {
       const result = verifyProviderTransaction('deadbeef');
       expect(result.passed).toBeUndefined();
