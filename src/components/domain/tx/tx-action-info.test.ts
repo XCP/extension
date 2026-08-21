@@ -94,20 +94,20 @@ describe('getTxActionInfo merges what each decoder knows', () => {
     ));
 
     expect(info?.description).toBe(
-      'Deposit liquidity: 1.00000000 XCP and 2.00000000 A95428957068369062'
+      '1.00000000 XCP / 2.00000000 A95428957068369062\n1 XCP = 2 A95428957068369062'
     );
   });
 
-  it('says the decimals are unconfirmed when the API cannot supply divisibility either', () => {
+  it('labels base units when the API cannot supply divisibility either', () => {
     const info = getTxActionInfo(withBoth(
       'pooldeposit',
       { assetA: 'XCP', quantityA: asBaseUnits(100000000), assetB: 'MYSTERY', quantityB: asBaseUnits(200000000) },
       { asset_a: 'XCP', asset_a_info: { divisible: true }, asset_b: 0 },
     ));
 
-    // "base units" is this codebase's vocabulary, not the reader's; the screen says the digits are
-    // right and their scale is not established.
-    expect(info?.description).toContain('200,000,000 (decimals unconfirmed) MYSTERY');
+    // The digits are right and their scale is not established; "base units" is the count that is
+    // correct whichever way the divisibility resolves.
+    expect(info?.description).toContain('200,000,000 (base units) MYSTERY');
   });
 
   it('uses the API description when there is no local unpack to merge with', () => {

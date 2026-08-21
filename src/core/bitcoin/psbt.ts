@@ -179,6 +179,8 @@ export interface DecodedInput {
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
+  /** Existing signature/finalization material, used to prove marketplace placeholder slots empty. */
+  hasSignatures?: boolean;
   /**
    * Tapleaf scripts this input would reveal, hex, leaf-version byte stripped. An inscription
    * reveal carries its ord envelope — and therefore its Counterparty message — here rather than
@@ -191,6 +193,12 @@ export interface DecodedInput {
  * Basic PSBT details extracted via pure Bitcoin parsing
  */
 export interface PsbtDetails {
+  /** Unsigned transaction id computed locally from the PSBT transaction bytes. */
+  transactionId: string;
+  /** Bitcoin transaction version committed to by the PSBT. */
+  transactionVersion: number;
+  /** Bitcoin transaction locktime committed to by the PSBT. */
+  lockTime: number;
   /** Raw transaction hex (if extractable) */
   rawTxHex: string;
   inputs: DecodedInput[];
@@ -368,6 +376,12 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         address,
         value,
         sighashType: input.sighashType,
+        hasSignatures: Boolean(
+          input.tapKeySig
+          || input.partialSig?.length
+          || input.finalScriptSig?.length
+          || input.finalScriptWitness?.length
+        ),
         ...(tapLeafScripts && tapLeafScripts.length > 0 ? { tapLeafScripts } : {}),
       });
     }
@@ -418,6 +432,9 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
   const fee = totalInputValue > 0 && !unfunded ? totalInputValue - totalOutputValue : 0;
 
   return {
+    transactionId: tx.id,
+    transactionVersion: tx.version,
+    lockTime: tx.lockTime,
     rawTxHex,
     inputs,
     outputs,

@@ -13,8 +13,16 @@ import { bareMultisigRecoveryPubkey } from '@/core/counterparty/unpack/multisig'
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
 
+/** Stable identifiers for warnings that another presentation layer may describe more precisely. */
+export type SecurityWarningCode =
+  | 'bitcoin_payment_gate'
+  | 'detach_all'
+  | 'expected_btc_payment'
+  | 'external_btc_output';
+
 /** A single security warning */
 export interface SecurityWarning {
+  code?: SecurityWarningCode;
   severity: WarningSeverity;
   title: string;
   message: string;
@@ -165,6 +173,8 @@ export function analyzeTransactionSafety(
      * the external-address warning exists to check.
      */
     verifiedCommit?: { address: string; value: number };
+    /** A separate provider capability identified this as an explicit Bitcoin payment request. */
+    plainBitcoinPayment?: boolean;
   } = {}
 ): SafetyAnalysis {
   const warnings: SecurityWarning[] = [];
@@ -179,20 +189,24 @@ export function analyzeTransactionSafety(
         severity: 'block',
         title: 'Blocked: Sweep Transaction',
         message:
-          'This transaction would send ALL of your Counterparty assets to another address. ' +
-          'Sweep transactions cannot be signed through a website. Use the wallet directly if you need to sweep.',
+          'This would send ALL Counterparty assets at your address. Websites cannot request ' +
+          'sweeps — use the wallet directly if you mean to.',
       });
     } else if (DANGEROUS_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
         severity: 'danger',
-        title: 'Danger: Asset Destruction',
+        title: 'Danger: Supply Destruction',
         message:
-          'This transaction permanently destroys assets. This action is irreversible. ' +
+          'This transaction permanently destroys supply. This action is irreversible. ' +
           'Make sure you understand exactly what is being destroyed.',
       });
     } else if (MOVES_EVERYTHING_MESSAGE_TYPES.has(messageType)) {
       warnings.push({
-        severity: 'warning',
+        code: 'detach_all',
+        // Info, not warning: a detach doing exactly what a detach does is routine, and the
+        // details list names each released balance. A detach whose assets leave the wallet
+        // escalates through the attached-asset destination warning instead.
+        severity: 'info',
         title: 'Moves Everything on the UTXO',
         message:
           'Detaching transfers every asset attached to this UTXO, not a stated amount. ' +
@@ -300,24 +314,31 @@ export function analyzeTransactionSafety(
     });
   }
 
-  if (suspiciousOutputs.length > 0) {
+  // A dispense's payment is already the screen's subject: the movement rows name the dispenser
+  // address and the detail list says what comes back, so a note restating the payment is noise.
+  if (suspiciousOutputs.length > 0 && messageType !== 'dispense') {
     const totalSats = suspiciousOutputs.reduce((sum, o) => sum + o.value, 0);
     const btcAmount = (totalSats / 100_000_000).toFixed(8);
     const addresses = suspiciousOutputs.map(o => o.address);
-    const expected = messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType);
+    const expected = options.plainBitcoinPayment
+      || (messageType !== undefined && BTC_PAYING_MESSAGE_TYPES.has(messageType));
 
     warnings.push(
       expected
         ? {
+            code: 'expected_btc_payment',
             // The payment is the transaction, so this is information rather than a warning.
             // The address and amount still need checking, hence the wording.
             severity: 'info',
-            title: 'BTC Payment',
+            title: options.plainBitcoinPayment ? 'Bitcoin Payment' : 'BTC Payment',
             message:
               `This sends ${btcAmount} BTC to ${addresses.map(a => a.slice(0, 12) + '…').join(', ')}, ` +
-              'which is how this type of transaction pays. Check the address is the one you mean.',
+              (options.plainBitcoinPayment
+                ? 'matching the payment outputs the site declared. Check the address is the one you mean.'
+                : 'which is how this type of transaction pays. Check the address is the one you mean.'),
           }
         : {
+            code: 'external_btc_output',
             severity: 'danger',
             title: 'BTC Sent to External Address',
             message:

@@ -96,7 +96,7 @@ describe('OrderCard', () => {
     mockFetchPoolQuote.mockResolvedValue(quote(10_526_400_000));
     render(<OrderCard order={order()} />);
 
-    expect(await screen.findByText(/accepts up to 5\.0% less/)).toBeInTheDocument();
+    expect(await screen.findByText(/Accepts up to 5\.0% below/)).toBeInTheDocument();
   });
 
   it('stays quiet just under the threshold', async () => {

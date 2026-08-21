@@ -9,7 +9,9 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import type { InputAttachedAssets } from '../inputAssets';
+import { parseMarketplaceIntent } from '../marketplaceIntent';
 import type { ProtocolContext } from '../protocolContext';
 import { type AnalyzedOutput, analyzeSignRequest } from '../signRequestAnalysis';
 
@@ -38,6 +40,121 @@ const OUTPUTS: AnalyzedOutput[] = [
 ];
 
 const INPUTS = [{ txid: 'a'.repeat(64), vout: 0 }];
+const VAULT = 'bc1qglv8hh3l23y0qu5uw4zu7e8q4td0gcjsa8f3tq';
+const PAYMENT_INTENT = parseBitcoinPaymentIntent({
+  standard: 'xcp-wallet/bitcoin-payment',
+  version: 1,
+  action: 'pay',
+  outputs: [{ address: VAULT, amountSats: 21_600 }],
+  description: 'Fund Emblem Vault',
+});
+const LISTING_TXID = 'ab'.repeat(32);
+const LISTING_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'create_listing',
+  operationId: 'preflight-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  seller: SIGNER,
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  guaranteedSellerPaymentSats: 250_546,
+  delivery: { mode: 'buyer_selected_detach' },
+  signingRequestExpiresAt: 2_000_000_000,
+  marketplaceExpiresAt: null,
+  bitcoinExpiresAt: null,
+});
+const ATTACH_TXID = 'bc'.repeat(32);
+const ATTACH_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'attach-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: SIGNER,
+  expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
+  carrierAddress: SIGNER,
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+});
+const CHECKOUT_TXID = 'cd'.repeat(32);
+const CHECKOUT_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'buy_listings',
+  operationId: 'checkout-1',
+  protocolVersion: 'direct_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  buyer: SIGNER,
+  items: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+    listingId: 'listing-1',
+    seller: VAULT,
+    carrierValueSats: 546,
+    priceSats: 250_000,
+    sellerPaymentSats: 250_546,
+  }],
+  subtotalSats: 250_000,
+  networkFeeSats: 2_000,
+  platformFeeSats: 5_000,
+  totalSats: 257_000,
+  expectedTxid: CHECKOUT_TXID,
+  delivery: { mode: 'detached', address: SIGNER },
+  marketplaceExpiresAt: 2_000_003_600,
+});
+const EXACT_TXID = 'de'.repeat(32);
+const EXACT_FUNDING_TXID = 'ef'.repeat(32);
+const EXACT_AUTHORIZATION_INTENT = parseMarketplaceIntent({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'authorize_exact_offer',
+  operationId: 'authorization-1',
+  protocolVersion: 'exact_offer_v1',
+  assets: [{
+    asset: 'RAREPEPE',
+    quantityRaw: '1',
+    sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
+  }],
+  authorizationId: 'authorization-1',
+  bidder: SIGNER,
+  seller: VAULT,
+  priceSats: 250_000,
+  carrierValueSats: 546,
+  sellerProceedsSats: 250_046,
+  networkFeeSats: 500,
+  expectedTxid: EXACT_TXID,
+  delivery: { mode: 'detached', address: SIGNER },
+  marketplaceExpiresAt: 2_000_003_600,
+  bitcoinExpiresAt: null,
+  bitcoinInvalidation: {
+    type: 'spend_funding_outpoint',
+    outpoint: { txid: EXACT_FUNDING_TXID, vout: 1 },
+  },
+});
+const EXACT_ACCEPTANCE_INTENT = parseMarketplaceIntent({
+  ...EXACT_AUTHORIZATION_INTENT,
+  action: 'accept_exact_offer',
+});
 
 /** An input carrying assets, at the given index. */
 function withAssets(inputIndex: number): InputAttachedAssets {
@@ -55,6 +172,7 @@ function run(overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) 
     outputs: OUTPUTS,
     signerAddresses: [SIGNER],
     signedInputIndices: [0],
+    signedInputs: [{ index: 0, sighashType: 0x01 }],
     transactionId: undefined,
     attachedAssets: Promise.resolve([]),
     ...overrides,
@@ -104,6 +222,333 @@ describe('the not-a-Counterparty-transaction gate', () => {
 
     expect(analysis.safety.blocked).toBe(true);
     expect(blockedOnNotCounterparty(analysis.safety.warnings)).toBe(true);
+  });
+});
+
+describe('the separate plain Bitcoin payment capability', () => {
+  beforeEach(() => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);
+    vi.mocked(resolveProtocolContext).mockResolvedValue({
+      context: {} as ProtocolContext,
+      warnings: [],
+    });
+  });
+
+  const payment = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    signingPurpose: 'bitcoin-payment',
+    bitcoinPaymentIntent: PAYMENT_INTENT,
+    outputs: [
+      { index: 0, value: 21_600, type: 'witness_v0_keyhash', address: VAULT },
+      { index: 1, value: 28_982, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    ...overrides,
+  });
+
+  it('allows an exact declared payment after proving clean signed inputs', async () => {
+    const analysis = await payment();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.bitcoinPaymentProof).toMatchObject({
+      proved: true,
+      totalSats: 21_600,
+      outputs: [{ index: 0, address: VAULT, amountSats: 21_600 }],
+    });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      title: 'Bitcoin Payment',
+    }));
+  });
+
+  it.each([
+    {
+      name: 'changed destination',
+      overrides: {
+        outputs: [{
+          index: 0, value: 21_600, type: 'witness_v0_keyhash',
+          address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs',
+        }],
+      },
+    },
+    {
+      name: 'Counterparty payload',
+      overrides: { counterpartyDataHex: '434e5452505254590a00' },
+    },
+    {
+      name: 'attached asset',
+      overrides: { attachedAssets: Promise.resolve([withAssets(0)]) },
+    },
+    {
+      name: 'unknown asset status',
+      overrides: {
+        attachedAssets: Promise.resolve([{
+          inputIndex: 0, utxo: `${'a'.repeat(64)}:0`, assets: [], lookupFailed: true,
+        }]),
+      },
+    },
+  ])('blocks $name rather than trusting the site or origin', async ({ overrides }) => {
+    const analysis = await payment(overrides);
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.severity).toBe('block');
+  });
+});
+
+describe('the marketplace intent proof', () => {
+  const attach = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    counterpartyDataHex: '434e5452505254590000006552415245504550457c317c30',
+    marketplaceIntent: ATTACH_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: '18'.repeat(32),
+        vout: 0,
+        address: SIGNER,
+        value: 100_000,
+        hasSignatures: false,
+      },
+      {
+        index: 1,
+        txid: '19'.repeat(32),
+        vout: 1,
+        address: VAULT,
+        value: 100_000,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 0, type: 'op_return' },
+      { index: 2, value: 198_454, type: 'witness_v0_keyhash', address: VAULT },
+    ],
+    signerAddresses: [SIGNER, VAULT],
+    signedInputIndices: [0, 1],
+    signedInputs: [
+      { index: 0, sighashType: 0x01 },
+      { index: 1, sighashType: 0x01 },
+    ],
+    transactionId: ATTACH_TXID,
+    attachedAssets: Promise.resolve([]),
+    ...overrides,
+  });
+  const listing = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    marketplaceIntent: LISTING_INTENT,
+    inputs: [
+      { index: 0, txid: '0'.repeat(64), vout: 0, hasSignatures: false },
+      { index: 1, txid: LISTING_TXID, vout: 4, address: SIGNER, value: 546 },
+    ],
+    outputs: [
+      { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    signedInputIndices: [1],
+    signedInputs: [{ index: 1, sighashType: 0x83 }],
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{
+        asset: 'RAREPEPE',
+        quantity: '1',
+        quantity_normalized: '1',
+      }],
+    }]),
+    ...overrides,
+  });
+  const checkout = (overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {}) => run({
+    counterpartyDataHex: '434e5452505254590000006600',
+    marketplaceIntent: CHECKOUT_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: '11'.repeat(32),
+        vout: 0,
+        address: SIGNER,
+        value: 400_000,
+        hasSignatures: false,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 0, type: 'op_return' },
+      { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: VAULT },
+      {
+        index: 2,
+        value: 5_000,
+        type: 'witness_v0_keyhash',
+        address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs',
+      },
+      { index: 3, value: 143_000, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    signedInputIndices: [0],
+    signedInputs: [{ index: 0, sighashType: 0x01 }],
+    transactionId: CHECKOUT_TXID,
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    }]),
+    ...overrides,
+  });
+  const exact = (
+    accepting: boolean,
+    overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {},
+  ) => run({
+    counterpartyDataHex: '434e5452505254590000006600',
+    marketplaceIntent: accepting ? EXACT_ACCEPTANCE_INTENT : EXACT_AUTHORIZATION_INTENT,
+    inputs: [
+      {
+        index: 0,
+        txid: EXACT_FUNDING_TXID,
+        vout: 1,
+        address: SIGNER,
+        value: 250_000,
+        hasSignatures: accepting,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 0, type: 'op_return' },
+      { index: 1, value: 250_046, type: 'witness_v0_keyhash', address: VAULT },
+    ],
+    signerAddresses: [accepting ? VAULT : SIGNER],
+    signedInputIndices: [accepting ? 1 : 0],
+    signedInputs: [{ index: accepting ? 1 : 0, sighashType: 0x01 }],
+    transactionId: EXACT_TXID,
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    }]),
+    ...overrides,
+  });
+
+  it('allows the proved listing and returns semantic terms', async () => {
+    const analysis = await listing();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'caution',
+      family: 'create_listing',
+      blockers: [],
+    });
+    expect(analysis.attachedAssetDestination).toMatchObject({
+      destinationCommitted: false,
+      mode: 'flexible',
+    });
+  });
+
+  it('allows a proved attach while preserving the variable XCP-fee caution', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'attach',
+        data: { asset: 'RAREPEPE', quantity: 1n, destinationVout: 0 },
+      },
+    } as never);
+
+    const analysis = await attach();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'caution',
+      family: 'attach_for_listing',
+      blockers: [],
+    });
+    expect(analysis.marketplaceReview?.facts).toContainEqual({
+      label: 'Quoted XCP fee',
+      value: '0.25 XCP (finalized at confirmation)',
+    });
+  });
+
+  it('hard-blocks a site claim whose seller payment differs from the PSBT', async () => {
+    const analysis = await listing({
+      outputs: [
+        { index: 0, value: 546, type: 'witness_v0_keyhash', address: SIGNER },
+        { index: 1, value: 250_545, type: 'witness_v0_keyhash', address: SIGNER },
+      ],
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+  });
+
+  it('allows a proved checkout and replaces the generic detach alarm with exact semantic terms', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: SIGNER },
+      },
+    } as never);
+
+    const analysis = await checkout();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'proved',
+      family: 'buy_listings',
+      blockers: [],
+    });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'detach_all',
+    }));
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'external_btc_output',
+    }));
+  });
+
+  it('hard-blocks checkout when the locally decoded detach differs from the site claim', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: VAULT },
+      },
+    } as never);
+
+    const analysis = await checkout();
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
+  });
+
+  it.each([
+    { accepting: false, status: 'caution', family: 'authorize_exact_offer' },
+    { accepting: true, status: 'proved', family: 'accept_exact_offer' },
+  ])('allows exact-offer $family and replaces generic alarms with proved terms', async ({
+    accepting,
+    status,
+    family,
+  }) => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: {
+        success: true,
+        messageType: 'detach',
+        data: { destination: SIGNER },
+      },
+    } as never);
+
+    const analysis = await exact(accepting);
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({ status, family, blockers: [] });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'detach_all',
+    }));
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'external_btc_output',
+    }));
   });
 });
 

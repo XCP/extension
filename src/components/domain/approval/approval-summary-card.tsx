@@ -1,6 +1,7 @@
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
+import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -12,14 +13,25 @@ import { fromSatoshis } from '@/core/numeric';
  * the destination out of view — on the line that says where the money goes. Truncating instead
  * would reintroduce the lookalike-grinding problem the outputs list deliberately avoids.
  *
+ * With the address on its own line the sentence's trailing "to" dangles ("Send 1 XCP to"), so it
+ * is dropped — the mono line beneath already reads as the destination.
+ *
+ * A description may also carry its own second line ("ASSET\nIssue 1,000"); that comes back as
+ * `subline`, set like the address line but in the text face.
+ *
  * Lives here because both approval screens render this headline, and it was once fixed inline on
  * the transaction screen only, so the PSBT screen kept overflowing.
  */
-export function splitTrailingAddress(description: string): { sentence: string; address?: string } {
-  const match = description.match(
+export function splitTrailingAddress(
+  description: string
+): { sentence: string; address?: string; subline?: string } {
+  const [first, ...rest] = description.split('\n');
+  const subline = rest.length > 0 ? rest.join(' ') : undefined;
+  const match = first!.match(
     /^(.*?)\s((?:bc1|tb1)[023456789acdefghjklmnpqrstuvwxyz]{20,}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/
   );
-  return match ? { sentence: match[1]!, address: match[2]! } : { sentence: description };
+  if (!match) return { sentence: first!, subline };
+  return { sentence: match[1]!.replace(/\s+to$/, ''), address: match[2]!, subline };
 }
 
 interface ApprovalSummaryCardProps {
@@ -32,11 +44,19 @@ interface ApprovalSummaryCardProps {
   order?: OrderAction | null;
   /** Structural net effect on the signer's wallet. */
   movement: MoneyMovement;
-  /** ANYONECANPAY — the movement can change after signing. */
-  flexible: boolean;
+  /** The exact flexibility left by the requested ANYONECANPAY signatures. */
+  flexibility?: PsbtFlexibilityKind;
   hasHighFee: boolean;
+  /** The footer opens a focused Review step for caution details. */
+  deferCautions?: boolean;
   /** Outputs exceed inputs; the fee depends on inputs the counterparty has yet to add. */
   unfunded?: boolean;
+  /**
+   * Skip the money-movement block. For an unfunded marketplace authorization nothing is moving
+   * yet, and rendering the movement resolves to an alarming "Couldn't be determined" for a state
+   * the semantic facts already describe precisely.
+   */
+  hideMovement?: boolean;
   /** Counterparty protocol (XCP) fee in sats, if any. */
   protocolFeeXcp: number | null;
 }
@@ -52,21 +72,25 @@ export function ApprovalSummaryCard({
   txAction,
   order,
   movement,
-  flexible,
+  flexibility,
   hasHighFee,
+  deferCautions,
   unfunded,
+  hideMovement,
   protocolFeeXcp,
 }: ApprovalSummaryCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-5">
       {order ? <OrderCard order={order} /> : txAction && (
-        <div className="text-center mb-3">
-          <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>
+        <div className={`text-center ${hideMovement ? '' : 'mb-3'}`}>
+          {/* No eyebrow when the page header already names the action (marketplace screens). */}
+          {txAction.label && <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>}
           {(() => {
-            const { sentence, address } = splitTrailingAddress(txAction.description);
+            const { sentence, address, subline } = splitTrailingAddress(txAction.description);
             return (
               <>
                 <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
+                {subline && <p className="mt-1 text-sm text-gray-700 break-words">{subline}</p>}
                 {address && (
                   <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
                     {address}
@@ -77,7 +101,16 @@ export function ApprovalSummaryCard({
           })()}
         </div>
       )}
-      <MoneyMovementView movement={movement} flexible={flexible} hasHighFee={hasHighFee} unfunded={unfunded} showHeadline={!txAction && !order} />
+      {!hideMovement && (
+        <MoneyMovementView
+          movement={movement}
+          flexibility={flexibility}
+          hasHighFee={hasHighFee}
+          deferCautions={deferCautions}
+          unfunded={unfunded}
+          showHeadline={!txAction && !order}
+        />
+      )}
       {protocolFeeXcp != null && protocolFeeXcp > 0 && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>

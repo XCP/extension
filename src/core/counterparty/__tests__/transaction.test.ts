@@ -246,26 +246,28 @@ describe('describeCounterpartyMessage', () => {
     expect(desc).toContain('FAIRTOKEN');
   });
 
-  it('describes pooldeposit', () => {
+  it('describes pooldeposit as its two legs', () => {
     const desc = describeCounterpartyMessage('pooldeposit', {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
       quantity_a: 100000000,
       quantity_b: 500000000,
+      asset_a_info: { divisible: true },
+      asset_b_info: { divisible: true },
     });
-    expect(desc).toContain('Deposit liquidity');
-    expect(desc).toContain('XCP');
-    expect(desc).toContain('POOLTEST');
+    expect(desc).toContain('1.00000000 XCP / 5.00000000 POOLTEST');
+    // The implied price reads on the second line.
+    expect(desc).toContain('1 XCP = 5 POOLTEST');
   });
 
-  it('describes poolwithdraw', () => {
+  it('describes poolwithdraw as the LP burn over the pool pair', () => {
     const desc = describeCounterpartyMessage('poolwithdraw', {
       asset_a: 'XCP',
       asset_b: 'POOLTEST',
       quantity: asBaseUnits(1000000),
     });
-    expect(desc).toContain('Withdraw liquidity');
-    expect(desc).toContain('XCP/POOLTEST');
+    expect(desc).toContain('Destroy 0.01000000 LP Tokens');
+    expect(desc).toContain('POOLTEST / XCP');
   });
 
   it('describes attach', () => {

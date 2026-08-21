@@ -70,8 +70,9 @@ export function normalizeQuantity(
   // this is reached for every asset but BTC and XCP — and precisely when the API decode failed and
   // the wallet is relying on its own bytes. Printing the bare integer reads as a quantity and is
   // off by 1e8 for any divisible asset: 1.5 PEPECASH as "150,000,000 PEPECASH". Label it so an
-  // unknown is visibly an unknown rather than a confident wrong number.
-  return `${val.toLocaleString()} (decimals unconfirmed)`;
+  // unknown is visibly an unknown rather than a confident wrong number — "base units" because
+  // that count is correct whichever way the divisibility resolves.
+  return `${val.toLocaleString()} (base units)`;
 }
 
 /**
@@ -153,6 +154,24 @@ export function getTxActionInfo(
 }
 
 /**
+ * The output index an attach targets, so the details list can mark which output becomes the new
+ * asset-bearing UTXO. Undefined for non-attach messages and for an attach that leaves the index
+ * to core's default.
+ */
+export function attachDestinationVout(source: TxActionSource): number | undefined {
+  const unpack = source.verification?.localUnpack;
+  if (unpack?.success && unpack.messageType === 'attach') {
+    const vout = (unpack.data as { destinationVout?: number }).destinationVout;
+    if (typeof vout === 'number') return vout;
+  }
+  if (source.counterpartyMessage?.messageType === 'attach') {
+    const raw = source.counterpartyMessage.messageData?.destination_vout;
+    if (raw != null && Number.isFinite(Number(raw))) return Number(raw);
+  }
+  return undefined;
+}
+
+/**
  * Adapt a local unpack into the shared describer's view.
  *
  * The unpacker uses camelCase and carries asset names but no divisibility, so quantities are
@@ -217,6 +236,9 @@ function fromLocalUnpack(
       : undefined,
     feeRequired: data.feeRequired,
     lpAsset: data.lpAsset as string | undefined,
+    minLpQuantity: data.minLpQuantity,
+    minQuantityA: data.minQuantityA,
+    minQuantityB: data.minQuantityB,
     recipients: sends as { asset?: string; destination: string; quantity: unknown }[] | undefined,
     dispenserStatus: data.status as number | undefined,
     format: (quantity, asset) => {
@@ -224,7 +246,7 @@ function fromLocalUnpack(
       const divisible = divisibilityOf(asset);
       if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: false });
       if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-      return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
+      return `${BigInt(String(quantity)).toLocaleString()} (base units)`;
     },
     // The same value with nothing added, for the figures that get divided rather than displayed.
     // Undefined where divisibility is unknown: a derived rate computed on a guessed scale is wrong

@@ -25,6 +25,8 @@ const destination = (over: Record<string, unknown>) =>
     sourceInputs: [0],
     destinationVout: 1,
     destinationAddress: undefined,
+    destinationCommitted: true,
+    mode: 'implicit-output',
     ...over,
   }) as ApprovalWarningInput['attachedAssetDestination'];
 
@@ -75,13 +77,13 @@ describe('buildApprovalWarnings', () => {
       expect(item?.description).toContain('not an address you control');
     });
 
-    it('is a warning when they land on your own output', () => {
+    it('is calm information when they land on your own output', () => {
       const [item] = buildApprovalWarnings({
         ...EMPTY,
         attachedAssetDestination: destination({}),
       });
 
-      expect(item?.severity).toBe('warning');
+      expect(item?.severity).toBe('info');
       expect(item?.title).toBe('Attached assets move to your own output');
       expect(item?.description).not.toContain('not an address you control');
     });
@@ -93,8 +95,63 @@ describe('buildApprovalWarnings', () => {
       });
 
       expect(item?.title).toBe('Attached assets are detached to your address');
+      expect(item?.severity).toBe('info');
       expect(item?.description).toContain('credited back to your address');
       expect(item?.description).not.toContain('output #');
+    });
+
+    it('deduplicates the generic detach warning and includes the exact assets in the destination', () => {
+      const items = buildApprovalWarnings({
+        ...EMPTY,
+        safetyWarnings: [{
+          code: 'detach_all',
+          severity: 'warning',
+          title: 'Moves Everything on the UTXO',
+          message: 'Every asset moves.',
+        }],
+        attachedAssetDestination: destination({ detaches: true }),
+        signedInputsWithAssets: [{
+          inputIndex: 0,
+          utxo: 'a:0',
+          assets: [{ asset: 'RAREPEPE', quantity_normalized: '1' }],
+        }] as unknown as ApprovalWarningInput['signedInputsWithAssets'],
+      });
+
+      expect(items).toHaveLength(1);
+      expect(items[0]?.key).toBe('attached-destination');
+      expect(items[0]?.children).toBeDefined();
+    });
+
+    it('does not present a SINGLE|ANYONECANPAY placeholder as guaranteed delivery', () => {
+      const [item] = buildApprovalWarnings({
+        ...EMPTY,
+        attachedAssetDestination: destination({
+          destinationCommitted: false,
+          mode: 'flexible',
+          destinationVout: 0,
+          destinationAddress: 'bc1qplaceholder',
+        }),
+      });
+
+      expect(item?.severity).toBe('danger');
+      expect(item?.title).toBe('Asset delivery is flexible');
+      expect(item?.description).toContain('does not fix the asset destination');
+      expect(item?.description).not.toContain('credited to output');
+    });
+
+    it('names the destination proved by an explicit detach', () => {
+      const [item] = buildApprovalWarnings({
+        ...EMPTY,
+        attachedAssetDestination: destination({
+          detaches: true,
+          mode: 'explicit-detach',
+          destinationVout: null,
+          destinationAddress: 'bc1qbuyer',
+          leavesWallet: true,
+        }),
+      });
+
+      expect(item?.description).toContain('detached to bc1qbuyer');
     });
 
     it('pluralises the source inputs', () => {
@@ -159,7 +216,6 @@ describe('buildApprovalWarnings', () => {
       'safety-0',
       'attached-destination',
       'structure-0',
-      'attached-assets',
       'unknown-status',
     ]);
   });

@@ -267,14 +267,14 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
     const divisible = infoFor(field)?.divisible;
     if (divisible === true) return fromSatoshis(String(quantity));
     if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-    return `${BigInt(String(quantity)).toLocaleString()} (decimals unconfirmed)`;
+    return `${BigInt(String(quantity)).toLocaleString()} (base units)`;
   };
 
   /**
    * The display-unit value as a bare number string, for figures that are divided rather than shown.
    *
    * Deliberately not `format`'s output with the separators stripped: that output can carry a
-   * "(decimals unconfirmed)" caveat, and parsing a number back out of it would turn an honest
+   * "(base units)" caveat, and parsing a number back out of it would turn an honest
    * "we do not know the scale" into NaN or, worse, a plausible wrong number.
    */
   const numeric = (quantity: unknown, asset?: string): string | undefined => {
@@ -330,6 +330,14 @@ function fromApiDecode(messageData: Record<string, unknown>): DescribableMessage
     recipientCount: Array.isArray(messageData) ? messageData.length : undefined,
     subassetLongname: messageData.asset_longname as string | undefined,
     dispenserStatus: num('status'),
+    // Issuance switches travel in the message itself, so the describer can scale the issued
+    // quantity by the flag being signed instead of falling back to the base-units caveat.
+    divisible: messageData.divisible as boolean | undefined,
+    lock: messageData.lock as boolean | undefined,
+    reset: messageData.reset as boolean | undefined,
+    minLpQuantity: messageData.min_lp_quantity,
+    minQuantityA: messageData.min_quantity_a,
+    minQuantityB: messageData.min_quantity_b,
     format,
     numeric,
     name,
@@ -452,7 +460,7 @@ export async function resolveMpmaRecipients(
           ? fromSatoshis(send.quantity.toString())
           : divisible === false
             ? send.quantity.toLocaleString()
-            : `${send.quantity.toString()} (decimals unconfirmed)`,
+            : `${send.quantity.toString()} (base units)`,
     };
   });
 }

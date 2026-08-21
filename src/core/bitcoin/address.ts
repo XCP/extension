@@ -38,9 +38,12 @@ export const AddressFormat = {
  */
 export type AddressFormat = typeof AddressFormat[keyof typeof AddressFormat];
 
-/** Normalize only Bech32 addresses; Base58 addresses remain case-sensitive. */
+/** Normalize only Bech32/Bech32m addresses; Base58 addresses remain case-sensitive. */
 export function normalizeAddressForComparison(address: string): string {
-  return address.toLowerCase().startsWith('bc1') ? address.toLowerCase() : address;
+  const lower = address.toLowerCase();
+  return lower.startsWith('bc1') || lower.startsWith('tb1') || lower.startsWith('bcrt1')
+    ? lower
+    : address;
 }
 
 /**
