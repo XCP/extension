@@ -29,12 +29,13 @@ import {
 import type { ProtocolContext } from '@/core/counterparty/describe';
 import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispenseOutcome';
 import { DIVIDEND_FEE_XCP_PER_HOLDER } from '@/core/counterparty/dividendModel';
+import { readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import {
   oracleDispenserWarning,
   oracleDispenseWarning,
 } from '@/core/counterparty/oraclePolicy';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
-import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, toBigNumber } from '@/core/numeric';
+import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, roundUp, toBigNumber } from '@/core/numeric';
 
 export type { ProtocolContext };
 
@@ -146,16 +147,29 @@ export async function resolveProtocolContext(
     }
 
     if (messageType === 'fairmint' && typeof fields.asset === 'string' && !context.protocolFeeXcp) {
-      // A fairmint's cost is the fairminter's price, which is not in the message — and neither is
-      // where the payment goes: burned, seeded into the pool, or paid to the issuer.
+      // A fairmint's cost is not in the message — and neither is where the payment goes: burned,
+      // seeded into the pool, or paid to the issuer. Core charges `quantity / quantity_by_price *
+      // price` (messages/fairmint.py), every term in base units, so the figure is derived the same
+      // way from the same fields. The fairminter's `price_normalized` alone is the price of one
+      // whole unit, which is what a mint of 1,000,000 units was being shown as costing.
       const fairminter = await fetchAssetFairminter(fields.asset);
-      if (fairminter?.price_normalized) {
-        context.protocolFeeXcp = toDisplayAmount(String(fairminter.price_normalized));
-        context.fairmintPaymentModel = isGreaterThan(String(fairminter.pool_quantity ?? 0), 0)
-          ? 'pool'
-          : fairminter.burn_payment
-            ? 'burned'
-            : 'paid';
+      const quantity = fields.quantity;
+      if (
+        fairminter
+        && (typeof quantity === 'number' || typeof quantity === 'string' || typeof quantity === 'bigint')
+        && isGreaterThan(String(quantity), 0)
+        && isGreaterThan(String(fairminter.quantity_by_price ?? 0), 0)
+      ) {
+        const cost = toBigNumber(String(quantity))
+          .div(String(fairminter.quantity_by_price))
+          .times(String(fairminter.price ?? 0));
+        if (cost.isGreaterThan(0)) {
+          context.protocolFeeXcp = toDisplayAmount(fromSatoshis(roundUp(cost).toString()));
+        }
+        const model = readFairminterPaymentModel(fairminter);
+        if (model !== 'free') {
+          context.fairmintPaymentModel = model === 'issuer' ? 'paid' : model;
+        }
       }
     }
 
