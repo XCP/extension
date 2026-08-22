@@ -77,25 +77,43 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
       
+      # continue-on-error so the report and artifact steps below still run; the report step
+      # re-raises the failure, so a red E2E run still fails the job and files the issue.
       - name: Run all E2E tests
+        id: e2e
         timeout-minutes: 60
         run: npx playwright test --retries=3 --workers=1
         continue-on-error: true
       
+      # The Playwright image does not ship jq, so the stats are read with node. A missing
+      # test-results.json means Playwright never got as far as running anything — a config or
+      # load error — and is treated as a failure rather than an empty report.
       - name: Generate test report
         if: always()
         run: |
-          echo "# Nightly Test Report" >> $GITHUB_STEP_SUMMARY
-          echo "Date: $(date)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -f "test-results.json" ]; then
-            echo "## Test Results" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat test-results.json | jq '.stats' >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "# Nightly Test Report"
+            echo "Date: $(date)"
+            echo ""
+            if [ -f "test-results.json" ]; then
+              echo "## E2E Results"
+              echo '```json'
+              node -e 'console.log(JSON.stringify(require("./test-results.json").stats, null, 2))'
+              echo '```'
+            else
+              echo "## E2E Results"
+              echo "No test-results.json was written: Playwright did not run."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f "test-results.json" ]; then
+            echo "::error::Playwright produced no test-results.json"
+            exit 1
           fi
-      
+          if [ "${{ steps.e2e.outcome }}" != "success" ]; then
+            echo "::error::E2E tests failed"
+            exit 1
+          fi
+
       - name: Upload test artifacts
         if: always()
         uses: actions/upload-artifact@v6
