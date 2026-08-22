@@ -107,7 +107,11 @@ export default function AssetDispensersPage(): ReactElement {
       clearTimeout(saveTimeoutRef.current);
     }
     saveTimeoutRef.current = setTimeout(() => {
-      updateSettings({ priceUnit: nextUnit }).catch(console.error);
+      // A call, not a bare `console.error` reference: the production build drops console calls
+      // (wxt.config dropConsole) but cannot strip a reference, so the reference shipped.
+      updateSettings({ priceUnit: nextUnit }).catch((error) => {
+        console.error('Failed to save price unit:', error);
+      });
     }, DEBOUNCE_MS);
   }, [priceUnit, btcPrice, updateSettings]);
 

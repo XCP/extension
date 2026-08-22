@@ -8,7 +8,6 @@ import { ActionList } from "@/components/ui/lists/action-list";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { getAddressFormatLabel } from '@/core/bitcoin/address';
-import packageJson from "../../../package.json";
 
 
 /**
@@ -28,7 +27,9 @@ const EXTERNAL_LINKS = {
   PRIVACY: "https://www.xcp.io/privacy",
   WEBSITE: "https://www.xcp.io/?ref=wallet",
 } as const;
-const VERSION = packageJson.version;
+// From the manifest, not `import packageJson`: importing the file inlines the whole of it —
+// scripts, devDependencies — into the shipped bundle. The manifest version is the same string.
+const VERSION = chrome.runtime.getManifest().version;
 
 /**
  * Settings component provides a main settings menu with navigation options.
