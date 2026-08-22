@@ -4,6 +4,11 @@ const isCI = !!process.env.CI;
 
 export default defineConfig({
   testDir: './e2e',
+  // Only Playwright specs. The directory also holds a vitest file
+  // (hardware/trezor-node-integration.test.ts, run by the trezor-emulator workflow), and
+  // Playwright's default match picks up *.test.ts too — loading it crashes the runner before a
+  // single spec runs, which `continue-on-error` in the nightly job then hid for months.
+  testMatch: '**/*.spec.ts',
   fullyParallel: false,
 
   // Single worker for extension tests to avoid state conflicts
