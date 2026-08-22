@@ -29,12 +29,12 @@ import {
 import type { ProtocolContext } from '@/core/counterparty/describe';
 import { describePayout, resolveDispensersAt } from '@/core/counterparty/dispenseOutcome';
 import { DIVIDEND_FEE_XCP_PER_HOLDER } from '@/core/counterparty/dividendModel';
+import { readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import {
   oracleDispenserWarning,
   oracleDispenseWarning,
 } from '@/core/counterparty/oraclePolicy';
 import type { SecurityWarning } from '@/core/counterparty/transactionSafety';
-import { readFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import { type BigNumber, formatDecimal, fromSatoshis, isGreaterThan, roundUp, toBigNumber } from '@/core/numeric';
 
 export type { ProtocolContext };
