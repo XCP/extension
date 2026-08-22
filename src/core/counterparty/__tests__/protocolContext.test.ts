@@ -19,8 +19,11 @@ vi.mock('@/core/bitcoin/blockHeight', () => ({
 import { fetchAssetDetails, fetchAssetFairminter, fetchAssetHolderCount } from '@/core/counterparty/api';
 import { resolveProtocolContext } from '../protocolContext';
 
-/** A fairmint of `asset`, the shape the approval screen resolves context from. */
-const fairmintOf = (asset: string) => ({ messageType: 'fairmint', data: { asset } });
+/** A fairmint of `quantity` base units of `asset`, the shape the approval screen resolves context from. */
+const fairmintOf = (asset: string, quantity: number = 1) => ({
+  messageType: 'fairmint',
+  data: { asset, quantity },
+});
 
 describe('resolveProtocolContext', () => {
   beforeEach(() => {
@@ -28,33 +31,53 @@ describe('resolveProtocolContext', () => {
   });
 
   describe('XCP figures', () => {
-    it('trims a fairminter price to its significant digits', async () => {
-      // What core actually sends: the normalized figure at full working precision.
+    it('charges the whole mint, not one unit of it', async () => {
+      // 10 XCP buys a lot of 1,000,000 (divisible) units. price_normalized is per unit — 0.00001 —
+      // and that is what a 10 XCP mint was being shown as costing.
       vi.mocked(fetchAssetFairminter).mockResolvedValue({
+        price: 1000000000,
         price_normalized: '0.00001000000000000',
+        quantity_by_price: 100000000000000,
+        quantity_by_price_normalized: '1000000.00000000',
+        pool_quantity: 500000000000,
+      } as any);
+
+      const { context } = await resolveProtocolContext(fairmintOf('FAFOMFERS', 100000000000000));
+      expect(context.protocolFeeXcp).toBe('10');
+      expect(context.fairmintPaymentModel).toBe('pool');
+    });
+
+    it('charges by the lot for several lots', async () => {
+      vi.mocked(fetchAssetFairminter).mockResolvedValue({
+        price: 150000000,
+        quantity_by_price: 1000,
+        burn_payment: true,
+      } as any);
+
+      const { context } = await resolveProtocolContext(fairmintOf('MYASSET', 3000));
+      expect(context.protocolFeeXcp).toBe('4.5');
+      expect(context.fairmintPaymentModel).toBe('burned');
+    });
+
+    it('trims a fairminter price to its significant digits', async () => {
+      vi.mocked(fetchAssetFairminter).mockResolvedValue({
+        price: 1000,
+        quantity_by_price: 1,
       } as any);
 
       const { context } = await resolveProtocolContext(fairmintOf('MYASSET'));
       expect(context.protocolFeeXcp).toBe('0.00001');
+      expect(context.fairmintPaymentModel).toBe('paid');
     });
 
     it('keeps every one of the eight places XCP is divisible to', async () => {
       vi.mocked(fetchAssetFairminter).mockResolvedValue({
-        price_normalized: '1.23456789000000000',
+        price: 123456789,
+        quantity_by_price: 1,
       } as any);
 
       const { context } = await resolveProtocolContext(fairmintOf('MYASSET'));
       expect(context.protocolFeeXcp).toBe('1.23456789');
-    });
-
-    it('states a price too small to show as a bound rather than as zero', async () => {
-      vi.mocked(fetchAssetFairminter).mockResolvedValue({
-        price_normalized: '0.000000001',
-      } as any);
-
-      const { context } = await resolveProtocolContext(fairmintOf('MYASSET'));
-      // "0 XCP" on a price row would read as a free mint.
-      expect(context.protocolFeeXcp).toBe('<0.00000001');
     });
 
     it('trims the protocol fee carried by the message itself', async () => {
@@ -67,8 +90,16 @@ describe('resolveProtocolContext', () => {
       expect(context.protocolFeeXcp).toBe('0.5');
     });
 
-    it('leaves a fairminter with no price unpriced', async () => {
-      vi.mocked(fetchAssetFairminter).mockResolvedValue({ price_normalized: null } as any);
+    it('leaves a free fairminter unpriced and unrouted', async () => {
+      vi.mocked(fetchAssetFairminter).mockResolvedValue({ price: 0, quantity_by_price: 1 } as any);
+
+      const { context } = await resolveProtocolContext(fairmintOf('MYASSET'));
+      expect(context.protocolFeeXcp).toBeUndefined();
+      expect(context.fairmintPaymentModel).toBeUndefined();
+    });
+
+    it('leaves a fairminter whose lot size is unknown unpriced', async () => {
+      vi.mocked(fetchAssetFairminter).mockResolvedValue({ price: 1000 } as any);
 
       const { context } = await resolveProtocolContext(fairmintOf('MYASSET'));
       expect(context.protocolFeeXcp).toBeUndefined();

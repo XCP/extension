@@ -57,10 +57,10 @@ export function fairminter(tx: Transaction): Array<{ label: string; value: strin
   }
 
   if (isPaidFairminter(paymentModel)) {
-    // Price per mint (normalized)
+    // Core derives price_normalized as price / quantity_by_price: it is per unit, not per lot.
     if (params.price_normalized !== undefined) {
       fields.push({
-        label: "Price per Mint",
+        label: "Price per Unit",
         value: `${formatAmount({
           value: params.price_normalized,
           minimumFractionDigits: 8,
