@@ -189,6 +189,10 @@ interface WalletContextType {
   // ─── Wallet Management ─────────────────────────────────────────────────────
   /** Derive a new address in the wallet */
   addAddress: (walletId: string) => Promise<Address>;
+  /** Look for a funded Rare Pepe Wallet UTXO address paired with an address index, and keep it */
+  addUtxoAddress: (walletId: string, index: number) => Promise<Address | null>;
+  /** Stop listing a kept UTXO address */
+  removeUtxoAddress: (walletId: string, path: string) => Promise<void>;
   /** Change wallet's address format (P2PKH, P2WPKH, P2TR, etc.) */
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   /** Preview what address would be generated for a format */
@@ -595,6 +599,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     setActiveWallet,
     setActiveAddress,
     addAddress: withRefresh(walletService.addAddress, refreshWalletState),
+    addUtxoAddress: withRefresh(walletService.addUtxoAddress, refreshWalletState),
+    removeUtxoAddress: withRefresh(walletService.removeUtxoAddress, refreshWalletState),
     updatePassword: withRefresh(walletService.updatePassword, refreshWalletState),
     createMnemonicWallet: withRefresh(walletService.createMnemonicWallet, async () => {
       await refreshWalletState();

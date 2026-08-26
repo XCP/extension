@@ -26,6 +26,7 @@ import {
   getPairedAddressFormats,
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
+import { detectUtxoAddress, isUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWalletDiscovery';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
@@ -192,6 +193,7 @@ export class WalletManager {
       type: record.type,
       addressFormat: record.addressFormat,
       addressCount: record.addressCount,
+      extraPaths: record.extraPaths,
       addresses: [],
       isTestOnly: record.isTestOnly,
       previewAddress: record.previewAddress,
@@ -754,6 +756,7 @@ export class WalletManager {
       type: record.type,
       addressFormat: record.addressFormat,
       addressCount: record.addressCount,
+      extraPaths: record.extraPaths,
       addresses: [], // Empty until selectWallet() is called
       isTestOnly: record.isTestOnly,
       previewAddress: record.previewAddress,
@@ -806,7 +809,11 @@ export class WalletManager {
     const secret = await decryptWithKey(record.encryptedSecret, masterKey);
     sessionManager.storeUnlockedSecret(walletId, secret);
     wallet.addresses = deriveAddressesFromSecret(secret, record);
-    wallet.addressCount = wallet.addresses.length;
+    // Extra paths are appended to the same list but are not part of the sequential run, so they
+    // must not count here — `addAddress` derives the next index from this.
+    wallet.addressCount = wallet.addresses.filter(
+      (address) => !isUtxoAddressPath(address.path)
+    ).length;
     this.activeWalletId = walletId;
 
     // Persist lastActiveWalletId in settings (only on explicit selection)
@@ -1160,6 +1167,74 @@ export class WalletManager {
     if (this.activeWalletId === walletId) {
       await this.setActiveWallet(walletId);
     }
+  }
+
+  /**
+   * Looks for a funded Rare Pepe Wallet UTXO address paired with `index`, and keeps it if found.
+   *
+   * Returns the address, or null when the change address is empty — which is the ordinary answer,
+   * since only someone who used Rare Pepe Wallet's UTXO-attached assets has one. Throws when the
+   * lookup could not be made, so an outage is never reported as "you don't have one".
+   */
+  public async addUtxoAddress(walletId: string, index: number): Promise<Address | null> {
+    const wallet = this.getWalletById(walletId);
+    if (!wallet) throw new Error('Wallet not found');
+    if (wallet.type !== 'mnemonic') {
+      throw new Error('Only mnemonic wallets have UTXO addresses.');
+    }
+    if (!isCounterwalletFormat(wallet.addressFormat)) {
+      throw new Error('UTXO addresses exist only for Counterwallet address formats.');
+    }
+
+    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    if (!mnemonic) {
+      throw new Error('Wallet is locked. Please unlock first.');
+    }
+
+    const path = utxoAddressPath(index);
+    if (wallet.extraPaths?.includes(path)) {
+      return wallet.addresses.find((address) => address.path === path) ?? null;
+    }
+
+    const found = await detectUtxoAddress(mnemonic, wallet.addressFormat, index);
+    if (found.status === 'unavailable') {
+      throw new Error('Could not check for a UTXO address. Please try again.');
+    }
+    if (found.status === 'none') return null;
+
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
+    if (!keychainRecord) throw new Error('Missing keychain record.');
+
+    keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), path];
+    wallet.extraPaths = keychainRecord.extraPaths;
+    wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
+    await this.persistKeychain();
+
+    return wallet.addresses.find((address) => address.path === path) ?? null;
+  }
+
+  /** Drops a kept UTXO address. The funds are unaffected; only the listing forgets it. */
+  public async removeUtxoAddress(walletId: string, path: string): Promise<void> {
+    const wallet = this.getWalletById(walletId);
+    if (!wallet) throw new Error('Wallet not found');
+    if (!this.keychain) throw new Error('Keychain not loaded');
+    const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
+    if (!keychainRecord) throw new Error('Missing keychain record.');
+
+    const remaining = (keychainRecord.extraPaths ?? []).filter((kept) => kept !== path);
+    if (remaining.length === (keychainRecord.extraPaths ?? []).length) return;
+
+    keychainRecord.extraPaths = remaining;
+    wallet.extraPaths = remaining;
+
+    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    if (mnemonic) {
+      wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
+    } else {
+      wallet.addresses = wallet.addresses.filter((address) => address.path !== path);
+    }
+    await this.persistKeychain();
   }
 
   /**

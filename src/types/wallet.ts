@@ -48,6 +48,14 @@ export interface Wallet {
   addressFormat: AddressFormat;
   /** Number of derived addresses */
   addressCount: number;
+  /**
+   * Extra derivation paths shown alongside the sequential addresses.
+   *
+   * Addresses are otherwise a pure function of the format and the count, so anything off the
+   * wallet's own branch — a Rare Pepe Wallet UTXO address, say — has nowhere to live and vanishes
+   * on the next unlock. Validate on read: these strings reach `HDKey.derive`.
+   */
+  extraPaths?: string[];
   /** Array of derived addresses */
   addresses: Address[];
   /** Flag for development-only test wallets */
@@ -75,6 +83,14 @@ export interface WalletRecord {
   addressFormat: AddressFormat;
   /** Number of derived addresses */
   addressCount: number;
+  /**
+   * Extra derivation paths shown alongside the sequential addresses.
+   *
+   * Addresses are otherwise a pure function of the format and the count, so anything off the
+   * wallet's own branch — a Rare Pepe Wallet UTXO address, say — has nowhere to live and vanishes
+   * on the next unlock. Validate on read: these strings reach `HDKey.derive`.
+   */
+  extraPaths?: string[];
   /** First address for display (m/.../0/0) */
   previewAddress: string;
   /** Encrypted secret (key-based AES-GCM, still encrypted after keychain decrypt) */

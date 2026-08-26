@@ -12,6 +12,10 @@ interface AddressListProps {
   walletId: string;
   /** Whether this is a hardware wallet (hides private key option) */
   isHardwareWallet?: boolean;
+  /** Offered per address when this wallet could have paired Rare Pepe Wallet UTXO addresses */
+  onFindUtxoAddress?: (address: Address) => void;
+  /** Offered on a kept UTXO address, to stop listing it */
+  onRemoveUtxoAddress?: (address: Address) => void;
 }
 
 /**
@@ -20,7 +24,7 @@ interface AddressListProps {
  * @param props - The component props
  * @returns A ReactElement representing the address list
  */
-export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false }: AddressListProps): ReactElement => {
+export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walletId, isHardwareWallet = false, onFindUtxoAddress, onRemoveUtxoAddress }: AddressListProps): ReactElement => {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
   const handleCopyAddress = (address: string) => {
@@ -85,6 +89,8 @@ export const AddressList = ({ addresses, selectedAddress, onSelectAddress, walle
                   walletId={walletId}
                   onCopyAddress={handleCopyAddress}
                   isHardwareWallet={isHardwareWallet}
+                  onFindUtxoAddress={onFindUtxoAddress}
+                  onRemoveUtxoAddress={onRemoveUtxoAddress}
                 />
               </div>
               <div className="text-sm mb-1 font-medium">{address.name}</div>

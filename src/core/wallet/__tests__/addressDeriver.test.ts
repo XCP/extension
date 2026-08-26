@@ -22,6 +22,61 @@ const MNEMONIC =
 const PRIV_HEX = '0000000000000000000000000000000000000000000000000000000000000001';
 
 describe('addressDeriver', () => {
+  describe('extra paths', () => {
+    const record: WalletRecord = {
+      id: 'w1',
+      name: 'Wallet 1',
+      type: 'mnemonic',
+      addressFormat: AddressFormat.Counterwallet,
+      addressCount: 2,
+      previewAddress: '',
+      encryptedSecret: '',
+    };
+    // Counterwallet wordlist phrase, so the Counterwallet seed derivation applies.
+    const CW_MNEMONIC = 'like just love know never want time out there make look eye';
+
+    it('appends a UTXO address after the sequential run, named for its pair', () => {
+      const addresses = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        extraPaths: ["m/0'/1/1"],
+      });
+
+      expect(addresses).toHaveLength(3);
+      expect(addresses.slice(0, 2).map((a) => a.path)).toEqual(["m/0'/0/0", "m/0'/0/1"]);
+      expect(addresses[2]).toMatchObject({ name: 'UTXO Address 2', path: "m/0'/1/1" });
+    });
+
+    it('derives the extra address at the path it names', () => {
+      const [extra] = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        addressCount: 1,
+        extraPaths: ["m/0'/1/0"],
+      }).slice(-1);
+
+      expect(extra?.address).toBe(
+        getAddressFromMnemonic(CW_MNEMONIC, "m/0'/1/0", AddressFormat.Counterwallet)
+      );
+    });
+
+    it('drops a stored path it cannot account for rather than deriving it', () => {
+      const addresses = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        extraPaths: ["m/0'/0/9", "m/44'/0'/0'/1/0", 'nonsense', "m/0'/1/3"],
+      });
+
+      // Only the one genuine change-branch path survives.
+      expect(addresses).toHaveLength(3);
+      expect(addresses[2]?.path).toBe("m/0'/1/3");
+    });
+
+    it('leaves a wallet without extra paths exactly as it was', () => {
+      expect(deriveAddressesFromSecret(CW_MNEMONIC, record)).toEqual(
+        deriveAddressesFromSecret(CW_MNEMONIC, { ...record, extraPaths: [] })
+      );
+    });
+  });
+
+
   describe('getPairedAddressFormats', () => {
     it('pairs only supported Legacy and native SegWit formats', () => {
       const supportedPairs = [

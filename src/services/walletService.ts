@@ -58,6 +58,10 @@ interface WalletService {
     usePassphrase?: boolean
   ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
+  /** Look for a funded Rare Pepe Wallet UTXO address paired with an address index, and keep it. */
+  addUtxoAddress: (walletId: string, index: number) => Promise<Address | null>;
+  /** Stop listing a kept UTXO address. */
+  removeUtxoAddress: (walletId: string, path: string) => Promise<void>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetKeychain: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -204,6 +208,8 @@ function createWalletService(): WalletService {
       return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
+    addUtxoAddress: async (walletId, index) => walletManager.addUtxoAddress(walletId, index),
+    removeUtxoAddress: async (walletId, path) => walletManager.removeUtxoAddress(walletId, path),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
     resetKeychain: async (password) => {
       await walletManager.resetKeychain(password);

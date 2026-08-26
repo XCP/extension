@@ -38,6 +38,10 @@ vi.mock('@/core/bitcoin/psbt', () => ({
   completePsbtWithInputValues: vi.fn(),
 }));
 vi.mock('@/core/counterwallet');
+vi.mock('@/core/wallet/rarePepeWalletDiscovery', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/wallet/rarePepeWalletDiscovery')>()),
+  detectUtxoAddress: (...args: unknown[]) => mockDetectUtxoAddress(...args),
+}));
 vi.mock('@noble/hashes/sha2.js');
 vi.mock('@noble/hashes/utils.js');
 vi.mock('@scure/bip32');
@@ -46,7 +50,7 @@ vi.mock('@scure/bip39');
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
@@ -58,6 +62,8 @@ import {
   getKeychainRecord,
   saveKeychainRecord,
 } from '@/platform/storage/walletStorage';
+
+const { mockDetectUtxoAddress } = vi.hoisted(() => ({ mockDetectUtxoAddress: vi.fn() }));
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;
@@ -246,6 +252,119 @@ describe('WalletManager', () => {
 
       expect(walletManager['keychain']).toBeNull();
       expect(sessionManager.clearSessionExpiry).toHaveBeenCalled();
+    });
+  });
+
+  describe('UTXO Addresses', () => {
+    const MNEMONIC = 'test mnemonic phrase';
+
+    /** An unlocked Counterwallet mnemonic wallet with two sequential addresses. */
+    function setupCounterwalletWallet() {
+      const wallet = createTestWallet({
+        addressFormat: AddressFormat.Counterwallet,
+        addressCount: 2,
+      });
+      const record = {
+        id: wallet.id,
+        name: wallet.name,
+        type: 'mnemonic' as const,
+        addressFormat: AddressFormat.Counterwallet,
+        addressCount: 2,
+        previewAddress: '',
+        encryptedSecret: '',
+      };
+      walletManager['wallets'] = [wallet];
+      walletManager['keychain'] = { version: 1, wallets: [record], settings: {} as never };
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(MNEMONIC);
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      vi.mocked(isCounterwalletFormat).mockReturnValue(true);
+      return { wallet, record };
+    }
+
+    beforeEach(() => {
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'none' });
+    });
+
+    it('keeps a funded UTXO address on the record, so it survives the next unlock', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      const added = await walletManager.addUtxoAddress(wallet.id, 1);
+
+      expect(added).toMatchObject({ name: 'UTXO Address 2', path: "m/0'/1/1" });
+      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalled();
+    });
+
+    it('reports an empty change address as nothing found, and keeps nothing', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).resolves.toBeNull();
+      expect(record.extraPaths).toBeUndefined();
+      expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
+    it('refuses to call an unreachable lookup an empty address', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'unavailable' });
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Could not check for a UTXO address'
+      );
+      expect(record.extraPaths).toBeUndefined();
+    });
+
+    it('does not add the same path twice', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      await walletManager.addUtxoAddress(wallet.id, 1);
+      mockDetectUtxoAddress.mockClear();
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(mockDetectUtxoAddress).not.toHaveBeenCalled();
+    });
+
+    it('leaves the sequential run alone when a UTXO address is added', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      // The sequential run is untouched and the UTXO address is appended after it.
+      expect(wallet.addresses).toHaveLength(3);
+      expect(wallet.addresses.at(-1)).toMatchObject({ path: "m/0'/1/1" });
+    });
+
+    it('forgets a kept UTXO address on request', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      await walletManager.removeUtxoAddress(wallet.id, "m/0'/1/1");
+
+      expect(record.extraPaths).toEqual([]);
+      expect(wallet.addresses).toHaveLength(2);
+      expect(wallet.addresses.some((address) => address.path === "m/0'/1/1")).toBe(false);
+    });
+
+    it('turns away formats that cannot have one', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      vi.mocked(isCounterwalletFormat).mockReturnValue(false);
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'UTXO addresses exist only for Counterwallet address formats'
+      );
+    });
+
+    it('turns away private key wallets, which have no branch to look on', async () => {
+      const wallet = createPrivateKeyWallet();
+      walletManager['wallets'] = [wallet];
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Only mnemonic wallets have UTXO addresses'
+      );
     });
   });
 

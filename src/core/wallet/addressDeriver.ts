@@ -13,6 +13,7 @@ import {
   getSeedFromMnemonic,
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
+import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWalletDiscovery';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
@@ -124,10 +125,41 @@ export function deriveAddressFromPrivateKey(privKeyData: string, addressFormat: 
   };
 }
 
+/**
+ * The extra addresses a record asks for, on top of its sequential run.
+ *
+ * Only paths this wallet knows how to name are honoured: a stored string that no longer parses is
+ * dropped rather than derived, since it comes off disk and reaches `HDKey.derive`.
+ */
+function deriveExtraAddresses(
+  root: HDKey,
+  addressFormat: AddressFormat,
+  extraPaths: string[]
+): Address[] {
+  const addresses: Address[] = [];
+  for (const path of extraPaths) {
+    const pairedIndex = parseUtxoAddressPath(path);
+    if (pairedIndex === null) continue;
+    const child = root.derive(path);
+    if (!child.publicKey) continue;
+    addresses.push({
+      // Numbered after the address it is paired with, not its own position in this list.
+      name: `UTXO Address ${pairedIndex + 1}`,
+      path,
+      address: encodeAddress(child.publicKey, addressFormat),
+      pubKey: bytesToHex(child.publicKey),
+    });
+  }
+  return addresses;
+}
+
 /** Derives addresses from a decrypted secret based on wallet type */
 export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
   if (record.type === 'mnemonic') {
-    return deriveMnemonicAddresses(secret, record.addressFormat, record.addressCount || 1);
+    const addresses = deriveMnemonicAddresses(secret, record.addressFormat, record.addressCount || 1);
+    if (!record.extraPaths?.length) return addresses;
+    const root = HDKey.fromMasterSeed(getSeedFromMnemonic(secret, record.addressFormat));
+    return [...addresses, ...deriveExtraAddresses(root, record.addressFormat, record.extraPaths)];
   }
 
   if (record.type === 'hardware') {
