@@ -53,6 +53,8 @@ function ImportMnemonicPage() {
   const [errorDismissed, setErrorDismissed] = useState(false);
   /** What the gift card check made of the phrase currently in the inputs. */
   const [giftCardFinding, setGiftCardFinding] = useState<GiftCardFinding | null>(null);
+  /** Set when the holder says a phrase we read as a card is in fact their own seed. */
+  const [claimedAsOwnPhrase, setClaimedAsOwnPhrase] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
   /**
    * What the user pressed on the gift card prompt, read by the action on the submit that follows.
@@ -82,7 +84,9 @@ function ImportMnemonicPage() {
         return { error: "Invalid recovery phrase. Please check each word carefully." };
       }
 
-      if (!isConfirmed) {
+      // A gift card is not the holder's phrase to have backed up, so nothing is asked of them
+      // about it — the words stay with whoever handed the card over either way.
+      if (!isConfirmed && giftCardChoice !== "gift-card") {
         return { error: "Please confirm you have backed up your recovery phrase." };
       }
 
@@ -162,7 +166,9 @@ function ImportMnemonicPage() {
   const enteredMnemonic = mnemonicWords.join(" ").trim().toLowerCase();
   // Only honour a finding that still describes what is in the inputs.
   const finding = giftCardFinding?.mnemonic === enteredMnemonic ? giftCardFinding : null;
-  const canSubmit = isConfirmed && passwordReady && !isPending;
+  const giftCard = finding?.status === "gift-card" && !claimedAsOwnPhrase ? finding : null;
+  // A card is not the holder's phrase to have saved, so there is nothing to confirm about it.
+  const canSubmit = (isConfirmed || giftCard !== null) && passwordReady && !isPending;
 
   useEffect(() => {
     if (state.error) setErrorDismissed(false);
@@ -231,6 +237,7 @@ function ImportMnemonicPage() {
   function handleWordChange(index: number, value: string) {
     // A finding about the previous phrase says nothing about this one.
     giftCardChoiceRef.current = null;
+    setClaimedAsOwnPhrase(false);
 
     const trimmedValue = value.trim();
     const words = trimmedValue.split(/\s+/);
@@ -341,13 +348,29 @@ function ImportMnemonicPage() {
               })}
             </ol>
           </section>
-          {finding?.status === "gift-card" && (
+          {giftCard && (
             <div className="bg-gray-100 rounded-lg p-4 space-y-2" role="status">
               <p className="text-sm font-medium">This looks like a Rare Pepe Wallet gift card.</p>
               <p className="text-sm text-gray-700">
-                Its balance is on <span className="font-mono">{formatAddress(finding.address)}</span>
-                , the 500th address of this phrase. Importing the card keeps that one address and
-                stores no phrase.
+                Its balance is on{" "}
+                <span className="font-mono">{formatAddress(giftCard.address)}</span>, the 500th
+                address of this phrase. Importing the card keeps that one address and stores no
+                phrase.
+              </p>
+              <p className="text-sm text-gray-700">
+                A card is written to be handed over, so treat these words as known to whoever gave
+                it to you: they can still spend from that address, and any other address on this
+                phrase would be theirs to spend from too. Move anything you want to keep to an
+                address of your own.
+              </p>
+            </div>
+          )}
+          {finding?.status === "gift-card" && claimedAsOwnPhrase && (
+            <div className="bg-gray-100 rounded-lg p-4" role="status">
+              <p className="text-sm text-gray-700">
+                Importing as a wallet. These words match a Rare Pepe Wallet gift card, so if you did
+                not write them down yourself, someone else can spend from every address this wallet
+                derives.
               </p>
             </div>
           )}
@@ -357,14 +380,16 @@ function ImportMnemonicPage() {
               wallet works either way, and a card can be imported later once you're back online.
             </p>
           )}
-          <CheckboxInput
-            name="confirmed"
-            label="I have saved my secret recovery phrase."
-            disabled={!allWordsPopulated || isPending}
-            checked={isConfirmed}
-            onChange={handleCheckboxChange}
-          />
-          {isConfirmed && (
+          {!giftCard && (
+            <CheckboxInput
+              name="confirmed"
+              label="I have saved my secret recovery phrase."
+              disabled={!allWordsPopulated || isPending}
+              checked={isConfirmed}
+              onChange={handleCheckboxChange}
+            />
+          )}
+          {(isConfirmed || giftCard) && (
             <>
               <PasswordInput
                 innerRef={passwordInputRef}
@@ -373,37 +398,28 @@ function ImportMnemonicPage() {
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />
-              {finding?.status === "gift-card" ? (
-                <>
-                  <Button
-                    type="submit"
-                    onClick={() => { giftCardChoiceRef.current = "gift-card"; }}
-                    fullWidth
-                    disabled={!canSubmit}
-                  >
-                    {isPending ? "Importing…" : "Import Gift Card"}
-                  </Button>
-                  <Button
-                    type="submit"
-                    onClick={() => { giftCardChoiceRef.current = "wallet"; }}
-                    color="gray"
-                    fullWidth
-                    disabled={!canSubmit}
-                  >
-                    Import as Wallet Instead
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  type="submit"
-                  onClick={() => { giftCardChoiceRef.current = null; }}
-                  fullWidth
-                  disabled={!canSubmit}
-                >
-                  {isPending ? "Importing…" : "Continue"}
-                </Button>
-              )}
+              <Button
+                type="submit"
+                onClick={() => { giftCardChoiceRef.current = giftCard ? "gift-card" : null; }}
+                fullWidth
+                disabled={!canSubmit}
+              >
+                {isPending ? "Importing…" : giftCard ? "Import Gift Card" : "Continue"}
+              </Button>
             </>
+          )}
+          {giftCard && (
+            <Button
+              type="button"
+              variant="transparent"
+              fullWidth
+              disabled={isPending}
+              onClick={() => setClaimedAsOwnPhrase(true)}
+            >
+              <span className="text-sm text-gray-500 underline">
+                These are my own words, not a gift card
+              </span>
+            </Button>
           )}
         </form>
       </div>

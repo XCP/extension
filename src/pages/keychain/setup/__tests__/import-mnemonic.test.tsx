@@ -67,6 +67,10 @@ function fillPhrase(mnemonic: string) {
 function completeForm(mnemonic = CW_MNEMONIC) {
   fillPhrase(mnemonic);
   fireEvent.click(screen.getByLabelText("I have saved my secret recovery phrase."));
+  enterPassword();
+}
+
+function enterPassword() {
   fireEvent.change(screen.getByPlaceholderText("Confirm your password"), {
     target: { value: PASSWORD },
   });
@@ -154,23 +158,50 @@ describe("ImportMnemonicPage", () => {
       mockDetectGiftCard.mockResolvedValue({ status: "found", value: GIFT_CARD_ADDRESS });
     });
 
-    it("says so before anything is imported, and offers both readings", async () => {
+    it("says so before anything is imported, and does not offer to make a wallet of it", async () => {
       render(<ImportMnemonicPage />);
       completeForm();
 
       expect(await screen.findByText(/Rare Pepe Wallet gift card/)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Import Gift Card" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "Import as Wallet Instead" })).toBeInTheDocument();
+      // The words belong to whoever handed the card over, so a wallet built on them would be
+      // theirs to spend from. That reading is not offered next to the safe one.
+      expect(screen.queryByRole("button", { name: /Import as Wallet/ })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Continue" })).not.toBeInTheDocument();
       expect(mockCreateMnemonicWallet).not.toHaveBeenCalled();
       expect(mockCreatePrivateKeyWallet).not.toHaveBeenCalled();
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it("imports the 500th address as a private key wallet, keeping no phrase", async () => {
+    it("says why the words cannot be treated as the holder's own", async () => {
       render(<ImportMnemonicPage />);
       completeForm();
-      fireEvent.click(await screen.findByRole("button", { name: "Import Gift Card" }));
+
+      expect(await screen.findByText(/can still spend from that address/)).toBeInTheDocument();
+    });
+
+    it("does not ask the holder to confirm they saved a phrase that is not theirs", async () => {
+      render(<ImportMnemonicPage />);
+      fillPhrase(CW_MNEMONIC);
+
+      await screen.findByText(/Rare Pepe Wallet gift card/);
+      expect(
+        screen.queryByLabelText("I have saved my secret recovery phrase.")
+      ).not.toBeInTheDocument();
+
+      // And the import still goes through on the password alone.
+      await screen.findByPlaceholderText("Confirm your password");
+      enterPassword();
+      fireEvent.click(screen.getByRole("button", { name: "Import Gift Card" }));
+      await waitFor(() => expect(mockCreatePrivateKeyWallet).toHaveBeenCalled());
+    });
+
+    it("imports the 500th address as a private key wallet, keeping no phrase", async () => {
+      render(<ImportMnemonicPage />);
+      fillPhrase(CW_MNEMONIC);
+      await screen.findByPlaceholderText("Confirm your password");
+      enterPassword();
+      fireEvent.click(screen.getByRole("button", { name: "Import Gift Card" }));
 
       const expectedKey = getPrivateKeyFromMnemonic(
         CW_MNEMONIC,
@@ -191,10 +222,19 @@ describe("ImportMnemonicPage", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/index");
     });
 
-    it("still lets the phrase be imported as an ordinary wallet", async () => {
+    it("lets someone who wrote the words down themselves import a wallet anyway", async () => {
       render(<ImportMnemonicPage />);
-      completeForm();
-      fireEvent.click(await screen.findByRole("button", { name: "Import as Wallet Instead" }));
+      fillPhrase(CW_MNEMONIC);
+
+      fireEvent.click(
+        await screen.findByRole("button", { name: /These are my own words/ })
+      );
+
+      // Back to the ordinary import, confirmation and all, with the risk spelled out.
+      expect(await screen.findByText(/someone else can spend from every address/)).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText("I have saved my secret recovery phrase."));
+      enterPassword();
+      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
       await waitFor(() => {
         expect(mockCreateMnemonicWallet).toHaveBeenCalledWith(
@@ -209,7 +249,7 @@ describe("ImportMnemonicPage", () => {
 
     it("drops the finding when the phrase is edited", async () => {
       render(<ImportMnemonicPage />);
-      completeForm();
+      fillPhrase(CW_MNEMONIC);
       await screen.findByText(/Rare Pepe Wallet gift card/);
 
       fireEvent.change(screen.getByLabelText("Word 1", { selector: "input" }), {
