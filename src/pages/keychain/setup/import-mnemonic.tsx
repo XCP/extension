@@ -53,8 +53,6 @@ function ImportMnemonicPage() {
   const [errorDismissed, setErrorDismissed] = useState(false);
   /** What the gift card check made of the phrase currently in the inputs. */
   const [giftCardFinding, setGiftCardFinding] = useState<GiftCardFinding | null>(null);
-  /** Set when the holder says a phrase we read as a card is in fact their own seed. */
-  const [claimedAsOwnPhrase, setClaimedAsOwnPhrase] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
   /**
    * What the user pressed on the gift card prompt, read by the action on the submit that follows.
@@ -166,7 +164,7 @@ function ImportMnemonicPage() {
   const enteredMnemonic = mnemonicWords.join(" ").trim().toLowerCase();
   // Only honour a finding that still describes what is in the inputs.
   const finding = giftCardFinding?.mnemonic === enteredMnemonic ? giftCardFinding : null;
-  const giftCard = finding?.status === "gift-card" && !claimedAsOwnPhrase ? finding : null;
+  const giftCard = finding?.status === "gift-card" ? finding : null;
   // A card is not the holder's phrase to have saved, so there is nothing to confirm about it.
   const canSubmit = (isConfirmed || giftCard !== null) && passwordReady && !isPending;
 
@@ -237,7 +235,6 @@ function ImportMnemonicPage() {
   function handleWordChange(index: number, value: string) {
     // A finding about the previous phrase says nothing about this one.
     giftCardChoiceRef.current = null;
-    setClaimedAsOwnPhrase(false);
 
     const trimmedValue = value.trim();
     const words = trimmedValue.split(/\s+/);
@@ -359,18 +356,9 @@ function ImportMnemonicPage() {
               </p>
               <p className="text-sm text-gray-700">
                 A card is written to be handed over, so treat these words as known to whoever gave
-                it to you: they can still spend from that address, and any other address on this
-                phrase would be theirs to spend from too. Move anything you want to keep to an
-                address of your own.
-              </p>
-            </div>
-          )}
-          {finding?.status === "gift-card" && claimedAsOwnPhrase && (
-            <div className="bg-gray-100 rounded-lg p-4" role="status">
-              <p className="text-sm text-gray-700">
-                Importing as a wallet. These words match a Rare Pepe Wallet gift card, so if you did
-                not write them down yourself, someone else can spend from every address this wallet
-                derives.
+                it to you. That is why they are not imported as a wallet: every address derived
+                from them would be theirs to spend from as well. They can also still spend from
+                the card itself, so move anything you want to keep to an address of your own.
               </p>
             </div>
           )}
@@ -407,19 +395,6 @@ function ImportMnemonicPage() {
                 {isPending ? "Importing…" : giftCard ? "Import Gift Card" : "Continue"}
               </Button>
             </>
-          )}
-          {giftCard && (
-            <Button
-              type="button"
-              variant="transparent"
-              fullWidth
-              disabled={isPending}
-              onClick={() => setClaimedAsOwnPhrase(true)}
-            >
-              <span className="text-sm text-gray-500 underline">
-                These are my own words, not a gift card
-              </span>
-            </Button>
           )}
         </form>
       </div>

@@ -160,7 +160,7 @@ describe("ImportMnemonicPage", () => {
 
     it("says so before anything is imported, and does not offer to make a wallet of it", async () => {
       render(<ImportMnemonicPage />);
-      completeForm();
+      fillPhrase(CW_MNEMONIC);
 
       expect(await screen.findByText(/Rare Pepe Wallet gift card/)).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Import Gift Card" })).toBeInTheDocument();
@@ -173,11 +173,13 @@ describe("ImportMnemonicPage", () => {
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it("says why the words cannot be treated as the holder's own", async () => {
+    it("warns that the card's own address is not private either", async () => {
       render(<ImportMnemonicPage />);
-      completeForm();
+      fillPhrase(CW_MNEMONIC);
 
-      expect(await screen.findByText(/can still spend from that address/)).toBeInTheDocument();
+      expect(
+        await screen.findByText(/still spend from the card itself/)
+      ).toBeInTheDocument();
     });
 
     it("does not ask the holder to confirm they saved a phrase that is not theirs", async () => {
@@ -222,29 +224,29 @@ describe("ImportMnemonicPage", () => {
       expect(mockNavigate).toHaveBeenCalledWith("/index");
     });
 
-    it("lets someone who wrote the words down themselves import a wallet anyway", async () => {
+    it("offers no way at all to import the phrase as a wallet", async () => {
+      render(<ImportMnemonicPage />);
+      fillPhrase(CW_MNEMONIC);
+      await screen.findByText(/Rare Pepe Wallet gift card/);
+
+      // Not as a button, not as an opt-out, not behind the backup confirmation. The words belong
+      // to whoever handed the card over, so every address a wallet derived from them would be
+      // theirs to spend from.
+      expect(screen.queryByRole("button", { name: /wallet/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /my own words/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByLabelText("I have saved my secret recovery phrase.")
+      ).not.toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: "Import Gift Card" })).toHaveLength(1);
+    });
+
+    it("says why there is nothing to choose", async () => {
       render(<ImportMnemonicPage />);
       fillPhrase(CW_MNEMONIC);
 
-      fireEvent.click(
-        await screen.findByRole("button", { name: /These are my own words/ })
-      );
-
-      // Back to the ordinary import, confirmation and all, with the risk spelled out.
-      expect(await screen.findByText(/someone else can spend from every address/)).toBeInTheDocument();
-      fireEvent.click(screen.getByLabelText("I have saved my secret recovery phrase."));
-      enterPassword();
-      fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-
-      await waitFor(() => {
-        expect(mockCreateMnemonicWallet).toHaveBeenCalledWith(
-          CW_MNEMONIC,
-          PASSWORD,
-          undefined,
-          AddressFormat.Counterwallet
-        );
-      });
-      expect(mockCreatePrivateKeyWallet).not.toHaveBeenCalled();
+      expect(
+        await screen.findByText(/not imported as a wallet/)
+      ).toBeInTheDocument();
     });
 
     it("drops the finding when the phrase is edited", async () => {
