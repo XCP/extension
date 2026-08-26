@@ -218,53 +218,54 @@ export async function getXcpPriceHistory(): Promise<XcpPriceHistoryData> {
   };
 }
 
-// Future: Add more XCP price sources here if needed
-const xcpPriceFetchers = [
-  fetchFromXCPIO,
-  // fetchFromDexTrade requires BTC price, so it's handled separately in getXCPPrice
-];
+// Future: Add more XCP price sources here if needed. Order is preference order.
+const xcpPriceFetchers = [fetchFromXCPIO];
 
 /**
- * Fetches XCP price from available APIs, returning the first successful result.
- * Includes fallback to dex-trade.com using BTC price conversion.
- * @param {number | null} btcPriceUsd - Optional BTC price for dex-trade fallback.
- * @returns {Promise<number | null>} XCP price in USD or null if all fail.
+ * XCP price in USD, from the first source that answers with a usable quote.
+ *
+ * Tried IN ORDER, and that ordering is the point. This used to race every
+ * source with Promise.any, which resolves with the first to FULFIL rather than
+ * the first in the list — so the Dex-Trade leg, described here as a fallback,
+ * won whenever it answered before xcp.io. Non-deterministic by construction,
+ * and it silently swapped the source of a price the user is shown.
+ *
+ * The two do not agree, so which one wins matters. xcp.io's ticker prices XCP
+ * from executions on its own chain — dispenser fills and DEX order matches,
+ * the venues where XCP actually changes hands. Dex-Trade is a single exchange
+ * whose XCP/BTC pair has cleared no meaningful volume in months, and it has
+ * been printing on the order of a third below the chain. Racing them meant the
+ * extension showed one number or the other depending on which host was quicker
+ * to respond, which reads to a user as the price flickering.
+ *
+ * Dex-Trade stays as a genuine last resort, reached only if every canonical
+ * source has failed, because a stale cross-rate beats no price at all. It
+ * needs BTC/USD to convert its XCP/BTC quote, so it is skipped without one.
  */
 export async function getXCPPrice(
   btcPriceUsd?: number | null,
 ): Promise<number | null> {
-  // First try direct USD fetchers
-  const directFetcherPromises = xcpPriceFetchers.map(async (fetcher) => {
-    const data = await fetcher();
-    const price = data.xcp?.usd;
-    if (typeof price !== "number" || Number.isNaN(price)) {
-      throw new DataFetchError(
-        `${fetcher.name} returned invalid XCP price`,
-        "xcp-price",
-      );
+  const usable = (price: unknown): price is number =>
+    typeof price === "number" && Number.isFinite(price) && price > 0;
+
+  for (const fetcher of xcpPriceFetchers) {
+    try {
+      const { xcp } = await fetcher();
+      if (usable(xcp?.usd)) return xcp.usd;
+    } catch {
+      // Fall through to the next source; a failure here is not the answer.
     }
-    return price;
-  });
-
-  // If BTC price is available, add dex-trade as fallback
-  if (btcPriceUsd && typeof btcPriceUsd === "number") {
-    const dexTradePromise = (async () => {
-      const data = await fetchFromDexTrade(btcPriceUsd);
-      const price = data.xcp?.usd;
-      if (typeof price !== "number" || Number.isNaN(price)) {
-        throw new DataFetchError(
-          "fetchFromDexTrade returned invalid XCP price",
-          "dex-trade.com",
-        );
-      }
-      return price;
-    })();
-
-    directFetcherPromises.push(dexTradePromise);
   }
 
-  return Promise.any(directFetcherPromises).catch(() => {
-    console.error("All XCP price fetchers failed");
-    return null;
-  });
+  if (usable(btcPriceUsd)) {
+    try {
+      const { xcp } = await fetchFromDexTrade(btcPriceUsd);
+      if (usable(xcp?.usd)) return xcp.usd;
+    } catch {
+      // Nothing left to try.
+    }
+  }
+
+  console.error("All XCP price fetchers failed");
+  return null;
 }
