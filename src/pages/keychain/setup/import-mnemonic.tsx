@@ -37,7 +37,13 @@ type GiftCardFinding =
 function ImportMnemonicPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { keychainExists, createMnemonicWallet, createPrivateKeyWallet, verifyPassword } = useWallet();
+  const {
+    keychainExists,
+    createMnemonicWallet,
+    createPrivateKeyWallet,
+    sweepUtxoAddresses,
+    verifyPassword,
+  } = useWallet();
 
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(""));
@@ -128,8 +134,19 @@ function ImportMnemonicPage() {
           }
         }
 
-        await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
+        const wallet = await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         analytics.track('wallet_imported');
+        // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
+        // change address of the address it starts with. One lookup, before the wallet is first
+        // shown, so they are simply there rather than waiting to be hunted for.
+        //
+        // Contained: the wallet already exists by this point, so letting an opportunistic extra
+        // throw would report a completed import as a failure and strand the user on this form.
+        try {
+          await sweepUtxoAddresses(wallet.id);
+        } catch (sweepError) {
+          console.warn("UTXO address lookup failed after import:", sweepError);
+        }
         navigate(PATHS.SUCCESS);
         return { error: null };
       } catch (error: unknown) {

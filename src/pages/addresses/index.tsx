@@ -46,6 +46,7 @@ export default function AddressesPage(): ReactElement {
     addAddress,
     addUtxoAddress,
     removeUtxoAddress,
+    sweepUtxoAddresses,
     keychainLocked,
   } = useWallet();
   const [error, setError] = useState<string | null>(null);
@@ -76,15 +77,34 @@ export default function AddressesPage(): ReactElement {
         return;
       }
       setIsAddingAddress(true);
-      await addAddress(activeWallet.id);
+      const added = await addAddress(activeWallet.id);
       setError(null);
+
+      // Adding an address to a restored Counterwallet seed recovers one that may already have
+      // been used, so its change address may already hold assets. Checked here, where the address
+      // first appears, and never again — a later pass would re-ask about an empty one forever.
+      // Contained: the address is already added, so an opportunistic extra must not be able to
+      // report it as failed.
+      if (canHaveUtxoAddresses) {
+        const index = Number(added.path.split("/").at(-1));
+        if (Number.isSafeInteger(index) && index >= 0) {
+          try {
+            const found = await sweepUtxoAddresses(activeWallet.id, [index]);
+            if (found.length > 0) {
+              setNotice(`Found ${found[0]?.name}, now listed below.`);
+            }
+          } catch (sweepError) {
+            console.warn("UTXO address lookup failed after adding an address:", sweepError);
+          }
+        }
+      }
     } catch (err) {
       console.error("Failed to add address:", err);
       setError("Failed to add address. Please try again.");
     } finally {
       setIsAddingAddress(false);
     }
-  }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress]);
+  }, [activeWallet, keychainLocked, addAddress, navigate, isAddingAddress, canHaveUtxoAddresses, sweepUtxoAddresses]);
 
   /**
    * Looks for the Rare Pepe Wallet UTXO address paired with one of this wallet's addresses.

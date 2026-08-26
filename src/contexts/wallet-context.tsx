@@ -193,6 +193,8 @@ interface WalletContextType {
   addUtxoAddress: (walletId: string, index: number) => Promise<Address | null>;
   /** Stop listing a kept UTXO address */
   removeUtxoAddress: (walletId: string, path: string) => Promise<void>;
+  /** Best-effort lookup for UTXO addresses, run where an address first enters the wallet */
+  sweepUtxoAddresses: (walletId: string, indexes?: number[]) => Promise<Address[]>;
   /** Change wallet's address format (P2PKH, P2WPKH, P2TR, etc.) */
   updateWalletAddressFormat: (walletId: string, newType: AddressFormat) => Promise<void>;
   /** Preview what address would be generated for a format */
@@ -601,6 +603,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     addAddress: withRefresh(walletService.addAddress, refreshWalletState),
     addUtxoAddress: withRefresh(walletService.addUtxoAddress, refreshWalletState),
     removeUtxoAddress: withRefresh(walletService.removeUtxoAddress, refreshWalletState),
+    sweepUtxoAddresses: withRefresh(walletService.sweepUtxoAddresses, refreshWalletState),
     updatePassword: withRefresh(walletService.updatePassword, refreshWalletState),
     createMnemonicWallet: withRefresh(walletService.createMnemonicWallet, async () => {
       await refreshWalletState();

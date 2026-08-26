@@ -350,6 +350,66 @@ describe('WalletManager', () => {
       expect(wallet.addresses.some((address) => address.path === "m/0'/1/1")).toBe(false);
     });
 
+    it('sweeps every address in one pass, writing the keychain once', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      const found = await walletManager.sweepUtxoAddresses(wallet.id);
+
+      expect(found).toHaveLength(2);
+      expect(record.extraPaths).toEqual(["m/0'/1/0", "m/0'/1/1"]);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(2);
+      // One persist for the pass, not one per address.
+      expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalledTimes(1);
+    });
+
+    it('checks only the indexes it is given', async () => {
+      const { wallet } = setupCounterwalletWallet();
+
+      await walletManager.sweepUtxoAddresses(wallet.id, [1]);
+
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(1);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledWith(expect.anything(), expect.anything(), 1);
+    });
+
+    it('does not re-ask about an address it already keeps', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+      await walletManager.sweepUtxoAddresses(wallet.id, [0]);
+      mockDetectUtxoAddress.mockClear();
+
+      await walletManager.sweepUtxoAddresses(wallet.id, [0, 1]);
+
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(1);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledWith(expect.anything(), expect.anything(), 1);
+    });
+
+    it('writes nothing and stays quiet when a sweep finds nothing', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      expect(record.extraPaths).toBeUndefined();
+      expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
+    it('swallows an unreachable sweep, unlike the deliberate check', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'unavailable' });
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Could not check for a UTXO address'
+      );
+    });
+
+    it('sweeps nothing for a wallet that cannot have one, rather than throwing', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      vi.mocked(isCounterwalletFormat).mockReturnValue(false);
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      expect(mockDetectUtxoAddress).not.toHaveBeenCalled();
+    });
+
     it('turns away formats that cannot have one', async () => {
       const { wallet } = setupCounterwalletWallet();
       vi.mocked(isCounterwalletFormat).mockReturnValue(false);

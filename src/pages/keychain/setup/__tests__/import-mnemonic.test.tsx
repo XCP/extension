@@ -12,6 +12,7 @@ const mockCreateMnemonicWallet = vi.fn();
 const mockCreatePrivateKeyWallet = vi.fn();
 const mockVerifyPassword = vi.fn();
 const mockDetectGiftCard = vi.fn();
+const mockSweepUtxoAddresses = vi.fn();
 const mockDetectAddressFormat = vi.fn();
 
 vi.mock("react-router", () => ({
@@ -27,6 +28,7 @@ vi.mock("@/contexts/wallet-context", () => ({
     keychainExists: true,
     createMnemonicWallet: mockCreateMnemonicWallet,
     createPrivateKeyWallet: mockCreatePrivateKeyWallet,
+    sweepUtxoAddresses: mockSweepUtxoAddresses,
     verifyPassword: mockVerifyPassword,
   }),
 }));
@@ -74,7 +76,8 @@ describe("ImportMnemonicPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockVerifyPassword.mockResolvedValue(true);
-    mockCreateMnemonicWallet.mockResolvedValue({});
+    mockCreateMnemonicWallet.mockResolvedValue({ id: "wallet-1" });
+    mockSweepUtxoAddresses.mockResolvedValue([]);
     mockCreatePrivateKeyWallet.mockResolvedValue({});
     mockDetectGiftCard.mockResolvedValue({ status: "none" });
     mockDetectAddressFormat.mockResolvedValue(AddressFormat.P2TR);
@@ -113,6 +116,28 @@ describe("ImportMnemonicPage", () => {
     expect(mockDetectGiftCard).toHaveBeenCalledWith(
       CW_MNEMONIC.split(" ").slice(0, 11).concat("there").join(" ")
     );
+  });
+
+  it("looks for UTXO addresses on the wallet it just made, before showing it", async () => {
+    render(<ImportMnemonicPage />);
+    completeForm();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(mockSweepUtxoAddresses).toHaveBeenCalledWith("wallet-1"));
+    // The wallet is only shown once the lookup has had its say, so anything found is already
+    // listed rather than appearing a moment later.
+    expect(mockSweepUtxoAddresses).toHaveBeenCalledBefore(mockNavigate);
+  });
+
+  it("does not report a finished import as failed when the UTXO lookup throws", async () => {
+    mockSweepUtxoAddresses.mockRejectedValue(new Error("network down"));
+    render(<ImportMnemonicPage />);
+    completeForm();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    // The wallet was created before the lookup ran, so the import has succeeded either way.
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/index"));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("never runs the gift card check on a BIP39 phrase", async () => {

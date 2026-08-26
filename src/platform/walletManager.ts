@@ -26,7 +26,7 @@ import {
   getPairedAddressFormats,
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
-import { detectUtxoAddress, isUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
@@ -1170,13 +1170,18 @@ export class WalletManager {
   }
 
   /**
-   * Looks for a funded Rare Pepe Wallet UTXO address paired with `index`, and keeps it if found.
+   * Looks for funded Rare Pepe Wallet UTXO addresses paired with the given address indexes.
    *
-   * Returns the address, or null when the change address is empty — which is the ordinary answer,
-   * since only someone who used Rare Pepe Wallet's UTXO-attached assets has one. Throws when the
-   * lookup could not be made, so an outage is never reported as "you don't have one".
+   * One pass: the lookups run together and anything found is written once, so a caller never pays
+   * a persist per index. Indexes already kept are skipped, which is what keeps the automatic
+   * callers honest — each address is checked exactly once, when it first appears, and no later
+   * pass re-asks about an index that came back empty.
    */
-  public async addUtxoAddress(walletId: string, index: number): Promise<Address | null> {
+  private async findUtxoAddresses(
+    walletId: string,
+    indexes: number[],
+    onUnavailable: 'throw' | 'ignore'
+  ): Promise<Address[]> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found');
     if (wallet.type !== 'mnemonic') {
@@ -1191,27 +1196,78 @@ export class WalletManager {
       throw new Error('Wallet is locked. Please unlock first.');
     }
 
-    const path = utxoAddressPath(index);
-    if (wallet.extraPaths?.includes(path)) {
-      return wallet.addresses.find((address) => address.path === path) ?? null;
+    const kept = new Set(wallet.extraPaths ?? []);
+    const pending = [...new Set(indexes)]
+      .map((index) => utxoAddressPath(index))
+      .filter((path) => !kept.has(path));
+    if (pending.length === 0) {
+      return wallet.addresses.filter((address) => kept.has(address.path));
     }
 
-    const found = await detectUtxoAddress(mnemonic, wallet.addressFormat, index);
-    if (found.status === 'unavailable') {
+    const results = await Promise.all(
+      pending.map(async (path) => ({
+        path,
+        result: await detectUtxoAddress(
+          mnemonic,
+          wallet.addressFormat,
+          parseUtxoAddressPath(path) as number
+        ),
+      }))
+    );
+
+    if (onUnavailable === 'throw' && results.some(({ result }) => result.status === 'unavailable')) {
       throw new Error('Could not check for a UTXO address. Please try again.');
     }
-    if (found.status === 'none') return null;
+
+    const discovered = results
+      .filter(({ result }) => result.status === 'found')
+      .map(({ path }) => path);
+    if (discovered.length === 0) return [];
 
     if (!this.keychain) throw new Error('Keychain not loaded');
     const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
     if (!keychainRecord) throw new Error('Missing keychain record.');
 
-    keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), path];
+    keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), ...discovered];
     wallet.extraPaths = keychainRecord.extraPaths;
     wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
     await this.persistKeychain();
 
-    return wallet.addresses.find((address) => address.path === path) ?? null;
+    return wallet.addresses.filter((address) => discovered.includes(address.path));
+  }
+
+  /**
+   * Looks for a funded Rare Pepe Wallet UTXO address paired with `index`, and keeps it if found.
+   *
+   * Returns the address, or null when the change address is empty — which is the ordinary answer,
+   * since only someone who used Rare Pepe Wallet's UTXO-attached assets has one. Throws when the
+   * lookup could not be made, so an outage is never reported as "you don't have one".
+   */
+  public async addUtxoAddress(walletId: string, index: number): Promise<Address | null> {
+    const found = await this.findUtxoAddresses(walletId, [index], 'throw');
+    return found[0] ?? null;
+  }
+
+  /**
+   * The same lookup, run for a wallet's addresses without being asked and without complaining.
+   *
+   * Called where an address first enters the wallet, so the automatic cost is one lookup per
+   * address ever created and never a repeat. Silent by design: nothing was asked for, so an
+   * unreachable API means only that nothing was found this time, and the address menu keeps the
+   * deliberate check that does report an outage.
+   */
+  public async sweepUtxoAddresses(walletId: string, indexes?: number[]): Promise<Address[]> {
+    const wallet = this.getWalletById(walletId);
+    if (!wallet || wallet.type !== 'mnemonic') return [];
+    if (!isCounterwalletFormat(wallet.addressFormat)) return [];
+
+    const targets = indexes ?? Array.from({ length: wallet.addressCount }, (_, index) => index);
+    try {
+      return await this.findUtxoAddresses(walletId, targets, 'ignore');
+    } catch (error) {
+      console.warn('UTXO address sweep failed:', error);
+      return [];
+    }
   }
 
   /** Drops a kept UTXO address. The funds are unaffected; only the listing forgets it. */
