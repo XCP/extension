@@ -42,11 +42,15 @@ describe("XCP price source preference", () => {
     tickerDelayMs?: number;
   }) =>
     vi.fn(async (url: string) => {
-      if (url.startsWith("https://api.xcp.io")) {
+      // Dispatch on the exact host. A startsWith on the origin would also match
+      // api.xcp.io.example.com, which is both wrong and what CodeQL's
+      // incomplete-url-substring-sanitization rule exists to catch.
+      const { host } = new URL(url);
+      if (host === "api.xcp.io") {
         await new Promise((resolve) => setTimeout(resolve, tickerDelayMs));
         return ticker();
       }
-      if (url.startsWith("https://api.dex-trade.com")) return dexTrade();
+      if (host === "api.dex-trade.com") return dexTrade();
       throw new Error(`unexpected fetch: ${url}`);
     });
 
