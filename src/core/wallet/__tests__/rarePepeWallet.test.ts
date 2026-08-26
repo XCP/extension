@@ -41,10 +41,10 @@ describe('rarePepeWallet', () => {
   });
 
   describe('paths', () => {
-    it('puts a gift card on the 500th legacy address', () => {
-      // Addresses display from one, so the 500th is index 499.
-      expect(GIFT_CARD_ADDRESS_INDEX).toBe(499);
-      expect(GIFT_CARD_PATH).toBe("m/0'/0/499");
+    it("puts a gift card at m/0'/0/500, as the generator writes it", () => {
+      // The 500 is the BIP-32 index, not an ordinal — this wallet shows it as Address 501.
+      expect(GIFT_CARD_ADDRESS_INDEX).toBe(500);
+      expect(GIFT_CARD_PATH).toBe("m/0'/0/500");
     });
 
     it('pairs a UTXO address with its receive address on the change branch', () => {
@@ -69,7 +69,7 @@ describe('rarePepeWallet', () => {
   });
 
   describe('detectGiftCard', () => {
-    it('finds a card when only the 500th address is funded', async () => {
+    it('finds a card when only the gift card address is funded', async () => {
       respond({ [GIFT_CARD_ADDRESS]: { active: true } });
 
       await expect(detectGiftCard(MNEMONIC)).resolves.toEqual({

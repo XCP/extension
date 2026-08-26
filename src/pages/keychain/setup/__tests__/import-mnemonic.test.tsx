@@ -198,7 +198,7 @@ describe("ImportMnemonicPage", () => {
       await waitFor(() => expect(mockCreatePrivateKeyWallet).toHaveBeenCalled());
     });
 
-    it("imports the 500th address as a private key wallet, keeping no phrase", async () => {
+    it("imports the gift card address as a private key wallet, keeping no phrase", async () => {
       render(<ImportMnemonicPage />);
       fillPhrase(CW_MNEMONIC);
       await screen.findByPlaceholderText("Confirm your password");

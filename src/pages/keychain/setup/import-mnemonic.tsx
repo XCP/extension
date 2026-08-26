@@ -350,9 +350,10 @@ function ImportMnemonicPage() {
               <p className="text-sm font-medium">This looks like a Rare Pepe Wallet gift card.</p>
               <p className="text-sm text-gray-700">
                 Its balance is on{" "}
-                <span className="font-mono">{formatAddress(giftCard.address)}</span>, the 500th
-                address of this phrase. Importing the card keeps that one address and stores no
-                phrase.
+                <span className="font-mono">{formatAddress(giftCard.address)}</span>, at{" "}
+                <span className="font-mono">{GIFT_CARD_PATH}</span> — an address no wallet built on
+                this phrase would ever show you. Importing the card keeps that one address and
+                stores no phrase.
               </p>
               <p className="text-sm text-gray-700">
                 A card is written to be handed over, so treat these words as known to whoever gave

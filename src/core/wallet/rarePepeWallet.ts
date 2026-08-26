@@ -5,8 +5,8 @@
  * address format (see `getDerivationPathForAddressFormat`), and only the trailing index varies.
  * Rare Pepe Wallet put two things outside it, both unreachable from this wallet as a result:
  *
- * - **Gift cards**, which fund the 500th legacy address of an otherwise unused seed, and nothing
- *   else.
+ * - **Gift cards**, which fund one legacy address of an otherwise unused seed, at m/0'/0/500, and
+ *   nothing else.
  * - **UTXO-attached assets**, which it parks on the change address paired with whichever address
  *   you were using.
  *
@@ -31,12 +31,15 @@ const CHANGE_BRANCH = 1;
 const UTXO_PATH_PATTERN = new RegExp(String.raw`^m/0'/${CHANGE_BRANCH}/(\d+)$`);
 
 /**
- * Rare Pepe Wallet gift cards always carry their balance on the 500th legacy address of the seed.
+ * Rare Pepe Wallet gift cards always carry their balance at `m/0'/0/500`, confirmed against the
+ * generator rather than inferred.
  *
- * Addresses are numbered from one for display (`Address 1` is index 0, see `addressAtIndex`), so
- * the 500th is index 499.
+ * The trailing 500 is the BIP-32 index, not an ordinal. This wallet displays addresses numbered
+ * from one (`Address 1` is index 0, see `addressAtIndex`), so a card shows up as Address 501 —
+ * worth keeping straight, because reading it as "the 500th address" lands on index 499 and finds
+ * an empty address with nothing to report.
  */
-export const GIFT_CARD_ADDRESS_INDEX = 499;
+export const GIFT_CARD_ADDRESS_INDEX = 500;
 
 /** The one path a gift card's funds can be on. */
 export const GIFT_CARD_PATH = `m/0'/${RECEIVE_BRANCH}/${GIFT_CARD_ADDRESS_INDEX}`;
