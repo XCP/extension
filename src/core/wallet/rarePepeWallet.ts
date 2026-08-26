@@ -27,6 +27,9 @@ const RECEIVE_BRANCH = 0;
 /** The change branch, where Rare Pepe Wallet attaches UTXO assets. */
 const CHANGE_BRANCH = 1;
 
+/** The one path shape a kept UTXO address may have. Anything else is not ours to derive. */
+const UTXO_PATH_PATTERN = new RegExp(String.raw`^m/0'/${CHANGE_BRANCH}/(\d+)$`);
+
 /**
  * Rare Pepe Wallet gift cards always carry their balance on the 500th legacy address of the seed.
  *
@@ -53,7 +56,7 @@ export function utxoAddressPath(index: number): string {
  * from reaching `HDKey.derive` unchecked.
  */
 export function parseUtxoAddressPath(path: string): number | null {
-  const match = /^m\/0'\/1\/(\d+)$/.exec(path);
+  const match = UTXO_PATH_PATTERN.exec(path);
   if (!match) return null;
   const index = Number(match[1]);
   return Number.isSafeInteger(index) && index >= 0 ? index : null;
@@ -65,7 +68,7 @@ export function isUtxoAddressPath(path: string): boolean {
 }
 
 /** What a lookup found, or why it could not say. */
-export type DiscoveryResult<T> =
+export type DetectionResult<T> =
   | { status: 'found'; value: T }
   | { status: 'none' }
   | { status: 'unavailable' };
@@ -77,7 +80,7 @@ export type DiscoveryResult<T> =
  * funded gift card address is an unambiguous signature. Checking the first address first also
  * keeps this from hijacking a real wallet that happens to have reached 500 addresses.
  */
-export async function detectGiftCard(mnemonic: string): Promise<DiscoveryResult<string>> {
+export async function detectGiftCard(mnemonic: string): Promise<DetectionResult<string>> {
   const firstAddress = getAddressFromMnemonic(mnemonic, `m/0'/${RECEIVE_BRANCH}/0`, AddressFormat.Counterwallet);
   const first = await probeAddressActivity(firstAddress);
   if (!first.reachable) return { status: 'unavailable' };
@@ -99,7 +102,7 @@ export async function detectUtxoAddress(
   mnemonic: string,
   addressFormat: AddressFormat,
   index: number
-): Promise<DiscoveryResult<string>> {
+): Promise<DetectionResult<string>> {
   if (!isCounterwalletFormat(addressFormat)) return { status: 'none' };
 
   const address = getAddressFromMnemonic(mnemonic, utxoAddressPath(index), addressFormat);

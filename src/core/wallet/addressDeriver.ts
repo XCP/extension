@@ -13,7 +13,7 @@ import {
   getSeedFromMnemonic,
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
-import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWalletDiscovery';
+import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
@@ -109,7 +109,16 @@ export function deriveMnemonicAddresses(
   count: number
 ): Address[] {
   if (count <= 0) return [];
-  const root = HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
+  return sequentialAddresses(hdRootFor(mnemonic, addressFormat), addressFormat, count);
+}
+
+/** The master key for a mnemonic under a format. The expensive step; derive it once per batch. */
+function hdRootFor(mnemonic: string, addressFormat: AddressFormat): HDKey {
+  return HDKey.fromMasterSeed(getSeedFromMnemonic(mnemonic, addressFormat));
+}
+
+/** The wallet's ordinary run of addresses, indexes 0 through count - 1. */
+function sequentialAddresses(root: HDKey, addressFormat: AddressFormat, count: number): Address[] {
   return Array.from({ length: count }, (_, index) => addressAtIndex(root, addressFormat, index));
 }
 
@@ -156,9 +165,11 @@ function deriveExtraAddresses(
 /** Derives addresses from a decrypted secret based on wallet type */
 export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
   if (record.type === 'mnemonic') {
-    const addresses = deriveMnemonicAddresses(secret, record.addressFormat, record.addressCount || 1);
+    // One master key for both runs. Deriving it again for the extras would pay the seed cost
+    // twice on every unlock — the exact expense `deriveMnemonicAddresses` exists to avoid.
+    const root = hdRootFor(secret, record.addressFormat);
+    const addresses = sequentialAddresses(root, record.addressFormat, record.addressCount || 1);
     if (!record.extraPaths?.length) return addresses;
-    const root = HDKey.fromMasterSeed(getSeedFromMnemonic(secret, record.addressFormat));
     return [...addresses, ...deriveExtraAddresses(root, record.addressFormat, record.extraPaths)];
   }
 

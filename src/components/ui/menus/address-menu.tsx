@@ -1,10 +1,10 @@
 import { MenuItem } from '@headlessui/react';
 import { type ReactElement, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { FaCopy, GiBroom, HiDotsHorizontal, LuArrowDownUp, VscKey } from '@/components/icons';
+import { FaCopy, FaSearch, FiMinus, GiBroom, HiDotsHorizontal, VscKey } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { BaseMenu } from '@/components/ui/menus/base-menu';
-import { isUtxoAddressPath } from '@/core/wallet/rarePepeWalletDiscovery';
+import { isUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address } from '@/types/wallet';
 
 /**
@@ -96,7 +96,7 @@ export function AddressMenu({
                 fullWidth
                 onClick={() => onRemoveUtxoAddress(address)}
               >
-                <LuArrowDownUp className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+                <FiMinus className="mr-3 size-4 text-gray-600" aria-hidden="true" />
                 Remove UTXO Address
               </Button>
             </MenuItem>
@@ -108,7 +108,7 @@ export function AddressMenu({
                 fullWidth
                 onClick={() => onFindUtxoAddress(address)}
               >
-                <LuArrowDownUp className="mr-3 size-4 text-gray-600" aria-hidden="true" />
+                <FaSearch className="mr-3 size-4 text-gray-600" aria-hidden="true" />
                 Find UTXO Address
               </Button>
             </MenuItem>

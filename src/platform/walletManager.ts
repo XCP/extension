@@ -26,7 +26,7 @@ import {
   getPairedAddressFormats,
 } from '@/core/wallet/addressDeriver';
 import { decryptKeychain, encryptKeychainRecord, KEYCHAIN_VERSION } from '@/core/wallet/keychainCrypto';
-import { detectUtxoAddress, isUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWalletDiscovery';
+import { detectUtxoAddress, isUtxoAddressPath, utxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';

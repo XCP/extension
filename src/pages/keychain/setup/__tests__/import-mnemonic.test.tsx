@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AddressFormat } from "@/core/bitcoin/address";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
-import { GIFT_CARD_PATH } from "@/core/wallet/rarePepeWalletDiscovery";
+import { GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
 import { analytics } from "@/platform/fathom";
 import ImportMnemonicPage from "../import-mnemonic";
 
@@ -36,8 +36,8 @@ vi.mock("@/core/bitcoin/address", async (importOriginal) => ({
   detectAddressFormat: (mnemonic: string) => mockDetectAddressFormat(mnemonic),
 }));
 
-vi.mock("@/core/wallet/rarePepeWalletDiscovery", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/core/wallet/rarePepeWalletDiscovery")>()),
+vi.mock("@/core/wallet/rarePepeWallet", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/wallet/rarePepeWallet")>()),
   detectGiftCard: (mnemonic: string) => mockDetectGiftCard(mnemonic),
 }));
 
@@ -95,6 +95,24 @@ describe("ImportMnemonicPage", () => {
     });
     expect(screen.queryByText(/Rare Pepe Wallet gift card/)).not.toBeInTheDocument();
     expect(mockNavigate).toHaveBeenCalledWith("/index");
+  });
+
+  it("spends one check on a phrase, not one per keystroke", async () => {
+    render(<ImportMnemonicPage />);
+    fillPhrase(CW_MNEMONIC);
+
+    // "them" and "then" are both on the Counterwallet wordlist, so typing towards "there" passes
+    // through complete, checkable phrases the user has not finished writing.
+    const lastWord = screen.getByLabelText("Word 12", { selector: "input" });
+    for (const value of ["them", "then", "there"]) {
+      fireEvent.change(lastWord, { target: { value } });
+    }
+
+    await waitFor(() => expect(mockDetectGiftCard).toHaveBeenCalled());
+    expect(mockDetectGiftCard).toHaveBeenCalledTimes(1);
+    expect(mockDetectGiftCard).toHaveBeenCalledWith(
+      CW_MNEMONIC.split(" ").slice(0, 11).concat("there").join(" ")
+    );
   });
 
   it("never runs the gift card check on a BIP39 phrase", async () => {

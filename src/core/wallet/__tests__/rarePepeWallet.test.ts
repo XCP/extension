@@ -8,7 +8,7 @@ import {
   isUtxoAddressPath,
   parseUtxoAddressPath,
   utxoAddressPath,
-} from '../rarePepeWalletDiscovery';
+} from '../rarePepeWallet';
 
 const { probeAddressActivity } = vi.hoisted(() => ({ probeAddressActivity: vi.fn() }));
 
@@ -35,7 +35,7 @@ function respond(byAddress: Record<string, { active?: boolean; reachable?: boole
   }));
 }
 
-describe('rarePepeWalletDiscovery', () => {
+describe('rarePepeWallet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });

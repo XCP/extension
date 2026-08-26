@@ -15,8 +15,11 @@ import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { formatAddress } from "@/core/format";
-import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWalletDiscovery";
+import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWallet";
 import { analytics } from "@/platform/fathom";
+
+/** How long the phrase must hold still before it is worth spending lookups on. */
+const GIFT_CARD_CHECK_DELAY_MS = 400;
 
 /** What to do with a Counterwallet phrase once the gift card check has spoken. */
 type GiftCardChoice = "gift-card" | "wallet";
@@ -177,24 +180,34 @@ function ImportMnemonicPage() {
     if (validateMnemonic(enteredMnemonic, wordlist)) return;
 
     let current = true;
-    detectGiftCard(enteredMnemonic)
-      .then((result) => {
-        if (!current) return;
-        if (result.status === "found") {
-          setGiftCardFinding({ status: "gift-card", mnemonic: enteredMnemonic, address: result.value });
-        } else if (result.status === "unavailable") {
-          setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
-        } else {
-          setGiftCardFinding(null);
-        }
-      })
-      .catch((error) => {
-        console.warn("Gift card check failed:", error);
-        if (current) setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
-      });
+    // Settle first. Typing the last word passes through shorter words that are themselves on the
+    // wordlist — "them" on the way to "there" — and each complete phrase would otherwise spend
+    // its own pair of lookups on a phrase the user was still in the middle of writing.
+    const timer = setTimeout(() => {
+      detectGiftCard(enteredMnemonic)
+        .then((result) => {
+          if (!current) return;
+          if (result.status === "found") {
+            setGiftCardFinding({
+              status: "gift-card",
+              mnemonic: enteredMnemonic,
+              address: result.value,
+            });
+          } else if (result.status === "unavailable") {
+            setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
+          } else {
+            setGiftCardFinding(null);
+          }
+        })
+        .catch((error) => {
+          console.warn("Gift card check failed:", error);
+          if (current) setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
+        });
+    }, GIFT_CARD_CHECK_DELAY_MS);
 
     return () => {
       current = false;
+      clearTimeout(timer);
     };
   }, [allWordsPopulated, enteredMnemonic]);
 

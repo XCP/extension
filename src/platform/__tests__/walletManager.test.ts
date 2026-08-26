@@ -9,6 +9,7 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 }));
 
 import { AddressFormat } from '@/core/bitcoin/address';
+import type { WalletRecord } from '@/types/wallet';
 import { WalletManager } from '../walletManager';
 import {
   createMultipleWallets,
@@ -38,8 +39,8 @@ vi.mock('@/core/bitcoin/psbt', () => ({
   completePsbtWithInputValues: vi.fn(),
 }));
 vi.mock('@/core/counterwallet');
-vi.mock('@/core/wallet/rarePepeWalletDiscovery', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/core/wallet/rarePepeWalletDiscovery')>()),
+vi.mock('@/core/wallet/rarePepeWallet', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/wallet/rarePepeWallet')>()),
   detectUtxoAddress: (...args: unknown[]) => mockDetectUtxoAddress(...args),
 }));
 vi.mock('@noble/hashes/sha2.js');
@@ -264,10 +265,10 @@ describe('WalletManager', () => {
         addressFormat: AddressFormat.Counterwallet,
         addressCount: 2,
       });
-      const record = {
+      const record: WalletRecord = {
         id: wallet.id,
         name: wallet.name,
-        type: 'mnemonic' as const,
+        type: 'mnemonic',
         addressFormat: AddressFormat.Counterwallet,
         addressCount: 2,
         previewAddress: '',
