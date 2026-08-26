@@ -11,14 +11,30 @@ import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { AddressFormat, detectAddressFormat } from "@/core/bitcoin/address";
+import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { formatAddress } from "@/core/format";
+import { detectGiftCard, GIFT_CARD_PATH } from "@/core/wallet/rarePepeWalletDiscovery";
 import { analytics } from "@/platform/fathom";
+
+/** What to do with a Counterwallet phrase once the gift card check has spoken. */
+type GiftCardChoice = "gift-card" | "wallet";
+
+/**
+ * What the gift card check made of a phrase.
+ *
+ * Carries the phrase it describes so an edit invalidates it on its own — a finding about words
+ * the user has since changed is worse than no finding at all.
+ */
+type GiftCardFinding =
+  | { status: "gift-card"; mnemonic: string; address: string }
+  | { status: "unavailable"; mnemonic: string };
 
 function ImportMnemonicPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { keychainExists, createMnemonicWallet, verifyPassword } = useWallet();
+  const { keychainExists, createMnemonicWallet, createPrivateKeyWallet, verifyPassword } = useWallet();
 
   const [showMnemonic, setShowMnemonic] = useState(false);
   const [mnemonicWords, setMnemonicWords] = useState<string[]>(Array(12).fill(""));
@@ -26,8 +42,16 @@ function ImportMnemonicPage() {
   const [isConfirmed, setIsConfirmed] = useState(false);
   const [passwordReady, setPasswordReady] = useState(false);
   const [errorDismissed, setErrorDismissed] = useState(false);
-
+  /** What the gift card check made of the phrase currently in the inputs. */
+  const [giftCardFinding, setGiftCardFinding] = useState<GiftCardFinding | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(12).fill(null));
+  /**
+   * What the user pressed on the gift card prompt, read by the action on the submit that follows.
+   *
+   * A ref rather than state because the click handler runs in the same tick as the submit it
+   * triggers: state set here would still read as its previous value inside the action's closure.
+   */
+  const giftCardChoiceRef = useRef<GiftCardChoice | null>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const PATHS = {
@@ -40,6 +64,8 @@ function ImportMnemonicPage() {
       const words = Array.from({ length: 12 }, (_, i) => formData.get(`word-${i}`) as string);
       const mnemonic = words.join(" ").trim().toLowerCase();
       const password = formData.get("password") as string;
+      // Set by whichever button was pressed; null when no gift card prompt was shown.
+      const giftCardChoice = giftCardChoiceRef.current;
 
       const isBip39Valid = validateMnemonic(mnemonic, wordlist);
       const isCwValid = isValidCounterwalletMnemonic(mnemonic);
@@ -71,6 +97,22 @@ function ImportMnemonicPage() {
           // Unambiguously a Counterwallet mnemonic (words are in CW list but
           // don't form a valid BIP39 checksum) — use CW format directly.
           addressFormat = AddressFormat.Counterwallet;
+
+          // A gift card is a bearer instrument someone handed you, not a wallet on your own
+          // phrase, so the two imports produce different things — see the prompt this answers.
+          if (giftCardChoice === "gift-card") {
+            const privateKey = getPrivateKeyFromMnemonic(
+              mnemonic,
+              GIFT_CARD_PATH,
+              AddressFormat.Counterwallet
+            );
+            // Store the derived key, not the phrase: a card is a bearer instrument someone handed
+            // you, and only its one address is yours to keep.
+            await createPrivateKeyWallet(privateKey, password, "Gift Card", AddressFormat.P2PKH);
+            analytics.track("gift_card_imported");
+            navigate(PATHS.SUCCESS);
+            return { error: null };
+          }
         } else {
           // Either a BIP39 mnemonic, or ambiguous (valid in both wordlists).
           // Use activity detection to pick the right format — detectAddressFormat
@@ -97,6 +139,9 @@ function ImportMnemonicPage() {
   );
 
   const allWordsPopulated = mnemonicWords.every((word) => word.trim().length > 0);
+  const enteredMnemonic = mnemonicWords.join(" ").trim().toLowerCase();
+  // Only honour a finding that still describes what is in the inputs.
+  const finding = giftCardFinding?.mnemonic === enteredMnemonic ? giftCardFinding : null;
   const canSubmit = isConfirmed && passwordReady && !isPending;
 
   useEffect(() => {
@@ -121,7 +166,42 @@ function ImportMnemonicPage() {
     inputRefs.current[0]?.focus();
   }, []);
 
+  // Check for a gift card as soon as the phrase is complete, rather than on submit: the check
+  // needs only the words, and what it finds decides which of two different things the Continue
+  // button should offer to make.
+  useEffect(() => {
+    if (!allWordsPopulated) return;
+    // Only an unambiguous Counterwallet phrase can be a card. A phrase valid under BIP39 too
+    // belongs to format detection, which has its own opinion about where the funds are.
+    if (!isValidCounterwalletMnemonic(enteredMnemonic)) return;
+    if (validateMnemonic(enteredMnemonic, wordlist)) return;
+
+    let current = true;
+    detectGiftCard(enteredMnemonic)
+      .then((result) => {
+        if (!current) return;
+        if (result.status === "found") {
+          setGiftCardFinding({ status: "gift-card", mnemonic: enteredMnemonic, address: result.value });
+        } else if (result.status === "unavailable") {
+          setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
+        } else {
+          setGiftCardFinding(null);
+        }
+      })
+      .catch((error) => {
+        console.warn("Gift card check failed:", error);
+        if (current) setGiftCardFinding({ status: "unavailable", mnemonic: enteredMnemonic });
+      });
+
+    return () => {
+      current = false;
+    };
+  }, [allWordsPopulated, enteredMnemonic]);
+
   function handleWordChange(index: number, value: string) {
+    // A finding about the previous phrase says nothing about this one.
+    giftCardChoiceRef.current = null;
+
     const trimmedValue = value.trim();
     const words = trimmedValue.split(/\s+/);
     const newMnemonicWords = [...mnemonicWords];
@@ -231,6 +311,22 @@ function ImportMnemonicPage() {
               })}
             </ol>
           </section>
+          {finding?.status === "gift-card" && (
+            <div className="bg-gray-100 rounded-lg p-4 space-y-2" role="status">
+              <p className="text-sm font-medium">This looks like a Rare Pepe Wallet gift card.</p>
+              <p className="text-sm text-gray-700">
+                Its balance is on <span className="font-mono">{formatAddress(finding.address)}</span>
+                , the 500th address of this phrase. Importing the card keeps that one address and
+                stores no phrase.
+              </p>
+            </div>
+          )}
+          {finding?.status === "unavailable" && (
+            <p className="text-sm text-gray-500" role="status">
+              Couldn't check whether this phrase is a Rare Pepe Wallet gift card — importing it as a
+              wallet works either way, and a card can be imported later once you're back online.
+            </p>
+          )}
           <CheckboxInput
             name="confirmed"
             label="I have saved my secret recovery phrase."
@@ -247,13 +343,36 @@ function ImportMnemonicPage() {
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />
-              <Button
-                type="submit"
-                fullWidth
-                disabled={!canSubmit}
-              >
-                {isPending ? "Importing…" : "Continue"}
-              </Button>
+              {finding?.status === "gift-card" ? (
+                <>
+                  <Button
+                    type="submit"
+                    onClick={() => { giftCardChoiceRef.current = "gift-card"; }}
+                    fullWidth
+                    disabled={!canSubmit}
+                  >
+                    {isPending ? "Importing…" : "Import Gift Card"}
+                  </Button>
+                  <Button
+                    type="submit"
+                    onClick={() => { giftCardChoiceRef.current = "wallet"; }}
+                    color="gray"
+                    fullWidth
+                    disabled={!canSubmit}
+                  >
+                    Import as Wallet Instead
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  type="submit"
+                  onClick={() => { giftCardChoiceRef.current = null; }}
+                  fullWidth
+                  disabled={!canSubmit}
+                >
+                  {isPending ? "Importing…" : "Continue"}
+                </Button>
+              )}
             </>
           )}
         </form>
