@@ -34,6 +34,7 @@ describe('fathom sanitizePath', () => {
       expect(sanitizePath('/keychain/setup/create-mnemonic')).toBe('/keychain/setup/create-mnemonic');
       expect(sanitizePath('/keychain/setup/import-mnemonic')).toBe('/keychain/setup/import-mnemonic');
       expect(sanitizePath('/keychain/setup/import-private-key')).toBe('/keychain/setup/import-private-key');
+      expect(sanitizePath('/keychain/setup/import-custom-path')).toBe('/keychain/setup/import-custom-path');
       expect(sanitizePath('/keychain/setup/import-test-address')).toBe('/keychain/setup/import-test-address');
       expect(sanitizePath('/keychain/onboarding')).toBe('/keychain/onboarding');
       expect(sanitizePath('/keychain/unlock')).toBe('/keychain/unlock');

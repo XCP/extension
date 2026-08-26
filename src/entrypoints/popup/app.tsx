@@ -60,8 +60,9 @@ import OnboardingPage from '@/pages/keychain/onboarding';
 import ShowPassphrasePage from '@/pages/keychain/secrets/show-passphrase';
 import ShowPrivateKeyPage from '@/pages/keychain/secrets/show-private-key';
 import CreateMnemonicPage from '@/pages/keychain/setup/create-mnemonic';
-import ImportMnemonicPage from '@/pages/keychain/setup/import-mnemonic';
 // Keychain (protected)
+import ImportCustomPathPage from '@/pages/keychain/setup/import-custom-path';
+import ImportMnemonicPage from '@/pages/keychain/setup/import-mnemonic';
 import ImportPrivateKeyPage from '@/pages/keychain/setup/import-private-key';
 import ImportTestAddressPage from '@/pages/keychain/setup/import-test-address';
 import UnlockPage from '@/pages/keychain/unlock';
@@ -185,6 +186,7 @@ export default function App() {
             <Route path="/settings/pinned-assets" element={<PinnedAssetsPage />} />
 
             <Route path="/keychain/setup/import-private-key" element={<ImportPrivateKeyPage />} />
+            <Route path="/keychain/setup/import-custom-path" element={<ImportCustomPathPage />} />
             <Route path="/keychain/setup/import-test-address" element={<ImportTestAddressPage />} />
             <Route path="/keychain/wallets" element={<WalletsPage />} />
             <Route path="/keychain/wallets/add" element={<AddWalletPage />} />

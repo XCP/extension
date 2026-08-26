@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { FaEye, FaPlus, FiDownload, FiShield, FiX, VscKey } from "@/components/icons";
+import { FaEye, FaPlus, FiDownload, FiShield, FiX, LuSpline, VscKey } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useHeader } from "@/contexts/header-context";
@@ -16,6 +16,7 @@ const PATHS = {
   CREATE_WALLET: "/keychain/setup/create-mnemonic",
   IMPORT_WALLET: "/keychain/setup/import-mnemonic",
   IMPORT_PRIVATE_KEY: "/keychain/setup/import-private-key",
+  IMPORT_CUSTOM_PATH: "/keychain/setup/import-custom-path",
   IMPORT_TEST_ADDRESS: "/keychain/setup/import-test-address",
   CONNECT_HARDWARE: "/keychain/wallets/connect-hardware",
 } as const;
@@ -69,6 +70,14 @@ function AddWalletPage() {
       return;
     }
     navigate(PATHS.IMPORT_PRIVATE_KEY);
+  }
+
+  function handleImportCustomPath() {
+    if (wallets.length >= MAX_WALLETS) {
+      setError(`Maximum number of wallets (${MAX_WALLETS}) reached`);
+      return;
+    }
+    navigate(PATHS.IMPORT_CUSTOM_PATH);
   }
 
   function handleImportTestAddress() {
@@ -133,6 +142,15 @@ function AddWalletPage() {
             >
               <VscKey className="size-4 mr-2" aria-hidden="true" />
               Import Private Key
+            </Button>
+            <Button
+              color="gray"
+              fullWidth
+              onClick={handleImportCustomPath}
+              aria-label="Import Custom Path"
+            >
+              <LuSpline className="size-4 mr-2" aria-hidden="true" />
+              Import Custom Path
             </Button>
             {hardwareWallet ? (
               <Button

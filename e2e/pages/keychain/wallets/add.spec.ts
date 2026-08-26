@@ -62,6 +62,20 @@ walletTest.describe('Add Wallet Page (/keychain/wallets/add)', () => {
     await expect(page.locator('input[name="word-0"]')).toBeVisible({ timeout: 5000 });
   });
 
+  walletTest('displays import custom path button', async ({ page }) => {
+    const importPathButton = page.locator('button:has-text("Import Custom Path"), button[aria-label="Import Custom Path"]').first();
+    await expect(importPathButton).toBeVisible({ timeout: 5000 });
+  });
+
+  walletTest('import custom path button navigates to import-custom-path page', async ({ page }) => {
+    const importPathButton = page.locator('button:has-text("Import Custom Path")').first();
+    await expect(importPathButton).toBeVisible({ timeout: 5000 });
+    await importPathButton.click();
+
+    await expect(page.locator('input[name="word-0"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Derivation Path')).toBeVisible();
+  });
+
   walletTest('import private key button navigates to import-private-key page', async ({ page }) => {
     const importKeyButton = page.locator('button:has-text("Import Private Key")').first();
     await expect(importKeyButton).toBeVisible({ timeout: 5000 });

@@ -175,6 +175,16 @@ export const LuArrowDownUp = (props: IconProps): ReactElement => (
   </FeatherIcon>
 );
 
+export const LuSpline = (props: IconProps): ReactElement => (
+  <FeatherIcon {...props}>
+    <>
+      <circle cx="19" cy="5" r="3" />
+      <circle cx="5" cy="19" r="3" />
+      <path d="M5 17A12 12 0 0 1 17 5" />
+    </>
+  </FeatherIcon>
+);
+
 export const FiRotateCcw = (props: IconProps): ReactElement => (
   <FeatherIcon {...props}>
     <>
