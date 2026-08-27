@@ -76,6 +76,13 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: npx vitest run src --config vitest.fuzz.config.ts
+
+      # Extension tests must launch Chromium headed so Manifest V3 service workers and extension
+      # pages are available. Give those windows a virtual display, as the PR E2E job does.
+      - name: Configure Xvfb
+        run: |
+          Xvfb -ac :99 -screen 0 1280x1024x16 &
+          sleep 2
       
       # continue-on-error so the report and artifact steps below still run; the report step
       # re-raises the failure, so a red E2E run still fails the job and files the issue.
@@ -83,6 +90,8 @@ jobs:
         id: e2e
         timeout-minutes: 60
         run: npx playwright test --retries=3 --workers=1
+        env:
+          DISPLAY: ':99'
         continue-on-error: true
       
       # The Playwright image does not ship jq, so the stats are read with node. A missing
@@ -95,7 +104,10 @@ jobs:
             echo "# Nightly Test Report"
             echo "Date: $(date)"
             echo ""
-            if [ -f "test-results.json" ]; then
+            if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
+              echo "## E2E Results"
+              echo "Skipped because an earlier test step failed."
+            elif [ -f "test-results.json" ]; then
               echo "## E2E Results"
               echo '```json'
               node -e 'console.log(JSON.stringify(require("./test-results.json").stats, null, 2))'
@@ -105,6 +117,9 @@ jobs:
               echo "No test-results.json was written: Playwright did not run."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.e2e.outcome }}" = "skipped" ]; then
+            exit 0
+          fi
           if [ ! -f "test-results.json" ]; then
             echo "::error::Playwright produced no test-results.json"
             exit 1
