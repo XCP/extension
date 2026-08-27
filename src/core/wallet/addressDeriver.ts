@@ -14,6 +14,7 @@ import {
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
+import { derivePubkeyFromAccountKey } from '@/core/wallet/hardwarePubkey';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
@@ -162,6 +163,31 @@ function deriveExtraAddresses(
   return addresses;
 }
 
+/**
+ * The address's own public key for a hardware wallet, not the account's.
+ *
+ * `HardwareWalletSecret.publicKey` is documented as "public key OR descriptor for the account",
+ * and Trezor discovery fills it with the account xpub. Stored verbatim, that reached compose as
+ * `multisig_pubkey` and core rejected it — "Invalid multisig pubkey: zpub6..." — failing every
+ * message too long for an OP_RETURN.
+ *
+ * So the stored value is used only when it really is a key, and otherwise the address's key is
+ * derived from the account key and the path, both of which are already here. An extended public
+ * key derives non-hardened children unaided, and the chain below an account is non-hardened, so
+ * this needs no device and no secret.
+ *
+ * Empty string when neither works. That is what this field held for every non-discovery hardware
+ * wallet before, and `getSourcePubkey` already reads empty as "no key" and lets core fall back to
+ * scanning the address's spend history.
+ */
+function hardwarePubKey(hardwareData: HardwareWalletSecret): string {
+  const stored = hardwareData.publicKey;
+  if (stored && /^0[23][0-9a-fA-F]{64}$/.test(stored)) return stored;
+  const accountKey = hardwareData.xpub ?? stored;
+  if (!accountKey || !hardwareData.derivationPath) return '';
+  return derivePubkeyFromAccountKey(accountKey, hardwareData.derivationPath) ?? '';
+}
+
 /** Derives addresses from a decrypted secret based on wallet type */
 export function deriveAddressesFromSecret(secret: string, record: WalletRecord): Address[] {
   if (record.type === 'mnemonic') {
@@ -184,7 +210,7 @@ export function deriveAddressesFromSecret(secret: string, record: WalletRecord):
         name: 'Address 1',
         path: hardwareData.derivationPath,
         address: record.previewAddress,
-        pubKey: hardwareData.publicKey,
+        pubKey: hardwarePubKey(hardwareData),
       }];
     } catch {
       return [];

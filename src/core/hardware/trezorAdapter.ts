@@ -287,6 +287,35 @@ function extractXpubFromDescriptor(descriptor: string): string {
 /**
  * Trezor Hardware Wallet Adapter
  */
+/**
+ * A bare multisig output script: OP_M <pubkey>... OP_N OP_CHECKMULTISIG.
+ *
+ * Counterparty writes these to carry message data past the 80-byte OP_RETURN limit, with the
+ * payload encrypted into positions that look like pubkeys. Recognised here only to explain why
+ * signing cannot proceed -- nothing tries to sign one.
+ *
+ * Matched structurally rather than by length: OP_CHECKMULTISIG last, a small OP_N before it, and
+ * an OP_M at the front. Counterparty uses 1-of-3, but pinning that exactly would silently fall
+ * back to the misleading error if the encoding ever changed shape.
+ */
+function isBareMultisigScript(scriptHex: string): boolean {
+  const OP_CHECKMULTISIG = 0xae;
+  const OP_1 = 0x51;
+  const OP_16 = 0x60;
+  // Hex, because that is how extractPsbtDetails hands over an output script.
+  if (!/^([0-9a-fA-F]{2})+$/.test(scriptHex)) return false;
+  const byteCount = scriptHex.length / 2;
+  if (byteCount < 3) return false;
+  const at = (index: number) => Number.parseInt(scriptHex.slice(index * 2, index * 2 + 2), 16);
+  const m = at(0);
+  const n = at(byteCount - 2);
+  return (
+    at(byteCount - 1) === OP_CHECKMULTISIG &&
+    n >= OP_1 && n <= OP_16 &&
+    m >= OP_1 && m <= OP_16
+  );
+}
+
 export class TrezorAdapter implements IHardwareWalletAdapter {
   private initialized = false;
   private connectionStatus: HardwareConnectionStatus = 'disconnected';
@@ -1001,6 +1030,24 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         const address = decodeAddressFromScript(output.script);
 
         if (!address) {
+          // Bare multisig is the one that actually happens here, and it is not a decoding
+          // problem. Counterparty moves a message past 80 bytes out of OP_RETURN and into P2MS
+          // data outputs whose "pubkeys" are encrypted payload, and no hardware wallet can sign
+          // that: a P2MS output has no address, and Trezor Connect has no output type that
+          // describes one (PAYTOMULTISIG means paying your own multisig account with real,
+          // derivable keys). Saying "cannot decode address" sends the user looking at their
+          // recipients, which are fine.
+          if (isBareMultisigScript(output.script)) {
+            throw new HardwareWalletError(
+              `Output ${i} is a bare multisig data output`,
+              'UNSUPPORTED_OUTPUT_SCRIPT',
+              'trezor',
+              'Hardware wallets cannot sign this transaction. Counterparty encoded it as bare ' +
+                'multisig because the data outgrew the 80-byte OP_RETURN limit — for an MPMA ' +
+                'send, that means too many recipients. Send to fewer recipients at a time, or ' +
+                'use a software wallet address for this transaction.'
+            );
+          }
           throw new HardwareWalletError(
             `Cannot decode address from output ${i} script`,
             'ADDRESS_DECODE_FAILED',

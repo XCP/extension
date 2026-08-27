@@ -1,3 +1,6 @@
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { HDKey } from '@scure/bip32';
+import { mnemonicToSeedSync } from '@scure/bip39';
 import { describe, expect, it } from 'vitest';
 import {
   AddressFormat,
@@ -174,12 +177,50 @@ describe('addressDeriver', () => {
         type: 'hardware',
         previewAddress: 'bc1qhardwarepreview',
       } as unknown as WalletRecord;
+      // 'deadbeef' is a fixture, not a key. It used to be copied into pubKey verbatim, which is
+      // how an account xpub reached compose as multisig_pubkey and came back "Invalid multisig
+      // pubkey: zpub6...". Anything that is not a key is now dropped, and empty is the value
+      // getSourcePubkey already reads as "no key, let core find it".
       const secret = JSON.stringify({ derivationPath: "m/84'/0'/0'/0/0", publicKey: 'deadbeef' });
 
       const addresses = deriveAddressesFromSecret(secret, record);
       expect(addresses).toEqual([
-        { name: 'Address 1', path: "m/84'/0'/0'/0/0", address: 'bc1qhardwarepreview', pubKey: 'deadbeef' },
+        { name: 'Address 1', path: "m/84'/0'/0'/0/0", address: 'bc1qhardwarepreview', pubKey: '' },
       ]);
+    });
+
+    it('keeps a stored public key that really is one', () => {
+      const record = {
+        type: 'hardware',
+        previewAddress: 'bc1qhardwarepreview',
+      } as unknown as WalletRecord;
+      const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+      const secret = JSON.stringify({ derivationPath: "m/84'/0'/0'/0/0", publicKey: PUBKEY });
+
+      expect(deriveAddressesFromSecret(secret, record)[0]?.pubKey).toBe(PUBKEY);
+    });
+
+    it('derives the address key from a stored account xpub', () => {
+      // The point of the fix: a Trezor stores the ACCOUNT key, and the address key can simply be
+      // computed from it. Asserted against the key derived independently from the same seed by
+      // walking the full path, so a wrong tail would not agree.
+      const master = HDKey.fromMasterSeed(
+        mnemonicToSeedSync(
+          'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+        ),
+      );
+      const expected = bytesToHex(master.derive("m/84'/0'/0'/0/0").publicKey!);
+      const record = {
+        type: 'hardware',
+        previewAddress: 'bc1qhardwarepreview',
+      } as unknown as WalletRecord;
+      const secret = JSON.stringify({
+        derivationPath: "m/84'/0'/0'/0/0",
+        publicKey: 'wpkh([abcd/84h/0h/0h]xpub/0/*)',
+        xpub: master.derive("m/84'/0'/0'").publicExtendedKey,
+      });
+
+      expect(deriveAddressesFromSecret(secret, record)[0]?.pubKey).toBe(expected);
     });
 
     it('returns the embedded address for a test-only wallet', () => {
