@@ -122,15 +122,26 @@ describe("ImportMnemonicPage", () => {
     );
   });
 
-  it("looks for UTXO addresses on the wallet it just made, before showing it", async () => {
+  it("does not touch the wallet state on an import that cannot have a UTXO address", async () => {
+    render(<ImportMnemonicPage />);
+    completeForm(BIP39_MNEMONIC);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/index"));
+    // The lookup returns nothing for a non-Counterwallet format, but calling it still drags a
+    // state refresh through the import — which is what emptied the address on the index page.
+    expect(mockSweepUtxoAddresses).not.toHaveBeenCalled();
+  });
+
+  it("looks for UTXO addresses on the wallet it just made, without holding it up", async () => {
     render(<ImportMnemonicPage />);
     completeForm();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     await waitFor(() => expect(mockSweepUtxoAddresses).toHaveBeenCalledWith("wallet-1"));
-    // The wallet is only shown once the lookup has had its say, so anything found is already
-    // listed rather than appearing a moment later.
-    expect(mockSweepUtxoAddresses).toHaveBeenCalledBefore(mockNavigate);
+    // The wallet is shown first. Waiting on the lookup delayed the import behind a network call
+    // and let its state refresh land mid-import, which emptied the address on the page it opens.
+    expect(mockNavigate).toHaveBeenCalledBefore(mockSweepUtxoAddresses);
   });
 
   it("does not report a finished import as failed when the UTXO lookup throws", async () => {
@@ -141,6 +152,7 @@ describe("ImportMnemonicPage", () => {
 
     // The wallet was created before the lookup ran, so the import has succeeded either way.
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/index"));
+    await waitFor(() => expect(mockSweepUtxoAddresses).toHaveBeenCalled());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

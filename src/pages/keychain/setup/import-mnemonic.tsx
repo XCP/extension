@@ -10,7 +10,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, detectAddressFormat } from "@/core/bitcoin/address";
+import { AddressFormat, detectAddressFormat, isCounterwalletFormat } from "@/core/bitcoin/address";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
@@ -138,18 +138,24 @@ function ImportMnemonicPage() {
 
         const wallet = await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         analytics.track('wallet_imported');
-        // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
-        // change address of the address it starts with. One lookup, before the wallet is first
-        // shown, so they are simply there rather than waiting to be hunted for.
-        //
-        // Contained: the wallet already exists by this point, so letting an opportunistic extra
-        // throw would report a completed import as a failure and strand the user on this form.
-        try {
-          await sweepUtxoAddresses(wallet.id);
-        } catch (sweepError) {
-          console.warn("UTXO address lookup failed after import:", sweepError);
-        }
         navigate(PATHS.SUCCESS);
+
+        // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
+        // change address of the address it starts with, so look once, here, where that address
+        // first exists.
+        //
+        // Asked for only when the format could have one. `sweepUtxoAddresses` already returns
+        // nothing for every other format, but that guard is inside the call: the context wraps it
+        // in a state refresh that runs either way, so every BIP39 import was paying one mid-flow
+        // and landing on an index page whose active address had been reset to nothing.
+        //
+        // After the navigation and unawaited, too. The wallet is already made, so nothing about it
+        // should wait on an opportunistic lookup or be undone by one failing.
+        if (isCounterwalletFormat(addressFormat)) {
+          void sweepUtxoAddresses(wallet.id).catch((sweepError: unknown) => {
+            console.warn("UTXO address lookup failed after import:", sweepError);
+          });
+        }
         return { error: null };
       } catch (error: unknown) {
         console.error("Detailed error importing wallet:", error);
