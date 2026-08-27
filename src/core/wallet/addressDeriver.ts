@@ -13,8 +13,8 @@ import {
   getSeedFromMnemonic,
 } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey, getPublicKeyFromPrivateKey } from '@/core/bitcoin/privateKey';
-import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import { derivePubkeyFromAccountKey } from '@/core/wallet/hardwarePubkey';
+import { parseUtxoAddressPath } from '@/core/wallet/rarePepeWallet';
 import type { Address, HardwareWalletSecret, WalletRecord } from '@/types/wallet';
 
 export function getPairedAddressFormats(addressFormat: AddressFormat): {
