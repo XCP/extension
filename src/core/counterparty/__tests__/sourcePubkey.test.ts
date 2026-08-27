@@ -44,7 +44,6 @@ describe('sourcePubkey provider', () => {
     expect(getSourcePubkey(ADDRESS)).toBeNull();
   });
 });
-
 describe('anything that is not a public key', () => {
   afterEach(() => setSourcePubkeyProvider(null));
 
