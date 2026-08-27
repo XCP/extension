@@ -45,7 +45,7 @@ import {
   useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
-import type { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
@@ -585,7 +585,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
       const wallet = await withIdentityRefresh(
         'wallet-create-mnemonic',
-        () => walletService.createMnemonicWallet(mnemonic, password, name, addressFormat)
+        () => walletService.createMnemonicWallet(
+          mnemonic,
+          password,
+          name,
+          addressFormat ?? AddressFormat.P2TR
+        )
       );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
       return wallet;
@@ -593,7 +598,12 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
       const wallet = await withIdentityRefresh(
         'wallet-create-private-key',
-        () => walletService.createPrivateKeyWallet(privateKey, password, name, addressFormat)
+        () => walletService.createPrivateKeyWallet(
+          privateKey,
+          password,
+          name,
+          addressFormat ?? AddressFormat.P2TR
+        )
       );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
       return wallet;

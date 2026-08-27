@@ -54,7 +54,7 @@ function CreateMnemonicPage() {
       try {
         await createMnemonicWallet(mnemonic, password);
         analytics.track('wallet_created');
-        navigate(PATHS.SUCCESS);
+        window.location.hash = PATHS.SUCCESS;
         return { error: null };
       } catch {
         return { error: "Failed to create wallet. Please try again." };

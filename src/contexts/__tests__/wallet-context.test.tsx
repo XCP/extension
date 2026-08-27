@@ -265,6 +265,33 @@ describe('WalletContext', () => {
       expect(mockWalletService.createMnemonicWallet).toHaveBeenCalled();
     });
 
+    it('should resolve the default address format before crossing the service boundary', async () => {
+      const newWallet = {
+        id: 'wallet3',
+        name: 'New Wallet',
+        type: 'mnemonic' as const,
+        addressFormat: AddressFormat.P2TR,
+        addressCount: 1,
+        addresses: []
+      };
+      mockWalletService.createMnemonicWallet.mockResolvedValue(newWallet);
+
+      const { result } = renderHook(() => useWallet(), {
+        wrapper: WalletProvider
+      });
+
+      await act(async () => {
+        await result.current.createMnemonicWallet('test mnemonic', 'password123');
+      });
+
+      expect(mockWalletService.createMnemonicWallet).toHaveBeenCalledWith(
+        'test mnemonic',
+        'password123',
+        undefined,
+        AddressFormat.P2TR
+      );
+    });
+
     it('should handle wallet creation failure', async () => {
       mockWalletService.createMnemonicWallet.mockRejectedValue(new Error('Creation failed'));
 
