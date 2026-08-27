@@ -158,6 +158,7 @@ const attachIntent: AttachForListingIntentClaim = {
   protocolVersion: 'counterparty_attach_listing_v1',
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
   seller: SELLER,
+  assetSource: SELLER,
   expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
   carrierAddress: SELLER,
   carrierValueSats: 546,
@@ -323,6 +324,11 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(attachIntent)).toEqual(attachIntent);
   });
 
+  it('defaults an older same-address v1 attach claim to seller as its asset source', () => {
+    const { assetSource: _assetSource, ...olderClaim } = attachIntent;
+    expect(parseMarketplaceIntent(olderClaim)).toEqual(attachIntent);
+  });
+
   it('copies bounded exact-offer authorization and acceptance claims', () => {
     expect(parseMarketplaceIntent(authorizeExactIntent)).toEqual(authorizeExactIntent);
     expect(parseMarketplaceIntent(acceptExactIntent)).toEqual(acceptExactIntent);
@@ -363,18 +369,42 @@ describe('attach-for-listing proof', () => {
     expect(review.notices).toEqual([]);
   });
 
-  it('distinguishes the Counterparty source from a paired carrier address', () => {
+  it('analyzes an older persisted same-address v1 attach claim', () => {
     const request = attachBase();
+    const { assetSource: _assetSource, ...olderIntent } = attachIntent;
     const review = analyzeMarketplaceIntent({
       ...request,
-      intent: { ...attachIntent, carrierAddress: SELLER_TWO },
-      outputs: request.outputs.map(output => output.index === 0
-        ? { ...output, address: SELLER_TWO }
-        : output),
+      intent: olderIntent as AttachForListingIntentClaim,
     });
 
     expect(review.status).toBe('caution');
     expect(review.blockers).toEqual([]);
+  });
+
+  it('distinguishes the Counterparty source from a paired carrier address', () => {
+    const request = attachBase();
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: {
+        ...attachIntent,
+        seller: SELLER_TWO,
+        assetSource: SELLER,
+        carrierAddress: SELLER_TWO,
+      },
+      inputs: [request.inputs[0]!],
+      outputs: [
+        { ...request.outputs[0]!, address: SELLER_TWO },
+        request.outputs[1]!,
+        { ...request.outputs[2]!, address: SELLER, value: 98_454 },
+      ],
+      signedInputs: [{ index: 0, sighashType: 0x01 }],
+      signerAddresses: [SELLER],
+    });
+
+    expect(review.status).toBe('caution');
+    expect(review.blockers).toEqual([]);
+    expect(review.facts).toContainEqual({ label: 'Asset source', value: SELLER });
+    expect(review.facts).toContainEqual({ label: 'Carrier owner', value: SELLER_TWO });
   });
 
   it.each([
@@ -403,6 +433,9 @@ describe('attach-for-listing proof', () => {
       outputs: attachBase().outputs.map(output => output.index === 0
         ? { ...output, value: 545 }
         : output),
+    }],
+    ['carrier owner', {
+      intent: { ...attachIntent, carrierAddress: SELLER_TWO },
     }],
     ['signature scope', {
       signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x81 }],
