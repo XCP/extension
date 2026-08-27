@@ -46,8 +46,16 @@ export interface Wallet {
   type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
-  /** Number of derived addresses */
+  /** Number of derivation indices exposed in every compatible address format */
   addressCount: number;
+  /**
+   * Extra derivation paths shown alongside the sequential addresses.
+   *
+   * Addresses are otherwise a pure function of the format and the count, so anything off the
+   * wallet's own branch — a Rare Pepe Wallet UTXO address, say — has nowhere to live and vanishes
+   * on the next unlock. Validate on read: these strings reach `HDKey.derive`.
+   */
+  extraPaths?: string[];
   /** Array of derived addresses */
   addresses: Address[];
   /** Flag for development-only test wallets */
@@ -73,8 +81,16 @@ export interface WalletRecord {
   type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
-  /** Number of derived addresses */
+  /** Number of derivation indices exposed in every compatible address format */
   addressCount: number;
+  /**
+   * Extra derivation paths shown alongside the sequential addresses.
+   *
+   * Addresses are otherwise a pure function of the format and the count, so anything off the
+   * wallet's own branch — a Rare Pepe Wallet UTXO address, say — has nowhere to live and vanishes
+   * on the next unlock. Validate on read: these strings reach `HDKey.derive`.
+   */
+  extraPaths?: string[];
   /** First address for display (m/.../0/0) */
   previewAddress: string;
   /** Encrypted secret (key-based AES-GCM, still encrypted after keychain decrypt) */

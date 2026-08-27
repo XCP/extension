@@ -31,7 +31,6 @@ interface WalletService {
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
-  setActiveWallet: (walletId: string) => Promise<void>;
   unlockKeychain: (password: string) => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
   isKeychainUnlocked: () => Promise<boolean>;
@@ -58,6 +57,12 @@ interface WalletService {
     usePassphrase?: boolean
   ) => Promise<Wallet>;
   addAddress: (walletId: string) => Promise<Address>;
+  /** Look for a funded Rare Pepe Wallet UTXO address paired with an address index, and keep it. */
+  addUtxoAddress: (walletId: string, index: number) => Promise<Address | null>;
+  /** Stop listing a kept UTXO address. */
+  removeUtxoAddress: (walletId: string, path: string) => Promise<void>;
+  /** Best-effort lookup for UTXO addresses, run where an address first enters the wallet. */
+  sweepUtxoAddresses: (walletId: string, indexes?: number[]) => Promise<Address[]>;
   verifyPassword: (password: string) => Promise<boolean>;
   resetKeychain: (password: string) => Promise<void>;
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -147,10 +152,6 @@ function createWalletService(): WalletService {
       const address = activeWallet.addresses.find(addr => addr.address === lastActiveAddress);
       return address || activeWallet.addresses[0];
     },
-    setActiveWallet: async (walletId) => {
-      await walletManager.setActiveWallet(walletId);
-      // Don't emit here - address switching is handled in wallet-context
-    },
     unlockKeychain: async (password) => {
       await walletManager.unlockKeychain(password);
       // Emit wallet-unlocked event for any pending connection requests
@@ -204,6 +205,9 @@ function createWalletService(): WalletService {
       return walletManager.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase);
     },
     addAddress: async (walletId) => walletManager.addAddress(walletId),
+    addUtxoAddress: async (walletId, index) => walletManager.addUtxoAddress(walletId, index),
+    removeUtxoAddress: async (walletId, path) => walletManager.removeUtxoAddress(walletId, path),
+    sweepUtxoAddresses: async (walletId, indexes) => walletManager.sweepUtxoAddresses(walletId, indexes),
     verifyPassword: async (password) => walletManager.verifyPassword(password),
     resetKeychain: async (password) => {
       await walletManager.resetKeychain(password);

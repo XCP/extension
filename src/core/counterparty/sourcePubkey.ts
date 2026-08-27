@@ -32,15 +32,36 @@ export function setSourcePubkeyProvider(nextProvider: SourcePubkeyProvider | nul
 }
 
 /**
+ * A single EC point in hex: 33 bytes compressed (02/03) or 65 uncompressed (04).
+ *
+ * Checked because the field this reads is not guaranteed to hold one. A hardware wallet stores
+ * "public key OR descriptor for the account" in `HardwareWalletSecret.publicKey`, and Trezor
+ * account discovery fills it with the account xpub (`trezorAdapter`: "Use xpub as the
+ * account-level public key"), which `addressDeriver` then copies into `Address.pubKey`. That key
+ * reached compose as `multisig_pubkey` and core answered "Invalid multisig pubkey: zpub6...",
+ * failing every long-data compose from a Trezor — an MPMA to more than a handful of recipients,
+ * for instance, where the payload cannot fit in an OP_RETURN. Ordinary sends were unaffected,
+ * which is why it stayed hidden.
+ *
+ * An extended key is not merely the wrong format here, it is the wrong KEY: it identifies an
+ * account, not an address. Deriving the child would be the real fix; refusing to send an account
+ * key is the part that must be true either way.
+ */
+const COMPRESSED = /^0[23][0-9a-fA-F]{64}$/;
+const UNCOMPRESSED = /^04[0-9a-fA-F]{128}$/;
+
+/**
  * The compressed public key for an address this wallet holds, or null.
  *
  * Null degrades to today's behaviour — the parameter is omitted and core falls back to its own
  * history scan, which still succeeds for any address that has spent. Test-only wallets store an
  * empty string for the key; empty is not a key, so it is null here rather than an empty parameter
- * core would reject.
+ * core would reject. Anything else that is not a point on the curve is treated the same way: a
+ * fallback that might work beats a parameter that certainly will not.
  */
 export function getSourcePubkey(address: string): string | null {
   if (!provider || !address) return null;
   const pubkey = provider(address);
-  return pubkey && pubkey.length > 0 ? pubkey : null;
+  if (!pubkey) return null;
+  return COMPRESSED.test(pubkey) || UNCOMPRESSED.test(pubkey) ? pubkey : null;
 }

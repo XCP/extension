@@ -332,16 +332,25 @@ export function getAddressFromMnemonic(
 // Address Type Detection functions (previously in addressTypeDetector.ts)
 
 /**
- * Check if an address has any transaction history using existing API utilities
- * Returns true if any provider confirms transactions or token balances
+ * Probe an address for Counterparty balances or Bitcoin history.
+ *
+ * Reports whether either provider actually answered, separately from what it said. Format
+ * detection only needs the verdict and falls back to a default when everything is quiet, but a
+ * caller deciding "this address is funded, import it" has to tell an empty address apart from an
+ * API it could not reach — otherwise an outage silently becomes a negative answer.
  */
-async function checkAddressActivity(address: string): Promise<boolean> {
+export async function probeAddressActivity(
+  address: string
+): Promise<{ active: boolean; reachable: boolean }> {
+  let reachable = false;
+
   // First check Counterparty API for token balances - most specific indicator
   try {
     const balances = await fetchTokenBalances(address, { limit: 1 });
+    reachable = true;
     if (balances && balances.length > 0) {
       console.log(`Address ${address} has Counterparty token activity`);
-      return true;
+      return { active: true, reachable };
     }
   } catch (error) {
     console.warn('Counterparty balance check failed:', error);
@@ -350,16 +359,25 @@ async function checkAddressActivity(address: string): Promise<boolean> {
   // Check Bitcoin transaction history using our balance module helper
   try {
     const hasActivity = await hasAddressActivity(address);
+    reachable = true;
     if (hasActivity) {
       console.log(`Address ${address} has Bitcoin transaction history`);
-      return true;
+      return { active: true, reachable };
     }
   } catch (error) {
     console.warn('Bitcoin activity check failed:', error);
   }
 
   // No activity found
-  return false;
+  return { active: false, reachable };
+}
+
+/**
+ * Check if an address has any transaction history using existing API utilities
+ * Returns true if any provider confirms transactions or token balances
+ */
+async function checkAddressActivity(address: string): Promise<boolean> {
+  return (await probeAddressActivity(address)).active;
 }
 
 /**

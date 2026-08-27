@@ -92,7 +92,8 @@ const MARKETPLACE_ATTACH_INTENT = {
   operationId: 'attach-1',
   protocolVersion: 'counterparty_attach_listing_v1',
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
-  seller: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  seller: 'bc1qtest123',
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
   expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
   carrierAddress: 'bc1qtest123',
   carrierValueSats: 546,
@@ -343,7 +344,6 @@ describe('ProviderService', () => {
         addressFormat: 'p2wpkh',
         addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }),
-      setActiveWallet: vi.fn().mockResolvedValue(undefined),
       unlockKeychain: vi.fn().mockResolvedValue(undefined),
       lockKeychain: vi.fn().mockResolvedValue(undefined),
       createMnemonicWallet: vi.fn(),

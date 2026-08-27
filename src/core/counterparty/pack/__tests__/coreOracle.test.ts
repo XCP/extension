@@ -32,6 +32,7 @@ import { asBaseUnits } from '@/core/numeric';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { packComposeMessage } from '../messages';
+import { fetchOracle } from './oracleRequest';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /** A funded mainnet address is only needed to satisfy the endpoint's shape; nothing is broadcast. */
@@ -377,7 +378,7 @@ async function composeDataFromCore(testCase: OracleCase): Promise<string> {
     ? `utxos/${testCase.sourceUtxo}`
     : `addresses/${SOURCE}`;
   const url = `${API_URL}/v2/${from}/compose/${testCase.composeType}?${query}`;
-  const response = await fetch(url);
+  const response = await fetchOracle(url);
   if (!response.ok) {
     throw new Error(`core returned ${response.status} for ${testCase.label}: ${await response.text()}`);
   }

@@ -1,3 +1,6 @@
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { HDKey } from '@scure/bip32';
+import { mnemonicToSeedSync } from '@scure/bip39';
 import { describe, expect, it } from 'vitest';
 import {
   AddressFormat,
@@ -22,6 +25,61 @@ const MNEMONIC =
 const PRIV_HEX = '0000000000000000000000000000000000000000000000000000000000000001';
 
 describe('addressDeriver', () => {
+  describe('extra paths', () => {
+    const record: WalletRecord = {
+      id: 'w1',
+      name: 'Wallet 1',
+      type: 'mnemonic',
+      addressFormat: AddressFormat.Counterwallet,
+      addressCount: 2,
+      previewAddress: '',
+      encryptedSecret: '',
+    };
+    // Counterwallet wordlist phrase, so the Counterwallet seed derivation applies.
+    const CW_MNEMONIC = 'like just love know never want time out there make look eye';
+
+    it('appends a UTXO address after the sequential run, named for its pair', () => {
+      const addresses = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        extraPaths: ["m/0'/1/1"],
+      });
+
+      expect(addresses).toHaveLength(3);
+      expect(addresses.slice(0, 2).map((a) => a.path)).toEqual(["m/0'/0/0", "m/0'/0/1"]);
+      expect(addresses[2]).toMatchObject({ name: 'UTXO Address 2', path: "m/0'/1/1" });
+    });
+
+    it('derives the extra address at the path it names', () => {
+      const [extra] = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        addressCount: 1,
+        extraPaths: ["m/0'/1/0"],
+      }).slice(-1);
+
+      expect(extra?.address).toBe(
+        getAddressFromMnemonic(CW_MNEMONIC, "m/0'/1/0", AddressFormat.Counterwallet)
+      );
+    });
+
+    it('drops a stored path it cannot account for rather than deriving it', () => {
+      const addresses = deriveAddressesFromSecret(CW_MNEMONIC, {
+        ...record,
+        extraPaths: ["m/0'/0/9", "m/44'/0'/0'/1/0", 'nonsense', "m/0'/1/3"],
+      });
+
+      // Only the one genuine change-branch path survives.
+      expect(addresses).toHaveLength(3);
+      expect(addresses[2]?.path).toBe("m/0'/1/3");
+    });
+
+    it('leaves a wallet without extra paths exactly as it was', () => {
+      expect(deriveAddressesFromSecret(CW_MNEMONIC, record)).toEqual(
+        deriveAddressesFromSecret(CW_MNEMONIC, { ...record, extraPaths: [] })
+      );
+    });
+  });
+
+
   describe('getPairedAddressFormats', () => {
     it('pairs only supported Legacy and native SegWit formats', () => {
       const supportedPairs = [
@@ -119,12 +177,50 @@ describe('addressDeriver', () => {
         type: 'hardware',
         previewAddress: 'bc1qhardwarepreview',
       } as unknown as WalletRecord;
+      // 'deadbeef' is a fixture, not a key. It used to be copied into pubKey verbatim, which is
+      // how an account xpub reached compose as multisig_pubkey and came back "Invalid multisig
+      // pubkey: zpub6...". Anything that is not a key is now dropped, and empty is the value
+      // getSourcePubkey already reads as "no key, let core find it".
       const secret = JSON.stringify({ derivationPath: "m/84'/0'/0'/0/0", publicKey: 'deadbeef' });
 
       const addresses = deriveAddressesFromSecret(secret, record);
       expect(addresses).toEqual([
-        { name: 'Address 1', path: "m/84'/0'/0'/0/0", address: 'bc1qhardwarepreview', pubKey: 'deadbeef' },
+        { name: 'Address 1', path: "m/84'/0'/0'/0/0", address: 'bc1qhardwarepreview', pubKey: '' },
       ]);
+    });
+
+    it('keeps a stored public key that really is one', () => {
+      const record = {
+        type: 'hardware',
+        previewAddress: 'bc1qhardwarepreview',
+      } as unknown as WalletRecord;
+      const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+      const secret = JSON.stringify({ derivationPath: "m/84'/0'/0'/0/0", publicKey: PUBKEY });
+
+      expect(deriveAddressesFromSecret(secret, record)[0]?.pubKey).toBe(PUBKEY);
+    });
+
+    it('derives the address key from a stored account xpub', () => {
+      // The point of the fix: a Trezor stores the ACCOUNT key, and the address key can simply be
+      // computed from it. Asserted against the key derived independently from the same seed by
+      // walking the full path, so a wrong tail would not agree.
+      const master = HDKey.fromMasterSeed(
+        mnemonicToSeedSync(
+          'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+        ),
+      );
+      const expected = bytesToHex(master.derive("m/84'/0'/0'/0/0").publicKey!);
+      const record = {
+        type: 'hardware',
+        previewAddress: 'bc1qhardwarepreview',
+      } as unknown as WalletRecord;
+      const secret = JSON.stringify({
+        derivationPath: "m/84'/0'/0'/0/0",
+        publicKey: 'wpkh([abcd/84h/0h/0h]xpub/0/*)',
+        xpub: master.derive("m/84'/0'/0'").publicExtendedKey,
+      });
+
+      expect(deriveAddressesFromSecret(secret, record)[0]?.pubKey).toBe(expected);
     });
 
     it('returns the embedded address for a test-only wallet', () => {

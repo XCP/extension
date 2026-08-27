@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as bitcoinAddress from '@/core/bitcoin/address';
-import { AddressFormat, detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses } from '@/core/bitcoin/address';
+import { AddressFormat, detectAddressFormat, detectAddressFormatFromPreviews, getPreviewAddresses, probeAddressActivity } from '@/core/bitcoin/address';
 import { hasAddressActivity } from '@/core/bitcoin/balance';
 import { fetchTokenBalances } from '@/core/counterparty/api';
 import { asBaseUnits } from '@/core/numeric';
@@ -8,6 +8,64 @@ import { asBaseUnits } from '@/core/numeric';
 // Mock the external dependencies
 vi.mock('@/core/counterparty/api');
 vi.mock('@/core/bitcoin/balance');
+
+describe('probeAddressActivity', () => {
+  const ADDRESS = '1LqBGSKuX5yYUonjxT5qGfpUsXKYYWeabA';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('reports activity from Counterparty balances without asking the chain', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([{ asset: 'XCP' }] as never);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: true,
+      reachable: true,
+    });
+    expect(hasAddressActivity).not.toHaveBeenCalled();
+  });
+
+  it('falls through to Bitcoin history when there are no balances', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([] as never);
+    vi.mocked(hasAddressActivity).mockResolvedValue(true);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: true,
+      reachable: true,
+    });
+  });
+
+  it('reports an answered but empty address as reachable', async () => {
+    vi.mocked(fetchTokenBalances).mockResolvedValue([] as never);
+    vi.mocked(hasAddressActivity).mockResolvedValue(false);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: true,
+    });
+  });
+
+  it('does not pass off a total outage as an empty address', async () => {
+    vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('network down'));
+    vi.mocked(hasAddressActivity).mockRejectedValue(new Error('network down'));
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: false,
+    });
+  });
+
+  it('counts one provider answering as reached, even if the other failed', async () => {
+    vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('counterparty down'));
+    vi.mocked(hasAddressActivity).mockResolvedValue(false);
+
+    await expect(probeAddressActivity(ADDRESS)).resolves.toEqual({
+      active: false,
+      reachable: true,
+    });
+  });
+});
 
 describe('Address Type Detector', () => {
   const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';

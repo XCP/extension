@@ -32,6 +32,9 @@ export interface AttachForListingIntentClaim {
   protocolVersion: 'counterparty_attach_listing_v1';
   assets: [{ asset: string; quantityRaw: string }];
   seller: string;
+  /** Address whose Counterparty balance and first attach input are consumed.
+   * It defaults to seller when parsing older same-address v1 requests. */
+  assetSource: string;
   expectedAttachedOutpoint: MarketplaceOutpointClaim;
   carrierAddress: string;
   carrierValueSats: number;
@@ -406,6 +409,7 @@ const parseAttachForListingIntent = (
   if (typeof value.protocolFee.variableUntilConfirmed !== 'boolean') {
     throw new Error('protocolFee.variableUntilConfirmed must be boolean');
   }
+  const seller = boundedString(value.seller, 'seller', 128);
 
   return {
     standard: MARKETPLACE_INTENT_STANDARD,
@@ -414,7 +418,8 @@ const parseAttachForListingIntent = (
     operationId: boundedString(value.operationId, 'operationId'),
     protocolVersion: 'counterparty_attach_listing_v1',
     assets: [assetWithoutOutpoint(value.assets[0], 'assets[0]')],
-    seller: boundedString(value.seller, 'seller', 128),
+    seller,
+    assetSource: boundedString(value.assetSource ?? seller, 'assetSource', 128),
     expectedAttachedOutpoint: outpoint(
       value.expectedAttachedOutpoint,
       'expectedAttachedOutpoint',
@@ -593,7 +598,6 @@ function analyzeCreateListingIntent({
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
-
   const sellerInput = inputs[1];
   const sellerOutput = outputs[1];
 
@@ -746,6 +750,9 @@ function analyzeAttachForListingIntent(
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
+  // A request can already be persisted when the extension updates. Those older
+  // same-address v1 records bypass the wire parser, so retain its compatibility default here.
+  const assetSource = intent.assetSource ?? intent.seller;
 
   if (!intent.protocolFee.variableUntilConfirmed) {
     blockers.push('the attach XCP fee must be labeled variable until confirmation');
@@ -802,8 +809,8 @@ function analyzeAttachForListingIntent(
   ) {
     blockers.push('the wallet must sign every attach input exactly once with ALL (0x01)');
   }
-  if (!sameAddress(inputs[0]?.address, intent.seller)) {
-    blockers.push('Counterparty source input 0 is not controlled by the claimed seller');
+  if (!sameAddress(inputs[0]?.address, assetSource)) {
+    blockers.push('Counterparty source input 0 is not controlled by the claimed asset source');
   }
 
   const inputAddresses = inputs.map(transactionInput => transactionInput.address);
@@ -839,6 +846,9 @@ function analyzeAttachForListingIntent(
   }
 
   const target = outputs[intent.expectedAttachedOutpoint.vout];
+  if (!sameAddress(intent.carrierAddress, intent.seller)) {
+    blockers.push('the attached carrier address differs from the claimed seller');
+  }
   if (!target) {
     blockers.push('the claimed attached carrier output is missing');
   } else {
@@ -857,11 +867,9 @@ function analyzeAttachForListingIntent(
     blockers.push('the attach must contain exactly one zero-value OP_RETURN data output');
   }
   const signerSet = new Set(signerAddresses.map(normalizeAddressForComparison));
-  if (!signerSet.has(normalizeAddressForComparison(intent.carrierAddress))) {
-    blockers.push('the attached carrier address is not among the approved wallet signers');
-  }
   for (const output of outputs) {
     if (output.type === 'op_return') continue;
+    if (output.index === intent.expectedAttachedOutpoint.vout) continue;
     if (!output.address || !signerSet.has(normalizeAddressForComparison(output.address))) {
       blockers.push(`attach output ${output.index} is not controlled by an approved signer`);
     }
@@ -893,6 +901,10 @@ function analyzeAttachForListingIntent(
     // says each thing once.
     title: `Attach ${claim.asset} for listing`,
     facts: [
+      ...(!sameAddress(assetSource, intent.seller) ? [
+        { label: 'Asset source', value: assetSource },
+        { label: 'Carrier owner', value: intent.seller },
+      ] : []),
       { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
       {
         label: 'Quoted XCP fee',

@@ -9,6 +9,7 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
 }));
 
 import { AddressFormat } from '@/core/bitcoin/address';
+import type { WalletRecord } from '@/types/wallet';
 import { WalletManager } from '../walletManager';
 import {
   createMultipleWallets,
@@ -38,6 +39,10 @@ vi.mock('@/core/bitcoin/psbt', () => ({
   completePsbtWithInputValues: vi.fn(),
 }));
 vi.mock('@/core/counterwallet');
+vi.mock('@/core/wallet/rarePepeWallet', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/core/wallet/rarePepeWallet')>()),
+  detectUtxoAddress: (...args: unknown[]) => mockDetectUtxoAddress(...args),
+}));
 vi.mock('@noble/hashes/sha2.js');
 vi.mock('@noble/hashes/utils.js');
 vi.mock('@scure/bip32');
@@ -46,7 +51,12 @@ vi.mock('@scure/bip39');
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import {
+  encodeAddress,
+  getAddressFromMnemonic,
+  getDerivationPathForAddressFormat,
+  isCounterwalletFormat,
+} from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
@@ -58,6 +68,8 @@ import {
   getKeychainRecord,
   saveKeychainRecord,
 } from '@/platform/storage/walletStorage';
+
+const { mockDetectUtxoAddress } = vi.hoisted(() => ({ mockDetectUtxoAddress: vi.fn() }));
 
 describe('WalletManager', () => {
   let walletManager: WalletManager;
@@ -201,18 +213,71 @@ describe('WalletManager', () => {
       expect(found).toBeUndefined();
     });
 
-    it('should set active wallet', async () => {
-      const wallet = createTestWallet();
+    it('selects a wallet by decrypting its secret and deriving its addresses', async () => {
+      const wallet = createTestWallet({ addressCount: 1 });
       const keychain = createTestKeychain([wallet]);
       walletManager['wallets'] = [wallet];
       walletManager['keychain'] = keychain;
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
+        derive: vi.fn().mockReturnValue({ publicKey: new Uint8Array([2, 3, 4]) }),
+      } as any);
+      vi.mocked(encodeAddress).mockReturnValue('bc1qselected');
 
-      // Mock storage record for persistKeychain
-      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
-
-      await walletManager.setActiveWallet(wallet.id);
+      await walletManager.selectWallet(wallet.id);
 
       expect(walletManager.getActiveWallet()).toEqual(wallet);
+      expect(wallet.addresses).toHaveLength(1);
+      expect(mocks.sessionManager.storeUnlockedSecret).toHaveBeenCalledWith(
+        wallet.id,
+        'test mnemonic'
+      );
+    });
+  });
+
+  describe('Address Format Changes', () => {
+    it('preserves the wallet address count and selected derivation index', async () => {
+      const wallet = createTestWallet({
+        addressFormat: AddressFormat.P2PKH,
+        addressCount: 3,
+        addresses: [0, 1, 2].map(index => ({
+          name: `Address ${index + 1}`,
+          address: `legacy-${index}`,
+          path: `m/44'/0'/0'/0/${index}`,
+          pubKey: `02legacy${index}`,
+        })),
+      });
+      const keychain = createTestKeychain([wallet]);
+      keychain.settings.lastActiveAddress = 'legacy-2';
+      walletManager['wallets'] = [wallet];
+      walletManager['keychain'] = keychain;
+      walletManager['activeWalletId'] = wallet.id;
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue('test mnemonic');
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/86'/0'/0'/0");
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
+        derive: vi.fn((path: string) => ({
+          publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
+        })),
+      } as any);
+      vi.mocked(encodeAddress).mockImplementation(
+        publicKey => `taproot-${publicKey[1]}`
+      );
+
+      await walletManager.updateWalletAddressFormat(wallet.id, AddressFormat.P2TR);
+
+      expect(wallet.addressFormat).toBe(AddressFormat.P2TR);
+      expect(wallet.addressCount).toBe(3);
+      expect(wallet.addresses.map(address => address.address)).toEqual([
+        'taproot-0',
+        'taproot-1',
+        'taproot-2',
+      ]);
+      expect(keychain.wallets[0]!.addressCount).toBe(3);
+      expect(keychain.wallets[0]!.addressFormat).toBe(AddressFormat.P2TR);
+      expect(keychain.settings.lastActiveAddress).toBe('taproot-2');
     });
   });
 
@@ -246,6 +311,179 @@ describe('WalletManager', () => {
 
       expect(walletManager['keychain']).toBeNull();
       expect(sessionManager.clearSessionExpiry).toHaveBeenCalled();
+    });
+  });
+
+  describe('UTXO Addresses', () => {
+    const MNEMONIC = 'test mnemonic phrase';
+
+    /** An unlocked Counterwallet mnemonic wallet with two sequential addresses. */
+    function setupCounterwalletWallet() {
+      const wallet = createTestWallet({
+        addressFormat: AddressFormat.Counterwallet,
+        addressCount: 2,
+      });
+      const record: WalletRecord = {
+        id: wallet.id,
+        name: wallet.name,
+        type: 'mnemonic',
+        addressFormat: AddressFormat.Counterwallet,
+        addressCount: 2,
+        previewAddress: '',
+        encryptedSecret: '',
+      };
+      walletManager['wallets'] = [wallet];
+      walletManager['keychain'] = { version: 1, wallets: [record], settings: {} as never };
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue(MNEMONIC);
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      vi.mocked(isCounterwalletFormat).mockReturnValue(true);
+      return { wallet, record };
+    }
+
+    beforeEach(() => {
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'none' });
+    });
+
+    it('keeps a funded UTXO address on the record, so it survives the next unlock', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      const added = await walletManager.addUtxoAddress(wallet.id, 1);
+
+      expect(added).toMatchObject({ name: 'UTXO Address 2', path: "m/0'/1/1" });
+      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalled();
+    });
+
+    it('reports an empty change address as nothing found, and keeps nothing', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).resolves.toBeNull();
+      expect(record.extraPaths).toBeUndefined();
+      expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
+    it('refuses to call an unreachable lookup an empty address', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'unavailable' });
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Could not check for a UTXO address'
+      );
+      expect(record.extraPaths).toBeUndefined();
+    });
+
+    it('does not add the same path twice', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      await walletManager.addUtxoAddress(wallet.id, 1);
+      mockDetectUtxoAddress.mockClear();
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      expect(record.extraPaths).toEqual(["m/0'/1/1"]);
+      expect(mockDetectUtxoAddress).not.toHaveBeenCalled();
+    });
+
+    it('leaves the sequential run alone when a UTXO address is added', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      // The sequential run is untouched and the UTXO address is appended after it.
+      expect(wallet.addresses).toHaveLength(3);
+      expect(wallet.addresses.at(-1)).toMatchObject({ path: "m/0'/1/1" });
+    });
+
+    it('forgets a kept UTXO address on request', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+      await walletManager.addUtxoAddress(wallet.id, 1);
+
+      await walletManager.removeUtxoAddress(wallet.id, "m/0'/1/1");
+
+      expect(record.extraPaths).toEqual([]);
+      expect(wallet.addresses).toHaveLength(2);
+      expect(wallet.addresses.some((address) => address.path === "m/0'/1/1")).toBe(false);
+    });
+
+    it('sweeps every address in one pass, writing the keychain once', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+
+      const found = await walletManager.sweepUtxoAddresses(wallet.id);
+
+      expect(found).toHaveLength(2);
+      expect(record.extraPaths).toEqual(["m/0'/1/0", "m/0'/1/1"]);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(2);
+      // One persist for the pass, not one per address.
+      expect(mocks.walletStorage.saveKeychainRecord).toHaveBeenCalledTimes(1);
+    });
+
+    it('checks only the indexes it is given', async () => {
+      const { wallet } = setupCounterwalletWallet();
+
+      await walletManager.sweepUtxoAddresses(wallet.id, [1]);
+
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(1);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledWith(expect.anything(), expect.anything(), 1);
+    });
+
+    it('does not re-ask about an address it already keeps', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'found', value: '1utxo' });
+      await walletManager.sweepUtxoAddresses(wallet.id, [0]);
+      mockDetectUtxoAddress.mockClear();
+
+      await walletManager.sweepUtxoAddresses(wallet.id, [0, 1]);
+
+      expect(mockDetectUtxoAddress).toHaveBeenCalledTimes(1);
+      expect(mockDetectUtxoAddress).toHaveBeenCalledWith(expect.anything(), expect.anything(), 1);
+    });
+
+    it('writes nothing and stays quiet when a sweep finds nothing', async () => {
+      const { wallet, record } = setupCounterwalletWallet();
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      expect(record.extraPaths).toBeUndefined();
+      expect(mocks.walletStorage.saveKeychainRecord).not.toHaveBeenCalled();
+    });
+
+    it('swallows an unreachable sweep, unlike the deliberate check', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      mockDetectUtxoAddress.mockResolvedValue({ status: 'unavailable' });
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Could not check for a UTXO address'
+      );
+    });
+
+    it('sweeps nothing for a wallet that cannot have one, rather than throwing', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      vi.mocked(isCounterwalletFormat).mockReturnValue(false);
+
+      await expect(walletManager.sweepUtxoAddresses(wallet.id)).resolves.toEqual([]);
+      expect(mockDetectUtxoAddress).not.toHaveBeenCalled();
+    });
+
+    it('turns away formats that cannot have one', async () => {
+      const { wallet } = setupCounterwalletWallet();
+      vi.mocked(isCounterwalletFormat).mockReturnValue(false);
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'UTXO addresses exist only for Counterwallet address formats'
+      );
+    });
+
+    it('turns away private key wallets, which have no branch to look on', async () => {
+      const wallet = createPrivateKeyWallet();
+      walletManager['wallets'] = [wallet];
+
+      await expect(walletManager.addUtxoAddress(wallet.id, 0)).rejects.toThrow(
+        'Only mnemonic wallets have UTXO addresses'
+      );
     });
   });
 

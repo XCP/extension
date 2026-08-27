@@ -25,6 +25,7 @@ import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
 import { packComposeMessage } from '../messages';
+import { fetchOracle } from './oracleRequest';
 
 const API_URL = process.env.COUNTERPARTY_API_URL;
 /**
@@ -38,6 +39,26 @@ interface OnChainTransaction {
   /** The Counterparty message: type id byte followed by the body, without the CNTRPRTY prefix. */
   data: string;
   block_index: number;
+}
+
+/**
+ * Core's composer uses cbor2's default float64 representation, but consensus accepts other valid
+ * CBOR representations too. Those messages are readable without being byte-reproducible by this
+ * wallet's compose path. Compare the decoded fields so the on-chain oracle can distinguish that
+ * harmless encoding variation from a packer that changed the message's meaning.
+ *
+ * This exception is deliberately broadcast-only. Broadcast is also covered by `coreOracle`, which
+ * still requires the local packer to match core's own composer bytes exactly.
+ */
+function sameBroadcastFields(
+  original: Record<string, any>,
+  rebuilt: Record<string, any>
+): boolean {
+  return original.timestamp === rebuilt.timestamp
+    && original.value === rebuilt.value
+    && original.feeFractionInt === rebuilt.feeFractionInt
+    && original.text === rebuilt.text
+    && original.mimeType === rebuilt.mimeType;
 }
 
 /**
@@ -197,7 +218,7 @@ const COMPOSE_TYPE_FOR: Record<string, string> = {
 
 async function recentTransactions(type: string): Promise<OnChainTransaction[]> {
   const url = `${API_URL}/v2/transactions?type=${type}&limit=${SAMPLE_SIZE}&valid=true`;
-  const response = await fetch(url);
+  const response = await fetchOracle(url);
   if (!response.ok) throw new Error(`core returned ${response.status} listing ${type}`);
   const body = await response.json() as { result?: OnChainTransaction[] };
   return (body.result ?? []).filter((tx) => typeof tx.data === 'string' && tx.data.length > 0);
@@ -242,12 +263,29 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
         continue;
       }
 
-      compared += 1;
       const rebuilt = bytesToHex(packed.bytes).toLowerCase();
       const original = (COUNTERPARTY_PREFIX_HEX + transaction.data).toLowerCase();
       if (rebuilt !== original) {
+        const rebuiltMessage = unpackCounterpartyMessage(rebuilt);
+        if (
+          apiType === 'broadcast'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'broadcast'
+          && rebuiltMessage.data
+          && sameBroadcastFields(
+            unpacked.data as Record<string, any>,
+            rebuiltMessage.data as Record<string, any>
+          )
+        ) {
+          // A third-party composer may choose float16/32 or another valid CBOR representation. The
+          // wallet intentionally emits core's default float64 form, so this sample is readable but
+          // not one its compose path claims it can reproduce byte-for-byte.
+          declined += 1;
+          continue;
+        }
         failures.push(`${transaction.tx_hash} (block ${transaction.block_index})\n  on-chain: ${original}\n  rebuilt:  ${rebuilt}`);
       }
+      compared += 1;
     }
 
     expect(failures, `rebuilt bytes differ from chain:\n${failures.join('\n')}`).toEqual([]);
@@ -270,4 +308,31 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
       return;
     }
   }, 30_000);
+});
+
+describe('on-chain broadcast sample classification', () => {
+  it('declines an equivalent non-core float16 encoding', () => {
+    // CBOR [1, 0.0, 0, "text/html", h'6869']; cbor2/core emits the value as float64 instead.
+    const original = COUNTERPARTY_PREFIX_HEX + '1e8501f900000069746578742f68746d6c426869';
+    const unpacked = unpackCounterpartyMessage(original);
+    expect(unpacked.success).toBe(true);
+
+    const packed = packComposeMessage('broadcast', {
+      timestamp: 1,
+      value: '0',
+      fee_fraction: '0',
+      mime_type: 'text/html',
+      text: 'hi',
+    });
+    expect(packed).not.toBeNull();
+    const rebuilt = bytesToHex(packed!.bytes);
+    expect(rebuilt).not.toBe(original);
+
+    const rebuiltMessage = unpackCounterpartyMessage(rebuilt);
+    expect(rebuiltMessage.success).toBe(true);
+    expect(sameBroadcastFields(
+      unpacked.data as Record<string, any>,
+      rebuiltMessage.data as Record<string, any>
+    )).toBe(true);
+  });
 });
