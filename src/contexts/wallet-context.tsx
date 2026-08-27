@@ -45,7 +45,7 @@ import {
   useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
-import type { AddressFormat } from '@/core/bitcoin/address';
+import { AddressFormat } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
@@ -143,7 +143,7 @@ interface WalletContextType {
   // ─── Authentication ────────────────────────────────────────────────────────
   /** Unlock the keychain with password */
   unlockKeychain: (password: string) => Promise<void>;
-  /** Load a specific wallet after keychain is unlocked */
+  /** Decrypt, derive, and make a specific wallet active */
   selectWallet: (walletId: string) => Promise<void>;
   /** Lock the keychain and clear sensitive data from memory */
   lockKeychain: () => Promise<void>;
@@ -153,8 +153,6 @@ interface WalletContextType {
   updatePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 
   // ─── Wallet Selection ──────────────────────────────────────────────────────
-  /** Set the active wallet. If useLastActive, restores last used address */
-  setActiveWallet: (wallet: Wallet | null, useLastActive?: boolean) => Promise<void>;
   /** Set the active address within the current wallet */
   setActiveAddress: (address: Address | null) => Promise<void>;
   /** Update last activity timestamp (for auto-lock) */
@@ -502,43 +500,29 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     }
   }, [walletService]);
 
-  const setActiveWallet = useCallback(
-    async (wallet: Wallet | null, useLastActive?: boolean) => {
-      return withStateLock('wallet-set-active', async () => {
-        const oldAddress = walletStateRef.current.activeAddress?.address;
+  const withIdentityRefresh = useCallback(
+    async <T,>(lockKey: string, operation: () => Promise<T>): Promise<T> => {
+      return withStateLock(lockKey, async () => {
+        const previousAddress = walletStateRef.current.activeAddress?.address;
+        const result = await operation();
 
-        if (wallet) {
-          await walletService.setActiveWallet(wallet.id);
-          const lastActiveAddress = useLastActive
-            ? await walletService.getLastActiveAddress()
-            : undefined;
-          const newActiveAddress =
-            lastActiveAddress && wallet.addresses.some((addr) => addr.address === lastActiveAddress)
-              ? wallet.addresses.find((addr) => addr.address === lastActiveAddress) ?? wallet.addresses[0]
-              : wallet.addresses[0];
-
-          // When switching wallets, maintain unlocked state if keychain is unlocked
-          const isUnlocked = await walletService.isKeychainUnlocked();
-
-          setWalletState((prev) => ({
-            ...prev,
-            activeWallet: wallet,
-            activeAddress: newActiveAddress ?? null,
-            authState: isUnlocked ? AuthState.Unlocked : prev.authState,
-            keychainLocked: !isUnlocked,
-          }));
-          if (newActiveAddress) await walletService.setLastActiveAddress(newActiveAddress.address);
-          if (oldAddress !== newActiveAddress?.address) {
-            await emitAccountsChanged(newActiveAddress?.address);
-          }
-        } else {
-          await walletService.setActiveWallet("");
-          setWalletState((prev) => ({ ...prev, activeWallet: null, activeAddress: null }));
-          if (oldAddress) await emitAccountsChanged();
+        await refreshWalletState();
+        const activeAddress = await walletService.getActiveAddress();
+        const nextAddress = activeAddress?.address;
+        if (
+          nextAddress &&
+          nextAddress !== await walletService.getLastActiveAddress()
+        ) {
+          await walletService.setLastActiveAddress(nextAddress);
         }
+        if (previousAddress !== nextAddress) {
+          await emitAccountsChanged(nextAddress);
+        }
+
+        return result;
       });
     },
-    [emitAccountsChanged, walletService]
+    [emitAccountsChanged, refreshWalletState, walletService]
   );
 
   const setActiveAddress = useCallback(
@@ -582,7 +566,10 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
       await refreshWalletState();
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
     }, 'wallet-unlock-keychain'),
-    selectWallet: withRefresh(walletService.selectWallet, refreshWalletState, 'wallet-load'),
+    selectWallet: (walletId) => withIdentityRefresh(
+      'wallet-load',
+      () => walletService.selectWallet(walletId)
+    ),
     lockKeychain: async () => {
       return withStateLock('wallet-lock', async () => {
         // Immediately set state to locked to trigger navigation
@@ -598,26 +585,50 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
         await walletService.lockKeychain();
       });
     },
-    setActiveWallet,
     setActiveAddress,
     addAddress: withRefresh(walletService.addAddress, refreshWalletState),
     addUtxoAddress: withRefresh(walletService.addUtxoAddress, refreshWalletState),
     removeUtxoAddress: withRefresh(walletService.removeUtxoAddress, refreshWalletState),
     sweepUtxoAddresses: withRefresh(walletService.sweepUtxoAddresses, refreshWalletState),
     updatePassword: withRefresh(walletService.updatePassword, refreshWalletState),
-    createMnemonicWallet: withRefresh(walletService.createMnemonicWallet, async () => {
-      await refreshWalletState();
+    createMnemonicWallet: async (mnemonic, password, name, addressFormat) => {
+      const wallet = await withIdentityRefresh(
+        'wallet-create-mnemonic',
+        () => walletService.createMnemonicWallet(
+          mnemonic,
+          password,
+          name,
+          addressFormat ?? AddressFormat.P2TR
+        )
+      );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
-    }),
-    createPrivateKeyWallet: withRefresh(walletService.createPrivateKeyWallet, async () => {
-      await refreshWalletState();
+      return wallet;
+    },
+    createPrivateKeyWallet: async (privateKey, password, name, addressFormat) => {
+      const wallet = await withIdentityRefresh(
+        'wallet-create-private-key',
+        () => walletService.createPrivateKeyWallet(
+          privateKey,
+          password,
+          name,
+          addressFormat ?? AddressFormat.P2TR
+        )
+      );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
-    }),
-    importTestAddress: withRefresh(walletService.importTestAddress, async () => {
-      await refreshWalletState();
+      return wallet;
+    },
+    importTestAddress: async (address, name) => {
+      const wallet = await withIdentityRefresh(
+        'wallet-import-test-address',
+        () => walletService.importTestAddress(address, name)
+      );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
-    }),
-    createHardwareWalletWithDiscovery: withRefresh(walletService.createHardwareWalletWithDiscovery, refreshWalletState),
+      return wallet;
+    },
+    createHardwareWalletWithDiscovery: (deviceType, name, usePassphrase) => withIdentityRefresh(
+      'wallet-create-hardware',
+      () => walletService.createHardwareWalletWithDiscovery(deviceType, name, usePassphrase)
+    ),
     resetKeychain: async (password) => {
       await walletService.resetKeychain(password);
       setWalletState({
@@ -635,10 +646,16 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     getPrivateKey: walletService.getPrivateKey,
     setLastActiveTime,
     verifyPassword: walletService.verifyPassword,
-    updateWalletAddressFormat: withRefresh(walletService.updateWalletAddressFormat, refreshWalletState),
+    updateWalletAddressFormat: (walletId, newType) => withIdentityRefresh(
+      'wallet-update-address-format',
+      () => walletService.updateWalletAddressFormat(walletId, newType)
+    ),
     getPreviewAddressForFormat: walletService.getPreviewAddressForFormat,
     isAddressInAnyWallet: walletService.isAddressInAnyWallet,
-    removeWallet: withRefresh(walletService.removeWallet, refreshWalletState),
+    removeWallet: (walletId) => withIdentityRefresh(
+      'wallet-remove',
+      () => walletService.removeWallet(walletId)
+    ),
     signTransaction: walletService.signTransaction,
     // Wrapped rather than passed through: the spent-UTXO cache is per-context, and compose runs
     // HERE, in the popup. Recording only in the background (where the broadcast executes) left
@@ -660,8 +677,8 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
     walletState,
     walletService,
     refreshWalletState,
-    setActiveWallet,
     setActiveAddress,
+    withIdentityRefresh,
     setLastActiveTime,
     setHardwareOperationInProgress,
     isKeychainLocked,
