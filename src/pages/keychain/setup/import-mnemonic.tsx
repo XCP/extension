@@ -121,7 +121,7 @@ function ImportMnemonicPage() {
             // you, and only its one address is yours to keep.
             await createPrivateKeyWallet(privateKey, password, "Gift Card", AddressFormat.P2PKH);
             analytics.track("gift_card_imported");
-            navigate(PATHS.SUCCESS);
+            window.location.hash = PATHS.SUCCESS;
             return { error: null };
           }
         } else {
@@ -139,7 +139,6 @@ function ImportMnemonicPage() {
         const wallet = await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         analytics.track('wallet_imported');
         window.location.hash = PATHS.SUCCESS;
-
         // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
         // change address of the address it starts with, so look once, here, where that address
         // first exists.
