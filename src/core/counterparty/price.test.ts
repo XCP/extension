@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchFromXCPIO } from "./price";
+import { fetchFromXCPIO, getXcpStats } from "./price";
 
 describe("canonical XCP price", () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -24,5 +24,29 @@ describe("canonical XCP price", () => {
       vi.fn().mockResolvedValue(Response.json({ result: { xcp: { usd: 0 } } })),
     );
     await expect(fetchFromXCPIO()).rejects.toThrow("Invalid XCP price value");
+  });
+
+  it("reads the live dispenser ask from the ticker", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          result: {
+            xcp: {
+              usd: 4.56,
+              change_pct: null,
+              sats: 5700,
+              quote: "confirmed_unit_dispenser_ask",
+            },
+          },
+        }),
+      ),
+    );
+
+    await expect(getXcpStats()).resolves.toEqual({
+      price: 4.56,
+      change24h: null,
+      satsPerXcp: 5700,
+    });
   });
 });

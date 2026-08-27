@@ -10,6 +10,8 @@ interface XCPApiResponse {
     xcp: {
       usd: number;
       change_pct: number | null;
+      sats?: number | null;
+      quote?: string;
     } | null;
   };
 }
@@ -125,10 +127,11 @@ export async function fetchFromDexTrade(
 export interface XcpStats {
   price: number;
   change24h: number | null;
+  satsPerXcp: number | null;
 }
 
 /**
- * Fetches current XCP price and 24h change from the xcp.io ticker.
+ * Fetches the current actionable XCP quote from the xcp.io ticker.
  * @returns {Promise<XcpStats | null>} Stats or null if unavailable.
  */
 export async function getXcpStats(): Promise<XcpStats | null> {
@@ -139,6 +142,12 @@ export async function getXcpStats(): Promise<XcpStats | null> {
     return {
       price: xcp.usd,
       change24h: typeof xcp.change_pct === "number" ? xcp.change_pct : null,
+      satsPerXcp:
+        typeof xcp.sats === "number" &&
+        Number.isFinite(xcp.sats) &&
+        xcp.sats > 0
+          ? xcp.sats
+          : null,
     };
   } catch (err) {
     console.error("Failed to fetch XCP ticker:", err);
