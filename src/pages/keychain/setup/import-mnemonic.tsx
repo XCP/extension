@@ -85,7 +85,7 @@ function ImportMnemonicPage() {
 
         await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         analytics.track('wallet_imported');
-        navigate(PATHS.SUCCESS);
+        window.location.hash = PATHS.SUCCESS;
         return { error: null };
       } catch (error: unknown) {
         console.error("Detailed error importing wallet:", error);
