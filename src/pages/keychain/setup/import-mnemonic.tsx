@@ -138,7 +138,7 @@ function ImportMnemonicPage() {
 
         const wallet = await createMnemonicWallet(mnemonic, password, undefined, addressFormat);
         analytics.track('wallet_imported');
-        navigate(PATHS.SUCCESS);
+        window.location.hash = PATHS.SUCCESS;
 
         // A Counterwallet seed restored from Rare Pepe Wallet may have assets attached to the
         // change address of the address it starts with, so look once, here, where that address
