@@ -31,7 +31,6 @@ interface WalletService {
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
-  setActiveWallet: (walletId: string) => Promise<void>;
   unlockKeychain: (password: string) => Promise<void>;
   selectWallet: (walletId: string) => Promise<void>;
   isKeychainUnlocked: () => Promise<boolean>;
@@ -146,10 +145,6 @@ function createWalletService(): WalletService {
       // Find the address in the active wallet
       const address = activeWallet.addresses.find(addr => addr.address === lastActiveAddress);
       return address || activeWallet.addresses[0];
-    },
-    setActiveWallet: async (walletId) => {
-      await walletManager.setActiveWallet(walletId);
-      // Don't emit here - address switching is handled in wallet-context
     },
     unlockKeychain: async (password) => {
       await walletManager.unlockKeychain(password);

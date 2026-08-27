@@ -6,6 +6,7 @@ import { AddressFormat } from '@/core/bitcoin/address';
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { saveKeychainRecord } from '@/platform/storage/walletStorage';
 import { walletManager } from '@/platform/walletManager';
+import type { Wallet } from '@/types/wallet';
 import { useWallet, WalletProvider } from '../wallet-context';
 
 // Mock webext-bridge first with comprehensive mocking
@@ -83,9 +84,10 @@ const mockWalletService = {
   refreshWallets: vi.fn().mockResolvedValue(undefined),
   getWallets: vi.fn().mockResolvedValue([]),
   getActiveWallet: vi.fn().mockResolvedValue(null),
+  getActiveAddress: vi.fn().mockResolvedValue(undefined),
   getLastActiveAddress: vi.fn().mockResolvedValue(null),
   getSettings: vi.fn().mockResolvedValue({ connectedWebsites: [] }),
-  setActiveWallet: vi.fn().mockResolvedValue(undefined),
+  selectWallet: vi.fn().mockResolvedValue(undefined),
   setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
   emitProviderEvent: vi.fn().mockResolvedValue(undefined),
   isKeychainUnlocked: vi.fn().mockResolvedValue(false),
@@ -162,10 +164,11 @@ describe('WalletContext', () => {
     mockWalletService.refreshWallets.mockResolvedValue(undefined);
     mockWalletService.getWallets.mockResolvedValue(mockWallets);
     mockWalletService.getActiveWallet.mockResolvedValue(mockWallets[0]);
+    mockWalletService.getActiveAddress.mockResolvedValue(undefined);
     mockWalletService.getLastActiveAddress.mockResolvedValue(null);
     mockWalletService.getSettings.mockResolvedValue({ connectedWebsites: [] });
     mockWalletService.isKeychainUnlocked.mockResolvedValue(false);
-    mockWalletService.setActiveWallet.mockResolvedValue(undefined);
+    mockWalletService.selectWallet.mockResolvedValue(undefined);
     mockWalletService.setLastActiveAddress.mockResolvedValue(undefined);
     mockWalletService.emitProviderEvent.mockResolvedValue(undefined);
 
@@ -447,13 +450,35 @@ describe('WalletContext', () => {
   });
 
   describe('Active Wallet/Address Management', () => {
-    it('should set active wallet', async () => {
-      // Set up mock to return the new active wallet after setActiveWallet is called
-      mockWalletService.setActiveWallet.mockImplementation(async (walletId: string) => {
-        const wallet = mockWallets.find(w => w.id === walletId);
-        if (wallet) {
-          mockWalletService.getActiveWallet.mockResolvedValue(wallet);
-        }
+    it('selects and loads the active wallet through one public operation', async () => {
+      const firstWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2WPKH,
+        addresses: [{
+          address: 'bc1qfirst',
+          path: "m/84'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02first',
+        }],
+      };
+      const secondWallet: Wallet = {
+        ...mockWallets[1]!,
+        addressFormat: AddressFormat.P2PKH,
+        addresses: [{
+          address: '1second',
+          path: "m/44'/0'/0'/0/0",
+          name: 'Address 1',
+          pubKey: '02second',
+        }],
+      };
+      let selectedWallet = firstWallet;
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getWallets.mockResolvedValue([firstWallet, secondWallet]);
+      mockWalletService.getActiveWallet.mockImplementation(async () => selectedWallet);
+      mockWalletService.getActiveAddress.mockImplementation(async () => selectedWallet.addresses[0]);
+      mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qfirst');
+      mockWalletService.selectWallet.mockImplementation(async (walletId: string) => {
+        selectedWallet = walletId === secondWallet.id ? secondWallet : firstWallet;
       });
 
       const { result } = renderHook(() => useWallet(), {
@@ -461,46 +486,51 @@ describe('WalletContext', () => {
       });
 
       await waitFor(() => {
-        expect(result.current.wallets.length).toBeGreaterThan(0);
+        expect(result.current.activeWallet?.id).toBe(firstWallet.id);
       });
 
       await act(async () => {
-        await result.current.setActiveWallet(mockWallets[1] as any);
+        await result.current.selectWallet(secondWallet.id);
       });
 
-      // Wait for state to update
       await waitFor(() => {
-        expect(result.current.activeWallet?.id).toBe(mockWallets[1]!.id);
+        expect(result.current.activeWallet?.id).toBe(secondWallet.id);
       });
+      expect(mockWalletService.selectWallet).toHaveBeenCalledWith(secondWallet.id);
     });
 
     it('emits accountsChanged to each connected site when a wallet switch changes the address', async () => {
-      const firstWallet = {
-        ...mockWallets[0],
+      const firstWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2WPKH,
         addresses: [{
           address: 'bc1qfirst',
           path: "m/84'/0'/0'/0/0",
-          addressFormat: 'P2WPKH' as const,
           name: 'Address 1',
           pubKey: '02first',
         }],
       };
-      const secondWallet = {
-        ...mockWallets[1],
+      const secondWallet: Wallet = {
+        ...mockWallets[1]!,
+        addressFormat: AddressFormat.P2PKH,
         addresses: [{
           address: '1second',
           path: "m/44'/0'/0'/0/0",
-          addressFormat: 'P2PKH' as const,
           name: 'Address 1',
           pubKey: '02second',
         }],
       };
       mockWalletService.getWallets.mockResolvedValue([firstWallet, secondWallet]);
       mockWalletService.getActiveWallet.mockResolvedValue(firstWallet);
+      mockWalletService.getActiveAddress.mockResolvedValue(firstWallet.addresses[0]);
       mockWalletService.getLastActiveAddress.mockResolvedValue('bc1qfirst');
       mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
       mockWalletService.getSettings.mockResolvedValue({
         connectedWebsites: ['https://one.example', 'https://two.example'],
+      });
+      mockWalletService.selectWallet.mockImplementation(async () => {
+        mockWalletService.getActiveWallet.mockResolvedValue(secondWallet);
+        mockWalletService.getActiveAddress.mockResolvedValue(secondWallet.addresses[0]);
       });
 
       const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
@@ -509,7 +539,7 @@ describe('WalletContext', () => {
       });
 
       await act(async () => {
-        await result.current.setActiveWallet(secondWallet as any);
+        await result.current.selectWallet(secondWallet.id);
       });
 
       expect(mockWalletService.emitProviderEvent).toHaveBeenNthCalledWith(
@@ -523,6 +553,70 @@ describe('WalletContext', () => {
         'https://two.example',
         'accountsChanged',
         ['1second']
+      );
+    });
+
+    it('preserves the selected index and emits accountsChanged after an address format change', async () => {
+      const legacyWallet: Wallet = {
+        ...mockWallets[0]!,
+        addressFormat: AddressFormat.P2PKH,
+        addressCount: 2,
+        addresses: [0, 1].map(index => ({
+          address: `legacy-${index}`,
+          path: `m/44'/0'/0'/0/${index}`,
+          name: `Address ${index + 1}`,
+          pubKey: `02legacy${index}`,
+        })),
+      };
+      const taprootWallet: Wallet = {
+        ...legacyWallet,
+        addressFormat: AddressFormat.P2TR,
+        addresses: [0, 1].map(index => ({
+          address: `taproot-${index}`,
+          path: `m/86'/0'/0'/0/${index}`,
+          name: `Address ${index + 1}`,
+          pubKey: `02taproot${index}`,
+        })),
+      };
+      let activeWallet: Wallet = legacyWallet;
+      let activeAddress = legacyWallet.addresses[1]!;
+      let lastActiveAddress = activeAddress.address;
+
+      mockWalletService.getWallets.mockImplementation(async () => [activeWallet]);
+      mockWalletService.getActiveWallet.mockImplementation(async () => activeWallet);
+      mockWalletService.getActiveAddress.mockImplementation(async () => activeAddress);
+      mockWalletService.getLastActiveAddress.mockImplementation(async () => lastActiveAddress);
+      mockWalletService.setLastActiveAddress.mockImplementation(async address => {
+        lastActiveAddress = address;
+      });
+      mockWalletService.isKeychainUnlocked.mockResolvedValue(true);
+      mockWalletService.getSettings.mockResolvedValue({
+        connectedWebsites: ['https://market.example'],
+      });
+      mockWalletService.updateWalletAddressFormat.mockImplementation(async () => {
+        activeWallet = taprootWallet;
+        activeAddress = taprootWallet.addresses[1]!;
+        lastActiveAddress = activeAddress.address;
+      });
+
+      const { result } = renderHook(() => useWallet(), { wrapper: WalletProvider });
+      await waitFor(() => {
+        expect(result.current.activeAddress?.address).toBe('legacy-1');
+      });
+
+      await act(async () => {
+        await result.current.updateWalletAddressFormat(
+          legacyWallet.id,
+          AddressFormat.P2TR
+        );
+      });
+
+      expect(result.current.activeWallet?.addressCount).toBe(2);
+      expect(result.current.activeAddress?.address).toBe('taproot-1');
+      expect(mockWalletService.emitProviderEvent).toHaveBeenCalledWith(
+        'https://market.example',
+        'accountsChanged',
+        ['taproot-1']
       );
     });
 

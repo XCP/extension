@@ -46,7 +46,7 @@ export interface Wallet {
   type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
-  /** Number of derived addresses */
+  /** Number of derivation indices exposed in every compatible address format */
   addressCount: number;
   /** Array of derived addresses */
   addresses: Address[];
@@ -73,7 +73,7 @@ export interface WalletRecord {
   type: 'mnemonic' | 'privateKey' | 'hardware';
   /** Bitcoin address format for derivation */
   addressFormat: AddressFormat;
-  /** Number of derived addresses */
+  /** Number of derivation indices exposed in every compatible address format */
   addressCount: number;
   /** First address for display (m/.../0/0) */
   previewAddress: string;

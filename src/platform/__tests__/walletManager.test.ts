@@ -46,7 +46,7 @@ vi.mock('@scure/bip39');
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { HDKey } from '@scure/bip32';
 import { mnemonicToSeedSync } from '@scure/bip39';
-import { getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
+import { encodeAddress, getAddressFromMnemonic, getDerivationPathForAddressFormat } from '@/core/bitcoin/address';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
@@ -201,18 +201,71 @@ describe('WalletManager', () => {
       expect(found).toBeUndefined();
     });
 
-    it('should set active wallet', async () => {
-      const wallet = createTestWallet();
+    it('selects a wallet by decrypting its secret and deriving its addresses', async () => {
+      const wallet = createTestWallet({ addressCount: 1 });
       const keychain = createTestKeychain([wallet]);
       walletManager['wallets'] = [wallet];
       walletManager['keychain'] = keychain;
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      mocks.keyBased.decryptWithKey.mockResolvedValue('test mnemonic');
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
+        derive: vi.fn().mockReturnValue({ publicKey: new Uint8Array([2, 3, 4]) }),
+      } as any);
+      vi.mocked(encodeAddress).mockReturnValue('bc1qselected');
 
-      // Mock storage record for persistKeychain
-      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
-
-      await walletManager.setActiveWallet(wallet.id);
+      await walletManager.selectWallet(wallet.id);
 
       expect(walletManager.getActiveWallet()).toEqual(wallet);
+      expect(wallet.addresses).toHaveLength(1);
+      expect(mocks.sessionManager.storeUnlockedSecret).toHaveBeenCalledWith(
+        wallet.id,
+        'test mnemonic'
+      );
+    });
+  });
+
+  describe('Address Format Changes', () => {
+    it('preserves the wallet address count and selected derivation index', async () => {
+      const wallet = createTestWallet({
+        addressFormat: AddressFormat.P2PKH,
+        addressCount: 3,
+        addresses: [0, 1, 2].map(index => ({
+          name: `Address ${index + 1}`,
+          address: `legacy-${index}`,
+          path: `m/44'/0'/0'/0/${index}`,
+          pubKey: `02legacy${index}`,
+        })),
+      });
+      const keychain = createTestKeychain([wallet]);
+      keychain.settings.lastActiveAddress = 'legacy-2';
+      walletManager['wallets'] = [wallet];
+      walletManager['keychain'] = keychain;
+      walletManager['activeWalletId'] = wallet.id;
+      mocks.sessionManager.getUnlockedSecret.mockResolvedValue('test mnemonic');
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
+      mocks.bitcoin.getDerivationPathForAddressFormat.mockReturnValue("m/86'/0'/0'/0");
+      vi.mocked(HDKey.fromMasterSeed).mockReturnValue({
+        derive: vi.fn((path: string) => ({
+          publicKey: new Uint8Array([2, Number(path.split('/').at(-1))]),
+        })),
+      } as any);
+      vi.mocked(encodeAddress).mockImplementation(
+        publicKey => `taproot-${publicKey[1]}`
+      );
+
+      await walletManager.updateWalletAddressFormat(wallet.id, AddressFormat.P2TR);
+
+      expect(wallet.addressFormat).toBe(AddressFormat.P2TR);
+      expect(wallet.addressCount).toBe(3);
+      expect(wallet.addresses.map(address => address.address)).toEqual([
+        'taproot-0',
+        'taproot-1',
+        'taproot-2',
+      ]);
+      expect(keychain.wallets[0]!.addressCount).toBe(3);
+      expect(keychain.wallets[0]!.addressFormat).toBe(AddressFormat.P2TR);
+      expect(keychain.settings.lastActiveAddress).toBe('taproot-2');
     });
   });
 

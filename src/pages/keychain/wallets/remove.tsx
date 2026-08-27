@@ -18,7 +18,7 @@ function RemoveWalletPage() {
   const { walletId } = useParams<{ walletId: string }>();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { wallets, setActiveWallet, activeWallet, removeWallet, verifyPassword } = useWallet();
+  const { wallets, removeWallet, verifyPassword } = useWallet();
   const { pending } = useFormStatus();
 
   const [walletName, setWalletName] = useState("");
@@ -72,10 +72,6 @@ function RemoveWalletPage() {
     }
 
     try {
-      const remainingWallets = wallets.filter((w) => w.id !== walletId);
-      if (activeWallet?.id === walletId) {
-        await setActiveWallet(remainingWallets.length > 0 ? remainingWallets[0]! : null);
-      }
       await removeWallet(walletId);
       navigate(PATHS.SUCCESS, { replace: true });
     } catch (err) {

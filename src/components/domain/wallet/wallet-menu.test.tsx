@@ -15,13 +15,11 @@ vi.mock('react-router', async () => {
 });
 
 // Mock wallet context to avoid webext-bridge import side effects
-const mockSetActiveWallet = vi.fn();
 const mockRemoveWallet = vi.fn();
 vi.mock('@/contexts/wallet-context', () => ({
   useWallet: () => ({
     wallets: [],
     activeWallet: null,
-    setActiveWallet: mockSetActiveWallet,
     removeWallet: mockRemoveWallet
   })
 }));
@@ -47,7 +45,6 @@ describe('WalletMenu', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSetActiveWallet.mockClear();
     mockRemoveWallet.mockClear();
   });
 

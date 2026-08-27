@@ -343,7 +343,6 @@ describe('ProviderService', () => {
         addressFormat: 'p2wpkh',
         addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }),
-      setActiveWallet: vi.fn().mockResolvedValue(undefined),
       unlockKeychain: vi.fn().mockResolvedValue(undefined),
       lockKeychain: vi.fn().mockResolvedValue(undefined),
       createMnemonicWallet: vi.fn(),

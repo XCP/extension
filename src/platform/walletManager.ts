@@ -21,6 +21,7 @@ import { type AppSettings, DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsPr
 import {
   deriveAddressesFromSecret,
   deriveMnemonicAddress,
+  deriveMnemonicAddresses,
   generateWalletId,
   generateWalletIdFromPrivateKey,
   getPairedAddressFormats,
@@ -223,11 +224,6 @@ export class WalletManager {
   public getActiveWallet(): Wallet | undefined {
     if (!this.activeWalletId) return undefined;
     return this.getWalletById(this.activeWalletId);
-  }
-
-  public async setActiveWallet(walletId: string): Promise<void> {
-    this.activeWalletId = walletId;
-    await this.updateSettings({ lastActiveWalletId: walletId });
   }
 
   public getWalletById(id: string): Wallet | undefined {
@@ -1139,12 +1135,25 @@ export class WalletManager {
       throw new Error('Wallet is locked. Please unlock first.');
     }
 
+    // Address count belongs to the mnemonic wallet. A format switch changes the
+    // derivation branch, not how many derivation indices the user has exposed.
+    const activeAddress = wallet.addresses.find(
+      address => address.address === this.getSettings().lastActiveAddress
+    ) ?? wallet.addresses[0];
+    const activeIndex = activeAddress
+      ? Number(activeAddress.path.split('/').at(-1))
+      : 0;
+    const selectedIndex = Number.isSafeInteger(activeIndex) && activeIndex >= 0
+      ? Math.min(activeIndex, Math.max(wallet.addressCount - 1, 0))
+      : 0;
+
     wallet.addressFormat = newType;
-    wallet.addressCount = 1;
-    wallet.addresses = [deriveMnemonicAddress(mnemonic, newType, 0)];
-    // Update preview address to match new format
-    const derivationPath = `${getDerivationPathForAddressFormat(newType)}/0`;
-    wallet.previewAddress = getAddressFromMnemonic(mnemonic, derivationPath, newType);
+    wallet.addresses = deriveMnemonicAddresses(
+      mnemonic,
+      newType,
+      Math.max(wallet.addressCount, 1)
+    );
+    wallet.previewAddress = wallet.addresses[0]!.address;
 
     // Update keychain record
     if (!this.keychain) throw new Error('Keychain not loaded');
@@ -1152,14 +1161,13 @@ export class WalletManager {
     if (!keychainRecord) throw new Error('Missing keychain record.');
 
     keychainRecord.addressFormat = newType;
-    keychainRecord.addressCount = 1;
     keychainRecord.previewAddress = wallet.previewAddress;
 
-    await this.persistKeychain();
-
     if (this.activeWalletId === walletId) {
-      await this.setActiveWallet(walletId);
+      this.keychain.settings.lastActiveAddress = wallet.addresses[selectedIndex]!.address;
     }
+
+    await this.persistKeychain();
   }
 
   /**
