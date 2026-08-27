@@ -79,6 +79,7 @@ function enterPassword() {
 describe("ImportMnemonicPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.location.hash = "";
     mockVerifyPassword.mockResolvedValue(true);
     mockCreateMnemonicWallet.mockResolvedValue({ id: "wallet-1" });
     mockSweepUtxoAddresses.mockResolvedValue([]);
@@ -101,7 +102,7 @@ describe("ImportMnemonicPage", () => {
       );
     });
     expect(screen.queryByText(/Rare Pepe Wallet gift card/)).not.toBeInTheDocument();
-    expect(mockNavigate).toHaveBeenCalledWith("/index");
+    expect(window.location.hash).toBe("#/index");
   });
 
   it("spends one check on a phrase, not one per keystroke", async () => {
@@ -127,13 +128,18 @@ describe("ImportMnemonicPage", () => {
     completeForm(BIP39_MNEMONIC);
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/index"));
+    await waitFor(() => expect(window.location.hash).toBe("#/index"));
     // The lookup returns nothing for a non-Counterwallet format, but calling it still drags a
     // state refresh through the import — which is what emptied the address on the index page.
     expect(mockSweepUtxoAddresses).not.toHaveBeenCalled();
   });
 
   it("looks for UTXO addresses on the wallet it just made, without holding it up", async () => {
+    let hashAtSweep = "";
+    mockSweepUtxoAddresses.mockImplementation(async () => {
+      hashAtSweep = window.location.hash;
+      return [];
+    });
     render(<ImportMnemonicPage />);
     completeForm();
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
@@ -141,7 +147,7 @@ describe("ImportMnemonicPage", () => {
     await waitFor(() => expect(mockSweepUtxoAddresses).toHaveBeenCalledWith("wallet-1"));
     // The wallet is shown first. Waiting on the lookup delayed the import behind a network call
     // and let its state refresh land mid-import, which emptied the address on the page it opens.
-    expect(mockNavigate).toHaveBeenCalledBefore(mockSweepUtxoAddresses);
+    expect(hashAtSweep).toBe("#/index");
   });
 
   it("does not report a finished import as failed when the UTXO lookup throws", async () => {
@@ -151,7 +157,7 @@ describe("ImportMnemonicPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
 
     // The wallet was created before the lookup ran, so the import has succeeded either way.
-    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith("/index"));
+    await waitFor(() => expect(window.location.hash).toBe("#/index"));
     await waitFor(() => expect(mockSweepUtxoAddresses).toHaveBeenCalled());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
@@ -233,7 +239,7 @@ describe("ImportMnemonicPage", () => {
       });
       expect(mockCreateMnemonicWallet).not.toHaveBeenCalled();
       expect(analytics.track).toHaveBeenCalledWith("gift_card_imported");
-      expect(mockNavigate).toHaveBeenCalledWith("/index");
+      expect(window.location.hash).toBe("#/index");
     });
 
     it("offers no way at all to import the phrase as a wallet", async () => {
