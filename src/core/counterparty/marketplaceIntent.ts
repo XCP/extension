@@ -598,7 +598,6 @@ function analyzeCreateListingIntent({
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
-
   const sellerInput = inputs[1];
   const sellerOutput = outputs[1];
 
@@ -751,6 +750,9 @@ function analyzeAttachForListingIntent(
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
+  // A request can already be persisted when the extension updates. Those older
+  // same-address v1 records bypass the wire parser, so retain its compatibility default here.
+  const assetSource = intent.assetSource ?? intent.seller;
 
   if (!intent.protocolFee.variableUntilConfirmed) {
     blockers.push('the attach XCP fee must be labeled variable until confirmation');
@@ -807,7 +809,7 @@ function analyzeAttachForListingIntent(
   ) {
     blockers.push('the wallet must sign every attach input exactly once with ALL (0x01)');
   }
-  if (!sameAddress(inputs[0]?.address, intent.assetSource)) {
+  if (!sameAddress(inputs[0]?.address, assetSource)) {
     blockers.push('Counterparty source input 0 is not controlled by the claimed asset source');
   }
 
@@ -899,8 +901,8 @@ function analyzeAttachForListingIntent(
     // says each thing once.
     title: `Attach ${claim.asset} for listing`,
     facts: [
-      ...(!sameAddress(intent.assetSource, intent.seller) ? [
-        { label: 'Asset source', value: intent.assetSource },
+      ...(!sameAddress(assetSource, intent.seller) ? [
+        { label: 'Asset source', value: assetSource },
         { label: 'Carrier owner', value: intent.seller },
       ] : []),
       { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },

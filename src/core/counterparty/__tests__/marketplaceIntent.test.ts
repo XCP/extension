@@ -369,6 +369,18 @@ describe('attach-for-listing proof', () => {
     expect(review.notices).toEqual([]);
   });
 
+  it('analyzes an older persisted same-address v1 attach claim', () => {
+    const request = attachBase();
+    const { assetSource: _assetSource, ...olderIntent } = attachIntent;
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: olderIntent as AttachForListingIntentClaim,
+    });
+
+    expect(review.status).toBe('caution');
+    expect(review.blockers).toEqual([]);
+  });
+
   it('distinguishes the Counterparty source from a paired carrier address', () => {
     const request = attachBase();
     const review = analyzeMarketplaceIntent({
