@@ -9,8 +9,8 @@
  */
 
 import type { Page } from '@playwright/test';
-import { walletTest, expect } from '../../fixtures';
-import { market, common } from '../../selectors';
+import { expect, walletTest } from '../../fixtures';
+import { common, market } from '../../selectors';
 
 const TICKER = {
   result: {
@@ -37,7 +37,7 @@ const PRICE_HISTORY = {
 /** Serve the endpoints the page reads. Registered most-specific-last so it wins. */
 async function stubPriceApi(
   page: Page,
-  overrides: { tickerStatus?: number; dispensers?: object[] } = {},
+  overrides: { tickerStatus?: number; ticker?: object } = {},
 ) {
   await page.route('**/v2/price', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PRICE_HISTORY) }),
@@ -46,17 +46,7 @@ async function stubPriceApi(
     route.fulfill({
       status: overrides.tickerStatus ?? 200,
       contentType: 'application/json',
-      body: JSON.stringify(overrides.tickerStatus ? { error: 'unavailable' } : TICKER),
-    }),
-  );
-  // Open XCP dispensers feed the floor-price row; with none open the page
-  // falls back to the explorer's DEX rate.
-  const dispensers = overrides.dispensers ?? [];
-  await page.route('**/v2/assets/XCP/dispensers*', (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ result: dispensers, result_count: dispensers.length }),
+      body: JSON.stringify(overrides.tickerStatus ? { error: 'unavailable' } : (overrides.ticker ?? TICKER)),
     }),
   );
 }
@@ -76,7 +66,7 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/Counterparty \(USD\)/i)).toBeVisible();
   });
 
-  walletTest('falls back to the DEX rate when no dispensers are open', async ({ page }) => {
+  walletTest('falls back to the historical DEX rate when the ticker has no sats quote', async ({ page }) => {
     await stubPriceApi(page);
     await gotoXcpPrice(page);
 
@@ -87,12 +77,15 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
     await expect(page.getByText(/\$88\.93/)).toBeVisible();
   });
 
-  walletTest('reports the floor price from the cheapest open dispenser', async ({ page }) => {
+  walletTest('reports the live mempool-adjusted floor from the ticker', async ({ page }) => {
     await stubPriceApi(page, {
-      dispensers: [
-        { source: 'bc1qcheapest', satoshirate: 2400, give_quantity_normalized: '1' },
-        { source: 'bc1qpricier', satoshirate: 5000, give_quantity_normalized: '1' },
-      ],
+      ticker: {
+        ...TICKER,
+        result: {
+          ...TICKER.result,
+          xcp: { ...TICKER.result.xcp, sats: 2400, quote: 'confirmed_unit_dispenser_ask' },
+        },
+      },
     });
     await gotoXcpPrice(page);
 

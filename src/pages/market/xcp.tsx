@@ -1,12 +1,11 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import type { PricePoint } from "@/core/bitcoin/price";
-import { fetchAssetDispensers } from "@/core/counterparty/api";
 import {
   getXcpPriceHistory,
   getXcpStats,
@@ -14,7 +13,6 @@ import {
   type XcpStats,
 } from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
-import { divide, roundDown, toBigNumber, toNumber } from "@/core/numeric";
 import { analytics } from "@/platform/fathom";
 
 // Time range options over the daily history from api.xcp.io
@@ -28,12 +26,6 @@ const TIME_RANGES: { id: XcpTimeRange; label: string; days: number | null }[] = 
 
 // Chart dimensions
 const CHART_HEIGHT = 200;
-
-/** The cheapest open XCP dispenser: the price you can actually pay right now. */
-interface DispenserFloor {
-  satsPerXcp: number;
-  source: string;
-}
 
 function filterHistory(history: PricePoint[], range: XcpTimeRange): PricePoint[] {
   const days = TIME_RANGES.find((t) => t.id === range)?.days;
@@ -53,7 +45,6 @@ export default function XcpPricePage(): ReactElement {
   // Data state
   const [stats, setStats] = useState<XcpStats | null>(null);
   const [historyData, setHistoryData] = useState<XcpPriceHistoryData | null>(null);
-  const [floor, setFloor] = useState<DispenserFloor | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
@@ -70,28 +61,6 @@ export default function XcpPricePage(): ReactElement {
       setStats(statsData);
     } else {
       setStatsError("Unable to load price");
-    }
-  }, []);
-
-  // Find the cheapest open XCP dispenser (sats per whole XCP). Checks the first
-  // 100 open dispensers; the true floor could hide beyond that, but in practice
-  // open XCP dispensers number far fewer.
-  const loadFloor = useCallback(async () => {
-    try {
-      const response = await fetchAssetDispensers("XCP", { limit: 100, status: "open" });
-      let best: DispenserFloor | null = null;
-      for (const dispenser of response.result) {
-        const unitsPerDispense = toBigNumber(dispenser.give_quantity_normalized);
-        if (!unitsPerDispense.isGreaterThan(0)) continue;
-        const satsPerXcp = toNumber(roundDown(divide(dispenser.satoshirate, unitsPerDispense)));
-        if (!best || satsPerXcp < best.satsPerXcp) {
-          best = { satsPerXcp, source: dispenser.source };
-        }
-      }
-      setFloor(best);
-    } catch (err) {
-      console.error("Failed to load XCP dispenser floor:", err);
-      setFloor(null);
     }
   }, []);
 
@@ -113,23 +82,23 @@ export default function XcpPricePage(): ReactElement {
     const loadInitial = async () => {
       setLoading(true);
       try {
-        await Promise.all([loadStats(), loadHistory(), loadFloor()]);
+        await Promise.all([loadStats(), loadHistory()]);
       } finally {
         setLoading(false);
       }
     };
     loadInitial();
-  }, [loadStats, loadHistory, loadFloor]);
+  }, [loadStats, loadHistory]);
 
   // Handle refresh
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([loadStats(), loadHistory(), loadFloor()]);
+      await Promise.all([loadStats(), loadHistory()]);
     } finally {
       setIsRefreshing(false);
     }
-  }, [loadStats, loadHistory, loadFloor]);
+  }, [loadStats, loadHistory]);
 
   // Configure header
   useEffect(() => {
@@ -155,7 +124,33 @@ export default function XcpPricePage(): ReactElement {
   const formatPrice = (price: number) =>
     `$${formatAmount({ value: price, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const chartData = historyData ? filterHistory(historyData.history, range) : [];
+  // Daily history stays historical; only today's endpoint follows the live,
+  // mempool-adjusted dispenser ask used by the ticker headline.
+  const liveHistory = useMemo(() => {
+    const history = historyData?.history ?? [];
+    if (!stats) return history;
+
+    const today = Date.parse(`${new Date().toISOString().slice(0, 10)}T00:00:00Z`);
+    const livePoint = { timestamp: today, price: stats.price };
+    const lastPoint = history[history.length - 1];
+
+    return lastPoint?.timestamp === today
+      ? [...history.slice(0, -1), livePoint]
+      : [...history, livePoint];
+  }, [historyData?.history, stats]);
+  const chartData = useMemo(
+    () => filterHistory(liveHistory, range),
+    [liveHistory, range],
+  );
+  const ath = useMemo(() => {
+    if (!stats || (historyData?.ath && historyData.ath.usd >= stats.price)) {
+      return historyData?.ath ?? null;
+    }
+    return {
+      usd: stats.price,
+      day: new Date().toISOString().slice(0, 10),
+    };
+  }, [historyData?.ath, stats]);
 
   if (loading) {
     return <Spinner message="Loading XCP price…" />;
@@ -260,34 +255,34 @@ export default function XcpPricePage(): ReactElement {
         </div>
 
         {/* Market Stats */}
-        {(floor || historyData?.satsPerXcp || historyData?.ath) && (
+        {(stats?.satsPerXcp || historyData?.satsPerXcp || ath) && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
-            {floor ? (
-              <div className={`flex items-center justify-between ${historyData?.ath ? "pb-2 border-b border-gray-100" : ""}`}>
+            {stats?.satsPerXcp ? (
+              <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
                 <span className="text-sm text-gray-600">Floor Price</span>
                 <button type="button"
-                  onClick={() => navigate(`/compose/dispenser/dispense?address=${floor.source}&asset=XCP`)}
+                  onClick={handleBuyXcp}
                   className="text-sm font-medium text-blue-600 hover:text-blue-800 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  aria-label="Buy from the cheapest open XCP dispenser"
+                  aria-label="View open XCP dispensers"
                 >
-                  1 XCP = {formatAmount({ value: floor.satsPerXcp, maximumFractionDigits: 0 })} sats
+                  1 XCP = {formatAmount({ value: stats.satsPerXcp, maximumFractionDigits: 0 })} sats
                 </button>
               </div>
             ) : historyData?.satsPerXcp ? (
-              <div className={`flex items-center justify-between ${historyData.ath ? "pb-2 border-b border-gray-100" : ""}`}>
+              <div className={`flex items-center justify-between ${ath ? "pb-2 border-b border-gray-100" : ""}`}>
                 <span className="text-sm text-gray-600">DEX Rate</span>
                 <span className="text-sm font-medium text-gray-900">
                   1 XCP = {formatAmount({ value: historyData.satsPerXcp, maximumFractionDigits: 0 })} sats
                 </span>
               </div>
             ) : null}
-            {historyData?.ath && (
-              <div className={`flex items-center justify-between ${(floor || historyData.satsPerXcp) ? "pt-2" : ""}`}>
+            {ath && (
+              <div className={`flex items-center justify-between ${(stats?.satsPerXcp || historyData?.satsPerXcp) ? "pt-2" : ""}`}>
                 <span className="text-sm text-gray-600">All-Time High</span>
                 <span className="text-sm font-medium text-gray-900">
-                  {formatPrice(historyData.ath.usd)}
+                  {formatPrice(ath.usd)}
                   <span className="text-gray-400 font-normal">
-                    {" "}· {new Date(`${historyData.ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
                   </span>
                 </span>
               </div>
