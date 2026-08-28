@@ -6,7 +6,7 @@
  * the wallet context finished loading.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
@@ -14,6 +14,8 @@ import '@testing-library/jest-dom/vitest';
 const approvalMocks = vi.hoisted(() => ({
   getCurrentApproval: vi.fn(),
   getPairedAddresses: vi.fn(),
+  resolveApproval: vi.fn(),
+  rejectApproval: vi.fn(),
 }));
 
 // Mock webext-bridge before any imports that might use it
@@ -44,8 +46,8 @@ vi.mock('@/services/walletService', () => ({
 // Mock the approval service
 vi.mock('@/services/approvalService', () => ({
   getApprovalService: () => ({
-    resolveApproval: vi.fn(),
-    rejectApproval: vi.fn(),
+    resolveApproval: approvalMocks.resolveApproval,
+    rejectApproval: approvalMocks.rejectApproval,
     getCurrentApproval: approvalMocks.getCurrentApproval,
   }),
 }));
@@ -80,6 +82,8 @@ describe('ApproveConnection', () => {
     vi.clearAllMocks();
     approvalMocks.getCurrentApproval.mockReturnValue(null);
     approvalMocks.getPairedAddresses.mockResolvedValue(null);
+    approvalMocks.resolveApproval.mockResolvedValue(true);
+    approvalMocks.rejectApproval.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -202,7 +206,7 @@ describe('ApproveConnection', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
-    it('shows requested paired addresses behind an unchecked opt-in', async () => {
+    it('shows both requested addresses before Connect and grants the displayed pair', async () => {
       setupWalletContext({
         activeWallet: {
           id: 'test-wallet',
@@ -227,12 +231,80 @@ describe('ApproveConnection', () => {
 
       renderWithRouter();
 
-      const checkbox = await screen.findByRole('checkbox');
-      expect(checkbox).not.toBeChecked();
       await waitFor(() => {
-        expect(screen.getByText(/Legacy: 1legacy/)).toBeInTheDocument();
-        expect(screen.getByText(/SegWit: bc1qsegwit/)).toBeInTheDocument();
-        expect(checkbox).toBeEnabled();
+        expect(screen.getByText('1legacy')).toBeInTheDocument();
+        expect(screen.getByText('bc1qsegwit')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /connect/i })).toBeEnabled();
+      });
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByText(/paired account/i)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /connect/i }));
+      await waitFor(() => {
+        expect(approvalMocks.resolveApproval).toHaveBeenCalledWith('test-123', {
+          approved: true,
+          updatedParams: { pairedAddresses: true },
+        });
+      });
+    });
+
+    it('does not allow a paired grant whose addresses failed to load', async () => {
+      setupWalletContext({
+        activeWallet: {
+          id: 'test-wallet',
+          type: 'mnemonic',
+          addressFormat: 'p2wpkh',
+        } as any,
+        activeAddress: { address: 'bc1qtest123' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
+      });
+      approvalMocks.getPairedAddresses.mockRejectedValue(new Error('derivation failed'));
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/paired addresses are unavailable/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /connect/i })).toBeDisabled();
+      expect(approvalMocks.resolveApproval).not.toHaveBeenCalled();
+    });
+
+    it('clearly falls back to the current address when the account cannot provide a pair', async () => {
+      setupWalletContext({
+        activeWallet: {
+          id: 'test-wallet',
+          type: 'mnemonic',
+          addressFormat: 'p2tr',
+        } as any,
+        activeAddress: { address: 'bc1ptest123' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1ptest123',
+          walletId: 'test-wallet',
+        }],
+      });
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/only the current address will be shared/i)).toBeInTheDocument();
+      const connect = screen.getByRole('button', { name: /connect/i });
+      expect(connect).toBeEnabled();
+      fireEvent.click(connect);
+      await waitFor(() => {
+        expect(approvalMocks.resolveApproval).toHaveBeenCalledWith('test-123', {
+          approved: true,
+          updatedParams: { pairedAddresses: false },
+        });
       });
     });
 

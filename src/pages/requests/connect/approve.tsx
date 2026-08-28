@@ -37,7 +37,6 @@ export default function ApproveConnectionPage(): ReactElement {
   const [isProcessing, setIsProcessing] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [pairedAddressesRequested, setPairedAddressesRequested] = useState(false);
-  const [grantPairedAddresses, setGrantPairedAddresses] = useState(false);
   const [pairedAddresses, setPairedAddresses] = useState<PairedAddresses | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [pairedAddressError, setPairedAddressError] = useState(false);
@@ -57,6 +56,11 @@ export default function ApproveConnectionPage(): ReactElement {
 
   const domain = getDomain(origin);
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+  const pairedAddressesSupported = pairedAddressesRequested &&
+    activeWallet?.type === 'mnemonic' &&
+    Boolean(getPairedAddressFormats(activeWallet.addressFormat));
+  const pairedAddressesLoading =
+    pairedAddressesSupported && !pairedAddresses && !pairedAddressError;
 
   useEffect(() => {
     if (!requestId || !activeAddress || !activeWallet) return;
@@ -134,7 +138,7 @@ export default function ApproveConnectionPage(): ReactElement {
       const resolved = await approvalService.resolveApproval(requestId, {
         approved: true,
         updatedParams: {
-          pairedAddresses: pairedAddressesRequested && grantPairedAddresses && Boolean(pairedAddresses),
+          pairedAddresses: pairedAddressesSupported && Boolean(pairedAddresses),
         },
       });
       if (!resolved) {
@@ -224,10 +228,51 @@ export default function ApproveConnectionPage(): ReactElement {
             <h2 className="text-lg font-bold text-gray-900 mb-0.5">{domain}</h2>
             <p className="text-xs text-gray-400 break-all">{origin}</p>
 
-            <div className="mt-4 p-2.5 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-sm text-yellow-800">
-                This site is requesting access to view your wallet address
+            <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-left">
+              <p className="text-sm font-medium text-blue-900">
+                {pairedAddressesSupported
+                  ? 'This site is requesting access to your paired account'
+                  : 'This site is requesting access to your wallet address'}
               </p>
+              {pairedAddressesSupported && (
+                <div className="mt-2 space-y-2">
+                  {pairedAddressError && (
+                    <p className="text-xs font-medium text-red-700">
+                      Paired addresses are unavailable. Switch accounts or reopen this request to
+                      try again.
+                    </p>
+                  )}
+                  {pairedAddressesLoading && (
+                    <p className="text-xs text-blue-700">Loading Legacy and SegWit addresses…</p>
+                  )}
+                  {pairedAddresses && (
+                    <dl className="space-y-2">
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                          Legacy
+                        </dt>
+                        <dd className="m-0 break-all font-mono text-xs text-blue-950">
+                          {pairedAddresses.legacy.address}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[11px] font-medium uppercase tracking-wide text-blue-700">
+                          SegWit
+                        </dt>
+                        <dd className="m-0 break-all font-mono text-xs text-blue-950">
+                          {pairedAddresses.segwit.address}
+                        </dd>
+                      </div>
+                    </dl>
+                  )}
+                </div>
+              )}
+              {pairedAddressesRequested && !pairedAddressesSupported && (
+                <p className="mt-2 text-xs text-blue-700">
+                  Paired Legacy and SegWit access is not available for this account. Only the
+                  current address will be shared.
+                </p>
+              )}
             </div>
           </div>
 
@@ -237,11 +282,19 @@ export default function ApproveConnectionPage(): ReactElement {
             <ul className="space-y-1.5">
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">View your wallet address</span>
+                <span className="text-sm text-gray-600">
+                  {pairedAddressesSupported
+                    ? 'View both addresses shown above'
+                    : 'View your wallet address'}
+                </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">Request transaction signatures</span>
+                <span className="text-sm text-gray-600">
+                  {pairedAddressesSupported
+                    ? 'Request transaction signatures from either address'
+                    : 'Request transaction signatures'}
+                </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
@@ -252,40 +305,11 @@ export default function ApproveConnectionPage(): ReactElement {
 
           {approvalError && <ErrorAlert message={approvalError} />}
 
-          {pairedAddressesRequested && activeWallet.type === 'mnemonic' &&
-            getPairedAddressFormats(activeWallet.addressFormat) && (
-            <label className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={grantPairedAddresses}
-                disabled={!pairedAddresses || Boolean(approvalError)}
-                onChange={(event) => setGrantPairedAddresses(event.target.checked)}
-                className="mt-1 size-4"
-              />
-              <span>
-                <span className="block text-sm font-medium text-blue-900">
-                  Share paired Legacy and SegWit addresses
-                </span>
-                <span className="mt-1 block text-xs text-blue-800">
-                  The site can then request signatures spending inputs from either address. Access
-                  lasts until you disconnect the site.
-                </span>
-                {pairedAddressError && (
-                  <span className="mt-2 block text-xs font-medium text-red-700">
-                    Paired addresses are unavailable. This additional permission cannot be granted.
-                  </span>
-                )}
-                {!pairedAddresses && !pairedAddressError && (
-                  <span className="mt-2 block text-xs text-blue-700">Loading paired addresses…</span>
-                )}
-                {pairedAddresses && (
-                  <span className="mt-2 block space-y-1 text-xs text-blue-900">
-                    <span className="block break-all font-mono">Legacy: {pairedAddresses.legacy.address}</span>
-                    <span className="block break-all font-mono">SegWit: {pairedAddresses.segwit.address}</span>
-                  </span>
-                )}
-              </span>
-            </label>
+          {pairedAddressesSupported && pairedAddresses && (
+            <p className="mt-4 px-1 text-xs leading-relaxed text-gray-500">
+              Connecting grants access to the displayed pair until you disconnect this site. Every
+              transaction and message signature still requires a separate wallet approval.
+            </p>
           )}
         </div>
       </div>
@@ -304,7 +328,12 @@ export default function ApproveConnectionPage(): ReactElement {
           <Button
             color="blue"
             onClick={handleApprove}
-            disabled={isProcessing || Boolean(approvalError)}
+            disabled={
+              isProcessing ||
+              Boolean(approvalError) ||
+              pairedAddressesLoading ||
+              (pairedAddressesSupported && pairedAddressError)
+            }
             fullWidth
           >
             {isProcessing ? "Processing…" : "Connect"}
