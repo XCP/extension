@@ -12,6 +12,12 @@ import { getWalletService } from "@/services/walletService";
 import type { ApprovalRequest } from "@/types/provider";
 import type { PairedAddresses } from "@/types/wallet";
 
+// The paired banner names both addresses in one sentence, where a shorter abbreviation than the
+// six-character one used elsewhere keeps the line readable.
+function abbreviateAddress(address: string): string {
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
 function getApprovalIdentityError(
   approval: ApprovalRequest | null,
   requestId: string,
@@ -37,7 +43,6 @@ export default function ApproveConnectionPage(): ReactElement {
   const [isProcessing, setIsProcessing] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [pairedAddressesRequested, setPairedAddressesRequested] = useState(false);
-  const [grantPairedAddresses, setGrantPairedAddresses] = useState(false);
   const [pairedAddresses, setPairedAddresses] = useState<PairedAddresses | null>(null);
   const [approvalError, setApprovalError] = useState<string | null>(null);
   const [pairedAddressError, setPairedAddressError] = useState(false);
@@ -57,6 +62,18 @@ export default function ApproveConnectionPage(): ReactElement {
 
   const domain = getDomain(origin);
   const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+
+  // A paired request states both addresses in the request itself rather than adding an opt-in
+  // below the fold that is easy to miss: what the screen says is what Connect grants.
+  const pairedRequestSupported =
+    pairedAddressesRequested &&
+    activeWallet?.type === 'mnemonic' &&
+    Boolean(getPairedAddressFormats(activeWallet.addressFormat));
+  // Without the addresses the extra access cannot be granted, so fall back to the ordinary
+  // single-address screen and say so rather than listing access the connection will not carry.
+  const showPairedConsent = pairedRequestSupported && !pairedAddressError;
+  const pairedAddressesPending = showPairedConsent && !pairedAddresses;
+  const grantsPairedAddresses = pairedRequestSupported && Boolean(pairedAddresses);
 
   useEffect(() => {
     if (!requestId || !activeAddress || !activeWallet) return;
@@ -79,11 +96,7 @@ export default function ApproveConnectionPage(): ReactElement {
   }, [requestId, activeAddress, activeWallet]);
 
   useEffect(() => {
-    if (
-      !pairedAddressesRequested ||
-      activeWallet?.type !== 'mnemonic' ||
-      !getPairedAddressFormats(activeWallet.addressFormat)
-    ) {
+    if (!pairedRequestSupported) {
       setPairedAddresses(null);
       setPairedAddressError(false);
       return;
@@ -95,7 +108,7 @@ export default function ApproveConnectionPage(): ReactElement {
         setPairedAddresses(null);
         setPairedAddressError(true);
       });
-  }, [pairedAddressesRequested, activeWallet]);
+  }, [pairedRequestSupported, activeWallet]);
 
   // Configure header
   useEffect(() => {
@@ -134,7 +147,7 @@ export default function ApproveConnectionPage(): ReactElement {
       const resolved = await approvalService.resolveApproval(requestId, {
         approved: true,
         updatedParams: {
-          pairedAddresses: pairedAddressesRequested && grantPairedAddresses && Boolean(pairedAddresses),
+          pairedAddresses: grantsPairedAddresses,
         },
       });
       if (!resolved) {
@@ -226,7 +239,21 @@ export default function ApproveConnectionPage(): ReactElement {
 
             <div className="mt-4 p-2.5 bg-yellow-50 rounded-lg border border-yellow-200">
               <p className="text-sm text-yellow-800">
-                This site is requesting access to view your wallet address
+                {pairedAddresses && showPairedConsent ? (
+                  <>
+                    This site is requesting access to view{" "}
+                    <span className="font-bold">{abbreviateAddress(pairedAddresses.legacy.address)}</span>
+                    {" "}and{" "}
+                    <span className="font-bold">{abbreviateAddress(pairedAddresses.segwit.address)}</span>
+                  </>
+                ) : showPairedConsent ? (
+                  <>
+                    This site is requesting access to view{" "}
+                    <span className="font-bold">both of your wallet addresses</span>
+                  </>
+                ) : (
+                  'This site is requesting access to view your wallet address'
+                )}
               </p>
             </div>
           </div>
@@ -237,56 +264,31 @@ export default function ApproveConnectionPage(): ReactElement {
             <ul className="space-y-1.5">
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">View your wallet address</span>
+                <span className="text-sm text-gray-600">
+                  {showPairedConsent ? 'View your wallet addresses' : 'View your wallet address'}
+                </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
-                <span className="text-sm text-gray-600">Request transaction signatures</span>
+                <span className="text-sm text-gray-600">
+                  {showPairedConsent
+                    ? 'Request signatures from either address'
+                    : 'Request transaction signatures'}
+                </span>
               </li>
               <li className="flex items-center">
                 <FaCheck className="size-3.5 text-green-500 mr-2 flex-shrink-0" aria-hidden="true" />
                 <span className="text-sm text-gray-600">Request message signatures</span>
               </li>
             </ul>
+            {pairedAddressError && (
+              <p className="mt-2 text-xs font-medium text-red-700">
+                Paired addresses are unavailable. Connecting grants access to this address only.
+              </p>
+            )}
           </div>
 
           {approvalError && <ErrorAlert message={approvalError} />}
-
-          {pairedAddressesRequested && activeWallet.type === 'mnemonic' &&
-            getPairedAddressFormats(activeWallet.addressFormat) && (
-            <label className="mt-4 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={grantPairedAddresses}
-                disabled={!pairedAddresses || Boolean(approvalError)}
-                onChange={(event) => setGrantPairedAddresses(event.target.checked)}
-                className="mt-1 size-4"
-              />
-              <span>
-                <span className="block text-sm font-medium text-blue-900">
-                  Share paired Legacy and SegWit addresses
-                </span>
-                <span className="mt-1 block text-xs text-blue-800">
-                  The site can then request signatures spending inputs from either address. Access
-                  lasts until you disconnect the site.
-                </span>
-                {pairedAddressError && (
-                  <span className="mt-2 block text-xs font-medium text-red-700">
-                    Paired addresses are unavailable. This additional permission cannot be granted.
-                  </span>
-                )}
-                {!pairedAddresses && !pairedAddressError && (
-                  <span className="mt-2 block text-xs text-blue-700">Loading paired addresses…</span>
-                )}
-                {pairedAddresses && (
-                  <span className="mt-2 block space-y-1 text-xs text-blue-900">
-                    <span className="block break-all font-mono">Legacy: {pairedAddresses.legacy.address}</span>
-                    <span className="block break-all font-mono">SegWit: {pairedAddresses.segwit.address}</span>
-                  </span>
-                )}
-              </span>
-            </label>
-          )}
         </div>
       </div>
 
@@ -304,10 +306,10 @@ export default function ApproveConnectionPage(): ReactElement {
           <Button
             color="blue"
             onClick={handleApprove}
-            disabled={isProcessing || Boolean(approvalError)}
+            disabled={isProcessing || Boolean(approvalError) || pairedAddressesPending}
             fullWidth
           >
-            {isProcessing ? "Processing…" : "Connect"}
+            {isProcessing ? "Processing…" : showPairedConsent ? "Connect both" : "Connect"}
           </Button>
         </div>
       </div>

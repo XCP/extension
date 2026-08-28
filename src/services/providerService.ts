@@ -269,9 +269,9 @@ export function createProviderService(): ProviderService {
    * ADR-018: Paired-address provider capability
    *
    * A connection authorizes only its active address. A dApp may opt in to the
-   * active derivation index's Legacy/SegWit sibling pair through explicit,
-   * unchecked-by-default consent. The grant is bound to origin, wallet ID, and
-   * active address, and is removed on disconnect.
+   * active derivation index's Legacy/SegWit sibling pair through explicit
+   * approval that displays both addresses before Connect. The grant is bound
+   * to origin, wallet ID, and active address, and is removed on disconnect.
    *
    * Signing fails closed before approval storage: requested signer addresses
    * must be the active address or its exact sibling pair, input indices must be
