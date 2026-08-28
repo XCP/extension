@@ -202,7 +202,7 @@ describe('ApproveConnection', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
-    it('shows requested paired addresses behind an unchecked opt-in', async () => {
+    it('grants requested paired addresses without an opt-in the user can miss', async () => {
       setupWalletContext({
         activeWallet: {
           id: 'test-wallet',
@@ -227,13 +227,41 @@ describe('ApproveConnection', () => {
 
       renderWithRouter();
 
-      const checkbox = await screen.findByRole('checkbox');
-      expect(checkbox).not.toBeChecked();
+      // Both addresses are named in the request itself, not hidden behind a checkbox below the fold.
+      expect(await screen.findByText('1leg...gacy')).toBeInTheDocument();
+      expect(screen.getByText('bc1q...gwit')).toBeInTheDocument();
+      expect(screen.getByText('View your wallet addresses')).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       await waitFor(() => {
-        expect(screen.getByText(/Legacy: 1legacy/)).toBeInTheDocument();
-        expect(screen.getByText(/SegWit: bc1qsegwit/)).toBeInTheDocument();
-        expect(checkbox).toBeEnabled();
+        expect(screen.getByRole('button', { name: /connect both/i })).toBeEnabled();
       });
+    });
+
+    it('falls back to single-address consent when paired addresses cannot be loaded', async () => {
+      setupWalletContext({
+        activeWallet: {
+          id: 'test-wallet',
+          type: 'mnemonic',
+          addressFormat: 'p2wpkh',
+        } as any,
+        activeAddress: { address: 'bc1qtest123' },
+        isLoading: false,
+      });
+      approvalMocks.getCurrentApproval.mockReturnValue({
+        id: 'test-123',
+        params: [{
+          capabilities: { pairedAddresses: true },
+          address: 'bc1qtest123',
+          walletId: 'test-wallet',
+        }],
+      });
+      approvalMocks.getPairedAddresses.mockRejectedValue(new Error('locked'));
+
+      renderWithRouter();
+
+      expect(await screen.findByText(/Paired addresses are unavailable/i)).toBeInTheDocument();
+      expect(screen.getByText('View your wallet address')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^connect$/i })).toBeEnabled();
     });
 
     it('blocks approval if the active wallet identity changed', async () => {
