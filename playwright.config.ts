@@ -24,7 +24,9 @@ export default defineConfig({
   
   // Timeout settings
   timeout: 120000,
-  globalTimeout: isCI ? 30 * 60 * 1000 : undefined, // 30 min limit in CI
+  // PR batches have their own 15-minute job limit. The nightly runs every file serially in one
+  // invocation, so its global budget must cover the complete suite rather than stopping halfway.
+  globalTimeout: isCI ? 100 * 60 * 1000 : undefined,
   
   expect: {
     timeout: 10000,
