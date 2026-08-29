@@ -686,31 +686,32 @@ function analyzeCreateListingIntent({
   }
 
   const allProblems = [...retry, ...blockers];
-  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'caution';
+  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   return {
     status,
     family: 'create_listing',
     title: `List 1 ${claim.asset} for ${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { label: 'Seller receives', value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats` },
+      { label: 'Price', value: `${intent.priceSats.toLocaleString()} sats` },
+      {
+        label: 'Seller receives',
+        value:
+          `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats ` +
+          `(price + ${intent.carrierValueSats.toLocaleString()}-sat asset output)`,
+      },
       { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
       { label: 'Delivery', value: 'Detached to the eventual buyer' },
+      { label: 'Broadcast now', value: 'None' },
       {
         label: 'Marketplace expiry',
         value: intent.marketplaceExpiresAt === null
           ? 'None requested'
           : new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
       },
-      { label: 'Bitcoin expiry', value: 'None — cancel by spending the asset' },
+      { label: 'Marketplace cancellation', value: 'Delist without a transaction' },
+      { label: 'Signature invalidation', value: 'Spend the asset output' },
     ],
-    notices: allProblems.length > 0
-      ? []
-      : [{
-          severity: 'warning',
-          message:
-            'The buyer may add funding inputs and choose the detach destination. Your signature ' +
-            'remains valid only when output 1 pays you the exact amount shown.',
-        }],
+    notices: [],
     blockers: allProblems,
   };
 }
@@ -901,11 +902,9 @@ function analyzeAttachForListingIntent(
     // says each thing once.
     title: `Attach ${claim.asset} for listing`,
     facts: [
-      ...(!sameAddress(assetSource, intent.seller) ? [
-        { label: 'Asset source', value: assetSource },
-        { label: 'Carrier owner', value: intent.seller },
-      ] : []),
-      { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+      { label: 'Asset source', value: assetSource },
+      { label: 'Asset destination', value: intent.seller },
+      { label: 'Destination UTXO', value: `${intent.carrierValueSats.toLocaleString()} sats` },
       {
         label: 'Quoted XCP fee',
         value: `${formatXcpRaw(intent.protocolFee.quotedAmountRaw)} (finalized at confirmation)`,

@@ -406,7 +406,7 @@ export default function ApprovePsbtPage() {
           {usesPairedAddress && (
             <Collapsible variant="card" title={`Signing addresses (${requestedAddressSpends.length})`}>
               <p className="text-xs text-gray-500">
-                The request explicitly selects inputs from paired Legacy and SegWit addresses in this wallet.
+                Only the inputs shown below will be signed with their matching addresses in this wallet.
               </p>
               <div className="space-y-2">
                 {requestedAddressSpends.map(({ address, indices, value }) => (
@@ -498,13 +498,17 @@ export default function ApprovePsbtPage() {
         busy={isSigning}
         blocked={blockSigning}
         isHardware={activeWallet.type === 'hardware'}
-        signLabel={requiresAttention ? 'Review' : 'Sign'}
+        signLabel={requiresAttention
+          ? 'Review'
+          : marketplaceReview?.family === 'create_listing'
+            ? 'Authorize listing'
+            : 'Sign'}
       />
 
       {showAttention && requiresAttention && (
         <ApprovalAttentionScreen
           title={attentionTitle}
-          description="Confirm the exceptional authorization below before the wallet adds your signature."
+          description="Confirm the authorization details below before the wallet adds your signature."
           items={approvalAttentionItems}
           confirmLabel={confirmLabel}
           busy={isSigning}
