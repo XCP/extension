@@ -123,9 +123,9 @@ export function analyzeMarketplaceBatch(
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
     const fees = exactSafeSum(fanouts.map(intent => intent.networkFeeSats), 'network fee');
-    title = `Prepare ${slots} listing funding slots`;
+    title = `Create ${slots} listing UTXO${slots === 1 ? '' : 's'}`;
     facts.push(
-      { label: 'Attach slots', value: slots.toLocaleString() },
+      { label: 'New UTXOs', value: slots.toLocaleString() },
       { label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
     );
     notice = 'Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.';
@@ -140,7 +140,7 @@ export function analyzeMarketplaceBatch(
         value: formatXcpRaw(attaches.map(intent => intent.protocolFee.quotedAmountRaw)),
       },
     );
-    notice = 'Every attach proves its source, clean funding, carrier output, miner fee, and local Counterparty message. XCP fees remain block-dependent until confirmation.';
+    notice = 'Every attach proves its source, clean funding, new UTXO, miner fee, and local Counterparty message. XCP fees remain block-dependent until confirmation.';
   } else {
     const listings = intents as CreateListingIntentClaim[];
     const gross = exactSafeSum(listings.map(intent => intent.priceSats), 'listing prices');

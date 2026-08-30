@@ -404,7 +404,7 @@ describe('attach-for-listing proof', () => {
     expect(review.status).toBe('caution');
     expect(review.blockers).toEqual([]);
     expect(review.facts).toContainEqual({ label: 'Asset source', value: SELLER });
-    expect(review.facts).toContainEqual({ label: 'Carrier owner', value: SELLER_TWO });
+    expect(review.facts).toContainEqual({ label: 'New UTXO owner', value: SELLER_TWO });
   });
 
   it.each([
@@ -731,7 +731,7 @@ describe('bulk fan-out funding proof', () => {
       family: 'prepare_bulk_fanout',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Attach slots', value: '2 × 10,000 sats' });
+    expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '2 × 10,000 sats' });
     expect(review.notices[0]?.message).toMatch(/no asset moves/i);
   });
 

@@ -21,7 +21,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Address, OutScript } from '@scure/btc-signer';
 import type { Page, Route } from '@playwright/test';
-import { expect, walletTest } from '../fixtures';
+import { expect, navigateTo, walletTest } from '../fixtures';
+import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
+import { settings } from '../selectors';
 
 const OUT_DIR = 'test-results/marketplace-gallery';
 
@@ -99,9 +101,11 @@ const fakeAddress = (byte: number): string =>
 interface BuiltInput {
   txid: string; // display order
   vout: number;
-  /** Address whose p2wpkh script the witness_utxo carries; omitted = empty-script placeholder. */
+  /** Address whose script the authenticated prevout carries; omitted = empty-script placeholder. */
   address?: string;
   value: number;
+  /** Full previous transaction, required when the prevout is Legacy P2PKH. */
+  nonWitnessUtxoHex?: string;
   /** Attach a fabricated final witness so the input reads as already signed. */
   signed?: boolean;
 }
@@ -136,10 +140,15 @@ const FAKE_WITNESS = (() => {
 function buildPsbt(inputs: BuiltInput[], outputs: BuiltOutput[]): { psbtHex: string; txid: string } {
   const rawTxHex = buildRawTx(inputs, outputs);
   const inputMaps = inputs.map(input => {
-    const script = input.address ? scriptFor(input.address) : '';
-    const witnessUtxo = le(input.value, 8) + varint(script.length / 2) + script;
+    const authenticatedPrevout = input.nonWitnessUtxoHex
+      ? ['01', '00', varint(input.nonWitnessUtxoHex.length / 2), input.nonWitnessUtxoHex]
+      : (() => {
+          const script = input.address ? scriptFor(input.address) : '';
+          const witnessUtxo = le(input.value, 8) + varint(script.length / 2) + script;
+          return ['01', '01', varint(witnessUtxo.length / 2), witnessUtxo];
+        })();
     return [
-      '01', '01', varint(witnessUtxo.length / 2), witnessUtxo,
+      ...authenticatedPrevout,
       ...(input.signed ? ['01', '08', varint(FAKE_WITNESS.length / 2), FAKE_WITNESS] : []),
       '00',
     ].join('');
@@ -203,18 +212,45 @@ async function stubUtxoBalances(
 const ORIGIN = 'https://marketplace.xcp.io';
 const FUTURE = 2_000_000_000;
 
-/** Read the live wallet address the same way ux-visual-check does. */
+/** Select a standard mnemonic address format through the same UI a user does. */
+async function selectAddressType(page: Page, addressType: Extract<AddressType, 'p2pkh' | 'p2wpkh'>): Promise<void> {
+  await navigateTo(page, 'settings');
+  await settings.addressTypeOption(page).click();
+  await expect(page).toHaveURL(/address-type/);
+  const option = page.locator('[role="radio"]').filter({
+    hasText: ADDRESS_TYPE_DISPLAY_NAMES[addressType],
+  });
+  await expect(option).toBeVisible();
+  await option.click();
+  await navigateTo(page, 'wallet');
+  const expectedPrefix = addressType === 'p2pkh' ? '1' : 'bc1q';
+  await page.waitForFunction(
+    (prefix: string) => {
+      const address = document.querySelector('[aria-label="Current address"] .font-mono');
+      return (address?.textContent ?? '').startsWith(prefix);
+    },
+    expectedPrefix,
+    { timeout: 10_000 },
+  );
+}
+
+/** Read the complete active address from its detail page. */
 async function readActiveAddress(page: Page): Promise<string> {
-  await page.goto(page.url().replace(/\/(index|requests|addresses).*/, '/addresses/details'));
+  const extensionRoot = page.url().split('#')[0];
+  await page.goto(`${extensionRoot}#/addresses/details`);
   await page.waitForLoadState('networkidle');
   const address = await page.evaluate(() => {
     for (const el of Array.from(document.querySelectorAll('*'))) {
-      const m = (el.textContent || '').match(/(bc1|tb1)[0-9a-z]{30,}/);
+      const m = (el.textContent || '').match(
+        /\b(?:bc1|tb1)[0-9a-z]{30,}\b|\b[13mn2][1-9A-HJ-NP-Za-km-z]{25,34}\b/
+      );
       if (m) return m[0];
     }
     return '';
   });
-  expect(address, 'should read the full active address').toMatch(/^(bc1|tb1)/);
+  expect(address, 'should read the full active address').toMatch(
+    /^(?:bc1|tb1|[13mn2][1-9A-HJ-NP-Za-km-z])/
+  );
   return address;
 }
 
@@ -226,9 +262,13 @@ interface Scenario {
   balances: Record<string, StubBalance[] | 'fail'>;
   /** The footer state this scenario is expected to reach — a drifting state fails the run. */
   expectFooter: 'Sign' | 'Review' | 'Blocked';
+  /** Important semantic disclosures that must survive visual refactors. */
+  expectedText?: string[];
+  /** False-positive warnings that would make an ordinary marketplace request look unsafe. */
+  absentText?: string[];
 }
 
-function buildScenarios(wallet: string): Scenario[] {
+function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
   const SELLER_A = fakeAddress(0x11);
   const SELLER_B = fakeAddress(0x22);
   const BUYER_EXT = fakeAddress(0x33);
@@ -289,6 +329,84 @@ function buildScenarios(wallet: string): Scenario[] {
           protocolFee: {
             asset: 'XCP',
             quotedAmountRaw: '25000000',
+            actualAmountRaw: null,
+            observedBlock: 900_000,
+            variableUntilConfirmed: true,
+          },
+          operationExpiresAt: FUTURE,
+        },
+      }),
+      balances: {},
+    });
+  }
+
+  // --- attach_for_listing from paired Legacy, with SegWit paying the miner fee --------------
+  // This is the real DigiRare migration shape: Counterparty reads source from input 0, while
+  // the new attached carrier belongs to the active SegWit identity. A second, same-wallet input
+  // pays the fee. Legacy uses nonWitnessUtxo so the gallery cannot accidentally normalize the
+  // forged-amount shape that the signer correctly refuses.
+  {
+    const legacyPrevTx = buildRawTx(
+      [{ txid: '16'.repeat(32), vout: 0, value: 0 }],
+      [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
+    );
+    const legacySource: BuiltInput = {
+      txid: txidOf(legacyPrevTx),
+      vout: 0,
+      address: pairedLegacy,
+      value: 330,
+      nonWitnessUtxoHex: legacyPrevTx,
+    };
+    const segwitFunding: BuiltInput = {
+      txid: '17'.repeat(32),
+      vout: 1,
+      address: wallet,
+      value: 10_000,
+    };
+    const payload = attachPayload('COLLECTOR', '1', 0);
+    const outputs: BuiltOutput[] = [
+      { scriptHex: scriptFor(wallet), value: 330 },
+      { scriptHex: opReturnScript(payload, legacySource.txid), value: 0 },
+      { scriptHex: scriptFor(wallet), value: 9_000 },
+    ];
+    const { psbtHex, txid } = buildPsbt([legacySource, segwitFunding], outputs);
+    scenarios.push({
+      name: 'listing-attach-paired-legacy-source',
+      route: '/requests/psbt/approve',
+      expectFooter: 'Sign',
+      expectedText: [
+        'Signing addresses (2)',
+        'Asset source',
+        pairedLegacy,
+        'New UTXO owner',
+        wallet,
+      ],
+      absentText: [
+        'Blocked: Not a Counterparty Transaction',
+        'BTC Sent to External Address',
+      ],
+      record: seedRecord('mk-attach-paired', {
+        requestKey: 'xcp_signPsbt:mk-attach-paired',
+        kind: 'sign-psbt',
+        psbtHex,
+        signInputs: { [pairedLegacy]: [0], [wallet]: [1] },
+        sighashTypes: [0x01, 0x01],
+        marketplaceIntent: {
+          standard: 'counterparty-marketplace',
+          version: 1,
+          action: 'attach_for_listing',
+          operationId: 'attach-paired-1',
+          protocolVersion: 'counterparty_attach_listing_v1',
+          assets: [{ asset: 'COLLECTOR', quantityRaw: '1' }],
+          seller: wallet,
+          assetSource: pairedLegacy,
+          expectedAttachedOutpoint: { txid, vout: 0 },
+          carrierAddress: wallet,
+          carrierValueSats: 330,
+          networkFeeSats: 1_000,
+          protocolFee: {
+            asset: 'XCP',
+            quotedAmountRaw: '0',
             actualAmountRaw: null,
             observedBlock: 900_000,
             variableUntilConfirmed: true,
@@ -714,8 +832,16 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
   walletTest.setTimeout(300_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
+  // A paired permission is defined for the Legacy and Native SegWit formats at the same wallet
+  // index. Read both through the real wallet UI, then leave SegWit active for every approval.
+  await selectAddressType(page, 'p2pkh');
+  const pairedLegacy = await readActiveAddress(page);
+  await selectAddressType(page, 'p2wpkh');
   const wallet = await readActiveAddress(page);
-  const scenarios = buildScenarios(wallet);
+  expect(pairedLegacy).toMatch(/^1/);
+  expect(wallet).toMatch(/^bc1q/);
+
+  const scenarios = buildScenarios(wallet, pairedLegacy);
   const captured: string[] = [];
   const stateMismatches: string[] = [];
 
@@ -739,10 +865,32 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       stateMismatches.push(`${scenario.name}: footer reads "${footerLabel}", expected "${scenario.expectFooter}"`);
     }
 
-    // Open every progressive-disclosure surface so the captured state is the full statement.
+    // Capture the paired signer disclosure at the top of the approval before opening lower
+    // transaction details, whose focus movement scrolls the real popup viewport downward.
+    const signerToggle = approval.getByText(/^Signing addresses \(\d+\)$/);
+    if (await signerToggle.count()) {
+      await signerToggle.first().click();
+      await approval.locator('.overflow-y-auto').first().evaluate((element) => {
+        element.scrollTop = 0;
+      });
+      await approval.screenshot({
+        path: path.join(OUT_DIR, `${scenario.name}-signers.png`),
+        fullPage: true,
+      });
+    }
+
+    // Open the lower-level transaction surfaces for the companion detail capture.
     for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/]) {
       const toggle = approval.getByText(title);
       if (await toggle.count()) await toggle.first().click();
+    }
+
+    const body = approval.locator('body');
+    for (const expectedText of scenario.expectedText ?? []) {
+      await expect(body).toContainText(expectedText);
+    }
+    for (const absentText of scenario.absentText ?? []) {
+      await expect(body).not.toContainText(absentText);
     }
     await approval.screenshot({ path: path.join(OUT_DIR, `${scenario.name}.png`), fullPage: true });
 
