@@ -316,6 +316,17 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
   });
 
+  it('copies bounded reprice display context without changing the signing action', () => {
+    const repriceIntent: CreateListingIntentClaim = {
+      ...intent,
+      listingContext: {
+        mode: 'reprice',
+      },
+    };
+
+    expect(parseMarketplaceIntent(repriceIntent)).toEqual(repriceIntent);
+  });
+
   it('copies a bounded multi-item buy claim', () => {
     expect(parseMarketplaceIntent(buyIntent)).toEqual(buyIntent);
   });
@@ -349,6 +360,7 @@ describe('marketplace intent wire parser', () => {
     { ...intent, action: 'buy_listings' },
     { ...intent, bitcoinExpiresAt: 2_000_000_000 },
     { ...intent, assets: [] },
+    { ...intent, listingContext: { mode: 'replace' } },
   ])('refuses an unsupported or malformed claim', (candidate) => {
     expect(() => parseMarketplaceIntent(candidate)).toThrow();
   });
@@ -496,6 +508,21 @@ describe('create-listing proof', () => {
     expect(review.title).toContain('RAREPEPE');
     expect(review.facts).toContainEqual({ label: 'Seller receives', value: '250,546 sats' });
     expect(review.notices[0]?.message).toContain('choose the detach destination');
+  });
+
+  it('labels a proved replacement authorization as a reprice', () => {
+    const review = analyzeMarketplaceIntent({
+      ...base(),
+      intent: {
+        ...intent,
+        listingContext: {
+          mode: 'reprice',
+        },
+      },
+    });
+
+    expect(review.status).toBe('caution');
+    expect(review.title).toBe('Reprice 1 RAREPEPE to 0.00250000 BTC');
   });
 
   it.each([

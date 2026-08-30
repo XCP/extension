@@ -67,6 +67,11 @@ export default function ApprovePsbtPage() {
   const [isSigning, setIsSigning] = useState(false);
   const [error, setError] = useState<string>('');
   const [showAttention, setShowAttention] = useState(false);
+  const listingContext = request?.marketplaceIntent?.action === 'create_listing'
+    ? request.marketplaceIntent.listingContext
+    : undefined;
+  const isRepriceListing = listingContext?.mode === 'reprice';
+  const listingHeader = isRepriceListing ? 'Reprice Listing' : 'Create Listing';
 
   // Configure header
   useEffect(() => {
@@ -76,7 +81,7 @@ export default function ApprovePsbtPage() {
         : request?.marketplaceIntent?.action === 'attach_for_listing'
           ? 'Attach for Listing'
           : request?.marketplaceIntent?.action === 'create_listing'
-            ? 'Create Listing'
+            ? listingHeader
             : request?.marketplaceIntent?.action === 'buy_listings'
               ? 'Buy Collectibles'
               : request?.marketplaceIntent?.action === 'authorize_exact_offer'
@@ -85,7 +90,7 @@ export default function ApprovePsbtPage() {
                   ? 'Accept Offer'
                   : 'Sign Transaction',
     });
-  }, [request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
+  }, [listingHeader, request?.marketplaceIntent?.action, request?.signingPurpose, setHeaderProps]);
 
   useEffect(() => setShowAttention(false), [request?.id]);
 
@@ -300,13 +305,20 @@ export default function ApprovePsbtPage() {
       ? [{
           key: 'marketplace-listing',
           severity: 'warning' as const,
-          title: 'This listing stays open until filled or cancelled',
-          description:
-            'Signing puts this up for sale. Anyone who pays you exactly ' +
-            `${request.marketplaceIntent?.action === 'create_listing'
-              ? request.marketplaceIntent.guaranteedSellerPaymentSats.toLocaleString()
-              : 'the shown'} sats can complete the purchase without asking you again. ` +
-            'To cancel the listing later, spend the asset UTXO.',
+          title: isRepriceListing
+            ? 'This replaces the current listing price'
+            : 'This listing stays open until filled or cancelled',
+          description: isRepriceListing
+            ? `Signing authorizes a new price of ${request.marketplaceIntent?.action === 'create_listing'
+              ? (request.marketplaceIntent.priceSats / 100_000_000).toFixed(8)
+              : 'the shown amount'} BTC. Once the marketplace accepts it, the previous stored ` +
+              'authorization is replaced. You can remove the listing through the marketplace. ' +
+              'Spending the asset UTXO also invalidates the signature.'
+            : 'Signing puts this up for sale. Anyone who pays you exactly ' +
+              `${request.marketplaceIntent?.action === 'create_listing'
+                ? request.marketplaceIntent.guaranteedSellerPaymentSats.toLocaleString()
+                : 'the shown'} sats can complete the purchase without asking you again. ` +
+              'You can remove it through the marketplace. Spending the asset UTXO also invalidates the authorization.',
         }]
       : marketplaceReview.family === 'authorize_exact_offer'
         ? [{
@@ -346,7 +358,7 @@ export default function ApprovePsbtPage() {
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const attentionTitle = marketplaceRequiresAttention
     ? marketplaceReview.family === 'create_listing'
-      ? 'Before you list'
+      ? isRepriceListing ? 'Before you reprice' : 'Before you list'
       : marketplaceReview.family === 'authorize_exact_offer'
         ? 'Before you authorize'
         : 'Review before signing'
@@ -354,7 +366,7 @@ export default function ApprovePsbtPage() {
       ? 'Review transaction risk'
       : 'Review before signing';
   const confirmLabel = marketplaceReview?.family === 'create_listing'
-    ? 'Authorize listing'
+    ? isRepriceListing ? 'Authorize reprice' : 'Authorize listing'
     : marketplaceReview?.family === 'authorize_exact_offer'
       ? 'Authorize offer'
       : counterpartyMessage?.messageType === 'destroy'
