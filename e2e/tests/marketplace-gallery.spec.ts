@@ -19,8 +19,8 @@
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Address, OutScript } from '@scure/btc-signer';
 import type { Page, Route } from '@playwright/test';
+import { Address, OutScript } from '@scure/btc-signer';
 import { expect, navigateTo, walletTest } from '../fixtures';
 import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
 import { settings } from '../selectors';
@@ -278,8 +278,6 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
   const ASSET_TXID_TWO = 'cd'.repeat(32);
   const FUNDING_TXID = '11'.repeat(32);
   const BID_TXID = '19'.repeat(32);
-  const FANOUT_FUNDING_TXID = '21'.repeat(32);
-
   const scenarios: Scenario[] = [];
   const seedRecord = (
     id: string,
@@ -458,6 +456,29 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
         signInputs: { [wallet]: [1] },
         sighashTypes: [0x01, 0x83],
         marketplaceIntent: intent,
+      }),
+      balances: {
+        [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],
+      },
+    });
+
+    scenarios.push({
+      name: 'listing-reprice-caution',
+      route: '/requests/psbt/approve',
+      expectFooter: 'Review',
+      record: seedRecord('mk-listing-reprice', {
+        requestKey: 'xcp_signPsbt:mk-listing-reprice',
+        kind: 'sign-psbt',
+        psbtHex,
+        signInputs: { [wallet]: [1] },
+        sighashTypes: [0x01, 0x83],
+        marketplaceIntent: {
+          ...intent,
+          operationId: 'listing-reprice-1',
+          listingContext: {
+            mode: 'reprice',
+          },
+        },
       }),
       balances: {
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],

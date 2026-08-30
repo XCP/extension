@@ -64,6 +64,9 @@ export interface CreateListingIntentClaim {
   signingRequestExpiresAt: number;
   marketplaceExpiresAt: number | null;
   bitcoinExpiresAt: null;
+  listingContext?: {
+    mode: 'reprice';
+  };
 }
 
 export interface BuyListingsIntentClaim {
@@ -288,6 +291,20 @@ const nonNegativeRawInteger = (value: unknown, label: string): string => {
   return raw;
 };
 
+const parseListingContext = (
+  value: unknown,
+): Pick<CreateListingIntentClaim, 'listingContext'> => {
+  if (value === undefined) return {};
+  if (!isRecord(value) || value.mode !== 'reprice') {
+    throw new Error('listingContext must describe a reprice');
+  }
+  return {
+    listingContext: {
+      mode: 'reprice',
+    },
+  };
+};
+
 /** Bound and copy the v1 wire claim. The result remains untrusted until analyzed. */
 export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1 {
   if (!isRecord(value)) throw new Error('marketplace intent must be an object');
@@ -337,6 +354,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
       nullable: true,
     }),
     bitcoinExpiresAt: null,
+    ...parseListingContext(value.listingContext),
   };
 }
 
@@ -690,7 +708,9 @@ function analyzeCreateListingIntent({
   return {
     status,
     family: 'create_listing',
-    title: `List 1 ${claim.asset} for ${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
+    title: `${intent.listingContext?.mode === 'reprice' ? 'Reprice' : 'List'} 1 ${claim.asset} ` +
+      `${intent.listingContext?.mode === 'reprice' ? 'to' : 'for'} ` +
+      `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
       { label: 'Seller receives', value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats` },
       { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
