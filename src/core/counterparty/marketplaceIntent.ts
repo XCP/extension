@@ -654,12 +654,12 @@ function analyzeCreateListingIntent({
       blockers.push('seller input 1 is not controlled by the claimed seller');
     }
     if (sellerInput.value !== intent.carrierValueSats) {
-      blockers.push('seller input carrier value differs from the claim');
+      blockers.push('the seller input UTXO value differs from the claim');
     }
   }
 
   if (intent.guaranteedSellerPaymentSats !== intent.carrierValueSats + intent.priceSats) {
-    blockers.push('claimed seller payment does not equal carrier plus price');
+    blockers.push('the claimed seller payment does not equal the asset UTXO value plus the price');
   }
   if (!sellerOutput) {
     blockers.push('guaranteed seller output 1 is missing');
@@ -719,9 +719,9 @@ function analyzeCreateListingIntent({
         label: 'Marketplace expiry',
         value: intent.marketplaceExpiresAt === null
           ? 'None requested'
-          : new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
+          : formatExpiry(intent.marketplaceExpiresAt),
       },
-      { label: 'Bitcoin expiry', value: 'None — cancel by spending the asset' },
+      { label: 'Cancellation', value: 'Anytime — spend the asset UTXO' },
     ],
     notices: allProblems.length > 0
       ? []
@@ -751,6 +751,14 @@ const formatXcpRaw = (raw: string): string => {
   const fraction = (amount % 100_000_000n).toString().padStart(8, '0').replace(/0+$/, '');
   return fraction ? `${whole}.${fraction} XCP` : `${whole} XCP`;
 };
+
+/** Expiry timestamps share rows with their labels; seconds-precision wraps them into a third line. */
+function formatExpiry(unixSeconds: number): string {
+  return new Date(unixSeconds * 1000).toLocaleString(undefined, {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  });
+}
 
 /** Prove the full-input ALL-signed attach that creates one listable carrier UTXO. */
 function analyzeAttachForListingIntent(
@@ -867,19 +875,19 @@ function analyzeAttachForListingIntent(
 
   const target = outputs[intent.expectedAttachedOutpoint.vout];
   if (!sameAddress(intent.carrierAddress, intent.seller)) {
-    blockers.push('the attached carrier address differs from the claimed seller');
+    blockers.push('the attach destination address differs from the claimed seller');
   }
   if (!target) {
-    blockers.push('the claimed attached carrier output is missing');
+    blockers.push('the claimed new attached UTXO is missing');
   } else {
     if (!sameAddress(target.address, intent.carrierAddress)) {
-      blockers.push('the attached carrier output is not controlled by the claimed carrier address');
+      blockers.push('the new attached UTXO is not controlled by the claimed owner');
     }
     if (target.value !== intent.carrierValueSats) {
-      blockers.push('the attached carrier output value differs from the claim');
+      blockers.push('the new attached UTXO value differs from the claim');
     }
     if (target.type === 'op_return') {
-      blockers.push('the attached carrier destination cannot be an OP_RETURN output');
+      blockers.push('the attach destination cannot be an OP_RETURN output');
     }
   }
   const dataOutputs = outputs.filter(output => output.type === 'op_return');
@@ -923,17 +931,14 @@ function analyzeAttachForListingIntent(
     facts: [
       ...(!sameAddress(assetSource, intent.seller) ? [
         { label: 'Asset source', value: assetSource },
-        { label: 'Carrier owner', value: intent.seller },
+        { label: 'New UTXO owner', value: intent.seller },
       ] : []),
-      { label: 'Carrier value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+      { label: 'New UTXO value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
       {
         label: 'Quoted XCP fee',
         value: `${formatXcpRaw(intent.protocolFee.quotedAmountRaw)} (finalized at confirmation)`,
       },
-      {
-        label: 'Operation expiry',
-        value: new Date(intent.operationExpiresAt * 1000).toLocaleString(),
-      },
+      { label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
     ],
     notices: [],
     blockers: allProblems,
@@ -1059,7 +1064,7 @@ function analyzeBuyListingsIntent(
       blockers.push(`item ${itemIndex + 1} does not align with its top-level asset claim`);
     }
     if (item.sellerPaymentSats !== item.carrierValueSats + item.priceSats) {
-      blockers.push(`item ${itemIndex + 1} seller payment is not carrier plus price`);
+      blockers.push(`item ${itemIndex + 1} seller payment is not the asset UTXO value plus the price`);
     }
     if (!sellerInput) {
       blockers.push(`seller input ${sellerInputIndex} is missing`);
@@ -1071,9 +1076,9 @@ function analyzeBuyListingsIntent(
         blockers.push(`seller input ${sellerInputIndex} is not controlled by the claimed seller`);
       }
       if (sellerInput.value === undefined) {
-        retry.push(`seller input ${sellerInputIndex} has no authenticated carrier value`);
+        retry.push(`seller input ${sellerInputIndex} has no authenticated UTXO value`);
       } else if (sellerInput.value !== item.carrierValueSats) {
-        blockers.push(`seller input ${sellerInputIndex} carrier value differs from the claim`);
+        blockers.push(`seller input ${sellerInputIndex} UTXO value differs from the claim`);
       }
     }
     if (!sellerOutput) {
@@ -1169,16 +1174,20 @@ function analyzeBuyListingsIntent(
     family: 'buy_listings',
     title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { label: 'Items', value: `${itemCount} across ${distinctAssets} asset${distinctAssets === 1 ? '' : 's'}` },
+      // The per-asset "Detached" rows below already name each asset; this row only adds the
+      // distinct-asset count when it differs from the item count.
+      {
+        label: 'Items',
+        value: itemCount === distinctAssets
+          ? `${itemCount}`
+          : `${itemCount} (${distinctAssets} assets)`,
+      },
       // No network-fee row: the money-movement summary beside these facts already states it.
       { label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
       { label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
       { label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats` },
       { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
-      {
-        label: 'Marketplace expiry',
-        value: new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
-      },
+      { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
     ],
     notices: allProblems.length > 0
       ? []
@@ -1306,9 +1315,9 @@ function analyzeExactOfferIntent(
       blockers.push('input 1 is not controlled by the claimed seller');
     }
     if (sellerInput.value === undefined) {
-      retry.push('seller input 1 has no authenticated carrier value');
+      retry.push('seller input 1 has no authenticated UTXO value');
     } else if (sellerInput.value !== intent.carrierValueSats) {
-      blockers.push('seller input 1 carrier value differs from the claim');
+      blockers.push('seller input 1 UTXO value differs from the claim');
     }
   }
 
@@ -1347,7 +1356,7 @@ function analyzeExactOfferIntent(
     -intent.networkFeeSats,
   ]);
   if (claimedProceeds === null || claimedProceeds !== intent.sellerProceedsSats) {
-    blockers.push('claimed seller proceeds do not equal price plus carrier minus miner fee');
+    blockers.push('claimed seller proceeds do not equal the price plus the asset UTXO value minus the miner fee');
   }
   const sellerOutput = outputs[1];
   if (!sellerOutput) {
@@ -1391,20 +1400,17 @@ function analyzeExactOfferIntent(
       { label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
       { label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
       { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
-      { label: 'Funding slot', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
-      {
-        label: 'Marketplace expiry',
-        value: new Date(intent.marketplaceExpiresAt * 1000).toLocaleString(),
-      },
-      { label: 'Bitcoin expiry', value: 'None — cancel by spending the funding UTXO' },
+      { label: 'Funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
+      { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
+      { label: 'Cancellation', value: 'Anytime — spend the funding UTXO' },
     ],
     notices: allProblems.length > 0
       ? []
       : [{
           severity: authorizing ? 'warning' : 'info',
           message: authorizing
-            ? 'After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding slot are alternatives: the first confirmed spend wins and invalidates its siblings.'
-            : 'Your signature completes this exact sale without a buyer callback. If the buyer already spent this shared funding slot, broadcast fails and your asset remains yours.',
+            ? 'After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.'
+            : 'Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.',
         }],
     blockers: allProblems,
   };
@@ -1511,26 +1517,23 @@ function analyzePrepareBulkFanoutIntent(
   return {
     status: blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved',
     family: 'prepare_bulk_fanout',
-    title: `Prepare ${intent.slotCount} listing funding slot${intent.slotCount === 1 ? '' : 's'}`,
+    title: `Create ${intent.slotCount} listing UTXO${intent.slotCount === 1 ? '' : 's'}`,
     facts: [
       { label: 'Funding input', value: `${intent.fundingValueSats.toLocaleString()} sats` },
       {
-        label: 'Attach slots',
+        label: 'New UTXOs',
         value: `${intent.slotCount} × ${intent.slotValueSats.toLocaleString()} sats`,
       },
       { label: 'Change', value: `${intent.changeSats.toLocaleString()} sats` },
       { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
-      {
-        label: 'Operation expiry',
-        value: new Date(intent.operationExpiresAt * 1000).toLocaleString(),
-      },
+      { label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
     ],
     notices: allProblems.length > 0
       ? []
       : [{
           severity: 'info',
           message:
-            'Every output remains controlled by this wallet. These plain-Bitcoin slots fund later Counterparty attach transactions; no asset moves in this phase.',
+            'Every output remains controlled by this wallet. These plain-Bitcoin UTXOs fund later Counterparty attach transactions; no asset moves in this phase.',
         }],
     blockers: allProblems,
   };

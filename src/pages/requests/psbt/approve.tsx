@@ -436,21 +436,6 @@ export default function ApprovePsbtPage() {
 
           <ApprovalSiteBar origin={request.origin} />
 
-          {isBitcoinPayment && request.bitcoinPaymentIntent && (
-            <BitcoinPaymentCard
-              intent={request.bitcoinPaymentIntent}
-              proof={decodedInfo.bitcoinPaymentProof}
-              failure={decodedInfo.bitcoinPaymentBlockers}
-            />
-          )}
-
-          {/* A gating failure gets exactly one voice: the review card alone carries the
-              blockers, and the generic warning stack below stays silent for it. Proved and
-              caution reviews render through the standard headline and details instead. */}
-          {marketplaceBlocked && marketplaceReview && (
-            <MarketplaceReviewCard review={marketplaceReview} />
-          )}
-
           {error && <ErrorAlert message={error} />}
 
           {/* Transaction action & fee. Skipped when there is nothing to put in it — a gated
@@ -469,6 +454,23 @@ export default function ApprovePsbtPage() {
               ? toFiniteNumber(counterpartyMessage.messageData.fee) ?? null
               : null}
           />
+          )}
+
+          {/* Colored verdict cards sit under the plain summary, matching the app-wide order of
+              summary first, callouts second. */}
+          {isBitcoinPayment && request.bitcoinPaymentIntent && (
+            <BitcoinPaymentCard
+              intent={request.bitcoinPaymentIntent}
+              proof={decodedInfo.bitcoinPaymentProof}
+              failure={decodedInfo.bitcoinPaymentBlockers}
+            />
+          )}
+
+          {/* A gating failure gets exactly one voice: the review card alone carries the
+              blockers, and the generic warning stack below stays silent for it. Proved and
+              caution reviews render through the standard headline and details instead. */}
+          {marketplaceBlocked && marketplaceReview && (
+            <MarketplaceReviewCard review={marketplaceReview} />
           )}
 
           <CounterpartyDetailsCard

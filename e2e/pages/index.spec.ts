@@ -74,6 +74,9 @@ walletTest.describe('Index Page', () => {
     });
 
     walletTest('keeps the app shell and footer inside the popup viewport', async ({ page }) => {
+      await expect(page.locator('#root')).toBeVisible();
+      await expect(page.locator('footer[aria-label="Primary"]')).toBeVisible();
+
       const metrics = await page.evaluate(() => {
         const root = document.querySelector<HTMLElement>('#root');
         const footer = document.querySelector<HTMLElement>('footer[aria-label="Primary"]');
