@@ -88,6 +88,9 @@ describe("counterparty pool utilities", () => {
   it("applies pool slippage to raw integer quantities", () => {
     expect(applyPoolSlippage("100000000", "2.5")).toBe("97500000");
     expect(applyPoolSlippage("100", "0.5")).toBe("99");
+    // One indivisible unit cannot absorb a fractional haircut. Returning zero here creates an
+    // invalid DEX order (`non-positive get quantity`) instead of preserving the quoted fill.
+    expect(applyPoolSlippage("1", "3")).toBe("1");
     expect(applyPoolSlippage(undefined, "1")).toBe("0");
   });
 

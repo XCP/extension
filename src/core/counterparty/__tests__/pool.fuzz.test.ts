@@ -94,6 +94,16 @@ describe('Pool Math Fuzz Tests', () => {
       }), { numRuns: 300 });
     });
 
+    it('keeps a positive quote positive below 100% slippage', () => {
+      fc.assert(fc.property(
+        satPositive,
+        fc.double({ min: 0, max: 99.999999, noNaN: true, noDefaultInfinity: true }),
+        (value, s) => {
+          expect(BigInt(applyPoolSlippage(value.toString(), s.toString()))).toBeGreaterThan(0n);
+        }
+      ), { numRuns: 300 });
+    });
+
     it('floors the result to zero at >= 100% slippage', () => {
       fc.assert(fc.property(sat, fc.double({ min: 100, max: 500, noNaN: true, noDefaultInfinity: true }), (value, s) => {
         expect(applyPoolSlippage(value.toString(), s.toString())).toBe('0');
