@@ -88,7 +88,10 @@ jobs:
       # re-raises the failure, so a red E2E run still fails the job and files the issue.
       - name: Run all E2E tests
         id: e2e
-        timeout-minutes: 60
+        # The full suite is intentionally serial because two headed extension profiles can race
+        # Chromium service-worker registration on one runner. It currently needs more than the old
+        # 30-minute Playwright global limit, so this stays below the job's 120-minute hard backstop.
+        timeout-minutes: 105
         run: npx playwright test --retries=3 --workers=1
         env:
           DISPLAY: ':99'
@@ -138,6 +141,38 @@ jobs:
             test-results/
             playwright-report/
           retention-days: 30
+
+      - name: Close resolved nightly failure issues
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: 'open',
+              labels: 'automated,test-failure',
+              per_page: 100,
+            });
+            const nightlyIssues = issues.filter(
+              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
+            );
+            for (const issue of nightlyIssues) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: `Resolved by successful nightly run ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}.`,
+              });
+              await github.rest.issues.update({
+                owner,
+                repo,
+                issue_number: issue.number,
+                state: 'closed',
+                state_reason: 'completed',
+              });
+            }
       
       - name: Notify on failure
         if: failure()
@@ -145,10 +180,30 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            await github.rest.issues.create({
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
               repo,
-              title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
-              body: `The nightly test run failed. Please check the [workflow run](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}) for details.`,
-              labels: ['automated', 'test-failure']
+              state: 'open',
+              labels: 'automated,test-failure',
+              per_page: 100,
             });
+            const existing = issues.find(
+              issue => !issue.pull_request && issue.title.startsWith('Nightly tests failed')
+            );
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: existing.number,
+                body: `Another nightly run failed: ${runUrl}`,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner,
+                repo,
+                title: `Nightly tests failed - ${new Date().toISOString().split('T')[0]}`,
+                body: `The nightly test run failed. Please check the [workflow run](${runUrl}) for details.`,
+                labels: ['automated', 'test-failure'],
+              });
+            }

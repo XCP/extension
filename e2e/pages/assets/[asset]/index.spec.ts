@@ -174,62 +174,16 @@ walletTest.describe('View Asset Page (/assets/:asset)', () => {
   // Actions Tests
   // ============================================================================
 
-  walletTest('shows action buttons for XCP', async ({ page }) => {
+  walletTest('does not offer ownership actions for protocol asset XCP', async ({ page }) => {
     await navigateToAsset(page, 'XCP');
 
     await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
 
-    // XCP should have common actions - at minimum Lock Description and Update Description
-    const lockDescriptionAction = page.locator('text="Lock Description"');
-    const updateDescriptionAction = page.locator('text="Update Description"');
-
-    await expect(lockDescriptionAction).toBeVisible({ timeout: 5000 });
-    await expect(updateDescriptionAction).toBeVisible({ timeout: 5000 });
-  });
-
-  walletTest('shows Transfer Ownership action', async ({ page }) => {
-    await navigateToAsset(page, 'XCP');
-
-    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
-
-    const transferAction = page.locator('text="Transfer Ownership"');
-    await expect(transferAction).toBeVisible({ timeout: 5000 });
-  });
-
-  walletTest('Lock Description action navigates to compose/issuance/lock-description', async ({ page }) => {
-    await navigateToAsset(page, 'XCP');
-
-    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
-
-    const lockDescriptionAction = page.locator('button:has-text("Lock Description"), div[role="button"]:has-text("Lock Description")').first();
-    await expect(lockDescriptionAction).toBeVisible({ timeout: 5000 });
-    await lockDescriptionAction.click();
-
-    await expect(page).toHaveURL(/compose\/issuance\/lock-description\/XCP/, { timeout: 5000 });
-  });
-
-  walletTest('Update Description action navigates to compose/issuance/update-description', async ({ page }) => {
-    await navigateToAsset(page, 'XCP');
-
-    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
-
-    const updateDescriptionAction = page.locator('button:has-text("Update Description"), div[role="button"]:has-text("Update Description")').first();
-    await expect(updateDescriptionAction).toBeVisible({ timeout: 5000 });
-    await updateDescriptionAction.click();
-
-    await expect(page).toHaveURL(/compose\/issuance\/update-description\/XCP/, { timeout: 5000 });
-  });
-
-  walletTest('Transfer Ownership action navigates to compose/issuance/transfer-ownership', async ({ page }) => {
-    await navigateToAsset(page, 'XCP');
-
-    await expect(page.locator('text="Asset Details"')).toBeVisible({ timeout: 10000 });
-
-    const transferAction = page.locator('button:has-text("Transfer Ownership"), div[role="button"]:has-text("Transfer Ownership")').first();
-    await expect(transferAction).toBeVisible({ timeout: 5000 });
-    await transferAction.click();
-
-    await expect(page).toHaveURL(/compose\/issuance\/transfer-ownership\/XCP/, { timeout: 5000 });
+    // BTC and XCP are protocol assets without an owner. Issuance-management actions would lead
+    // to transactions Counterparty Core rejects, so the page deliberately withholds them.
+    for (const action of ['Lock Description', 'Update Description', 'Transfer Ownership']) {
+      await expect(page.getByText(action, { exact: true })).toHaveCount(0);
+    }
   });
 
   // ============================================================================
