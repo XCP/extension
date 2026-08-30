@@ -378,7 +378,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
         'Signing addresses (2)',
         'Asset source',
         pairedLegacy,
-        'Carrier owner',
+        'New UTXO owner',
         wallet,
       ],
       absentText: [

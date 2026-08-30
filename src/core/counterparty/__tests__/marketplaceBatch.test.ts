@@ -68,7 +68,7 @@ describe('marketplace batch aggregate proof', () => {
       family: 'marketplace_batch',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Attach slots', value: '4' });
+    expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '4' });
     expect(review.facts).toContainEqual({ label: 'Total network fees', value: '2,000 sats' });
   });
 
