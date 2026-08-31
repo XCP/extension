@@ -261,7 +261,7 @@ interface Scenario {
   record: Record<string, unknown>;
   balances: Record<string, StubBalance[] | 'fail'>;
   /** The footer state this scenario is expected to reach — a drifting state fails the run. */
-  expectFooter: 'Sign' | 'Review' | 'Blocked';
+  expectFooter: 'Sign' | 'Review' | 'Blocked' | 'Authorize listing' | 'Authorize reprice';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** False-positive warnings that would make an ordinary marketplace request look unsafe. */

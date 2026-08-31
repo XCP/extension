@@ -721,6 +721,8 @@ function analyzeCreateListingIntent({
       },
       { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
       { label: 'Delivery', value: 'Detached to the eventual buyer' },
+      // The signature commits only the seller-payment output; state who controls the rest.
+      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
       { label: 'Broadcast now', value: 'None' },
       {
         label: 'Marketplace expiry',
