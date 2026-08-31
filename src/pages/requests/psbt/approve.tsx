@@ -299,43 +299,26 @@ export default function ApprovePsbtPage() {
     && marketplaceReview.family !== 'attach_for_listing';
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
+  // create_listing is absent here on purpose: a fully proved listing is 'proved', never
+  // 'caution', so its consequences live in the review facts on the one screen.
   const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
     ? []
-    : marketplaceReview.family === 'create_listing'
+    : marketplaceReview.family === 'authorize_exact_offer'
       ? [{
-          key: 'marketplace-listing',
+          key: 'marketplace-offer',
           severity: 'warning' as const,
-          title: isRepriceListing
-            ? 'This replaces the current listing price'
-            : 'This listing stays open until filled or cancelled',
-          description: isRepriceListing
-            ? `Signing authorizes a new price of ${request.marketplaceIntent?.action === 'create_listing'
-              ? (request.marketplaceIntent.priceSats / 100_000_000).toFixed(8)
-              : 'the shown amount'} BTC. Once the marketplace accepts it, the previous stored ` +
-              'authorization is replaced. You can remove the listing through the marketplace. ' +
-              'Spending the asset UTXO also invalidates the signature.'
-            : 'Signing puts this up for sale. Anyone who pays you exactly ' +
-              `${request.marketplaceIntent?.action === 'create_listing'
-                ? request.marketplaceIntent.guaranteedSellerPaymentSats.toLocaleString()
-                : 'the shown'} sats can complete the purchase without asking you again. ` +
-              'You can remove it through the marketplace. Spending the asset UTXO also invalidates the authorization.',
+          title: 'The seller can complete this sale at any time',
+          description:
+            'Signing lets the seller finish this exact trade without asking you again — the ' +
+            'first confirmed spend of your funding wins. To withdraw the offer, spend your ' +
+            'funding UTXO.',
         }]
-      : marketplaceReview.family === 'authorize_exact_offer'
-        ? [{
-            key: 'marketplace-offer',
-            severity: 'warning' as const,
-            title: 'The seller can complete this sale at any time',
-            description:
-              'Signing lets the seller finish this exact trade without asking you again — the ' +
-              'first confirmed spend of your funding wins. To withdraw the offer, spend your ' +
-              'funding UTXO.',
-          }]
-        : marketplaceReview.notices.map((notice, index) => ({
-            key: `marketplace-${index}`,
-            severity: notice.severity,
-            title: 'This authorization remains usable after signing',
-            description: notice.message,
-          }));
+      : marketplaceReview.notices.map((notice, index) => ({
+          key: `marketplace-${index}`,
+          severity: notice.severity,
+          title: 'This authorization remains usable after signing',
+          description: notice.message,
+        }));
   const approvalAttentionItems: WarningItem[] = [
     ...marketplaceAttention,
     ...genericAttention,
@@ -357,11 +340,9 @@ export default function ApprovePsbtPage() {
   ];
   const requiresAttention = !blockSigning && approvalAttentionItems.length > 0;
   const attentionTitle = marketplaceRequiresAttention
-    ? marketplaceReview.family === 'create_listing'
-      ? isRepriceListing ? 'Before you reprice' : 'Before you list'
-      : marketplaceReview.family === 'authorize_exact_offer'
-        ? 'Before you authorize'
-        : 'Review before signing'
+    ? marketplaceReview.family === 'authorize_exact_offer'
+      ? 'Before you authorize'
+      : 'Review before signing'
     : approvalAttentionItems.some(item => item.severity === 'danger')
       ? 'Review transaction risk'
       : 'Review before signing';
@@ -418,7 +399,7 @@ export default function ApprovePsbtPage() {
           {usesPairedAddress && (
             <Collapsible variant="card" title={`Signing addresses (${requestedAddressSpends.length})`}>
               <p className="text-xs text-gray-500">
-                The request explicitly selects inputs from paired Legacy and SegWit addresses in this wallet.
+                Only the inputs shown below will be signed with their matching addresses in this wallet.
               </p>
               <div className="space-y-2">
                 {requestedAddressSpends.map(({ address, indices, value }) => (
@@ -512,13 +493,17 @@ export default function ApprovePsbtPage() {
         busy={isSigning}
         blocked={blockSigning}
         isHardware={activeWallet.type === 'hardware'}
-        signLabel={requiresAttention ? 'Review' : 'Sign'}
+        signLabel={requiresAttention
+          ? 'Review'
+          : marketplaceReview?.family === 'create_listing'
+            ? confirmLabel
+            : 'Sign'}
       />
 
       {showAttention && requiresAttention && (
         <ApprovalAttentionScreen
           title={attentionTitle}
-          description="Confirm the exceptional authorization below before the wallet adds your signature."
+          description="Confirm the authorization details below before the wallet adds your signature."
           items={approvalAttentionItems}
           confirmLabel={confirmLabel}
           busy={isSigning}

@@ -94,9 +94,9 @@ export function MoneyMovementView({
         </div>
         {backToYou > 0 && (
           <div className="flex items-center justify-between gap-2">
-            {/* "Change", not "to your wallet": on a dispense or a send the only such row is the
-                change, and calling it an arrival reads as though the transaction pays you. */}
-            <span className="text-gray-400">Change</span>
+            {/* This can include more than a conventional change output, such as a paired-address
+                asset destination, so name the ownership fact without misclassifying the outputs. */}
+            <span className="text-gray-400">Returned to wallet</span>
             <span className="text-gray-400 font-medium flex-shrink-0">{btc(backToYou)} BTC</span>
           </div>
         )}

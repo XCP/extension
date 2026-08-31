@@ -500,14 +500,27 @@ describe('attach-for-listing proof', () => {
 });
 
 describe('create-listing proof', () => {
-  it('proves exact seller payment while stating buyer-selected detach flexibility', () => {
+  it('proves exact seller payment and explains the bounded listing authorization', () => {
     const review = analyzeMarketplaceIntent(base());
 
-    expect(review.status).toBe('caution');
+    expect(review.status).toBe('proved');
     expect(review.blockers).toEqual([]);
     expect(review.title).toContain('RAREPEPE');
-    expect(review.facts).toContainEqual({ label: 'Seller receives', value: '250,546 sats' });
-    expect(review.notices[0]?.message).toContain('choose the detach destination');
+    expect(review.facts).toContainEqual({ label: 'Price', value: '250,000 sats' });
+    expect(review.facts).toContainEqual({
+      label: 'Seller receives',
+      value: '250,546 sats (price + 546-sat asset UTXO)',
+    });
+    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'None' });
+    expect(review.facts).toContainEqual({
+      label: 'Marketplace cancellation',
+      value: 'Delist without a transaction',
+    });
+    expect(review.facts).toContainEqual({
+      label: 'Signature invalidation',
+      value: 'Spend the asset UTXO',
+    });
+    expect(review.notices).toEqual([]);
   });
 
   it('labels a proved replacement authorization as a reprice', () => {
@@ -521,7 +534,7 @@ describe('create-listing proof', () => {
       },
     });
 
-    expect(review.status).toBe('caution');
+    expect(review.status).toBe('proved');
     expect(review.title).toBe('Reprice 1 RAREPEPE to 0.00250000 BTC');
   });
 

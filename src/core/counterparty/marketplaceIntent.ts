@@ -704,7 +704,7 @@ function analyzeCreateListingIntent({
   }
 
   const allProblems = [...retry, ...blockers];
-  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'caution';
+  const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   return {
     status,
     family: 'create_listing',
@@ -712,25 +712,28 @@ function analyzeCreateListingIntent({
       `${intent.listingContext?.mode === 'reprice' ? 'to' : 'for'} ` +
       `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { label: 'Seller receives', value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats` },
+      { label: 'Price', value: `${intent.priceSats.toLocaleString()} sats` },
+      {
+        label: 'Seller receives',
+        value:
+          `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats ` +
+          `(price + ${intent.carrierValueSats.toLocaleString()}-sat asset UTXO)`,
+      },
       { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
       { label: 'Delivery', value: 'Detached to the eventual buyer' },
+      // The signature commits only the seller-payment output; state who controls the rest.
+      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
+      { label: 'Broadcast now', value: 'None' },
       {
         label: 'Marketplace expiry',
         value: intent.marketplaceExpiresAt === null
           ? 'None requested'
           : formatExpiry(intent.marketplaceExpiresAt),
       },
-      { label: 'Cancellation', value: 'Anytime — spend the asset UTXO' },
+      { label: 'Marketplace cancellation', value: 'Delist without a transaction' },
+      { label: 'Signature invalidation', value: 'Spend the asset UTXO' },
     ],
-    notices: allProblems.length > 0
-      ? []
-      : [{
-          severity: 'warning',
-          message:
-            'The buyer may add funding inputs and choose the detach destination. Your signature ' +
-            'remains valid only when output 1 pays you the exact amount shown.',
-        }],
+    notices: [],
     blockers: allProblems,
   };
 }

@@ -144,8 +144,20 @@ export function analyzeMarketplaceBatch(
   } else {
     const listings = intents as CreateListingIntentClaim[];
     const gross = exactSafeSum(listings.map(intent => intent.priceSats), 'listing prices');
-    title = `Authorize ${listings.length} marketplace listings`;
-    facts.push({ label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` });
+    // A batch where every item replaces an existing authorization is a reprice, and saying
+    // "listings" would describe it as putting new items up for sale. Mixed batches stay generic.
+    const allReprice = listings.every(intent => intent.listingContext?.mode === 'reprice');
+    title = allReprice
+      ? `Authorize ${listings.length} listing reprice${listings.length === 1 ? '' : 's'}`
+      : `Authorize ${listings.length} marketplace listings`;
+    // Proved reviews speak through facts, not notices, so the durable-signature boundary has to
+    // live here — the same rows the single-listing screen shows.
+    facts.push(
+      { label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` },
+      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
+      { label: 'Broadcast now', value: 'None' },
+      { label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
+    );
     notice = 'Every listing independently guarantees its seller payment. Each flexible signature remains valid until its attached asset outpoint is spent.';
   }
 

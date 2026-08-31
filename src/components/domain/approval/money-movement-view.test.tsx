@@ -21,14 +21,14 @@ describe('MoneyMovementView', () => {
     expect(screen.getByText(/0\.00060000/)).toBeInTheDocument(); // headline net, distinct from the 0.00070000 row
   });
 
-  it('lists an external destination, change, and fee', () => {
+  it('lists an external destination, wallet return, and fee', () => {
     render(
       <MoneyMovementView
         movement={movement({ net: -95000, external: [{ address: 'bc1qexternaldestinationaddr', value: 90000 }], backToYou: 5000, fee: 5000 })}
       />
     );
     expect(screen.getByText(/^bc1q/)).toBeInTheDocument(); // the external destination (truncated)
-    expect(screen.getByText('Change')).toBeInTheDocument();
+    expect(screen.getByText('Returned to wallet')).toBeInTheDocument();
     expect(screen.getByText('Network fee')).toBeInTheDocument();
   });
 

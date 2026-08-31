@@ -22,8 +22,8 @@ import * as path from 'node:path';
 import type { Page, Route } from '@playwright/test';
 import { Address, OutScript } from '@scure/btc-signer';
 import { expect, navigateTo, walletTest } from '../fixtures';
-import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
 import { settings } from '../selectors';
+import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
 
 const OUT_DIR = 'test-results/marketplace-gallery';
 
@@ -261,7 +261,7 @@ interface Scenario {
   record: Record<string, unknown>;
   balances: Record<string, StubBalance[] | 'fail'>;
   /** The footer state this scenario is expected to reach — a drifting state fails the run. */
-  expectFooter: 'Sign' | 'Review' | 'Blocked';
+  expectFooter: 'Sign' | 'Review' | 'Blocked' | 'Authorize listing' | 'Authorize reprice';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** False-positive warnings that would make an ordinary marketplace request look unsafe. */
@@ -416,7 +416,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     });
   }
 
-  // --- create_listing (caution: buyer-selected detach stays flexible) -----------------------
+  // --- create_listing (proved: the bounded buyer-selected detach is fully explained) --------
   {
     const placeholder: BuiltInput = { txid: '00'.repeat(32), vout: 0, value: 0 };
     const assetInput: BuiltInput = { txid: ASSET_TXID, vout: 7, address: wallet, value: 546 };
@@ -446,9 +446,9 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
       bitcoinExpiresAt: null,
     };
     scenarios.push({
-      name: 'listing-create-caution',
+      name: 'listing-create-proved',
       route: '/requests/psbt/approve',
-      expectFooter: 'Review',
+      expectFooter: 'Authorize listing',
       record: seedRecord('mk-listing', {
         requestKey: 'xcp_signPsbt:mk-listing',
         kind: 'sign-psbt',
@@ -460,12 +460,18 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
       balances: {
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],
       },
+      expectedText: [
+        'Broadcast now',
+        'Marketplace cancellation',
+        'Signature invalidation',
+        'Spend the asset UTXO',
+      ],
     });
 
     scenarios.push({
-      name: 'listing-reprice-caution',
+      name: 'listing-reprice-proved',
       route: '/requests/psbt/approve',
-      expectFooter: 'Review',
+      expectFooter: 'Authorize reprice',
       record: seedRecord('mk-listing-reprice', {
         requestKey: 'xcp_signPsbt:mk-listing-reprice',
         kind: 'sign-psbt',
@@ -879,7 +885,9 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       `chrome-extension://${extensionId}/popup.html#${scenario.route}?requestId=${scenario.record.id}`
     );
 
-    const footer = approval.getByRole('button', { name: /^(sign|review|blocked)$/i });
+    const footer = approval.getByRole('button', {
+      name: /^(sign|review|blocked|authorize listing|authorize reprice)$/i,
+    });
     await expect(footer).toBeVisible({ timeout: 60_000 });
     const footerLabel = (await footer.textContent())?.trim() ?? '';
     if (footerLabel.toLowerCase() !== scenario.expectFooter.toLowerCase()) {
