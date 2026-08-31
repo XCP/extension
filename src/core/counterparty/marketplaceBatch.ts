@@ -154,6 +154,7 @@ export function analyzeMarketplaceBatch(
     // live here — the same rows the single-listing screen shows.
     facts.push(
       { label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` },
+      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
       { label: 'Broadcast now', value: 'None' },
       { label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
     );

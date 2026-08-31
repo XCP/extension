@@ -117,9 +117,13 @@ export default function ApprovePsbtsPage() {
 
   const blocked = decodedInfo.review.status === 'blocked' || decodedInfo.review.status === 'retry';
   // A proved bulk-listing batch is a one-screen decision like the single listing: the review
-  // facts carry the durable-signature boundary, and the footer names what signing authorizes.
+  // facts carry the durable-signature boundary, and the footer names what signing authorizes —
+  // including whether that is new listings or reprices of existing ones.
+  const allReprice = request.bundleKind === 'bulk-listing'
+    && request.items.every(item => item.marketplaceIntent.action === 'create_listing'
+      && item.marketplaceIntent.listingContext?.mode === 'reprice');
   const signLabel = request.bundleKind === 'bulk-listing'
-    ? `Authorize ${request.items.length} listing${request.items.length === 1 ? '' : 's'}`
+    ? `Authorize ${request.items.length} ${allReprice ? 'reprice' : 'listing'}${request.items.length === 1 ? '' : 's'}`
     : 'Sign';
   return (
     <div className="flex flex-col h-full bg-gray-50">
