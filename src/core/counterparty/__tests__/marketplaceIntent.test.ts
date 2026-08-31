@@ -316,6 +316,17 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(intent)).toEqual(intent);
   });
 
+  it('copies bounded reprice display context without changing the signing action', () => {
+    const repriceIntent: CreateListingIntentClaim = {
+      ...intent,
+      listingContext: {
+        mode: 'reprice',
+      },
+    };
+
+    expect(parseMarketplaceIntent(repriceIntent)).toEqual(repriceIntent);
+  });
+
   it('copies a bounded multi-item buy claim', () => {
     expect(parseMarketplaceIntent(buyIntent)).toEqual(buyIntent);
   });
@@ -349,6 +360,7 @@ describe('marketplace intent wire parser', () => {
     { ...intent, action: 'buy_listings' },
     { ...intent, bitcoinExpiresAt: 2_000_000_000 },
     { ...intent, assets: [] },
+    { ...intent, listingContext: { mode: 'replace' } },
   ])('refuses an unsupported or malformed claim', (candidate) => {
     expect(() => parseMarketplaceIntent(candidate)).toThrow();
   });
@@ -404,7 +416,7 @@ describe('attach-for-listing proof', () => {
     expect(review.status).toBe('caution');
     expect(review.blockers).toEqual([]);
     expect(review.facts).toContainEqual({ label: 'Asset source', value: SELLER });
-    expect(review.facts).toContainEqual({ label: 'Asset destination', value: SELLER_TWO });
+    expect(review.facts).toContainEqual({ label: 'New UTXO owner', value: SELLER_TWO });
   });
 
   it.each([
@@ -497,10 +509,33 @@ describe('create-listing proof', () => {
     expect(review.facts).toContainEqual({ label: 'Price', value: '250,000 sats' });
     expect(review.facts).toContainEqual({
       label: 'Seller receives',
-      value: '250,546 sats (price + 546-sat asset output)',
+      value: '250,546 sats (price + 546-sat asset UTXO)',
     });
     expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'None' });
+    expect(review.facts).toContainEqual({
+      label: 'Marketplace cancellation',
+      value: 'Delist without a transaction',
+    });
+    expect(review.facts).toContainEqual({
+      label: 'Signature invalidation',
+      value: 'Spend the asset UTXO',
+    });
     expect(review.notices).toEqual([]);
+  });
+
+  it('labels a proved replacement authorization as a reprice', () => {
+    const review = analyzeMarketplaceIntent({
+      ...base(),
+      intent: {
+        ...intent,
+        listingContext: {
+          mode: 'reprice',
+        },
+      },
+    });
+
+    expect(review.status).toBe('proved');
+    expect(review.title).toBe('Reprice 1 RAREPEPE to 0.00250000 BTC');
   });
 
   it.each([
@@ -736,7 +771,7 @@ describe('bulk fan-out funding proof', () => {
       family: 'prepare_bulk_fanout',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Attach slots', value: '2 × 10,000 sats' });
+    expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '2 × 10,000 sats' });
     expect(review.notices[0]?.message).toMatch(/no asset moves/i);
   });
 

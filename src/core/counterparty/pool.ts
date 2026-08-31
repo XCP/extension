@@ -105,12 +105,20 @@ export function applyPoolSlippage(value: number | string | null | undefined, sli
 
   const bps = toBigNumber(slippagePercent || "0").times(100);
   const multiplier = BigNumber.maximum(0, toBigNumber(10000).minus(bps));
-
-  return toBigNumber(value)
+  const quoted = toBigNumber(value);
+  const minimum = quoted
     .times(multiplier)
     .div(10000)
-    .integerValue(BigNumber.ROUND_DOWN)
-    .toString();
+    .integerValue(BigNumber.ROUND_DOWN);
+
+  // Core rejects a DEX order whose minimum receive quantity is zero. A percentage haircut on a
+  // one-base-unit quote (most visibly one indivisible collectible) otherwise floors 1 to 0 even
+  // though the quote is perfectly fillable. There is no fractional unit in which to express
+  // slippage here, so the only valid minimum is the quoted unit itself. Keep 100%+ slippage at
+  // zero for the generic helper's existing contract; signing forms never allow that range.
+  if (quoted.isGreaterThan(0) && multiplier.isGreaterThan(0) && minimum.isZero()) return "1";
+
+  return minimum.toString();
 }
 
 export function calculateInitialLpEstimate(quantityA: string, quantityB: string): string {

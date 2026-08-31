@@ -446,7 +446,7 @@ describe('the marketplace intent proof', () => {
       { label: 'Price', value: '250,000 sats' },
       { label: 'Broadcast now', value: 'None' },
       { label: 'Marketplace cancellation', value: 'Delist without a transaction' },
-      { label: 'Signature invalidation', value: 'Spend the asset output' },
+      { label: 'Signature invalidation', value: 'Spend the asset UTXO' },
     ]));
     expect(analysis.attachedAssetDestination).toMatchObject({
       destinationCommitted: false,
@@ -475,11 +475,10 @@ describe('the marketplace intent proof', () => {
       label: 'Quoted XCP fee',
       value: '0.25 XCP (finalized at confirmation)',
     });
-    expect(analysis.marketplaceReview?.facts).toEqual(expect.arrayContaining([
-      { label: 'Asset source', value: SIGNER },
-      { label: 'Asset destination', value: SIGNER },
-      { label: 'Destination UTXO', value: '546 sats' },
-    ]));
+    expect(analysis.marketplaceReview?.facts).toContainEqual({
+      label: 'New UTXO value',
+      value: '546 sats',
+    });
   });
 
   it('hard-blocks a site claim whose seller payment differs from the PSBT', async () => {
