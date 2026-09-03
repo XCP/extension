@@ -4,6 +4,7 @@ import {
   beginSignFlow,
   computeRequestKey,
   findActiveFlowByKey,
+  findSafeChangeSigningAddress,
   getSignFlow,
   recordSignOutcome,
   removeSignFlow,
@@ -47,10 +48,17 @@ describe('signFlow', () => {
       expect(flow?.id).toBe('id-1');
       expect(flow?.status).toBe('pending');
 
-      await recordSignOutcome('id-1', 'completed', { signedTxHex: 'deadbeef' });
+      await recordSignOutcome('id-1', 'completed', {
+        signedTxHex: 'deadbeef',
+        safeOwnChange: true,
+      });
       flow = await getSignFlow('id-1');
       expect(flow?.status).toBe('completed');
-      expect(flow?.result).toEqual({ signedTxHex: 'deadbeef' });
+      expect(flow?.result).toEqual({ signedTxHex: 'deadbeef', safeOwnChange: true });
+      expect(await findSafeChangeSigningAddress('deadbeef', 'https://x.com'))
+        .toBe('bc1qexample');
+      expect(await findSafeChangeSigningAddress('deadbeef', 'https://elsewhere.com'))
+        .toBeNull();
 
       await removeSignFlow('id-1');
       expect(await getSignFlow('id-1')).toBeNull();

@@ -6,6 +6,7 @@
  */
 
 import { API_TIMEOUTS, apiClient } from '@/core/api/client';
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchAssetDetails } from '@/core/counterparty/api';
 import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
 import { fromSatoshis } from '@/core/numeric';
@@ -122,9 +123,10 @@ export interface InputPrevout {
  * Returns a map of "txid:vout" → satoshi value.
  */
 export async function fetchInputValues(
-  inputs: Array<{ txid: string; vout: number }>
+  inputs: Array<{ txid: string; vout: number }>,
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
 ): Promise<Map<string, number>> {
-  const prevouts = await fetchInputPrevouts(inputs);
+  const prevouts = await fetchInputPrevouts(inputs, resolveTrustedPrevout);
   return new Map([...prevouts].map(([key, prevout]) => [key, prevout.value]));
 }
 
@@ -134,12 +136,26 @@ export async function fetchInputValues(
  * whose input it is has to report the net effect as undetermined.
  */
 export async function fetchInputPrevouts(
-  inputs: Array<{ txid: string; vout: number }>
+  inputs: Array<{ txid: string; vout: number }>,
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
 ): Promise<Map<string, InputPrevout>> {
   const values = new Map<string, InputPrevout>();
 
+  // Resolve our own just-broadcast change locally first. The provider broadcast path stores these
+  // prevouts from the signed parent bytes, so fee and movement review do not briefly become
+  // unknown while public Bitcoin indexers catch up.
+  await Promise.all(inputs.map(async (input) => {
+    const prevout = await resolveTrustedPrevout(input.txid, input.vout);
+    if (!prevout) return;
+    values.set(`${input.txid}:${input.vout}`, {
+      value: prevout.value,
+      address: prevout.address,
+    });
+  }));
+
   // Deduplicate by txid to minimize API calls
-  const uniqueTxids = [...new Set(inputs.map(i => i.txid))];
+  const unresolvedInputs = inputs.filter((input) => !values.has(`${input.txid}:${input.vout}`));
+  const uniqueTxids = [...new Set(unresolvedInputs.map(i => i.txid))];
 
   await Promise.all(uniqueTxids.map(async (txid) => {
     const endpoints = [
@@ -154,7 +170,7 @@ export async function fetchInputPrevouts(
         }>(url, { retries: 0 });
         if (response.data?.vout) {
           // Store all vout values for this txid
-          for (const input of inputs) {
+          for (const input of unresolvedInputs) {
             const prevout = input.txid === txid ? response.data.vout[input.vout] : undefined;
             if (prevout) {
               values.set(`${txid}:${input.vout}`, {

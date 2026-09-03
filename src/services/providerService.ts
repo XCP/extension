@@ -26,10 +26,12 @@ import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
 import { analytics } from '@/platform/fathom';
 import { openExtensionPopup } from '@/platform/popup';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
+import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import {
   beginSignFlow,
   computeRequestKey,
   findActiveFlowByKey,
+  findSafeChangeSigningAddress,
   getSignFlow,
   removeSignFlow,
 } from '@/platform/provider/signFlow';
@@ -1126,6 +1128,16 @@ export function createProviderService(): ProviderService {
             throw new Error('Signed transaction must be a hex string');
           }
 
+          // Broadcasting is intentionally open to any signed transaction, so broadcasting alone
+          // cannot make its outputs trusted. Only an exact transaction this origin just had the
+          // extension sign, after every input was resolved as attachment-free, may seed change.
+          let safeChangeAddress: string | null = null;
+          try {
+            safeChangeAddress = await findSafeChangeSigningAddress(signedTx, origin);
+          } catch (error) {
+            console.warn('[ProviderService] Failed to verify broadcast signing flow:', error);
+          }
+
           // Check for replay attempt before broadcasting
           const replayCheck = await checkReplayAttempt(
             origin,
@@ -1157,6 +1169,21 @@ export function createProviderService(): ProviderService {
           // Mark as successfully broadcasted
           if (result.txid) {
             markTransactionBroadcasted(pendingKey);
+
+            // The next provider signing request may spend this transaction's change before any
+            // public Bitcoin indexer can return it. Persist only outputs that are both owned by
+            // this wallet and safe plain-BTC change. Storage is best-effort because the broadcast
+            // has already happened and must never be reported as failed after the fact.
+            if (safeChangeAddress) {
+              try {
+                await rememberSuccessfulBroadcast(
+                  signedTx,
+                  [safeChangeAddress]
+                );
+              } catch (error) {
+                console.warn('[ProviderService] Failed to remember broadcast change:', error);
+              }
+            }
           }
 
           // Track successful broadcast

@@ -128,6 +128,33 @@ export async function recordSignOutcome(
 }
 
 /**
+ * Return the address that safely signed this exact raw transaction for this
+ * origin, or null when the broadcast is unrelated to a completed provider
+ * signing approval. The explicit eligibility bit is set only after the
+ * approval screen resolved every signed input and found no attached assets.
+ */
+export async function findSafeChangeSigningAddress(
+  signedTxHex: string,
+  origin: string
+): Promise<string | null> {
+  const now = Date.now();
+  const all = await signFlowStorage.getAll();
+  const flow = all.find((entry) => {
+    if (
+      entry.kind !== 'sign-transaction'
+      || entry.status !== 'completed'
+      || entry.origin !== origin
+      || now - entry.timestamp >= SIGN_FLOW_TTL_MS
+      || !entry.result
+      || typeof entry.result !== 'object'
+    ) return false;
+    const result = entry.result as Record<string, unknown>;
+    return result.signedTxHex === signedTxHex && result.safeOwnChange === true;
+  });
+  return flow?.address ?? null;
+}
+
+/**
  * Find a non-stale flow for a request key (for dedup/rejoin/recovery).
  * Origin is matched explicitly so a djb2 requestKey collision from another
  * origin can never rejoin or recover this origin's flow.

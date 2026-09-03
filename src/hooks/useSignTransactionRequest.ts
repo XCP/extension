@@ -20,6 +20,7 @@ import {
 import { fetchInputPrevouts } from '@/core/counterparty/transaction';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
 import { emitToBackground } from '@/platform/provider/emitToBackground';
+import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { getSignFlow, recordSignOutcome, type SignTransactionRequest } from '@/platform/provider/signFlow';
 
 /**
@@ -78,7 +79,9 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // decodes below rather than adding a serial round-trip. Inputs have no index
     // field here, so the array position is the index.
     const attachedAssetsPromise = fetchInputsAttachedAssets(
-      inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout }))
+      inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout })),
+      undefined,
+      getTrustedBroadcastPrevout
     );
 
     const outputs: DecodedTransactionInfo['outputs'] = parsed.outputs.map((output) => ({
@@ -97,7 +100,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
     // all of them, and unresolved inputs silently counted as zero, understating the fee.
     if (inputs.length > 0) {
       try {
-        const prevouts = await fetchInputPrevouts(inputs);
+        const prevouts = await fetchInputPrevouts(inputs, getTrustedBroadcastPrevout);
         for (const input of inputs) {
           const prevout = prevouts.get(`${input.txid}:${input.vout}`);
           if (prevout == null) continue;
@@ -194,10 +197,10 @@ export function useSignTransactionRequest(signerAddress?: string) {
   }, [requestId, decodeTransaction, signerAddress]);
 
   // Handle completion - called when user approves and signs
-  const handleSuccess = useCallback(async (signedTxHex: string) => {
+  const handleSuccess = useCallback(async (signedTxHex: string, safeOwnChange = false) => {
     if (requestId) {
       // Persist the outcome so the dApp can recover it after a worker restart.
-      await recordSignOutcome(requestId, 'completed', { signedTxHex });
+      await recordSignOutcome(requestId, 'completed', { signedTxHex, safeOwnChange });
       // Notify the background that transaction signing is complete
       emitToBackground(`sign-tx-complete-${requestId}`, { signedTxHex });
 

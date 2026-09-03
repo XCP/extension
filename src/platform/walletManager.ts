@@ -36,6 +36,7 @@ import {
   clearUnlockAttempts,
   recordFailedUnlockAttempt,
 } from '@/platform/auth/unlockRateLimiter';
+import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import {
   assertNoKeychainRecord,
   deleteKeychain,
@@ -1503,7 +1504,8 @@ export class WalletManager {
       privateKeyResult.hex,
       privateKeyResult.compressed,
       inputValues,
-      lockScripts
+      lockScripts,
+      getTrustedBroadcastPrevout
     );
   }
 

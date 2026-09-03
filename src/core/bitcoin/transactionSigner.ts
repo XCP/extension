@@ -2,6 +2,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
 import { SigningError, UtxoError, ValidationError } from '@/core/errors';
@@ -118,7 +119,8 @@ export async function signTransaction(
   privateKeyHex: string,
   compressed: boolean = true,
   inputValues?: number[],
-  lockScripts?: string[]
+  lockScripts?: string[],
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
 ): Promise<string> {
   if (!wallet) {
     throw new ValidationError('INVALID_TRANSACTION', 'Wallet not provided');
@@ -141,11 +143,6 @@ export async function signTransaction(
     const hasApiData = inputValues && lockScripts &&
                        inputValues.length > 0 && lockScripts.length > 0;
 
-    // Fetch UTXOs only when needed (legacy always needs it, SegWit only without API data)
-    // When API data is provided, it's fresh from the compose call - no need to re-verify
-    const needsUtxoFetch = isLegacy || !hasApiData;
-    const utxos = needsUtxoFetch ? await fetchUTXOs(targetAddress.address) : [];
-
     const rawTxBytes = hexToBytes(rawTransaction);
     const parsedTx = Transaction.fromRaw(rawTxBytes, {
       allowUnknownInputs: true,
@@ -153,6 +150,25 @@ export async function signTransaction(
       allowLegacyWitnessUtxo: true,
       disableScriptCheck: true
     });
+
+    // A provider transaction can spend change from a transaction this extension broadcast only
+    // milliseconds earlier. Resolve those inputs from the trusted cross-context journal first;
+    // public indexers are merely the fallback for inputs we did not create ourselves.
+    const shouldResolvePrevouts = isLegacy || !hasApiData;
+    const trustedPrevouts = shouldResolvePrevouts
+      ? await Promise.all(Array.from({ length: parsedTx.inputsLength }, async (_, index) => {
+          const input = parsedTx.getInput(index);
+          if (!input?.txid || input.index === undefined) return null;
+          return resolveTrustedPrevout(
+            bytesToHex(input.txid),
+            input.index,
+            targetAddress.address
+          );
+        }))
+      : [];
+    const needsUtxoFetch = shouldResolvePrevouts
+      && trustedPrevouts.some((prevout) => prevout === null);
+    const utxos = needsUtxoFetch ? await fetchUTXOs(targetAddress.address) : [];
     // Carry the version and lock time across. Rebuilding without them silently rewrote the
     // transaction the user reviewed: @scure defaults to version 2 and lockTime 0, so a transaction
     // presented as "not valid until block N" was signed as immediately spendable, and the txid shown
@@ -192,10 +208,12 @@ export async function signTransaction(
         throw new ValidationError('INVALID_TRANSACTION', `Invalid input at index ${i}: missing txid or index`);
       }
       const txidHex = bytesToHex(input.txid);
+      const trustedPrevout = trustedPrevouts[i] ?? null;
 
-      // Verify UTXO exists when we fetched UTXOs (legacy or no API data)
-      // Skip check when using API data - it's fresh from the compose call
-      if (needsUtxoFetch) {
+      // A locally journalled output was parsed from a transaction this extension successfully
+      // broadcast and was classified as safe wallet-owned change. Other inputs retain the
+      // existing live UTXO check.
+      if (shouldResolvePrevouts && !trustedPrevout) {
         const utxo = getUtxoByTxid(utxos, txidHex, input.index);
         if (!utxo) {
           throw new UtxoError('UTXO_NOT_FOUND', `UTXO not found for input ${i}: ${txidHex}:${input.index}`, {
@@ -224,7 +242,8 @@ export async function signTransaction(
 
       if (isLegacy) {
         // Legacy P2PKH needs full previous transaction for nonWitnessUtxo
-        const rawPrevTx = await fetchPreviousRawTransaction(txidHex);
+        const rawPrevTx = trustedPrevout?.rawTxHex
+          ?? await fetchPreviousRawTransaction(txidHex);
         if (!rawPrevTx) {
           throw new UtxoError('UTXO_NOT_FOUND', `Failed to fetch previous transaction: ${txidHex}`, {
             txid: txidHex,
@@ -260,6 +279,17 @@ export async function signTransaction(
           if (redeemScript) {
             inputData.redeemScript = redeemScript;
           }
+        }
+      } else if (trustedPrevout) {
+        // SegWit prevout data comes directly from the parent bytes we already broadcast, so the
+        // signature does not wait for mempool.space or blockstream.info to index that parent.
+        inputData.witnessUtxo = {
+          script: hexToBytes(trustedPrevout.scriptPubKey),
+          amount: BigInt(trustedPrevout.value),
+        };
+        if (wallet.addressFormat === AddressFormat.P2SH_P2WPKH) {
+          const redeemScript = p2wpkh(pubkeyBytes).script;
+          if (redeemScript) inputData.redeemScript = redeemScript;
         }
       } else {
         // SegWit without API data - fetch previous transaction (fallback)

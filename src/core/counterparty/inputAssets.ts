@@ -7,6 +7,7 @@
  * surface them (and distinguish a failed lookup from a confirmed-empty one).
  */
 
+import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { fetchUtxoBalances } from '@/core/counterparty/api';
 
 /**
@@ -44,7 +45,8 @@ export const MAX_ASSET_LOOKUP_INPUTS = 30;
  */
 export async function fetchInputsAttachedAssets(
   inputs: Array<{ index: number; txid: string; vout: number }>,
-  signedInputIndices?: number[]
+  signedInputIndices?: number[],
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
 ): Promise<InputAttachedAssets[]> {
   // Stable sort, so inputs keep their order within the signed and unsigned groups.
   const signed = new Set(signedInputIndices ?? []);
@@ -58,6 +60,10 @@ export async function fetchInputsAttachedAssets(
     checked.map(async (input): Promise<InputAttachedAssets | null> => {
       const utxo = `${input.txid}:${input.vout}`;
       try {
+        // A journal entry is inductively attachment-free: it came from a transaction whose
+        // signed inputs were all checked clean, and whose own payload does not bind an asset to
+        // this output. Do not turn Counterparty's indexing lag into an "unknown asset" blocker.
+        if (await resolveTrustedPrevout(input.txid, input.vout)) return null;
         const res = await fetchUtxoBalances(utxo);
         const assets = (res.result ?? [])
           .filter((b) => b.asset && b.quantity_normalized)

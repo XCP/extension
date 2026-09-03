@@ -116,7 +116,12 @@ export default function ApproveTransactionPage() {
         request.address
       );
 
-      await handleSuccess(signedTxHex);
+      await handleSuccess(
+        signedTxHex,
+        signerInputIndices.length === decodedInfo.inputs.length
+          && signedInputsWithAssets.length === 0
+          && signedInputsUnknownStatus.length === 0
+      );
       window.close();
     } catch (err) {
       console.error('Failed to sign transaction:', err);
