@@ -131,11 +131,7 @@ export interface BaseComposeOptions {
   sourceAddress: string;
   sat_per_vbyte: number;
   max_fee?: number;
-  encoding?: 'auto' | 'opreturn' | 'multisig' | 'pubkeyhash' | 'taproot';
-  change_address?: string;
-  more_outputs?: string;
-  use_all_inputs_set?: boolean;
-  multisig_pubkey?: string;
+  encoding?: 'auto' | 'opreturn' | 'multisig' | 'taproot';
 }
 
 // Transaction-specific options
@@ -231,16 +227,19 @@ export interface SendOptions extends BaseComposeOptions {
   memo?: string;
   memo_is_hex?: boolean;
   no_dispense?: boolean;
+  more_outputs?: string;
 }
 
 export interface SweepOptions extends BaseComposeOptions {
   destination: string;
   flags: number;
   memo?: string;
+  more_outputs?: string;
 }
 
 export interface FairminterOptions extends BaseComposeOptions {
   asset: string;
+  asset_parent?: string;
   lot_price?: number;
   lot_size?: string | number;
   max_mint_per_tx?: string | number;
@@ -1042,6 +1041,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   const {
     sourceAddress,
     asset,
+    asset_parent,
     lot_price = 0,
     lot_size = 1,
     max_mint_per_tx = 0,
@@ -1070,6 +1070,7 @@ export async function composeFairminter(options: FairminterOptions): Promise<Api
   // Boolean values are normalized upstream - convert to API string format
   const paramsObj = {
     asset,
+    ...(asset_parent && { asset_parent }),
     lot_price: lot_price.toString(),
     lot_size: lot_size.toString(),
     max_mint_per_tx: max_mint_per_tx.toString(),

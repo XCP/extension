@@ -308,6 +308,23 @@ describe('inscription composes pack the same message, only carried differently',
 });
 
 describe('borrowing only what the request cannot determine', () => {
+  it('packs the explicit parent of a subasset fairminter', () => {
+    const packed = packComposeMessage('fairminter', {
+      asset: 'A95428956661682177',
+      asset_parent: 'PEPECASH',
+      max_mint_per_tx: 1,
+    });
+
+    expect(packed).not.toBeNull();
+    const decoded = unpackCounterpartyMessage(packed!.bytes);
+    expect(decoded.success).toBe(true);
+    expect(decoded.data).toMatchObject({
+      asset: 'A95428956661682177',
+      assetParent: 'PEPECASH',
+      maxMintPerTx: 1n,
+    });
+  });
+
   it('packs a reissuance by taking divisibility from the composed message', () => {
     // update-description and transfer-ownership omit `divisible` because the asset already fixes
     // it. Borrowing that one field keeps the rest of the message byte-verified instead of falling
@@ -464,6 +481,11 @@ describe('refusing to pack is not the same as agreeing', () => {
     }],
     ['a quantity that is not whole base units', 'send', {
       asset: 'XCP', destination: TAPROOT_DESTINATION, quantity: asBaseUnits('1.5'),
+    }],
+    // Current Core's `/compose/movetoutxo` action is message-less (`move.py`); type 100 belongs to
+    // the historical `utxo.py` message and must not be expected from this compose route.
+    ['a current move-to-UTXO compose', 'move', {
+      source: `${'a'.repeat(64)}:0`, destination: TAPROOT_DESTINATION, asset: 'XCP', quantity: 1,
     }],
   ])('returns null for %s', (_label, composeType, params) => {
     expect(packComposeMessage(composeType, params as Record<string, unknown>)).toBeNull();

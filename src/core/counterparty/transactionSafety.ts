@@ -6,9 +6,14 @@
  * that could indicate a malicious site trying to drain the wallet.
  */
 
+import { Point } from '@noble/secp256k1';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
-import { bareMultisigRecoveryPubkey } from '@/core/counterparty/unpack/multisig';
+import { bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
+import {
+  bareMultisigRecoveryPubkey,
+  isBareMultisigDataOutput,
+} from '@/core/counterparty/unpack/multisig';
 
 /** Severity of a security warning */
 export type WarningSeverity = 'block' | 'danger' | 'warning' | 'info';
@@ -46,13 +51,6 @@ export interface AnalyzableOutput {
 }
 
 /**
- * Counterparty's bare-multisig data encoding: 1-of-2 or 1-of-3 with 33-byte
- * pushes, where the payload rides in the fake keys and the last key is the
- * sender's real pubkey (which is what makes the sats recoverable later).
- */
-const CP_MULTISIG_DATA_SCRIPT = /^51(21[0-9a-f]{66}){2,3}5[23]ae$/i;
-
-/**
  * True when the script matches the Counterparty multisig data-encoding shape.
  *
  * The embedded recovery key is checked separately: compose accepts a
@@ -64,7 +62,7 @@ const CP_MULTISIG_DATA_SCRIPT = /^51(21[0-9a-f]{66}){2,3}5[23]ae$/i;
  * be exact because that path also *sent* the key).
  */
 export function isCounterpartyDataScript(script: string | undefined): boolean {
-  return !!script && CP_MULTISIG_DATA_SCRIPT.test(script);
+  return !!script && isBareMultisigDataOutput(script);
 }
 
 /**
@@ -152,6 +150,21 @@ const DATA_CARRYING_OUTPUT_TYPES = new Set([
   'multisig',    // node scriptPubKey type
   'nonstandard', // node scriptPubKey type
 ]);
+
+/**
+ * Compare SEC public keys by curve point, not by their serialized form.
+ *
+ * A legacy P2PKH key may be represented as either 33-byte compressed SEC or 65-byte
+ * uncompressed SEC. Both encodings are spendable by the same private key. Falling back to the
+ * lower-cased input preserves fail-closed behaviour for malformed keys used by callers/tests.
+ */
+function comparablePubkey(pubkey: string): string {
+  try {
+    return bytesToHex(Point.fromBytes(hexToBytes(pubkey)).toBytes(true));
+  } catch {
+    return pubkey.toLowerCase();
+  }
+}
 
 /**
  * Analyze a decoded transaction for security risks.
@@ -243,8 +256,9 @@ export function analyzeTransactionSafety(
   // and with no keys known the recovery check below stays silent rather than guessing.
   const signerPubkeys = new Set(
     (Array.isArray(signerAddress) ? signerAddress : [signerAddress])
-      .map((address) => getSourcePubkey(address)?.toLowerCase())
+      .map((address) => getSourcePubkey(address))
       .filter((pubkey): pubkey is string => !!pubkey)
+      .map(comparablePubkey)
   );
   let misdirectedRecoveryKeys = 0;
   /** Non-dust outputs whose script could not be resolved to any address. */
@@ -262,7 +276,7 @@ export function analyzeTransactionSafety(
     if (!output.address && messageType && isCounterpartyDataScript(output.script)) {
       dataOutputs.push({ value: output.value });
       const recoveryKey = output.script ? bareMultisigRecoveryPubkey(output.script) : null;
-      if (recoveryKey && signerPubkeys.size > 0 && !signerPubkeys.has(recoveryKey)) {
+      if (recoveryKey && signerPubkeys.size > 0 && !signerPubkeys.has(comparablePubkey(recoveryKey))) {
         misdirectedRecoveryKeys += 1;
       }
       continue;

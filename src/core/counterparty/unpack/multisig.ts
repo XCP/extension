@@ -19,10 +19,13 @@
 import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 
-/** Byte length of a bare-multisig data output script. */
-const MULTISIG_SCRIPT_LENGTH = 105;
 /** Data bytes carried by one fake pubkey (33 minus sign and nonce). */
 const DATA_BYTES_PER_PUBKEY = 31;
+
+interface ParsedMultisigDataOutput {
+  dataBytes: Uint8Array;
+  recoveryPubkey: Uint8Array;
+}
 
 /**
  * Pull the 62 obfuscated data bytes out of a bare-multisig data output.
@@ -31,7 +34,7 @@ const DATA_BYTES_PER_PUBKEY = 31;
  * @returns The data bytes, or null if this is not a bare-multisig data output
  */
 export function isBareMultisigDataOutput(scriptHex: string): boolean {
-  return extractMultisigDataBytes(scriptHex) !== null;
+  return parseMultisigDataOutput(scriptHex) !== null;
 }
 
 /**
@@ -45,12 +48,11 @@ export function isBareMultisigDataOutput(scriptHex: string): boolean {
  * recognize is one it must not claim to have read.
  */
 export function bareMultisigRecoveryPubkey(scriptHex: string): string | null {
-  if (extractMultisigDataBytes(scriptHex) === null) return null;
-  // OP_1 (1) + [push33 + key] ×2 (68) + push33 (1) → third key at bytes 70..102.
-  return scriptHex.slice(70 * 2, 103 * 2).toLowerCase();
+  const parsed = parseMultisigDataOutput(scriptHex);
+  return parsed ? bytesToHex(parsed.recoveryPubkey) : null;
 }
 
-function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
+function parseMultisigDataOutput(scriptHex: string): ParsedMultisigDataOutput | null {
   let bytes: Uint8Array;
   try {
     bytes = hexToBytes(scriptHex);
@@ -58,16 +60,27 @@ function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
     return null;
   }
 
-  if (bytes.length !== MULTISIG_SCRIPT_LENGTH) return null;
-  // OP_1 ... OP_3 OP_CHECKMULTISIG, with three 33-byte pushes between.
-  if (bytes[0] !== 0x51 || bytes[103] !== 0x53 || bytes[104] !== 0xae) return null;
-  if (bytes[1] !== 0x21 || bytes[35] !== 0x21 || bytes[69] !== 0x21) return null;
+  // The two data carriers are always compressed-key-sized pushes. The recovery key is the
+  // source's real key, and legacy P2PKH sources may have revealed it in either its compressed
+  // (33-byte) or uncompressed (65-byte) encoding. Core preserves that encoding in the third slot.
+  if (bytes[0] !== 0x51 || bytes[1] !== 0x21 || bytes[35] !== 0x21) return null;
+  const recoveryLength = bytes[69];
+  if (recoveryLength !== 33 && recoveryLength !== 65) return null;
 
-  const data = new Uint8Array(DATA_BYTES_PER_PUBKEY * 2);
+  const recoveryStart = 70;
+  const countOpcodeIndex = recoveryStart + recoveryLength;
+  const checkMultisigIndex = countOpcodeIndex + 1;
+  if (bytes.length !== checkMultisigIndex + 1) return null;
+  if (bytes[countOpcodeIndex] !== 0x53 || bytes[checkMultisigIndex] !== 0xae) return null;
+
+  const dataBytes = new Uint8Array(DATA_BYTES_PER_PUBKEY * 2);
   // Skip each pubkey's leading sign byte and trailing nonce byte.
-  data.set(bytes.slice(3, 3 + DATA_BYTES_PER_PUBKEY), 0);
-  data.set(bytes.slice(37, 37 + DATA_BYTES_PER_PUBKEY), DATA_BYTES_PER_PUBKEY);
-  return data;
+  dataBytes.set(bytes.slice(3, 3 + DATA_BYTES_PER_PUBKEY), 0);
+  dataBytes.set(bytes.slice(37, 37 + DATA_BYTES_PER_PUBKEY), DATA_BYTES_PER_PUBKEY);
+  return {
+    dataBytes,
+    recoveryPubkey: bytes.slice(recoveryStart, recoveryStart + recoveryLength),
+  };
 }
 
 /**
@@ -78,12 +91,12 @@ function extractMultisigDataBytes(scriptHex: string): Uint8Array | null {
  * @returns The chunk hex without the CNTRPRTY prefix, or null
  */
 export function decodeMultisigChunk(scriptHex: string, firstInputTxid: string): string | null {
-  const dataBytes = extractMultisigDataBytes(scriptHex);
-  if (!dataBytes) return null;
+  const parsed = parseMultisigDataOutput(scriptHex);
+  if (!parsed) return null;
 
   let decrypted: Uint8Array;
   try {
-    decrypted = arc4(hexToBytes(firstInputTxid), dataBytes);
+    decrypted = arc4(hexToBytes(firstInputTxid), parsed.dataBytes);
   } catch {
     return null;
   }
