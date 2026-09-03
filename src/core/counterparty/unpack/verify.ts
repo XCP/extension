@@ -839,6 +839,9 @@ function verifyFairminter(
       'Wrong asset = creating a mint for something you do not own');
   }
 
+  verifyOptional(result, 'asset_parent', params.asset_parent, data.assetParent, '', 'critical',
+    'Wrong parent = creating a mint under a different asset namespace');
+
   // What a buyer pays and what they get for it.
   verifyOptional(result, 'lot_price', params.lot_price, data.price, 0, 'critical',
     'Wrong price = minters pay an amount you did not set');

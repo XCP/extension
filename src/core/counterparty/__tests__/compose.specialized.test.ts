@@ -346,6 +346,20 @@ describe('Compose Specialized Operations', () => {
       expect(url).toContain('pool_quantity=400000000');
       expect(url).toContain('lp_asset=A95428956661682178');
     });
+
+    it('should include an explicit subasset parent', async () => {
+      await composeFairminter({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        asset: 'A95428956661682177',
+        asset_parent: 'PEPECASH',
+      });
+
+      const url = mockedApiClient.get.mock.calls[0]![0] as string;
+      expect(url).toContain('asset=A95428956661682177');
+      expect(url).toContain('asset_parent=PEPECASH');
+    });
   });
 
   describe('composeFairmint', () => {

@@ -671,4 +671,23 @@ describe('a compose whose message is missing entirely', () => {
     });
     expect(result.current.state.error).toBeNull();
   });
+
+  it('allows a current move-to-UTXO compose, whose protocol action is message-less', async () => {
+    // Core's move.py transfers attached balances to the first non-OP_RETURN output. It does not
+    // emit the historical type-100 UTXO message, so the absence of a payload is expected here.
+    const formData = new FormData();
+    formData.set('sourceUtxo', `${'a'.repeat(64)}:0`);
+    formData.set('destination', OWN_ADDRESS);
+
+    const { result } = composeWith('move', messagelessResponse({ destination: OWN_ADDRESS }));
+
+    await act(async () => {
+      result.current.composeTransaction(formData);
+    });
+
+    await waitFor(() => {
+      expect(result.current.state.step).toBe('review');
+    });
+    expect(result.current.state.error).toBeNull();
+  });
 });

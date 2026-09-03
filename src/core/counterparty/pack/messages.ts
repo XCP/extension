@@ -434,12 +434,15 @@ function packFairmint(params: Params): PackedMessage | null {
  *
  * The form's names differ from the wire's — `lot_price` is `price`, `lot_size` is
  * `quantity_by_price` — and the defaults must match `composeFairminter`, where lot size is 1 and
- * divisible is true. Subassets are declined: their parent id comes from a ledger lookup of the
- * existing asset's longname.
+ * divisible is true. A new subasset is expressible when the request supplies its numeric child
+ * asset and `asset_parent`, matching the current API surface; a dotted longname still requires a
+ * ledger lookup and is declined.
  */
 function packFairminter(params: Params): PackedMessage | null {
   const asset = requireString(params, 'asset');
   if (!asset || asset.includes('.')) return null;
+  const assetParent = requireString(params, 'asset_parent');
+  if (assetParent?.includes('.')) return null;
 
   const num = (key: string, fallback: bigint): bigint | null => {
     const value = params[key];
@@ -483,9 +486,11 @@ function packFairminter(params: Params): PackedMessage | null {
   const mimeType = typeof params.mime_type === 'string' ? params.mime_type : '';
 
   let assetId: bigint;
+  let assetParentId = 0n;
   let lpAssetId = 0n;
   try {
     assetId = assetNameToId(asset);
+    if (assetParent) assetParentId = assetNameToId(assetParent);
     if (lpAsset) lpAssetId = assetNameToId(lpAsset);
   } catch {
     return null;
@@ -493,7 +498,7 @@ function packFairminter(params: Params): PackedMessage | null {
 
   const fields: CborEncodable[] = [
     assetId,
-    0n, // asset_parent_id — zero for a non-subasset, which is all this packs
+    assetParentId,
     price!, quantityByPrice!, maxMintPerTx!, maxMintPerAddress!,
     hardCap!, premintQuantity!, startBlock!, endBlock!, softCap!, softCapDeadlineBlock!,
     BigInt(commissionInt),
@@ -841,7 +846,7 @@ function packDetach(params: Params): PackedMessage | null {
   );
 }
 
-/** utxo move: `source|destination|asset|quantity` (utxo.py). */
+/** Historical type-100 UTXO message: `source|destination|asset|quantity` (utxo.py). */
 function packUtxoMove(params: Params): PackedMessage | null {
   const source = requireString(params, 'source');
   const asset = requireString(params, 'asset');
@@ -1055,8 +1060,13 @@ export function packComposeMessage(
     case 'detach':
       return packDetach(params);
     case 'utxo':
-    case 'move':
       return packUtxoMove(params);
+    case 'move':
+      // The current `/compose/movetoutxo` route uses `move.py`: it carries no protocol message.
+      // Counterparty instead moves every balance on the spent UTXO to the first non-OP_RETURN
+      // output. Returning the historical type-100 message here made the compose screen demand
+      // bytes Core correctly does not emit, so every current move was rejected before review.
+      return null;
     case 'btcpay':
       return packBtcPay(params);
     case 'dispenser':

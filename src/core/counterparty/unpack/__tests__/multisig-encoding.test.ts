@@ -8,6 +8,7 @@
  * and classified, so the block applies regardless of encoding.
  */
 
+import { getPublicKey } from '@noble/secp256k1';
 import { afterEach, describe, expect, it } from 'vitest';
 import { setSourcePubkeyProvider } from '../../sourcePubkey';
 import { analyzeTransactionSafety } from '../../transactionSafety';
@@ -15,8 +16,8 @@ import { packAddress } from '../address';
 import { arc4, bytesToHex, hexToBytes } from '../binary';
 import { unpackCounterpartyMessage } from '../index';
 import { COUNTERPARTY_PREFIX_HEX } from '../messageTypes';
-import { bareMultisigRecoveryPubkey } from '../multisig';
-import { extractPayloadFromOutputs } from '../opReturn';
+import { bareMultisigRecoveryPubkey, isBareMultisigDataOutput } from '../multisig';
+import { extractCounterpartyPayload, extractPayloadFromOutputs } from '../opReturn';
 import { verifyTransaction } from '../verify';
 
 const FIRST_INPUT_TXID = 'a'.repeat(64);
@@ -25,6 +26,11 @@ const SWEEP_DESTINATION = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const DATA_BYTES_PER_OUTPUT = 62;
 /** Payload bytes per output: the 62 carried bytes minus the length byte and the prefix. */
 const CHUNK_SIZE = DATA_BYTES_PER_OUTPUT - 1 - 8;
+
+// Live mainnet compose response for a description-only issuance of CUBINAKAMOTO.15. The source
+// uses an uncompressed public key, so Core emits 137-byte data scripts with a 65-byte third key.
+const UNCOMPRESSED_ISSUANCE_RAW = '02000000014f6d9766e3fd264be529010a41cc4dc3c16eca0d5951d7ee89dd9c9bae6a760b0000000000ffffffff03e803000000000000895121021a398525a97059dd8421bde390e827f3ea541a0ccce4a4c1a2670734105982e721036354980e97242517e0cdae37fdcb2dcda14ef18b271ee40c07e2fa0ebd87d0794104fc476ca68d25d4a1a6e2b7909b8c10458bcdc6862028f30aeb55d6c1189a6515e02434fe65aaeeb259a364c958e9a073d4cfba1298bbfb8bd4f57d92fa43fe0253aee8030000000000008951210303398525a97059dd844456bed75398efa5d5da909d401661a875151e0e74ca6c2102450b80549103527281bbcb1993ae59e2957da9c0787cb57869db997af4d6fdbf4104fc476ca68d25d4a1a6e2b7909b8c10458bcdc6862028f30aeb55d6c1189a6515e02434fe65aaeeb259a364c958e9a073d4cfba1298bbfb8bd4f57d92fa43fe0253aee02e0000000000001976a9147dcd4447c9ec509bcf77ae9ed18e1c9be8271a7588ac00000000';
+const UNCOMPRESSED_ISSUANCE_DATA = '434e54525052545916871b2089ee4508eff9a900f4f4f460583f68747470733a2f2f617277656176652e6e65742f3433584b5f6251746e39637449512d736c4667325159476e3935515046546a4a2d426a5938556537756755';
 
 /** Encode one message chunk as a bare-multisig output script, as core's composer does. */
 function multisigOutputScript(chunk: Uint8Array, txid: string): string {
@@ -117,6 +123,21 @@ describe('a message split across encodings is read whole', () => {
 });
 
 describe('extractPayloadFromOutputs, over multisig data outputs', () => {
+  it('recovers a real issuance whose recovery pubkey is uncompressed', () => {
+    const payload = extractCounterpartyPayload(UNCOMPRESSED_ISSUANCE_RAW);
+
+    expect(payload).toBe(UNCOMPRESSED_ISSUANCE_DATA);
+    const unpacked = unpackCounterpartyMessage(payload!);
+    expect(unpacked.success).toBe(true);
+    expect(unpacked.messageType).toBe('issuance');
+    expect(unpacked.data).toMatchObject({
+      asset: 'A2344667061293152681',
+      quantity: 0n,
+      divisible: false,
+      description: 'https://arweave.net/43XK_bQtn9ctIQ-slFg2QYGn95QPFTjJ-BjY8Ue7ugU',
+    });
+  });
+
   it('recovers a single-output payload', () => {
     const message = sweepMessage();
     const payload = extractPayloadFromOutputs(
@@ -330,6 +351,7 @@ describe('unclassified transactions fail toward unknown', () => {
 
 describe('the recovery key rides in the third slot', () => {
   const signerPubkey = '02' + '11'.repeat(32);
+  const uncompressedSignerPubkey = '04' + '11'.repeat(64);
   const strangerPubkey = '03' + '22'.repeat(32);
 
   /** A data script embedding `recovery` where core puts the source pubkey. */
@@ -338,7 +360,7 @@ describe('the recovery key rides in the third slot', () => {
       0x51,
       0x21, ...new Uint8Array(33).fill(0x02),
       0x21, ...new Uint8Array(33).fill(0x04),
-      0x21, ...hexToBytes(recovery),
+      hexToBytes(recovery).length, ...hexToBytes(recovery),
       0x53,
       0xae,
     ]));
@@ -347,6 +369,12 @@ describe('the recovery key rides in the third slot', () => {
 
   it('reads the third slot back out of a data script', () => {
     expect(bareMultisigRecoveryPubkey(scriptWithRecoveryKey(signerPubkey))).toBe(signerPubkey);
+  });
+
+  it('accepts and returns an uncompressed recovery key', () => {
+    const script = scriptWithRecoveryKey(uncompressedSignerPubkey);
+    expect(isBareMultisigDataOutput(script)).toBe(true);
+    expect(bareMultisigRecoveryPubkey(script)).toBe(uncompressedSignerPubkey);
   });
 
   it.each([
@@ -376,6 +404,19 @@ describe('the recovery key rides in the third slot', () => {
     const safety = analyzeTransactionSafety('send', [
       { value: 546, type: 'multisig', script: scriptWithRecoveryKey(signerPubkey) },
     ], 'bc1qsigner');
+
+    expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
+  });
+
+  it('recognizes compressed and uncompressed encodings of the same recovery key', () => {
+    const privateKey = hexToBytes('01'.repeat(32));
+    const compressed = bytesToHex(getPublicKey(privateKey, true));
+    const uncompressed = bytesToHex(getPublicKey(privateKey, false));
+    setSourcePubkeyProvider(() => uncompressed);
+
+    const safety = analyzeTransactionSafety('send', [
+      { value: 546, type: 'multisig', script: scriptWithRecoveryKey(compressed) },
+    ], '1legacySigner');
 
     expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
   });

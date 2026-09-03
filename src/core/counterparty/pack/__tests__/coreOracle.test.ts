@@ -322,6 +322,22 @@ const CASES: OracleCase[] = [
     query: { asset: 'PEPECASH', quantity: '1' },
   },
   {
+    label: 'fairminter',
+    composeType: 'fairminter',
+    params: { asset: 'PEPECASH', max_mint_per_tx: 1 },
+    query: { asset: 'PEPECASH', max_mint_per_tx: '1' },
+  },
+  {
+    label: 'subasset fairminter with an explicit parent',
+    composeType: 'fairminter',
+    params: {
+      asset: 'A95428956661682177', asset_parent: 'PEPECASH', max_mint_per_tx: 1,
+    },
+    query: {
+      asset: 'A95428956661682177', asset_parent: 'PEPECASH', max_mint_per_tx: '1',
+    },
+  },
+  {
     label: 'pool withdraw',
     composeType: 'poolwithdraw',
     params: {
