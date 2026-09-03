@@ -1,7 +1,7 @@
 /**
  * Screenshots every marketplace / provider-safety approval screen the 0.9 work added, one file
  * per state — the companion to approval-gallery.spec.ts for the surfaces that gallery cannot
- * reach: proof-based marketplace intents (attach-for-listing, create listing, buy, exact offers,
+ * reach: proof-based marketplace intents (prepare asset, attach-for-listing, create listing, buy, exact offers,
  * bulk fan-out), the plain-Bitcoin payment capability, the linked-PSBT bundle screen, and the
  * blocked / retry gates in front of them.
  *
@@ -267,6 +267,7 @@ interface Scenario {
     | 'Blocked'
     | 'Authorize listing'
     | 'Authorize reprice'
+    | 'Prepare asset'
     | 'Attach and authorize listing';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
@@ -411,6 +412,85 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
           protocolFee: {
             asset: 'XCP',
             quotedAmountRaw: '0',
+            actualAmountRaw: null,
+            observedBlock: 900_000,
+            variableUntilConfirmed: true,
+          },
+          operationExpiresAt: FUTURE,
+        },
+      }),
+      balances: {},
+    });
+  }
+
+  // --- prepare_asset: the same proved attach with no price or listing authorization ----------
+  {
+    const legacyPrevTx = buildRawTx(
+      [{ txid: '2a'.repeat(32), vout: 0, value: 0 }],
+      [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
+    );
+    const legacySource: BuiltInput = {
+      txid: txidOf(legacyPrevTx),
+      vout: 0,
+      address: pairedLegacy,
+      value: 330,
+      nonWitnessUtxoHex: legacyPrevTx,
+    };
+    const modernFunding: BuiltInput = {
+      txid: '2b'.repeat(32),
+      vout: 1,
+      address: wallet,
+      value: 10_000,
+    };
+    const payload = attachPayload('RAREPEPE', '1', 0);
+    const outputs: BuiltOutput[] = [
+      { scriptHex: scriptFor(wallet), value: 330 },
+      { scriptHex: opReturnScript(payload, legacySource.txid), value: 0 },
+      { scriptHex: scriptFor(wallet), value: 9_000 },
+    ];
+    const { psbtHex, txid } = buildPsbt([legacySource, modernFunding], outputs);
+    scenarios.push({
+      name: 'prepare-asset-proved',
+      route: '/requests/psbt/approve',
+      expectFooter: 'Prepare asset',
+      expectedText: [
+        'Prepare Asset',
+        'Attach 1 RAREPEPE',
+        'Signing addresses (2)',
+        'Asset source',
+        pairedLegacy,
+        'New UTXO owner',
+        wallet,
+        'New UTXO value',
+        '330 sats',
+        'Quoted XCP fee',
+      ],
+      absentText: [
+        'for listing',
+        'Authorize listing',
+        'Blocked: Not a Counterparty Transaction',
+      ],
+      record: seedRecord('mk-prepare-asset', {
+        requestKey: 'xcp_signPsbt:mk-prepare-asset',
+        kind: 'sign-psbt',
+        psbtHex,
+        signInputs: { [pairedLegacy]: [0], [wallet]: [1] },
+        sighashTypes: [0x01, 0x01],
+        marketplaceIntent: {
+          standard: 'counterparty-marketplace',
+          version: 1,
+          action: 'prepare_asset',
+          operationId: 'prepare-1',
+          protocolVersion: 'counterparty_prepare_assets_v1',
+          assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+          carrierOwner: wallet,
+          assetSource: pairedLegacy,
+          expectedAttachedOutpoint: { txid, vout: 0 },
+          carrierValueSats: 330,
+          networkFeeSats: 1_000,
+          protocolFee: {
+            asset: 'XCP',
+            quotedAmountRaw: '25000000',
             actualAmountRaw: null,
             observedBlock: 900_000,
             variableUntilConfirmed: true,
@@ -1018,7 +1098,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
     );
 
     const footer = approval.getByRole('button', {
-      name: /^(sign|review|blocked|authorize listing|authorize reprice|attach and authorize listing)$/i,
+      name: /^(sign|review|blocked|authorize listing|authorize reprice|prepare asset|attach and authorize listing)$/i,
     });
     await expect(footer).toBeVisible({ timeout: 60_000 });
     const footerLabel = (await footer.textContent())?.trim() ?? '';

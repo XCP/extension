@@ -49,6 +49,28 @@ export interface AttachForListingIntentClaim {
   operationExpiresAt: number;
 }
 
+export interface PrepareAssetIntentClaim {
+  standard: typeof MARKETPLACE_INTENT_STANDARD;
+  version: typeof MARKETPLACE_INTENT_VERSION;
+  action: 'prepare_asset';
+  operationId: string;
+  protocolVersion: 'counterparty_prepare_assets_v1';
+  assets: [{ asset: string; quantityRaw: string }];
+  carrierOwner: string;
+  assetSource: string;
+  expectedAttachedOutpoint: MarketplaceOutpointClaim;
+  carrierValueSats: number;
+  networkFeeSats: number;
+  protocolFee: {
+    asset: 'XCP';
+    quotedAmountRaw: string;
+    actualAmountRaw: string | null;
+    observedBlock: number | null;
+    variableUntilConfirmed: boolean;
+  };
+  operationExpiresAt: number;
+}
+
 export interface CreateListingIntentClaim {
   standard: typeof MARKETPLACE_INTENT_STANDARD;
   version: typeof MARKETPLACE_INTENT_VERSION;
@@ -144,6 +166,7 @@ export interface PrepareBulkFanoutIntentClaim {
 
 export type MarketplaceIntentClaimV1 =
   | AttachForListingIntentClaim
+  | PrepareAssetIntentClaim
   | CreateListingIntentClaim
   | BuyListingsIntentClaim
   | AuthorizeExactOfferIntentClaim
@@ -154,6 +177,7 @@ export interface MarketplaceApprovalReview {
   status: 'proved' | 'caution' | 'retry' | 'blocked';
   family:
     | 'attach_for_listing'
+    | 'prepare_asset'
     | 'create_listing'
     | 'buy_listings'
     | 'authorize_exact_offer'
@@ -312,6 +336,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     throw new Error(`marketplace intent must use ${MARKETPLACE_INTENT_STANDARD} version 1`);
   }
   if (value.action === 'attach_for_listing') return parseAttachForListingIntent(value);
+  if (value.action === 'prepare_asset') return parsePrepareAssetIntent(value);
   if (value.action === 'prepare_bulk_fanout') return parsePrepareBulkFanoutIntent(value);
   if (value.action === 'buy_listings') return parseBuyListingsIntent(value);
   if (value.action === 'authorize_exact_offer' || value.action === 'accept_exact_offer') {
@@ -403,17 +428,15 @@ const parsePrepareBulkFanoutIntent = (
   };
 };
 
-const parseAttachForListingIntent = (
+const parseAttachTransactionClaim = (
   value: Record<string, unknown>,
-): AttachForListingIntentClaim => {
-  if (value.protocolVersion !== 'counterparty_attach_listing_v1') {
-    throw new Error('attach_for_listing intent has the wrong protocolVersion');
-  }
+  action: 'attach_for_listing' | 'prepare_asset',
+) => {
   if (!Array.isArray(value.assets) || value.assets.length !== 1) {
-    throw new Error('attach_for_listing intent must claim exactly one asset');
+    throw new Error(`${action} intent must claim exactly one asset`);
   }
   if (!isRecord(value.protocolFee) || value.protocolFee.asset !== 'XCP') {
-    throw new Error('attach_for_listing protocolFee must be denominated in XCP');
+    throw new Error(`${action} protocolFee must be denominated in XCP`);
   }
   const actualAmountRaw = value.protocolFee.actualAmountRaw === null
     ? null
@@ -427,28 +450,23 @@ const parseAttachForListingIntent = (
   if (typeof value.protocolFee.variableUntilConfirmed !== 'boolean') {
     throw new Error('protocolFee.variableUntilConfirmed must be boolean');
   }
-  const seller = boundedString(value.seller, 'seller', 128);
-
   return {
     standard: MARKETPLACE_INTENT_STANDARD,
     version: MARKETPLACE_INTENT_VERSION,
-    action: 'attach_for_listing',
     operationId: boundedString(value.operationId, 'operationId'),
-    protocolVersion: 'counterparty_attach_listing_v1',
-    assets: [assetWithoutOutpoint(value.assets[0], 'assets[0]')],
-    seller,
-    assetSource: boundedString(value.assetSource ?? seller, 'assetSource', 128),
+    assets: [assetWithoutOutpoint(value.assets[0], 'assets[0]')] as [
+      { asset: string; quantityRaw: string },
+    ],
     expectedAttachedOutpoint: outpoint(
       value.expectedAttachedOutpoint,
       'expectedAttachedOutpoint',
     ),
-    carrierAddress: boundedString(value.carrierAddress, 'carrierAddress', 128),
     carrierValueSats: safeInteger(value.carrierValueSats, 'carrierValueSats', {
       positive: true,
     })!,
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     protocolFee: {
-      asset: 'XCP',
+      asset: 'XCP' as const,
       quotedAmountRaw: nonNegativeRawInteger(
         value.protocolFee.quotedAmountRaw,
         'protocolFee.quotedAmountRaw',
@@ -460,6 +478,38 @@ const parseAttachForListingIntent = (
     operationExpiresAt: safeInteger(value.operationExpiresAt, 'operationExpiresAt', {
       positive: true,
     })!,
+  };
+};
+
+const parseAttachForListingIntent = (
+  value: Record<string, unknown>,
+): AttachForListingIntentClaim => {
+  if (value.protocolVersion !== 'counterparty_attach_listing_v1') {
+    throw new Error('attach_for_listing intent has the wrong protocolVersion');
+  }
+  const seller = boundedString(value.seller, 'seller', 128);
+  return {
+    ...parseAttachTransactionClaim(value, 'attach_for_listing'),
+    action: 'attach_for_listing',
+    protocolVersion: 'counterparty_attach_listing_v1',
+    seller,
+    assetSource: boundedString(value.assetSource ?? seller, 'assetSource', 128),
+    carrierAddress: boundedString(value.carrierAddress, 'carrierAddress', 128),
+  };
+};
+
+const parsePrepareAssetIntent = (
+  value: Record<string, unknown>,
+): PrepareAssetIntentClaim => {
+  if (value.protocolVersion !== 'counterparty_prepare_assets_v1') {
+    throw new Error('prepare_asset intent has the wrong protocolVersion');
+  }
+  return {
+    ...parseAttachTransactionClaim(value, 'prepare_asset'),
+    action: 'prepare_asset',
+    protocolVersion: 'counterparty_prepare_assets_v1',
+    carrierOwner: boundedString(value.carrierOwner, 'carrierOwner', 128),
+    assetSource: boundedString(value.assetSource, 'assetSource', 128),
   };
 };
 
@@ -763,10 +813,10 @@ function formatExpiry(unixSeconds: number): string {
   });
 }
 
-/** Prove the full-input ALL-signed attach that creates one listable carrier UTXO. */
-function analyzeAttachForListingIntent(
+/** Prove a full-input ALL-signed attach that creates one exact one-unit carrier. */
+function analyzeAttachIntent(
   input: MarketplaceAnalysisInput,
-  intent: AttachForListingIntentClaim,
+  intent: AttachForListingIntentClaim | PrepareAssetIntentClaim,
 ): MarketplaceApprovalReview {
   const {
     inputs,
@@ -781,9 +831,12 @@ function analyzeAttachForListingIntent(
   const blockers: string[] = [];
   const retry: string[] = [];
   const claim = intent.assets[0];
+  const preparing = intent.action === 'prepare_asset';
+  const carrierOwner = preparing ? intent.carrierOwner : intent.seller;
+  const carrierAddress = preparing ? intent.carrierOwner : intent.carrierAddress;
   // A request can already be persisted when the extension updates. Those older
   // same-address v1 records bypass the wire parser, so retain its compatibility default here.
-  const assetSource = intent.assetSource ?? intent.seller;
+  const assetSource = intent.assetSource ?? carrierOwner;
 
   if (!intent.protocolFee.variableUntilConfirmed) {
     blockers.push('the attach XCP fee must be labeled variable until confirmation');
@@ -877,13 +930,13 @@ function analyzeAttachForListingIntent(
   }
 
   const target = outputs[intent.expectedAttachedOutpoint.vout];
-  if (!sameAddress(intent.carrierAddress, intent.seller)) {
-    blockers.push('the attach destination address differs from the claimed seller');
+  if (!sameAddress(carrierAddress, carrierOwner)) {
+    blockers.push('the attach destination address differs from the claimed carrier owner');
   }
   if (!target) {
     blockers.push('the claimed new attached UTXO is missing');
   } else {
-    if (!sameAddress(target.address, intent.carrierAddress)) {
+    if (!sameAddress(target.address, carrierAddress)) {
       blockers.push('the new attached UTXO is not controlled by the claimed owner');
     }
     if (target.value !== intent.carrierValueSats) {
@@ -926,15 +979,15 @@ function analyzeAttachForListingIntent(
       : 'caution';
   return {
     status,
-    family: 'attach_for_listing',
+    family: preparing ? 'prepare_asset' : 'attach_for_listing',
     // The standard attach screen already states the asset, amount, network fee, and the created
     // outpoint — these facts carry only what is marketplace-specific, so the merged details list
     // says each thing once.
-    title: `Attach ${claim.asset} for listing`,
+    title: preparing ? `Prepare ${claim.asset}` : `Attach ${claim.asset} for listing`,
     facts: [
-      ...(!sameAddress(assetSource, intent.seller) ? [
+      ...(!sameAddress(assetSource, carrierOwner) ? [
         { label: 'Asset source', value: assetSource },
-        { label: 'New UTXO owner', value: intent.seller },
+        { label: 'New UTXO owner', value: carrierOwner },
       ] : []),
       { label: 'New UTXO value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
       {
@@ -1545,7 +1598,8 @@ function analyzePrepareBulkFanoutIntent(
 export function analyzeMarketplaceIntent(input: MarketplaceAnalysisInput): MarketplaceApprovalReview {
   switch (input.intent.action) {
     case 'attach_for_listing':
-      return analyzeAttachForListingIntent(input, input.intent);
+    case 'prepare_asset':
+      return analyzeAttachIntent(input, input.intent);
     case 'buy_listings':
       return analyzeBuyListingsIntent(input, input.intent);
     case 'create_listing':

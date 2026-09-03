@@ -107,6 +107,27 @@ const MARKETPLACE_ATTACH_INTENT = {
   },
   operationExpiresAt: 2_000_000_000,
 } as const;
+const MARKETPLACE_PREPARE_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_asset',
+  operationId: 'prepare-1',
+  protocolVersion: 'counterparty_prepare_assets_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  carrierOwner: 'bc1qtest123',
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+} as const;
 const MARKETPLACE_BUY_INTENT = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -1193,6 +1214,33 @@ describe('ProviderService', () => {
               expect.objectContaining({ marketplaceIntent: acceptIntent }),
               expect.objectContaining({ marketplaceIntent: MARKETPLACE_CPFP_INTENT }),
             ],
+          })
+        );
+      });
+
+      it('stores a bounded price-free prepare-asset claim for independent proof', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_PREPARE_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_PREPARE_INTENT,
           })
         );
       });
