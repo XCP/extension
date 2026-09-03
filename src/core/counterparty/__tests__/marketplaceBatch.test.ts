@@ -4,6 +4,7 @@ import {
   parseMarketplaceBatchIntents,
 } from '@/core/counterparty/marketplaceBatch';
 import type {
+  AttachForListingIntentClaim,
   CreateListingIntentClaim,
   MarketplaceApprovalReview,
   PrepareBulkFanoutIntentClaim,
@@ -31,6 +32,29 @@ const listing = (index: number, reprice = false): CreateListingIntentClaim => ({
   marketplaceExpiresAt: 2_000_003_600,
   bitcoinExpiresAt: null,
   ...(reprice ? { listingContext: { mode: 'reprice' as const } } : {}),
+});
+
+const attach = (): AttachForListingIntentClaim => ({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'bulk-listing-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: SELLER,
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: listing(0).assets[0].sourceOutpoint,
+  carrierAddress: SELLER,
+  carrierValueSats: 546,
+  networkFeeSats: 454,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
 });
 
 const fanout = (batchIndex: number): PrepareBulkFanoutIntentClaim => ({
@@ -63,6 +87,28 @@ const proved = (overrides: Partial<MarketplaceApprovalReview> = {}): Marketplace
 });
 
 describe('homogeneous marketplace batch parser', () => {
+  it('accepts one attach followed by its exact dependent listing', () => {
+    expect(parseMarketplaceBatchIntents([attach(), listing(0)])).toEqual({
+      kind: 'attach-and-list',
+      intents: [attach(), listing(0)],
+    });
+  });
+
+  it.each([
+    ['operation', { ...listing(0), operationId: 'other' }],
+    ['asset', { ...listing(0), assets: [{ ...listing(0).assets[0], asset: 'OTHER' }] }],
+    ['outpoint', {
+      ...listing(0),
+      assets: [{ ...listing(0).assets[0], sourceOutpoint: { txid: 'ff'.repeat(32), vout: 0 } }],
+    }],
+    ['carrier value', { ...listing(0), carrierValueSats: 547 }],
+    ['reprice context', listing(0, true)],
+  ])('refuses an attach-and-list pair with a different %s', (_label, changedListing) => {
+    expect(() => parseMarketplaceBatchIntents([attach(), changedListing])).toThrow(
+      /one dependent listing/,
+    );
+  });
+
   it('accepts ordered independent fan-out parents for one operation', () => {
     expect(parseMarketplaceBatchIntents([fanout(0), fanout(1)])).toEqual({
       kind: 'bulk-fanout',
@@ -82,6 +128,27 @@ describe('homogeneous marketplace batch parser', () => {
 });
 
 describe('marketplace batch aggregate proof', () => {
+  it('explains the attach now and automatic listing activation boundary', () => {
+    const review = analyzeMarketplaceBatch(
+      'attach-and-list',
+      [attach(), listing(0)],
+      [proved({ family: 'attach_for_listing' }), proved({ family: 'create_listing' })],
+    );
+
+    expect(review).toMatchObject({
+      status: 'proved',
+      title: 'Attach and list RAREPEPE',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({ label: 'Asset source', value: attach().assetSource });
+    expect(review.facts).toContainEqual({ label: 'Listing price', value: '100,000 sats' });
+    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'Attach transaction only' });
+    expect(review.facts).toContainEqual({
+      label: 'Listing activation',
+      value: 'After confirmation and Counterparty verification',
+    });
+  });
+
   it('shows exact aggregate slot and fee totals', () => {
     const intents = [fanout(0), fanout(1)];
     const review = analyzeMarketplaceBatch('bulk-fanout', intents, [proved(), proved()]);

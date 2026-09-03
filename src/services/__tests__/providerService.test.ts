@@ -1197,6 +1197,61 @@ describe('ProviderService', () => {
         );
       });
 
+      it('stores one linked attach-and-list flow for a single approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+        const listingIntent = {
+          ...MARKETPLACE_LISTING_INTENT,
+          operationId: 'attach-and-list-1',
+          seller,
+        };
+        const attachIntent = {
+          ...MARKETPLACE_ATTACH_INTENT,
+          operationId: listingIntent.operationId,
+          seller,
+          carrierAddress: seller,
+          carrierValueSats: listingIntent.carrierValueSats,
+          expectedAttachedOutpoint: listingIntent.assets[0].sourceOutpoint,
+        };
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: attachIntent,
+              },
+              {
+                hex: listingPsbtHex(),
+                signInputs: { [seller]: [1] },
+                sighashTypes: [0x01, 0x83],
+                intent: listingIntent,
+              },
+            ],
+          }],
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            bundleKind: 'attach-and-list',
+            items: [
+              expect.objectContaining({ marketplaceIntent: attachIntent }),
+              expect.objectContaining({ marketplaceIntent: listingIntent }),
+            ],
+          }),
+        );
+      });
+
       it('stores a bounded homogeneous bulk fan-out phase', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);

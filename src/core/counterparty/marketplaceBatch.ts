@@ -15,7 +15,11 @@ export type MarketplaceBatchIntent =
   | AttachForListingIntentClaim
   | CreateListingIntentClaim;
 
-export type MarketplaceBatchKind = 'bulk-fanout' | 'bulk-attach' | 'bulk-listing';
+export type MarketplaceBatchKind =
+  | 'attach-and-list'
+  | 'bulk-fanout'
+  | 'bulk-attach'
+  | 'bulk-listing';
 
 const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
@@ -29,6 +33,29 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     throw new Error('marketplace batch must contain 1..8 requests');
   }
   const parsed = values.map(parseMarketplaceIntent);
+  if (
+    parsed.length === 2
+    && parsed[0]!.action === 'attach_for_listing'
+    && parsed[1]!.action === 'create_listing'
+  ) {
+    const attach = parsed[0] as AttachForListingIntentClaim;
+    const listing = parsed[1] as CreateListingIntentClaim;
+    const listedAsset = listing.assets[0];
+    if (
+      attach.operationId !== listing.operationId
+      || !sameAddress(attach.seller, listing.seller)
+      || !sameAddress(attach.carrierAddress, listing.seller)
+      || attach.assets[0].asset !== listedAsset.asset
+      || attach.assets[0].quantityRaw !== listedAsset.quantityRaw
+      || attach.expectedAttachedOutpoint.txid !== listedAsset.sourceOutpoint.txid
+      || attach.expectedAttachedOutpoint.vout !== listedAsset.sourceOutpoint.vout
+      || attach.carrierValueSats !== listing.carrierValueSats
+      || listing.listingContext !== undefined
+    ) {
+      throw new Error('attach-and-list requests do not describe one dependent listing');
+    }
+    return { kind: 'attach-and-list', intents: [attach, listing] };
+  }
   const action = parsed[0]!.action;
   if (!parsed.every(intent => intent.action === action)) {
     throw new Error('marketplace batch requests must use one semantic action');
@@ -119,7 +146,25 @@ export function analyzeMarketplaceBatch(
   let title: string;
   let notice: string;
 
-  if (kind === 'bulk-fanout') {
+  if (kind === 'attach-and-list') {
+    const [attach, listing] = intents as [
+      AttachForListingIntentClaim,
+      CreateListingIntentClaim,
+    ];
+    title = `Attach and list ${attach.assets[0].asset}`;
+    facts.push(
+      ...(sameAddress(attach.assetSource, attach.seller)
+        ? []
+        : [{ label: 'Asset source', value: attach.assetSource }]),
+      { label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
+      { label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
+      { label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+      { label: 'Broadcast now', value: 'Attach transaction only' },
+      { label: 'Listing activation', value: 'After confirmation and Counterparty verification' },
+      { label: 'Signature invalidation', value: 'Spend the attached asset UTXO' },
+    );
+    notice = 'The wallet resolves the listing to the final signed attach transaction before adding the listing signature. The marketplace cannot activate it until the attached asset is independently verified.';
+  } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
     const fees = exactSafeSum(fanouts.map(intent => intent.networkFeeSats), 'network fee');
