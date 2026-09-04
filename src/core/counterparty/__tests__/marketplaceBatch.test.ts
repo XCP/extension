@@ -80,6 +80,9 @@ const prepare = (index: number): PrepareAssetIntentClaim => ({
   operationExpiresAt: 2_000_000_000,
 });
 
+const indexedHex = (offset: number, batchIndex: number): string =>
+  ((offset + batchIndex) % 256).toString(16).padStart(2, '0').repeat(32);
+
 const fanout = (batchIndex: number): PrepareBulkFanoutIntentClaim => ({
   standard: 'counterparty-marketplace',
   version: 1,
@@ -89,13 +92,13 @@ const fanout = (batchIndex: number): PrepareBulkFanoutIntentClaim => ({
   assets: [],
   batchIndex,
   seller: SELLER,
-  fundingOutpoint: { txid: (batchIndex === 0 ? '11' : '12').repeat(32), vout: batchIndex },
+  fundingOutpoint: { txid: indexedHex(0x11, batchIndex), vout: batchIndex },
   fundingValueSats: 100_000,
   slotCount: 2,
   slotValueSats: 10_000,
   networkFeeSats: 1_000,
   changeSats: 79_000,
-  expectedTxid: (batchIndex === 0 ? '21' : '22').repeat(32),
+  expectedTxid: indexedHex(0x21, batchIndex),
   operationExpiresAt: 2_000_000_000,
 });
 
@@ -139,11 +142,19 @@ describe('homogeneous marketplace batch parser', () => {
     });
   });
 
+  it('accepts an ordered remaining fan-out subset after an earlier parent was submitted', () => {
+    expect(parseMarketplaceBatchIntents([fanout(1), fanout(2)])).toEqual({
+      kind: 'bulk-fanout',
+      intents: [fanout(1), fanout(2)],
+    });
+  });
+
   it.each([
     ['empty', []],
     ['mixed actions', [fanout(0), { ...fanout(1), action: 'attach_for_listing' }]],
     ['different operation', [fanout(0), { ...fanout(1), operationId: 'bulk-2' }]],
     ['wrong order', [fanout(1), fanout(0)]],
+    ['duplicate index', [fanout(1), { ...fanout(2), batchIndex: 1 }]],
     ['duplicate funding', [fanout(0), { ...fanout(1), fundingOutpoint: fanout(0).fundingOutpoint }]],
   ])('refuses a %s batch', (_label, intents) => {
     expect(() => parseMarketplaceBatchIntents(intents)).toThrow();
