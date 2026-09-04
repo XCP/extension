@@ -134,7 +134,7 @@ export default function AdvancedSettingsPage(): ReactElement {
 
         <SettingSwitch
           label="Mine DIESEL (Experimental)"
-          description="Attach one Alkanes DIESEL mint to eligible single-recipient BTC and asset sends from native SegWit addresses. This currently adds 57 vB; the review shows the estimated extra miner fee separately from the wallet-owned 330 sat storage output. Reward is unknown until confirmation and can be worth less than the fee. Memos, extra outputs, MPMA, and provider requests are skipped. Enabling this also protects DIESEL-bearing UTXOs from accidental spending."
+          description="Attach one Alkanes DIESEL mint to eligible single-recipient BTC and asset sends from native SegWit addresses. When ordinary wallet change is available, it becomes the DIESEL carrier and only the 26 vB runestone is added; the safe fallback adds a separate 330 sat carrier for 57 vB total. Review shows the estimated extra miner fee. Reward is unknown until confirmation and can be worth less than the fee. Memos, extra outputs, MPMA, and provider requests are skipped. Enabling this also protects DIESEL-bearing UTXOs from accidental spending."
           checked={settings.enableDieselMinting}
           onChange={(checked) => updateSettings(checked
             ? { enableDieselMinting: true, protectAlkanesUtxos: true }

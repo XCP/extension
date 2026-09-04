@@ -200,7 +200,83 @@ describe('Compose Send Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'send', btcParams);
     });
 
-    it('attaches and verifies a DIESEL mint for an eligible native-segwit send', async () => {
+    it('reshapes ordinary change into the DIESEL carrier for a +26-vB mint', async () => {
+      const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
+      const payment = p2wpkh(key);
+      const sourceAddress = payment.address!;
+      const first = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      first.addInput({
+        txid: hexToBytes('aa'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: payment.script, amount: 100_000n },
+      });
+      first.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      first.addOutput({ script: payment.script, amount: 330n });
+      first.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+      first.addOutput({ script: payment.script, amount: 99_226n });
+
+      const optimized = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      optimized.addInput({
+        txid: hexToBytes('aa'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: payment.script, amount: 100_000n },
+      });
+      optimized.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      optimized.addOutput({ script: payment.script, amount: 99_618n });
+      optimized.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: bytesToHex(first.unsignedTx),
+          btc_change: 99_226,
+          btc_fee: 444,
+          signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: bytesToHex(optimized.unsignedTx),
+          btc_change: 0,
+          btc_fee: 382,
+          signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 1 },
+        }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: 2,
+      });
+
+      const firstUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(firstUrl.searchParams.get('encoding')).toBe('opreturn');
+      expect(firstUrl.searchParams.get('more_outputs')).toBe(
+        `330:${sourceAddress},0:${buildDieselMintScript(1)}`,
+      );
+      expect(firstUrl.searchParams.get('inputs_set')).toBe(`${'aa'.repeat(32)}:0`);
+
+      const optimizedUrl = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
+      expect(optimizedUrl.searchParams.get('exact_fee')).toBe('382');
+      expect(optimizedUrl.searchParams.get('inputs_set')).toBe(`${'aa'.repeat(32)}:0`);
+      expect(optimizedUrl.searchParams.get('use_all_inputs_set')).toBe('true');
+      expect(optimizedUrl.searchParams.get('more_outputs')).toBe(
+        `99618:${sourceAddress},0:${buildDieselMintScript(1)}`,
+      );
+      expect(response.result.diesel_mint).toEqual({
+        carrier_vout: 1,
+        runestone_vout: 2,
+        carrier_sats: 99_618,
+        marginal_vbytes: 26,
+        estimated_marginal_fee_sats: 52,
+        fee_rate_sat_vbyte: 2,
+        carrier_kind: 'change',
+      });
+    });
+
+    it('keeps the verified +57-vB form when there is no separate change to reshape', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
@@ -210,10 +286,9 @@ describe('Compose Send Operations', () => {
         index: 0,
         witnessUtxo: { script: payment.script, amount: 100_000n },
       });
-      tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 99_100n });
       tx.addOutput({ script: payment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
-      tx.addOutput({ script: payment.script, amount: 90_000n });
       mockedGetSettings.mockReturnValue({
         ...mockSettings,
         enableDieselMinting: true,
@@ -221,6 +296,7 @@ describe('Compose Send Operations', () => {
       });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
+        signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 1 },
       }));
 
       const response = await composeSend({
@@ -228,21 +304,18 @@ describe('Compose Send Operations', () => {
         destination: mockDestAddress,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
-        sat_per_vbyte: mockSatPerVbyte,
+        sat_per_vbyte: 2,
       });
 
-      const actualUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
-      expect(actualUrl.searchParams.get('encoding')).toBe('opreturn');
-      expect(actualUrl.searchParams.get('more_outputs')).toBe(
-        `330:${sourceAddress},0:${buildDieselMintScript(1)}`,
-      );
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
       expect(response.result.diesel_mint).toEqual({
         carrier_vout: 1,
         runestone_vout: 2,
         carrier_sats: 330,
         marginal_vbytes: 57,
-        estimated_marginal_fee_sats: 570,
-        fee_rate_sat_vbyte: 10,
+        estimated_marginal_fee_sats: 114,
+        fee_rate_sat_vbyte: 2,
+        carrier_kind: 'explicit',
       });
     });
 

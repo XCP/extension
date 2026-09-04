@@ -10,8 +10,13 @@ export const ALKANES_PROTOCOL_TAG = 1n;
 export const DIESEL_ALKANE_ID = { block: 2n, tx: 0n } as const;
 export const DIESEL_MINT_OPCODE = 77n;
 export const DIESEL_CARRIER_SATS = 330;
-/** One P2WPKH storage output (31 vB) plus the 17-byte runestone output (26 vB). */
-export const DIESEL_MINT_MARGINAL_VBYTES = 57;
+/** Serialized size of one native-SegWit P2WPKH output. */
+export const P2WPKH_OUTPUT_VBYTES = 31;
+/** Serialized size of the complete 17-byte DIESEL runestone output. */
+export const DIESEL_RUNESTONE_MARGINAL_VBYTES = 26;
+/** Safe fallback: one P2WPKH storage output plus the DIESEL runestone output. */
+export const DIESEL_MINT_MARGINAL_VBYTES =
+  P2WPKH_OUTPUT_VBYTES + DIESEL_RUNESTONE_MARGINAL_VBYTES;
 
 const RUNESTONE_PROTOCOL_TAG = 16_383n;
 const PROTOSTONE_POINTER_TAG = 91n;

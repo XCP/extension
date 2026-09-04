@@ -4,7 +4,9 @@ import {
   buildDieselTransferScript,
   DIESEL_CARRIER_SATS,
   DIESEL_MINT_MARGINAL_VBYTES,
+  DIESEL_RUNESTONE_MARGINAL_VBYTES,
   isVerifiedDieselCarrierAddress,
+  P2WPKH_OUTPUT_VBYTES,
 } from '@/core/alkanes/diesel';
 import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { apiClient } from '@/core/api/client';
@@ -15,7 +17,7 @@ import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
-import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
+import { multiply, roundUp, subtract, sum, toSafeInteger } from '@/core/numeric';
 import {
   getActiveSettings,
   LEGACY_MAX_ORDER_EXPIRATION,
@@ -152,6 +154,8 @@ export interface ComposeResult {
     /** Fee-rate-based estimate; the composer can round the whole transaction fee. */
     estimated_marginal_fee_sats: number;
     fee_rate_sat_vbyte: number;
+    /** `change` means an ordinary wallet change output was reshaped into the carrier. */
+    carrier_kind: 'change' | 'explicit';
   };
   diesel_transfer?: {
     amount_base_units: string;
@@ -1031,6 +1035,57 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
   return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
+function isOwnedP2wpkhOutput(
+  output: NonNullable<ReturnType<typeof parseRawTransactionLocally>>['outputs'][number] | undefined,
+  sourceAddress: string,
+): boolean {
+  return output?.script?.length === 44
+    && output.script.startsWith('0014')
+    && !!output.address
+    && normalizeAddressForComparison(output.address)
+      === normalizeAddressForComparison(sourceAddress);
+}
+
+function outputsMatch(
+  left: NonNullable<ReturnType<typeof parseRawTransactionLocally>>['outputs'][number] | undefined,
+  right: NonNullable<ReturnType<typeof parseRawTransactionLocally>>['outputs'][number] | undefined,
+): boolean {
+  if (!left || !right || left.value !== right.value || left.type !== right.type) return false;
+  if (left.opReturnData || right.opReturnData) {
+    return left.opReturnData?.toLowerCase() === right.opReturnData?.toLowerCase();
+  }
+  return left.script?.toLowerCase() === right.script?.toLowerCase();
+}
+
+function estimateDieselMarginalFee(marginalVbytes: number, feeRate: number): number {
+  const estimate = toSafeInteger(roundUp(multiply(marginalVbytes, feeRate)).toFixed(0));
+  if (estimate === undefined) {
+    throw new CounterpartyApiError('Invalid DIESEL marginal fee estimate.', 'send');
+  }
+  return estimate;
+}
+
+function annotateDieselMint(
+  response: ApiResponse,
+  moreOutputs: string,
+  carrierSats: number,
+  marginalVbytes: number,
+  feeRate: number,
+  carrierKind: 'change' | 'explicit',
+): ApiResponse {
+  response.result.params.more_outputs = moreOutputs;
+  response.result.diesel_mint = {
+    carrier_vout: 1,
+    runestone_vout: 2,
+    carrier_sats: carrierSats,
+    marginal_vbytes: marginalVbytes,
+    estimated_marginal_fee_sats: estimateDieselMarginalFee(marginalVbytes, feeRate),
+    fee_rate_sat_vbyte: feeRate,
+    carrier_kind: carrierKind,
+  };
+  return response;
+}
+
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   const {
     sourceAddress,
@@ -1070,48 +1125,156 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...((dieselMoreOutputs ?? more_outputs) ? { more_outputs: dieselMoreOutputs ?? more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
+  if (!dieselScript || !dieselMoreOutputs) {
+    return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  }
+
+  // The optimization must know the value of every input independently of the compose response.
+  // Offer a locally selected, asset-filtered set, then derive the exact subset core chose from the
+  // first transaction's bytes. The second pass is forced to use that subset in full.
+  const selection = await selectUtxosForTransaction(sourceAddress, {
+    allowUnconfirmed: settings.allowUnconfirmedTxs,
+  });
   const response = await composeTransaction(
     'send',
     paramsObj,
     sourceAddress,
     sat_per_vbyte,
-    attachDieselMint ? 'opreturn' : encoding,
+    'opreturn',
+    { inputsSet: selection.inputsSet, useAllInputsSet: false },
   );
-  if (dieselScript) {
-    const parsed = parseRawTransactionLocally(response.result.rawtransaction);
-    const carrier = parsed?.outputs[1];
-    const runestone = parsed?.outputs[2];
-    if (
-      !parsed
-      || carrier?.value !== DIESEL_CARRIER_SATS
-      || !carrier.address
-      || normalizeAddressForComparison(carrier.address)
-        !== normalizeAddressForComparison(sourceAddress)
-      || runestone?.value !== 0
-      || runestone.opReturnData?.toLowerCase() !== dieselScript
-    ) {
-      throw new CounterpartyApiError(
-        'Counterparty compose did not preserve the required DIESEL carrier and runestone outputs.',
-        'send',
-      );
-    }
-    const estimatedMarginalFeeSats = toSafeInteger(
-      roundUp(multiply(DIESEL_MINT_MARGINAL_VBYTES, sat_per_vbyte)).toFixed(0),
+  const parsed = parseRawTransactionLocally(response.result.rawtransaction);
+  const carrier = parsed?.outputs[1];
+  const runestone = parsed?.outputs[2];
+  if (
+    !parsed
+    || carrier?.value !== DIESEL_CARRIER_SATS
+    || !isOwnedP2wpkhOutput(carrier, sourceAddress)
+    || runestone?.value !== 0
+    || runestone.opReturnData?.toLowerCase() !== dieselScript
+  ) {
+    throw new CounterpartyApiError(
+      'Counterparty compose did not preserve the required DIESEL carrier and runestone outputs.',
+      'send',
     );
-    if (estimatedMarginalFeeSats === undefined) {
-      throw new CounterpartyApiError('Invalid DIESEL marginal fee estimate.', 'send');
-    }
-    response.result.params.more_outputs = dieselMoreOutputs;
-    response.result.diesel_mint = {
-      carrier_vout: 1,
-      runestone_vout: 2,
-      carrier_sats: DIESEL_CARRIER_SATS,
-      marginal_vbytes: DIESEL_MINT_MARGINAL_VBYTES,
-      estimated_marginal_fee_sats: estimatedMarginalFeeSats,
-      fee_rate_sat_vbyte: sat_per_vbyte,
-    };
   }
-  return response;
+
+  // The proven +26-vB shape is deliberately narrow: one Counterparty destination/data output,
+  // our explicit carrier, the runestone, and one ordinary P2WPKH change output. Removing that
+  // redundant change output leaves the already-required wallet return output as the carrier.
+  const change = parsed.outputs[3];
+  const firstSignedVsize = response.result.signed_tx_estimated_size.vsize;
+  if (
+    parsed.outputs.length !== 4
+    || !isOwnedP2wpkhOutput(change, sourceAddress)
+    || !Number.isSafeInteger(firstSignedVsize)
+    || firstSignedVsize <= P2WPKH_OUTPUT_VBYTES
+  ) {
+    return annotateDieselMint(
+      response,
+      dieselMoreOutputs,
+      DIESEL_CARRIER_SATS,
+      DIESEL_MINT_MARGINAL_VBYTES,
+      sat_per_vbyte,
+      'explicit',
+    );
+  }
+
+  const selectedByOutpoint = new Map(
+    selection.utxos.map((utxo) => [`${utxo.txid.toLowerCase()}:${utxo.vout}`, utxo.value]),
+  );
+  const actualInputs = parsed.inputs.map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
+  const actualInputValues = actualInputs.map((outpoint) => selectedByOutpoint.get(outpoint));
+  if (actualInputValues.some((value) => value === undefined)) {
+    throw new CounterpartyApiError(
+      'Counterparty compose used an input whose value was not independently selected.',
+      'send',
+    );
+  }
+
+  const optimizedVsize = toSafeInteger(
+    subtract(firstSignedVsize, P2WPKH_OUTPUT_VBYTES).toFixed(0),
+  );
+  const exactFee = optimizedVsize === undefined
+    ? undefined
+    : estimateDieselMarginalFee(optimizedVsize, sat_per_vbyte);
+  const trustedInputTotal = sum(actualInputValues as number[]);
+  const otherOutputTotal = sum(parsed.outputs
+    .filter((output) => output.index !== 1 && output.index !== 2 && output.index !== 3)
+    .map((output) => output.value));
+  const optimizedCarrierSats = exactFee === undefined
+    ? undefined
+    : toSafeInteger(subtract(subtract(trustedInputTotal, otherOutputTotal), exactFee).toFixed(0));
+  if (
+    optimizedVsize === undefined
+    || exactFee === undefined
+    || optimizedCarrierSats === undefined
+    || optimizedCarrierSats < DIESEL_CARRIER_SATS
+  ) {
+    return annotateDieselMint(
+      response,
+      dieselMoreOutputs,
+      DIESEL_CARRIER_SATS,
+      DIESEL_MINT_MARGINAL_VBYTES,
+      sat_per_vbyte,
+      'explicit',
+    );
+  }
+
+  const optimizedMoreOutputs = `${optimizedCarrierSats}:${sourceAddress},0:${dieselScript}`;
+  const optimizedParams = {
+    ...paramsObj,
+    more_outputs: optimizedMoreOutputs,
+    exact_fee: exactFee.toString(),
+  };
+  const optimized = await composeTransaction(
+    'send',
+    optimizedParams,
+    sourceAddress,
+    sat_per_vbyte,
+    'opreturn',
+    { inputsSet: actualInputs.join(','), useAllInputsSet: true },
+  );
+  const optimizedParsed = parseRawTransactionLocally(optimized.result.rawtransaction);
+  const optimizedInputs = optimizedParsed?.inputs
+    .map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
+  const actualInputSet = new Set(actualInputs);
+  const optimizedInputSet = new Set(optimizedInputs ?? []);
+  const optimizedOutputTotal = optimizedParsed ? sum(optimizedParsed.outputs.map(({ value }) => value)) : null;
+  const independentlyDerivedFee = optimizedOutputTotal
+    ? toSafeInteger(subtract(trustedInputTotal, optimizedOutputTotal).toFixed(0))
+    : undefined;
+
+  if (
+    !optimizedParsed
+    || optimizedParsed.outputs.length !== 3
+    || !outputsMatch(parsed.outputs[0], optimizedParsed.outputs[0])
+    || optimizedParsed.outputs[1]?.value !== optimizedCarrierSats
+    || !isOwnedP2wpkhOutput(optimizedParsed.outputs[1], sourceAddress)
+    || optimizedParsed.outputs[2]?.value !== 0
+    || optimizedParsed.outputs[2]?.opReturnData?.toLowerCase() !== dieselScript
+    || optimizedInputs?.length !== actualInputs.length
+    || actualInputSet.size !== actualInputs.length
+    || optimizedInputSet.size !== optimizedInputs.length
+    || actualInputs.some((outpoint) => !optimizedInputSet.has(outpoint))
+    || independentlyDerivedFee !== exactFee
+    || optimized.result.btc_change !== 0
+    || optimized.result.signed_tx_estimated_size.vsize !== optimizedVsize
+  ) {
+    throw new CounterpartyApiError(
+      'Counterparty compose did not preserve the proven optimized DIESEL transaction shape.',
+      'send',
+    );
+  }
+
+  return annotateDieselMint(
+    optimized,
+    optimizedMoreOutputs,
+    optimizedCarrierSats,
+    DIESEL_RUNESTONE_MARGINAL_VBYTES,
+    sat_per_vbyte,
+    'change',
+  );
 }
 
 export interface DieselSendOptions extends BaseComposeOptions {

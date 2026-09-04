@@ -2,8 +2,8 @@
 
 **Feasibility review for Dan — 2026-09-04**
 
-**Status:** source review complete; combined transaction proven on local regtest; draft wallet
-implementation in this PR
+**Status:** source review complete; combined transaction proven on local regtest; base draft wallet
+implementation complete; stacked branch implements the measured +26-vB optimization
 
 **Verdict:** **the narrow feature is feasible and implemented behind an off-by-default switch;
 keep the PR draft until release-line and live-network acceptance are rechecked**
@@ -61,7 +61,7 @@ The PR should remain a draft for two reasons:
 
 ## What this draft PR implements
 
-The same PR now carries the complete narrow vertical slice:
+The base PR carries the complete narrow vertical slice:
 
 - a dependency-free DIESEL mint protostone builder and strict decoder, pinned against both the
   canonical pointer-0 script and the pointer/refund-1 script used by the regtest proof;
@@ -80,6 +80,20 @@ The same PR now carries the complete narrow vertical slice:
 - a protocol-native DIESEL send flow that deliberately selects carrier inputs, allocates the exact
   recipient amount with an edict, returns every leftover unit to an owned carrier, and verifies the
   finished input/output layout before signing.
+
+The stacked `feature/diesel-optimized-carrier` branch adds the two-pass +26-vB construction:
+
+- first compose the already-safe 330-sat carrier plus runestone shape against a locally selected,
+  asset-filtered input set;
+- parse the first transaction to learn the exact subset of inputs and require the narrow
+  `host output -> carrier -> runestone -> owned P2WPKH change` shape;
+- recompose with those exact inputs, `use_all_inputs_set=true`, an exact fee, and the full wallet
+  return value in the carrier, eliminating the redundant 31-vB change output;
+- independently reconcile the final fee from the locally selected input values and parsed output
+  values, and require unchanged host bytes, three exact outputs, the same input set, zero residual
+  change, and the predicted signed vsize before returning the optimized transaction; and
+- retain the verified +57-vB first compose whenever no ordinary change output can safely be
+  absorbed. Unsupported shapes are not guessed.
 
 The current allow-list skips MPMA, memos, user `more_outputs`, non-P2WPKH source addresses,
 Counterparty Taproot/multisig data, explicit-UTXO operations, and every non-send transaction type.
