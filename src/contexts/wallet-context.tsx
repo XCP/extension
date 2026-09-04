@@ -598,7 +598,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           mnemonic,
           password,
           name,
-          addressFormat ?? AddressFormat.P2TR
+          addressFormat ?? AddressFormat.P2WPKH
         )
       );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));

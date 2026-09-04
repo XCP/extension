@@ -265,12 +265,12 @@ describe('WalletContext', () => {
       expect(mockWalletService.createMnemonicWallet).toHaveBeenCalled();
     });
 
-    it('should resolve the default address format before crossing the service boundary', async () => {
+    it('defaults a newly created mnemonic wallet to Native SegWit before crossing the service boundary', async () => {
       const newWallet = {
         id: 'wallet3',
         name: 'New Wallet',
         type: 'mnemonic' as const,
-        addressFormat: AddressFormat.P2TR,
+        addressFormat: AddressFormat.P2WPKH,
         addressCount: 1,
         addresses: []
       };
@@ -288,7 +288,7 @@ describe('WalletContext', () => {
         'test mnemonic',
         'password123',
         undefined,
-        AddressFormat.P2TR
+        AddressFormat.P2WPKH
       );
     });
 

@@ -148,11 +148,20 @@ walletTest.describe('XCP Price Page (/market/xcp)', () => {
 
 walletTest.describe('XCP ticker routing', () => {
   walletTest('the XCP ticker opens the price page, not the dispenser list', async ({ page }) => {
-    await stubPriceApi(page);
+    await stubPriceApi(page, {
+      ticker: {
+        ...TICKER,
+        result: {
+          ...TICKER.result,
+          xcp: { ...TICKER.result.xcp, usd: 8.9 },
+        },
+      },
+    });
     await page.goto(page.url().replace(/\/index.*/, '/market'));
 
     const ticker = market.xcpTickerCard(page);
     await expect(ticker).toBeVisible({ timeout: 15000 });
+    await expect(ticker.getByText('$8.90')).toBeVisible();
     await ticker.click();
 
     await expect(page).toHaveURL(/market\/xcp/, { timeout: 10000 });
