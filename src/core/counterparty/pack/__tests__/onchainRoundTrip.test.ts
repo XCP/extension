@@ -23,6 +23,7 @@
 import { describe, expect, it } from 'vitest';
 import { unpackCounterpartyMessage } from '../../unpack';
 import { bytesToHex } from '../../unpack/binary';
+import type { MPMAData, MPMASend } from '../../unpack/messages/mpma';
 import { COUNTERPARTY_PREFIX_HEX } from '../../unpack/messageTypes';
 import { packComposeMessage } from '../messages';
 import { fetchOracle } from './oracleRequest';
@@ -47,8 +48,8 @@ interface OnChainTransaction {
  * wallet's compose path. Compare the decoded fields so the on-chain oracle can distinguish that
  * harmless encoding variation from a packer that changed the message's meaning.
  *
- * This exception is deliberately broadcast-only. Broadcast is also covered by `coreOracle`, which
- * still requires the local packer to match core's own composer bytes exactly.
+ * Broadcast is also covered by `coreOracle`, which still requires the local packer to match
+ * core's own composer bytes exactly.
  */
 function sameBroadcastFields(
   original: Record<string, any>,
@@ -59,6 +60,49 @@ function sameBroadcastFields(
     && original.feeFractionInt === rebuilt.feeFractionInt
     && original.text === rebuilt.text
     && original.mimeType === rebuilt.mimeType;
+}
+
+/**
+ * MPMA asset groups are semantically unordered, but their byte order is not always recoverable
+ * from an on-chain decode. Core sorts groups by the names supplied to compose and only then
+ * resolves subasset longnames to numeric asset IDs. The payload contains those IDs, not the
+ * original longnames, so rebuilding from decoded data can sort the same groups differently.
+ *
+ * Preserve the order of sends within each asset group while ignoring only the unknowable order
+ * between groups. This keeps quantity, destination and memo changes visible to the oracle.
+ */
+function sameMpmaFields(
+  original: MPMAData,
+  rebuilt: MPMAData
+): boolean {
+  if (original.globalMemo !== rebuilt.globalMemo
+    || original.globalMemoIsHex !== rebuilt.globalMemoIsHex) return false;
+
+  const group = (data: MPMAData): Map<string, MPMASend[]> => {
+    const groups = new Map<string, MPMASend[]>();
+    for (const send of data.sends) {
+      const entries = groups.get(send.asset) ?? [];
+      entries.push(send);
+      groups.set(send.asset, entries);
+    }
+    return groups;
+  };
+
+  const originalGroups = group(original);
+  const rebuiltGroups = group(rebuilt);
+  if (originalGroups.size !== rebuiltGroups.size) return false;
+  for (const [asset, originalSends] of originalGroups) {
+    const rebuiltSends = rebuiltGroups.get(asset);
+    if (!rebuiltSends || originalSends.length !== rebuiltSends.length) return false;
+    if (originalSends.some((send, index) => {
+      const rebuiltSend = rebuiltSends[index]!;
+      return send.destination !== rebuiltSend.destination
+        || send.quantity !== rebuiltSend.quantity
+        || send.memo !== rebuiltSend.memo
+        || send.memoIsHex !== rebuiltSend.memoIsHex;
+    })) return false;
+  }
+  return true;
 }
 
 /**
@@ -283,6 +327,21 @@ describe.skipIf(!API_URL)('rebuilding real on-chain messages', () => {
           declined += 1;
           continue;
         }
+        if (
+          apiType === 'mpma'
+          && rebuiltMessage.success
+          && rebuiltMessage.messageType === 'mpma_send'
+          && rebuiltMessage.data
+          && sameMpmaFields(
+            unpacked.data as unknown as MPMAData,
+            rebuiltMessage.data as unknown as MPMAData
+          )
+        ) {
+          // A subasset's compose-time longname is not present on chain, so the original order of
+          // otherwise identical asset groups cannot be reconstructed from this sample.
+          declined += 1;
+          continue;
+        }
         failures.push(`${transaction.tx_hash} (block ${transaction.block_index})\n  on-chain: ${original}\n  rebuilt:  ${rebuilt}`);
       }
       compared += 1;
@@ -334,5 +393,48 @@ describe('on-chain broadcast sample classification', () => {
       unpacked.data as Record<string, any>,
       rebuiltMessage.data as Record<string, any>
     )).toBe(true);
+  });
+});
+
+describe('on-chain MPMA sample classification', () => {
+  it('accepts equivalent asset groups whose compose-time name ordering is unrecoverable', () => {
+    // The first asset was composed under a name that sorted before the numeric subasset longname.
+    // Only its resolved numeric ID remains on chain, causing the local rebuild to reorder the
+    // groups without changing any send.
+    const original = COUNTERPARTY_PREFIX_HEX
+      + '030001000ff99d4f207658048c773740ab0dc6792870280d403cc85c0d73a6a4800000000000000059171ecdda483164b00000000000000014047cf7027319cbc80000000000000004';
+    const unpacked = unpackCounterpartyMessage(original);
+    expect(unpacked.success).toBe(true);
+
+    const params = PARAMS_FROM_DECODED.mpma_send!(unpacked.data as Record<string, any>);
+    const packed = packComposeMessage('mpma', params!);
+    expect(packed).not.toBeNull();
+    expect(bytesToHex(packed!.bytes)).not.toBe(original);
+
+    const rebuilt = unpackCounterpartyMessage(packed!.bytes);
+    expect(rebuilt.success).toBe(true);
+    expect(sameMpmaFields(
+      unpacked.data as unknown as MPMAData,
+      rebuilt.data as unknown as MPMAData
+    )).toBe(true);
+  });
+
+  it('still rejects a changed send within an asset group', () => {
+    const original = {
+      sends: [
+        { asset: 'XCP', destination: '1first', quantity: 1n },
+        { asset: 'XCP', destination: '1second', quantity: 2n },
+      ],
+    };
+    const changedQuantity = {
+      sends: [
+        { asset: 'XCP', destination: '1first', quantity: 1n },
+        { asset: 'XCP', destination: '1second', quantity: 3n },
+      ],
+    };
+    const changedOrder = { sends: [...original.sends].reverse() };
+
+    expect(sameMpmaFields(original, changedQuantity)).toBe(false);
+    expect(sameMpmaFields(original, changedOrder)).toBe(false);
   });
 });
