@@ -97,7 +97,7 @@ describe('selectUtxosForTransaction', () => {
     expect(result.excludedValue).toBe(30000); // tx2:0 was excluded
   });
 
-  it('filters Alkanes carriers when experimental protection is active', async () => {
+  it('filters Alkanes-bearing UTXOs when experimental protection is active', async () => {
     const mockUtxos = [
       createMockUtxo('a'.repeat(64), 0, 50000),
       createMockUtxo('b'.repeat(64), 1, 30000),
@@ -117,7 +117,7 @@ describe('selectUtxosForTransaction', () => {
     expect(result.excludedWithAssets).toBe(1);
   });
 
-  it('separates a pure DIESEL carrier only for an explicitly routing mint flow', async () => {
+  it('separates a pure DIESEL UTXO only for an explicitly routing mint flow', async () => {
     const dieselTxid = 'b'.repeat(64);
     const otherAlkaneTxid = 'c'.repeat(64);
     const pendingDieselTxid = 'd'.repeat(64);
@@ -149,12 +149,12 @@ describe('selectUtxosForTransaction', () => {
     ]);
 
     const result = await selectUtxosForTransaction(mockAddress, {
-      includeDieselCarriers: true,
+      includeDieselUtxos: true,
       allowUnconfirmed: true,
     });
 
     expect(result.utxos.map((utxo) => utxo.txid)).toEqual(['a'.repeat(64)]);
-    expect(result.dieselCarriers?.map((utxo) => utxo.txid)).toEqual([dieselTxid]);
+    expect(result.dieselUtxos?.map((utxo) => utxo.txid)).toEqual([dieselTxid]);
     expect(result.excludedWithAssets).toBe(2);
   });
 

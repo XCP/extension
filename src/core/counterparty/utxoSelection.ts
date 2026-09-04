@@ -29,8 +29,8 @@ export interface SelectUtxosOptions {
   minUtxos?: number;
   /** Maximum number of UTXOs to return */
   maxUtxos?: number;
-  /** Identify pure DIESEL carriers for an explicitly routing mint flow; never ordinary spending. */
-  includeDieselCarriers?: boolean;
+  /** Identify pure DIESEL UTXOs for an explicitly routing mint flow; never ordinary spending. */
+  includeDieselUtxos?: boolean;
 }
 
 /**
@@ -47,8 +47,8 @@ export interface SelectedUtxos {
   excludedWithAssets: number;
   /** Total value of UTXOs excluded due to attached assets in satoshis */
   excludedValue: number;
-  /** Spendable, confirmed carriers holding DIESEL and no other indexed Alkane. */
-  dieselCarriers?: UTXO[];
+  /** Spendable, confirmed UTXOs holding DIESEL and no other indexed Alkane. */
+  dieselUtxos?: UTXO[];
 }
 
 /**
@@ -73,7 +73,7 @@ export async function selectUtxosForTransaction(
     allowUnconfirmed = false,
     minUtxos = 1,
     maxUtxos = MAX_INPUTS_SET,
-    includeDieselCarriers = false,
+    includeDieselUtxos = false,
   } = options;
 
   // 1. Fetch fresh UTXOs from mempool.space and UTXO balances from Counterparty in parallel
@@ -112,7 +112,7 @@ export async function selectUtxosForTransaction(
 
   // Counterparty's balance endpoint cannot see Alkanes. When protection is on, every positive or
   // unknown result is unavailable to ordinary builders. The mint flow may receive pure, confirmed
-  // DIESEL carriers in a separate list; they never enter the ordinary eligible-input list.
+  // Pure DIESEL UTXOs stay in a separate list; they never enter ordinary eligible inputs.
   const protectedAlkanes = new Map<string, InputAlkaneBalances>();
   const settings = getActiveSettings();
   if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
@@ -127,7 +127,7 @@ export async function selectUtxosForTransaction(
   let excludedWithAssets = 0;
   let excludedValue = 0;
   const eligibleUtxos: UTXO[] = [];
-  const dieselCarriers: UTXO[] = [];
+  const dieselUtxos: UTXO[] = [];
 
   for (const utxo of candidateUtxos) {
     // Skip unconfirmed if not allowed
@@ -143,15 +143,15 @@ export async function selectUtxosForTransaction(
     // Skip if UTXO has attached Counterparty assets
     const utxoKey = `${utxo.txid}:${utxo.vout}`;
     const alkanes = protectedAlkanes.get(utxoKey);
-    const isPureDieselCarrier = includeDieselCarriers
+    const isPureDieselUtxo = includeDieselUtxos
       && utxo.status.confirmed
       && !utxosWithAssets.has(utxoKey)
       && !!alkanes
       && !alkanes.lookupFailed
       && alkanes.balances.length > 0
       && alkanes.balances.every((balance) => balance.id === DIESEL_ALKANE_ID);
-    if (isPureDieselCarrier) {
-      dieselCarriers.push(utxo);
+    if (isPureDieselUtxo) {
+      dieselUtxos.push(utxo);
       continue;
     }
     if (utxosWithAssets.has(utxoKey) || alkanes) {
@@ -163,7 +163,7 @@ export async function selectUtxosForTransaction(
     eligibleUtxos.push(utxo);
   }
 
-  if (eligibleUtxos.length < minUtxos && dieselCarriers.length === 0) {
+  if (eligibleUtxos.length < minUtxos && dieselUtxos.length === 0) {
     throw new Error(
       `Insufficient UTXOs: found ${eligibleUtxos.length}, need at least ${minUtxos}. ` +
       `${excludedWithAssets} UTXOs have attached assets.`
@@ -172,7 +172,7 @@ export async function selectUtxosForTransaction(
 
   // 4. Sort by value (highest first) to prefer larger UTXOs
   eligibleUtxos.sort((a, b) => b.value - a.value);
-  dieselCarriers.sort((a, b) => b.value - a.value);
+  dieselUtxos.sort((a, b) => b.value - a.value);
 
   // 5. Take up to maxUtxos
   const selectedUtxos = eligibleUtxos.slice(0, maxUtxos);
@@ -186,6 +186,6 @@ export async function selectUtxosForTransaction(
     totalValue,
     excludedWithAssets,
     excludedValue,
-    ...(includeDieselCarriers ? { dieselCarriers } : {}),
+    ...(includeDieselUtxos ? { dieselUtxos } : {}),
   };
 }

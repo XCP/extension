@@ -61,7 +61,7 @@ export default function DieselBalancePage(): ReactElement {
       locked: false,
     },
   };
-  const carrierSats = balance.carriers.reduce((sum, carrier) => sum + (carrier.value ?? 0), 0);
+  const dieselUtxoSats = balance.utxos.reduce((sum, utxo) => sum + (utxo.value ?? 0), 0);
   const sections: ActionSection[] = [{
     items: [{
       id: 'send',
@@ -82,7 +82,7 @@ export default function DieselBalancePage(): ReactElement {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Reserved Bitcoin</span>
-          <span className="text-gray-900">{carrierSats.toLocaleString()} sats</span>
+          <span className="text-gray-900">{dieselUtxoSats.toLocaleString()} sats</span>
         </div>
         <p className="text-xs text-gray-500">
           Your DIESEL is shown as one balance. Behind the scenes it is secured by Bitcoin outputs

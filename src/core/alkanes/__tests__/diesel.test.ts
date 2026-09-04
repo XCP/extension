@@ -3,7 +3,8 @@ import {
   buildDieselMintScript,
   buildDieselTransferScript,
   decodeDieselMintScript,
-  isVerifiedDieselCarrierAddress,
+  dieselUtxoMinimumSats,
+  isSupportedDieselUtxoAddress,
 } from '../diesel';
 
 describe('DIESEL mint protostone', () => {
@@ -33,9 +34,14 @@ describe('DIESEL mint protostone', () => {
     );
   });
 
-  it('limits the proved carrier design to native SegWit', () => {
-    expect(isVerifiedDieselCarrierAddress('bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l')).toBe(true);
-    expect(isVerifiedDieselCarrierAddress('bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej')).toBe(false);
-    expect(isVerifiedDieselCarrierAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(false);
+  it('allows the four standard single-key wallet address families proved on regtest', () => {
+    expect(isSupportedDieselUtxoAddress('bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l')).toBe(true);
+    expect(isSupportedDieselUtxoAddress('bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej')).toBe(false);
+    expect(isSupportedDieselUtxoAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(true);
+    expect(isSupportedDieselUtxoAddress('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')).toBe(true);
+    expect(isSupportedDieselUtxoAddress('bcrt1p34lk9xmq7hctcp6s252ha0q8nypwggwrevlwsaueej4gszea0zgq3rjw9l')).toBe(true);
+    expect(dieselUtxoMinimumSats('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(546);
+    expect(dieselUtxoMinimumSats('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')).toBe(540);
+    expect(dieselUtxoMinimumSats('bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l')).toBe(330);
   });
 });

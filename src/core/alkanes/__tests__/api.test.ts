@@ -28,7 +28,7 @@ describe('Alkanes outpoint API', () => {
     })).toEqual([{ id: '2:0', value: '42' }]);
   });
 
-  it('does not mistake an unknown response shape for an empty carrier', () => {
+  it('does not mistake an unknown response shape for an empty UTXO', () => {
     expect(() => parseAlkaneBalances({ result: {} })).toThrow('no recognized balance list');
   });
 
@@ -46,7 +46,7 @@ describe('Alkanes outpoint API', () => {
     });
   });
 
-  it('keeps address balances attached to their carrier outpoints', async () => {
+  it('keeps address balances attached to their UTXO outpoints', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       result: {
         outpoints: [{
@@ -91,7 +91,7 @@ describe('Alkanes outpoint API', () => {
 
     const balance = await fetchDieselBalance('bc1qexample');
     expect(balance.baseUnits).toBe('300000001');
-    expect(balance.carriers).toHaveLength(2);
+    expect(balance.utxos).toHaveLength(2);
     expect(dieselBaseUnitsToDisplay(balance.baseUnits)).toBe('3.00000001');
   });
 });

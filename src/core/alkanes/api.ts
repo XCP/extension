@@ -1,4 +1,4 @@
-/** Read-only Alkanes outpoint queries used to protect carrier UTXOs. */
+/** Read-only Alkanes outpoint queries used to protect token-bearing UTXOs. */
 
 import { getActiveSettings } from '@/core/settings';
 
@@ -12,19 +12,19 @@ export interface AlkaneBalance {
   value: string;
 }
 
-export interface AlkaneCarrier {
+export interface AlkaneUtxo {
   txid: string;
   vout: number;
-  /** Bitcoin value of the carrier output in satoshis, when supplied by the indexer. */
+  /** Bitcoin value of the token-bearing output in satoshis, when supplied by the indexer. */
   value?: number;
   height?: number;
   balances: AlkaneBalance[];
 }
 
 export interface DieselAddressBalance {
-  /** Exact DIESEL base units across every confirmed carrier at the address. */
+  /** Exact DIESEL base units across every confirmed token-bearing UTXO at the address. */
   baseUnits: string;
-  carriers: AlkaneCarrier[];
+  utxos: AlkaneUtxo[];
 }
 
 export const DIESEL_ALKANE_ID = '2:0';
@@ -114,13 +114,13 @@ export async function fetchAlkanesByOutpoint(
 }
 
 /**
- * Fetch every Alkanes carrier assigned to an address. Keeping the outpoints is important: an
+ * Fetch every Alkanes-bearing UTXO assigned to an address. Keeping the outpoints is important: an
  * address-level total alone cannot protect, roll over, or later send the token-bearing UTXOs.
  */
 export async function fetchAlkanesByAddress(
   address: string,
   apiBase = getActiveSettings().alkanesApiBase ?? DEFAULT_ALKANES_API_BASE,
-): Promise<AlkaneCarrier[]> {
+): Promise<AlkaneUtxo[]> {
   if (!address.trim()) throw new Error('Invalid Alkanes address');
   const response = await fetch(apiBase, {
     method: 'POST',
@@ -172,13 +172,13 @@ export async function fetchDieselBalance(
   address: string,
   apiBase?: string,
 ): Promise<DieselAddressBalance> {
-  const carriers = await fetchAlkanesByAddress(address, apiBase);
-  const baseUnits = carriers.reduce((total, carrier) => total + carrier.balances
+  const utxos = await fetchAlkanesByAddress(address, apiBase);
+  const baseUnits = utxos.reduce((total, utxo) => total + utxo.balances
     .filter((balance) => balance.id === DIESEL_ALKANE_ID)
     .reduce((subtotal, balance) => subtotal + BigInt(balance.value), 0n), 0n);
   return {
     baseUnits: baseUnits.toString(),
-    carriers: carriers.filter((carrier) => carrier.balances.some(
+    utxos: utxos.filter((utxo) => utxo.balances.some(
       (balance) => balance.id === DIESEL_ALKANE_ID,
     )),
   };

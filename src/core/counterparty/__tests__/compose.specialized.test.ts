@@ -1,4 +1,8 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { buildDieselMintScript } from '@/core/alkanes/diesel';
 import * as apiClientUtils from '@/core/api/client';
 import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -539,6 +543,70 @@ describe('Compose Specialized Operations', () => {
       const url = actualCall[0] as string;
       expect(url).toContain('utxo_value=10000');
       expect(url).toContain('destination_vout=1');
+    });
+
+    it('keeps the attached asset on vout 0 and optimizes DIESEL into separate change', async () => {
+      const payment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const sourceAddress = payment.address!;
+      const inputTxid = 'aa'.repeat(32);
+      const dieselScript = buildDieselMintScript(2);
+      const buildAttach = (dieselUtxoSats: bigint, includeChange: boolean) => {
+        const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+        tx.addInput({
+          txid: hexToBytes(inputTxid),
+          index: 0,
+          witnessUtxo: { script: payment.script, amount: 100_000n },
+        });
+        tx.addOutput({ script: payment.script, amount: 546n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
+        tx.addOutput({ script: hexToBytes(dieselScript), amount: 0n });
+        if (includeChange) tx.addOutput({ script: payment.script, amount: 98_646n });
+        return bytesToHex(tx.unsignedTx);
+      };
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildAttach(330n, true),
+          signed_tx_estimated_size: { vsize: 239, adjusted_vsize: 239, sigops_count: 1 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildAttach(99_038n, false),
+          btc_change: 0,
+          btc_fee: 416,
+          signed_tx_estimated_size: { vsize: 208, adjusted_vsize: 208, sigops_count: 1 },
+        }));
+
+      const response = await composeAttach({
+        sourceAddress,
+        asset: 'UTXOASSET',
+        quantity: 1,
+        sat_per_vbyte: 2,
+      });
+
+      const firstUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      const optimizedUrl = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
+      expect(firstUrl.searchParams.get('more_outputs')).toBe(
+        `330:${sourceAddress},0:${dieselScript}`,
+      );
+      expect(optimizedUrl.searchParams.get('more_outputs')).toBe(
+        `99038:${sourceAddress},0:${dieselScript}`,
+      );
+      expect(optimizedUrl.searchParams.get('exact_fee')).toBe('416');
+      expect(optimizedUrl.searchParams.get('use_all_inputs_set')).toBe('true');
+      expect(response.result.diesel_mint).toEqual({
+        utxo_vout: 2,
+        runestone_vout: 3,
+        utxo_sats: 99_038,
+        marginal_vbytes: 26,
+        estimated_marginal_fee_sats: 52,
+        fee_rate_sat_vbyte: 2,
+        utxo_kind: 'change',
+      });
     });
   });
 

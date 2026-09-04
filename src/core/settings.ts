@@ -109,7 +109,7 @@ export interface AppSettings {
   transactionDryRun: boolean;
   /** Counterparty API base URL */
   counterpartyApiBase: string;
-  /** Alkanes JSON-RPC endpoint used by experimental carrier protection. */
+  /** Alkanes JSON-RPC endpoint used to protect token-bearing UTXOs. */
   alkanesApiBase: string;
   /** Attach a DIESEL mint protostone to supported wallet-originated transactions. */
   enableDieselMinting: boolean;
@@ -124,7 +124,7 @@ export interface AppSettings {
   strictTransactionVerification: boolean;
   /**
    * Query the Alkanes indexer before selecting or signing inputs, and fail closed when an input's
-   * carrier status cannot be proved. This remains useful after experimental minting is disabled.
+   * Alkanes status cannot be proved. This remains useful after experimental minting is disabled.
    */
   protectAlkanesUtxos: boolean;
 

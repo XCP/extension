@@ -18,7 +18,7 @@ them:
 ```text
 [Counterparty destinations, if any]
 [Counterparty data OP_RETURN]
-[wallet-owned DIESEL carrier]
+[wallet-owned DIESEL UTXO]
 [Alkanes runestone OP_RETURN]
 [ordinary BTC change, if any]
 ```
@@ -36,18 +36,23 @@ The best construction depends on the host transaction:
 - A plain BTC send can put the runestone before ordinary change and mint to that
   change in one compose: +26 vB.
 - An OP_RETURN Counterparty transaction should use two composes with identical
-  selected inputs. In the second, the explicit parser-boundary carrier absorbs all
-  change, leaving `XCP data -> carrier -> runestone`: also +26 vB.
-- If exact recomposition is unavailable, use a separate 330-sat carrier and normal
+  selected inputs. In the second, the explicit parser-boundary UTXO absorbs all
+  change, leaving `XCP data -> UTXO -> runestone`: also +26 vB.
+- If exact recomposition is unavailable, use a separate 330-sat UTXO and normal
   change: +57 vB.
-- Never add a 330-sat carrier as an otherwise-unneeded input merely to reuse it:
+- Never add a 330-sat UTXO as an otherwise-unneeded input merely to reuse it:
   that makes the delta about 125 vB, almost the 135-vB standalone mint.
+
+Terminology in this document is literal: a **DIESEL UTXO** is an ordinary Bitcoin UTXO whose
+outpoint also has a DIESEL balance in the Alkanes index. It is not a special Bitcoin output type.
+The same physical UTXO cannot be reused after it is spent; “reuse” means spending it and routing
+its old balance plus the new mint to a successor UTXO.
 
 The PR should remain a draft for two reasons:
 
-1. Alkanes balance discovery, carrier protection, exact mint-output verification, and an explicit
+1. Alkanes balance discovery, UTXO protection, exact mint-output verification, and an explicit
    edict send now exist in the branch, but the address index and send still need a live integration
-   fixture before release. An indexer outage fails closed for carrier spending.
+   fixture before release. An indexer outage fails closed for UTXO spending.
 2. An unreleased Alkanes staging branch dated 2026-09-01 proposes activating DIESEL v3 at
    height **966,000**. The current height supplied after this review is
    **965,504**—only 496 blocks short (roughly 3.4 days at ten-minute blocks). In
@@ -68,40 +73,43 @@ The base PR carries the complete narrow vertical slice:
 - exact, string-preserving Alkanes outpoint reads through the protocol-1
   `alkanes_protorunesbyoutpoint` method, with unknown response shapes treated as failures;
 - an off-by-default **Mine DIESEL (Experimental)** advanced setting that permanently enables
-  carrier protection when first switched on;
-- shared raw-transaction and PSBT provider analysis that blocks a signed Alkanes carrier, and
-  fails closed if carrier status cannot be established;
+  UTXO protection when first switched on;
+- shared raw-transaction and PSBT provider analysis that blocks a signed Alkanes UTXO, and
+  fails closed if UTXO status cannot be established;
 - Counterparty coin selection that excludes positive and unknown Alkanes outpoints, and disables
   the existing server-selected-input fallback while protection is active;
 - the same protection for explicit UTXO Counterparty operations such as detach and move.
-- automatic decoration of eligible single-destination, no-memo BTC and enhanced Counterparty
-  sends from native-segwit addresses, followed by byte-level proof of the carrier and runestone;
-- a separate address-level `DIESEL · Alkanes` balance and carrier detail surface; and
-- a protocol-native DIESEL send flow that deliberately selects carrier inputs, allocates the exact
-  recipient amount with an edict, returns every leftover unit to an owned carrier, and verifies the
+- automatic decoration of eligible BTC sends, enhanced Counterparty sends (including memos and
+  caller outputs), and current-form UTXO attaches, followed by byte-level proof of the DIESEL UTXO
+  and runestone;
+- a separate address-level `DIESEL · Alkanes` balance and UTXO detail surface; and
+- a protocol-native DIESEL send flow that deliberately selects UTXO inputs, allocates the exact
+  recipient amount with an edict, returns every leftover unit to an owned UTXO, and verifies the
   finished input/output layout before signing.
 
-The stacked `feature/diesel-optimized-carrier` branch adds the two-pass +26-vB construction:
+The stacked `feature/diesel-optimized-utxo` branch adds the two-pass +26-vB construction:
 
-- first compose the already-safe 330-sat carrier plus runestone shape against a locally selected,
+- first compose the already-safe 330-sat UTXO plus runestone shape against a locally selected,
   asset-filtered input set;
 - parse the first transaction to learn the exact subset of inputs and require the narrow
-  `host output -> carrier -> runestone -> owned P2WPKH change` shape;
+  `host output -> DIESEL UTXO -> runestone -> owned standard change` shape;
 - recompose with those exact inputs, `use_all_inputs_set=true`, an exact fee, and the full wallet
-  return value in the carrier, eliminating the redundant 31-vB change output;
+  return value in the UTXO, eliminating the redundant 31-vB change output;
 - independently reconcile the final fee from the locally selected input values and parsed output
   values, and require unchanged host bytes, three exact outputs, the same input set, zero residual
   change, and the predicted signed vsize before returning the optimized transaction; and
-- retain the verified +57-vB first compose whenever no ordinary change output can safely be
-  absorbed. Unsupported shapes are not guessed; and
-- prefer one confirmed, pure-DIESEL carrier as the sole funding input when it can fund the
-  transaction by itself. This rolls accumulated DIESEL into the successor carrier without adding
+- retain the verified explicit-output first compose whenever no ordinary change output can safely
+  be absorbed. Its cost is 26 vB plus the actual wallet output size. Unsupported shapes are not
+  guessed; and
+- prefer one confirmed, pure-DIESEL UTXO as the sole funding input when it can fund the
+  transaction by itself. This rolls accumulated DIESEL into the successor UTXO without adding
   an input. If it cannot fund the transaction, it remains protected and clean BTC is used instead;
   the wallet never pays roughly 68 vB just to consolidate during a mint.
 
-The current allow-list skips MPMA, memos, user `more_outputs`, non-P2WPKH source addresses,
-Counterparty Taproot/multisig data, explicit-UTXO operations, and every non-send transaction type.
-The provider surface does not add mints; it only enforces carrier protection. Swap and Subfrost
+The current allow-list supports P2WPKH, P2TR, P2PKH, and wallet P2SH sources. It skips MPMA,
+Counterparty Taproot/multisig *message encodings*, legacy attach controls (`utxo_value` or
+`destination_vout`), detach/move, and every other unproved transaction family.
+The provider surface does not add mints; it only enforces UTXO protection. Swap and Subfrost
 unwrap remain research-only and are not presented as available actions.
 
 ## Executed validation
@@ -112,7 +120,7 @@ endpoint with `encoding=opreturn` and `more_outputs` to construct this exact ord
 
 ```text
 vout 0  Counterparty enhanced-send OP_RETURN
-vout 1  330-sat wallet-owned P2WPKH carrier
+vout 1  330-sat wallet-owned P2WPKH UTXO
 vout 2  Alkanes OP_RETURN OP_13, pointer=1, refund=1, call=[2,0,77]
 vout 3  wallet change
 ```
@@ -123,7 +131,7 @@ Bitcoin Core's `testmempoolaccept` accepted the signed transaction at 222 vB and
 Counterparty indexed it with `supported=true`, `valid=true`, and
 `transaction_type=enhanced_send`; the asset debit and recipient credit were both
 recorded. Its `utxos_info` selected vout 1 as the first non-OP_RETURN output, which
-directly confirms that the carrier acted as the required parser boundary and the
+directly confirms that the UTXO acted as the required parser boundary and the
 later Alkanes OP_RETURN did not contaminate the XCP message.
 
 I then measured three composes of the same one-input enhanced send at 2 sat/vB:
@@ -131,14 +139,14 @@ I then measured three composes of the same one-input enhanced send at 2 sat/vB:
 | Shape | Signed vsize | Fee | Delta from ordinary send |
 |---|---:|---:|---:|
 | Ordinary Counterparty send | 165 vB | 330 sats | — |
-| 330-sat carrier + runestone + separate change | 222 vB | 444 sats | +57 vB / +114 sats |
-| Carrier absorbs all change + runestone | 191 vB | 382 sats | **+26 vB / +52 sats** |
+| 330-sat UTXO + runestone + separate change | 222 vB | 444 sats | +57 vB / +114 sats |
+| UTXO absorbs all change + runestone | 191 vB | 382 sats | **+26 vB / +52 sats** |
 
 The optimized 191-vB transaction was signed and accepted by Bitcoin Core 30's
 `testmempoolaccept`; it was deliberately not broadcast, leaving its test asset
 input available. It used public Counterparty v11.3 compose parameters only:
 an exact `inputs_set`, `use_all_inputs_set=true`, `exact_fee=382`, and
-`more_outputs` containing the entire 99,618-sat wallet carrier followed by the
+`more_outputs` containing the entire 99,618-sat wallet UTXO followed by the
 zero-value runestone script. Counterparty therefore had no residual change to
 append. The predicted and actual signed sizes were both 191 vB.
 
@@ -150,15 +158,15 @@ produced, signed, broadcast, and mined the optimized transaction
 - Bitcoin Core 30 reported exactly **191 vB**, a **382-sat fee**, **2 sat/vB**, and
   `testmempoolaccept.allowed=true`;
 - the outputs were the unchanged enhanced-send OP_RETURN, a **1,219,997-sat owned P2WPKH
-  carrier**, and the exact pointer/refund-1 DIESEL runestone, with no separate change;
+  UTXO**, and the exact pointer/refund-1 DIESEL runestone, with no separate change;
 - Counterparty Core 11.3 indexed it as `supported=true`, `valid=true`,
   `transaction_type=enhanced_send`, selected vout 1 as the parser boundary, debited exactly one
   unit from the source, and credited exactly one unit to the intended destination; and
 - balances reconciled to 999 units at the source and 1 at the destination.
 
-A plain 10,000-sat BTC send spending that carrier was also recomposed into the same three-output
+A plain 10,000-sat BTC send spending that UTXO was also recomposed into the same three-output
 shape. It signed at **167 vB**, paid **334 sats** at 2 sat/vB, and passed
-`testmempoolaccept`. This proves the wallet can use the previous carrier as the funding input and
+`testmempoolaccept`. This proves the wallet can use the previous UTXO as the funding input and
 route its existing DIESEL plus the new mint into vout 1 without an added input. The full Alkanes
 balance rollover remains covered by the consensus-indexer WASM regression below because the
 DigiRare Docker stack contains Bitcoin and Counterparty indexers but no Alkanes indexer.
@@ -168,22 +176,50 @@ reachable today without a Counterparty Core patch and without rewriting a PSBT.*
 It needs a two-pass compose in the extension, described below.
 
 Separately, I added and ran a focused Alkanes consensus-indexer WASM regression
-using the same three-output protocol shape. Mint 1 created carrier A. Mint 2 spent
+using the same three-output protocol shape. Mint 1 created UTXO A. Mint 2 spent
 A and targeted successor B while a control mint measured mint 2's reward. The test
 asserted that A was cleared and `B == old balance + new reward`; it passed. This is
-direct proof of the rolling-carrier behavior in the released source, not merely a
+direct proof of the rolling-UTXO behavior in the released source, not merely a
 read of the mint contract.
 
 These are two strong, complementary tests, but they are not yet one identical raw
 transaction fed through both full indexers. The DigiRare Docker stack has no
 Alkanes indexer, so a same-bytes dual-indexer fixture remains an acceptance gate.
 
+I also exercised the optimized host shape from every ordinary single-key address family the
+extension supports. Each transaction was signed by Bitcoin Core, accepted by
+`testmempoolaccept`, mined, and indexed by Counterparty 11.3 as a supported, valid enhanced send:
+
+| Source type | Transaction | Actual signed vsize | Fee |
+|---|---|---:|---:|
+| P2WPKH | `3a930995f7eac57afa17dd39424836cf64c06e35921dd9021234f8948cbe31f7` | 191 vB | 382 sats |
+| P2TR key path | `db268f208b2ef2df5bd40090e3e576505b848f190fed85b14b0eff615eedcacb` | 192 vB | 386 sats |
+| P2PKH | `455f65c9e91f107c8cdde3978caa0660550e88fb9365239b0036a034f8a01d38` | 272 vB | 546 sats |
+| P2SH-P2WPKH | `0d160ca590a8e4405b411b261f14cfb5cc10057f16c2c9402a2dc558cec8d473` | 215 vB | 624 sats |
+
+The nested-SegWit fee is intentionally reported, not normalized away: Counterparty 11.3 estimated
+312 vB while the signature was actually 215 vB. That format works, but the upstream estimator
+overpays its absolute fee. The mint-only difference remains 26 vB because the estimator's input
+bias is present in both the ordinary and minting composes.
+
+The default UTXO-attach shape is proven too. Transaction
+`569afa1d9a2b295bf965753ba670886006a7b889bb7c18e113cf9af8dcc42157` was signed at **208 vB**
+and **416 sats**, accepted, mined, and indexed as `transaction_type=attach`, `supported=true`, and
+`valid=true`. Counterparty assigned the test asset to vout 0; the wallet-owned DIESEL UTXO was
+vout 2; the runestone was vout 3. The ordinary attach was 182 vB / 364 sats, making the measured
+increment exactly **26 vB / 52 sats**.
+
+A tempting still-smaller-looking layout was rejected by the actual parser. Putting the Alkanes
+OP_RETURN immediately after Counterparty's OP_RETURN made both send and attach composition fail
+with `Encountered invalid OP_RETURN script`. The intervening ordinary wallet output is therefore
+a required Counterparty parser boundary, not gratuitous storage output.
+
 ## Audit of the supplied write-up
 
 | Claim | Finding |
 |---|---|
 | The fixed hex decodes to protocol 1, pointer 0, refund 0, message `[2,0,77]` | **Correct.** The decode matches Alkanes tags. |
-| A special UTXO is required to mint | **Wrong.** A fresh mint needs no incoming Alkanes. A carrier is a wallet strategy for holding or rolling the result. |
+| A special UTXO is required to mint | **Wrong.** A fresh mint needs no incoming Alkanes. A UTXO is a wallet strategy for holding or rolling the result. |
 | The live DIESEL contract is unknown | **Wrong for the released indexer.** Mainnet switches `2:0` to upgraded-EOA at height 917,888. |
 | Opcode 77 might differ | **Wrong for released code.** `#[opcode(77)] Mint` is explicit. |
 | P2SH is a current Counterparty compose choice | **Wrong.** Compose support was removed; only historical parsing remains. |
@@ -205,8 +241,8 @@ opcode `77`, and assigns the result to the output selected by `ProtoPointer`.
 behavior. An outpoint can be spent only once. The implementable sequence is:
 
 ```text
-carrier A (old DIESEL) -> spend A in mint 2 -> carrier B (old + mint 2)
-carrier B              -> spend B in mint 3 -> carrier C (old + mint 2 + mint 3)
+UTXO A (old DIESEL) -> spend A in mint 2 -> UTXO B (old + mint 2)
+UTXO B              -> spend B in mint 3 -> UTXO C (old + mint 2 + mint 3)
 ```
 
 The focused Alkanes WASM regression in this review proved exactly the first line.
@@ -219,9 +255,9 @@ lost. This is explicit in the released
 
 Two designs are possible:
 
-- **Rolling carrier:** spend the previous carrier and route old plus newly minted
+- **Rolling UTXO:** spend the previous UTXO and route old plus newly minted
   DIESEL to its replacement. This keeps one asset UTXO but may add an input.
-- **Accumulating carriers:** mint to a fresh output and leave older ones untouched.
+- **Accumulating UTXOs:** mint to a fresh output and leave older ones untouched.
   This avoids the recurring input but fragments the balance and creates a growing
   protected UTXO set.
 
@@ -229,7 +265,7 @@ The Counterparty API does have both `exclude_utxos_with_balances` and
 `exclude_utxos`, but only the second one is directly useful here:
 
 - `exclude_utxos_with_balances=true` queries Counterparty Core's own `balances`
-  table. DIESEL is not in that table, so its carrier looks like ordinary BTC.
+  table. DIESEL is not in that table, so its UTXO looks like ordinary BTC.
 - `exclude_utxos=<txid:vout,...>` excludes exact client-supplied outpoints. The
   extension should pass every known Alkanes-bearing outpoint here as a second line
   of defence whenever it is not deliberately rolling one.
@@ -242,7 +278,7 @@ This is not only a BTC-send problem. BTC sends, ordinary XCP sends, orders,
 issuances, broadcasts, dispensers, dApp requests, and consolidation can all consume
 BTC funding inputs. Every transaction path must obey the same global protected-UTXO
 policy. UTXO-addressed attach/detach/move flows must additionally reject a DIESEL
-carrier as their explicit source unless they implement valid Alkanes routing.
+UTXO as their explicit source unless they implement valid Alkanes routing.
 
 The Alkanes CLI independently implements a fail-closed `lock_alkanes` check using
 `protorunesbyoutpoint`; that supports this design. Counterparty Core should not be
@@ -251,35 +287,35 @@ wallet and use Core's generic exact-outpoint exclusion.
 
 ### What the “special UTXO” should actually be
 
-A fixed 330-sat carrier spent and recreated on every transaction is the wrong
+A fixed 330-sat UTXO spent and recreated on every transaction is the wrong
 optimization. Its input is almost always additional, taking the marginal cost from
 57 vB to roughly 125 vB—nearly the 135 vB standalone mint. Making it Taproot does
 not rescue that arithmetic.
 
 The best design is a **same-address active funding/change coin**:
 
-1. When minting is attached, deliberately include the current carrier as a funding
+1. When minting is attached, deliberately include the current UTXO as a funding
    input, route its existing DIESEL plus the new reward to the wallet's next normal
    change output, and mark that output as the successor.
-2. When minting is not attached or is unsafe, exclude every carrier both from the
+2. When minting is not attached or is unsafe, exclude every UTXO both from the
    local candidate set and through Core's exact `exclude_utxos` parameter.
-3. If the transaction has no viable wallet change output, either create a carrier
+3. If the transaction has no viable wallet change output, either create a UTXO
    explicitly and disclose the added 31 vB, or skip the mint. Never improvise after
    composition.
 
-This works economically only when the carrier input replaces BTC funding the
+This works economically only when the UTXO input replaces BTC funding the
 transaction already needed. A fixed-value reserve that is recreated unchanged is
 still an extra input even if it contains many sats.
 
 There are three practical implementation levels:
 
-- **One-pass/simple:** request a 330-sat same-address carrier and the Alkanes script
+- **One-pass/simple:** request a 330-sat same-address UTXO and the Alkanes script
   through `more_outputs`, allowing Core to append ordinary change. This is
   parser-safe and costs 57 vB. Treat the result as a new protected shard; do not
-  force an old carrier input into the transaction just to consolidate it.
+  force an old UTXO input into the transaction just to consolidate it.
 - **Two-pass/optimized with current Core:** first compose the 57-vB shape to freeze
   the actual inputs, output order, data size, and signed-size estimate. Recompose
-  with only those inputs, `use_all_inputs_set=true`, an `exact_fee`, and a carrier
+  with only those inputs, `use_all_inputs_set=true`, an `exact_fee`, and a UTXO
   value equal to every sat that would otherwise be change. Core then appends no
   change output. This measured **+26 vB** and leaves Core—not the extension—building
   both the raw transaction and PSBT.
@@ -288,22 +324,22 @@ There are three practical implementation levels:
   ergonomics, but no longer a prerequisite for the efficient implementation.
 
 Do not mutate the first response's raw transaction or PSBT. Although deleting the
-separate change output and merging its value into the carrier would also produce a
+separate change output and merging its value into the UTXO would also produce a
 191-vB skeleton, it would leave the original 444-sat fee in the measured example—an
 accidental 2.32 sat/vB instead of the selected 2 sat/vB—and would require faithfully
 rewriting every hardware-wallet PSBT field.
 
-Keep the carrier on the same active address for the first version. Counterparty uses
+Keep the UTXO on the same active address for the first version. Counterparty uses
 the source/first-input relationship as a sanity check and its selector reorders
 inputs by value. A dedicated derivation-path address introduces mixed-key signing
 and first-input ambiguity without improving the protocol.
 
-### Carrier state, not just a stored outpoint
+### UTXO state, not just a stored outpoint
 
 Maintain one state machine per wallet address:
 
 ```text
-confirmed carrier -> pending successor -> confirmed successor
+confirmed UTXO -> pending successor -> confirmed successor
 ```
 
 Store the outpoint, sat value, DIESEL amount, script/address, creating transaction,
@@ -312,7 +348,7 @@ successor as ordinary spendable BTC. RBF replacement and reorgs must atomically
 replace or roll back this state.
 
 For an MVP, do not chain another transaction from an unconfirmed successor. A later
-RBF of the parent would invalidate the descendant. While a carrier roll is pending,
+RBF of the parent would invalidate the descendant. While a UTXO roll is pending,
 skip attached minting and keep the pending successor protected. Unconfirmed chaining
 can be a later, explicitly tested feature.
 
@@ -334,7 +370,7 @@ message makes `auto` fall back to multisig, a first version can simply skip DIES
 
 “Taproot” means two different things here:
 
-- A **P2TR carrier output** is feasible. It is just a wallet-controlled output to
+- A **P2TR UTXO output** is feasible. It is just a wallet-controlled output to
   which Alkanes assigns a balance.
 - Counterparty **`encoding=taproot`** creates an ephemeral P2TR commit plus a
   separately signed reveal whose witness carries the message. It is not a simple
@@ -347,21 +383,21 @@ does not avoid the two-OP_RETURN issue. Exclude it initially.
 
 Thus Taproot is valid for the token-bearing UTXO, but offers no useful advantage as
 the Counterparty message encoding. P2WPKH is marginally smaller for a repeatedly
-created-and-spent carrier; that is economics, not correctness.
+created-and-spent UTXO; that is economics, not correctness.
 
 Address eligibility should be based on the wallet's ability to own and sign the
-carrier, not on the recipient's address format:
+UTXO, not on the recipient's address format:
 
-| Wallet/carrier script | Protocol support | Initial policy |
+| Wallet/UTXO script | Protocol support | Initial policy |
 |---|---|---|
 | P2WPKH | Yes | Preferred; smallest proven repeated create/spend shape |
-| P2TR key path | Yes | Allow after signer fixtures; slightly larger carrier lifetime cost |
-| P2SH-P2WPKH | Yes | Allow after signer fixtures; higher input cost |
-| P2PKH, including legacy derivation variants | Yes | Allow after signer fixtures; higher fee and variable DER-signature sizing |
+| P2TR key path | Yes | Allowed and regtest-proven; slightly larger UTXO lifetime cost |
+| P2SH-P2WPKH | Yes | Allowed and regtest-proven; upstream size estimator currently overpays |
+| P2PKH, including legacy derivation variants | Yes | Allowed and regtest-proven; higher fee and variable DER-signature sizing |
 | Arbitrary P2WSH/P2SH multisig, script-path P2TR, descriptor/watch-only | Not inherently forbidden by Alkanes | Skip until ownership, PSBT, and recovery policies exist |
 
 A P2TR source does not imply Counterparty Taproot encoding. Force OP_RETURN for an
-eligible short Counterparty message even when the funding/carrier address is P2TR.
+eligible short Counterparty message even when the funding/UTXO address is P2TR.
 For a DIESEL transfer, any standard recipient output can be targeted by vout; the
 extension only needs an address format it can decode and a wallet-owned standard
 output for change/refund. Never route a balance to OP_RETURN, bare-multisig data,
@@ -375,7 +411,7 @@ invalid. The Alkanes output therefore cannot simply precede or sit directly afte
 Counterparty data. A wallet output after the XCP message acts as the parser boundary:
 
 ```text
-XCP data -> wallet carrier -> Alkanes OP_RETURN
+XCP data -> wallet UTXO -> Alkanes OP_RETURN
             ^ Counterparty stops here
 ```
 
@@ -386,7 +422,7 @@ runestone. That value is unused by the pure-mint path today, but an upstream fix
 would make the composition less brittle.
 
 Multiple OP_RETURNs are consensus-valid. Bitcoin Core 30 also permits them under
-default relay/mining policy and applies its carrier-size limit in aggregate.
+default relay/mining policy and applies its aggregate OP_RETURN-size limit.
 [Bitcoin Core 30 release notes](https://github.com/bitcoin/bitcoin/blob/master/doc/release-notes/release-notes-30.0.md)
 
 The exact signed combined transaction passed `testmempoolaccept` on the DigiRare
@@ -406,15 +442,15 @@ output costs about 26 vB including amount and length fields.
 | Construction | Approximate marginal vsize |
 |---|---:|
 | Runestone targeting an already-existing, correctly positioned own output | **26 vB** |
-| Straightforward current-Core path: P2WPKH carrier + runestone | **57 vB** |
-| Same, plus an otherwise-unneeded P2WPKH carrier input | **125 vB** |
+| Straightforward current-Core path: P2WPKH UTXO + runestone | **57 vB** |
+| Same, plus an otherwise-unneeded P2WPKH UTXO input | **125 vB** |
 | Supplied bot's standalone P2WPKH mint | **135 vB** |
 
 The “5× cheaper” claim describes the optimized first row. It is now measured, not
 merely theoretical, but it remains conditional: the transaction must have enough
-wallet-returning value to act as the carrier, and using an old carrier must not add
+wallet-returning value to act as the UTXO, and using an old UTXO must not add
 an otherwise-unneeded input. The 57-vB path is the simplicity fallback. If rolling
-a carrier adds an input, the advantage nearly disappears.
+a UTXO adds an input, the advantage nearly disappears.
 
 Miner-fee deltas at representative rates are:
 
@@ -428,9 +464,9 @@ Miner-fee deltas at representative rates are:
 | 50 sat/vB | 1,300 sats | 2,850 sats | 6,250 sats | 6,750 sats |
 | 100 sat/vB | 2,600 sats | 5,700 sats | 12,500 sats | 13,500 sats |
 
-The carrier's BTC value is **not a fee**. It remains wallet-owned, but becomes
+The UTXO's BTC value is **not a fee**. It remains wallet-owned, but becomes
 protocol-encumbered and must be excluded or safely rolled thereafter. A 330-sat
-carrier minimizes locked liquidity; a normal-change carrier is more useful because
+UTXO minimizes locked liquidity; a normal-change UTXO is more useful because
 it can fund a later transaction without adding another input. The cost of the latter
 is operational liquidity and linkability, not destroyed BTC.
 
@@ -457,7 +493,7 @@ only 52 additional sats at that rate.
 
 The new 330-sat storage output is also not part of that miner fee. Those sats remain
 owned by the wallet. They are temporarily unavailable to ordinary coin selection,
-and repeated fresh carriers create a growing liquidity reserve and a future
+and repeated fresh UTXOs create a growing liquidity reserve and a future
 consolidation cost, but they are not burned. The UI must show these separately:
 
 - **extra miner fee**: spent permanently;
@@ -615,7 +651,7 @@ collapsing them into one seductive number:
 |---|---|
 | Market / exit price | Net executable sats per DIESEL for a stated sell size and verified route |
 | Extra fee now | Exact mint-only vbytes and sats for this transaction |
-| Protected storage | 330 sats (or actual carrier value), explicitly labelled recoverable |
+| Protected storage | 330 sats (or actual UTXO value), explicitly labelled recoverable |
 | Projected reward | A range derived from recent `N` and the active reward formula, never a promise |
 | Break-even band | Sats/DIESEL after marginal fee, failure rate, and allocated exit cost |
 | Recent history | Median and range with reverts visible; adapter version and timestamp shown |
@@ -634,19 +670,19 @@ to auto-label a mint profitable.
 | Strategy | Fee behavior | State complexity | Main failure mode | Assessment |
 |---|---|---|---|---|
 | Fixed 330-sat rolling baton | Usually adds ~68-vB input; ~125-vB total delta | Low | Near-standalone cost, serial chain | Reject as default |
-| Large active change/funding carrier | +26 vB when it replaces a funding coin already needed | Medium | Linkability and serial pending state | Best steady-state |
-| New carrier shard per mint | +26 vB with natural carrier, +57 vB with explicit one | Medium/high | Balance fragmentation | Best fallback |
-| Pool of several active carriers | Preserves +26 more often under concurrent sends | High | More reconciliation and selection states | Later optimization |
+| Large active change/funding UTXO | +26 vB when it replaces a funding coin already needed | Medium | Linkability and serial pending state | Best steady-state |
+| New UTXO shard per mint | +26 vB with natural UTXO, +57 vB with explicit one | Medium/high | Balance fragmentation | Best fallback |
+| Pool of several active UTXOs | Preserves +26 more often under concurrent sends | High | More reconciliation and selection states | Later optimization |
 | Standalone mint | ~135 vB | Low and isolated | Highest fee | Useful only as explicit tool |
 
 The economically correct policy is **adaptive**, not “always reuse the special
 UTXO”:
 
-1. If a confirmed DIESEL carrier is already required as a BTC funding input, roll
-   it into the new change carrier.
-2. If selecting it would add an input, leave it protected and mint to a new carrier
+1. If a confirmed DIESEL UTXO is already required as a BTC funding input, roll
+   it into the new change UTXO.
+2. If selecting it would add an input, leave it protected and mint to a new UTXO
    instead.
-3. If a normal owned output can become the carrier, use the +26-vB shape.
+3. If a normal owned output can become the UTXO, use the +26-vB shape.
 4. Otherwise offer the +57-vB explicit output or skip, according to the user's
    maximum marginal fee.
 5. Consolidate shards later in a deliberately low-fee transaction; do not pay a
@@ -656,12 +692,51 @@ This is the same basic trade as ordinary UTXO consolidation. Deferring one extra
 P2WPKH input saves about 68 vB at today's rate; combining it later is rational only
 at a meaningfully lower fee rate or when a DIESEL send already needs it.
 
+### Bulk attachment: 1,000–2,000 transactions
+
+Bulk attachment changes the recommendation because it combines a legitimate sunk host cost with
+extreme concurrency:
+
+- If transactions are sent **sequentially after confirmation**, each can spend the prior DIESEL
+  UTXO and route `old DIESEL + new mint` to its successor. This keeps one token-bearing UTXO, but
+  one confirmation per attachment is far too slow for most 1,000-transaction jobs.
+- If 1,000 transactions are composed or broadcast **in parallel**, they cannot all spend the same
+  UTXO. Bitcoin would treat 999 of them as double spends. The safe first version creates up to
+  1,000 independent DIESEL UTXOs.
+- An unconfirmed chain can reduce fragmentation, but not eliminate it: default ancestor/descendant
+  package policy is bounded, RBF invalidates descendants, and a thousand-deep chain is neither a
+  relay-safe nor operationally sane wallet strategy. This is out of scope for the first release.
+
+The visible +26-vB mining delta is therefore not the whole cost of a parallel batch. Spending
+1,000 P2WPKH DIESEL UTXOs later contributes about **68,000 vB of inputs** before transaction
+overhead and outputs; 2,000 contribute about **136,000 vB**. At 1 sat/vB that is roughly 68,000
+or 136,000 sats, and at 5 sat/vB roughly 340,000 or 680,000 sats. A single transaction also cannot
+use them all through Counterparty's 20-input compose limit, so consolidation or a large DIESEL send
+would require many transactions.
+
+That future input cost is not necessarily a dedicated consolidation bill. The wallet should first
+use confirmed DIESEL UTXOs as funding inputs for later transactions when they replace BTC inputs
+that were already needed, rolling several balances toward fewer successor UTXOs. Only the
+unabsorbed remainder should be deliberately consolidated during low fees. The economics screen
+must nevertheless allocate a future-spend cost; otherwise a 1,000-mint batch can look profitable
+up front while merely deferring more fees than it earned.
+
+Recommended bulk policy for this PR:
+
+1. Roll the largest confirmed DIESEL UTXO when it can fund the next transaction by itself.
+2. Never add an underfunded DIESEL UTXO beside another funding input merely to make the balance
+   list look tidy.
+3. For simultaneous jobs, mint to separate UTXOs and show the projected count and future input
+   vbytes before broadcast.
+4. Add bounded chain/pool scheduling only after a regtest fixture covers package limits, RBF,
+   restarts, and partial batch failure.
+
 ### Recommended two-pass compose
 
 For a short OP_RETURN-encoded Counterparty message:
 
 1. Locally select spendable BTC coins after subtracting every known Counterparty
-   and Alkanes carrier. Add one carrier only when it is deliberately being rolled.
+   and Alkanes UTXO. Add one UTXO only when it is deliberately being rolled.
 2. First compose with a 330-sat wallet output followed by a dynamically encoded
    DIESEL runestone. This establishes the exact Counterparty output shape and the
    inputs Core actually chose.
@@ -670,17 +745,17 @@ For a short OP_RETURN-encoded Counterparty message:
    size by removing that output's serialized size from Core's signed-size estimate.
 4. Set `exact_fee = ceil(target_rate × no_change_vsize)`, with at most a one-vbyte
    conservative allowance if a signer has variable-size legacy signatures.
-5. Set the carrier value to `sum(inputs) - sum(all other value outputs) - exact_fee`.
+5. Set the UTXO value to `sum(inputs) - sum(all other value outputs) - exact_fee`.
    Recompose using only the first response's actually selected outpoints and
    `use_all_inputs_set=true`.
-6. Accept only if `btc_change == 0`, the carrier is wallet-owned and above dust,
+6. Accept only if `btc_change == 0`, the UTXO is wallet-owned and above dust,
    pointer and refund equal its actual index, every input is one the wallet offered,
    the exact two protocol payloads are present in the required order, and the
    independently computed fee matches the intended bound.
 7. Sign the second response's untouched PSBT/raw transaction. After signing, check
    actual vsize and fee rate once more before broadcast.
 
-Carrier value does not affect serialized size, so this reaches a fixed point in two
+UTXO value does not affect serialized size, so this reaches a fixed point in two
 requests; it is not an open-ended fee-estimation loop. If the second response changes
 inputs, encoding, or output order, abort rather than retrying into a looser policy.
 The current compose fallback that eventually sends no `inputs_set` must be disabled
@@ -691,12 +766,12 @@ request, including failures and retries.
 
 Never hard-code pointer 0 or pointer 1. The common cases are:
 
-| Host transaction | Expected optimized order | Carrier pointer |
+| Host transaction | Expected optimized order | UTXO pointer |
 |---|---|---:|
-| Enhanced XCP send / order / issuance without BTC destination | XCP data, carrier, runestone | 1 |
-| Plain BTC send, one pass | BTC recipient, runestone, ordinary change carrier | 2 |
-| Plain BTC send, no separate change | BTC recipient, carrier, runestone | 1 |
-| Positionally addressed XCP action | destination, XCP data, carrier, runestone | 2 |
+| Enhanced XCP send / order / issuance without BTC destination | XCP data, UTXO, runestone | 1 |
+| Plain BTC send, one pass | BTC recipient, runestone, ordinary change UTXO | 2 |
+| Plain BTC send, no separate change | BTC recipient, UTXO, runestone | 1 |
+| Positionally addressed XCP action | destination, XCP data, UTXO, runestone | 2 |
 
 Multiple destinations or data outputs shift the index again. Build the protostone
 after locating the wallet output, set **both** `ProtoPointer` and `Refund`, then verify
@@ -705,18 +780,18 @@ the encoded values from the finished transaction.
 ### RBF, CPFP, concurrency, and reorgs
 
 - Use opt-in RBF for the host transaction. A replacement changes the txid and hence
-  the carrier outpoint; update the pending-successor record atomically and re-check
-  the replacement's exact payload and carrier index.
-- Do not use the carrier as an automatic CPFP input in v1. That creates another
+  the UTXO outpoint; update the pending-successor record atomically and re-check
+  the replacement's exact payload and UTXO index.
+- Do not use the UTXO as an automatic CPFP input in v1. That creates another
   protocol-sensitive spend and an unconfirmed chain merely to accelerate a lottery
   reward whose high-fee-block payout may already be worse.
-- Allow at most one pending successor per confirmed carrier. While it is pending,
-  create a separate carrier or skip; do not spend an unconfirmed successor in the
+- Allow at most one pending successor per confirmed UTXO. While it is pending,
+  create a separate UTXO or skip; do not spend an unconfirmed successor in the
   first release.
-- A reorg returns the old carrier to confirmed state and invalidates its successor.
+- A reorg returns the old UTXO to confirmed state and invalidates its successor.
   The address-level balance must be reconciled from the Alkanes indexer rather than
   adjusted by optimistic arithmetic alone.
-- If concurrency becomes important, maintain a small pool of confirmed carriers.
+- If concurrency becomes important, maintain a small pool of confirmed UTXOs.
   That is a throughput optimization, not an MVP requirement.
 
 ### Eligible transaction families
@@ -736,13 +811,14 @@ broad:
 | Counterparty Taproot commit/reveal | Skip | Two transactions and composer-owned reveal key |
 | Dispenser open/refill/close, dispense payment, BTCPay, burn | Skip | BTC values/outputs carry protocol semantics; a harmless-looking extra output can change meaning |
 | Fairmint/fairminter | Skip in v1 | May combine asset issuance/payment semantics and changing protocol state |
-| Attach, detach, move, sweep | Skip | Explicit UTXO or whole-balance semantics |
+| Default current-form attach | Allow; mined and indexed fixture | vout 0 asset, vout 2 DIESEL UTXO, vout 3 runestone |
+| Legacy/explicit attach controls, detach, move, sweep | Skip | Explicit UTXO or whole-balance semantics need separate routing fixtures |
 | Existing runestone/Alkanes call | Skip | Call order, routing, and one-mint constraint |
-| Exact spend with no carrier-sized return | Ask +57 or skip | Needs a new output |
-| dApp/external PSBT or raw-transaction signing | Never auto-decorate | Wallet did not construct the output contract; only block protected-carrier spends or use an explicit integration |
+| Exact spend with no UTXO-sized return | Ask +57 or skip | Needs a new output |
+| dApp/external PSBT or raw-transaction signing | Never auto-decorate | Wallet did not construct the output contract; only block protected-UTXO spends or use an explicit integration |
 
 An allow-listed message still has to pass shape inspection. If Core chose a
-different encoding than expected, if the carrier would be dust, if the Alkanes
+different encoding than expected, if the UTXO would be dust, if the Alkanes
 indexer is unavailable or behind, or if any selected input has an unknown Alkanes
 balance, minting fails closed while the underlying transaction can be recomposed
 without DIESEL.
@@ -755,7 +831,7 @@ advanced policy has these independent controls:
 - mode: Off / Ask / Auto;
 - maximum fee rate for attaching a mint;
 - maximum marginal fee in sats;
-- permit +57-vB explicit carrier: yes/no;
+- permit +57-vB explicit UTXO: yes/no;
 - consolidate only below a chosen fee rate.
 
 Default Auto should mean “+26-vB cases only.” Ask can expose the +57-vB fallback.
@@ -819,9 +895,9 @@ small part; safe coexistence of two UTXO ledgers is the project.
 | Dynamic mint script + structural decoder | Small | Three values, but exact byte verification is mandatory |
 | Two-pass no-change compose | Medium | Freeze inputs, calculate exact fee, recompose, compare both results |
 | Global Alkanes UTXO protection | High | Must cover compose fallbacks, BTC builders, dApp PSBTs, consolidation, and signing |
-| Confirmed/pending carrier state + RBF/reorg | High | Outpoints change while balances must never be guessed |
+| Confirmed/pending UTXO state + RBF/reorg | High | Outpoints change while balances must never be guessed |
 | Read-only DIESEL balance row/detail page | Medium | Separate indexer and ledger model |
-| DIESEL send/change transaction builder | High | Edicts, partial balance change, multiple carrier inputs, fee funding |
+| DIESEL send/change transaction builder | High | Edicts, partial balance change, multiple UTXO inputs, fee funding |
 | Per-family fixtures + dual-indexer harness | Medium/high | Output semantics differ across Counterparty actions |
 | Live contract/version adapter | Medium today, potentially high | v3 changes the callable interface and recipient economics |
 
@@ -842,7 +918,7 @@ The optimized path adds one Counterparty compose round trip before review. It do
 not add a signing prompt or an on-chain transaction. Balance safety adds an Alkanes
 address/outpoint lookup during refresh and a fail-closed reconciliation at compose
 or signing time; cache it, but never let a stale or unavailable cache silently mark
-a known carrier as ordinary BTC.
+a known UTXO as ordinary BTC.
 
 ## Extension scope
 
@@ -851,18 +927,18 @@ than a toggle and balance row. Minimum safe scope:
 
 1. **Experimental setting, off by default**, plus a protocol-health kill switch.
 2. **Alkanes client** for address and outpoint balance reconciliation.
-3. **Protected carrier registry** refreshed on unlock, compose, and signing.
+3. **Protected UTXO registry** refreshed on unlock, compose, and signing.
 4. **Alkanes-aware coin selection** for every Bitcoin/Counterparty flow.
-5. **Provider/dApp signing guard** so a site cannot spend the carrier without valid
+5. **Provider/dApp signing guard** so a site cannot spend the UTXO without valid
    carry-forward routing.
-6. **Dynamic protostone builder** targeting the exact carrier in both pointer and
+6. **Dynamic protostone builder** targeting the exact UTXO in both pointer and
    refund.
 7. **Exact output verification.** The wallet currently accepts any OP_RETURN as a
-   data output; it must verify the exact Alkanes script, carrier index/value, and
+   data output; it must verify the exact Alkanes script, UTXO index/value, and
    wallet ownership.
-8. **Separate balance presentation:** “DIESEL · Alkanes”, with carrier status. Do
+8. **Separate balance presentation:** “DIESEL · Alkanes”, with UTXO status. Do
    not manufacture a Counterparty `TokenBalance` for a different ledger.
-9. **Recovery/consolidation and RBF handling** for carrier replacement.
+9. **Recovery/consolidation and RBF handling** for UTXO replacement.
 
 Relevant seams are [settings](./src/core/settings.ts),
 [advanced settings](./src/pages/settings/advanced.tsx),
@@ -883,7 +959,7 @@ The provider still has to become Alkanes-aware. Its rule should be asymmetric:
 
 - wallet-authored eligible transaction: optionally add and fully verify a mint;
 - provider-authored transaction: never add a mint, but never allow an Alkanes
-  carrier to be spent invisibly.
+  UTXO to be spent invisibly.
 
 The raw-transaction and PSBT approval paths already converge on
 `analyzeSignRequest`, and both start per-input Counterparty attachment lookups. Add
@@ -897,7 +973,7 @@ prioritizing those inputs under any request-size cap. The initial policy should 
 | Lookup failed, indexer stale, or input displaced by cap | Hard block/retry; never interpret unknown as empty |
 
 Apply this whether auto-mint is on or off. Disabling issuance cannot make an
-existing or newly received carrier ordinary BTC. Only inputs this wallet signs are
+existing or newly received UTXO ordinary BTC. Only inputs this wallet signs are
 asset-loss authority in a collaborative PSBT; an Alkane on another participant's
 input can be displayed but is not ours to authorize.
 
@@ -915,12 +991,12 @@ Today `safeOwnChange` and `recent_safe_broadcast_prevouts` establish that a newl
 created own output can bypass Counterparty indexing lag because its parent signed
 inputs were Counterparty-attachment-free. That is not proof it is Alkanes-free.
 Only journal an output as generally safe when all signed inputs were confirmed clean
-on **both** ledgers and the transaction creates no Alkanes result. A mint carrier
+on **both** ledgers and the transaction creates no Alkanes result. A mint UTXO
 goes into the protected Alkanes registry, never the ordinary safe-change journal.
 
 For `xcp_broadcastTransaction`, do not treat arbitrary signed bytes as a trusted
 state transition or seed safe change. As defense in depth, refuse provider broadcast
-of a transaction spending a known carrier unless it matches a previously approved
+of a transaction spending a known UTXO unless it matches a previously approved
 future Alkanes-provider flow. This is not a complete security boundary—a dApp can
 broadcast elsewhere—but prevents this extension from publishing or blessing a
 known destructive spend.
@@ -930,10 +1006,10 @@ into `xcp_signPsbt`. It would require a local runestone/protostone decoder, exac
 input/output balance simulation, recognized contract IDs/code hashes, own
 change/refund proof, strict slippage/deadline checks for swaps, and output-committing
 sighashes. Until that exists, even a provider PSBT containing an apparently valid
-runestone is blocked when it spends one of our carriers; opaque contract execution
+runestone is blocked when it spends one of our UTXOs; opaque contract execution
 is not evidence of safe preservation.
 
-No DIESEL balance or carrier list needs to be exposed to websites for the mining
+No DIESEL balance or UTXO list needs to be exposed to websites for the mining
 feature. A read API can be considered later under a distinct permission. The only
 provider cost in v1 is one batched/fanned-out Alkanes outpoint check during approval;
 if it cannot complete, signing fails closed rather than sacrificing the asset for
@@ -953,26 +1029,26 @@ Clicking it should open a dedicated DIESEL screen, not the generic Counterparty
 asset screen. Show:
 
 - confirmed spendable DIESEL and pending mint rewards;
-- number and total BTC value of protected carrier UTXOs;
-- active/pending carrier outpoint and confirmation state;
+- number and total BTC value of protected UTXO UTXOs;
+- active/pending UTXO outpoint and confirmation state;
 - the detected DIESEL contract/rules version and whether minting is currently
   enabled by the live gate;
-- **Send**, **Consolidate/repair carriers**, and **View transaction/outpoint**.
+- **Send**, **Consolidate/repair UTXOs**, and **View transaction/outpoint**.
 
 Sending DIESEL is feasible, but is its own Alkanes transaction builder. A partial
-send spends the carrier(s), uses an explicit DIESEL edict for the recipient amount,
+send spends the UTXO(s), uses an explicit DIESEL edict for the recipient amount,
 and routes the remainder to a new own output. The upstream CLI does exactly this
 kind of “needed amount plus change/collateral” split. Initially, do not also mint in
 a DIESEL-send transaction: the just-minted amount is block-dependent and combining
 it with a partial transfer complicates deterministic review and change accounting.
 
-Turning auto-mint off must **not unlock the carrier as BTC**. It stops adding new
+Turning auto-mint off must **not unlock the UTXO as BTC**. It stops adding new
 mints but keeps all Alkanes-bearing outpoints protected and keeps the DIESEL screen
 available. Suggested setting levels are:
 
 - `Off`: no new mint; protection and sending remain active.
 - `Ask on eligible transactions`: recommended experimental default.
-- `Auto`: attach whenever contract health, output shape, relay policy, and carrier
+- `Auto`: attach whenever contract health, output shape, relay policy, and UTXO
   state all pass.
 
 The confirmation screen should state the measured extra vbytes/fee and the routing
@@ -982,10 +1058,10 @@ destination, not estimate a profit.
 
 No pre-existing “special UTXO” is required for the first mint. An eligible host
 transaction calls `[2,0,77]` and points the result to a wallet-owned output. Once
-confirmed, that output is a carrier and must enter the protected registry. Later
+confirmed, that output is a UTXO and must enter the protected registry. Later
 mints can spend and replace it, in which case the exact indexer test proves the old
 balance plus the new reward reaches the successor. They can also mint to another
-owned output without spending the old carrier, producing a second shard. The home
+owned output without spending the old UTXO, producing a second shard. The home
 balance is therefore the sum of indexed outpoint balances, not a value attached to
 one forever-fixed baton.
 
@@ -994,11 +1070,11 @@ The wallet state machine should be explicit:
 | State | Wallet behavior |
 |---|---|
 | Off, no balance | No Alkanes output; ordinary operation |
-| Ask/Auto, no balance | Mint to a natural own output or explicit carrier on an eligible transaction |
-| Ask/Auto, confirmed balance | Protect every carrier; roll one only when it is already useful as BTC funding, otherwise create a shard or skip |
+| Ask/Auto, no balance | Mint to a natural own output or explicit UTXO on an eligible transaction |
+| Ask/Auto, confirmed balance | Protect every UTXO; roll one only when it is already useful as BTC funding, otherwise create a shard or skip |
 | Mint transaction pending | Reserve the selected inputs and successor; do not chain-spend it in v1 |
 | Off, balance remains | Stop minting, but continue discovery, protection, Send, Consolidate, and recovery |
-| Indexer unavailable or behind | Display last-known balance as stale and block carrier spending/mint decoration |
+| Indexer unavailable or behind | Display last-known balance as stale and block UTXO spending/mint decoration |
 
 “Background earning” must be described narrowly: the extension opportunistically
 adds a mint to an outgoing eligible transaction. It is not mining while idle, and
@@ -1007,13 +1083,13 @@ the resulting token has no guaranteed BTC value.
 #### Sending and consolidating DIESEL
 
 A DIESEL transfer does not depend on an AMM or redemption service. Spend enough
-indexed carrier inputs, add an edict assigning the exact amount to the recipient's
+indexed UTXO inputs, add an edict assigning the exact amount to the recipient's
 standard Bitcoin output, and assign the exact remainder to a new wallet-owned
-change carrier. The released prediction tests exercise this shape with 800 units to
-the recipient and 200 units to change from a 1,000-unit carrier. For the extension,
+change UTXO. The released prediction tests exercise this shape with 800 units to
+the recipient and 200 units to change from a 1,000-unit UTXO. For the extension,
 make both assignments explicit and require a pre-sign simulation to prove:
 
-- every selected carrier and its complete Alkanes balance was discovered;
+- every selected UTXO and its complete Alkanes balance was discovered;
 - recipient amount plus wallet change equals the DIESEL inputs exactly;
 - pointer and refund are wallet-owned safe outputs;
 - BTC fee inputs were selected only after all other Alkanes-bearing UTXOs were
@@ -1022,7 +1098,7 @@ make both assignments explicit and require a pre-sign simulation to prove:
   transaction.
 
 Consolidation is the same transaction with no external recipient: spend several
-carriers and route their total to one own output. It should be manual or scheduled
+UTXOs and route their total to one own output. It should be manual or scheduled
 for low fees. Do not attach a mint to either Send or Consolidate in v1; deterministic
 amount review matters more than saving one future mint.
 
@@ -1032,7 +1108,7 @@ The DIESEL contract exposes mint and metadata operations, not a claim on BTC. Th
 available exit is market- and service-dependent:
 
 ```text
-DIESEL carriers -> AMM swap -> frBTC carrier -> queued Subfrost unwrap -> BTC payout
+DIESEL UTXOs -> AMM swap -> frBTC UTXO -> queued Subfrost unwrap -> BTC payout
 ```
 
 At indexed height 965,511 on 2026-09-04, the public Subfrost pathfinder returned a
@@ -1095,11 +1171,11 @@ The dedicated detail screen should consequently separate capabilities and risk:
   Disable it if no executable route, adequate output, current indexer, recognized
   factory/code hash, or healthy unwrap service can be proven.
 
-For an internal alpha, minting plus read-only balance and global carrier protection
+For an internal alpha, minting plus read-only balance and global UTXO protection
 is defensible even before conversion is solved, because users can still transfer
 DIESEL protocol-natively. For a public release, however, a balance with no Send or
 recovery transaction is a trap. At minimum ship Send/Consolidate or provide a tested
-recovery handoff to compatible tooling; never suggest users spend the carrier as
+recovery handoff to compatible tooling; never suggest users spend the UTXO as
 ordinary BTC.
 
 ### Eligibility is transaction-shape based
@@ -1113,32 +1189,32 @@ as its own data. Therefore never add it to dispenser payments, BTCPays, burns, o
 BTC transfer expected to trigger Counterparty semantics.
 
 For an enhanced XCP send whose first output is Counterparty data, the wallet still
-needs an explicit own boundary/carrier before the Alkanes OP_RETURN. A one-pass
+needs an explicit own boundary/UTXO before the Alkanes OP_RETURN. A one-pass
 compose leaves separate change and costs 57 vB; the proven two-pass exact-fee compose
-makes that same carrier absorb change and costs 26 vB. Other transaction types are
+makes that same UTXO absorb change and costs 26 vB. Other transaction types are
 eligible only after inspecting the composed output shape; the distinction is not
 BTC versus XCP.
 
 The first release should fail closed on Counterparty Taproot commit/reveal,
-multisig-encoded data, attach/detach/move, explicit UTXO sources, existing
+multisig-encoded data, legacy/explicit attach controls, detach/move, existing
 runestones, no-change/exact-spend shapes, unavailable Alkanes state, and a pending
-carrier roll. These can be added individually after fixtures prove their routing.
+UTXO roll. These can be added individually after fixtures prove their routing.
 
 ## Recommended prototype
 
-Use a strict allow-list: plain BTC sends with carrier-sized return value and
-data-bearing XCP transactions whose actual encoding is OP_RETURN; no Counterparty
-Taproot; no burn/dispense; no attach/detach/move or UTXO source; no transaction
+Use a strict allow-list: plain BTC sends with UTXO-sized return value and
+data-bearing XCP sends or default current-form attaches whose actual encoding is OP_RETURN; no
+Counterparty Taproot; no burn/dispense; no legacy attach controls, detach, or move; no transaction
 already carrying Alkanes; and no mint when released contract/gate status is
 unavailable. Implement the two-pass exact-fee compose as the target path and retain
-the one-pass +57-vB shape only as a user-visible fallback.
+the one-pass explicit-output shape only as a user-visible fallback.
 
 Acceptance gates before mainnet:
 
 1. Feed one identical raw fixture to both full indexers with the XCP message
-   unchanged and DIESEL only on the wallet carrier. Counterparty recognition and
+   unchanged and DIESEL only on the wallet UTXO. Counterparty recognition and
    Alkanes rollover have now passed separately using the same output shape.
-2. Wrong order, pointer, refund, carrier omission, second mint, and carrier spend
+2. Wrong order, pointer, refund, UTXO omission, second mint, and UTXO spend
    without routing must all fail closed.
 3. Exercise `testmempoolaccept` and every extension broadcaster.
 4. Verify RBF and hardware-wallet PSBT signing preserve exact inputs and outputs.
@@ -1156,7 +1232,7 @@ display, or protocol-native Send.
 
 The spike should target the two-OP_RETURN/current-Core construction. It requires no
 Counterparty protocol change and no bare multisig for ordinary short messages.
-Taproot may be used for a carrier output, but Counterparty's Taproot message encoding
+Taproot may be used for a UTXO output, but Counterparty's Taproot message encoding
 should be excluded.
 
 The interesting part of the supplied proposal is real. The hard part is not making

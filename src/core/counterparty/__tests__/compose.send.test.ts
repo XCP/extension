@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, Transaction } from '@scure/btc-signer';
+import { p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchDieselBalance } from '@/core/alkanes/api';
 import { buildDieselMintScript } from '@/core/alkanes/diesel';
@@ -44,7 +44,7 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
     totalValue: 100000,
     excludedWithAssets: 0,
     excludedValue: 0,
-    dieselCarriers: [],
+    dieselUtxos: [],
   }),
 }));
 
@@ -62,14 +62,14 @@ describe('Compose Send Operations', () => {
   });
 
   describe('composeDieselSend', () => {
-    it('forces carrier inputs and proves the recipient, remainder, and edict outputs', async () => {
+    it('forces DIESEL inputs and proves the recipient, remainder, and edict outputs', async () => {
       const sourcePayment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
       const destinationPayment = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
-      const carrierTxid = 'bb'.repeat(32);
+      const dieselTxid = 'bb'.repeat(32);
       mockedFetchDieselBalance.mockResolvedValue({
         baseUnits: '200000000',
-        carriers: [{
-          txid: carrierTxid,
+        utxos: [{
+          txid: dieselTxid,
           vout: 1,
           value: 330,
           balances: [{ id: '2:0', value: '200000000' }],
@@ -82,7 +82,7 @@ describe('Compose Send Operations', () => {
       const transferScript = '6a5d0fff7f818eec8a80c08080c0e5b6de03';
       const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
       tx.addInput({
-        txid: hexToBytes(carrierTxid),
+        txid: hexToBytes(dieselTxid),
         index: 1,
         witnessUtxo: { script: sourcePayment.script, amount: 330n },
       });
@@ -107,14 +107,14 @@ describe('Compose Send Operations', () => {
       });
 
       const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
-      expect(url.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1,${'aa'.repeat(32)}:0`);
+      expect(url.searchParams.get('inputs_set')).toBe(`${dieselTxid}:1,${'aa'.repeat(32)}:0`);
       expect(url.searchParams.get('use_all_inputs_set')).toBe('true');
       expect(url.searchParams.get('more_outputs')).toBe(
         `330:${sourcePayment.address},0:${transferScript}`,
       );
       expect(response.result.diesel_transfer).toEqual({
         amount_base_units: '125000000',
-        carrier_inputs: [`${carrierTxid}:1`],
+        input_utxos: [`${dieselTxid}:1`],
         recipient_vout: 0,
         remainder_vout: 1,
         runestone_vout: 2,
@@ -204,7 +204,7 @@ describe('Compose Send Operations', () => {
       assertComposeUrlCalled(mockedApiClient, 'send', btcParams);
     });
 
-    it('reshapes ordinary change into the DIESEL carrier for a +26-vB mint', async () => {
+    it('reshapes ordinary change into the DIESEL UTXO for a +26-vB mint', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
@@ -252,6 +252,7 @@ describe('Compose Send Operations', () => {
         destination: mockDestAddress,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
+        memo: 'keep this memo',
         sat_per_vbyte: 2,
       });
 
@@ -261,6 +262,7 @@ describe('Compose Send Operations', () => {
         `330:${sourceAddress},0:${buildDieselMintScript(1)}`,
       );
       expect(firstUrl.searchParams.get('inputs_set')).toBe(`${'aa'.repeat(32)}:0`);
+      expect(firstUrl.searchParams.get('memo')).toBe('keep this memo');
 
       const optimizedUrl = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
       expect(optimizedUrl.searchParams.get('exact_fee')).toBe('382');
@@ -270,21 +272,139 @@ describe('Compose Send Operations', () => {
         `99618:${sourceAddress},0:${buildDieselMintScript(1)}`,
       );
       expect(response.result.diesel_mint).toEqual({
-        carrier_vout: 1,
+        utxo_vout: 1,
         runestone_vout: 2,
-        carrier_sats: 99_618,
+        utxo_sats: 99_618,
         marginal_vbytes: 26,
         estimated_marginal_fee_sats: 52,
         fee_rate_sat_vbyte: 2,
-        carrier_kind: 'change',
+        utxo_kind: 'change',
       });
     });
 
-    it('rolls a funded DIESEL carrier when it replaces the ordinary funding input', async () => {
+    it('removes the actual 43-vB Taproot change output while keeping the mint at +26 vB', async () => {
+      const payment = p2tr(getPublicKey(hexToBytes('24'.repeat(32)), true).slice(1));
+      const sourceAddress = payment.address!;
+      const buildTx = (dieselUtxoSats: bigint, includeChange: boolean) => {
+        const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+        tx.addInput({
+          txid: hexToBytes('aa'.repeat(32)),
+          index: 0,
+          witnessUtxo: { script: payment.script, amount: 100_000n },
+        });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
+        tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+        if (includeChange) tx.addOutput({ script: payment.script, amount: 99_202n });
+        return bytesToHex(tx.unsignedTx);
+      };
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(330n, true),
+          btc_change: 99_202,
+          btc_fee: 468,
+          signed_tx_estimated_size: { vsize: 234, adjusted_vsize: 234, sigops_count: 0 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(99_618n, false),
+          btc_change: 0,
+          btc_fee: 382,
+          signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 0 },
+        }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: 2,
+      });
+
+      const optimizedUrl = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
+      expect(optimizedUrl.searchParams.get('exact_fee')).toBe('382');
+      expect(optimizedUrl.searchParams.get('more_outputs')).toBe(
+        `99618:${sourceAddress},0:${buildDieselMintScript(1)}`,
+      );
+      expect(response.result.diesel_mint).toMatchObject({
+        utxo_sats: 99_618,
+        marginal_vbytes: 26,
+        estimated_marginal_fee_sats: 52,
+        utxo_kind: 'change',
+      });
+    });
+
+    it('preserves caller BTC outputs and derives the later DIESEL output index', async () => {
+      const payment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const recipient = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
+      const sourceAddress = payment.address!;
+      const extraOutput = `1000:${recipient.address}`;
+      const dieselScript = buildDieselMintScript(2);
+      const buildTx = (dieselUtxoSats: bigint, includeChange: boolean) => {
+        const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+        tx.addInput({
+          txid: hexToBytes('aa'.repeat(32)),
+          index: 0,
+          witnessUtxo: { script: payment.script, amount: 100_000n },
+        });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: recipient.script, amount: 1_000n });
+        tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
+        tx.addOutput({ script: hexToBytes(dieselScript), amount: 0n });
+        if (includeChange) tx.addOutput({ script: payment.script, amount: 98_164n });
+        return bytesToHex(tx.unsignedTx);
+      };
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(330n, true),
+          signed_tx_estimated_size: { vsize: 253, adjusted_vsize: 253, sigops_count: 1 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(98_556n, false),
+          btc_change: 0,
+          btc_fee: 444,
+          signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
+        }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        more_outputs: extraOutput,
+        sat_per_vbyte: 2,
+      });
+
+      const firstUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      const optimizedUrl = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
+      expect(firstUrl.searchParams.get('more_outputs')).toBe(
+        `${extraOutput},330:${sourceAddress},0:${dieselScript}`,
+      );
+      expect(optimizedUrl.searchParams.get('more_outputs')).toBe(
+        `${extraOutput},98556:${sourceAddress},0:${dieselScript}`,
+      );
+      expect(response.result.diesel_mint).toMatchObject({
+        utxo_vout: 2,
+        runestone_vout: 3,
+        utxo_sats: 98_556,
+        marginal_vbytes: 26,
+      });
+    });
+
+    it('rolls a funded DIESEL UTXO when it replaces the ordinary funding input', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
-      const carrierTxid = 'bb'.repeat(32);
+      const dieselTxid = 'bb'.repeat(32);
       mockedSelectUtxos.mockResolvedValueOnce({
         utxos: [{
           txid: 'aa'.repeat(32),
@@ -296,22 +416,22 @@ describe('Compose Send Operations', () => {
         totalValue: 100_000,
         excludedWithAssets: 0,
         excludedValue: 0,
-        dieselCarriers: [{
-          txid: carrierTxid,
+        dieselUtxos: [{
+          txid: dieselTxid,
           vout: 1,
           value: 100_000,
           status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
         }],
       });
-      const buildTx = (carrierSats: bigint, includeChange: boolean) => {
+      const buildTx = (dieselUtxoSats: bigint, includeChange: boolean) => {
         const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
         tx.addInput({
-          txid: hexToBytes(carrierTxid),
+          txid: hexToBytes(dieselTxid),
           index: 1,
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
         tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
-        tx.addOutput({ script: payment.script, amount: carrierSats });
+        tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
         return bytesToHex(tx.unsignedTx);
@@ -342,22 +462,22 @@ describe('Compose Send Operations', () => {
       });
 
       const firstUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
-      expect(firstUrl.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1`);
+      expect(firstUrl.searchParams.get('inputs_set')).toBe(`${dieselTxid}:1`);
       expect(firstUrl.searchParams.get('use_all_inputs_set')).toBe('true');
       expect(response.result.diesel_mint).toMatchObject({
-        carrier_sats: 99_618,
+        utxo_sats: 99_618,
         marginal_vbytes: 26,
-        carrier_kind: 'change',
-        rolled_carrier: `${carrierTxid}:1`,
+        utxo_kind: 'change',
+        rolled_utxo: `${dieselTxid}:1`,
       });
     });
 
-    it('leaves an underfunded DIESEL carrier protected and falls back to clean BTC', async () => {
+    it('leaves an underfunded DIESEL UTXO protected and falls back to clean BTC', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
       const cleanTxid = 'aa'.repeat(32);
-      const carrierTxid = 'bb'.repeat(32);
+      const dieselTxid = 'bb'.repeat(32);
       mockedSelectUtxos.mockResolvedValueOnce({
         utxos: [{
           txid: cleanTxid,
@@ -369,14 +489,14 @@ describe('Compose Send Operations', () => {
         totalValue: 100_000,
         excludedWithAssets: 0,
         excludedValue: 330,
-        dieselCarriers: [{
-          txid: carrierTxid,
+        dieselUtxos: [{
+          txid: dieselTxid,
           vout: 1,
           value: 330,
           status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
         }],
       });
-      const buildTx = (carrierSats: bigint, includeChange: boolean) => {
+      const buildTx = (dieselUtxoSats: bigint, includeChange: boolean) => {
         const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
         tx.addInput({
           txid: hexToBytes(cleanTxid),
@@ -384,7 +504,7 @@ describe('Compose Send Operations', () => {
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
         tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
-        tx.addOutput({ script: payment.script, amount: carrierSats });
+        tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
         return bytesToHex(tx.unsignedTx);
@@ -415,15 +535,15 @@ describe('Compose Send Operations', () => {
         sat_per_vbyte: 2,
       });
 
-      const attemptedCarrier = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      const attemptedDieselUtxo = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
       const cleanFallback = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
-      expect(attemptedCarrier.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1`);
+      expect(attemptedDieselUtxo.searchParams.get('inputs_set')).toBe(`${dieselTxid}:1`);
       expect(cleanFallback.searchParams.get('inputs_set')).toBe(`${cleanTxid}:0`);
-      expect(response.result.diesel_mint).not.toHaveProperty('rolled_carrier');
+      expect(response.result.diesel_mint).not.toHaveProperty('rolled_utxo');
       expect(response.result.diesel_mint).toMatchObject({
-        carrier_sats: 99_618,
+        utxo_sats: 99_618,
         marginal_vbytes: 26,
-        carrier_kind: 'change',
+        utxo_kind: 'change',
       });
     });
 
@@ -460,27 +580,27 @@ describe('Compose Send Operations', () => {
 
       expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
       expect(response.result.diesel_mint).toEqual({
-        carrier_vout: 1,
+        utxo_vout: 1,
         runestone_vout: 2,
-        carrier_sats: 330,
+        utxo_sats: 330,
         marginal_vbytes: 57,
         estimated_marginal_fee_sats: 114,
         fee_rate_sat_vbyte: 2,
-        carrier_kind: 'explicit',
+        utxo_kind: 'explicit',
       });
     });
 
-    it('skips DIESEL on unsupported send shapes instead of guessing an output pointer', async () => {
+    it('skips DIESEL for explicit bare-multisig encoding', async () => {
       mockedGetSettings.mockReturnValue({ ...mockSettings, enableDieselMinting: true });
       await composeSend({
         sourceAddress: mockAddress,
         sat_per_vbyte: mockSatPerVbyte,
         ...defaultParams,
-        memo: 'keep this memo',
+        encoding: 'multisig',
       });
       const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
       expect(url.searchParams.has('more_outputs')).toBe(false);
-      expect(url.searchParams.has('encoding')).toBe(false);
+      expect(url.searchParams.get('encoding')).toBe('multisig');
     });
   });
 

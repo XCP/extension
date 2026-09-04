@@ -225,7 +225,7 @@ describe('the not-a-Counterparty-transaction gate', () => {
   });
 });
 
-describe('Alkanes carrier protection', () => {
+describe('Alkanes UTXO protection', () => {
   it('blocks a requested input that carries an Alkane even when the Counterparty message is valid', async () => {
     const analysis = await run({
       counterpartyDataHex: '434e5452505254590a00',
@@ -255,7 +255,7 @@ describe('Alkanes carrier protection', () => {
     expect(analysis.safety.warnings[0]?.title).toBe('Retry Required: Alkanes Status Unknown');
   });
 
-  it('ignores a carrier on an input the wallet was not asked to sign', async () => {
+  it('ignores an Alkanes UTXO on an input the wallet was not asked to sign', async () => {
     const analysis = await run({
       counterpartyDataHex: '434e5452505254590a00',
       alkaneBalances: Promise.resolve([{

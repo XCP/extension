@@ -2,11 +2,9 @@ import { fetchDieselBalance } from '@/core/alkanes/api';
 import {
   buildDieselMintScript,
   buildDieselTransferScript,
-  DIESEL_CARRIER_SATS,
-  DIESEL_MINT_MARGINAL_VBYTES,
   DIESEL_RUNESTONE_MARGINAL_VBYTES,
-  isVerifiedDieselCarrierAddress,
-  P2WPKH_OUTPUT_VBYTES,
+  dieselUtxoMinimumSats,
+  isSupportedDieselUtxoAddress,
 } from '@/core/alkanes/diesel';
 import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { apiClient } from '@/core/api/client';
@@ -18,6 +16,7 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { multiply, roundUp, subtract, sum, toSafeInteger } from '@/core/numeric';
+import { validateBitcoinAddress } from '@/core/validation/bitcoin';
 import {
   getActiveSettings,
   LEGACY_MAX_ORDER_EXPIRATION,
@@ -146,22 +145,22 @@ export interface ComposeResult {
   name: string;
   /** Present only when the final bytes were locally proved to contain the requested mint. */
   diesel_mint?: {
-    carrier_vout: number;
+    utxo_vout: number;
     runestone_vout: number;
-    carrier_sats: number;
+    utxo_sats: number;
     /** Exact added output vbytes for this allow-listed shape. */
     marginal_vbytes: number;
     /** Fee-rate-based estimate; the composer can round the whole transaction fee. */
     estimated_marginal_fee_sats: number;
     fee_rate_sat_vbyte: number;
-    /** `change` means an ordinary wallet change output was reshaped into the carrier. */
-    carrier_kind: 'change' | 'explicit';
-    /** Previous DIESEL carrier deliberately consumed and routed into this successor. */
-    rolled_carrier?: string;
+    /** `change` means ordinary wallet change was reshaped into the DIESEL UTXO. */
+    utxo_kind: 'change' | 'explicit';
+    /** Previous DIESEL UTXO deliberately consumed and routed into this successor. */
+    rolled_utxo?: string;
   };
   diesel_transfer?: {
     amount_base_units: string;
-    carrier_inputs: string[];
+    input_utxos: string[];
     recipient_vout: number;
     remainder_vout: number;
     runestone_vout: number;
@@ -504,7 +503,7 @@ async function executeWithUtxoFallback(
       }
 
       // Attempt 3: Let Counterparty API select, but force confirmed-only. This is never allowed
-      // while Alkanes protection is active because Counterparty cannot identify those carriers.
+      // while Alkanes protection is active because Counterparty cannot identify those UTXOs.
       // This avoids issues where Counterparty's mempool has stale unconfirmed UTXOs
       if (requireOfferedInputs) throw wrapComposeError(error, endpoint);
       try {
@@ -1037,15 +1036,33 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
   return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
 }
 
-function isOwnedP2wpkhOutput(
+function ownedStandardOutputVbytes(
   output: NonNullable<ReturnType<typeof parseRawTransactionLocally>>['outputs'][number] | undefined,
   sourceAddress: string,
-): boolean {
-  return output?.script?.length === 44
-    && output.script.startsWith('0014')
-    && !!output.address
-    && normalizeAddressForComparison(output.address)
-      === normalizeAddressForComparison(sourceAddress);
+): number | undefined {
+  if (
+    !output?.script
+    || !output.address
+    || normalizeAddressForComparison(output.address) !== normalizeAddressForComparison(sourceAddress)
+  ) return undefined;
+
+  const script = output.script.toLowerCase();
+  const isP2pkh = /^76a914[0-9a-f]{40}88ac$/.test(script);
+  const isP2sh = /^a914[0-9a-f]{40}87$/.test(script);
+  const isP2wpkh = /^0014[0-9a-f]{40}$/.test(script);
+  const isP2tr = /^5120[0-9a-f]{64}$/.test(script);
+  if (!isP2pkh && !isP2sh && !isP2wpkh && !isP2tr) return undefined;
+  // An output serializes as 8 value bytes + one compact-size byte + its script bytes. Every
+  // allowed script is below the 253-byte compact-size boundary.
+  return 9 + script.length / 2;
+}
+
+function conservativeWalletInputVbytes(address: string): number {
+  const format = validateBitcoinAddress(address).addressFormat;
+  if (format === 'P2PKH') return 149;
+  if (format === 'P2SH') return 92;
+  if (format === 'P2TR') return 58;
+  return 69;
 }
 
 function outputsMatch(
@@ -1059,10 +1076,14 @@ function outputsMatch(
   return left.script?.toLowerCase() === right.script?.toLowerCase();
 }
 
-function estimateDieselMarginalFee(marginalVbytes: number, feeRate: number): number {
+function estimateDieselMarginalFee(
+  marginalVbytes: number,
+  feeRate: number,
+  endpoint = 'send',
+): number {
   const estimate = toSafeInteger(roundUp(multiply(marginalVbytes, feeRate)).toFixed(0));
   if (estimate === undefined) {
-    throw new CounterpartyApiError('Invalid DIESEL marginal fee estimate.', 'send');
+    throw new CounterpartyApiError('Invalid DIESEL marginal fee estimate.', endpoint);
   }
   return estimate;
 }
@@ -1070,24 +1091,243 @@ function estimateDieselMarginalFee(marginalVbytes: number, feeRate: number): num
 function annotateDieselMint(
   response: ApiResponse,
   moreOutputs: string,
-  carrierSats: number,
+  dieselUtxoSats: number,
   marginalVbytes: number,
   feeRate: number,
-  carrierKind: 'change' | 'explicit',
-  rolledCarrier?: string,
+  utxoKind: 'change' | 'explicit',
+  endpoint: string,
+  dieselUtxoVout: number,
+  runestoneVout: number,
+  rolledUtxo?: string,
 ): ApiResponse {
   response.result.params.more_outputs = moreOutputs;
   response.result.diesel_mint = {
-    carrier_vout: 1,
-    runestone_vout: 2,
-    carrier_sats: carrierSats,
+    utxo_vout: dieselUtxoVout,
+    runestone_vout: runestoneVout,
+    utxo_sats: dieselUtxoSats,
     marginal_vbytes: marginalVbytes,
-    estimated_marginal_fee_sats: estimateDieselMarginalFee(marginalVbytes, feeRate),
+    estimated_marginal_fee_sats: estimateDieselMarginalFee(marginalVbytes, feeRate, endpoint),
     fee_rate_sat_vbyte: feeRate,
-    carrier_kind: carrierKind,
-    ...(rolledCarrier ? { rolled_carrier: rolledCarrier } : {}),
+    utxo_kind: utxoKind,
+    ...(rolledUtxo ? { rolled_utxo: rolledUtxo } : {}),
   };
   return response;
+}
+
+/**
+ * Add a DIESEL mint to a compose shape whose host outputs precede `more_outputs` and whose final
+ * output is ordinary wallet change. Both sends and attaches satisfy this contract, but at
+ * different indices: send `[host, DIESEL UTXO, runestone, change]`; attach
+ * `[attachment, host data, DIESEL UTXO, runestone, change]`.
+ */
+async function composeWithDieselMint(
+  endpoint: 'send' | 'attach',
+  paramsObj: Record<string, unknown>,
+  sourceAddress: string,
+  satPerVbyte: number,
+  dieselUtxoVout: number,
+  precedingMoreOutputs?: string,
+): Promise<ApiResponse> {
+  const settings = getActiveSettings();
+  const minimumDieselUtxoSats = dieselUtxoMinimumSats(sourceAddress);
+  if (minimumDieselUtxoSats === undefined) {
+    throw new CounterpartyApiError('Unsupported DIESEL UTXO address.', endpoint);
+  }
+  const runestoneVout = dieselUtxoVout + 1;
+  const changeVout = runestoneVout + 1;
+  const dieselScript = buildDieselMintScript(dieselUtxoVout);
+  const dieselOutputPair = `${minimumDieselUtxoSats}:${sourceAddress},0:${dieselScript}`;
+  const dieselMoreOutputs = precedingMoreOutputs
+    ? `${precedingMoreOutputs},${dieselOutputPair}`
+    : dieselOutputPair;
+  const firstParams = { ...paramsObj, more_outputs: dieselMoreOutputs };
+
+  // The optimization must know the value of every input independently of the compose response.
+  // Offer a locally selected, asset-filtered set, then derive the exact subset core chose from the
+  // first transaction's bytes. The second pass is forced to use that subset in full.
+  const selection = await selectUtxosForTransaction(sourceAddress, {
+    allowUnconfirmed: settings.allowUnconfirmedTxs,
+    includeDieselUtxos: true,
+  });
+  let rolledUtxo = selection.dieselUtxos?.[0];
+  let offeredUtxos = rolledUtxo ? [rolledUtxo] : selection.utxos;
+  let response: ApiResponse;
+  try {
+    response = await composeTransaction(
+      endpoint,
+      firstParams,
+      sourceAddress,
+      satPerVbyte,
+      'opreturn',
+      {
+        inputsSet: offeredUtxos.map(({ txid, vout }) => `${txid}:${vout}`).join(','),
+        useAllInputsSet: !!rolledUtxo,
+      },
+    );
+  } catch (dieselUtxoError) {
+    // A DIESEL UTXO with enough BTC replaces the ordinary funding input at no input-vbyte penalty.
+    // Never add an underfunded DIESEL UTXO beside clean inputs merely to consolidate: that
+    // would spend ~68 vB to save a future token transfer. Keep it protected and mint a new shard.
+    if (!rolledUtxo || selection.utxos.length === 0) throw dieselUtxoError;
+    rolledUtxo = undefined;
+    offeredUtxos = selection.utxos;
+    response = await composeTransaction(
+      endpoint,
+      firstParams,
+      sourceAddress,
+      satPerVbyte,
+      'opreturn',
+      { inputsSet: selection.inputsSet, useAllInputsSet: false },
+    );
+  }
+
+  const parsed = parseRawTransactionLocally(response.result.rawtransaction);
+  const dieselUtxoOutput = parsed?.outputs[dieselUtxoVout];
+  const runestone = parsed?.outputs[runestoneVout];
+  const walletOutputVbytes = ownedStandardOutputVbytes(dieselUtxoOutput, sourceAddress);
+  if (
+    !parsed
+    || dieselUtxoOutput?.value !== minimumDieselUtxoSats
+    || walletOutputVbytes === undefined
+    || runestone?.value !== 0
+    || runestone.opReturnData?.toLowerCase() !== dieselScript
+  ) {
+    throw new CounterpartyApiError(
+      'Counterparty compose did not preserve the required DIESEL UTXO and runestone outputs.',
+      endpoint,
+    );
+  }
+
+  // Removing the redundant final wallet change leaves the already-required wallet-return output
+  // as the DIESEL UTXO. Any unfamiliar topology retains the proven explicit-output form.
+  const change = parsed.outputs[changeVout];
+  const firstSignedVsize = response.result.signed_tx_estimated_size.vsize;
+  if (
+    parsed.outputs.length !== changeVout + 1
+    || ownedStandardOutputVbytes(change, sourceAddress) !== walletOutputVbytes
+    || !Number.isSafeInteger(firstSignedVsize)
+    || firstSignedVsize <= walletOutputVbytes
+  ) {
+    return annotateDieselMint(
+      response,
+      dieselMoreOutputs,
+      minimumDieselUtxoSats,
+      walletOutputVbytes + DIESEL_RUNESTONE_MARGINAL_VBYTES,
+      satPerVbyte,
+      'explicit',
+      endpoint,
+      dieselUtxoVout,
+      runestoneVout,
+      rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+    );
+  }
+
+  const selectedByOutpoint = new Map(
+    offeredUtxos.map((utxo) => [`${utxo.txid.toLowerCase()}:${utxo.vout}`, utxo.value]),
+  );
+  const actualInputs = parsed.inputs.map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
+  const actualInputValues = actualInputs.map((outpoint) => selectedByOutpoint.get(outpoint));
+  if (actualInputValues.some((value) => value === undefined)) {
+    throw new CounterpartyApiError(
+      'Counterparty compose used an input whose value was not independently selected.',
+      endpoint,
+    );
+  }
+
+  const optimizedVsize = toSafeInteger(
+    subtract(firstSignedVsize, walletOutputVbytes).toFixed(0),
+  );
+  const exactFee = optimizedVsize === undefined
+    ? undefined
+    : estimateDieselMarginalFee(optimizedVsize, satPerVbyte, endpoint);
+  const trustedInputTotal = sum(actualInputValues as number[]);
+  const otherOutputTotal = sum(parsed.outputs
+    .filter((output) => ![dieselUtxoVout, runestoneVout, changeVout].includes(output.index))
+    .map((output) => output.value));
+  const optimizedDieselUtxoSats = exactFee === undefined
+    ? undefined
+    : toSafeInteger(subtract(subtract(trustedInputTotal, otherOutputTotal), exactFee).toFixed(0));
+  if (
+    optimizedVsize === undefined
+    || exactFee === undefined
+    || optimizedDieselUtxoSats === undefined
+    || optimizedDieselUtxoSats < minimumDieselUtxoSats
+  ) {
+    return annotateDieselMint(
+      response,
+      dieselMoreOutputs,
+      minimumDieselUtxoSats,
+      walletOutputVbytes + DIESEL_RUNESTONE_MARGINAL_VBYTES,
+      satPerVbyte,
+      'explicit',
+      endpoint,
+      dieselUtxoVout,
+      runestoneVout,
+      rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+    );
+  }
+
+  const optimizedOutputPair = `${optimizedDieselUtxoSats}:${sourceAddress},0:${dieselScript}`;
+  const optimizedMoreOutputs = precedingMoreOutputs
+    ? `${precedingMoreOutputs},${optimizedOutputPair}`
+    : optimizedOutputPair;
+  const optimized = await composeTransaction(
+    endpoint,
+    { ...paramsObj, more_outputs: optimizedMoreOutputs, exact_fee: exactFee.toString() },
+    sourceAddress,
+    satPerVbyte,
+    'opreturn',
+    { inputsSet: actualInputs.join(','), useAllInputsSet: true },
+  );
+  const optimizedParsed = parseRawTransactionLocally(optimized.result.rawtransaction);
+  const optimizedInputs = optimizedParsed?.inputs
+    .map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
+  const actualInputSet = new Set(actualInputs);
+  const optimizedInputSet = new Set(optimizedInputs ?? []);
+  const optimizedOutputTotal = optimizedParsed
+    ? sum(optimizedParsed.outputs.map(({ value }) => value))
+    : null;
+  const independentlyDerivedFee = optimizedOutputTotal !== null
+    ? toSafeInteger(subtract(trustedInputTotal, optimizedOutputTotal).toFixed(0))
+    : undefined;
+  const hostOutputsMatch = Array.from({ length: dieselUtxoVout }, (_, index) => index)
+    .every((index) => outputsMatch(parsed.outputs[index], optimizedParsed?.outputs[index]));
+
+  if (
+    !optimizedParsed
+    || optimizedParsed.outputs.length !== runestoneVout + 1
+    || !hostOutputsMatch
+    || optimizedParsed.outputs[dieselUtxoVout]?.value !== optimizedDieselUtxoSats
+    || ownedStandardOutputVbytes(optimizedParsed.outputs[dieselUtxoVout], sourceAddress)
+      !== walletOutputVbytes
+    || optimizedParsed.outputs[runestoneVout]?.value !== 0
+    || optimizedParsed.outputs[runestoneVout]?.opReturnData?.toLowerCase() !== dieselScript
+    || optimizedInputs?.length !== actualInputs.length
+    || actualInputSet.size !== actualInputs.length
+    || optimizedInputSet.size !== optimizedInputs.length
+    || actualInputs.some((outpoint) => !optimizedInputSet.has(outpoint))
+    || independentlyDerivedFee !== exactFee
+    || optimized.result.btc_change !== 0
+    || optimized.result.signed_tx_estimated_size.vsize !== optimizedVsize
+  ) {
+    throw new CounterpartyApiError(
+      'Counterparty compose did not preserve the proven optimized DIESEL transaction shape.',
+      endpoint,
+    );
+  }
+
+  return annotateDieselMint(
+    optimized,
+    optimizedMoreOutputs,
+    optimizedDieselUtxoSats,
+    DIESEL_RUNESTONE_MARGINAL_VBYTES,
+    satPerVbyte,
+    'change',
+    endpoint,
+    dieselUtxoVout,
+    runestoneVout,
+    rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+  );
 }
 
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {
@@ -1105,20 +1345,12 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     encoding,
   } = options;
   const settings = getActiveSettings();
-  // First supported shape: one ordinary send, no user-supplied extra outputs or memo, encoded as
-  // OP_RETURN from a native-segwit source. In both BTC sends and enhanced Counterparty sends core
-  // emits exactly one destination/data output before `more_outputs`, making the carrier vout 1.
-  // More complex shapes are deliberately skipped until their output index can be derived from the
-  // actual first-pass transaction rather than guessed.
+  // In BTC and enhanced Counterparty sends Core emits exactly one destination/data output before
+  // `more_outputs`. Caller-supplied outputs remain byte-identical and precede the wallet-owned
+  // DIESEL output, so its pointer is derived from their count instead of guessed.
   const attachDieselMint = settings.enableDieselMinting
-    && isVerifiedDieselCarrierAddress(sourceAddress)
-    && !more_outputs
-    && !memo
+    && isSupportedDieselUtxoAddress(sourceAddress)
     && (encoding === undefined || encoding === 'auto' || encoding === 'opreturn');
-  const dieselScript = attachDieselMint ? buildDieselMintScript(1) : undefined;
-  const dieselMoreOutputs = dieselScript
-    ? `${DIESEL_CARRIER_SATS}:${sourceAddress},0:${dieselScript}`
-    : undefined;
   const paramsObj = {
     destination,
     asset,
@@ -1126,185 +1358,23 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(memo !== undefined ? { memo } : {}),
     ...(memo_is_hex !== undefined ? { memo_is_hex: memo_is_hex.toString() } : {}),
     ...(no_dispense !== undefined ? { no_dispense: no_dispense.toString() } : {}),
-    ...((dieselMoreOutputs ?? more_outputs) ? { more_outputs: dieselMoreOutputs ?? more_outputs } : {}),
+    ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  if (!dieselScript || !dieselMoreOutputs) {
+  if (!attachDieselMint) {
     return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
   }
 
-  // The optimization must know the value of every input independently of the compose response.
-  // Offer a locally selected, asset-filtered set, then derive the exact subset core chose from the
-  // first transaction's bytes. The second pass is forced to use that subset in full.
-  const selection = await selectUtxosForTransaction(sourceAddress, {
-    allowUnconfirmed: settings.allowUnconfirmedTxs,
-    includeDieselCarriers: true,
-  });
-  let rolledCarrier = selection.dieselCarriers?.[0];
-  let offeredUtxos = rolledCarrier ? [rolledCarrier] : selection.utxos;
-  let response: ApiResponse;
-  try {
-    response = await composeTransaction(
-      'send',
-      paramsObj,
-      sourceAddress,
-      sat_per_vbyte,
-      'opreturn',
-      {
-        inputsSet: offeredUtxos.map(({ txid, vout }) => `${txid}:${vout}`).join(','),
-        useAllInputsSet: !!rolledCarrier,
-      },
-    );
-  } catch (carrierError) {
-    // A carrier with enough BTC replaces the ordinary funding input at no input-vbyte penalty.
-    // Never add an underfunded carrier beside clean inputs merely to consolidate DIESEL: that
-    // would spend ~68 vB to save a future token transfer. Keep it protected and mint a new shard.
-    if (!rolledCarrier || selection.utxos.length === 0) throw carrierError;
-    rolledCarrier = undefined;
-    offeredUtxos = selection.utxos;
-    response = await composeTransaction(
-      'send',
-      paramsObj,
-      sourceAddress,
-      sat_per_vbyte,
-      'opreturn',
-      { inputsSet: selection.inputsSet, useAllInputsSet: false },
-    );
-  }
-  const parsed = parseRawTransactionLocally(response.result.rawtransaction);
-  const carrier = parsed?.outputs[1];
-  const runestone = parsed?.outputs[2];
-  if (
-    !parsed
-    || carrier?.value !== DIESEL_CARRIER_SATS
-    || !isOwnedP2wpkhOutput(carrier, sourceAddress)
-    || runestone?.value !== 0
-    || runestone.opReturnData?.toLowerCase() !== dieselScript
-  ) {
-    throw new CounterpartyApiError(
-      'Counterparty compose did not preserve the required DIESEL carrier and runestone outputs.',
-      'send',
-    );
-  }
-
-  // The proven +26-vB shape is deliberately narrow: one Counterparty destination/data output,
-  // our explicit carrier, the runestone, and one ordinary P2WPKH change output. Removing that
-  // redundant change output leaves the already-required wallet return output as the carrier.
-  const change = parsed.outputs[3];
-  const firstSignedVsize = response.result.signed_tx_estimated_size.vsize;
-  if (
-    parsed.outputs.length !== 4
-    || !isOwnedP2wpkhOutput(change, sourceAddress)
-    || !Number.isSafeInteger(firstSignedVsize)
-    || firstSignedVsize <= P2WPKH_OUTPUT_VBYTES
-  ) {
-    return annotateDieselMint(
-      response,
-      dieselMoreOutputs,
-      DIESEL_CARRIER_SATS,
-      DIESEL_MINT_MARGINAL_VBYTES,
-      sat_per_vbyte,
-      'explicit',
-      rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
-    );
-  }
-
-  const selectedByOutpoint = new Map(
-    offeredUtxos.map((utxo) => [`${utxo.txid.toLowerCase()}:${utxo.vout}`, utxo.value]),
-  );
-  const actualInputs = parsed.inputs.map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
-  const actualInputValues = actualInputs.map((outpoint) => selectedByOutpoint.get(outpoint));
-  if (actualInputValues.some((value) => value === undefined)) {
-    throw new CounterpartyApiError(
-      'Counterparty compose used an input whose value was not independently selected.',
-      'send',
-    );
-  }
-
-  const optimizedVsize = toSafeInteger(
-    subtract(firstSignedVsize, P2WPKH_OUTPUT_VBYTES).toFixed(0),
-  );
-  const exactFee = optimizedVsize === undefined
-    ? undefined
-    : estimateDieselMarginalFee(optimizedVsize, sat_per_vbyte);
-  const trustedInputTotal = sum(actualInputValues as number[]);
-  const otherOutputTotal = sum(parsed.outputs
-    .filter((output) => output.index !== 1 && output.index !== 2 && output.index !== 3)
-    .map((output) => output.value));
-  const optimizedCarrierSats = exactFee === undefined
-    ? undefined
-    : toSafeInteger(subtract(subtract(trustedInputTotal, otherOutputTotal), exactFee).toFixed(0));
-  if (
-    optimizedVsize === undefined
-    || exactFee === undefined
-    || optimizedCarrierSats === undefined
-    || optimizedCarrierSats < DIESEL_CARRIER_SATS
-  ) {
-    return annotateDieselMint(
-      response,
-      dieselMoreOutputs,
-      DIESEL_CARRIER_SATS,
-      DIESEL_MINT_MARGINAL_VBYTES,
-      sat_per_vbyte,
-      'explicit',
-      rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
-    );
-  }
-
-  const optimizedMoreOutputs = `${optimizedCarrierSats}:${sourceAddress},0:${dieselScript}`;
-  const optimizedParams = {
-    ...paramsObj,
-    more_outputs: optimizedMoreOutputs,
-    exact_fee: exactFee.toString(),
-  };
-  const optimized = await composeTransaction(
+  const precedingOutputCount = more_outputs
+    ? more_outputs.split(',').filter(Boolean).length
+    : 0;
+  return composeWithDieselMint(
     'send',
-    optimizedParams,
+    paramsObj,
     sourceAddress,
     sat_per_vbyte,
-    'opreturn',
-    { inputsSet: actualInputs.join(','), useAllInputsSet: true },
-  );
-  const optimizedParsed = parseRawTransactionLocally(optimized.result.rawtransaction);
-  const optimizedInputs = optimizedParsed?.inputs
-    .map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
-  const actualInputSet = new Set(actualInputs);
-  const optimizedInputSet = new Set(optimizedInputs ?? []);
-  const optimizedOutputTotal = optimizedParsed ? sum(optimizedParsed.outputs.map(({ value }) => value)) : null;
-  const independentlyDerivedFee = optimizedOutputTotal
-    ? toSafeInteger(subtract(trustedInputTotal, optimizedOutputTotal).toFixed(0))
-    : undefined;
-
-  if (
-    !optimizedParsed
-    || optimizedParsed.outputs.length !== 3
-    || !outputsMatch(parsed.outputs[0], optimizedParsed.outputs[0])
-    || optimizedParsed.outputs[1]?.value !== optimizedCarrierSats
-    || !isOwnedP2wpkhOutput(optimizedParsed.outputs[1], sourceAddress)
-    || optimizedParsed.outputs[2]?.value !== 0
-    || optimizedParsed.outputs[2]?.opReturnData?.toLowerCase() !== dieselScript
-    || optimizedInputs?.length !== actualInputs.length
-    || actualInputSet.size !== actualInputs.length
-    || optimizedInputSet.size !== optimizedInputs.length
-    || actualInputs.some((outpoint) => !optimizedInputSet.has(outpoint))
-    || independentlyDerivedFee !== exactFee
-    || optimized.result.btc_change !== 0
-    || optimized.result.signed_tx_estimated_size.vsize !== optimizedVsize
-  ) {
-    throw new CounterpartyApiError(
-      'Counterparty compose did not preserve the proven optimized DIESEL transaction shape.',
-      'send',
-    );
-  }
-
-  return annotateDieselMint(
-    optimized,
-    optimizedMoreOutputs,
-    optimizedCarrierSats,
-    DIESEL_RUNESTONE_MARGINAL_VBYTES,
-    sat_per_vbyte,
-    'change',
-    rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
+    1 + precedingOutputCount,
+    more_outputs,
   );
 }
 
@@ -1314,12 +1384,13 @@ export interface DieselSendOptions extends BaseComposeOptions {
   amountBaseUnits: string;
 }
 
-/** Build and prove an edict spend from selected DIESEL carrier inputs. */
+/** Build and prove an edict spend from selected DIESEL-bearing inputs. */
 export async function composeDieselSend(options: DieselSendOptions): Promise<ApiResponse> {
   const { sourceAddress, destination, amountBaseUnits, sat_per_vbyte, max_fee } = options;
-  if (!isVerifiedDieselCarrierAddress(sourceAddress)) {
-    throw new Error('DIESEL sends currently require a native SegWit source address.');
+  if (!isSupportedDieselUtxoAddress(sourceAddress)) {
+    throw new Error('DIESEL sends require a supported wallet source address.');
   }
+  const minimumDieselUtxoSats = dieselUtxoMinimumSats(sourceAddress)!;
   if (!/^\d+$/.test(amountBaseUnits) || BigInt(amountBaseUnits) <= 0n) {
     throw new Error('DIESEL amount must be positive.');
   }
@@ -1328,60 +1399,61 @@ export async function composeDieselSend(options: DieselSendOptions): Promise<Api
   if (requested > BigInt(diesel.baseUnits)) throw new Error('Insufficient DIESEL balance.');
 
   // Largest-first minimizes witness inputs. One of core's 20 input-set slots is reserved for a
-  // normal BTC UTXO that funds dust and fees; token carriers are never offered to ordinary flows.
-  const available = [...diesel.carriers].sort((a, b) => {
-    const value = (carrier: typeof a) => carrier.balances
+  // normal BTC UTXO that funds dust and fees; token-bearing inputs are never offered to ordinary flows.
+  const available = [...diesel.utxos].sort((a, b) => {
+    const value = (utxo: typeof a) => utxo.balances
       .filter((item) => item.id === '2:0')
       .reduce((sum, item) => sum + BigInt(item.value), 0n);
     const left = value(a);
     const right = value(b);
     return left === right ? 0 : left > right ? -1 : 1;
   });
-  const carriers: typeof available = [];
+  const dieselUtxos: typeof available = [];
   let covered = 0n;
-  for (const carrier of available) {
-    if (carriers.length === 19 || covered >= requested) break;
-    carriers.push(carrier);
-    covered += carrier.balances
+  for (const utxo of available) {
+    if (dieselUtxos.length === 19 || covered >= requested) break;
+    dieselUtxos.push(utxo);
+    covered += utxo.balances
       .filter((item) => item.id === '2:0')
       .reduce((sum, item) => sum + BigInt(item.value), 0n);
   }
   if (covered < requested) {
-    throw new Error('This send needs more than 19 DIESEL carriers; consolidate them first.');
+    throw new Error('This send needs more than 19 DIESEL UTXOs; consolidate them first.');
   }
 
   const funding = await selectUtxosForTransaction(sourceAddress, {
     allowUnconfirmed: getActiveSettings().allowUnconfirmedTxs,
-    maxUtxos: 20 - carriers.length,
+    maxUtxos: 20 - dieselUtxos.length,
   });
-  const carrierInputs = carriers.map(({ txid, vout }) => `${txid}:${vout}`);
-  const carrierSats = carriers.reduce((sum, carrier) => sum + (carrier.value ?? 0), 0);
+  const dieselInputs = dieselUtxos.map(({ txid, vout }) => `${txid}:${vout}`);
+  const dieselInputSats = dieselUtxos.reduce((sum, utxo) => sum + (utxo.value ?? 0), 0);
+  const inputVbytes = conservativeWalletInputVbytes(sourceAddress);
   const selectedFunding: typeof funding.utxos = [];
   let fundingSats = 0;
   for (const utxo of funding.utxos) {
     selectedFunding.push(utxo);
     fundingSats += utxo.value;
-    // Conservative P2WPKH budget: four outputs plus transaction overhead, and one 68-vB witness
-    // input per carrier/funding coin. Core computes the exact fee; this only chooses enough coins.
-    const estimatedVsize = 160 + 68 * (carriers.length + selectedFunding.length);
-    const needed = DIESEL_RECIPIENT_SATS + DIESEL_CARRIER_SATS
+    // Conservative budget: four outputs plus overhead and the source format's worst-case input
+    // size per DIESEL/funding coin. Core computes the exact fee; this only chooses enough coins.
+    const estimatedVsize = 160 + inputVbytes * (dieselUtxos.length + selectedFunding.length);
+    const needed = DIESEL_RECIPIENT_SATS + minimumDieselUtxoSats
       + Math.ceil(estimatedVsize * sat_per_vbyte);
-    if (carrierSats + fundingSats >= needed) break;
+    if (dieselInputSats + fundingSats >= needed) break;
   }
-  const estimatedVsize = 160 + 68 * (carriers.length + selectedFunding.length);
-  if (carrierSats + fundingSats < DIESEL_RECIPIENT_SATS + DIESEL_CARRIER_SATS
+  const estimatedVsize = 160 + inputVbytes * (dieselUtxos.length + selectedFunding.length);
+  if (dieselInputSats + fundingSats < DIESEL_RECIPIENT_SATS + minimumDieselUtxoSats
     + Math.ceil(estimatedVsize * sat_per_vbyte)) {
     throw new Error('Insufficient clean BTC to fund the DIESEL send fee.');
   }
   const fundingInputs = selectedFunding.map(({ txid, vout }) => `${txid}:${vout}`);
-  const inputsSet = [...carrierInputs, ...fundingInputs].join(',');
+  const inputsSet = [...dieselInputs, ...fundingInputs].join(',');
   const transferScript = buildDieselTransferScript(requested, 0, 1);
   const response = await composeTransaction('send', {
     destination,
     asset: 'BTC',
     quantity: DIESEL_RECIPIENT_SATS.toString(),
     no_dispense: 'true',
-    more_outputs: `${DIESEL_CARRIER_SATS}:${sourceAddress},0:${transferScript}`,
+    more_outputs: `${minimumDieselUtxoSats}:${sourceAddress},0:${transferScript}`,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   }, sourceAddress, sat_per_vbyte, 'opreturn', { inputsSet, useAllInputsSet: true });
 
@@ -1392,11 +1464,11 @@ export async function composeDieselSend(options: DieselSendOptions): Promise<Api
   const runestone = parsed?.outputs[2];
   if (
     !parsed
-    || carrierInputs.some((input) => !actualInputs.has(input))
+    || dieselInputs.some((input) => !actualInputs.has(input))
     || recipient?.value !== DIESEL_RECIPIENT_SATS
     || !recipient.address
     || normalizeAddressForComparison(recipient.address) !== normalizeAddressForComparison(destination)
-    || remainder?.value !== DIESEL_CARRIER_SATS
+    || remainder?.value !== minimumDieselUtxoSats
     || !remainder.address
     || normalizeAddressForComparison(remainder.address) !== normalizeAddressForComparison(sourceAddress)
     || runestone?.value !== 0
@@ -1409,7 +1481,7 @@ export async function composeDieselSend(options: DieselSendOptions): Promise<Api
   }
   response.result.diesel_transfer = {
     amount_base_units: amountBaseUnits,
-    carrier_inputs: carrierInputs,
+    input_utxos: dieselInputs,
     recipient_vout: 0,
     remainder_vout: 1,
     runestone_vout: 2,
@@ -1644,7 +1716,19 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const settings = getActiveSettings();
+  // Current Core emits `[546-sat attachment, data, more_outputs..., change]` when the attach target
+  // is implicit. Keep explicit/legacy output controls on the ordinary path until independently
+  // proven; for the default current-height shape the DIESEL UTXO is vout 2.
+  const attachDieselMint = settings.enableDieselMinting
+    && isSupportedDieselUtxoAddress(sourceAddress)
+    && utxo_value === undefined
+    && destination_vout === undefined
+    && (encoding === undefined || encoding === 'auto' || encoding === 'opreturn');
+  if (!attachDieselMint) {
+    return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  }
+  return composeWithDieselMint('attach', paramsObj, sourceAddress, sat_per_vbyte, 2);
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {

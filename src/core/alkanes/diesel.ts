@@ -6,17 +6,14 @@
  * instead of scattering a frozen mainnet constant through transaction construction code.
  */
 
+import { validateBitcoinAddress } from '@/core/validation/bitcoin';
+
 export const ALKANES_PROTOCOL_TAG = 1n;
 export const DIESEL_ALKANE_ID = { block: 2n, tx: 0n } as const;
 export const DIESEL_MINT_OPCODE = 77n;
-export const DIESEL_CARRIER_SATS = 330;
-/** Serialized size of one native-SegWit P2WPKH output. */
-export const P2WPKH_OUTPUT_VBYTES = 31;
+export const DIESEL_UTXO_MIN_SATS = 330;
 /** Serialized size of the complete 17-byte DIESEL runestone output. */
 export const DIESEL_RUNESTONE_MARGINAL_VBYTES = 26;
-/** Safe fallback: one P2WPKH storage output plus the DIESEL runestone output. */
-export const DIESEL_MINT_MARGINAL_VBYTES =
-  P2WPKH_OUTPUT_VBYTES + DIESEL_RUNESTONE_MARGINAL_VBYTES;
 
 const RUNESTONE_PROTOCOL_TAG = 16_383n;
 const PROTOSTONE_POINTER_TAG = 91n;
@@ -108,7 +105,7 @@ export function buildDieselMintScript(pointer: number, refund = pointer): string
   return bytesToHex([OP_RETURN, OP_PUSHNUM_13, payload.length, ...payload]);
 }
 
-/** Route an exact amount to one output and every remaining input unit to our carrier output. */
+/** Route an exact amount to one output and every remaining input unit to our wallet-owned output. */
 export function buildDieselTransferScript(
   amountBaseUnits: bigint,
   recipientOutput: number,
@@ -150,11 +147,23 @@ export interface DecodedDieselMintScript {
   calldata: readonly [2n, 0n, 77n];
 }
 
-export function isVerifiedDieselCarrierAddress(address: string): boolean {
-  // The regtest and package-cost proof cover native v0 P2WPKH. Do not broaden this merely because
-  // another address kind can be encoded; routing and lifetime spendability need their own proof.
-  return /^(?:bc|tb)1q[02-9ac-hj-np-z]{38}$/i.test(address)
-    || /^bcrt1q[02-9ac-hj-np-z]{38,58}$/i.test(address);
+export function isSupportedDieselUtxoAddress(address: string): boolean {
+  return dieselUtxoMinimumSats(address) !== undefined;
+}
+
+/** Standard relay dust floor for the wallet output that receives DIESEL. */
+export function dieselUtxoMinimumSats(address: string): number | undefined {
+  const result = validateBitcoinAddress(address);
+  // These are the four single-key wallet address families exercised against the combined
+  // Counterparty + Alkanes output shape on regtest. P2WSH and future witness versions stay out
+  // until the extension has an equally concrete signer and routing fixture for them.
+  if (!result.isValid) return undefined;
+  if (result.addressFormat === 'P2PKH') return 546;
+  if (result.addressFormat === 'P2SH') return 540;
+  if (result.addressFormat === 'P2WPKH' || result.addressFormat === 'P2TR') {
+    return DIESEL_UTXO_MIN_SATS;
+  }
+  return undefined;
 }
 
 /** Strictly decode a script produced by {@link buildDieselMintScript}. */

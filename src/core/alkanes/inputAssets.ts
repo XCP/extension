@@ -11,7 +11,7 @@ export interface InputAlkaneBalances {
 export const MAX_ALKANES_LOOKUP_INPUTS = 30;
 
 /**
- * Check signed inputs first and report every carrier or unknown input. Confirmed-empty inputs are
+ * Check signed inputs first and report every token-bearing or unknown input. Confirmed-empty inputs are
  * omitted. This mirrors Counterparty attached-asset approval semantics but intentionally does not
  * trust the Counterparty recent-broadcast journal: that journal has no knowledge of Alkanes.
  */

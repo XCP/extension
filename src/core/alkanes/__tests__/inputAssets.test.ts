@@ -5,13 +5,13 @@ import { fetchInputsAlkanes, MAX_ALKANES_LOOKUP_INPUTS } from '../inputAssets';
 vi.mock('../api', () => ({ fetchAlkanesByOutpoint: vi.fn() }));
 const mockedFetch = vi.mocked(fetchAlkanesByOutpoint);
 
-describe('Alkanes input carrier lookup', () => {
+describe('Alkanes input UTXO lookup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedFetch.mockResolvedValue([]);
   });
 
-  it('reports carriers and omits inputs proved empty', async () => {
+  it('reports token-bearing UTXOs and omits inputs proved empty', async () => {
     mockedFetch.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: '2:0', value: '7' }]);
     const result = await fetchInputsAlkanes([
       { index: 0, txid: 'a'.repeat(64), vout: 0 },

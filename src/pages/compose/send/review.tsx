@@ -141,10 +141,10 @@ export function ReviewSend({
             {' '}(~{result.diesel_mint.estimated_marginal_fee_sats} sat at
             {' '}{result.diesel_mint.fee_rate_sat_vbyte} sat/vB)
             <br />
-            {result.diesel_mint.carrier_sats} sat protected
-            {result.diesel_mint.carrier_kind === 'change' ? ' wallet return' : ' storage'};
+            {result.diesel_mint.utxo_sats} sat protected
+            {result.diesel_mint.utxo_kind === 'change' ? ' wallet return' : ' storage'};
             {' '}remains yours
-            {result.diesel_mint.rolled_carrier ? <><br />Existing DIESEL rolled forward</> : null}
+            {result.diesel_mint.rolled_utxo ? <><br />Existing DIESEL rolled forward</> : null}
           </span>
         ),
       }] : result.params.more_outputs ? [(() => {
