@@ -18,7 +18,10 @@ import {
   getIdentityMismatchError,
   getPsbtPermissionError,
 } from '@/platform/provider/requestIdentity';
-import { signPsbtPhaseForDelivery } from '@/platform/provider/signPsbtPhase';
+import {
+  signAttachAndListingForDelivery,
+  signPsbtPhaseForDelivery,
+} from '@/platform/provider/signPsbtPhase';
 import { getConnectionService } from '@/services/connectionService';
 import { getWalletService } from '@/services/walletService';
 
@@ -36,8 +39,12 @@ export default function ApprovePsbtsPage() {
     // and the fee bump is a line item of the acceptance rather than a second act.
     const title = request?.bundleKind === 'acceptance-cpfp'
       ? 'Accept Offer'
-      : request?.bundleKind === 'bulk-fanout'
-        ? 'Prepare Listing Funds'
+      : request?.bundleKind === 'attach-and-list'
+        ? 'Attach and List'
+        : request?.bundleKind === 'bulk-fanout'
+          ? 'Prepare Listing Funds'
+        : request?.bundleKind === 'prepare-assets'
+          ? 'Prepare Assets'
         : request?.bundleKind === 'bulk-attach'
           ? 'Attach Collectibles'
           : request?.bundleKind === 'bulk-listing'
@@ -86,12 +93,24 @@ export default function ApprovePsbtsPage() {
       const walletService = getWalletService();
       // Nothing is returned to the site until every signer succeeds. A rejection or hardware
       // cancellation on a later item discards every earlier in-memory result.
-      const results = await signPsbtPhaseForDelivery(request.items, item =>
-        walletService.signPsbt(
-          item.psbtHex,
-          item.signInputs,
-          item.sighashTypes,
-        ));
+      const sign = (item: (typeof request.items)[number]) => walletService.signPsbt(
+        item.psbtHex,
+        item.signInputs,
+        item.sighashTypes,
+      );
+      const results = await (request.bundleKind === 'attach-and-list'
+        ? (() => {
+            const attachIntent = request.items[0]?.marketplaceIntent;
+            if (attachIntent?.action !== 'attach_for_listing') {
+              throw new Error('attach-and-list request has no attachment parent');
+            }
+            return signAttachAndListingForDelivery(
+              request.items,
+              attachIntent.expectedAttachedOutpoint,
+              sign,
+            );
+          })()
+        : signPsbtPhaseForDelivery(request.items, sign));
       await handleSuccess(results);
       window.close();
     } catch (signError) {
@@ -122,9 +141,11 @@ export default function ApprovePsbtsPage() {
   const allReprice = request.bundleKind === 'bulk-listing'
     && request.items.every(item => item.marketplaceIntent.action === 'create_listing'
       && item.marketplaceIntent.listingContext?.mode === 'reprice');
-  const signLabel = request.bundleKind === 'bulk-listing'
-    ? `Authorize ${request.items.length} ${allReprice ? 'reprice' : 'listing'}${request.items.length === 1 ? '' : 's'}`
-    : 'Sign';
+  const signLabel = request.bundleKind === 'attach-and-list'
+    ? 'Attach and authorize listing'
+    : request.bundleKind === 'bulk-listing'
+      ? `Authorize ${request.items.length} ${allReprice ? 'reprice' : 'listing'}${request.items.length === 1 ? '' : 's'}`
+      : 'Sign';
   return (
     <div className="flex flex-col h-full bg-gray-50">
       <div className="flex-1 overflow-y-auto p-4">

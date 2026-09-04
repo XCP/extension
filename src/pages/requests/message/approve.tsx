@@ -6,16 +6,15 @@ import { ErrorAlert } from '@/components/ui/error-alert';
 import { WarningStack } from '@/components/ui/warning-stack';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
-import type { AddressFormat } from '@/core/bitcoin/address';
 import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
-import { signMessage } from '@/core/bitcoin/messageSigner';
 import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
 import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
-import { getConnectionRevokedError, getIdentityMismatchError } from '@/platform/provider/requestIdentity';
+import { getIdentityMismatchError, getMessagePermissionError } from '@/platform/provider/requestIdentity';
 import { getConnectionService } from '@/services/connectionService';
+import { getWalletService } from '@/services/walletService';
 
 export default function ApproveMessagePage() {
-  const { activeAddress, activeWallet, getPrivateKey } = useWallet();
+  const { activeAddress, activeWallet } = useWallet();
   const { setHeaderProps } = useHeader();
   const {
     request,
@@ -49,7 +48,7 @@ export default function ApproveMessagePage() {
     // A request stays open for up to ten minutes, so the site's grant is rechecked here rather
     // than trusted from when the request was created — revoking a site in Settings must take
     // effect on an approval already on screen. The transaction and PSBT paths both do this.
-    const revokedError = await getConnectionRevokedError(request, getConnectionService());
+    const revokedError = await getMessagePermissionError(request, getConnectionService());
     if (revokedError) {
       setError(revokedError);
       return;
@@ -59,42 +58,12 @@ export default function ApproveMessagePage() {
     setError('');
 
     try {
-      const addressFormat = activeWallet.addressFormat as AddressFormat;
+      const result = await getWalletService().signMessage(
+        request.message,
+        request.signingAddress ?? request.address,
+      );
 
-      let resultSignature: string;
-
-      if (activeWallet.type === 'hardware') {
-        // Use TrezorAdapter for hardware wallet signing
-        const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
-        const { DerivationPaths } = await import('@/core/hardware/types');
-        const trezor = getTrezorAdapter();
-        await trezor.init();
-
-        const hwResult = await trezor.signMessage({
-          path: DerivationPaths.stringToPath(activeAddress.path),
-          message: request.message,
-          coin: 'Bitcoin',
-        });
-
-        resultSignature = hwResult.signature;
-      } else {
-        // Software wallet - get private key and sign locally
-        const privateKeyResult = await getPrivateKey(
-          activeWallet.id,
-          activeAddress.path
-        );
-
-        const result = await signMessage(
-          request.message,
-          privateKeyResult.hex,
-          addressFormat,
-          privateKeyResult.compressed
-        );
-
-        resultSignature = result.signature;
-      }
-
-      await handleSuccess({ signature: resultSignature });
+      await handleSuccess({ signature: result.signature });
       window.close();
     } catch (err) {
       console.error('Failed to sign message:', err);
@@ -167,7 +136,7 @@ export default function ApproveMessagePage() {
                 {activeWallet.name}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {activeAddress.address}
+                {request.signingAddress ?? request.address}
               </p>
             </div>
             <div className="ml-3 flex-shrink-0">

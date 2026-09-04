@@ -36,7 +36,12 @@ export type SignFlowEntry<P = Record<string, unknown>> = AuthorizedRequest & {
   result?: unknown;
 } & P;
 
-export type SignMessageRequest = SignFlowEntry<{ message: string }>;
+export type SignMessageRequest = SignFlowEntry<{
+  message: string;
+  /** Address that signs the message. Defaults to the request-bound active
+   * address for records created before paired message signing existed. */
+  signingAddress?: string;
+}>;
 export type SignTransactionRequest = SignFlowEntry<{ rawTxHex: string }>;
 export type SignPsbtRequest = SignFlowEntry<{
   psbtHex: string;

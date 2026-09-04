@@ -107,6 +107,27 @@ const MARKETPLACE_ATTACH_INTENT = {
   },
   operationExpiresAt: 2_000_000_000,
 } as const;
+const MARKETPLACE_PREPARE_INTENT = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_asset',
+  operationId: 'prepare-1',
+  protocolVersion: 'counterparty_prepare_assets_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  carrierOwner: 'bc1qtest123',
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+} as const;
 const MARKETPLACE_BUY_INTENT = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -925,10 +946,66 @@ describe('ProviderService', () => {
         expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
           expect.objectContaining({
             origin: 'https://test.com',
-            message
-            // Note: address is not stored in signMessage requests
+            message,
+            address,
+            signingAddress: address,
           })
         );
+      });
+
+      it('allows a paired sibling to sign without changing the active address', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const pairedLegacy = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+
+        providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', pairedLegacy]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
+          'https://test.com',
+          'wallet1',
+          'bc1qtest123'
+        );
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: 'bc1qtest123',
+            signingAddress: pairedLegacy,
+          })
+        );
+      });
+
+      it('refuses a paired sibling message signer without paired permission', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7']
+        )).rejects.toThrow('Paired Legacy/SegWit address access has not been granted');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+      it('refuses a message signer outside the active pair', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']
+        )).rejects.toThrow('not the active address or its paired sibling');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
     });
 
@@ -1231,6 +1308,88 @@ describe('ProviderService', () => {
               expect.objectContaining({ marketplaceIntent: MARKETPLACE_CPFP_INTENT }),
             ],
           })
+        );
+      });
+
+      it('stores a bounded price-free prepare-asset claim for independent proof', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7': [0] },
+            sighashTypes: [0x01],
+            intent: MARKETPLACE_PREPARE_INTENT,
+          }]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            signingPurpose: 'counterparty',
+            marketplaceIntent: MARKETPLACE_PREPARE_INTENT,
+          })
+        );
+      });
+
+      it('stores one linked attach-and-list flow for a single approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const seller = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+        const listingIntent = {
+          ...MARKETPLACE_LISTING_INTENT,
+          operationId: 'attach-and-list-1',
+          seller,
+        };
+        const attachIntent = {
+          ...MARKETPLACE_ATTACH_INTENT,
+          operationId: listingIntent.operationId,
+          seller,
+          carrierAddress: seller,
+          carrierValueSats: listingIntent.carrierValueSats,
+          expectedAttachedOutpoint: listingIntent.assets[0].sourceOutpoint,
+        };
+
+        providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbts',
+          [{
+            requests: [
+              {
+                hex: VALID_PSBT_HEX,
+                signInputs: { [seller]: [0] },
+                sighashTypes: [0x01],
+                intent: attachIntent,
+              },
+              {
+                hex: listingPsbtHex(),
+                signInputs: { [seller]: [1] },
+                sighashTypes: [0x01, 0x83],
+                intent: listingIntent,
+              },
+            ],
+          }],
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin: 'https://digirare.com',
+            kind: 'sign-psbts',
+            bundleKind: 'attach-and-list',
+            items: [
+              expect.objectContaining({ marketplaceIntent: attachIntent }),
+              expect.objectContaining({ marketplaceIntent: listingIntent }),
+            ],
+          }),
         );
       });
 

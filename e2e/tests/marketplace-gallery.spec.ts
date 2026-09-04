@@ -1,7 +1,7 @@
 /**
  * Screenshots every marketplace / provider-safety approval screen the 0.9 work added, one file
  * per state — the companion to approval-gallery.spec.ts for the surfaces that gallery cannot
- * reach: proof-based marketplace intents (attach-for-listing, create listing, buy, exact offers,
+ * reach: proof-based marketplace intents (prepare asset, attach-for-listing, create listing, buy, exact offers,
  * bulk fan-out), the plain-Bitcoin payment capability, the linked-PSBT bundle screen, and the
  * blocked / retry gates in front of them.
  *
@@ -261,7 +261,14 @@ interface Scenario {
   record: Record<string, unknown>;
   balances: Record<string, StubBalance[] | 'fail'>;
   /** The footer state this scenario is expected to reach — a drifting state fails the run. */
-  expectFooter: 'Sign' | 'Review' | 'Blocked' | 'Authorize listing' | 'Authorize reprice';
+  expectFooter:
+    | 'Sign'
+    | 'Review'
+    | 'Blocked'
+    | 'Authorize listing'
+    | 'Authorize reprice'
+    | 'Prepare asset'
+    | 'Attach and authorize listing';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** False-positive warnings that would make an ordinary marketplace request look unsafe. */
@@ -413,6 +420,211 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
         },
       }),
       balances: {},
+    });
+  }
+
+  // --- prepare_asset: the same proved attach with no price or listing authorization ----------
+  {
+    const legacyPrevTx = buildRawTx(
+      [{ txid: '2a'.repeat(32), vout: 0, value: 0 }],
+      [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
+    );
+    const legacySource: BuiltInput = {
+      txid: txidOf(legacyPrevTx),
+      vout: 0,
+      address: pairedLegacy,
+      value: 330,
+      nonWitnessUtxoHex: legacyPrevTx,
+    };
+    const modernFunding: BuiltInput = {
+      txid: '2b'.repeat(32),
+      vout: 1,
+      address: wallet,
+      value: 10_000,
+    };
+    const payload = attachPayload('RAREPEPE', '1', 0);
+    const outputs: BuiltOutput[] = [
+      { scriptHex: scriptFor(wallet), value: 330 },
+      { scriptHex: opReturnScript(payload, legacySource.txid), value: 0 },
+      { scriptHex: scriptFor(wallet), value: 9_000 },
+    ];
+    const { psbtHex, txid } = buildPsbt([legacySource, modernFunding], outputs);
+    scenarios.push({
+      name: 'prepare-asset-proved',
+      route: '/requests/psbt/approve',
+      expectFooter: 'Prepare asset',
+      expectedText: [
+        'Prepare Asset',
+        'Attach 1 RAREPEPE',
+        'Signing addresses (2)',
+        'Asset source',
+        pairedLegacy,
+        'New UTXO owner',
+        wallet,
+        'New UTXO value',
+        '330 sats',
+        'Quoted XCP fee',
+      ],
+      absentText: [
+        'for listing',
+        'Authorize listing',
+        'Blocked: Not a Counterparty Transaction',
+      ],
+      record: seedRecord('mk-prepare-asset', {
+        requestKey: 'xcp_signPsbt:mk-prepare-asset',
+        kind: 'sign-psbt',
+        psbtHex,
+        signInputs: { [pairedLegacy]: [0], [wallet]: [1] },
+        sighashTypes: [0x01, 0x01],
+        marketplaceIntent: {
+          standard: 'counterparty-marketplace',
+          version: 1,
+          action: 'prepare_asset',
+          operationId: 'prepare-1',
+          protocolVersion: 'counterparty_prepare_assets_v1',
+          assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+          carrierOwner: wallet,
+          assetSource: pairedLegacy,
+          expectedAttachedOutpoint: { txid, vout: 0 },
+          carrierValueSats: 330,
+          networkFeeSats: 1_000,
+          protocolFee: {
+            asset: 'XCP',
+            quotedAmountRaw: '25000000',
+            actualAmountRaw: null,
+            observedBlock: 900_000,
+            variableUntilConfirmed: true,
+          },
+          operationExpiresAt: FUTURE,
+        },
+      }),
+      balances: {},
+    });
+  }
+
+  // --- one-review attach + listing from paired Legacy ---------------------------------------
+  // The listing points at the unsigned attachment txid here. At approval time the wallet signs
+  // the Legacy parent, resolves its final txid, rewrites only this dependent outpoint, and then
+  // signs the listing. The unit test covers that mutation; this scenario keeps the combined
+  // disclosure and paired signer context visible in the approval gallery.
+  {
+    const legacyPrevTx = buildRawTx(
+      [{ txid: '18'.repeat(32), vout: 0, value: 0 }],
+      [{ scriptHex: scriptFor(pairedLegacy), value: 330 }],
+    );
+    const legacySource: BuiltInput = {
+      txid: txidOf(legacyPrevTx),
+      vout: 0,
+      address: pairedLegacy,
+      value: 330,
+      nonWitnessUtxoHex: legacyPrevTx,
+    };
+    const modernFunding: BuiltInput = {
+      txid: '1a'.repeat(32),
+      vout: 1,
+      address: wallet,
+      value: 10_000,
+    };
+    const payload = attachPayload('COLLECTOR', '1', 0);
+    const attach = buildPsbt(
+      [legacySource, modernFunding],
+      [
+        { scriptHex: scriptFor(wallet), value: 330 },
+        { scriptHex: opReturnScript(payload, legacySource.txid), value: 0 },
+        { scriptHex: scriptFor(wallet), value: 9_000 },
+      ],
+    );
+    const listing = buildPsbt(
+      [
+        { txid: '00'.repeat(32), vout: 0, value: 0 },
+        { txid: attach.txid, vout: 0, address: wallet, value: 330 },
+      ],
+      [
+        { scriptHex: scriptFor(wallet), value: 330 },
+        { scriptHex: scriptFor(wallet), value: 100_330 },
+      ],
+    );
+    const operationId = 'attach-and-list-paired-1';
+    const assetClaim = {
+      asset: 'COLLECTOR',
+      quantityRaw: '1',
+      sourceOutpoint: { txid: attach.txid, vout: 0 },
+    };
+    scenarios.push({
+      name: 'bundle-attach-and-list-paired-legacy',
+      route: '/requests/psbts/approve',
+      expectFooter: 'Attach and authorize listing',
+      expectedText: [
+        'Attach and list COLLECTOR',
+        'Asset source',
+        pairedLegacy,
+        'Broadcast now',
+        'Attach transaction only',
+        'Listing activation',
+        'After confirmation and Counterparty verification',
+      ],
+      absentText: [
+        'Blocked: Not a Counterparty Transaction',
+        'BTC Sent to External Address',
+      ],
+      record: seedRecord('mk-attach-and-list-paired', {
+        requestKey: 'xcp_signPsbts:mk-attach-and-list-paired',
+        kind: 'sign-psbts',
+        bundleKind: 'attach-and-list',
+        items: [
+          {
+            psbtHex: attach.psbtHex,
+            signInputs: { [pairedLegacy]: [0], [wallet]: [1] },
+            sighashTypes: [0x01, 0x01],
+            marketplaceIntent: {
+              standard: 'counterparty-marketplace',
+              version: 1,
+              action: 'attach_for_listing',
+              operationId,
+              protocolVersion: 'counterparty_attach_listing_v1',
+              assets: [{ asset: 'COLLECTOR', quantityRaw: '1' }],
+              seller: wallet,
+              assetSource: pairedLegacy,
+              expectedAttachedOutpoint: { txid: attach.txid, vout: 0 },
+              carrierAddress: wallet,
+              carrierValueSats: 330,
+              networkFeeSats: 1_000,
+              protocolFee: {
+                asset: 'XCP',
+                quotedAmountRaw: '0',
+                actualAmountRaw: null,
+                observedBlock: 900_000,
+                variableUntilConfirmed: true,
+              },
+              operationExpiresAt: FUTURE,
+            },
+          },
+          {
+            psbtHex: listing.psbtHex,
+            signInputs: { [wallet]: [1] },
+            sighashTypes: [0x01, 0x83],
+            marketplaceIntent: {
+              standard: 'counterparty-marketplace',
+              version: 1,
+              action: 'create_listing',
+              operationId,
+              protocolVersion: 'counterparty_attach_listing_v1',
+              assets: [assetClaim],
+              seller: wallet,
+              priceSats: 100_000,
+              carrierValueSats: 330,
+              guaranteedSellerPaymentSats: 100_330,
+              delivery: { mode: 'buyer_selected_detach' },
+              signingRequestExpiresAt: FUTURE,
+              marketplaceExpiresAt: null,
+              bitcoinExpiresAt: null,
+            },
+          },
+        ],
+      }),
+      balances: {
+        [`${attach.txid}:0`]: [{ asset: 'COLLECTOR', quantity: '1', quantity_normalized: '1' }],
+      },
     });
   }
 
@@ -886,7 +1098,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
     );
 
     const footer = approval.getByRole('button', {
-      name: /^(sign|review|blocked|authorize listing|authorize reprice)$/i,
+      name: /^(sign|review|blocked|authorize listing|authorize reprice|prepare asset|attach and authorize listing)$/i,
     });
     await expect(footer).toBeVisible({ timeout: 60_000 });
     const footerLabel = (await footer.textContent())?.trim() ?? '';

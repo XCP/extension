@@ -7,6 +7,7 @@ import {
   type BuyListingsIntentClaim,
   type CreateListingIntentClaim,
   marketplaceTransactionHeaderProblem,
+  type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
@@ -161,6 +162,28 @@ const attachIntent: AttachForListingIntentClaim = {
   assetSource: SELLER,
   expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
   carrierAddress: SELLER,
+  carrierValueSats: 546,
+  networkFeeSats: 1_000,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+};
+
+const prepareIntent: PrepareAssetIntentClaim = {
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_asset',
+  operationId: 'prepare-1',
+  protocolVersion: 'counterparty_prepare_assets_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  carrierOwner: SELLER,
+  assetSource: SELLER,
+  expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
   carrierValueSats: 546,
   networkFeeSats: 1_000,
   protocolFee: {
@@ -335,6 +358,10 @@ describe('marketplace intent wire parser', () => {
     expect(parseMarketplaceIntent(attachIntent)).toEqual(attachIntent);
   });
 
+  it('copies a bounded price-free prepare-asset claim', () => {
+    expect(parseMarketplaceIntent(prepareIntent)).toEqual(prepareIntent);
+  });
+
   it('defaults an older same-address v1 attach claim to seller as its asset source', () => {
     const { assetSource: _assetSource, ...olderClaim } = attachIntent;
     expect(parseMarketplaceIntent(olderClaim)).toEqual(attachIntent);
@@ -496,6 +523,76 @@ describe('attach-for-listing proof', () => {
 
     expect(review.status).toBe('retry');
     expect(review.blockers.join(' ')).toMatch(/lookup/i);
+  });
+});
+
+describe('prepare-asset proof', () => {
+  it('proves the same exact attach without implying a listing', () => {
+    const review = analyzeMarketplaceIntent({
+      ...attachBase(),
+      intent: prepareIntent,
+    });
+
+    expect(review).toMatchObject({
+      status: 'caution',
+      family: 'prepare_asset',
+      title: 'Prepare RAREPEPE',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({
+      label: 'Quoted XCP fee',
+      value: '0.25 XCP (finalized at confirmation)',
+    });
+    expect(review.title).not.toMatch(/list/i);
+  });
+
+  it('proves a Legacy source preparing a carrier for its paired modern owner', () => {
+    const request = attachBase();
+    const review = analyzeMarketplaceIntent({
+      ...request,
+      intent: {
+        ...prepareIntent,
+        carrierOwner: SELLER_TWO,
+        assetSource: SELLER,
+      },
+      inputs: [request.inputs[0]!],
+      outputs: [
+        { ...request.outputs[0]!, address: SELLER_TWO },
+        request.outputs[1]!,
+        { ...request.outputs[2]!, address: SELLER, value: 98_454 },
+      ],
+      signedInputs: [{ index: 0, sighashType: 0x01 }],
+      signerAddresses: [SELLER],
+    });
+
+    expect(review.status).toBe('caution');
+    expect(review.blockers).toEqual([]);
+    expect(review.facts).toEqual(expect.arrayContaining([
+      { label: 'Asset source', value: SELLER },
+      { label: 'New UTXO owner', value: SELLER_TWO },
+    ]));
+  });
+
+  it('refuses a prepare-asset claim with another protocol version', () => {
+    expect(() => parseMarketplaceIntent({
+      ...prepareIntent,
+      protocolVersion: 'counterparty_attach_listing_v1',
+    })).toThrow();
+  });
+
+  it.each([
+    ['asset', {
+      localCounterpartyMessage: {
+        messageType: 'attach',
+        data: { asset: 'SPELLS', quantity: 1n, destinationVout: 0 },
+      },
+    }],
+    ['carrier', { intent: { ...prepareIntent, carrierOwner: SELLER_TWO } }],
+    ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x81 }] }],
+  ])('blocks a malicious %s mutation', (_label, override) => {
+    const review = analyzeMarketplaceIntent({ ...attachBase(), intent: prepareIntent, ...override });
+    expect(review.status).toBe('blocked');
+    expect(review.blockers.length).toBeGreaterThan(0);
   });
 });
 

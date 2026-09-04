@@ -4,8 +4,10 @@ import {
   parseMarketplaceBatchIntents,
 } from '@/core/counterparty/marketplaceBatch';
 import type {
+  AttachForListingIntentClaim,
   CreateListingIntentClaim,
   MarketplaceApprovalReview,
+  PrepareAssetIntentClaim,
   PrepareBulkFanoutIntentClaim,
 } from '@/core/counterparty/marketplaceIntent';
 
@@ -31,6 +33,51 @@ const listing = (index: number, reprice = false): CreateListingIntentClaim => ({
   marketplaceExpiresAt: 2_000_003_600,
   bitcoinExpiresAt: null,
   ...(reprice ? { listingContext: { mode: 'reprice' as const } } : {}),
+});
+
+const attach = (): AttachForListingIntentClaim => ({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'attach_for_listing',
+  operationId: 'bulk-listing-1',
+  protocolVersion: 'counterparty_attach_listing_v1',
+  assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
+  seller: SELLER,
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: listing(0).assets[0].sourceOutpoint,
+  carrierAddress: SELLER,
+  carrierValueSats: 546,
+  networkFeeSats: 454,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
+});
+
+const prepare = (index: number): PrepareAssetIntentClaim => ({
+  standard: 'counterparty-marketplace',
+  version: 1,
+  action: 'prepare_asset',
+  operationId: 'prepare-1',
+  protocolVersion: 'counterparty_prepare_assets_v1',
+  assets: [{ asset: index === 0 ? 'RAREPEPE' : 'SPELLSOFGENESIS', quantityRaw: '1' }],
+  carrierOwner: SELLER,
+  assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
+  expectedAttachedOutpoint: { txid: (index === 0 ? '41' : '42').repeat(32), vout: 0 },
+  carrierValueSats: 330,
+  networkFeeSats: 454,
+  protocolFee: {
+    asset: 'XCP',
+    quotedAmountRaw: '25000000',
+    actualAmountRaw: null,
+    observedBlock: 900_000,
+    variableUntilConfirmed: true,
+  },
+  operationExpiresAt: 2_000_000_000,
 });
 
 const fanout = (batchIndex: number): PrepareBulkFanoutIntentClaim => ({
@@ -63,6 +110,28 @@ const proved = (overrides: Partial<MarketplaceApprovalReview> = {}): Marketplace
 });
 
 describe('homogeneous marketplace batch parser', () => {
+  it('accepts one attach followed by its exact dependent listing', () => {
+    expect(parseMarketplaceBatchIntents([attach(), listing(0)])).toEqual({
+      kind: 'attach-and-list',
+      intents: [attach(), listing(0)],
+    });
+  });
+
+  it.each([
+    ['operation', { ...listing(0), operationId: 'other' }],
+    ['asset', { ...listing(0), assets: [{ ...listing(0).assets[0], asset: 'OTHER' }] }],
+    ['outpoint', {
+      ...listing(0),
+      assets: [{ ...listing(0).assets[0], sourceOutpoint: { txid: 'ff'.repeat(32), vout: 0 } }],
+    }],
+    ['carrier value', { ...listing(0), carrierValueSats: 547 }],
+    ['reprice context', listing(0, true)],
+  ])('refuses an attach-and-list pair with a different %s', (_label, changedListing) => {
+    expect(() => parseMarketplaceBatchIntents([attach(), changedListing])).toThrow(
+      /one dependent listing/,
+    );
+  });
+
   it('accepts ordered independent fan-out parents for one operation', () => {
     expect(parseMarketplaceBatchIntents([fanout(0), fanout(1)])).toEqual({
       kind: 'bulk-fanout',
@@ -82,6 +151,42 @@ describe('homogeneous marketplace batch parser', () => {
 });
 
 describe('marketplace batch aggregate proof', () => {
+  it('explains the attach now and automatic listing activation boundary', () => {
+    const review = analyzeMarketplaceBatch(
+      'attach-and-list',
+      [attach(), listing(0)],
+      [proved({ family: 'attach_for_listing' }), proved({ family: 'create_listing' })],
+    );
+
+    expect(review).toMatchObject({
+      status: 'proved',
+      title: 'Attach and list RAREPEPE',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({ label: 'Asset source', value: attach().assetSource });
+    expect(review.facts).toContainEqual({ label: 'Listing price', value: '100,000 sats' });
+    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'Attach transaction only' });
+    expect(review.facts).toContainEqual({
+      label: 'Listing activation',
+      value: 'After confirmation and Counterparty verification',
+    });
+  });
+
+  it('accepts distinct prepare-assets children from one durable operation', () => {
+    expect(parseMarketplaceBatchIntents([prepare(0), prepare(1)])).toEqual({
+      kind: 'prepare-assets',
+      intents: [prepare(0), prepare(1)],
+    });
+  });
+
+  it.each([
+    ['asset source', { ...prepare(1), assetSource: '1BoatSLRHtKNngkdXEeobR76b53LETtpyT' }],
+    ['operation', { ...prepare(1), operationId: 'prepare-2' }],
+    ['target', { ...prepare(1), expectedAttachedOutpoint: prepare(0).expectedAttachedOutpoint }],
+  ])('refuses a prepare-assets batch with a changed %s', (_label, changed) => {
+    expect(() => parseMarketplaceBatchIntents([prepare(0), changed])).toThrow();
+  });
+
   it('shows exact aggregate slot and fee totals', () => {
     const intents = [fanout(0), fanout(1)];
     const review = analyzeMarketplaceBatch('bulk-fanout', intents, [proved(), proved()]);
@@ -93,6 +198,22 @@ describe('marketplace batch aggregate proof', () => {
     });
     expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '4' });
     expect(review.facts).toContainEqual({ label: 'Total network fees', value: '2,000 sats' });
+  });
+
+  it('summarizes a price-free preparation phase without calling it a listing', () => {
+    const intents = [prepare(0), prepare(1)];
+    const review = analyzeMarketplaceBatch(
+      'prepare-assets',
+      intents,
+      [proved({ family: 'prepare_asset' }), proved({ family: 'prepare_asset' })],
+    );
+    expect(review).toMatchObject({
+      status: 'proved',
+      title: 'Prepare 2 collectibles',
+      blockers: [],
+    });
+    expect(review.facts).toContainEqual({ label: 'Total network fees', value: '908 sats' });
+    expect(review.facts).toContainEqual({ label: 'Total quoted XCP fees', value: '0.5 XCP' });
   });
 
   // The bulk-listing screen has no attention interstitial: these facts are the only place the

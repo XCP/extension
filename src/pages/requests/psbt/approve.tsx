@@ -80,6 +80,8 @@ export default function ApprovePsbtPage() {
         ? 'Send Bitcoin'
         : request?.marketplaceIntent?.action === 'attach_for_listing'
           ? 'Attach for Listing'
+          : request?.marketplaceIntent?.action === 'prepare_asset'
+            ? 'Prepare Asset'
           : request?.marketplaceIntent?.action === 'create_listing'
             ? listingHeader
             : request?.marketplaceIntent?.action === 'buy_listings'
@@ -281,6 +283,8 @@ export default function ApprovePsbtPage() {
   }
 
   const marketplaceReview = decodedInfo.marketplaceReview;
+  const routineAttach = marketplaceReview?.family === 'attach_for_listing'
+    || marketplaceReview?.family === 'prepare_asset';
   const marketplaceBlocked = marketplaceReview?.status === 'blocked'
     || marketplaceReview?.status === 'retry';
   // A missing balance answer is uncertainty, not permission to assume an input is clean.
@@ -294,9 +298,10 @@ export default function ApprovePsbtPage() {
     ? attention.filter(item => item.key !== 'anyonecanpay')
     : attention;
   // Attach quotes are intrinsically block-dependent and already disclosed in the action card. A
-  // second click on every attach would turn that routine protocol fact into warning wallpaper.
+  // second click on a proved listing or inventory attach would turn that routine protocol fact
+  // into warning wallpaper.
   const marketplaceRequiresAttention = marketplaceReview?.status === 'caution'
-    && marketplaceReview.family !== 'attach_for_listing';
+    && !routineAttach;
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
   // create_listing is absent here on purpose: a fully proved listing is 'proved', never
@@ -350,6 +355,8 @@ export default function ApprovePsbtPage() {
     ? isRepriceListing ? 'Authorize reprice' : 'Authorize listing'
     : marketplaceReview?.family === 'authorize_exact_offer'
       ? 'Authorize offer'
+      : marketplaceReview?.family === 'prepare_asset'
+        ? 'Prepare asset'
       : counterpartyMessage?.messageType === 'destroy'
         ? 'Destroy supply'
         : 'Confirm and sign';
@@ -362,10 +369,10 @@ export default function ApprovePsbtPage() {
 
   // The marketplace review is the screen's one voice: proved/caution states take over the
   // headline and merge their facts into the Counterparty details instead of stacking a second
-  // presentation on top of the generic one. attach_for_listing keeps the standard attach
-  // headline — the semantic title adds nothing over "Attach 1 RAREPEPE".
+  // presentation on top of the generic one. Proved attach families keep the standard attach
+  // headline because the semantic title adds nothing over "Attach 1 RAREPEPE".
   const marketplaceHeadline = semanticMarketplaceReview
-    && marketplaceReview!.family !== 'attach_for_listing'
+    && !routineAttach
     ? { label: '', description: marketplaceReview!.title }
     : null;
   const marketplaceFacts = semanticMarketplaceReview ? marketplaceReview!.facts : [];
@@ -497,7 +504,9 @@ export default function ApprovePsbtPage() {
           ? 'Review'
           : marketplaceReview?.family === 'create_listing'
             ? confirmLabel
-            : 'Sign'}
+            : marketplaceReview?.family === 'prepare_asset'
+              ? confirmLabel
+              : 'Sign'}
       />
 
       {showAttention && requiresAttention && (

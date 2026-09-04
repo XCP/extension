@@ -5,6 +5,7 @@ import {
   type AttachForListingIntentClaim,
   type CreateListingIntentClaim,
   type MarketplaceApprovalReview,
+  type PrepareAssetIntentClaim,
   type PrepareBulkFanoutIntentClaim,
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
@@ -12,13 +13,22 @@ import { sum, toSafeInteger } from '@/core/numeric';
 
 export type MarketplaceBatchIntent =
   | PrepareBulkFanoutIntentClaim
+  | PrepareAssetIntentClaim
   | AttachForListingIntentClaim
   | CreateListingIntentClaim;
 
-export type MarketplaceBatchKind = 'bulk-fanout' | 'bulk-attach' | 'bulk-listing';
+export type MarketplaceBatchKind =
+  | 'attach-and-list'
+  | 'bulk-fanout'
+  | 'prepare-assets'
+  | 'bulk-attach'
+  | 'bulk-listing';
 
 const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
+
+const batchIdentity = (intent: MarketplaceBatchIntent): string =>
+  intent.action === 'prepare_asset' ? intent.carrierOwner : intent.seller;
 
 /** Parse an untrusted request array and admit only bounded homogeneous signing phases. */
 export function parseMarketplaceBatchIntents(values: unknown[]): {
@@ -29,20 +39,43 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     throw new Error('marketplace batch must contain 1..8 requests');
   }
   const parsed = values.map(parseMarketplaceIntent);
+  if (
+    parsed.length === 2
+    && parsed[0]!.action === 'attach_for_listing'
+    && parsed[1]!.action === 'create_listing'
+  ) {
+    const attach = parsed[0] as AttachForListingIntentClaim;
+    const listing = parsed[1] as CreateListingIntentClaim;
+    const listedAsset = listing.assets[0];
+    if (
+      attach.operationId !== listing.operationId
+      || !sameAddress(attach.seller, listing.seller)
+      || !sameAddress(attach.carrierAddress, listing.seller)
+      || attach.assets[0].asset !== listedAsset.asset
+      || attach.assets[0].quantityRaw !== listedAsset.quantityRaw
+      || attach.expectedAttachedOutpoint.txid !== listedAsset.sourceOutpoint.txid
+      || attach.expectedAttachedOutpoint.vout !== listedAsset.sourceOutpoint.vout
+      || attach.carrierValueSats !== listing.carrierValueSats
+      || listing.listingContext !== undefined
+    ) {
+      throw new Error('attach-and-list requests do not describe one dependent listing');
+    }
+    return { kind: 'attach-and-list', intents: [attach, listing] };
+  }
   const action = parsed[0]!.action;
   if (!parsed.every(intent => intent.action === action)) {
     throw new Error('marketplace batch requests must use one semantic action');
   }
-  if (!['prepare_bulk_fanout', 'attach_for_listing', 'create_listing'].includes(action)) {
+  if (!['prepare_bulk_fanout', 'prepare_asset', 'attach_for_listing', 'create_listing'].includes(action)) {
     throw new Error('marketplace action is not supported in a multi-PSBT phase');
   }
   const intents = parsed as MarketplaceBatchIntent[];
-  const seller = intents[0]!.seller;
-  if (!intents.every(intent => sameAddress(intent.seller, seller))) {
+  const seller = batchIdentity(intents[0]!);
+  if (!intents.every(intent => sameAddress(batchIdentity(intent), seller))) {
     throw new Error('marketplace batch requests must use one seller identity');
   }
   if (new Set(intents.map(intent => intent.operationId)).size !== intents.length) {
-    if (action !== 'prepare_bulk_fanout') {
+    if (action !== 'prepare_bulk_fanout' && action !== 'prepare_asset') {
       throw new Error('marketplace batch contains a duplicate operation id');
     }
   }
@@ -63,7 +96,18 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     }
     return { kind: 'bulk-fanout', intents: fanouts };
   }
-  const semanticTargets = action === 'attach_for_listing'
+  if (action === 'prepare_asset') {
+    const prepares = intents as PrepareAssetIntentClaim[];
+    const operationId = prepares[0]!.operationId;
+    const assetSource = prepares[0]!.assetSource;
+    if (!prepares.every(intent =>
+      intent.operationId === operationId
+      && sameAddress(intent.assetSource, assetSource)
+    )) {
+      throw new Error('prepare-assets requests must belong to one operation and asset source');
+    }
+  }
+  const semanticTargets = action === 'attach_for_listing' || action === 'prepare_asset'
     ? (intents as AttachForListingIntentClaim[]).map(intent =>
         `${intent.expectedAttachedOutpoint.txid}:${intent.expectedAttachedOutpoint.vout}`)
     : (intents as CreateListingIntentClaim[]).map(intent => {
@@ -74,7 +118,9 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     throw new Error('marketplace batch contains a duplicate transaction target');
   }
   return {
-    kind: action === 'attach_for_listing' ? 'bulk-attach' : 'bulk-listing',
+    kind: action === 'prepare_asset'
+      ? 'prepare-assets'
+      : action === 'attach_for_listing' ? 'bulk-attach' : 'bulk-listing',
     intents,
   };
 }
@@ -111,7 +157,7 @@ export function analyzeMarketplaceBatch(
       : reviews.some(review => review.status === 'caution')
         ? 'caution'
         : 'proved';
-  const seller = intents[0]!.seller;
+  const seller = batchIdentity(intents[0]!);
   const facts: MarketplaceApprovalReview['facts'] = [
     { label: 'Transactions', value: intents.length.toLocaleString() },
     { label: 'Seller wallet', value: seller },
@@ -119,7 +165,25 @@ export function analyzeMarketplaceBatch(
   let title: string;
   let notice: string;
 
-  if (kind === 'bulk-fanout') {
+  if (kind === 'attach-and-list') {
+    const [attach, listing] = intents as [
+      AttachForListingIntentClaim,
+      CreateListingIntentClaim,
+    ];
+    title = `Attach and list ${attach.assets[0].asset}`;
+    facts.push(
+      ...(sameAddress(attach.assetSource, attach.seller)
+        ? []
+        : [{ label: 'Asset source', value: attach.assetSource }]),
+      { label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
+      { label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
+      { label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+      { label: 'Broadcast now', value: 'Attach transaction only' },
+      { label: 'Listing activation', value: 'After confirmation and Counterparty verification' },
+      { label: 'Signature invalidation', value: 'Spend the attached asset UTXO' },
+    );
+    notice = 'The wallet resolves the listing to the final signed attach transaction before adding the listing signature. The marketplace cannot activate it until the attached asset is independently verified.';
+  } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
     const fees = exactSafeSum(fanouts.map(intent => intent.networkFeeSats), 'network fee');
@@ -129,10 +193,12 @@ export function analyzeMarketplaceBatch(
       { label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
     );
     notice = 'Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.';
-  } else if (kind === 'bulk-attach') {
-    const attaches = intents as AttachForListingIntentClaim[];
+  } else if (kind === 'bulk-attach' || kind === 'prepare-assets') {
+    const attaches = intents as Array<AttachForListingIntentClaim | PrepareAssetIntentClaim>;
     const fees = exactSafeSum(attaches.map(intent => intent.networkFeeSats), 'network fee');
-    title = `Attach ${attaches.length} collectibles for listing`;
+    title = kind === 'prepare-assets'
+      ? `Prepare ${attaches.length} collectible${attaches.length === 1 ? '' : 's'}`
+      : `Attach ${attaches.length} collectibles for listing`;
     facts.push(
       { label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
       {
