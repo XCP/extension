@@ -240,6 +240,9 @@ describe('Compose Send Operations', () => {
         carrier_vout: 1,
         runestone_vout: 2,
         carrier_sats: 330,
+        marginal_vbytes: 57,
+        estimated_marginal_fee_sats: 570,
+        fee_rate_sat_vbyte: 10,
       });
     });
 

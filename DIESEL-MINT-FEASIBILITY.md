@@ -395,6 +395,199 @@ carrier minimizes locked liquidity; a normal-change carrier is more useful becau
 it can fund a later transaction without adding another input. The cost of the latter
 is operational liquidity and linkability, not destroyed BTC.
 
+## Unit economics: price the mint-only delta
+
+The host transaction is the reason the user opened the wallet. Its baseline fee is
+therefore not attributable to DIESEL. The mining decision compares the value of the
+incremental reward with only the transaction bytes added by mining:
+
+```text
+host fee                 = host_vbytes * fee_rate
+incremental mining fee   = delta_vbytes * fee_rate
+expected DIESEL value    = success_probability * reward_per_mint * executable_exit_price
+expected net value       = expected DIESEL value
+                           - incremental mining fee
+                           - allocated future exit cost
+```
+
+For example, the measured ordinary enhanced send is 165 vB. At 2 sat/vB it costs
+330 sats whether or not DIESEL exists. The implemented 57-vB attachment makes the
+combined transaction 222 vB and the total fee 444 sats. The economically relevant
+mining cost is **114 sats**, not 444 sats. An optimized 26-vB attachment would cost
+only 52 additional sats at that rate.
+
+The new 330-sat storage output is also not part of that miner fee. Those sats remain
+owned by the wallet. They are temporarily unavailable to ordinary coin selection,
+and repeated fresh carriers create a growing liquidity reserve and a future
+consolidation cost, but they are not burned. The UI must show these separately:
+
+- **extra miner fee**: spent permanently;
+- **protected storage**: still wallet-owned and recoverable when DIESEL is moved;
+- **future exit cost**: swap/unwrap fees, slippage, and the Bitcoin fee needed to
+  move or consolidate the token-bearing outputs.
+
+### Break-even DIESEL price
+
+Let:
+
+- `d` be marginal vbytes (26 optimized, 57 implemented, 125 forced roll, or 135
+  standalone);
+- `f` be the selected Bitcoin fee rate in sat/vB;
+- `N` be the runtime's counted DIESEL-mint transactions in the confirming block,
+  including this transaction even if another counted call later reverts;
+- `B` be that block's effective DIESEL mint pot;
+- `p` be this call's probability of succeeding; and
+- `x` be the expected future exit/consolidation cost allocated to this mint in sats.
+
+The expected reward is `B / N` DIESEL. If an executable exit quote is `q` sats per
+DIESEL, the skeptical break-even test is:
+
+```text
+p * (B / N) * q > d * f + x
+
+q_break_even = (d * f + x) * N / (p * B)
+```
+
+Under the released upgraded-EOA source, `B` can range from 3.125 down to 1.5625 as
+the block-fee haircut rises to its cap. Ignoring failures and future exit costs only
+to expose the byte-size effect, the fee-only break-even coefficients are:
+
+| Construction | Full 3.125 pot | 50% haircut, 1.5625 pot |
+|---|---:|---:|
+| +26 vB optimized | `8.32 * f * N` sats/DIESEL | `16.64 * f * N` sats/DIESEL |
+| +57 vB implemented | `18.24 * f * N` sats/DIESEL | `36.48 * f * N` sats/DIESEL |
+| +125 vB forced roll | `40.00 * f * N` sats/DIESEL | `80.00 * f * N` sats/DIESEL |
+| 135-vB standalone | `43.20 * f * N` sats/DIESEL | `86.40 * f * N` sats/DIESEL |
+
+At 2 sat/vB and `N = 100`, for example, the implemented path would need an
+executable price above **3,648 sats/DIESEL** with the full pot, or **7,296
+sats/DIESEL** at the maximum haircut, before failure risk and exit costs. Actual
+recent `N` was much higher, as the next section shows.
+
+### Observed mainnet reward per transaction
+
+The public Subfrost trace data answers the user's “is it 0.01, 0.1, 1, or 100?”
+question directly. For each block from 965,399 through 965,418, I decoded every
+root EOA call to alkane `2:0` with opcode `77`, classified the final trace response,
+and calculated newly returned DIESEL as outgoing `2:0` value minus incoming `2:0`
+value. Sample transaction IDs were independently checked against Bitcoin block
+height.
+
+| Height | Counted mint txs (`N`) | Successful | Failed | DIESEL per successful tx |
+|---:|---:|---:|---:|---:|
+| 965,399 | 4,891 | 4,891 | 0 | 0.00063697 |
+| 965,400 | 3,837 | 3,837 | 0 | 0.00081073 |
+| 965,401 | 6,555 | 6,555 | 0 | 0.00047610 |
+| 965,402 | 6,258 | 6,258 | 0 | 0.00049837 |
+| 965,403 | 1,402 | 1,402 | 0 | 0.00221047 |
+| 965,404 | 2,925 | 2,925 | 0 | 0.00106480 |
+| 965,405 | 1,538 | 1,538 | 0 | 0.00201356 |
+| 965,406 | 3,323 | 3,323 | 0 | 0.00093782 |
+| 965,407 | 4,279 | 4,279 | 0 | 0.00072754 |
+| 965,408 | 6,125 | 6,125 | 0 | 0.00050945 |
+| 965,409 | 2,209 | 2,209 | 0 | 0.00140680 |
+| 965,410 | 5,567 | 5,567 | 0 | 0.00055970 |
+| 965,411 | 4,413 | 4,413 | 0 | 0.00070552 |
+| 965,412 | 857 | 856 | 1 | 0.00361880 |
+| 965,413 | 1,761 | 1,760 | 1 | 0.00176410 |
+| 965,414 | 3,219 | 3,219 | 0 | 0.00096695 |
+| 965,415 | 2,097 | 2,096 | 1 | 0.00148157 |
+| 965,416 | 3,627 | 3,627 | 0 | 0.00085828 |
+| 965,417 | 1,209 | 1,209 | 0 | 0.00256859 |
+| 965,418 | 1,253 | 1,246 | 7 | 0.00246707 |
+
+Across these 20 blocks there were 67,345 counted mint transactions, 67,335
+successful and 10 failed. `N` ranged from 857 to 6,555 (median 3,271). Reward per
+successful transaction ranged from **0.00047610 to 0.00361880 DIESEL**, with median
+**0.000952385** and arithmetic mean **0.0013141595 DIESEL**. So the practical order
+of magnitude in this window was roughly **one-thousandth of one DIESEL per tx**.
+The seven failures at height 965,418 explicitly reverted with “all fuel consumed by
+WebAssembly”; they still paid Bitcoin fees and produced no DIESEL.
+
+The user's referenced height 965,504 was materially quieter: 251 counted calls, all
+successful, each receiving **0.01216764 DIESEL**. Block 965,522 was quieter again:
+154 successful calls at **0.01974508 DIESEL** each. Reward is therefore highly
+non-stationary; a 20-block dashboard is a description of recent competition, not a
+forward quote.
+
+The 20-block rewards imply effective distributed pots from about 3.0912 to 3.1208
+DIESEL, only a 0.13%-1.08% realized haircut from 3.125 in that particular window.
+The source's 50% cap remains a stress case, not what these blocks experienced.
+
+Using the report's separate, unexecuted pathfinder sample of 56,252 frBTC base units
+for 1 DIESEL only as a gross-value scenario, those rewards were worth approximately
+27-204 sats, with a 54-sat median and 74-sat mean. Before failures, slippage, swap,
+unwrap, and consolidation costs:
+
+| Construction and rate | Blocks with gross reward above marginal fee |
+|---|---:|
+| Implemented +57 vB at 1 sat/vB | 9 / 20 |
+| Implemented +57 vB at 2 sat/vB | 4 / 20 |
+| Optimized +26 vB at 1 sat/vB | 20 / 20 |
+| Optimized +26 vB at 2 sat/vB | 11 / 20 |
+| Standalone 135 vB at 1 sat/vB | 3 / 20 |
+| Standalone 135 vB at 2 sat/vB | 0 / 20 |
+
+This is the strongest economic argument for pursuing the +26-vB design and against
+calling the current +57-vB path automatically profitable. It is not evidence that
+the sampled quote can be executed or converted to BTC.
+
+One API trap was caught during this analysis: querying historical `traceblock` with
+the third `metashrew_view` block tag left at `latest` returned the same latest block
+for every requested height. Historical analytics must bind both the protobuf height
+and the view's block tag to the requested height, then cross-check transaction block
+membership. The wallet should not consume the ergonomic convenience call for Pulse.
+
+If prices are displayed in dollars and Bitcoin's price is `P_BTC_USD`, convert with:
+
+```text
+q_sats_per_DIESEL = P_DIESEL_USD * 100,000,000 / P_BTC_USD
+P_DIESEL_break_even_USD = q_break_even * P_BTC_USD / 100,000,000
+```
+
+BTC/USD therefore changes the dollar presentation, but it does not independently
+change a comparison already denominated in sats. If DIESEL's executable sat price
+stays constant, a higher BTC/USD price raises the dollar value of both the token and
+the Bitcoin fee together.
+
+### What “market price” and “mining cost” must mean
+
+A pool reserve ratio or last trade is not enough to establish realizable value. The
+price input must be a timestamped **executable net exit quote** for a stated amount,
+including pool fee, price impact, route liquidity, frBTC unwrap assumptions, and any
+fixed Bitcoin transaction cost. Until that exit has been proven, the UI should say
+that economics are unavailable rather than showing a green profit number.
+
+Likewise, a historical “mint cost” should be computed per block as:
+
+```text
+incremental miner fee for the selected construction / actual reward per successful mint
+```
+
+It must disclose the construction (`+26`, `+57`, or another measured delta), the fee
+rate convention, deployed reward adapter, failures/reverts, and whether exit costs
+are included. A failed mint has no finite cost per DIESEL; hiding failures from the
+average makes the chart optimistic.
+
+The proposed **DIESEL Pulse** is useful if it surfaces these inputs rather than
+collapsing them into one seductive number:
+
+| Pulse field | Defensible definition |
+|---|---|
+| Market / exit price | Net executable sats per DIESEL for a stated sell size and verified route |
+| Extra fee now | Exact mint-only vbytes and sats for this transaction |
+| Protected storage | 330 sats (or actual carrier value), explicitly labelled recoverable |
+| Projected reward | A range derived from recent `N` and the active reward formula, never a promise |
+| Break-even band | Sats/DIESEL after marginal fee, failure rate, and allocated exit cost |
+| Recent history | Median and range with reverts visible; adapter version and timestamp shown |
+
+The button in the mock-up should not say “Mine ~38.9k sats” unless 38.9k is clearly
+labelled as a probabilistic reward estimate and its assumptions are shown. A safer
+transaction-review treatment is **“DIESEL mint included · +57 vB / +114 sats at
+2 sat/vB”**, followed separately by **“330 sats protected storage; remains yours.”**
+The current market and reward data are not yet trustworthy enough for the extension
+to auto-label a mint profitable.
+
 ## Design-space comparison
 
 ### Balance topology

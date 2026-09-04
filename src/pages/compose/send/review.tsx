@@ -136,8 +136,12 @@ export function ReviewSend({
         label: 'DIESEL mint',
         value: 'Included',
         rightElement: (
-          <span className="text-gray-500">
-            {result.diesel_mint.carrier_sats} sat storage output
+          <span className="text-right text-gray-500">
+            +{result.diesel_mint.marginal_vbytes} vB
+            {' '}(~{result.diesel_mint.estimated_marginal_fee_sats} sat at
+            {' '}{result.diesel_mint.fee_rate_sat_vbyte} sat/vB)
+            <br />
+            {result.diesel_mint.carrier_sats} sat protected storage; remains yours
           </span>
         ),
       }] : result.params.more_outputs ? [(() => {

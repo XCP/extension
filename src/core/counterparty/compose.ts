@@ -3,6 +3,7 @@ import {
   buildDieselMintScript,
   buildDieselTransferScript,
   DIESEL_CARRIER_SATS,
+  DIESEL_MINT_MARGINAL_VBYTES,
   isVerifiedDieselCarrierAddress,
 } from '@/core/alkanes/diesel';
 import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
@@ -14,6 +15,7 @@ import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
+import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
 import {
   getActiveSettings,
   LEGACY_MAX_ORDER_EXPIRATION,
@@ -145,6 +147,11 @@ export interface ComposeResult {
     carrier_vout: number;
     runestone_vout: number;
     carrier_sats: number;
+    /** Exact added output vbytes for this allow-listed shape. */
+    marginal_vbytes: number;
+    /** Fee-rate-based estimate; the composer can round the whole transaction fee. */
+    estimated_marginal_fee_sats: number;
+    fee_rate_sat_vbyte: number;
   };
   diesel_transfer?: {
     amount_base_units: string;
@@ -1088,11 +1095,20 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
         'send',
       );
     }
+    const estimatedMarginalFeeSats = toSafeInteger(
+      roundUp(multiply(DIESEL_MINT_MARGINAL_VBYTES, sat_per_vbyte)).toFixed(0),
+    );
+    if (estimatedMarginalFeeSats === undefined) {
+      throw new CounterpartyApiError('Invalid DIESEL marginal fee estimate.', 'send');
+    }
     response.result.params.more_outputs = dieselMoreOutputs;
     response.result.diesel_mint = {
       carrier_vout: 1,
       runestone_vout: 2,
       carrier_sats: DIESEL_CARRIER_SATS,
+      marginal_vbytes: DIESEL_MINT_MARGINAL_VBYTES,
+      estimated_marginal_fee_sats: estimatedMarginalFeeSats,
+      fee_rate_sat_vbyte: sat_per_vbyte,
     };
   }
   return response;

@@ -10,6 +10,8 @@ export const ALKANES_PROTOCOL_TAG = 1n;
 export const DIESEL_ALKANE_ID = { block: 2n, tx: 0n } as const;
 export const DIESEL_MINT_OPCODE = 77n;
 export const DIESEL_CARRIER_SATS = 330;
+/** One P2WPKH storage output (31 vB) plus the 17-byte runestone output (26 vB). */
+export const DIESEL_MINT_MARGINAL_VBYTES = 57;
 
 const RUNESTONE_PROTOCOL_TAG = 16_383n;
 const PROTOSTONE_POINTER_TAG = 91n;
