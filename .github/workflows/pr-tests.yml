@@ -265,9 +265,11 @@ jobs:
           # @trezor/connect-webextension loads that SDK remotely from connect.trezor.io —
           # none of it is bundled into the shipped extension (verified by unpacking the
           # published artifact), and its remaining advisories (the elliptic chain,
-          # GHSA-848j-6mx2-7j84) have no fixed release upstream.
+          # GHSA-848j-6mx2-7j84) have no fixed release upstream. npm audit reports
+          # transitive packages by their own names rather than their dependency path, so
+          # the Stellar SDK and TOML parser pulled only through that subtree are explicit.
           # Anything OUTSIDE the @trezor/* subtree must be clean at high/critical.
-          ACCEPTED='^@trezor/'
+          ACCEPTED='^@trezor/|^@stellar/stellar-sdk$|^toml$'
           audit_output=$(npm audit --omit=dev --json 2>/dev/null || true)
           real=$(echo "$audit_output" | jq --arg re "$ACCEPTED" '
             [.vulnerabilities | to_entries[]
