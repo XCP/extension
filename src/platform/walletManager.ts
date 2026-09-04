@@ -283,7 +283,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressFormat: AddressFormat = AddressFormat.P2TR
+    addressFormat: AddressFormat = AddressFormat.P2WPKH
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
