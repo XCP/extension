@@ -93,7 +93,11 @@ The stacked `feature/diesel-optimized-carrier` branch adds the two-pass +26-vB c
   values, and require unchanged host bytes, three exact outputs, the same input set, zero residual
   change, and the predicted signed vsize before returning the optimized transaction; and
 - retain the verified +57-vB first compose whenever no ordinary change output can safely be
-  absorbed. Unsupported shapes are not guessed.
+  absorbed. Unsupported shapes are not guessed; and
+- prefer one confirmed, pure-DIESEL carrier as the sole funding input when it can fund the
+  transaction by itself. This rolls accumulated DIESEL into the successor carrier without adding
+  an input. If it cannot fund the transaction, it remains protected and clean BTC is used instead;
+  the wallet never pays roughly 68 vB just to consolidate during a mint.
 
 The current allow-list skips MPMA, memos, user `more_outputs`, non-P2WPKH source addresses,
 Counterparty Taproot/multisig data, explicit-UTXO operations, and every non-send transaction type.
@@ -137,6 +141,27 @@ an exact `inputs_set`, `use_all_inputs_set=true`, `exact_fee=382`, and
 `more_outputs` containing the entire 99,618-sat wallet carrier followed by the
 zero-value runestone script. Counterparty therefore had no residual change to
 append. The predicted and actual signed sizes were both 191 vB.
+
+The stacked implementation was then rerun end to end on 2026-09-04 against fresh controlled
+regtest funds and a newly issued indivisible asset, `A95428956669999001`. The extension algorithm
+produced, signed, broadcast, and mined the optimized transaction
+`3a930995f7eac57afa17dd39424836cf64c06e35921dd9021234f8948cbe31f7`:
+
+- Bitcoin Core 30 reported exactly **191 vB**, a **382-sat fee**, **2 sat/vB**, and
+  `testmempoolaccept.allowed=true`;
+- the outputs were the unchanged enhanced-send OP_RETURN, a **1,219,997-sat owned P2WPKH
+  carrier**, and the exact pointer/refund-1 DIESEL runestone, with no separate change;
+- Counterparty Core 11.3 indexed it as `supported=true`, `valid=true`,
+  `transaction_type=enhanced_send`, selected vout 1 as the parser boundary, debited exactly one
+  unit from the source, and credited exactly one unit to the intended destination; and
+- balances reconciled to 999 units at the source and 1 at the destination.
+
+A plain 10,000-sat BTC send spending that carrier was also recomposed into the same three-output
+shape. It signed at **167 vB**, paid **334 sats** at 2 sat/vB, and passed
+`testmempoolaccept`. This proves the wallet can use the previous carrier as the funding input and
+route its existing DIESEL plus the new mint into vout 1 without an added input. The full Alkanes
+balance rollover remains covered by the consensus-indexer WASM regression below because the
+DigiRare Docker stack contains Bitcoin and Counterparty indexers but no Alkanes indexer.
 
 This changes the implementation conclusion materially: **the +26-vB case is
 reachable today without a Counterparty Core patch and without rewriting a PSBT.**

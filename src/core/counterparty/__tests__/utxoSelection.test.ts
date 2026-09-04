@@ -117,6 +117,47 @@ describe('selectUtxosForTransaction', () => {
     expect(result.excludedWithAssets).toBe(1);
   });
 
+  it('separates a pure DIESEL carrier only for an explicitly routing mint flow', async () => {
+    const dieselTxid = 'b'.repeat(64);
+    const otherAlkaneTxid = 'c'.repeat(64);
+    const pendingDieselTxid = 'd'.repeat(64);
+    const mockUtxos = [
+      createMockUtxo('a'.repeat(64), 0, 50_000),
+      createMockUtxo(dieselTxid, 1, 80_000),
+      createMockUtxo(otherAlkaneTxid, 2, 90_000),
+      createMockUtxo(pendingDieselTxid, 3, 100_000, false),
+    ];
+    mockedFetchUTXOs.mockResolvedValue(mockUtxos);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, enableDieselMinting: true });
+    mockedFetchInputsAlkanes.mockResolvedValue([
+      {
+        inputIndex: 1,
+        utxo: `${dieselTxid}:1`,
+        balances: [{ id: '2:0', value: '250000000' }],
+      },
+      {
+        inputIndex: 2,
+        utxo: `${otherAlkaneTxid}:2`,
+        balances: [{ id: '4:7', value: '1' }],
+      },
+      {
+        inputIndex: 3,
+        utxo: `${pendingDieselTxid}:3`,
+        balances: [{ id: '2:0', value: '300000000' }],
+      },
+    ]);
+
+    const result = await selectUtxosForTransaction(mockAddress, {
+      includeDieselCarriers: true,
+      allowUnconfirmed: true,
+    });
+
+    expect(result.utxos.map((utxo) => utxo.txid)).toEqual(['a'.repeat(64)]);
+    expect(result.dieselCarriers?.map((utxo) => utxo.txid)).toEqual([dieselTxid]);
+    expect(result.excludedWithAssets).toBe(2);
+  });
+
   it('also filters inputs whose Alkanes status is unknown', async () => {
     const txid = 'a'.repeat(64);
     mockedFetchUTXOs.mockResolvedValue([createMockUtxo(txid, 0, 50000)]);

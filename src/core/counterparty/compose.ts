@@ -156,6 +156,8 @@ export interface ComposeResult {
     fee_rate_sat_vbyte: number;
     /** `change` means an ordinary wallet change output was reshaped into the carrier. */
     carrier_kind: 'change' | 'explicit';
+    /** Previous DIESEL carrier deliberately consumed and routed into this successor. */
+    rolled_carrier?: string;
   };
   diesel_transfer?: {
     amount_base_units: string;
@@ -1072,6 +1074,7 @@ function annotateDieselMint(
   marginalVbytes: number,
   feeRate: number,
   carrierKind: 'change' | 'explicit',
+  rolledCarrier?: string,
 ): ApiResponse {
   response.result.params.more_outputs = moreOutputs;
   response.result.diesel_mint = {
@@ -1082,6 +1085,7 @@ function annotateDieselMint(
     estimated_marginal_fee_sats: estimateDieselMarginalFee(marginalVbytes, feeRate),
     fee_rate_sat_vbyte: feeRate,
     carrier_kind: carrierKind,
+    ...(rolledCarrier ? { rolled_carrier: rolledCarrier } : {}),
   };
   return response;
 }
@@ -1134,15 +1138,39 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   // first transaction's bytes. The second pass is forced to use that subset in full.
   const selection = await selectUtxosForTransaction(sourceAddress, {
     allowUnconfirmed: settings.allowUnconfirmedTxs,
+    includeDieselCarriers: true,
   });
-  const response = await composeTransaction(
-    'send',
-    paramsObj,
-    sourceAddress,
-    sat_per_vbyte,
-    'opreturn',
-    { inputsSet: selection.inputsSet, useAllInputsSet: false },
-  );
+  let rolledCarrier = selection.dieselCarriers?.[0];
+  let offeredUtxos = rolledCarrier ? [rolledCarrier] : selection.utxos;
+  let response: ApiResponse;
+  try {
+    response = await composeTransaction(
+      'send',
+      paramsObj,
+      sourceAddress,
+      sat_per_vbyte,
+      'opreturn',
+      {
+        inputsSet: offeredUtxos.map(({ txid, vout }) => `${txid}:${vout}`).join(','),
+        useAllInputsSet: !!rolledCarrier,
+      },
+    );
+  } catch (carrierError) {
+    // A carrier with enough BTC replaces the ordinary funding input at no input-vbyte penalty.
+    // Never add an underfunded carrier beside clean inputs merely to consolidate DIESEL: that
+    // would spend ~68 vB to save a future token transfer. Keep it protected and mint a new shard.
+    if (!rolledCarrier || selection.utxos.length === 0) throw carrierError;
+    rolledCarrier = undefined;
+    offeredUtxos = selection.utxos;
+    response = await composeTransaction(
+      'send',
+      paramsObj,
+      sourceAddress,
+      sat_per_vbyte,
+      'opreturn',
+      { inputsSet: selection.inputsSet, useAllInputsSet: false },
+    );
+  }
   const parsed = parseRawTransactionLocally(response.result.rawtransaction);
   const carrier = parsed?.outputs[1];
   const runestone = parsed?.outputs[2];
@@ -1177,11 +1205,12 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
       DIESEL_MINT_MARGINAL_VBYTES,
       sat_per_vbyte,
       'explicit',
+      rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
     );
   }
 
   const selectedByOutpoint = new Map(
-    selection.utxos.map((utxo) => [`${utxo.txid.toLowerCase()}:${utxo.vout}`, utxo.value]),
+    offeredUtxos.map((utxo) => [`${utxo.txid.toLowerCase()}:${utxo.vout}`, utxo.value]),
   );
   const actualInputs = parsed.inputs.map((input) => `${input.txid.toLowerCase()}:${input.vout}`);
   const actualInputValues = actualInputs.map((outpoint) => selectedByOutpoint.get(outpoint));
@@ -1218,6 +1247,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
       DIESEL_MINT_MARGINAL_VBYTES,
       sat_per_vbyte,
       'explicit',
+      rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
     );
   }
 
@@ -1274,6 +1304,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     DIESEL_RUNESTONE_MARGINAL_VBYTES,
     sat_per_vbyte,
     'change',
+    rolledCarrier ? `${rolledCarrier.txid}:${rolledCarrier.vout}` : undefined,
   );
 }
 

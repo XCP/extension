@@ -8,6 +8,7 @@ import * as apiClientUtils from '@/core/api/client';
 import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 import { composeDieselSend, composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
+import { selectUtxosForTransaction } from '../utxoSelection';
 import {
   assertComposeUrlCalled,
   createMockComposeResponse,
@@ -42,12 +43,15 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
     inputsSet: `${'aa'.repeat(32)}:0`,
     totalValue: 100000,
     excludedWithAssets: 0,
+    excludedValue: 0,
+    dieselCarriers: [],
   }),
 }));
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
 const mockedFetchDieselBalance = vi.mocked(fetchDieselBalance);
+const mockedSelectUtxos = vi.mocked(selectUtxosForTransaction);
 
 describe('Compose Send Operations', () => {
   beforeEach(() => {
@@ -272,6 +276,153 @@ describe('Compose Send Operations', () => {
         marginal_vbytes: 26,
         estimated_marginal_fee_sats: 52,
         fee_rate_sat_vbyte: 2,
+        carrier_kind: 'change',
+      });
+    });
+
+    it('rolls a funded DIESEL carrier when it replaces the ordinary funding input', async () => {
+      const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
+      const payment = p2wpkh(key);
+      const sourceAddress = payment.address!;
+      const carrierTxid = 'bb'.repeat(32);
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 0,
+        excludedValue: 0,
+        dieselCarriers: [{
+          txid: carrierTxid,
+          vout: 1,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+      });
+      const buildTx = (carrierSats: bigint, includeChange: boolean) => {
+        const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+        tx.addInput({
+          txid: hexToBytes(carrierTxid),
+          index: 1,
+          witnessUtxo: { script: payment.script, amount: 100_000n },
+        });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: payment.script, amount: carrierSats });
+        tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+        if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
+        return bytesToHex(tx.unsignedTx);
+      };
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(330n, true),
+          signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(99_618n, false),
+          btc_change: 0,
+          btc_fee: 382,
+          signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 1 },
+        }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: 2,
+      });
+
+      const firstUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(firstUrl.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1`);
+      expect(firstUrl.searchParams.get('use_all_inputs_set')).toBe('true');
+      expect(response.result.diesel_mint).toMatchObject({
+        carrier_sats: 99_618,
+        marginal_vbytes: 26,
+        carrier_kind: 'change',
+        rolled_carrier: `${carrierTxid}:1`,
+      });
+    });
+
+    it('leaves an underfunded DIESEL carrier protected and falls back to clean BTC', async () => {
+      const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
+      const payment = p2wpkh(key);
+      const sourceAddress = payment.address!;
+      const cleanTxid = 'aa'.repeat(32);
+      const carrierTxid = 'bb'.repeat(32);
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: cleanTxid,
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${cleanTxid}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 0,
+        excludedValue: 330,
+        dieselCarriers: [{
+          txid: carrierTxid,
+          vout: 1,
+          value: 330,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+      });
+      const buildTx = (carrierSats: bigint, includeChange: boolean) => {
+        const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+        tx.addInput({
+          txid: hexToBytes(cleanTxid),
+          index: 0,
+          witnessUtxo: { script: payment.script, amount: 100_000n },
+        });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: payment.script, amount: carrierSats });
+        tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+        if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
+        return bytesToHex(tx.unsignedTx);
+      };
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get
+        .mockRejectedValueOnce(new Error('Insufficient BTC'))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(330n, true),
+          signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
+        }))
+        .mockResolvedValueOnce(createMockComposeResponse({
+          rawtransaction: buildTx(99_618n, false),
+          btc_change: 0,
+          btc_fee: 382,
+          signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 1 },
+        }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: 2,
+      });
+
+      const attemptedCarrier = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      const cleanFallback = new URL(mockedApiClient.get.mock.calls[1]![0] as string);
+      expect(attemptedCarrier.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1`);
+      expect(cleanFallback.searchParams.get('inputs_set')).toBe(`${cleanTxid}:0`);
+      expect(response.result.diesel_mint).not.toHaveProperty('rolled_carrier');
+      expect(response.result.diesel_mint).toMatchObject({
+        carrier_sats: 99_618,
+        marginal_vbytes: 26,
         carrier_kind: 'change',
       });
     });

@@ -144,6 +144,7 @@ export function ReviewSend({
             {result.diesel_mint.carrier_sats} sat protected
             {result.diesel_mint.carrier_kind === 'change' ? ' wallet return' : ' storage'};
             {' '}remains yours
+            {result.diesel_mint.rolled_carrier ? <><br />Existing DIESEL rolled forward</> : null}
           </span>
         ),
       }] : result.params.more_outputs ? [(() => {
