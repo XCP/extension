@@ -1,8 +1,10 @@
 import { Description, Field, Input, Label } from '@headlessui/react';
 import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
+import dieselLogo from '@/assets/diesel.jpg';
 import { Composer } from '@/components/composer/composer';
 import { ComposerForm } from '@/components/composer/composer-form';
+import { AssetIcon } from '@/components/domain/asset/asset-icon';
 import { ReviewScreen } from '@/components/screens/review-screen';
 import { DestinationInput } from '@/components/ui/inputs/destination-input';
 import { useComposer } from '@/contexts/composer-context-object';
@@ -74,14 +76,17 @@ function DieselSendForm({
       submitDisabled={!amountValid || !destinationValid}
       showFeeRate
     >
-      <div className="rounded-lg bg-gray-50 p-3 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-500">Available</span>
-          <span className="font-medium text-gray-900">{availableDisplay} DIESEL</span>
-        </div>
-        <div className="mt-1 flex justify-between">
-          <span className="text-gray-500">Protected carriers</span>
-          <span className="text-gray-900">{balance?.carriers.length ?? '…'}</span>
+      <div className="rounded-lg bg-gray-50 p-3 text-sm flex items-center gap-3">
+        <AssetIcon asset="DIESEL" size="md" imageSrc={dieselLogo} />
+        <div className="min-w-0 flex-1">
+          <div className="flex justify-between gap-3">
+            <span className="text-gray-500">Available</span>
+            <span className="font-medium text-gray-900">{availableDisplay} DIESEL</span>
+          </div>
+          <div className="mt-1 flex justify-between gap-3">
+            <span className="text-gray-500">Storage</span>
+            <span className="text-gray-900">Protected</span>
+          </div>
         </div>
       </div>
       <DestinationInput
@@ -105,7 +110,7 @@ function DieselSendForm({
         />
         {showHelpText && (
           <Description className="mt-1 text-sm text-gray-500">
-            Up to eight decimal places. Unsent DIESEL is returned to a wallet-owned carrier.
+            Up to eight decimal places. Unsent DIESEL returns to protected wallet storage.
           </Description>
         )}
       </Field>
@@ -139,7 +144,6 @@ function DieselSendReview({
       isSigning={isSigning}
       customFields={[
         { label: 'Amount', value: `${formatAmount({ value: display, maximumFractionDigits: 8 })} DIESEL` },
-        { label: 'Carrier inputs', value: transfer?.carrier_inputs.length ?? 0 },
         { label: 'Remainder', value: 'Returned to this wallet' },
       ]}
     />

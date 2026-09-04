@@ -10,6 +10,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { buildDieselMintScript } from '@/core/alkanes/diesel';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { clearSpentUtxoCache, getPendingChangeUtxos } from '@/core/bitcoin/spentUtxoCache';
@@ -75,6 +76,17 @@ describe('recordOwnChangeFromRawTx', () => {
     recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
 
     expect(getPendingChangeUtxos(OWN_ADDRESS)).toHaveLength(1);
+  });
+
+  it('does not expose outputs from a DIESEL mint as ordinary pending BTC change', () => {
+    const raw = buildRawTx(
+      [encryptedOpReturn(2, '00'.repeat(52)), OWN_SCRIPT, buildDieselMintScript(1)],
+      [0n, 330n, 0n],
+    );
+
+    recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
+
+    expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([]);
   });
 
   // The rule this module exists for: attach binds an asset to an output of this very

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import dieselLogo from '@/assets/diesel.jpg';
 import { BalanceHeader } from '@/components/domain/balance/balance-header';
 import type { ActionSection } from '@/components/ui/lists/action-list';
 import { ActionList } from '@/components/ui/lists/action-list';
@@ -31,7 +32,7 @@ export default function DieselBalancePage(): ReactElement {
       setBalance(await fetchDieselBalance(activeAddress.address));
     } catch (cause) {
       console.error('Failed to load DIESEL balance:', cause);
-      setError('The Alkanes indexer could not be reached. Your carriers remain protected.');
+      setError('The Alkanes indexer could not be reached. Your DIESEL remains protected.');
     } finally {
       setLoading(false);
     }
@@ -65,27 +66,27 @@ export default function DieselBalancePage(): ReactElement {
     items: [{
       id: 'send',
       title: 'Send',
-      description: 'Send DIESEL while preserving any remainder in a wallet-owned carrier',
+      description: 'Send DIESEL while returning any remainder to protected wallet storage',
       onClick: () => navigate('/diesel/send'),
     }],
   }];
 
   return (
     <section className="p-4 space-y-6" aria-labelledby="diesel-balance-title">
-      <BalanceHeader balance={token} className="mt-1 mb-5" />
+      <BalanceHeader balance={token} className="mt-1 mb-5" iconSrc={dieselLogo} />
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
-        <h2 id="diesel-balance-title" className="text-sm font-medium text-gray-900">Alkanes carriers</h2>
+        <h2 id="diesel-balance-title" className="text-sm font-medium text-gray-900">DIESEL storage</h2>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Confirmed outputs</span>
-          <span className="text-gray-900">{balance.carriers.length}</span>
+          <span className="text-gray-500">Status</span>
+          <span className="text-gray-900">Protected</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Carrier bitcoin</span>
+          <span className="text-gray-500">Reserved Bitcoin</span>
           <span className="text-gray-900">{carrierSats.toLocaleString()} sats</span>
         </div>
         <p className="text-xs text-gray-500">
-          DIESEL is held on Bitcoin outputs. The wallet excludes these outputs from ordinary BTC
-          and Counterparty spending.
+          Your DIESEL is shown as one balance. Behind the scenes it is secured by Bitcoin outputs
+          that the wallet excludes from ordinary BTC and Counterparty spending.
         </p>
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>

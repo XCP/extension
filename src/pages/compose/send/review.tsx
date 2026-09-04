@@ -137,7 +137,7 @@ export function ReviewSend({
         value: 'Included',
         rightElement: (
           <span className="text-gray-500">
-            {result.diesel_mint.carrier_sats} sat carrier
+            {result.diesel_mint.carrier_sats} sat storage output
           </span>
         ),
       }] : result.params.more_outputs ? [(() => {

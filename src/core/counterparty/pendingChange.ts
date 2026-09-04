@@ -18,6 +18,7 @@
  * used to.
  */
 
+import { decodeDieselMintScript } from '@/core/alkanes/diesel';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
@@ -54,6 +55,20 @@ export function extractSafeOwnChangeOutputs(
 ): SafeOwnChangeOutput[] {
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return [];
+
+  // A DIESEL mint assigns Alkanes to one of our outputs in this same transaction. Until the
+  // Alkanes indexer has caught up, none of its owned outputs may be advertised as ordinary BTC
+  // change: doing so would let a rapid follow-up compose spend the new token storage as if empty.
+  const hasDieselMint = parsed.outputs.some((output) => {
+    if (!output.opReturnData) return false;
+    try {
+      decodeDieselMintScript(output.opReturnData);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (hasDieselMint) return [];
 
   const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
   const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);

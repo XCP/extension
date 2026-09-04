@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
+import dieselLogo from '@/assets/diesel.jpg';
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/domain/balance/balance-menu";
 import { PendingStatus } from "@/components/domain/balance/pending-status";
@@ -81,7 +82,12 @@ export function BalanceCard({
         onClick={handleClick}
       >
         {/* Asset Icon */}
-        <AssetIcon asset={isDiesel ? 'DIESEL' : token.asset} size="lg" className="flex-shrink-0" />
+        <AssetIcon
+          asset={isDiesel ? 'DIESEL' : token.asset}
+          size="lg"
+          className="flex-shrink-0"
+          imageSrc={isDiesel ? dieselLogo : undefined}
+        />
 
         {/* Asset Information */}
         <div className="ml-3 flex-grow">
