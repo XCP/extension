@@ -17,6 +17,7 @@ vi.mock('@/core/bitcoin/utxo', () => ({
 const mockFetchUTXOs = vi.mocked(fetchUTXOs);
 const mockGetUtxoByTxid = vi.mocked(getUtxoByTxid);
 const mockFetchPreviousRawTransaction = vi.mocked(fetchPreviousRawTransaction);
+const mockGetTrustedBroadcastPrevout = vi.fn();
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
@@ -94,6 +95,7 @@ describe('Transaction Signer Utilities', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetTrustedBroadcastPrevout.mockResolvedValue(null);
     
     // Default mock setup for fetchUTXOs to return a valid UTXO
     mockFetchUTXOs.mockResolvedValue([mockUtxo]);
@@ -256,6 +258,60 @@ describe('Transaction Signer Utilities', () => {
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
       expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
+    });
+
+    it('signs SegWit pending change from the trusted broadcast journal without network lookups', async () => {
+      const p2wpkhWallet = { ...mockWallet, addressFormat: AddressFormat.P2WPKH };
+      const scriptPubKey = '0014' + pubKeyHashHex;
+      mockGetTrustedBroadcastPrevout.mockResolvedValue({
+        txid: mockTxid,
+        vout: 0,
+        address: mockTargetAddress.address,
+        value: 100000,
+        scriptPubKey,
+        rawTxHex: mockPreviousTransaction,
+      });
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2wpkhWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        undefined,
+        undefined,
+        mockGetTrustedBroadcastPrevout
+      );
+
+      expect(result).toMatch(/^[0-9a-f]+$/i);
+      expect(mockFetchUTXOs).not.toHaveBeenCalled();
+      expect(mockFetchPreviousRawTransaction).not.toHaveBeenCalled();
+    });
+
+    it('uses the trusted parent bytes for a legacy pending-change input', async () => {
+      mockGetTrustedBroadcastPrevout.mockResolvedValue({
+        txid: mockTxid,
+        vout: 0,
+        address: mockTargetAddress.address,
+        value: 100000,
+        scriptPubKey: '76a914' + pubKeyHashHex + '88ac',
+        rawTxHex: mockPreviousTransaction,
+      });
+
+      const result = await signTransaction(
+        mockRawTransaction,
+        mockWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        undefined,
+        undefined,
+        mockGetTrustedBroadcastPrevout
+      );
+
+      expect(result).toMatch(/^[0-9a-f]+$/i);
+      expect(mockFetchUTXOs).not.toHaveBeenCalled();
+      expect(mockFetchPreviousRawTransaction).not.toHaveBeenCalled();
     });
 
     it('should successfully sign P2SH_P2WPKH transaction', async () => {

@@ -11,6 +11,7 @@ import {
 vi.mock('@/core/counterparty/api');
 
 const mockedFetch = vi.mocked(fetchUtxoBalances);
+const mockedTrustedPrevout = vi.fn();
 
 function page(result: unknown[]) {
   return { result, next_cursor: null, result_count: result.length } as never;
@@ -25,6 +26,7 @@ const input = (index: number, txid = `${index}`.repeat(64).slice(0, 64), vout = 
 describe('fetchInputsAttachedAssets', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedTrustedPrevout.mockResolvedValue(null);
   });
 
   it('returns only inputs that carry assets, keyed by input index', async () => {
@@ -102,6 +104,13 @@ describe('fetchInputsAttachedAssets', () => {
     mockedFetch.mockResolvedValue(page([]));
     await fetchInputsAttachedAssets([input(3, 'dead'.repeat(16), 2)]);
     expect(mockedFetch).toHaveBeenCalledWith(`${'dead'.repeat(16)}:2`);
+  });
+
+  it('treats trusted recent change as attachment-free without waiting for Core', async () => {
+    mockedTrustedPrevout.mockResolvedValue({} as never);
+
+    expect(await fetchInputsAttachedAssets([input(0)], undefined, mockedTrustedPrevout)).toEqual([]);
+    expect(mockedFetch).not.toHaveBeenCalled();
   });
 
   it('caps the number of lookups', async () => {

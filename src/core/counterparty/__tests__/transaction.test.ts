@@ -39,11 +39,13 @@ vi.mock('../api', () => ({
 
 const mockedApiClient = vi.mocked(apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedGetTrustedBroadcastPrevout = vi.fn();
 
 const mockApiBase = 'https://api.counterparty.io';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedGetTrustedBroadcastPrevout.mockResolvedValue(null);
   mockedGetSettings.mockReturnValue({
     counterpartyApiBase: mockApiBase,
   } as any);
@@ -433,6 +435,25 @@ describe('decodeRawTransaction', () => {
 // ── fetchInputValues ────────────────────────────────────────────────
 
 describe('fetchInputPrevouts', () => {
+  it('prefers a trusted just-broadcast prevout without calling a public indexer', async () => {
+    mockedGetTrustedBroadcastPrevout.mockResolvedValueOnce({
+      txid: 'tx1',
+      vout: 0,
+      value: 50000,
+      address: 'bc1qowner',
+      scriptPubKey: '0014' + '11'.repeat(20),
+      rawTxHex: '00',
+    });
+
+    const result = await fetchInputPrevouts(
+      [{ txid: 'tx1', vout: 0 }],
+      mockedGetTrustedBroadcastPrevout
+    );
+
+    expect(result.get('tx1:0')).toEqual({ value: 50000, address: 'bc1qowner' });
+    expect(mockedApiClient.get).not.toHaveBeenCalled();
+  });
+
   it('returns the owning address alongside the value', async () => {
     mockedApiClient.get.mockResolvedValue({
       status: 200,

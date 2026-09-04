@@ -18,6 +18,7 @@
  * used to.
  */
 
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
@@ -32,6 +33,51 @@ import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
  */
 const BINDS_ASSETS_TO_OUTPUTS = new Set(['utxo', 'attach', 'detach']);
 
+export interface SafeOwnChangeOutput {
+  txid: string;
+  vout: number;
+  address: string;
+  value: number;
+  scriptPubKey: string;
+}
+
+/**
+ * Return only outputs that are both owned by this wallet and safe to treat as plain BTC change.
+ *
+ * Kept separate from the in-memory compose cache because provider broadcasts happen in the
+ * extension background while their next signing approval happens in a popup. Both callers need
+ * exactly the same fail-closed classification before sharing an output across that boundary.
+ */
+export function extractSafeOwnChangeOutputs(
+  rawTxHex: string,
+  ownAddresses: Iterable<string>
+): SafeOwnChangeOutput[] {
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return [];
+
+  const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
+  const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);
+  if (payload) {
+    const unpacked = unpackCounterpartyMessage(payload);
+    if (!unpacked.success || !unpacked.messageType) return [];
+    if (BINDS_ASSETS_TO_OUTPUTS.has(unpacked.messageType)) return [];
+  }
+
+  const own = new Set([...ownAddresses].map(normalizeAddressForComparison));
+  return parsed.outputs
+    .filter((output) => output.address
+      && own.has(normalizeAddressForComparison(output.address))
+      && output.value > 0
+      && output.script)
+    .map((output) => ({
+      txid: parsed.txid,
+      vout: output.index,
+      address: output.address!,
+      value: output.value,
+      scriptPubKey: output.script!,
+    }));
+}
+
 /**
  * Register the outputs of a just-broadcast transaction that pay our own addresses.
  *
@@ -42,31 +88,7 @@ export function recordOwnChangeFromRawTx(
   rawTxHex: string,
   ownAddresses: Iterable<string>
 ): void {
-  const parsed = parseRawTransactionLocally(rawTxHex);
-  if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return;
-
-  // The safety gate: a Counterparty payload that names an asset-binding type — or one that does
-  // not decode — means these outputs are not ours to call plain change. The parse above already
-  // holds the scripts and the ARC4 key (first input txid, display order), so the payload is read
-  // from those rather than parsing the same bytes a second time. An op_return output carries its
-  // script in `opReturnData`.
-  const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
-  const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);
-  if (payload) {
-    const unpacked = unpackCounterpartyMessage(payload);
-    if (!unpacked.success || !unpacked.messageType) return;
-    if (BINDS_ASSETS_TO_OUTPUTS.has(unpacked.messageType)) return;
-  }
-
-  const own = new Set(ownAddresses);
-  const entries = parsed.outputs
-    .filter((output) => output.address && own.has(output.address) && output.value > 0)
-    .map((output) => ({
-      txid: parsed.txid,
-      vout: output.index,
-      address: output.address!,
-      value: output.value,
-    }));
+  const entries = extractSafeOwnChangeOutputs(rawTxHex, ownAddresses);
 
   if (entries.length > 0) recordPendingChange(entries);
 }

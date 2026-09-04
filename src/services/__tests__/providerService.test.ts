@@ -28,10 +28,10 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
   TrezorAdapter: vi.fn()
 }));
 
-
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
+import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
 import * as signFlow from '@/platform/provider/signFlow';
 import { walletManager } from '@/platform/walletManager';
 import * as updateService from '@/services/updateService';
@@ -223,6 +223,7 @@ vi.mock('@/core/bitcoin/messageSigner', () => ({
 vi.mock('@/platform/provider/signFlow', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/platform/provider/signFlow')>()),
   beginSignFlow: vi.fn().mockResolvedValue(undefined),
+  findSafeChangeSigningAddress: vi.fn().mockResolvedValue(null),
 }));
 vi.mock('@/services/updateService');
 vi.mock('@/platform/provider/rateLimiter');
@@ -238,6 +239,9 @@ vi.mock('@/platform/fathom', () => ({
   },
 }));
 vi.mock('@/core/replayPrevention');
+vi.mock('@/platform/provider/recentBroadcasts', () => ({
+  rememberSuccessfulBroadcast: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('@/platform/storage/walletStorage', () => ({
   keychainExists: vi.fn().mockResolvedValue(true),
 }));
@@ -421,6 +425,7 @@ describe('ProviderService', () => {
     vi.mocked(updateService.getUpdateService).mockReturnValue(mockUpdateService as any);
 
     vi.mocked(signFlow.beginSignFlow).mockResolvedValue(undefined);
+    vi.mocked(signFlow.findSafeChangeSigningAddress).mockResolvedValue(null);
     
     // Setup settings mocks - default to no connected sites
     // (Already set up above with DEFAULT_SETTINGS)
@@ -753,6 +758,38 @@ describe('ProviderService', () => {
             []
           )
         ).rejects.toThrow('Signed transaction is required');
+      });
+
+      it('remembers safe wallet-owned outputs before returning a successful broadcast', async () => {
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+        const mockWalletService = vi.mocked(walletService.getWalletService)();
+        mockWalletService.broadcastTransaction = vi.fn().mockResolvedValue({ txid: 'ab'.repeat(32) });
+        const signedTx = '01000000000000000000';
+        vi.mocked(signFlow.findSafeChangeSigningAddress).mockResolvedValue('bc1qtest123');
+
+        await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_broadcastTransaction',
+          [signedTx]
+        );
+
+        expect(rememberSuccessfulBroadcast).toHaveBeenCalledWith(signedTx, ['bc1qtest123']);
+      });
+
+      it('does not trust change from a transaction the extension did not safely sign', async () => {
+        const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(true);
+        const mockWalletService = vi.mocked(walletService.getWalletService)();
+        mockWalletService.broadcastTransaction = vi.fn().mockResolvedValue({ txid: 'ab'.repeat(32) });
+
+        await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_broadcastTransaction',
+          ['01000000000000000000']
+        );
+
+        expect(rememberSuccessfulBroadcast).not.toHaveBeenCalled();
       });
     });
   });
