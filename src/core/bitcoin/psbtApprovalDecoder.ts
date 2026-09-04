@@ -1,5 +1,6 @@
 /** Shared PSBT decoding and safety analysis used by single and atomic provider approvals. */
 
+import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
 import {
   extractPsbtDetails,
@@ -18,6 +19,7 @@ import {
 } from '@/core/counterparty/signRequestAnalysis';
 import { decodeRawTransaction } from '@/core/counterparty/transaction';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import { getActiveSettings } from '@/core/settings';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
@@ -37,6 +39,9 @@ export async function decodePsbtForApproval(
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
   const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
+  const alkaneBalancesPromise = getActiveSettings().protectAlkanesUtxos
+    ? fetchInputsAlkanes(psbtDetails.inputs, signedInputIndices)
+    : Promise.resolve([]);
   let txid: string | undefined = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
 
@@ -84,6 +89,7 @@ export async function decodePsbtForApproval(
     })),
     transactionId: txid,
     attachedAssets: attachedAssetsPromise,
+    alkaneBalances: alkaneBalancesPromise,
     inscriptionContext,
     signingPurpose,
     bitcoinPaymentIntent,

@@ -142,12 +142,20 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.counterpartyApiBase).toBe('https://api.counterparty.io:4000');
   });
 
+  it('points experimental Alkanes reads at Subfrost by default', () => {
+    expect(DEFAULT_SETTINGS.alkanesApiBase).toBe('https://mainnet.subfrost.io/v4/jsonrpc');
+  });
+
   it('has default order expiration set to the legacy-safe maximum', () => {
     expect(DEFAULT_SETTINGS.defaultOrderExpiration).toBe(8064);
   });
 
   it('has strict transaction verification enabled', () => {
     expect(DEFAULT_SETTINGS.strictTransactionVerification).toBe(true);
+  });
+
+  it('keeps experimental Alkanes lookups opt-in', () => {
+    expect(DEFAULT_SETTINGS.protectAlkanesUtxos).toBe(false);
   });
 
   it('has not visited recover bitcoin page', () => {
@@ -158,6 +166,7 @@ describe('DEFAULT_SETTINGS', () => {
     // Catches any new field additions or removals
     const keys = Object.keys(DEFAULT_SETTINGS).sort();
     expect(keys).toEqual([
+      'alkanesApiBase',
       'allowUnconfirmedTxs',
       'analyticsAllowed',
       'autoLockTimer',
@@ -174,6 +183,7 @@ describe('DEFAULT_SETTINGS', () => {
       'lastActiveWalletId',
       'pinnedAssets',
       'priceUnit',
+      'protectAlkanesUtxos',
       'providerCapabilities',
       'showHelpText',
       'strictTransactionVerification',

@@ -1,3 +1,4 @@
+import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
@@ -55,7 +56,9 @@ async function trySelectUtxos(
   try {
     const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
     return selection.inputsSet;
-  } catch {
+  } catch (error) {
+    // Falling back to server-selected inputs would bypass the separate Alkanes indexer entirely.
+    if (getActiveSettings().protectAlkanesUtxos) throw error;
     return undefined;
   }
 }
@@ -410,10 +413,17 @@ async function executeWithUtxoFallback(
   makeRequest: (options: ComposeRequestOptions) => Promise<ApiResponse>,
   inputsSet: string | undefined,
   allowUnconfirmed: boolean,
-  endpoint: string
+  endpoint: string,
+  requireOfferedInputs = false,
 ): Promise<ApiResponse> {
   // No inputs_set - just make the request with confirmed-only for safety
   if (!inputsSet) {
+    if (requireOfferedInputs) {
+      throw new CounterpartyApiError(
+        'Alkanes protection requires wallet-selected inputs, but no safe input set was available.',
+        endpoint,
+      );
+    }
     try {
       return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
     } catch (error) {
@@ -445,8 +455,10 @@ async function executeWithUtxoFallback(
         }
       }
 
-      // Attempt 3: Let Counterparty API select, but force confirmed-only
+      // Attempt 3: Let Counterparty API select, but force confirmed-only. This is never allowed
+      // while Alkanes protection is active because Counterparty cannot identify those carriers.
       // This avoids issues where Counterparty's mempool has stale unconfirmed UTXOs
+      if (requireOfferedInputs) throw wrapComposeError(error, endpoint);
       try {
         return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
       } catch (finalError) {
@@ -520,7 +532,13 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return executeWithUtxoFallback(
+    makeRequest,
+    inputsSet,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+    settings.protectAlkanesUtxos,
+  );
 }
 
 /**
@@ -587,7 +605,13 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return executeWithUtxoFallback(
+    makeRequest,
+    inputsSet,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+    settings.protectAlkanesUtxos,
+  );
 }
 
 /**
@@ -606,6 +630,25 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
 
   // Get user's unconfirmed transaction preference
   const settings = getActiveSettings();
+
+  if (settings.protectAlkanesUtxos) {
+    const match = /^([0-9a-f]{64}):(\d+)$/i.exec(sourceUtxo);
+    if (!match) throw new CounterpartyApiError('Invalid source UTXO', endpoint);
+    const status = await fetchInputsAlkanes([{
+      index: 0,
+      txid: match[1]!,
+      vout: Number(match[2]),
+    }], [0]);
+    if (status.length > 0) {
+      const unknown = status.some(entry => entry.lookupFailed);
+      throw new CounterpartyApiError(
+        unknown
+          ? 'The Alkanes status of the source UTXO could not be verified.'
+          : 'The source UTXO carries Alkanes and is protected from this operation.',
+        endpoint,
+      );
+    }
+  }
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,

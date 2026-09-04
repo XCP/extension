@@ -131,6 +131,14 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <SettingSwitch
+          label="Protect Alkanes UTXOs (Experimental)"
+          description="Protect Counterparty composition and provider signing by treating token-bearing or unverified Alkanes inputs as unavailable. This does not enable DIESEL minting."
+          checked={settings.protectAlkanesUtxos}
+          onChange={(checked) => updateSettings({ protectAlkanesUtxos: checked })}
+          showHelpText={shouldShowHelpText}
+        />
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">

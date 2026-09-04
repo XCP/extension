@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as alkanesInputAssets from '@/core/alkanes/inputAssets';
 import {
   clearSpentUtxoCache,
   recordPendingChange,
@@ -6,16 +7,24 @@ import {
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
 import { asDisplayUnits } from '@/core/numeric';
+import { DEFAULT_SETTINGS, getActiveSettings } from '@/core/settings';
 import * as counterpartyApi from '../api';
 import { selectUtxosForTransaction } from '../utxoSelection';
 
 // Mock dependencies
 vi.mock('@/core/bitcoin/utxo');
+vi.mock('@/core/alkanes/inputAssets');
 vi.mock('../api');
+vi.mock('@/core/settings', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/settings')>();
+  return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
+});
 
 const mockedFetchUTXOs = vi.mocked(bitcoinUtxo.fetchUTXOs);
 const mockedFetchTokenBalances = vi.mocked(counterpartyApi.fetchTokenBalances);
 const mockedFormatInputsSet = vi.mocked(bitcoinUtxo.formatInputsSet);
+const mockedFetchInputsAlkanes = vi.mocked(alkanesInputAssets.fetchInputsAlkanes);
+const mockedGetSettings = vi.mocked(getActiveSettings);
 
 // Test data
 const mockAddress = 'bc1qtest123address';
@@ -35,6 +44,8 @@ const createMockUtxo = (txid: string, vout: number, value: number, confirmed = t
 describe('selectUtxosForTransaction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedGetSettings.mockReturnValue(DEFAULT_SETTINGS);
+    mockedFetchInputsAlkanes.mockResolvedValue([]);
     clearSpentUtxoCache();
     // Default mock for formatInputsSet
     mockedFormatInputsSet.mockImplementation((utxos) =>
@@ -84,6 +95,41 @@ describe('selectUtxosForTransaction', () => {
     expect(result.totalValue).toBe(70000);
     expect(result.excludedWithAssets).toBe(1);
     expect(result.excludedValue).toBe(30000); // tx2:0 was excluded
+  });
+
+  it('filters Alkanes carriers when experimental protection is active', async () => {
+    const mockUtxos = [
+      createMockUtxo('a'.repeat(64), 0, 50000),
+      createMockUtxo('b'.repeat(64), 1, 30000),
+    ];
+    mockedFetchUTXOs.mockResolvedValue(mockUtxos);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+    mockedFetchInputsAlkanes.mockResolvedValue([{
+      inputIndex: 1,
+      utxo: `${'b'.repeat(64)}:1`,
+      balances: [{ id: '2:0', value: '25' }],
+    }]);
+
+    const result = await selectUtxosForTransaction(mockAddress);
+
+    expect(result.utxos.map(utxo => utxo.txid)).toEqual(['a'.repeat(64)]);
+    expect(result.excludedWithAssets).toBe(1);
+  });
+
+  it('also filters inputs whose Alkanes status is unknown', async () => {
+    const txid = 'a'.repeat(64);
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo(txid, 0, 50000)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+    mockedFetchInputsAlkanes.mockResolvedValue([{
+      inputIndex: 0,
+      utxo: `${txid}:0`,
+      balances: [],
+      lookupFailed: true,
+    }]);
+
+    await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('Insufficient UTXOs');
   });
 
   it('should sort UTXOs by value (highest first)', async () => {

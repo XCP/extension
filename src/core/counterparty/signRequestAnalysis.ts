@@ -12,6 +12,7 @@
  * account of them (ADR-019).
  */
 
+import type { InputAlkaneBalances } from '@/core/alkanes/inputAssets';
 import {
   type BitcoinPaymentIntentV1,
   type BitcoinPaymentProof,
@@ -92,6 +93,8 @@ export interface SignRequestAnalysisInput {
    * overlap. Passed as a promise rather than a value to keep that overlap.
    */
   attachedAssets: Promise<InputAttachedAssets[]>;
+  /** Alkanes carriers found on inputs, when experimental carrier protection is enabled. */
+  alkaneBalances?: Promise<InputAlkaneBalances[]>;
   /**
    * The site's claim that this PSBT funds an inscription commit. Verified here, never trusted:
    * on proof, the envelope's message becomes the transaction's Counterparty payload and the
@@ -115,6 +118,7 @@ export interface SignRequestAnalysis {
   verification: ProviderVerificationResult;
   safety: SafetyAnalysis;
   attachedAssets: InputAttachedAssets[];
+  alkaneBalances: InputAlkaneBalances[];
   mpmaRecipients: MpmaRecipient[];
   structureFindings: StructureFinding[];
   protocolContext: ProtocolContext;
@@ -244,6 +248,30 @@ export async function analyzeSignRequest(
   }
 
   const attachedAssets = await input.attachedAssets;
+  const alkaneBalances = await (input.alkaneBalances ?? Promise.resolve([]));
+  const signed = new Set(signedInputIndices);
+  const signedAlkaneCarriers = alkaneBalances.filter(
+    (entry) => signed.has(entry.inputIndex) && entry.balances.length > 0,
+  );
+  const unknownAlkaneStatus = alkaneBalances.filter(
+    (entry) => signed.has(entry.inputIndex) && entry.lookupFailed,
+  );
+
+  if (signedAlkaneCarriers.length > 0 || unknownAlkaneStatus.length > 0) {
+    safety.warnings = [
+      {
+        severity: 'block',
+        title: unknownAlkaneStatus.length > 0
+          ? 'Retry Required: Alkanes Status Unknown'
+          : 'Blocked: Alkanes Input Protected',
+        message: unknownAlkaneStatus.length > 0
+          ? 'The wallet could not prove that every requested input is free of Alkanes. It will not sign while carrier protection is active.'
+          : 'A requested input carries Alkanes. An ordinary Counterparty or Bitcoin signature could move or destroy those tokens, so it will not be signed.',
+      },
+      ...safety.warnings,
+    ];
+    safety.blocked = true;
+  }
 
   let bitcoinPaymentProof: BitcoinPaymentProof | undefined;
   let bitcoinPaymentBlockers: string[] | undefined;
@@ -390,6 +418,7 @@ export async function analyzeSignRequest(
     verification,
     safety,
     attachedAssets,
+    alkaneBalances,
     mpmaRecipients,
     structureFindings,
     protocolContext,

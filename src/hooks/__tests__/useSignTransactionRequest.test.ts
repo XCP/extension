@@ -60,6 +60,7 @@ describe('useSignTransactionRequest', () => {
       verification: {} as any,
       safety: { blocked: false, warnings: [] } as any,
       attachedAssets: [],
+      alkaneBalances: [],
       mpmaRecipients: [],
       structureFindings: [],
       protocolContext: {} as any,

@@ -7,9 +7,11 @@
  * This follows the same approach as Horizon Wallet.
  */
 
+import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { getPendingChangeUtxos, isUtxoRecentlySpent } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
 import { fetchTokenBalances } from '@/core/counterparty/api';
+import { getActiveSettings } from '@/core/settings';
 
 /**
  * Maximum number of UTXOs to include in inputs_set (API limit).
@@ -102,6 +104,19 @@ export async function selectUtxosForTransaction(
     }
   }
 
+  // Counterparty's balance endpoint cannot see Alkanes. When the experimental protection is on,
+  // every positive or unknown Alkanes result is unavailable to ordinary transaction builders.
+  // A specialized future Alkanes flow must select its carrier explicitly instead of weakening
+  // this general selector.
+  const protectedAlkanes = new Set<string>();
+  if (getActiveSettings().protectAlkanesUtxos) {
+    const alkanes = await fetchInputsAlkanes(
+      candidateUtxos.map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout })),
+      candidateUtxos.map((_, index) => index),
+    );
+    for (const entry of alkanes) protectedAlkanes.add(entry.utxo);
+  }
+
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
   let excludedValue = 0;
@@ -120,7 +135,7 @@ export async function selectUtxosForTransaction(
 
     // Skip if UTXO has attached Counterparty assets
     const utxoKey = `${utxo.txid}:${utxo.vout}`;
-    if (utxosWithAssets.has(utxoKey)) {
+    if (utxosWithAssets.has(utxoKey) || protectedAlkanes.has(utxoKey)) {
       excludedWithAssets++;
       excludedValue += utxo.value;
       continue;

@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { fetchInputsAttachedAssets } from '@/core/counterparty/inputAssets';
 import {
@@ -19,6 +20,7 @@ import {
 } from '@/core/counterparty/signRequestAnalysis';
 import { fetchInputPrevouts } from '@/core/counterparty/transaction';
 import { extractCounterpartyPayload } from '@/core/counterparty/unpack/opReturn';
+import { getActiveSettings } from '@/core/settings';
 import { emitToBackground } from '@/platform/provider/emitToBackground';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
 import { getSignFlow, recordSignOutcome, type SignTransactionRequest } from '@/platform/provider/signFlow';
@@ -83,6 +85,12 @@ export function useSignTransactionRequest(signerAddress?: string) {
       undefined,
       getTrustedBroadcastPrevout
     );
+    const alkaneBalancesPromise = getActiveSettings().protectAlkanesUtxos
+      ? fetchInputsAlkanes(
+          inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout })),
+          inputs.map((_, index) => index),
+        )
+      : Promise.resolve([]);
 
     const outputs: DecodedTransactionInfo['outputs'] = parsed.outputs.map((output) => ({
       index: output.index,
@@ -143,6 +151,7 @@ export function useSignTransactionRequest(signerAddress?: string) {
       signedInputs: inputs.map((_, index) => ({ index, sighashType: 0x01 })),
       transactionId: parsed.txid,
       attachedAssets: attachedAssetsPromise,
+      alkaneBalances: alkaneBalancesPromise,
     });
 
     return {

@@ -109,6 +109,8 @@ export interface AppSettings {
   transactionDryRun: boolean;
   /** Counterparty API base URL */
   counterpartyApiBase: string;
+  /** Alkanes JSON-RPC endpoint used by experimental carrier protection. */
+  alkanesApiBase: string;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
   /**
@@ -118,6 +120,11 @@ export interface AppSettings {
   defaultPoolSlippage?: string;
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
+  /**
+   * Query the Alkanes indexer before selecting or signing inputs, and fail closed when an input's
+   * carrier status cannot be proved. This remains useful after experimental minting is disabled.
+   */
+  protectAlkanesUtxos: boolean;
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
@@ -149,9 +156,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableAdvancedBroadcasts: false,
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
+  alkanesApiBase: 'https://mainnet.subfrost.io/v4/jsonrpc',
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,
+  protectAlkanesUtxos: false,
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
