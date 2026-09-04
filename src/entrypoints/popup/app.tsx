@@ -53,6 +53,8 @@ import ComposeSweepPage from '@/pages/compose/sweep';
 import ComposeUtxoAttachPage from '@/pages/compose/utxo/attach';
 import ComposeUtxoDetachPage from '@/pages/compose/utxo/detach';
 import ComposeUtxoMovePage from '@/pages/compose/utxo/move';
+import DieselBalancePage from '@/pages/diesel';
+import DieselSendPage from '@/pages/diesel/send';
 // Main sections
 import HomePage from '@/pages/index';
 // Keychain + Requests (public-ish)
@@ -199,6 +201,8 @@ export default function App() {
             <Route path="/addresses/history" element={<AddressHistoryPage />} />
 
             <Route path="/assets" element={<AssetsPage />} />
+            <Route path="/diesel" element={<DieselBalancePage />} />
+            <Route path="/diesel/send" element={<DieselSendPage />} />
             <Route path="/assets/utxos/:txHash" element={<UtxoPage />} />
             <Route path="/assets/:asset/balance" element={<AssetBalancePage />} />
             <Route path="/assets/:asset" element={<AssetPage />} />

@@ -85,7 +85,8 @@ export function useSignTransactionRequest(signerAddress?: string) {
       undefined,
       getTrustedBroadcastPrevout
     );
-    const alkaneBalancesPromise = getActiveSettings().protectAlkanesUtxos
+    const settings = getActiveSettings();
+    const alkaneBalancesPromise = (settings.protectAlkanesUtxos || settings.enableDieselMinting)
       ? fetchInputsAlkanes(
           inputs.map((input, index) => ({ index, txid: input.txid, vout: input.vout })),
           inputs.map((_, index) => index),

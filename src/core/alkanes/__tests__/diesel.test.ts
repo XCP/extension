@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildDieselMintScript, decodeDieselMintScript } from '../diesel';
+import {
+  buildDieselMintScript,
+  buildDieselTransferScript,
+  decodeDieselMintScript,
+  isVerifiedDieselCarrierAddress,
+} from '../diesel';
 
 describe('DIESEL mint protostone', () => {
   it('reproduces the independently decoded canonical vout-0 script', () => {
@@ -19,5 +24,18 @@ describe('DIESEL mint protostone', () => {
   it('rejects a malformed or unrelated OP_RETURN', () => {
     expect(() => decodeDieselMintScript('6a026869')).toThrow('Not an Alkanes runestone');
     expect(() => decodeDieselMintScript('6a5d0eff7f')).toThrow('Invalid runestone payload length');
+  });
+
+  it('matches the alkanes-rs SDK vector for an edict with wallet remainder', () => {
+    // Cross-checked against ts-sdk ProtoStone({ pointer: 1, edicts: [2:0, 1.25, vout 0] }).
+    expect(buildDieselTransferScript(125_000_000n, 0, 1)).toBe(
+      '6a5d0fff7f818eec8a80c08080c0e5b6de03',
+    );
+  });
+
+  it('limits the proved carrier design to native SegWit', () => {
+    expect(isVerifiedDieselCarrierAddress('bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l')).toBe(true);
+    expect(isVerifiedDieselCarrierAddress('bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej')).toBe(false);
+    expect(isVerifiedDieselCarrierAddress('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(false);
   });
 });

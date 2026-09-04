@@ -111,6 +111,8 @@ export interface AppSettings {
   counterpartyApiBase: string;
   /** Alkanes JSON-RPC endpoint used by experimental carrier protection. */
   alkanesApiBase: string;
+  /** Attach a DIESEL mint protostone to supported wallet-originated transactions. */
+  enableDieselMinting: boolean;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
   /**
@@ -157,6 +159,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   alkanesApiBase: 'https://mainnet.subfrost.io/v4/jsonrpc',
+  enableDieselMinting: false,
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,

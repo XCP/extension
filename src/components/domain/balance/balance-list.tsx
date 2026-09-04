@@ -6,7 +6,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
-
+import {
+  DIESEL_WALLET_ASSET,
+  dieselBaseUnitsToDisplay,
+  fetchDieselBalance,
+} from '@/core/alkanes/api';
 import { spendableBalance, tracksPendingLedgerDebits } from "@/core/balances/spendable";
 import { fetchBTCBalance } from "@/core/bitcoin/balance";
 import type { TokenBalance } from "@/core/counterparty/api";
@@ -47,7 +51,11 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
 
   useEffect(() => {
     setInitialLoaded(false);
-  }, [settings?.pinnedAssets]);
+  }, [
+    settings?.pinnedAssets,
+    settings?.enableDieselMinting,
+    settings?.protectAlkanesUtxos,
+  ]);
 
   // A refresh reuses the same lever the pinned-asset list already pulls, rather than adding a
   // second path through the loading code. The ref records that a refresh was asked for, so the
@@ -147,8 +155,32 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         };
         if (!isCancelled) upsertBalance(btcBalance);
 
+        const dieselEnabled = settings?.enableDieselMinting || settings?.protectAlkanesUtxos;
+        if (dieselEnabled) {
+          try {
+            const diesel = await fetchDieselBalance(activeAddress.address);
+            if (!isCancelled) {
+              upsertBalance({
+                asset: DIESEL_WALLET_ASSET,
+                quantity_normalized: asDisplayUnits(dieselBaseUnitsToDisplay(diesel.baseUnits)),
+                asset_info: {
+                  asset_longname: null,
+                  description: 'Alkanes DIESEL (2:0)',
+                  issuer: '',
+                  divisible: true,
+                  locked: false,
+                },
+              });
+            }
+          } catch (error) {
+            // An independent indexer outage must not hide BTC or Counterparty balances.
+            console.error('Error fetching DIESEL balance:', error);
+          }
+        }
+
         const pinnedAssets = settings?.pinnedAssets || [];
-        const nonBTCAssets = pinnedAssets.filter((asset) => asset.toUpperCase() !== "BTC");
+        const nonBTCAssets = pinnedAssets.filter((asset) =>
+          asset.toUpperCase() !== "BTC" && asset.toUpperCase() !== DIESEL_WALLET_ASSET);
         const balancePromises = nonBTCAssets.map(async (asset) => {
           try {
             const balance = await fetchTokenBalance(activeAddress.address, asset, { type: 'address' });
@@ -184,7 +216,15 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
     loadInitialBalances();
 
     return () => { isCancelled = true; };
-  }, [activeAddress, activeWallet, upsertBalance, initialLoaded, settings?.pinnedAssets]);
+  }, [
+    activeAddress,
+    activeWallet,
+    upsertBalance,
+    initialLoaded,
+    settings?.pinnedAssets,
+    settings?.enableDieselMinting,
+    settings?.protectAlkanesUtxos,
+  ]);
 
   // Load more on scroll
   useEffect(() => {
@@ -235,7 +275,11 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
   }, [inView, activeAddress, activeWallet, hasMore, offset, upsertBalance, isFetchingMore]);
 
   // BTC is always pinned, plus user's pinned assets
-  const pinnedAssets = ["BTC"].concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
+  const pinnedAssets = ["BTC"]
+    .concat(settings?.enableDieselMinting || settings?.protectAlkanesUtxos
+      ? [DIESEL_WALLET_ASSET]
+      : [])
+    .concat((settings?.pinnedAssets || []).map((a) => a.toUpperCase()));
 
   const pinnedBalances = allBalances.filter((balance) =>
     pinnedAssets.includes(balance.asset.toUpperCase())
@@ -257,6 +301,9 @@ export const BalanceList = ({ refreshNonce, onRefreshed }: BalanceListProps = {}
         const assetUpper = balance.asset.toUpperCase();
         if (assetUpper === "BTC") return true;
         if (assetUpper === "XCP" && pinnedAssets.includes("XCP")) return true;
+        if (assetUpper === DIESEL_WALLET_ASSET && pinnedAssets.includes(DIESEL_WALLET_ASSET)) {
+          return true;
+        }
         return shown.quantity_normalized !== undefined
           && isGreaterThan(shown.quantity_normalized, 0);
       });

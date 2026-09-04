@@ -132,7 +132,15 @@ export function ReviewSend({
         ) : undefined,
       },
       ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
-      ...(result.params.more_outputs ? [(() => {
+      ...(result.diesel_mint ? [{
+        label: 'DIESEL mint',
+        value: 'Included',
+        rightElement: (
+          <span className="text-gray-500">
+            {result.diesel_mint.carrier_sats} sat carrier
+          </span>
+        ),
+      }] : result.params.more_outputs ? [(() => {
         const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
         const btcVal = fromSatoshis(sats);
         const fiatVal = btcPrice ? multiply(btcVal, btcPrice) : null;

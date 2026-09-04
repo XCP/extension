@@ -1,8 +1,13 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { fetchDieselBalance } from '@/core/alkanes/api';
+import { buildDieselMintScript } from '@/core/alkanes/diesel';
 import * as apiClientUtils from '@/core/api/client';
 import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
-import { composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
+import { composeDieselSend, composeMove, composeSend, composeSendOrMPMA, composeSweep } from '../compose';
 import {
   assertComposeUrlCalled,
   createMockComposeResponse,
@@ -18,6 +23,10 @@ import {
 
 // Mock dependencies
 vi.mock('@/core/api/client');
+vi.mock('@/core/alkanes/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/alkanes/api')>();
+  return { ...actual, fetchDieselBalance: vi.fn() };
+});
 vi.mock('@/core/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/settings')>();
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };
@@ -38,12 +47,75 @@ vi.mock('@/core/counterparty/utxoSelection', () => ({
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedFetchDieselBalance = vi.mocked(fetchDieselBalance);
 
 describe('Compose Send Operations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
     mockedApiClient.get.mockResolvedValue(createMockComposeResponse());
+    mockedFetchDieselBalance.mockReset();
+  });
+
+  describe('composeDieselSend', () => {
+    it('forces carrier inputs and proves the recipient, remainder, and edict outputs', async () => {
+      const sourcePayment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const destinationPayment = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
+      const carrierTxid = 'bb'.repeat(32);
+      mockedFetchDieselBalance.mockResolvedValue({
+        baseUnits: '200000000',
+        carriers: [{
+          txid: carrierTxid,
+          vout: 1,
+          value: 330,
+          balances: [{ id: '2:0', value: '200000000' }],
+        }],
+      });
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        protectAlkanesUtxos: true,
+      });
+      const transferScript = '6a5d0fff7f818eec8a80c08080c0e5b6de03';
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes(carrierTxid),
+        index: 1,
+        witnessUtxo: { script: sourcePayment.script, amount: 330n },
+      });
+      tx.addInput({
+        txid: hexToBytes('aa'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
+      });
+      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+      tx.addOutput({ script: sourcePayment.script, amount: 330n });
+      tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
+      tx.addOutput({ script: sourcePayment.script, amount: 90_000n });
+      mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
+        rawtransaction: bytesToHex(tx.unsignedTx),
+      }));
+
+      const response = await composeDieselSend({
+        sourceAddress: sourcePayment.address!,
+        destination: destinationPayment.address!,
+        amountBaseUnits: '125000000',
+        sat_per_vbyte: 10,
+      });
+
+      const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(url.searchParams.get('inputs_set')).toBe(`${carrierTxid}:1,${'aa'.repeat(32)}:0`);
+      expect(url.searchParams.get('use_all_inputs_set')).toBe('true');
+      expect(url.searchParams.get('more_outputs')).toBe(
+        `330:${sourcePayment.address},0:${transferScript}`,
+      );
+      expect(response.result.diesel_transfer).toEqual({
+        amount_base_units: '125000000',
+        carrier_inputs: [`${carrierTxid}:1`],
+        recipient_vout: 0,
+        remainder_vout: 1,
+        runestone_vout: 2,
+      });
+    });
   });
 
   describe('composeSend', () => {
@@ -126,6 +198,62 @@ describe('Compose Send Operations', () => {
         ...btcParams,
       });
       assertComposeUrlCalled(mockedApiClient, 'send', btcParams);
+    });
+
+    it('attaches and verifies a DIESEL mint for an eligible native-segwit send', async () => {
+      const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
+      const payment = p2wpkh(key);
+      const sourceAddress = payment.address!;
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes('aa'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: payment.script, amount: 100_000n },
+      });
+      tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      tx.addOutput({ script: payment.script, amount: 330n });
+      tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
+      tx.addOutput({ script: payment.script, amount: 90_000n });
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+      mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
+        rawtransaction: bytesToHex(tx.unsignedTx),
+      }));
+
+      const response = await composeSend({
+        sourceAddress,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: mockSatPerVbyte,
+      });
+
+      const actualUrl = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(actualUrl.searchParams.get('encoding')).toBe('opreturn');
+      expect(actualUrl.searchParams.get('more_outputs')).toBe(
+        `330:${sourceAddress},0:${buildDieselMintScript(1)}`,
+      );
+      expect(response.result.diesel_mint).toEqual({
+        carrier_vout: 1,
+        runestone_vout: 2,
+        carrier_sats: 330,
+      });
+    });
+
+    it('skips DIESEL on unsupported send shapes instead of guessing an output pointer', async () => {
+      mockedGetSettings.mockReturnValue({ ...mockSettings, enableDieselMinting: true });
+      await composeSend({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: mockSatPerVbyte,
+        ...defaultParams,
+        memo: 'keep this memo',
+      });
+      const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(url.searchParams.has('more_outputs')).toBe(false);
+      expect(url.searchParams.has('encoding')).toBe(false);
     });
   });
 

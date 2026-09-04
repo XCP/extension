@@ -6,15 +6,15 @@ import {
   recordSpentUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
+import * as counterpartyApi from '@/core/counterparty/api';
 import { asDisplayUnits } from '@/core/numeric';
 import { DEFAULT_SETTINGS, getActiveSettings } from '@/core/settings';
-import * as counterpartyApi from '../api';
 import { selectUtxosForTransaction } from '../utxoSelection';
 
 // Mock dependencies
 vi.mock('@/core/bitcoin/utxo');
 vi.mock('@/core/alkanes/inputAssets');
-vi.mock('../api');
+vi.mock('@/core/counterparty/api');
 vi.mock('@/core/settings', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/settings')>();
   return { ...actual, getActiveSettings: vi.fn().mockReturnValue(actual.DEFAULT_SETTINGS) };

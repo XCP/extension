@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchAlkanesByOutpoint, parseAlkaneBalances } from '../api';
+import {
+  dieselBaseUnitsToDisplay,
+  fetchAlkanesByAddress,
+  fetchAlkanesByOutpoint,
+  fetchDieselBalance,
+  parseAlkaneBalances,
+} from '../api';
 
 describe('Alkanes outpoint API', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -36,7 +42,56 @@ describe('Alkanes outpoint API', () => {
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(JSON.parse(String(init.body))).toMatchObject({
       method: 'alkanes_protorunesbyoutpoint',
-      params: { txid: 'ab'.repeat(32), vout: 3, protocolTag: '1' },
+      params: [{ txid: 'ab'.repeat(32), vout: 3, protocolTag: '1' }],
     });
+  });
+
+  it('keeps address balances attached to their carrier outpoints', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      result: {
+        outpoints: [{
+          outpoint: { txid: 'cd'.repeat(32), vout: 1 },
+          output: { value: '330' },
+          height: '965504',
+          balance_sheet: { cached: { balances: [{ id: '2:0', value: '125000000' }] } },
+        }],
+      },
+    }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchAlkanesByAddress('bc1qexample')).resolves.toEqual([{
+      txid: 'cd'.repeat(32),
+      vout: 1,
+      value: 330,
+      height: 965504,
+      balances: [{ id: '2:0', value: '125000000' }],
+    }]);
+    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      method: 'alkanes_protorunesbyaddress',
+      params: [{ address: 'bc1qexample', protocolTag: '1' }],
+    });
+  });
+
+  it('aggregates DIESEL only and formats all eight decimal places exactly', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      result: {
+        outpoints: [
+          {
+            outpoint: { txid: 'ab'.repeat(32), vout: 1 },
+            balance_sheet: { cached: { balances: { '2:0': '100000001', '2:1': '9' } } },
+          },
+          {
+            outpoint: { txid: 'cd'.repeat(32), vout: 2 },
+            balance_sheet: { cached: { balances: { '2:0': '200000000' } } },
+          },
+        ],
+      },
+    }), { status: 200 })));
+
+    const balance = await fetchDieselBalance('bc1qexample');
+    expect(balance.baseUnits).toBe('300000001');
+    expect(balance.carriers).toHaveLength(2);
+    expect(dieselBaseUnitsToDisplay(balance.baseUnits)).toBe('3.00000001');
   });
 });

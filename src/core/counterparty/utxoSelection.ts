@@ -109,7 +109,8 @@ export async function selectUtxosForTransaction(
   // A specialized future Alkanes flow must select its carrier explicitly instead of weakening
   // this general selector.
   const protectedAlkanes = new Set<string>();
-  if (getActiveSettings().protectAlkanesUtxos) {
+  const settings = getActiveSettings();
+  if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
     const alkanes = await fetchInputsAlkanes(
       candidateUtxos.map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout })),
       candidateUtxos.map((_, index) => index),

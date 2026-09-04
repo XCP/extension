@@ -39,7 +39,8 @@ export async function decodePsbtForApproval(
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
   const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
-  const alkaneBalancesPromise = getActiveSettings().protectAlkanesUtxos
+  const settings = getActiveSettings();
+  const alkaneBalancesPromise = (settings.protectAlkanesUtxos || settings.enableDieselMinting)
     ? fetchInputsAlkanes(psbtDetails.inputs, signedInputIndices)
     : Promise.resolve([]);
   let txid: string | undefined = psbtDetails.transactionId;

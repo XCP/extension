@@ -133,10 +133,12 @@ export default function AdvancedSettingsPage(): ReactElement {
         />
 
         <SettingSwitch
-          label="Protect Alkanes UTXOs (Experimental)"
-          description="Protect Counterparty composition and provider signing by treating token-bearing or unverified Alkanes inputs as unavailable. This does not enable DIESEL minting."
-          checked={settings.protectAlkanesUtxos}
-          onChange={(checked) => updateSettings({ protectAlkanesUtxos: checked })}
+          label="Mine DIESEL (Experimental)"
+          description="Attach one Alkanes DIESEL mint to eligible single-recipient BTC and asset sends from native SegWit addresses. Memos, extra outputs, MPMA, and provider requests are skipped. Enabling this also protects DIESEL-bearing UTXOs from accidental spending."
+          checked={settings.enableDieselMinting}
+          onChange={(checked) => updateSettings(checked
+            ? { enableDieselMinting: true, protectAlkanesUtxos: true }
+            : { enableDieselMinting: false })}
           showHelpText={shouldShowHelpText}
         />
       </SettingsSection>

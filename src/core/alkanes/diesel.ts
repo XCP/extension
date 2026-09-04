@@ -9,11 +9,13 @@
 export const ALKANES_PROTOCOL_TAG = 1n;
 export const DIESEL_ALKANE_ID = { block: 2n, tx: 0n } as const;
 export const DIESEL_MINT_OPCODE = 77n;
+export const DIESEL_CARRIER_SATS = 330;
 
 const RUNESTONE_PROTOCOL_TAG = 16_383n;
 const PROTOSTONE_POINTER_TAG = 91n;
 const PROTOSTONE_REFUND_TAG = 93n;
 const PROTOSTONE_MESSAGE_TAG = 81n;
+const PROTOSTONE_BODY_TAG = 0n;
 const OP_RETURN = 0x6a;
 const OP_PUSHNUM_13 = 0x5d;
 
@@ -99,10 +101,53 @@ export function buildDieselMintScript(pointer: number, refund = pointer): string
   return bytesToHex([OP_RETURN, OP_PUSHNUM_13, payload.length, ...payload]);
 }
 
+/** Route an exact amount to one output and every remaining input unit to our carrier output. */
+export function buildDieselTransferScript(
+  amountBaseUnits: bigint,
+  recipientOutput: number,
+  remainderOutput: number,
+): string {
+  if (amountBaseUnits <= 0n) throw new Error('DIESEL transfer amount must be positive');
+  if (!Number.isSafeInteger(recipientOutput) || recipientOutput < 0) {
+    throw new Error('Invalid DIESEL recipient output');
+  }
+  if (!Number.isSafeInteger(remainderOutput) || remainderOutput < 0) {
+    throw new Error('Invalid DIESEL remainder output');
+  }
+  // The single edict is delta-encoded from 0:0 to DIESEL 2:0. After it allocates the requested
+  // units, protorune sends the unallocated input balance to ProtoPointer.
+  const fields = [
+    ALKANES_PROTOCOL_TAG,
+    7n,
+    PROTOSTONE_POINTER_TAG,
+    BigInt(remainderOutput),
+    PROTOSTONE_BODY_TAG,
+    DIESEL_ALKANE_ID.block,
+    DIESEL_ALKANE_ID.tx,
+    amountBaseUnits,
+    BigInt(recipientOutput),
+  ];
+  const fieldBytes = fields.flatMap(encodeUleb128);
+  if (fieldBytes.length > 15) {
+    throw new Error('DIESEL transfer amount requires multi-word protostone encoding');
+  }
+  const packed = bytesToU128(fieldBytes);
+  const payload = [...encodeUleb128(RUNESTONE_PROTOCOL_TAG), ...encodeUleb128(packed)];
+  if (payload.length > 75) throw new Error('DIESEL transfer requires a non-minimal push');
+  return bytesToHex([OP_RETURN, OP_PUSHNUM_13, payload.length, ...payload]);
+}
+
 export interface DecodedDieselMintScript {
   pointer: number;
   refund: number;
   calldata: readonly [2n, 0n, 77n];
+}
+
+export function isVerifiedDieselCarrierAddress(address: string): boolean {
+  // The regtest and package-cost proof cover native v0 P2WPKH. Do not broaden this merely because
+  // another address kind can be encoded; routing and lifetime spendability need their own proof.
+  return /^(?:bc|tb)1q[02-9ac-hj-np-z]{38}$/i.test(address)
+    || /^bcrt1q[02-9ac-hj-np-z]{38,58}$/i.test(address);
 }
 
 /** Strictly decode a script produced by {@link buildDieselMintScript}. */

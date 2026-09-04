@@ -2,9 +2,11 @@
 
 **Feasibility review for Dan — 2026-09-04**
 
-**Status:** source review complete; combined transaction proven on local regtest
+**Status:** source review complete; combined transaction proven on local regtest; draft wallet
+implementation in this PR
 
-**Verdict:** **build a narrow prototype, but do not ship the feature yet**
+**Verdict:** **the narrow feature is feasible and implemented behind an off-by-default switch;
+keep the PR draft until release-line and live-network acceptance are rechecked**
 
 ## Executive verdict
 
@@ -41,11 +43,11 @@ The best construction depends on the host transaction:
 - Never add a 330-sat carrier as an otherwise-unneeded input merely to reuse it:
   that makes the delta about 125 vB, almost the 135-vB standalone mint.
 
-I would not ship it now for two reasons:
+The PR should remain a draft for two reasons:
 
-1. The wallet is blind to Alkanes balances. Spending a DIESEL-bearing outpoint
-   without correct routing consumes the input and clears its indexed balance.
-   Alkanes-aware coin selection and signing policy must come before the UI.
+1. Alkanes balance discovery, carrier protection, exact mint-output verification, and an explicit
+   edict send now exist in the branch, but the address index and send still need a live integration
+   fixture before release. An indexer outage fails closed for carrier spending.
 2. An unreleased Alkanes staging branch dated 2026-09-01 proposes activating DIESEL v3 at
    height **966,000**. The current height supplied after this review is
    **965,504**—only 496 blocks short (roughly 3.4 days at ten-minute blocks). In
@@ -57,25 +59,32 @@ I would not ship it now for two reasons:
    fixed-payout change remain absent from the mainnet release as of this review.
    See the [staging v3 commit](https://github.com/kungfuflex/alkanes-rs/commit/09e25f6ae67c830b04bed2adae39f41956249b7a).
 
-## What this prototype PR implements
+## What this draft PR implements
 
-This branch intentionally stops before transaction decoration. It adds the pieces that are safe
-and useful regardless of the post-966,000 payout decision:
+The same PR now carries the complete narrow vertical slice:
 
 - a dependency-free DIESEL mint protostone builder and strict decoder, pinned against both the
   canonical pointer-0 script and the pointer/refund-1 script used by the regtest proof;
 - exact, string-preserving Alkanes outpoint reads through the protocol-1
   `alkanes_protorunesbyoutpoint` method, with unknown response shapes treated as failures;
-- an off-by-default **Protect Alkanes UTXOs** advanced setting;
+- an off-by-default **Mine DIESEL (Experimental)** advanced setting that permanently enables
+  carrier protection when first switched on;
 - shared raw-transaction and PSBT provider analysis that blocks a signed Alkanes carrier, and
   fails closed if carrier status cannot be established;
 - Counterparty coin selection that excludes positive and unknown Alkanes outpoints, and disables
   the existing server-selected-input fallback while protection is active;
 - the same protection for explicit UTXO Counterparty operations such as detach and move.
+- automatic decoration of eligible single-destination, no-memo BTC and enhanced Counterparty
+  sends from native-segwit addresses, followed by byte-level proof of the carrier and runestone;
+- a separate address-level `DIESEL · Alkanes` balance and carrier detail surface; and
+- a protocol-native DIESEL send flow that deliberately selects carrier inputs, allocates the exact
+  recipient amount with an edict, returns every leftover unit to an owned carrier, and verifies the
+  finished input/output layout before signing.
 
-It does **not** expose an Ask/Auto mint mode, create a synthetic DIESEL balance, alter a provider
-transaction, or claim a send/swap/unwrap path is production-ready. Those are the next PR only
-after the live contract behavior and dual-indexer fixture are pinned.
+The current allow-list skips MPMA, memos, user `more_outputs`, non-P2WPKH source addresses,
+Counterparty Taproot/multisig data, explicit-UTXO operations, and every non-send transaction type.
+The provider surface does not add mints; it only enforces carrier protection. Swap and Subfrost
+unwrap remain research-only and are not presented as available actions.
 
 ## Executed validation
 
@@ -907,9 +916,11 @@ Acceptance gates before mainnet:
 
 ## Recommendation
 
-**GO for a one- or two-day spike. NO-GO for a user-facing release until the 966,000
-question, Alkanes-aware coin safety, and at least one fulfilled frBTC unwrap are
-resolved.**
+**GO for the single draft feature PR now implemented. NO-GO for merging it as a public release
+until the activation-height behavior, live address reconciliation, and end-to-end mint/send
+fixtures are rerun against the deployment users will actually hit.** A fulfilled frBTC unwrap is
+still required before adding a “Convert to BTC” action, but it does not block mining, balance
+display, or protocol-native Send.
 
 The spike should target the two-OP_RETURN/current-Core construction. It requires no
 Counterparty protocol change and no bare multisig for ordinary short messages.
