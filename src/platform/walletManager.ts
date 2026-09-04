@@ -1526,14 +1526,26 @@ export class WalletManager {
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
 
-    const targetAddress = wallet.addresses.find(addr => addr.address === address);
+    const normalizedAddress = normalizeAddressForComparison(address);
+    const paired = wallet.type === 'mnemonic' && getPairedAddressFormats(wallet.addressFormat)
+      ? await this.getPairedAddresses()
+      : null;
+    const pairedTarget = paired
+      ? [paired.legacy, paired.segwit].find(
+          candidate => normalizeAddressForComparison(candidate.address) === normalizedAddress
+        )
+      : undefined;
+    const targetAddress = wallet.addresses.find(
+      candidate => normalizeAddressForComparison(candidate.address) === normalizedAddress
+    ) ?? pairedTarget;
     if (!targetAddress) throw new Error("Address not found in wallet");
+    const targetFormat = pairedTarget?.format ?? wallet.addressFormat;
 
     // Hardware wallet signing path
     if (wallet.type === 'hardware') {
       // Trezor does not support message signing for Taproot (P2TR) addresses
       // Check both wallet format and address prefix (bc1p = Taproot)
-      if (wallet.addressFormat === AddressFormat.P2TR || address.startsWith('bc1p')) {
+      if (targetFormat === AddressFormat.P2TR || address.startsWith('bc1p')) {
         throw new Error(
           "Trezor does not support message signing for Taproot (P2TR) addresses. " +
           "This is a hardware limitation. To sign messages, use a wallet with a different address type (e.g., Native SegWit bc1q...)."
@@ -1562,7 +1574,7 @@ export class WalletManager {
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
 
     // Use the signMessage function
-    return signMessage(message, privateKeyResult.hex, wallet.addressFormat, privateKeyResult.compressed);
+    return signMessage(message, privateKeyResult.hex, targetFormat, privateKeyResult.compressed);
   }
 
   /**

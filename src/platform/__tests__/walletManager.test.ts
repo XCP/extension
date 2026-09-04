@@ -56,7 +56,9 @@ import {
   getAddressFromMnemonic,
   getDerivationPathForAddressFormat,
   isCounterwalletFormat,
+  normalizeAddressForComparison,
 } from '@/core/bitcoin/address';
+import { signMessage } from '@/core/bitcoin/messageSigner';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
 import { signPSBT } from '@/core/bitcoin/psbt';
 import { base64ToBuffer } from '@/core/encryption/buffer';
@@ -109,6 +111,7 @@ describe('WalletManager', () => {
 
     vi.mocked(getAddressFromMnemonic).mockImplementation(mocks.bitcoin.getAddressFromMnemonic);
     vi.mocked(getDerivationPathForAddressFormat).mockImplementation(mocks.bitcoin.getDerivationPathForAddressFormat);
+    vi.mocked(normalizeAddressForComparison).mockImplementation(address => address.toLowerCase());
 
     vi.mocked(deriveKey).mockImplementation(mocks.keyBased.deriveKey);
     vi.mocked(deriveKeyAsync).mockImplementation(mocks.keyBased.deriveKey);
@@ -683,6 +686,58 @@ describe('WalletManager', () => {
         [],
         AddressFormat.P2WPKH,
         undefined
+      );
+    });
+  });
+  describe('Message Signing', () => {
+    it('derives and signs for the paired SegWit address without changing the active Legacy address', async () => {
+      const wallet = createTestWallet({
+        addressFormat: AddressFormat.P2PKH,
+        addresses: [{
+          name: 'Address 1',
+          address: '1active',
+          path: "m/44'/0'/0'/0/0",
+          pubKey: '02aa',
+        }],
+      });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      vi.spyOn(walletManager, 'getPairedAddresses').mockResolvedValue({
+        legacy: {
+          name: 'Legacy',
+          address: '1active',
+          path: "m/44'/0'/0'/0/0",
+          pubKey: '02aa',
+          format: AddressFormat.P2PKH,
+          type: 'p2pkh',
+        },
+        segwit: {
+          name: 'SegWit',
+          address: 'bc1qpaired',
+          path: "m/84'/0'/0'/0/0",
+          pubKey: '02aa',
+          format: AddressFormat.P2WPKH,
+          type: 'p2wpkh',
+        },
+      });
+      const privateKeySpy = vi.spyOn(walletManager, 'getPrivateKey').mockResolvedValue({
+        hex: '11'.repeat(32),
+        wif: 'test-wif',
+        compressed: true,
+      });
+      vi.mocked(signMessage).mockResolvedValue({ signature: 'signed', address: 'bc1qpaired' });
+
+      await expect(walletManager.signMessage('hello', 'bc1qpaired')).resolves.toEqual({
+        signature: 'signed',
+        address: 'bc1qpaired',
+      });
+
+      expect(privateKeySpy).toHaveBeenCalledWith(wallet.id, "m/84'/0'/0'/0/0");
+      expect(signMessage).toHaveBeenCalledWith(
+        'hello',
+        '11'.repeat(32),
+        AddressFormat.P2WPKH,
+        true,
       );
     });
   });

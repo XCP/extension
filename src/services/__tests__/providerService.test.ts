@@ -909,10 +909,66 @@ describe('ProviderService', () => {
         expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
           expect.objectContaining({
             origin: 'https://test.com',
-            message
-            // Note: address is not stored in signMessage requests
+            message,
+            address,
+            signingAddress: address,
           })
         );
+      });
+
+      it('allows a paired sibling to sign without changing the active address', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+        const pairedLegacy = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+
+        providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', pairedLegacy]
+        ).catch(() => {});
+
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
+          'https://test.com',
+          'wallet1',
+          'bc1qtest123'
+        );
+        expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
+          expect.objectContaining({
+            address: 'bc1qtest123',
+            signingAddress: pairedLegacy,
+          })
+        );
+      });
+
+      it('refuses a paired sibling message signer without paired permission', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7']
+        )).rejects.toThrow('Paired Legacy/SegWit address access has not been granted');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+      it('refuses a message signer outside the active pair', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(true);
+
+        await expect(providerService.handleRequest(
+          'https://test.com',
+          'xcp_signMessage',
+          ['Hello Bitcoin', '1BoatSLRHtKNngkdXEeobR76b53LETtpyT']
+        )).rejects.toThrow('not the active address or its paired sibling');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
       });
     });
 

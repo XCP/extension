@@ -580,9 +580,37 @@ export function createProviderService(): ProviderService {
             throw new Error('No active address');
           }
 
-          // If address specified, validate it matches active address for security
-          if (address && address !== activeAddress.address) {
-            throw new Error('Specified address does not match active address');
+          let signingAddress = activeAddress.address;
+          if (
+            address
+            && normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)
+          ) {
+            const supportsPairedAddresses = Boolean(
+              getPairedAddressFormats(activeWallet.addressFormat)
+            );
+            const paired = activeWallet.type === 'mnemonic' && supportsPairedAddresses
+              ? await walletService.getPairedAddresses()
+              : null;
+            const target = paired
+              ? [paired.legacy, paired.segwit].find(candidate =>
+                  normalizeAddressForComparison(candidate.address)
+                    === normalizeAddressForComparison(address)
+                )
+              : undefined;
+            if (!target) {
+              throw new Error('Specified address is not the active address or its paired sibling');
+            }
+            if (!await connectionService.hasPairedAddressPermission(
+              origin,
+              activeWallet.id,
+              activeAddress.address
+            )) {
+              throw new ProviderError(
+                PROVIDER_ERROR_CODES.UNAUTHORIZED,
+                'Paired Legacy/SegWit address access has not been granted'
+              );
+            }
+            signingAddress = target.address;
           }
 
           return runSignFlow({
@@ -606,6 +634,7 @@ export function createProviderService(): ProviderService {
                 kind: 'sign-message',
                 message,
                 address: activeAddress.address,
+                signingAddress,
                 walletId: activeWallet.id,
                 timestamp: Date.now(),
               });
