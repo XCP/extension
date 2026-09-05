@@ -12,8 +12,9 @@
  * freely, and there is nothing to compare against — see `checkInputPolicy`.
  */
 
-import { Transaction } from '@scure/btc-signer';
-import { bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
+import type { Transaction } from '@scure/btc-signer';
+import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { bytesToHex } from '@/core/counterparty/unpack/binary';
 
 export interface InputPolicyInput {
   rawTransaction: string;
@@ -59,12 +60,7 @@ export function checkInputPolicy(input: InputPolicyInput): InputPolicyResult {
 
   let tx: Transaction;
   try {
-    tx = Transaction.fromRaw(hexToBytes(input.rawTransaction), {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    tx = parseTransactionForSigning(input.rawTransaction);
   } catch {
     // Signing parses the same bytes and will fail there instead; see `checkOutputPolicy`.
     return { ok: true, unoffered: [] };

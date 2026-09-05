@@ -15,9 +15,10 @@
  */
 
 import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import type { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { decodeRawTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { toSafeInteger } from '@/core/numeric';
 
 export interface LocalParsedInput {
@@ -83,13 +84,8 @@ export function parseRawTransactionLocally(rawTxHex: string): LocalParsedTransac
   let rawBytes: Uint8Array;
   let tx: Transaction;
   try {
-    rawBytes = hexToBytes(rawTxHex.replace(/^0x/, ''));
-    tx = Transaction.fromRaw(rawBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    rawBytes = decodeRawTransaction(rawTxHex);
+    tx = parseTransactionForSigning(rawBytes);
   } catch {
     return null;
   }

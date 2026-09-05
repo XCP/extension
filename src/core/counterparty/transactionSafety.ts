@@ -6,10 +6,9 @@
  * that could indicate a malicious site trying to drain the wallet.
  */
 
-import { Point } from '@noble/secp256k1';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { publicKeyPointId } from '@/core/bitcoin/publicKeyIdentity';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
-import { bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import {
   bareMultisigRecoveryPubkey,
   isBareMultisigDataOutput,
@@ -160,11 +159,7 @@ const DATA_CARRYING_OUTPUT_TYPES = new Set([
  * lower-cased input preserves fail-closed behaviour for malformed keys used by callers/tests.
  */
 function comparablePubkey(pubkey: string): string {
-  try {
-    return bytesToHex(Point.fromBytes(hexToBytes(pubkey)).toBytes(true));
-  } catch {
-    return pubkey.toLowerCase();
-  }
+  return publicKeyPointId(pubkey) ?? pubkey.toLowerCase();
 }
 
 /**

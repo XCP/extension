@@ -38,6 +38,9 @@ vi.mock('@/core/bitcoin/psbt', () => ({
   extractPsbtDetails: vi.fn(),
   completePsbtWithInputValues: vi.fn(),
 }));
+vi.mock('@/core/bitcoin/psbtPrevouts', () => ({
+  verifyPsbtPrevouts: vi.fn(async (psbt: string) => ({ hex: psbt, prevouts: [] })),
+}));
 vi.mock('@/core/counterwallet');
 vi.mock('@/core/wallet/rarePepeWallet', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/core/wallet/rarePepeWallet')>()),

@@ -19,7 +19,6 @@ import { composeBroadcast, composeSend } from '../compose';
 import { setSourcePubkeyProvider } from '../sourcePubkey';
 import {
   createMockComposeResponse,
-  mockAddress,
   mockDestAddress,
   mockSatPerVbyte,
   mockSettings,
@@ -43,6 +42,7 @@ const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
 
 const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
+const SOURCE_ADDRESS = '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH';
 
 const composedUrl = (): string => mockedApiClient.get.mock.calls[0]![0] as string;
 
@@ -56,10 +56,10 @@ describe('multisig_pubkey on compose requests', () => {
   afterEach(() => setSourcePubkeyProvider(null));
 
   it('sends the source pubkey when the wallet holds it', async () => {
-    setSourcePubkeyProvider((address) => (address === mockAddress ? PUBKEY : null));
+    setSourcePubkeyProvider((address) => (address === SOURCE_ADDRESS ? PUBKEY : null));
 
     await composeBroadcast({
-      sourceAddress: mockAddress,
+      sourceAddress: SOURCE_ADDRESS,
       text: 'hello',
       sat_per_vbyte: mockSatPerVbyte,
     });
@@ -72,7 +72,7 @@ describe('multisig_pubkey on compose requests', () => {
   // and core falls back to its own history scan.
   it('omits the parameter when no provider is registered', async () => {
     await composeBroadcast({
-      sourceAddress: mockAddress,
+      sourceAddress: SOURCE_ADDRESS,
       text: 'hello',
       sat_per_vbyte: mockSatPerVbyte,
     });
@@ -84,7 +84,7 @@ describe('multisig_pubkey on compose requests', () => {
     setSourcePubkeyProvider(() => null);
 
     await composeSend({
-      sourceAddress: mockAddress,
+      sourceAddress: SOURCE_ADDRESS,
       destination: mockDestAddress,
       asset: 'XCP',
       quantity: 100,
@@ -101,7 +101,7 @@ describe('multisig_pubkey on compose requests', () => {
     setSourcePubkeyProvider(() => PUBKEY);
 
     await composeSend({
-      sourceAddress: mockAddress,
+      sourceAddress: SOURCE_ADDRESS,
       destination: mockDestAddress,
       asset: 'XCP',
       quantity: 100,

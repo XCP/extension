@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { getSourcePubkey, setSourcePubkeyProvider } from '../sourcePubkey';
 
-const ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
+const ADDRESS = '1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH';
+const UNCOMPRESSED_ADDRESS = '1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm';
 const PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798';
 
 describe('sourcePubkey provider', () => {
@@ -84,7 +85,17 @@ describe('anything that is not a public key', () => {
       '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798' +
       '483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8';
     setSourcePubkeyProvider(() => UNCOMPRESSED);
-    expect(getSourcePubkey(ADDRESS)).toBe(UNCOMPRESSED);
+    expect(getSourcePubkey(UNCOMPRESSED_ADDRESS)).toBe(UNCOMPRESSED);
+  });
+
+  it('refuses the other serialization of the same point for a P2PKH source', () => {
+    const UNCOMPRESSED =
+      '0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798' +
+      '483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8';
+    setSourcePubkeyProvider(() => PUBKEY);
+    expect(getSourcePubkey(UNCOMPRESSED_ADDRESS)).toBeNull();
+    setSourcePubkeyProvider(() => UNCOMPRESSED);
+    expect(getSourcePubkey(ADDRESS)).toBeNull();
   });
 });
 

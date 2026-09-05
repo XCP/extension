@@ -36,6 +36,7 @@ export function rebindDependentListingPsbt(
   listingPsbtHex: string,
   expectedOutpoint: DependentListingOutpoint,
   finalAttachTxid: string,
+  finalAttachRawTx?: string,
 ): string {
   const transaction = parsePSBT(listingPsbtHex);
   if (transaction.inputsLength !== 2 || transaction.outputsLength !== 2) {
@@ -59,6 +60,9 @@ export function rebindDependentListingPsbt(
   }
   transaction.updateInput(1, {
     txid: hexToBytes(txidHex(finalAttachTxid, 'final attach txid')),
+    // Package children cannot fetch an unbroadcast parent. Carry the exact signed parent so the
+    // wallet can verify this input independently when the listing reaches its signing boundary.
+    ...(finalAttachRawTx ? { nonWitnessUtxo: hexToBytes(finalAttachRawTx) } : {}),
   }, true);
   return bytesToHex(transaction.toPSBT());
 }
@@ -84,13 +88,15 @@ export async function signAttachAndListingForDelivery<T extends { psbtHex: strin
   if (unsignedTransactionHex(signedAttach) !== unsignedTransactionHex(attach.psbtHex)) {
     throw new Error('attach signer changed the reviewed transaction');
   }
-  const finalAttachTxid = computeTxid(finalizePSBT(signedAttach));
+  const finalAttachRawTx = finalizePSBT(signedAttach);
+  const finalAttachTxid = computeTxid(finalAttachRawTx);
   if (!finalAttachTxid) throw new Error('wallet could not derive the signed attach transaction id');
 
   const reboundListing = rebindDependentListingPsbt(
     listing.psbtHex,
     expectedOutpoint,
     finalAttachTxid,
+    finalAttachRawTx,
   );
   const signedListing = await sign({ ...listing, psbtHex: reboundListing }, 1);
   if (unsignedTransactionHex(signedListing) !== unsignedTransactionHex(reboundListing)) {

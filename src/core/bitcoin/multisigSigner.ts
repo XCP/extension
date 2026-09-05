@@ -15,6 +15,7 @@
 import { bytesToHex } from '@noble/hashes/utils.js';
 import { SigHash, type Transaction } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
+import { getLegacySighash, getLowRPreference } from '@/core/bitcoin/legacySighash';
 
 export interface ParsedBareMultisig {
   requiredSignatures: number;
@@ -109,21 +110,12 @@ export async function signAndFinalizeBareMultisig(
     throw new Error(`Input count mismatch: tx has ${tx.inputsLength}, provided ${scripts.length} scripts`);
   }
 
-  // preimageLegacy is private API: the public sign()/finalize() path refuses
-  // inputs whose multisig pubkeys are not valid curve points. The pinned
-  // dependency plus the real-signature tests in multisigSigner.test.ts guard
-  // this access across library upgrades.
-  const preimageLegacy = (tx as any).preimageLegacy;
-  if (typeof preimageLegacy !== 'function') {
-    throw new Error('preimageLegacy method not accessible');
-  }
-
   for (let i = 0; i < scripts.length; i++) {
     if (i > 0 && i % 25 === 0) {
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
-    const hash = preimageLegacy.call(tx, i, scripts[i], SigHash.ALL);
-    const signature = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
+    const hash = getLegacySighash(tx, i, scripts[i]!, SigHash.ALL);
+    const signature = signECDSA(hash, privateKey, getLowRPreference(tx));
 
     // scriptSig: OP_0 <sig||sighash> (OP_0 feeds CHECKMULTISIG's extra pop)
     const scriptSig = new Uint8Array(2 + signature.length + 1);

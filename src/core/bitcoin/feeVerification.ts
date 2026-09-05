@@ -17,8 +17,9 @@
  * reasoned about. See ADR-019.
  */
 
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import type { Transaction } from '@scure/btc-signer';
+import { decodeRawTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { divide, maximum, multiply, roundDown, roundUp, toFiniteNumber, toSafeInteger } from "@/core/numeric";
 
 /**
@@ -159,13 +160,8 @@ export async function checkTransactionFee(
   let tx: Transaction;
   let rawBytes: Uint8Array;
   try {
-    rawBytes = hexToBytes(rawTransaction);
-    tx = Transaction.fromRaw(rawBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    rawBytes = decodeRawTransaction(rawTransaction);
+    tx = parseTransactionForSigning(rawBytes);
   } catch {
     // An unparseable transaction can't be signed either (the signer uses the
     // same parser), so it is not a drain risk — skip the fee check rather than

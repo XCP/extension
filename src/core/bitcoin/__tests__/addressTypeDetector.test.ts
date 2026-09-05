@@ -126,12 +126,12 @@ describe('Address Type Detector', () => {
       expect(result).toBe(AddressFormat.P2SH_P2WPKH);
     });
 
-    it('should default to P2TR (Taproot) when no activity found', async () => {
+    it('should default to Native SegWit when no activity is found', async () => {
       vi.mocked(fetchTokenBalances).mockResolvedValue([]);
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
       const result = await detectAddressFormat(testMnemonic);
-      expect(result).toBe(AddressFormat.P2TR);
+      expect(result).toBe(AddressFormat.P2WPKH);
     });
 
     it('should detect based on Counterparty token activity', async () => {
@@ -176,25 +176,24 @@ describe('Address Type Detector', () => {
       expect(result).toBe(AddressFormat.P2WPKH);
     });
 
-    it('should handle API failures gracefully', async () => {
+    it('should distinguish a total provider outage from an empty wallet', async () => {
       vi.mocked(fetchTokenBalances).mockRejectedValue(new Error('API failed'));
       vi.mocked(hasAddressActivity).mockRejectedValue(new Error('API failed'));
 
-      const result = await detectAddressFormat(testMnemonic);
-      expect(result).toBe(AddressFormat.P2TR);
+      await expect(detectAddressFormat(testMnemonic)).rejects.toThrow(/providers are unavailable/);
     });
 
-    it('should skip Taproot checking since it is the fallback', async () => {
+    it('should detect Taproot activity explicitly', async () => {
       vi.mocked(fetchTokenBalances).mockResolvedValue([]);
-      vi.mocked(hasAddressActivity).mockResolvedValue(false);
+      vi.mocked(hasAddressActivity)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce(true);
 
       const result = await detectAddressFormat(testMnemonic);
-
-      // Should default to Taproot when no activity is found
       expect(result).toBe(AddressFormat.P2TR);
-
-      // Verify hasAddressActivity was called for the non-Taproot formats
-      expect(hasAddressActivity).toHaveBeenCalledTimes(5);
+      expect(hasAddressActivity).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -232,7 +231,7 @@ describe('Address Type Detector', () => {
       expect(hasAddressActivity).toHaveBeenCalledWith('preview-p2wpkh');
     });
 
-    it('should default to P2TR when no activity found', async () => {
+    it('should default to Native SegWit when no activity is found', async () => {
       const previews = {
         [AddressFormat.P2PKH]: 'preview-p2pkh',
         [AddressFormat.P2WPKH]: 'preview-p2wpkh',
@@ -242,7 +241,7 @@ describe('Address Type Detector', () => {
       vi.mocked(hasAddressActivity).mockResolvedValue(false);
 
       const result = await detectAddressFormatFromPreviews(previews);
-      expect(result).toBe(AddressFormat.P2TR);
+      expect(result).toBe(AddressFormat.P2WPKH);
     });
   });
 

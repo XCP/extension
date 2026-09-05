@@ -2,10 +2,11 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
-import { AddressFormat, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
-import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/core/bitcoin/psbt';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues } from '@/core/bitcoin/psbt';
+import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
@@ -17,6 +18,7 @@ import {
   deriveKeyAsync,
   encryptWithKey,
 } from '@/core/encryption/encryption';
+import { mapVerifiedInputPaths } from '@/core/hardware/inputPaths';
 import { type AppSettings, DEFAULT_SETTINGS, getAutoLockTimeoutMs, setSettingsProvider } from '@/core/settings';
 import {
   deriveAddressesFromSecret,
@@ -284,7 +286,7 @@ export class WalletManager {
     mnemonic: string,
     password: string,
     name?: string,
-    addressFormat: AddressFormat = AddressFormat.P2WPKH
+    addressFormat: AddressFormat = DEFAULT_ADDRESS_FORMAT
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -354,7 +356,7 @@ export class WalletManager {
     privateKey: string,
     password: string,
     name?: string,
-    addressFormat: AddressFormat = AddressFormat.P2TR
+    addressFormat: AddressFormat = DEFAULT_ADDRESS_FORMAT
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -1457,33 +1459,44 @@ export class WalletManager {
         throw new Error("Hardware wallet signing requires a PSBT. The transaction cannot be signed without PSBT data.");
       }
 
+      // Treat amounts/scripts shipped beside the PSBT as hints only. Resolve the raw parent
+      // transaction for every input, bind the outpoint to it, and use those independently
+      // verified values for both device display and signing.
+      const verified = await verifyPsbtPrevouts(psbtHex, {
+        resolveTrustedPrevout: getTrustedBroadcastPrevout,
+      });
+      const verifiedValues = verified.prevouts.map((prevout) => Number(prevout.amount));
+      const verifiedScripts = verified.prevouts.map((prevout) => bytesToHex(prevout.script));
+      if (
+        inputValues
+        && (
+          inputValues.length !== verifiedValues.length
+          || inputValues.some((value, index) => value !== verifiedValues[index])
+        )
+      ) {
+        throw new Error('Counterparty input values do not match the real previous outputs');
+      }
+      if (
+        lockScripts
+        && (
+          lockScripts.length !== verifiedScripts.length
+          || lockScripts.some((script, index) => script.toLowerCase() !== verifiedScripts[index])
+        )
+      ) {
+        throw new Error('Counterparty lock scripts do not match the real previous outputs');
+      }
+      const completedPsbtHex = completePsbtWithInputValues(
+        verified.hex,
+        verifiedValues,
+        verifiedScripts,
+      );
+
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
-
-      // Convert derivation path string to number array
-      const pathArray = DerivationPaths.stringToPath(targetAddress.path);
-
-      // Complete the PSBT with input values - required for hardware wallet signing
-      // The Counterparty API returns PSBTs without witnessUtxo data, providing
-      // inputs_values and lock_scripts separately. We need to combine them.
-      if (!inputValues || !lockScripts || inputValues.length === 0 || lockScripts.length === 0) {
-        throw new Error(
-          "Hardware wallet signing requires input values and lock scripts from the API. " +
-          "The transaction data appears incomplete. Please try again."
-        );
-      }
-      const completedPsbtHex = completePsbtWithInputValues(psbtHex, inputValues, lockScripts);
-
-      // Create input paths map - all inputs use the same path for single-address wallets
-      // For multi-input transactions, we'd need to map each input to its path
-      const inputPaths = new Map<number, number[]>();
-
-      // Parse PSBT to find how many inputs there are
-      const psbtDetails = extractPsbtDetails(completedPsbtHex);
-
-      // For now, assume all inputs are from our address (single-signer scenario)
-      for (let i = 0; i < psbtDetails.inputs.length; i++) {
-        inputPaths.set(i, pathArray);
-      }
+      const inputPaths = mapVerifiedInputPaths(
+        verified.prevouts,
+        wallet.addresses,
+        (path) => DerivationPaths.stringToPath(path),
+      );
 
       // Sign PSBT with hardware wallet - returns fully signed raw tx
       const result = await trezor.signPsbt({
@@ -1612,6 +1625,17 @@ export class WalletManager {
         "Use the built-in transaction composer or your hardware wallet's native dApp connector."
       );
     }
+
+    // The PSBT may contain witnessUtxo metadata supplied by an untrusted dApp. Validate every
+    // input against its actual parent transaction before selecting keys or producing signatures.
+    const requestedInputIndices = signInputs && Object.keys(signInputs).length > 0
+      ? Object.values(signInputs).flat()
+      : undefined;
+    const verified = await verifyPsbtPrevouts(psbtHex, {
+      resolveTrustedPrevout: getTrustedBroadcastPrevout,
+      ...(requestedInputIndices ? { inputIndices: requestedInputIndices } : {}),
+    });
+    psbtHex = verified.hex;
 
     // If signInputs is provided, sign only the specified inputs
     // Otherwise, sign all inputs we can (using the active address)

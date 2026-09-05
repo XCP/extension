@@ -8,6 +8,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { Transaction } from '@scure/btc-signer';
 import type { ConsolidationData, ConsolidationUTXO } from '@/core/bitcoin/consolidationApi';
 import { assertSignableBareMultisig, signAndFinalizeBareMultisig } from '@/core/bitcoin/multisigSigner';
+import { parseConsensusTransaction } from '@/core/bitcoin/rawTransaction';
 import { multiply, roundUp, toSafeInteger } from '@/core/numeric';
 
 // RBF-enabled sequence number
@@ -21,12 +22,6 @@ const DUST_LIMIT_SATS = 546n;
 const BYTES_PER_INPUT = 115;
 const BASE_OVERHEAD = 10;
 const BYTES_PER_OUTPUT = 34;
-
-const PREV_TX_PARSE_OPTS = {
-  allowUnknownInputs: true,
-  allowUnknownOutputs: true,
-  disableScriptCheck: true,
-} as const;
 
 export interface ConsolidationResult {
   signedTxHex: string;
@@ -61,7 +56,7 @@ function verifyUtxoAgainstPrevTx(
     // Equally binding: if the parser's re-serialization hashes to the claimed txid, collision
     // resistance says the parser's view of the outputs IS that transaction's — which is the only
     // thing the amount and script checks below rely on.
-    const parsed = Transaction.fromRaw(hexToBytes(utxo.prev_tx_hex), PREV_TX_PARSE_OPTS);
+    const parsed = parseConsensusTransaction(utxo.prev_tx_hex);
     if (parsed.id !== utxo.txid.toLowerCase()) {
       throw new Error(
         `Previous transaction data does not match its txid for UTXO ${utxo.txid}:${utxo.vout}`
@@ -118,7 +113,7 @@ export async function consolidateBareMultisigBatch(
   try {
     const ourPubkeys = [getPublicKey(privateKeyBytes, true), getPublicKey(privateKeyBytes, false)];
 
-    const tx = new Transaction();
+    const tx = new Transaction({ lowR: true });
     const scripts: Uint8Array[] = [];
     const prevTxCache = new Map<string, Transaction>();
     let totalInputSats = 0n;

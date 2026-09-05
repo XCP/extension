@@ -22,6 +22,8 @@
  * recover from a taproot witness.
  */
 
+import { publicKeyMatchesAddress } from '@/core/bitcoin/publicKeyIdentity';
+
 type SourcePubkeyProvider = (address: string) => string | null;
 
 let provider: SourcePubkeyProvider | null = null;
@@ -47,11 +49,9 @@ export function setSourcePubkeyProvider(nextProvider: SourcePubkeyProvider | nul
  * account, not an address. Deriving the child would be the real fix; refusing to send an account
  * key is the part that must be true either way.
  */
-const COMPRESSED = /^0[23][0-9a-fA-F]{64}$/;
-const UNCOMPRESSED = /^04[0-9a-fA-F]{128}$/;
 
 /**
- * The compressed public key for an address this wallet holds, or null.
+ * The exact SEC public key for an address this wallet holds, or null.
  *
  * Null degrades to today's behaviour — the parameter is omitted and core falls back to its own
  * history scan, which still succeeds for any address that has spent. Test-only wallets store an
@@ -63,5 +63,7 @@ export function getSourcePubkey(address: string): string | null {
   if (!provider || !address) return null;
   const pubkey = provider(address);
   if (!pubkey) return null;
-  return COMPRESSED.test(pubkey) || UNCOMPRESSED.test(pubkey) ? pubkey : null;
+  // Address identity uses the exact SEC serialization. Re-encoding the same point changes a
+  // P2PKH hash and was the cause of "Data Outputs Not Recoverable By You" for uncompressed keys.
+  return publicKeyMatchesAddress(pubkey, address) ? pubkey.toLowerCase() : null;
 }
