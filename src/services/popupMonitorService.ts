@@ -25,7 +25,9 @@ const REQUEST_KINDS = {
 } as const;
 
 class PopupMonitorService {
-  private popupPort: chrome.runtime.Port | null = null;
+  // Disconnect delivery can lag behind a replacement approval opening. Track the actual ports so
+  // a stale disconnect cannot make a newer approval look abandoned.
+  private popupPorts = new Set<chrome.runtime.Port>();
   private activeRequests = new Map<string, { type: SignRequestKind, timestamp: number }>();
   private cleanupTimer: NodeJS.Timeout | null = null;
 
@@ -54,12 +56,12 @@ class PopupMonitorService {
    */
   private handlePopupConnect(port: chrome.runtime.Port): void {
     console.log('[PopupMonitor] Popup connected');
-    this.popupPort = port;
+    this.popupPorts.add(port);
 
     // Listen for disconnect (popup closed)
     port.onDisconnect.addListener(() => {
       console.log('[PopupMonitor] Popup disconnected');
-      this.popupPort = null;
+      this.popupPorts.delete(port);
       this.handlePopupClosed('disconnect');
     });
 
@@ -100,7 +102,7 @@ class PopupMonitorService {
    */
   private async cancelAbandonedRequests(): Promise<void> {
     // If popup reopened, skip cancellation
-    if (this.popupPort) {
+    if (this.popupPorts.size > 0) {
       console.log('[PopupMonitor] Popup reopened, skipping cancellation');
       return;
     }
@@ -203,7 +205,7 @@ class PopupMonitorService {
       this.cleanupTimer = null;
     }
     this.activeRequests.clear();
-    this.popupPort = null;
+    this.popupPorts.clear();
   }
 }
 
