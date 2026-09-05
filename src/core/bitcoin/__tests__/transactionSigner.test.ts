@@ -27,7 +27,6 @@ import { hash160 } from '@scure/btc-signer/utils.js';
 describe('Transaction Signer Utilities', () => {
   // Use a valid secp256k1 private key
   const mockPrivateKey = '0101010101010101010101010101010101010101010101010101010101010101';
-  const mockTxid = 'abcd1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab';
   
   // Generate the correct public key hash for our private key
   const privateKeyBytes = hexToBytes(mockPrivateKey);
@@ -55,6 +54,24 @@ describe('Transaction Signer Utilities', () => {
     pubKey: mockPubKey
   };
 
+  // Mock previous transaction that creates the UTXO being spent
+  // This transaction has an output that matches our mockUtxo
+  const mockPreviousTransaction = '0100000001' + // version
+    '0000000000000000000000000000000000000000000000000000000000000000' + // input txid (coinbase)
+    'ffffffff' + // input vout
+    '00' + // scriptSig length
+    'ffffffff' + // sequence
+    '01' + // number of outputs
+    'a086010000000000' + // output value (100000 satoshis)
+    '19' + // script pubkey length
+    '76a914' + pubKeyHashHex + '88ac' + // P2PKH script (matches mockUtxo.scriptPubKey)
+    '00000000'; // locktime
+
+  // Keep the fixture cryptographically self-consistent. scure-btc-signer 2.4 validates that a
+  // legacy nonWitnessUtxo hashes to the outpoint it claims instead of trusting test/API metadata.
+  const mockTxid = Transaction.fromRaw(hexToBytes(mockPreviousTransaction)).id;
+  const mockTxidWire = bytesToHex(hexToBytes(mockTxid).reverse());
+
   const mockUtxo: UTXO = {
     txid: mockTxid,
     vout: 0,
@@ -70,7 +87,7 @@ describe('Transaction Signer Utilities', () => {
   // Simple raw transaction hex for testing - must have even length
   // This is a basic transaction with 1 input and 1 output
   const mockRawTransaction = '0100000001' + // version
-    mockTxid + // input txid
+    mockTxidWire + // input txid (wire byte order)
     '00000000' + // input vout (0)
     '00' + // scriptSig length (empty for unsigned)
     'ffffffff' + // sequence
@@ -78,19 +95,6 @@ describe('Transaction Signer Utilities', () => {
     'a086010000000000' + // output value (100000 satoshis)
     '19' + // script pubkey length (25 bytes for P2PKH)
     '76a914' + '0'.repeat(40) + '88ac' + // P2PKH script
-    '00000000'; // locktime
-  
-  // Mock previous transaction that creates the UTXO being spent
-  // This transaction has an output that matches our mockUtxo
-  const mockPreviousTransaction = '0100000001' + // version
-    '0000000000000000000000000000000000000000000000000000000000000000' + // input txid (coinbase)
-    'ffffffff' + // input vout
-    '00' + // scriptSig length
-    'ffffffff' + // sequence
-    '01' + // number of outputs
-    'a086010000000000' + // output value (100000 satoshis)
-    '19' + // script pubkey length
-    '76a914' + pubKeyHashHex + '88ac' + // P2PKH script (matches mockUtxo.scriptPubKey)
     '00000000'; // locktime
 
   beforeEach(() => {
@@ -182,7 +186,7 @@ describe('Transaction Signer Utilities', () => {
     it('should throw error when output not found in previous transaction', async () => {
       // Create a transaction that references output index 999 which doesn't exist
       const txWithBadVout = '0100000001' + // version
-        mockTxid + // input txid
+        mockTxidWire + // input txid
         'e7030000' + // input vout (999 in little-endian)
         '00' + // scriptSig length
         'ffffffff' + // sequence
@@ -218,7 +222,7 @@ describe('Transaction Signer Utilities', () => {
     // against a transaction whose values are deliberately not the defaults.
     describe('preserves what the user reviewed', () => {
       // version 1, sequence 0xfffffffe, lockTime 800000 - none of them @scure's default.
-      const distinctiveTx = '01000000' + '01' + mockTxid + '00000000' + '00' + 'feffffff'
+      const distinctiveTx = '01000000' + '01' + mockTxidWire + '00000000' + '00' + 'feffffff'
         + '01' + 'a086010000000000' + '19' + '76a914' + '0'.repeat(40) + '88ac' + '00350c00';
 
       beforeEach(() => {

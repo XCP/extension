@@ -4,7 +4,7 @@
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { Address, p2pkh, p2tr, p2wpkh, SigHash, TAPROOT_UNSPENDABLE_KEY, Transaction } from '@scure/btc-signer';
+import { Address, p2pkh, p2tr, p2wpkh, SigHash, Transaction, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { AddressFormat } from '../address';
 import {
@@ -424,7 +424,7 @@ describe('signPSBT taproot inscription shapes', () => {
   const leaf = new Uint8Array([
     0x00, 0x63, 0x03, 0x6f, 0x72, 0x64, 0x68, 0x20, ...outputKey, 0xac,
   ]);
-  const commitP2tr = p2tr(TAPROOT_UNSPENDABLE_KEY, { script: leaf, leafVersion: 0xc0 }, undefined, true);
+  const commitP2tr = p2tr(taprootNumsKey(), { script: leaf, leafVersion: 0xc0 }, undefined, true);
 
   it('signs a commit funding input that carries no tapInternalKey', () => {
     const tx = new Transaction();

@@ -65,8 +65,12 @@ fakeBrowser.runtime.onMessage.addListener((message: any, sender: any) => {
 (global as any).browser = fakeBrowser;
 (global as any).chrome = fakeBrowser;
 
-// Mock navigator for tests
-(global as any).navigator = {
-  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-  sendBeacon: vi.fn()
-};
+// Mock navigator for tests. Newer DOM implementations expose this as a
+// getter-only global, so replace it through its configurable descriptor.
+Object.defineProperty(globalThis, 'navigator', {
+  configurable: true,
+  value: {
+    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    sendBeacon: vi.fn()
+  }
+});

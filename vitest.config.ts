@@ -14,12 +14,12 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
+      '**/.claude/worktrees/**',
       '**/*.fuzz.test.ts',
     ],
 
-    // Memory management for large test suites (Vitest 4 syntax)
+    // Memory management for large test suites
     pool: 'forks', // Process isolation prevents memory buildup between tests
-    // Vitest 4: maxForks/minForks replaced with maxWorkers
     maxWorkers: process.env.CI ? 1 : 4, // Single worker in CI to reduce memory pressure
     // Run test files sequentially in CI to prevent OOM
     fileParallelism: !process.env.CI,

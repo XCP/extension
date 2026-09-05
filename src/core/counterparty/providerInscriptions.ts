@@ -23,7 +23,7 @@
  */
 
 import { hexToBytes } from '@noble/hashes/utils.js';
-import { Address, p2tr, TAPROOT_UNSPENDABLE_KEY } from '@scure/btc-signer';
+import { Address, p2tr, taprootNumsKey } from '@scure/btc-signer';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 import { extractOpReturnPayload } from '@/core/counterparty/unpack/opReturn';
@@ -31,6 +31,8 @@ import {
   extractEnvelopeMessage,
   type OrdEnvelopeMessage,
 } from '@/core/counterparty/unpack/ordEnvelope';
+
+const TAPROOT_NUMS_KEY = taprootNumsKey();
 
 /** The inscription context a site may pass alongside a commit signPsbt request. */
 export interface InscriptionCommitContext {
@@ -147,7 +149,7 @@ export function verifyInscriptionCommit(
   // key here — anyone's — would let its holder sweep the commit without revealing anything.
   if (
     internalKey.length !== 32 ||
-    !internalKey.every((byte, index) => byte === TAPROOT_UNSPENDABLE_KEY[index])
+    !internalKey.every((byte, index) => byte === TAPROOT_NUMS_KEY[index])
   ) {
     return {
       ok: false,

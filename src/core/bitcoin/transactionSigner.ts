@@ -180,7 +180,7 @@ export async function signTransaction(
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
       disableScriptCheck: true,
-      allowUnknown: true
+      unknown: 'ignore'
     });
 
     // For legacy uncompressed key signing, we need previous output scripts

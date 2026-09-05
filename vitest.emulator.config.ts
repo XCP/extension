@@ -23,6 +23,7 @@ export default defineConfig({
     hookTimeout: 60000,
     // Only include emulator tests
     include: ['**/*.emulator.test.ts'],
+    exclude: ['**/.claude/worktrees/**'],
     // Run sequentially - emulator can only handle one test at a time
     pool: 'forks',
     maxWorkers: 1,

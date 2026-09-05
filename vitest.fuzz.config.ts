@@ -12,6 +12,7 @@ export default defineConfig({
 
     // Only run fuzz tests
     include: ['**/*.fuzz.test.ts'],
+    exclude: ['**/.claude/worktrees/**'],
 
     // Memory management for fuzz tests
     pool: 'threads', // Use threads instead of forks (faster, less memory)

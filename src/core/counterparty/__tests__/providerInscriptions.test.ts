@@ -9,7 +9,7 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Address, p2tr, TAPROOT_UNSPENDABLE_KEY } from '@scure/btc-signer';
+import { Address, p2tr, taprootNumsKey } from '@scure/btc-signer';
 import { describe, expect, it } from 'vitest';
 import { encodeCbor } from '@/core/counterparty/pack/cbor';
 import {
@@ -30,6 +30,7 @@ const SIGNER_OUTPUT_KEY = Address().decode(SIGNER_ADDRESS) as { type: 'tr'; pubk
 const ATTACKER_KEY = hexToBytes(
   'c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5'
 );
+const TAPROOT_NUMS_KEY = taprootNumsKey();
 
 function push(ops: number[], data: Uint8Array): void {
   if (data.length < 76) ops.push(data.length);
@@ -63,7 +64,7 @@ function buildEnvelope(pubkey: Uint8Array, metadataCbor: Uint8Array = FAIRMINTER
 
 const HONEST_LEAF = buildEnvelope(SIGNER_OUTPUT_KEY.pubkey);
 const HONEST_COMMIT_ADDRESS = p2tr(
-  TAPROOT_UNSPENDABLE_KEY,
+  TAPROOT_NUMS_KEY,
   { script: HONEST_LEAF, leafVersion: 0xc0 },
   undefined,
   true
@@ -71,7 +72,7 @@ const HONEST_COMMIT_ADDRESS = p2tr(
 
 const honestContext = () => ({
   revealScript: bytesToHex(HONEST_LEAF),
-  tapInternalKey: bytesToHex(TAPROOT_UNSPENDABLE_KEY),
+  tapInternalKey: bytesToHex(TAPROOT_NUMS_KEY),
 });
 
 const honestOutputs = () => [
@@ -108,13 +109,13 @@ describe('verifyInscriptionCommit', () => {
   it("refuses an envelope whose checksig key is not the signer's", () => {
     const leaf = buildEnvelope(ATTACKER_KEY);
     const commitAddress = p2tr(
-      TAPROOT_UNSPENDABLE_KEY,
+      TAPROOT_NUMS_KEY,
       { script: leaf, leafVersion: 0xc0 },
       undefined,
       true
     ).address!;
     const result = verifyInscriptionCommit(
-      { revealScript: bytesToHex(leaf), tapInternalKey: bytesToHex(TAPROOT_UNSPENDABLE_KEY) },
+      { revealScript: bytesToHex(leaf), tapInternalKey: bytesToHex(TAPROOT_NUMS_KEY) },
       [{ index: 0, value: 60908, address: commitAddress }],
       SIGNER_ADDRESS
     );
@@ -158,7 +159,7 @@ describe('verifyInscriptionCommit', () => {
 
   it('refuses an unreadable envelope and an undecodable message', () => {
     const garbage = verifyInscriptionCommit(
-      { revealScript: 'deadbeef', tapInternalKey: bytesToHex(TAPROOT_UNSPENDABLE_KEY) },
+      { revealScript: 'deadbeef', tapInternalKey: bytesToHex(TAPROOT_NUMS_KEY) },
       honestOutputs(),
       SIGNER_ADDRESS
     );
@@ -169,7 +170,7 @@ describe('verifyInscriptionCommit', () => {
     // a fairminter with one field where seventeen are the minimum.
     const nonMessage = buildEnvelope(SIGNER_OUTPUT_KEY.pubkey, encodeCbor([90n, 1n]));
     const result = verifyInscriptionCommit(
-      { revealScript: bytesToHex(nonMessage), tapInternalKey: bytesToHex(TAPROOT_UNSPENDABLE_KEY) },
+      { revealScript: bytesToHex(nonMessage), tapInternalKey: bytesToHex(TAPROOT_NUMS_KEY) },
       honestOutputs(),
       SIGNER_ADDRESS
     );
