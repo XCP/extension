@@ -90,6 +90,10 @@ export default function ApproveTransactionPage() {
 
   const handleSign = async () => {
     if (!request || !decodedInfo || !activeAddress) return;
+    if (decodedInfo.safety?.blocked) {
+      setError('This transaction is blocked by the wallet safety checks.');
+      return;
+    }
 
     const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet?.id);
     if (identityError) {

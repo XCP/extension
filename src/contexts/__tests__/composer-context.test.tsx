@@ -115,6 +115,30 @@ describe('ComposerContext', () => {
   });
 
   describe('Actions', () => {
+    it('passes a numeric fee rate from FormData to compose policy checks', async () => {
+      const formData = new FormData();
+      formData.append('sat_per_vbyte', '2');
+      const mockComposeApi = vi.fn().mockRejectedValue(new Error('Stop after policy boundary'));
+      const { result } = renderHook(() => useComposer(), {
+        wrapper: ({ children }) => (
+          <MemoryRouter>
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+              {children}
+            </ComposerProvider>
+          </MemoryRouter>
+        ),
+      });
+
+      await act(async () => {
+        await result.current.composeTransaction(formData);
+      });
+
+      expect(mockComposeApi).toHaveBeenCalledWith({
+        sat_per_vbyte: 2,
+        sourceAddress: OWN_ADDRESS,
+      });
+    });
+
     it('should compose transaction', async () => {
       const formData = new FormData();
       formData.append('amount', '100');

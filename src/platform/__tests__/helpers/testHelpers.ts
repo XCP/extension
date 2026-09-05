@@ -173,8 +173,12 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     enableAdvancedBroadcasts: false,
     transactionDryRun: false,
     counterpartyApiBase: 'https://api.counterparty.io:4000',
+    alkanesApiBase: 'https://mainnet.subfrost.io/v4/jsonrpc',
     defaultOrderExpiration: 8064,
     strictTransactionVerification: true,
+    protectAlkanesUtxos: false,
+    enableDieselMinting: false,
+    dieselMintMaxFeeRate: 2,
   },
 });
 

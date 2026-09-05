@@ -7,6 +7,7 @@
 
 import { API_TIMEOUTS, apiClient } from '@/core/api/client';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
+import { getCachedBroadcastPrevout } from '@/core/bitcoin/utxo';
 import { fetchAssetDetails } from '@/core/counterparty/api';
 import { type DescribableMessage, describeMessage } from '@/core/counterparty/describe';
 import { fromSatoshis } from '@/core/numeric';
@@ -145,6 +146,13 @@ export async function fetchInputPrevouts(
   // prevouts from the signed parent bytes, so fee and movement review do not briefly become
   // unknown while public Bitcoin indexers catch up.
   await Promise.all(inputs.map(async (input) => {
+    // A successful wallet broadcast already supplied these exact immutable parent bytes in
+    // this context. This proves value/ownership, not whether the output is safe to spend.
+    const local = getCachedBroadcastPrevout(input.txid, input.vout);
+    if (local) {
+      values.set(`${input.txid}:${input.vout}`, { value: local.value, ...(local.address ? { address: local.address } : {}) });
+      return;
+    }
     const prevout = await resolveTrustedPrevout(input.txid, input.vout);
     if (!prevout) return;
     values.set(`${input.txid}:${input.vout}`, {

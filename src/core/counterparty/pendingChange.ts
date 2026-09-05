@@ -18,9 +18,15 @@
  * used to.
  */
 
+import { decodeDieselMintScript } from '@/core/alkanes/diesel';
+import {
+  type PendingDieselUtxo,
+  recordPendingDieselUtxo,
+} from '@/core/alkanes/pendingDieselUtxos';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
+import { cacheSuccessfulBroadcast } from '@/core/bitcoin/utxo';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
@@ -41,6 +47,39 @@ export interface SafeOwnChangeOutput {
   scriptPubKey: string;
 }
 
+/** Locate the one wallet-owned output selected by an exact DIESEL mint script. */
+export function extractOwnDieselUtxo(
+  rawTxHex: string,
+  ownAddresses: Iterable<string>,
+): Omit<PendingDieselUtxo, 'chainDepth'> | null {
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed) return null;
+  const own = new Set([...ownAddresses].map(normalizeAddressForComparison));
+  const matches = parsed.outputs.flatMap((output) => {
+    if (!output.opReturnData) return [];
+    try {
+      const mint = decodeDieselMintScript(output.opReturnData);
+      if (mint.pointer !== mint.refund) return [];
+      const target = parsed.outputs[mint.pointer];
+      if (
+        !target?.address
+        || !target.script
+        || target.value <= 0
+        || !own.has(normalizeAddressForComparison(target.address))
+      ) return [];
+      return [{
+        txid: parsed.txid,
+        vout: target.index,
+        address: target.address,
+        value: target.value,
+      }];
+    } catch {
+      return [];
+    }
+  });
+  return matches.length === 1 ? matches[0]! : null;
+}
+
 /**
  * Return only outputs that are both owned by this wallet and safe to treat as plain BTC change.
  *
@@ -54,6 +93,20 @@ export function extractSafeOwnChangeOutputs(
 ): SafeOwnChangeOutput[] {
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return [];
+
+  // A DIESEL mint assigns Alkanes to one of our outputs in this same transaction. Until the
+  // Alkanes indexer has caught up, none of its owned outputs may be advertised as ordinary BTC
+  // change: doing so would let a rapid follow-up compose spend the new token storage as if empty.
+  const hasDieselMint = parsed.outputs.some((output) => {
+    if (!output.opReturnData) return false;
+    try {
+      decodeDieselMintScript(output.opReturnData);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  if (hasDieselMint) return [];
 
   const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
   const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);
@@ -88,7 +141,18 @@ export function recordOwnChangeFromRawTx(
   rawTxHex: string,
   ownAddresses: Iterable<string>
 ): void {
-  const entries = extractSafeOwnChangeOutputs(rawTxHex, ownAddresses);
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed) return;
+  // Preserve independently derived parent facts even for protected DIESEL/attachment outputs.
+  // Caching their values is distinct from the spendability classification below.
+  cacheSuccessfulBroadcast(rawTxHex, parsed.txid);
+  const addresses = [...ownAddresses];
+  const dieselUtxo = extractOwnDieselUtxo(rawTxHex, addresses);
+  if (dieselUtxo) {
+    recordPendingDieselUtxo(dieselUtxo, parsed.inputs);
+    return;
+  }
+  const entries = extractSafeOwnChangeOutputs(rawTxHex, addresses);
 
   if (entries.length > 0) recordPendingChange(entries);
 }

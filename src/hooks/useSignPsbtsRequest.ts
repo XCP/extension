@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import {
+  classifySignedInputAlkanes,
+  fetchInputsAlkanes,
+} from '@/core/alkanes/inputAssets';
 import { extractPsbtDetails, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import {
   type DecodedPsbtInfo,
@@ -20,6 +24,7 @@ import type {
   MarketplaceApprovalReview,
 } from '@/core/counterparty/marketplaceIntent';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import { getActiveSettings } from '@/core/settings';
 import { emitToBackground } from '@/platform/provider/emitToBackground';
 import {
   getSignFlow,
@@ -46,6 +51,28 @@ const missingReview = (family: MarketplaceApprovalReview['family'], message: str
   notices: [],
   blockers: [message],
 });
+
+function applyWalletSafetyBlock(
+  review: MarketplaceApprovalReview,
+  blocked: boolean,
+): MarketplaceApprovalReview {
+  if (!blocked) return review;
+  return {
+    ...review,
+    status: 'blocked',
+    notices: [],
+    blockers: [
+      ...review.blockers,
+      'wallet safety checks rejected at least one requested signature',
+    ],
+  };
+}
+
+function hasUnsafeAlkanes(item: DecodedPsbtInfo): boolean {
+  const checkedIndices = item.alkaneBalances.map(({ inputIndex }) => inputIndex);
+  const classified = classifySignedInputAlkanes(item.alkaneBalances, checkedIndices);
+  return classified.withBalances.length > 0 || classified.unknownStatus.length > 0;
+}
 
 export function useSignPsbtsRequest() {
   const [searchParams] = useSearchParams();
@@ -103,7 +130,12 @@ export function useSignPsbtsRequest() {
               )
             : null;
           const childIndices = Object.values(childItem!.signInputs).flat();
-          const review = analyzeAcceptanceCpfpBundle({
+          const settings = getActiveSettings();
+          const childAlkanes = (settings.protectAlkanesUtxos || settings.enableDieselMinting)
+            ? await fetchInputsAlkanes(child.inputs, childIndices)
+            : [];
+          const childAlkanesSafety = classifySignedInputAlkanes(childAlkanes, childIndices);
+          const review = applyWalletSafetyBlock(analyzeAcceptanceCpfpBundle({
             parentIntent,
             parentReview: parent.marketplaceReview ?? missingReview(
               'accept_exact_offer',
@@ -122,7 +154,9 @@ export function useSignPsbtsRequest() {
             childSignerAddresses: Object.keys(childItem!.signInputs),
             childTransactionId: child.transactionId,
             childHasCounterpartyPayload: childPayload !== null,
-          });
+          }), parent.safety.blocked
+            || childAlkanesSafety.withBalances.length > 0
+            || childAlkanesSafety.unknownStatus.length > 0);
           setRequest(stored);
           setDecodedInfo({
             items: [parent, { psbtDetails: child, txid: child.transactionId }],
@@ -153,7 +187,13 @@ export function useSignPsbtsRequest() {
             parsed.intents[index]!.action,
             `marketplace semantic proof ${index + 1} is missing`,
           ));
-        const review = analyzeMarketplaceBatch(parsed.kind, parsed.intents, itemReviews);
+        const review = applyWalletSafetyBlock(
+          analyzeMarketplaceBatch(parsed.kind, parsed.intents, itemReviews),
+          // A proved marketplace batch intentionally supplies semantics for plain-Bitcoin phases
+          // such as bulk fan-out, which the generic single-transaction gate blocks on its own.
+          // That proof must never override the independent Alkanes-input protection, though.
+          decoded.some(hasUnsafeAlkanes),
+        );
         setRequest(stored);
         setDecodedInfo({ items: decoded, review });
       } catch (loadError) {

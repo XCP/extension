@@ -16,6 +16,7 @@ import * as apiClientUtils from '@/core/api/client';
 import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
 import { getActiveSettings } from '@/core/settings';
 import { composeSend } from '../compose';
+import { selectUtxosForTransaction } from '../utxoSelection';
 import {
   createMockApiResponse,
   createMockComposeResult,
@@ -63,6 +64,7 @@ function rawTxSpending(txids: string[]): string {
 
 const mockedApiClient = vi.mocked(apiClientUtils.apiClient, true);
 const mockedGetSettings = vi.mocked(getActiveSettings);
+const mockedSelectUtxos = vi.mocked(selectUtxosForTransaction);
 
 function sendArgs() {
   return {
@@ -78,6 +80,18 @@ describe('compose refuses inputs the wallet did not offer', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockedGetSettings.mockReturnValue(mockSettings as any);
+    mockedSelectUtxos.mockResolvedValue({
+      utxos: [{
+        txid: OFFERED_TXID,
+        vout: 0,
+        value: 100000,
+        status: { confirmed: true, block_height: 1, block_hash: 'block', block_time: 1 },
+      }],
+      inputsSet: `${OFFERED_TXID}:0`,
+      totalValue: 100000,
+      excludedWithAssets: 1,
+      excludedValue: 0,
+    });
   });
 
   it('rejects a composed transaction spending a withheld coin', async () => {
@@ -107,5 +121,15 @@ describe('compose refuses inputs the wallet did not offer', () => {
     }));
 
     await expect(composeSend(sendArgs())).resolves.toBeDefined();
+  });
+
+  it('never falls back to server-selected inputs while Alkanes protection is active', async () => {
+    mockedGetSettings.mockReturnValue({ ...mockSettings, protectAlkanesUtxos: true } as any);
+    mockedApiClient.get.mockRejectedValue({
+      response: { data: { error: `invalid UTXOs: ${OFFERED_TXID}:0 (transaction not found)` } },
+    });
+
+    await expect(composeSend(sendArgs())).rejects.toThrow(/invalid UTXOs/);
+    expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
   });
 });

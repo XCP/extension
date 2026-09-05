@@ -1,4 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
@@ -120,6 +121,12 @@ export function ReviewSend({
       : (result.params.quantity_normalized ?? result.params.quantity);
     const memo = decoded?.memo ?? result.params.memo;
     const amountInFiat = isBtc && btcPrice ? multiply(quantityDisplay ?? 0, btcPrice) : null;
+    // Sends have one host output before more_outputs. The verified mint pointer marks where
+    // injected wallet storage begins; everything before it is still the caller's BTC payment.
+    const extraBtcOutputs = result.params.more_outputs
+      ? String(result.params.more_outputs).split(',').slice(0,
+          result.diesel_mint ? Math.max(0, result.diesel_mint.utxo_vout - 1) : undefined)
+      : [];
 
     customFields = [
       {
@@ -132,8 +139,8 @@ export function ReviewSend({
         ) : undefined,
       },
       ...(memo ? [{ label: "Memo", value: String(memo) }] : []),
-      ...(result.params.more_outputs ? [(() => {
-        const sats = String(result.params.more_outputs).split(':')[0] ?? '0';
+      ...extraBtcOutputs.map((output) => {
+        const sats = output.split(':')[0] ?? '0';
         const btcVal = fromSatoshis(sats);
         const fiatVal = btcPrice ? multiply(btcVal, btcPrice) : null;
         return {
@@ -145,7 +152,8 @@ export function ReviewSend({
             </span>
           ) : undefined,
         };
-      })()] : []),
+      }),
+      ...getDieselMintReviewFields(result.diesel_mint),
     ];
   }
 

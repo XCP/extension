@@ -109,6 +109,12 @@ export interface AppSettings {
   transactionDryRun: boolean;
   /** Counterparty API base URL */
   counterpartyApiBase: string;
+  /** Alkanes JSON-RPC endpoint used to protect token-bearing UTXOs. */
+  alkanesApiBase: string;
+  /** Attach a DIESEL mint protostone to supported wallet-originated transactions. */
+  enableDieselMinting: boolean;
+  /** Skip opportunistic DIESEL mints when the host transaction exceeds this fee rate. */
+  dieselMintMaxFeeRate: number;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
   /**
@@ -118,6 +124,11 @@ export interface AppSettings {
   defaultPoolSlippage?: string;
   /** Block signing if local verification fails */
   strictTransactionVerification: boolean;
+  /**
+   * Query the Alkanes indexer before selecting or signing inputs, and fail closed when an input's
+   * Alkanes status cannot be proved. This remains useful after experimental minting is disabled.
+   */
+  protectAlkanesUtxos: boolean;
 
   /** User has visited recover bitcoin page */
   hasVisitedRecoverBitcoin?: boolean;
@@ -149,9 +160,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
   enableAdvancedBroadcasts: false,
   transactionDryRun: false,
   counterpartyApiBase: 'https://api.counterparty.io:4000',
+  alkanesApiBase: 'https://mainnet.subfrost.io/v4/jsonrpc',
+  enableDieselMinting: false,
+  dieselMintMaxFeeRate: 2,
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,
+  protectAlkanesUtxos: false,
   connectedWebsites: [],
   providerCapabilities: {},
   pinnedAssets: ['XCP', 'PEPECASH', 'BITCRYSTALS', 'BITCORN', 'CROPS', 'MINTS'],
@@ -160,13 +175,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 /**
  * Live read-only settings access for modules that need config (e.g. the API
- * base) without importing the wallet singleton. walletManager registers the
- * provider on init; until then (or when locked) DEFAULT_SETTINGS is returned.
+ * base) without importing the wallet singleton. The background walletManager supplies its own
+ * reader; popup SettingsProvider supplies the hydrated proxy snapshot. Before hydration or while
+ * locked, DEFAULT_SETTINGS is returned.
  */
 let settingsProvider: (() => AppSettings) | null = null;
 
-export function setSettingsProvider(provider: () => AppSettings): void {
+/** Install a reader for this context; the disposer restores the previous reader. */
+export function setSettingsProvider(provider: () => AppSettings): () => void {
+  const previous = settingsProvider;
   settingsProvider = provider;
+  return () => {
+    if (settingsProvider === provider) settingsProvider = previous;
+  };
 }
 
 /**

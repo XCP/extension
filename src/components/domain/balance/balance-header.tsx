@@ -17,6 +17,8 @@ interface BalanceHeaderProps {
    * unconfirmed money in is not money you can spend — so it renders with an explicit plus.
    */
   pendingIncoming?: string;
+  /** Optional bundled icon for assets outside the Counterparty icon CDN. */
+  iconSrc?: string;
 }
 
 /**
@@ -48,6 +50,7 @@ export const BalanceHeader = ({
   balance,
   className = '',
   pendingIncoming,
+  iconSrc,
 }: BalanceHeaderProps): ReactElement => {
   const hasIncoming = !!pendingIncoming && toBigNumber(pendingIncoming).isGreaterThan(0);
   const pendingDigits = {
@@ -71,7 +74,7 @@ export const BalanceHeader = ({
 
   return (
     <div className={`flex items-center ${className}`}>
-      <AssetIcon asset={balance.asset} size="lg" className="mr-4" />
+      <AssetIcon asset={balance.asset} size="lg" className="mr-4" imageSrc={iconSrc} />
       <div>
         <h2 className={`${textSizeClass} font-bold break-all`}>{displayName}</h2>
         <p className="text-sm text-gray-600">

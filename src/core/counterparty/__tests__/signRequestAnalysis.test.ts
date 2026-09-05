@@ -225,6 +225,52 @@ describe('the not-a-Counterparty-transaction gate', () => {
   });
 });
 
+describe('Alkanes UTXO protection', () => {
+  it('blocks a requested input that carries an Alkane even when the Counterparty message is valid', async () => {
+    const analysis = await run({
+      counterpartyDataHex: '434e5452505254590a00',
+      alkaneBalances: Promise.resolve([{
+        inputIndex: 0,
+        utxo: `${'a'.repeat(64)}:0`,
+        balances: [{ id: '2:0', value: '123' }],
+      }]),
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Alkanes Input Protected');
+  });
+
+  it('fails closed when the indexer cannot prove a requested input clean', async () => {
+    const analysis = await run({
+      counterpartyDataHex: '434e5452505254590a00',
+      alkaneBalances: Promise.resolve([{
+        inputIndex: 0,
+        utxo: `${'a'.repeat(64)}:0`,
+        balances: [],
+        lookupFailed: true,
+      }]),
+    });
+
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.safety.warnings[0]?.title).toBe('Retry Required: Alkanes Status Unknown');
+  });
+
+  it('ignores an Alkanes UTXO on an input the wallet was not asked to sign', async () => {
+    const analysis = await run({
+      counterpartyDataHex: '434e5452505254590a00',
+      alkaneBalances: Promise.resolve([{
+        inputIndex: 4,
+        utxo: `${'b'.repeat(64)}:0`,
+        balances: [{ id: '2:0', value: '123' }],
+      }]),
+    });
+
+    expect(analysis.safety.warnings.some(
+      warning => warning.title === 'Blocked: Alkanes Input Protected',
+    )).toBe(false);
+  });
+});
+
 describe('the separate plain Bitcoin payment capability', () => {
   beforeEach(() => {
     vi.mocked(verifyProviderTransaction).mockReturnValue({ localUnpack: undefined } as never);

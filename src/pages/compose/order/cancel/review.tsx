@@ -1,3 +1,4 @@
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
 /**
@@ -27,6 +28,7 @@ export function ReviewCancel({
 
   const customFields = [
     { label: "Order Hash", value: result.params.offer_hash },
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (

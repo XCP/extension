@@ -1,3 +1,4 @@
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useSettings } from "@/contexts/settings-context";
 
@@ -38,6 +39,8 @@ export function ReviewBroadcast({
     customFields.push({ label: "Value", value: result.params.value });
     customFields.push({ label: "Fee Fraction", value: result.params.fee_fraction });
   }
+
+  customFields.push(...getDieselMintReviewFields(result.diesel_mint));
 
   return (
     <ReviewScreen

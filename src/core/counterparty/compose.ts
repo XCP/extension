@@ -1,10 +1,33 @@
+import { shouldAttachDieselMint } from '@/core/alkanes/diesel';
+import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { apiClient } from '@/core/api/client';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
+import type { ApiResponse, BaseComposeOptions } from '@/core/counterparty/composeTypes';
+import {
+  composeCounterpartyWithDieselMint,
+  composeDataTransactionWithDieselMint,
+  composeDieselSendTransaction,
+  type DieselSendOptions,
+} from '@/core/counterparty/dieselCompose';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
-import { getActiveSettings, LEGACY_MAX_ORDER_EXPIRATION, MAX_ORDER_EXPIRATION } from '@/core/settings';
+import {
+  getActiveSettings,
+  LEGACY_MAX_ORDER_EXPIRATION,
+  MAX_ORDER_EXPIRATION,
+} from '@/core/settings';
+
+export type {
+  ApiResponse,
+  BaseComposeOptions,
+  ComposeAssetInfo,
+  ComposeParams,
+  ComposeResult,
+  SignedTxEstimatedSize,
+} from '@/core/counterparty/composeTypes';
+export type { DieselSendOptions } from '@/core/counterparty/dieselCompose';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
@@ -55,83 +78,12 @@ async function trySelectUtxos(
   try {
     const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
     return selection.inputsSet;
-  } catch {
+  } catch (error) {
+    // Falling back to server-selected inputs would bypass the separate Alkanes indexer entirely.
+    const settings = getActiveSettings();
+    if (settings.protectAlkanesUtxos || settings.enableDieselMinting) throw error;
     return undefined;
   }
-}
-
-export interface SignedTxEstimatedSize {
-  vsize: number;
-  adjusted_vsize: number;
-  sigops_count: number;
-}
-
-export interface ComposeAssetInfo {
-  asset_longname: string | null;
-  description: string;
-  issuer: string;
-  divisible: boolean;
-  locked: boolean;
-  owner: string;
-  supply?: string;
-  supply_normalized?: string;
-}
-
-export interface ComposeParams {
-  source?: string;
-  destination?: string;
-  address?: string;
-  dispenser?: string;
-  asset: string;
-  quantity: string | number;
-  memo: string | null;
-  memo_is_hex: boolean;
-  use_enhanced_send: boolean;
-  no_dispense: boolean;
-  skip_validation: boolean;
-  asset_info: ComposeAssetInfo;
-  quantity_normalized: string;
-  more_outputs?: string;
-  lp_asset?: string;
-}
-
-export interface ComposeResult {
-  rawtransaction: string;
-  btc_in: number;
-  btc_out: number;
-  btc_change: number;
-  btc_fee: number;
-  xcp_fee?: number;
-  data: string;
-  lock_scripts: string[];
-  inputs_values: number[];
-  signed_tx_estimated_size: SignedTxEstimatedSize;
-  psbt: string;
-  /**
-   * Present only for `encoding=taproot` composes. The ord envelope script carrying the message,
-   * and the reveal transaction — already signed by the composer's ephemeral key — that spends the
-   * commit output and publishes the content. `rawtransaction` is only the commit, so an
-   * inscription is not complete until the reveal is broadcast too.
-   */
-  envelope_script?: string;
-  signed_reveal_rawtransaction?: string;
-  params: ComposeParams & {
-    asset_dest_quant_list?: [string, string, string | number][];
-    memos?: string[];
-  };
-  name: string;
-}
-
-export interface ApiResponse {
-  result: ComposeResult;
-}
-
-// Base options shared across all transaction types
-export interface BaseComposeOptions {
-  sourceAddress: string;
-  sat_per_vbyte: number;
-  max_fee?: number;
-  encoding?: 'auto' | 'opreturn' | 'multisig' | 'taproot';
 }
 
 // Transaction-specific options
@@ -397,6 +349,11 @@ interface ComposeRequestOptions {
   allowUnconfirmed: boolean;
 }
 
+interface ComposeControl {
+  inputsSet: string;
+  useAllInputsSet: boolean;
+}
+
 /**
  * Execute a compose request with automatic UTXO fallback.
  *
@@ -410,10 +367,17 @@ async function executeWithUtxoFallback(
   makeRequest: (options: ComposeRequestOptions) => Promise<ApiResponse>,
   inputsSet: string | undefined,
   allowUnconfirmed: boolean,
-  endpoint: string
+  endpoint: string,
+  requireOfferedInputs = false,
 ): Promise<ApiResponse> {
   // No inputs_set - just make the request with confirmed-only for safety
   if (!inputsSet) {
+    if (requireOfferedInputs) {
+      throw new CounterpartyApiError(
+        'Alkanes protection requires wallet-selected inputs, but no safe input set was available.',
+        endpoint,
+      );
+    }
     try {
       return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
     } catch (error) {
@@ -445,8 +409,10 @@ async function executeWithUtxoFallback(
         }
       }
 
-      // Attempt 3: Let Counterparty API select, but force confirmed-only
+      // Attempt 3: Let Counterparty API select, but force confirmed-only. This is never allowed
+      // while Alkanes protection is active because Counterparty cannot identify those UTXOs.
       // This avoids issues where Counterparty's mempool has stale unconfirmed UTXOs
+      if (requireOfferedInputs) throw wrapComposeError(error, endpoint);
       try {
         return await makeRequest({ inputsSet: undefined, allowUnconfirmed: false });
       } catch (finalError) {
@@ -471,7 +437,8 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   paramsObj: T,
   sourceAddress: string,
   sat_per_vbyte: number,
-  encoding?: string
+  encoding?: string,
+  control?: ComposeControl,
 ): Promise<ApiResponse> {
   const base = await getApiBase();
   const apiUrl = `${base}/v2/addresses/${sourceAddress}/compose/${endpoint}`;
@@ -494,6 +461,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
       verbose: 'true',
       ...(encoding && { encoding }),
       ...(inputsSet && { inputs_set: inputsSet }),
+      ...(control?.useAllInputsSet && { use_all_inputs_set: 'true' }),
       ...(multisigPubkey && { multisig_pubkey: multisigPubkey }),
     }));
 
@@ -519,8 +487,22 @@ export async function composeTransaction<T extends Record<string, unknown>>(
     return composed;
   };
 
-  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  const inputsSet = control?.inputsSet
+    ?? await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  if (control) {
+    try {
+      return await makeRequest({ inputsSet, allowUnconfirmed: settings.allowUnconfirmedTxs });
+    } catch (error) {
+      throw wrapComposeError(error, endpoint);
+    }
+  }
+  return executeWithUtxoFallback(
+    makeRequest,
+    inputsSet,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+    settings.protectAlkanesUtxos || settings.enableDieselMinting,
+  );
 }
 
 /**
@@ -587,7 +569,13 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   };
 
   const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
-  return executeWithUtxoFallback(makeRequest, inputsSet, settings.allowUnconfirmedTxs, endpoint);
+  return executeWithUtxoFallback(
+    makeRequest,
+    inputsSet,
+    settings.allowUnconfirmedTxs,
+    endpoint,
+    settings.protectAlkanesUtxos || settings.enableDieselMinting,
+  );
 }
 
 /**
@@ -606,6 +594,25 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
 
   // Get user's unconfirmed transaction preference
   const settings = getActiveSettings();
+
+  if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
+    const match = /^([0-9a-f]{64}):(\d+)$/i.exec(sourceUtxo);
+    if (!match) throw new CounterpartyApiError('Invalid source UTXO', endpoint);
+    const status = await fetchInputsAlkanes([{
+      index: 0,
+      txid: match[1]!,
+      vout: Number(match[2]),
+    }], [0]);
+    if (status.length > 0) {
+      const unknown = status.some(entry => entry.lookupFailed);
+      throw new CounterpartyApiError(
+        unknown
+          ? 'The Alkanes status of the source UTXO could not be verified.'
+          : 'The source UTXO carries Alkanes and is protected from this operation.',
+        endpoint,
+      );
+    }
+  }
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
@@ -676,7 +683,9 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
@@ -723,7 +732,9 @@ export async function composeCancel(options: CancelOptions): Promise<ApiResponse
     offer_hash: offer_hash.trim(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
@@ -933,7 +944,9 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     fee_required: fee_required.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'order', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {
@@ -950,6 +963,17 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     max_fee,
     encoding,
   } = options;
+  const settings = getActiveSettings();
+  // In BTC and enhanced Counterparty sends Core emits exactly one destination/data output before
+  // `more_outputs`. Caller-supplied outputs remain byte-identical and precede the wallet-owned
+  // DIESEL output, so its pointer is derived from their count instead of guessed.
+  const attachDieselMint = shouldAttachDieselMint({
+    enabled: settings.enableDieselMinting,
+    sourceAddress,
+    feeRate: sat_per_vbyte,
+    maximumFeeRate: settings.dieselMintMaxFeeRate,
+    encoding,
+  });
   const paramsObj = {
     destination,
     asset,
@@ -960,14 +984,28 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     ...(more_outputs ? { more_outputs } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  if (!attachDieselMint) {
+    return composeTransaction('send', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  }
+
+  const precedingOutputCount = more_outputs
+    ? more_outputs.split(',').filter(Boolean).length
+    : 0;
+  return composeCounterpartyWithDieselMint(
+    composeTransaction,
+    'send',
+    paramsObj,
+    sourceAddress,
+    sat_per_vbyte,
+    1 + precedingOutputCount,
+    more_outputs,
+  );
 }
 
-/**
- * Extended send options that support multiple destinations (MPMA convenience).
- * When `destinations` contains multiple comma-separated addresses, automatically
- * converts to an MPMA transaction with the same asset/quantity/memo for each.
- */
+/** Compose a DIESEL transfer through the isolated Counterparty/Alkanes integration. */
+export async function composeDieselSend(options: DieselSendOptions): Promise<ApiResponse> {
+  return composeDieselSendTransaction(composeTransaction, options);
+}
 export interface SendOrMPMAOptions extends SendOptions {
   destinations?: string; // Comma-separated list for MPMA
 }
@@ -1190,7 +1228,30 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     ...(destination_vout !== undefined ? { destination_vout: destination_vout.toString() } : {}),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  const settings = getActiveSettings();
+  // Current Core emits `[546-sat attachment, data, more_outputs..., change]` when the attach target
+  // is implicit. Keep explicit/legacy output controls on the ordinary path until independently
+  // proven; for the default current-height shape the DIESEL UTXO is vout 2.
+  const attachDieselMint = shouldAttachDieselMint({
+    enabled: settings.enableDieselMinting,
+    sourceAddress,
+    feeRate: sat_per_vbyte,
+    maximumFeeRate: settings.dieselMintMaxFeeRate,
+    encoding,
+  })
+    && utxo_value === undefined
+    && destination_vout === undefined;
+  if (!attachDieselMint) {
+    return composeTransaction('attach', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  }
+  return composeCounterpartyWithDieselMint(
+    composeTransaction,
+    'attach',
+    paramsObj,
+    sourceAddress,
+    sat_per_vbyte,
+    2,
+  );
 }
 
 export async function composeDetach(options: DetachOptions): Promise<ApiResponse> {

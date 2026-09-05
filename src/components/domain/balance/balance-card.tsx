@@ -1,8 +1,10 @@
 import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
+import dieselLogo from '@/assets/diesel.jpg';
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 import { BalanceMenu } from "@/components/domain/balance/balance-menu";
 import { PendingStatus } from "@/components/domain/balance/pending-status";
+import { DIESEL_WALLET_ASSET } from '@/core/alkanes/api';
 import type { TokenBalance } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 
@@ -54,11 +56,14 @@ export function BalanceCard({
   pendingStatus,
 }: BalanceCardProps): ReactElement {
   const navigate = useNavigate();
+  const isDiesel = token.asset === DIESEL_WALLET_ASSET;
 
   // Handle card click - use custom handler or default to balance navigation
   const handleClick = () => {
     if (onClick) {
       onClick(token.asset);
+    } else if (isDiesel) {
+      navigate('/diesel');
     } else {
       navigate(`/assets/${encodeURIComponent(token.asset)}/balance`);
     }
@@ -77,13 +82,18 @@ export function BalanceCard({
         onClick={handleClick}
       >
         {/* Asset Icon */}
-        <AssetIcon asset={token.asset} size="lg" className="flex-shrink-0" />
+        <AssetIcon
+          asset={isDiesel ? 'DIESEL' : token.asset}
+          size="lg"
+          className="flex-shrink-0"
+          imageSrc={isDiesel ? dieselLogo : undefined}
+        />
 
         {/* Asset Information */}
         <div className="ml-3 flex-grow">
           {/* Asset Name/Symbol */}
           <div className="font-medium text-sm text-gray-900">
-            {formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
+            {isDiesel ? 'DIESEL' : formatAsset(token.asset, { assetInfo: token.asset_info, shorten: true })}
           </div>
 
           {/* Balance amount, with whatever the mempool is doing to it on the right. */}

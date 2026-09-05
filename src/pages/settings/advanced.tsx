@@ -131,6 +131,16 @@ export default function AdvancedSettingsPage(): ReactElement {
           onChange={(checked) => updateSettings({ enableAdvancedBroadcasts: checked })}
           showHelpText={shouldShowHelpText}
         />
+
+        <SettingSwitch
+          label="Mine DIESEL (Alkanes)"
+          description="Mine on eligible transactions within your DIESEL fee limit."
+          checked={settings.enableDieselMinting}
+          onChange={(checked) => updateSettings(checked
+            ? { enableDieselMinting: true, protectAlkanesUtxos: true }
+            : { enableDieselMinting: false })}
+          showHelpText={shouldShowHelpText}
+        />
       </SettingsSection>
 
       <SettingsSection id="adv-connection" title="Connection">

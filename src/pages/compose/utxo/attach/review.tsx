@@ -1,3 +1,4 @@
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
 /**
@@ -54,6 +55,7 @@ export function ReviewUtxoAttach({
     },
     ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ?
       [{ label: "Destination Output", value: String(result.params.destination_vout) }] : []),
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (

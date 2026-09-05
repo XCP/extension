@@ -1,5 +1,7 @@
 /** Shared PSBT decoding and safety analysis used by single and atomic provider approvals. */
 
+import { classifySignedInputAlkanes, fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { BitcoinPaymentIntentV1 } from '@/core/bitcoin/providerPayment';
 import {
   extractPsbtDetails,
@@ -18,11 +20,50 @@ import {
 } from '@/core/counterparty/signRequestAnalysis';
 import { decodeRawTransaction } from '@/core/counterparty/transaction';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
+import { getActiveSettings } from '@/core/settings';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
   psbtDetails: PsbtDetails;
   /** Unsigned transaction ID computed locally from the PSBT. */
   txid?: string;
+}
+
+/** The best-effort signer only signs prevouts belonging to the connected active address. */
+export function resolvePsbtSigningInputIndices(
+  inputs: Array<{ index: number; address?: string }>,
+  signerAddresses: string[],
+  explicitIndices?: number[],
+): number[] {
+  if (explicitIndices !== undefined) return explicitIndices;
+  const signers = new Set(signerAddresses.map(normalizeAddressForComparison));
+  return inputs.filter(input => input.address !== undefined
+    && signers.has(normalizeAddressForComparison(input.address)))
+    .map(input => input.index);
+}
+
+/** Recheck the current protection policy immediately before an approved PSBT is signed. */
+export async function assertPsbtAlkanesSigningSafe(
+  psbtHex: string,
+  activeAddress: string,
+  signInputs?: Record<string, number[]>,
+): Promise<void> {
+  const settings = getActiveSettings();
+  if (!settings.protectAlkanesUtxos && !settings.enableDieselMinting) return;
+  const inputs = extractPsbtDetails(psbtHex).inputs;
+  const explicit = signInputs && Object.keys(signInputs).length > 0;
+  const indices = resolvePsbtSigningInputIndices(
+    inputs,
+    explicit ? Object.keys(signInputs) : [activeAddress],
+    explicit ? Object.values(signInputs).flat() : undefined,
+  );
+  const balances = await fetchInputsAlkanes(inputs, indices);
+  const classified = classifySignedInputAlkanes(balances, indices);
+  if (classified.unknownStatus.length > 0) {
+    throw new Error('Alkanes status could not be verified. Retry before signing this transaction.');
+  }
+  if (classified.withBalances.length > 0) {
+    throw new Error('This transaction spends a protected Alkanes input and cannot be signed.');
+  }
 }
 
 export async function decodePsbtForApproval(
@@ -36,7 +77,14 @@ export async function decodePsbtForApproval(
   marketplaceIntent?: MarketplaceIntentClaimV1,
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
-  const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
+  const resolvedIndices = resolvePsbtSigningInputIndices(
+    psbtDetails.inputs, signerAddresses ?? [], signedInputIndices,
+  );
+  const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, resolvedIndices);
+  const settings = getActiveSettings();
+  const alkaneBalancesPromise = (settings.protectAlkanesUtxos || settings.enableDieselMinting)
+    ? fetchInputsAlkanes(psbtDetails.inputs, resolvedIndices)
+    : Promise.resolve([]);
   let txid: string | undefined = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
 
@@ -74,8 +122,8 @@ export async function decodePsbtForApproval(
     inputs: psbtDetails.inputs,
     outputs: psbtDetails.outputs,
     signerAddresses: signerAddresses ?? [],
-    signedInputIndices: signedInputIndices ?? [],
-    signedInputs: (signedInputIndices ?? []).map(index => ({
+    signedInputIndices: resolvedIndices,
+    signedInputs: resolvedIndices.map(index => ({
       index,
       sighashType: resolvePsbtSighashType(
         requestedSighashTypes?.[index],
@@ -84,6 +132,7 @@ export async function decodePsbtForApproval(
     })),
     transactionId: txid,
     attachedAssets: attachedAssetsPromise,
+    alkaneBalances: alkaneBalancesPromise,
     inscriptionContext,
     signingPurpose,
     bitcoinPaymentIntent,

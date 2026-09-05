@@ -29,6 +29,7 @@ import { useWallet } from '@/contexts/wallet-context';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { exceedsSaneFeeRate } from '@/core/bitcoin/feeVerification';
 import { committedOutputIndices, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
+import { assertPsbtAlkanesSigningSafe, resolvePsbtSigningInputIndices } from '@/core/bitcoin/psbtApprovalDecoder';
 import { classifySignedInputAssets } from '@/core/counterparty/inputAssets';
 import { shouldBlockSigning } from '@/core/counterparty/unpack/providerVerify';
 import { formatAddress, formatAmount } from '@/core/format';
@@ -98,6 +99,10 @@ export default function ApprovePsbtPage() {
 
   const handleSign = async () => {
     if (!request || !decodedInfo) return;
+    if (decodedInfo.safety?.blocked) {
+      setError('This transaction is blocked by the wallet safety checks.');
+      return;
+    }
 
     const identityError = getIdentityMismatchError(request, activeAddress?.address, activeWallet?.id);
     if (identityError) {
@@ -116,6 +121,7 @@ export default function ApprovePsbtPage() {
       );
       if (permissionError) throw new Error(permissionError);
 
+      await assertPsbtAlkanesSigningSafe(request.psbtHex, activeAddress!.address, request.signInputs);
       const walletService = getWalletService();
       const signedPsbtHex = await walletService.signPsbt(
         request.psbtHex,
@@ -199,15 +205,13 @@ export default function ApprovePsbtPage() {
       ),
     })
   );
-  // Without signInputs the signer works best-effort across every input with the active address's
-  // key, so an input whose prevout address cannot be decoded may still be signed. Those count as
-  // ours here, so their sighash reaches the at-risk calculation below.
-  const requestedInputIndices = request.signInputs
-    ? Object.values(request.signInputs).flat()
-    : psbtDetails.inputs
-        .filter(input => !input.address || normalizeAddressForComparison(input.address)
-          === normalizeAddressForComparison(activeAddress.address))
-        .map(input => input.index);
+  const requestedInputIndices = resolvePsbtSigningInputIndices(
+    psbtDetails.inputs,
+    [activeAddress.address],
+    request.signInputs && Object.keys(request.signInputs).length > 0
+      ? Object.values(request.signInputs).flat()
+      : undefined,
+  );
   const { withAssets: signedInputsWithAssets, unknownStatus: signedInputsUnknownStatus } =
     classifySignedInputAssets(attachedAssets, requestedInputIndices);
   const displayedText = order

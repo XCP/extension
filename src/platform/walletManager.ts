@@ -8,6 +8,7 @@ import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemon
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
+import { cacheSuccessfulBroadcast } from '@/core/bitcoin/utxo';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
 import {
@@ -866,10 +867,29 @@ export class WalletManager {
       throw new Error('Cannot update settings: keychain not unlocked');
     }
 
+    if (
+      updates.dieselMintMaxFeeRate !== undefined
+      && (
+        !Number.isFinite(updates.dieselMintMaxFeeRate)
+        || updates.dieselMintMaxFeeRate <= 0
+        || updates.dieselMintMaxFeeRate > 1_000
+      )
+    ) {
+      throw new Error('DIESEL maximum fee rate must be between 0 and 1,000 sat/vB');
+    }
+
+    const normalizedUpdates = { ...updates };
+    const dieselEnabled = updates.enableDieselMinting
+      ?? this.keychain.settings.enableDieselMinting
+      ?? false;
+    // No caller may persist an enabled miner without its matching UTXO protection. Turning the
+    // miner off intentionally leaves protection on so existing balances cannot become ordinary BTC.
+    if (dieselEnabled) normalizedUpdates.protectAlkanesUtxos = true;
+
     // Merge updates into settings
     this.keychain.settings = {
       ...this.keychain.settings,
-      ...updates,
+      ...normalizedUpdates,
     };
 
     await this.persistKeychain();
@@ -1510,7 +1530,11 @@ export class WalletManager {
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
-    return btcBroadcastTransaction(signedTxHex);
+    const result = await btcBroadcastTransaction(signedTxHex);
+    // Signing lives in this background context; retain exact parent bytes here as well as
+    // in the popup's change journal. This conveys no permission to spend protected outputs.
+    cacheSuccessfulBroadcast(signedTxHex, result.txid);
+    return result;
   }
 
   /**

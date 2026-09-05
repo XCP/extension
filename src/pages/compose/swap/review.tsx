@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio } from "@/core/format";
@@ -73,6 +74,7 @@ export function ReviewSwap({
     // Swaps compose with expiration 1: fill what the price allows on
     // confirmation, refund the rest a block later.
     { label: "Fills", value: "Immediately, or cancels next block" },
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (
