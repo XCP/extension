@@ -22,9 +22,9 @@ import { decodeDieselMintScript } from '@/core/alkanes/diesel';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
+  type PendingDieselUtxo,
   recordPendingChange,
   recordPendingDieselUtxo,
-  type PendingDieselUtxo,
 } from '@/core/bitcoin/spentUtxoCache';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';

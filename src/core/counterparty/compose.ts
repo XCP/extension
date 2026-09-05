@@ -17,12 +17,12 @@ import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { multiply, roundUp, subtract, sum, toSafeInteger } from '@/core/numeric';
-import { validateBitcoinAddress } from '@/core/validation/bitcoin';
 import {
   getActiveSettings,
   LEGACY_MAX_ORDER_EXPIRATION,
   MAX_ORDER_EXPIRATION,
 } from '@/core/settings';
+import { validateBitcoinAddress } from '@/core/validation/bitcoin';
 
 /**
  * A composed transaction spent a UTXO the request never offered.
