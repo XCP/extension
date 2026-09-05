@@ -206,24 +206,32 @@ produced, signed, broadcast, and mined the optimized transaction
 A plain 10,000-sat BTC send spending that UTXO was also recomposed into the same three-output
 shape. It signed at **167 vB**, paid **334 sats** at 2 sat/vB, and passed
 `testmempoolaccept`. This proves the wallet can use the previous UTXO as the funding input and
-route its existing DIESEL plus the new mint into vout 1 without an added input. The full Alkanes
-balance rollover remains covered by the consensus-indexer WASM regression below because the
-DigiRare Docker stack contains Bitcoin and Counterparty indexers but no Alkanes indexer.
+route its existing DIESEL plus the new mint into vout 1 without an added input.
 
 This changes the implementation conclusion materially: **the +26-vB case is
 reachable today without a Counterparty Core patch and without rewriting a PSBT.**
 It needs a two-pass compose in the extension, described below.
 
-Separately, I added and ran a focused Alkanes consensus-indexer WASM regression
+I also added and ran two focused Alkanes consensus-indexer WASM regressions
 using the same three-output protocol shape. Mint 1 created UTXO A. Mint 2 spent
 A and targeted successor B while a control mint measured mint 2's reward. The test
 asserted that A was cleared and `B == old balance + new reward`; it passed. This is
 direct proof of the rolling-UTXO behavior in the released source, not merely a
 read of the mint contract.
 
-These are two strong, complementary tests, but they are not yet one identical raw
-transaction fed through both full indexers. The DigiRare Docker stack has no
-Alkanes indexer, so a same-bytes dual-indexer fixture remains an acceptance gate.
+The second regression closes the more important same-bytes gap. It embeds and
+consensus-deserializes the **exact signed raw transaction** for
+`3a930995f7eac57afa17dd39424836cf64c06e35921dd9021234f8948cbe31f7`—not a hand-built
+look-alike—asserts its txid and 191-vB size, and submits it to Alkanes' production
+`index_block` code path with the mainnet feature enabled. It passed with positive DIESEL only at
+vout 1 and zero DIESEL at both OP_RETURN outputs. The identical bytes therefore have both proofs:
+
+- Bitcoin Core mined them and Counterparty Core 11.3 indexed them as a valid enhanced send; and
+- Alkanes' release consensus indexer executed opcode 77 and credited the wallet-owned vout.
+
+The DigiRare Docker stack still has no persistent Metashrew/Alkanes RPC service, so an operational
+JSON-RPC smoke test remains desirable before release. That is now an indexer packaging, persistence,
+and client-response check—not an unresolved transaction-layout or consensus-routing question.
 
 I also exercised the optimized host shape from every ordinary single-key address family the
 extension supports. Each transaction was signed by Bitcoin Core, accepted by
@@ -997,7 +1005,7 @@ small part; safe coexistence of two UTXO ledgers is the project.
 | Confirmed/pending UTXO state + RBF/reorg | High | Outpoints change while balances must never be guessed |
 | Read-only DIESEL balance row/detail page | Medium | Separate indexer and ledger model |
 | DIESEL send/change transaction builder | High | Edicts, partial balance change, multiple UTXO inputs, fee funding |
-| Per-family fixtures + dual-indexer harness | Medium/high | Output semantics differ across Counterparty actions |
+| Per-family fixtures + persistent dual-indexer RPC harness | Medium/high | The exact send bytes now pass both consensus engines; output semantics still differ across actions |
 | Live contract/version adapter | Medium today, potentially high | v3 changes the callable interface and recipient economics |
 
 A useful scope split is:
@@ -1310,9 +1318,10 @@ the one-pass explicit-output shape only as a user-visible fallback.
 
 Acceptance gates before mainnet:
 
-1. Feed one identical raw fixture to both full indexers with the XCP message
-   unchanged and DIESEL only on the wallet UTXO. Counterparty recognition and
-   Alkanes rollover have now passed separately using the same output shape.
+1. Run the already consensus-proven identical raw fixture through a packaged persistent Metashrew
+   RPC service and reconcile its address/outpoint responses through the extension client. The
+   same bytes already pass Counterparty Core and Alkanes `index_block`, with DIESEL only on the
+   wallet UTXO.
 2. Wrong order, pointer, refund, UTXO omission, second mint, and UTXO spend
    without routing must all fail closed.
 3. Exercise `testmempoolaccept` and every extension broadcaster.
@@ -1354,8 +1363,9 @@ protocol's asset state while that protocol's payout and routing rules are changi
   service observations, not consensus proofs.
 
 No mainnet spend was performed. A combined transaction was broadcast and mined on
-the DigiRare regtest stack, and the analogous Alkanes consensus-indexer rollover
-test passed. A same-raw-transaction dual-indexer integration test and production
-relay testing remain outstanding. A targeted native CLI-common send test rerun was
+the DigiRare regtest stack; its exact signed raw bytes then passed the Alkanes production
+consensus-indexer code path with DIESEL only on the intended wallet UTXO. The separate rollover
+test also passed with `successor = old balance + new reward`. A packaged persistent Metashrew RPC
+smoke test and production relay testing remain outstanding. A targeted native CLI-common send test rerun was
 attempted but the local host lacked `protoc`; the inspected explicit-change test is
 therefore source evidence in this review, not a newly executed result.
