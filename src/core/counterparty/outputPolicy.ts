@@ -52,9 +52,10 @@
  * why the added-recipient half is the half enforced here.
  */
 
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
+import type { Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript, normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { bareMultisigRecoveryPubkey, isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
 import { toSafeInteger } from '@/core/numeric';
 
@@ -273,12 +274,7 @@ function checkPositionalDestination(tx: Transaction, expected: string): string |
 export function checkOutputPolicy(input: OutputPolicyInput): OutputPolicyResult {
   let tx: Transaction;
   try {
-    tx = Transaction.fromRaw(hexToBytes(input.rawTransaction), {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    tx = parseTransactionForSigning(input.rawTransaction);
   } catch {
     // An unparseable transaction cannot be signed either — the signer uses the same parser — so it
     // is not a value-routing risk. Let signing surface the real error.

@@ -45,7 +45,7 @@ import {
   useState
 } from "react";
 import { onMessage } from 'webext-bridge/popup'; // Import for popup context
-import { AddressFormat } from '@/core/bitcoin/address';
+import { type AddressFormat, DEFAULT_ADDRESS_FORMAT } from '@/core/bitcoin/address';
 import { recordSpentInputsFromRawTx } from '@/core/bitcoin/spentUtxoCache';
 import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { setSourcePubkeyProvider } from '@/core/counterparty/sourcePubkey';
@@ -598,7 +598,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           mnemonic,
           password,
           name,
-          addressFormat ?? AddressFormat.P2WPKH
+          addressFormat ?? DEFAULT_ADDRESS_FORMAT
         )
       );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));
@@ -611,7 +611,7 @@ export function WalletProvider({ children }: { children: ReactNode }): ReactElem
           privateKey,
           password,
           name,
-          addressFormat ?? AddressFormat.P2TR
+          addressFormat ?? DEFAULT_ADDRESS_FORMAT
         )
       );
       setWalletState((prev) => ({ ...prev, authState: AuthState.Unlocked }));

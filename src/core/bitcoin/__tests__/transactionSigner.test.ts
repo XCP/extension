@@ -21,7 +21,7 @@ const mockGetTrustedBroadcastPrevout = vi.fn();
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
-import { p2tr, Transaction } from '@scure/btc-signer';
+import { p2sh, p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { hash160 } from '@scure/btc-signer/utils.js';
 
 describe('Transaction Signer Utilities', () => {
@@ -320,12 +320,17 @@ describe('Transaction Signer Utilities', () => {
 
     it('should successfully sign P2SH_P2WPKH transaction', async () => {
       const p2shWallet = { ...mockWallet, addressFormat: AddressFormat.P2SH_P2WPKH };
-      
-      mockFetchUTXOs.mockResolvedValue([mockUtxo]);
-      mockGetUtxoByTxid.mockReturnValue(mockUtxo);
-      mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
+      const nestedScript = bytesToHex(p2sh(p2wpkh(publicKey)).script);
 
-      const result = await signTransaction(mockRawTransaction, p2shWallet, mockTargetAddress, mockPrivateKey);
+      const result = await signTransaction(
+        mockRawTransaction,
+        p2shWallet,
+        mockTargetAddress,
+        mockPrivateKey,
+        true,
+        [100000],
+        [nestedScript],
+      );
 
       expect(typeof result).toBe('string');
       expect(result.length).toBeGreaterThan(0);
@@ -567,7 +572,17 @@ describe('Transaction Signer Utilities', () => {
         mockGetUtxoByTxid.mockReturnValue(mockUtxo);
         mockFetchPreviousRawTransaction.mockResolvedValue(mockPreviousTransaction);
 
-        const result = await signTransaction(mockRawTransaction, wallet, mockTargetAddress, mockPrivateKey);
+        const result = addressFormat === AddressFormat.P2SH_P2WPKH
+          ? await signTransaction(
+              mockRawTransaction,
+              wallet,
+              mockTargetAddress,
+              mockPrivateKey,
+              true,
+              [100000],
+              [bytesToHex(p2sh(p2wpkh(publicKey)).script)],
+            )
+          : await signTransaction(mockRawTransaction, wallet, mockTargetAddress, mockPrivateKey);
         expect(typeof result).toBe('string');
         expect(result).toMatch(/^[0-9a-f]+$/i); // Valid hex string
 

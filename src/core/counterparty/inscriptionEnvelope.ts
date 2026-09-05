@@ -32,8 +32,9 @@
  */
 
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { p2tr, Transaction } from '@scure/btc-signer';
+import { p2tr, type Transaction } from '@scure/btc-signer';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { type CborEncodable, encodeCbor } from '@/core/counterparty/pack/cbor';
 import { decodeCbor } from '@/core/counterparty/unpack/cbor';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
@@ -247,12 +248,7 @@ export function verifyRevealTransaction(
 ): { ok: boolean; error?: string } {
   let tx: Transaction;
   try {
-    tx = Transaction.fromRaw(hexToBytes(revealHex), {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    tx = parseTransactionForSigning(revealHex);
   } catch {
     return { ok: false, error: 'The inscription reveal transaction could not be read.' };
   }

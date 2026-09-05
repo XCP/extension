@@ -8,6 +8,7 @@
 
 import { SigHash, type Transaction } from '@scure/btc-signer';
 import { signECDSA } from '@scure/btc-signer/utils.js';
+import { getLegacySighash, getLowRPreference } from '@/core/bitcoin/legacySighash';
 
 /**
  * Concatenates multiple Uint8Arrays into a single Uint8Array.
@@ -42,17 +43,11 @@ export function signInputWithUncompressedKey(
   prevOutputScript: Uint8Array,
   sighash: number = SigHash.ALL
 ): void {
-  // Access the transaction's legacy preimage routine
-  const preimageLegacy = (tx as any).preimageLegacy;
-  if (typeof preimageLegacy !== 'function') {
-    throw new Error('preimageLegacy method not accessible');
-  }
-  
   // Get the hash to sign using the previous output's script
-  const hash: Uint8Array = preimageLegacy.call(tx, idx, prevOutputScript, sighash);
+  const hash = getLegacySighash(tx, idx, prevOutputScript, sighash);
   
   // Sign the hash using signECDSA
-  const sig: Uint8Array = signECDSA(hash, privateKey, (tx as any).opts?.lowR);
+  const sig = signECDSA(hash, privateKey, getLowRPreference(tx));
   
   // Append the sighash type byte
   const sigWithHash: Uint8Array = concatBytes(

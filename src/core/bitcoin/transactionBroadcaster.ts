@@ -1,7 +1,7 @@
-import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
-import { Transaction } from '@scure/btc-signer';
+import { bytesToHex } from '@noble/hashes/utils.js';
 import { type ApiResponse, apiClient, isApiError, withRetry } from '@/core/api/client';
 import { clearBalanceCache } from '@/core/bitcoin/balance';
+import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { recordSpentUtxos } from '@/core/bitcoin/spentUtxoCache';
 import { clearBitcoinCaches } from '@/core/bitcoin/utxo';
 import { clearApiCache } from '@/core/counterparty/api';
@@ -86,11 +86,7 @@ const formatResponse = (endpoint: BroadcastEndpoint, response: ApiResponse): Tra
  */
 export function computeTxid(signedTxHex: string): string | null {
   try {
-    const tx = Transaction.fromRaw(hexToBytes(signedTxHex), {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      disableScriptCheck: true,
-    });
+    const tx = parseTransactionForSigning(signedTxHex);
     return tx.id;
   } catch {
     return null;
@@ -99,7 +95,7 @@ export function computeTxid(signedTxHex: string): string | null {
 
 export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vout: number }[] {
   try {
-    const tx = Transaction.fromRaw(hexToBytes(signedTxHex), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+    const tx = parseTransactionForSigning(signedTxHex);
     const inputs: { txid: string; vout: number }[] = [];
     for (let i = 0; i < tx.inputsLength; i++) {
       const input = tx.getInput(i);

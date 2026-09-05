@@ -10,6 +10,7 @@
 
 import { getPublicKey } from '@noble/secp256k1';
 import { afterEach, describe, expect, it } from 'vitest';
+import { AddressFormat, encodeAddress } from '@/core/bitcoin/address';
 import { setSourcePubkeyProvider } from '../../sourcePubkey';
 import { analyzeTransactionSafety } from '../../transactionSafety';
 import { packAddress } from '../address';
@@ -350,9 +351,12 @@ describe('unclassified transactions fail toward unknown', () => {
 });
 
 describe('the recovery key rides in the third slot', () => {
-  const signerPubkey = '02' + '11'.repeat(32);
-  const uncompressedSignerPubkey = '04' + '11'.repeat(64);
-  const strangerPubkey = '03' + '22'.repeat(32);
+  const signerPrivateKey = hexToBytes('01'.padStart(64, '0'));
+  const strangerPrivateKey = hexToBytes('02'.padStart(64, '0'));
+  const signerPubkey = bytesToHex(getPublicKey(signerPrivateKey, true));
+  const uncompressedSignerPubkey = bytesToHex(getPublicKey(signerPrivateKey, false));
+  const strangerPubkey = bytesToHex(getPublicKey(strangerPrivateKey, true));
+  const signerAddress = encodeAddress(hexToBytes(signerPubkey), AddressFormat.P2PKH);
 
   /** A data script embedding `recovery` where core puts the source pubkey. */
   const scriptWithRecoveryKey = (recovery: string): string =>
@@ -389,11 +393,11 @@ describe('the recovery key rides in the third slot', () => {
   // multisig_pubkey override, so a hostile composer can point every data output's dust at a key
   // that is not the signer's. Checkable exactly when the wallet holds the signer's key.
   it('warns when a data output embeds a recovery key that is not the signers own', () => {
-    setSourcePubkeyProvider((address) => (address === 'bc1qsigner' ? signerPubkey : null));
+    setSourcePubkeyProvider((address) => (address === signerAddress ? signerPubkey : null));
 
     const safety = analyzeTransactionSafety('send', [
       { value: 546, type: 'multisig', script: scriptWithRecoveryKey(strangerPubkey) },
-    ], 'bc1qsigner');
+    ], signerAddress);
 
     expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(true);
   });
@@ -403,7 +407,7 @@ describe('the recovery key rides in the third slot', () => {
 
     const safety = analyzeTransactionSafety('send', [
       { value: 546, type: 'multisig', script: scriptWithRecoveryKey(signerPubkey) },
-    ], 'bc1qsigner');
+    ], signerAddress);
 
     expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
   });
@@ -412,11 +416,12 @@ describe('the recovery key rides in the third slot', () => {
     const privateKey = hexToBytes('01'.repeat(32));
     const compressed = bytesToHex(getPublicKey(privateKey, true));
     const uncompressed = bytesToHex(getPublicKey(privateKey, false));
+    const uncompressedAddress = encodeAddress(hexToBytes(uncompressed), AddressFormat.P2PKH);
     setSourcePubkeyProvider(() => uncompressed);
 
     const safety = analyzeTransactionSafety('send', [
       { value: 546, type: 'multisig', script: scriptWithRecoveryKey(compressed) },
-    ], '1legacySigner');
+    ], uncompressedAddress);
 
     expect(safety.warnings.some((w) => w.title === 'Data Outputs Not Recoverable By You')).toBe(false);
   });

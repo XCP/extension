@@ -12,6 +12,7 @@ import {
   completePsbtWithInputValues,
   extractPsbtDetails,
   finalizePSBT,
+  MAX_PSBT_BYTES,
   normalizePsbtToHex,
   parsePSBT,
   resolvePsbtSighashType,
@@ -34,6 +35,10 @@ const _REAL_HEX_PSBT = '70736274ff01008b020000000177a7cdb03fc6edd50d1958b87f1bba
   '8ee663788aecaf762200000000000000';
 
 describe('normalizePsbtToHex', () => {
+  it('rejects oversized PSBTs before decoding', () => {
+    expect(() => normalizePsbtToHex(`70736274${'00'.repeat(MAX_PSBT_BYTES)}`))
+      .toThrow(/parsing limit/);
+  });
   it('should pass through valid hex PSBT unchanged', () => {
     const hexPsbt = createTestPsbt();
     const normalized = normalizePsbtToHex(hexPsbt);

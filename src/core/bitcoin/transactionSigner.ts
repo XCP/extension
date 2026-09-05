@@ -2,6 +2,7 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
+import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
@@ -143,13 +144,7 @@ export async function signTransaction(
     const hasApiData = inputValues && lockScripts &&
                        inputValues.length > 0 && lockScripts.length > 0;
 
-    const rawTxBytes = hexToBytes(rawTransaction);
-    const parsedTx = Transaction.fromRaw(rawTxBytes, {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true
-    });
+    const parsedTx = parseTransactionForSigning(rawTransaction);
 
     // A provider transaction can spend change from a transaction this extension broadcast only
     // milliseconds earlier. Resolve those inputs from the trusted cross-context journal first;
@@ -179,8 +174,9 @@ export async function signTransaction(
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-      unknown: 'ignore'
+      // Standard inputs stay on btc-signer's validated path. Counterparty's unusual bare-multisig
+      // data appears in outputs, which is covered narrowly by allowUnknownOutputs.
+      lowR: true,
     });
 
     // For legacy uncompressed key signing, we need previous output scripts
@@ -250,7 +246,7 @@ export async function signTransaction(
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+        const prevTx = parseConsensusTransaction(rawPrevTx);
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {
@@ -300,7 +296,7 @@ export async function signTransaction(
             userMessage: 'Could not retrieve transaction data from the network. Please try again.',
           });
         }
-        const prevTx = Transaction.fromRaw(hexToBytes(rawPrevTx), { allowUnknownInputs: true, allowUnknownOutputs: true, disableScriptCheck: true });
+        const prevTx = parseConsensusTransaction(rawPrevTx);
         const prevOutput = prevTx.getOutput(input.index);
         if (!prevOutput) {
           throw new UtxoError('UTXO_NOT_FOUND', `Output not found in previous transaction: ${txidHex}:${input.index}`, {

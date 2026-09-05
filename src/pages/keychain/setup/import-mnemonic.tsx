@@ -10,7 +10,7 @@ import { CheckboxInput } from "@/components/ui/inputs/checkbox-input";
 import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
-import { AddressFormat, detectAddressFormat, isCounterwalletFormat } from "@/core/bitcoin/address";
+import { AddressFormat, DEFAULT_ADDRESS_FORMAT, detectAddressFormat, isCounterwalletFormat } from "@/core/bitcoin/address";
 import { getPrivateKeyFromMnemonic } from "@/core/bitcoin/privateKey";
 import { isValidCounterwalletMnemonic } from "@/core/counterwallet";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
@@ -131,8 +131,8 @@ function ImportMnemonicPage() {
           try {
             addressFormat = await detectAddressFormat(mnemonic);
           } catch (detectError) {
-            console.warn("Address format detection failed, using P2TR default:", detectError);
-            addressFormat = AddressFormat.P2TR;
+            console.warn("Address format detection failed, using Native SegWit default:", detectError);
+            addressFormat = DEFAULT_ADDRESS_FORMAT;
           }
         }
 

@@ -75,6 +75,7 @@ describe('dependent attach and listing signing', () => {
     expect(bytesToHex(resolvedListing.getInput(1)!.txid!)).toBe(finalAttachTxid);
     expect(bytesToHex(resolvedListing.getInput(0)!.txid!)).toBe('00'.repeat(32));
     expect(resolvedListing.getInput(1)!.partialSig).toHaveLength(1);
+    expect(resolvedListing.getInput(1)!.nonWitnessUtxo).toBeDefined();
   });
 
   it('refuses to rebind a different source outpoint', () => {

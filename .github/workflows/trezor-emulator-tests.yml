@@ -76,7 +76,9 @@ jobs:
         timeout-minutes: 2
         run: |
           echo "Installing ws for WebSocket communication..."
-          npm install ws@8.21.0
+          # Keep this direct helper install aligned with the pinned security override in
+          # package.json; npm rejects a different direct version with EOVERRIDE.
+          npm install --no-save ws@8.21.3
           echo "Starting emulator and bridge via WebSocket API..."
           node e2e/hardware/init-trezor-emulator.js
 

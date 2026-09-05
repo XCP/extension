@@ -9,7 +9,8 @@
  * instead — see extractPayloadFromOutputs.
  */
 
-import { Transaction } from '@scure/btc-signer';
+import type { Transaction } from '@scure/btc-signer';
+import { parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { COUNTERPARTY_PREFIX_HEX } from '@/core/counterparty/unpack/messageTypes';
 import { decodeMultisigChunk } from '@/core/counterparty/unpack/multisig';
@@ -153,12 +154,7 @@ export function extractPayloadFromOutputs(
 export function extractCounterpartyPayload(rawTxHex: string): string | null {
   let tx: Transaction;
   try {
-    tx = Transaction.fromRaw(hexToBytes(rawTxHex), {
-      allowUnknownInputs: true,
-      allowUnknownOutputs: true,
-      allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
-    });
+    tx = parseTransactionForSigning(rawTxHex);
   } catch {
     return null;
   }

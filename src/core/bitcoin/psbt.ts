@@ -13,6 +13,25 @@ import { AddressFormat, decodeAddressFromScript, encodeAddress, normalizeAddress
 import { SigningError, ValidationError } from '@/core/errors';
 import { toSafeInteger } from '@/core/numeric';
 
+export const MAX_PSBT_BYTES = 2_000_000;
+export const MAX_PSBT_INPUTS = 1_000;
+export const MAX_PSBT_OUTPUTS = 1_000;
+const MAX_PSBT_BASE64_LENGTH = Math.ceil(MAX_PSBT_BYTES / 3) * 4 + 4;
+const MAX_TAPLEAVES_PER_INPUT = 128;
+const MAX_PSBT_SCRIPT_BYTES = 10_000;
+
+function assertPsbtEncodedSize(length: number, encoding: 'hex' | 'base64'): void {
+  const tooLarge = encoding === 'hex'
+    ? length > MAX_PSBT_BYTES * 2
+    : length > MAX_PSBT_BASE64_LENGTH;
+  if (tooLarge) {
+    throw new ValidationError(
+      'INVALID_PSBT',
+      `PSBT exceeds the ${MAX_PSBT_BYTES}-byte parsing limit`,
+    );
+  }
+}
+
 /** Resolve the exact sighash the signer will use for one PSBT input. */
 export function resolvePsbtSighashType(
   explicitSighashType?: number,
@@ -110,14 +129,17 @@ export function normalizePsbtToHex(psbt: string): string {
   // Check if it's already hex (starts with PSBT magic bytes in hex)
   // PSBT magic: 0x70736274 = "psbt" in ASCII
   if (psbt.startsWith('70736274')) {
+    assertPsbtEncodedSize(psbt.length, 'hex');
     return psbt;
   }
 
   // Check if it looks like base64 (PSBT magic in base64 is "cHNidP")
   if (psbt.startsWith('cHNidP')) {
     try {
+      assertPsbtEncodedSize(psbt.length, 'base64');
       // Decode base64 to bytes, then convert to hex
       const binary = atob(psbt);
+      assertPsbtEncodedSize(binary.length * 2, 'hex');
       let hex = '';
       for (let i = 0; i < binary.length; i++) {
         hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
@@ -130,6 +152,7 @@ export function normalizePsbtToHex(psbt: string): string {
 
   // Try to determine format by checking if it's valid hex with PSBT magic
   if (/^[0-9a-fA-F]*$/.test(psbt) && psbt.length % 2 === 0) {
+    assertPsbtEncodedSize(psbt.length, 'hex');
     const lowercased = psbt.toLowerCase();
     // Must start with PSBT magic bytes
     if (lowercased.startsWith('70736274')) {
@@ -140,7 +163,9 @@ export function normalizePsbtToHex(psbt: string): string {
 
   // Last resort: try base64 decode
   try {
+    assertPsbtEncodedSize(psbt.length, 'base64');
     const binary = atob(psbt);
+    assertPsbtEncodedSize(binary.length * 2, 'hex');
     let hex = '';
     for (let i = 0; i < binary.length; i++) {
       hex += binary.charCodeAt(i).toString(16).padStart(2, '0');
@@ -237,6 +262,29 @@ export interface SignPsbtParams {
   sighashTypes?: number[];
 }
 
+function assertPsbtComplexity(transaction: Transaction): void {
+  if (transaction.inputsLength > MAX_PSBT_INPUTS) {
+    throw new Error(`PSBT has too many inputs (${transaction.inputsLength}; maximum ${MAX_PSBT_INPUTS})`);
+  }
+  if (transaction.outputsLength > MAX_PSBT_OUTPUTS) {
+    throw new Error(`PSBT has too many outputs (${transaction.outputsLength}; maximum ${MAX_PSBT_OUTPUTS})`);
+  }
+  for (let index = 0; index < transaction.inputsLength; index += 1) {
+    const input = transaction.getInput(index);
+    if ((input.tapLeafScript?.length ?? 0) > MAX_TAPLEAVES_PER_INPUT) {
+      throw new Error(`PSBT input ${index} has too many Taproot leaves`);
+    }
+    const scripts = [
+      input.redeemScript,
+      input.witnessScript,
+      ...(input.tapLeafScript?.map(([, script]) => script) ?? []),
+    ];
+    if (scripts.some((script) => (script?.length ?? 0) > MAX_PSBT_SCRIPT_BYTES)) {
+      throw new Error(`PSBT input ${index} contains an oversized script`);
+    }
+  }
+}
+
 /**
  * Parse a PSBT string and return Transaction object.
  * Accepts both hex and base64 formats - normalizes internally.
@@ -249,15 +297,20 @@ export function parsePSBT(psbt: string): Transaction {
     // Normalize to hex (handles both hex and base64 input)
     const psbtHex = normalizePsbtToHex(psbt);
     const psbtBytes = hexToBytes(psbtHex);
-    return Transaction.fromPSBT(psbtBytes, {
+    const transaction = Transaction.fromPSBT(psbtBytes, {
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
+      // BIP370 treats an absent transaction-modifiable field as immutable. Do not inherit the
+      // library's legacy compatibility mode when a website supplies a new PSBTv2.
+      allowMissingTxModifiable: false,
       // A website controls these bytes. Keep redeem/witness wrapper and Taproot commitment
       // validation enabled, and do not return opaque fingerprinting/exfiltration fields.
       unknown: 'strip',
       proprietary: 'strip',
     });
+    assertPsbtComplexity(transaction);
+    return transaction;
   } catch (err) {
     throw new ValidationError(
       'INVALID_TRANSACTION',
@@ -504,7 +557,10 @@ export function signPSBT(
     allowLegacyWitnessUtxo: false,
     unknown: 'strip',
     proprietary: 'strip',
+    allowMissingTxModifiable: false,
+    lowR: true,
   });
+  assertPsbtComplexity(tx);
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
   const pubkeyBytes = getPublicKey(privateKeyBytes, true);
@@ -665,7 +721,9 @@ export function finalizePSBT(psbt: string): string {
     allowLegacyWitnessUtxo: true,
     unknown: 'strip',
     proprietary: 'strip',
+    allowMissingTxModifiable: false,
   });
+  assertPsbtComplexity(tx);
 
   tx.finalize();
   return tx.hex;
@@ -698,7 +756,9 @@ export function completePsbtWithInputValues(
     allowLegacyWitnessUtxo: true,
     unknown: 'strip',
     proprietary: 'strip',
+    allowMissingTxModifiable: false,
   });
+  assertPsbtComplexity(tx);
 
   // Validate arrays match input count
   if (inputValues.length !== tx.inputsLength) {
