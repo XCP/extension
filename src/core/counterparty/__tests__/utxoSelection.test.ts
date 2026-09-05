@@ -180,7 +180,7 @@ describe('selectUtxosForTransaction', () => {
     })]);
   });
 
-  it('reports that the pending DIESEL tip must confirm at the 25-transaction policy limit', async () => {
+  it('leaves a depth-25 DIESEL tip protected and selects clean BTC for a new lineage', async () => {
     let parent: { txid: string; vout: number } | undefined;
     for (let depth = 1; depth <= 25; depth++) {
       const txid = depth.toString(16).padStart(64, '0');
@@ -201,11 +201,6 @@ describe('selectUtxosForTransaction', () => {
 
     expect(result.utxos.map((utxo) => utxo.txid)).toEqual(['a'.repeat(64)]);
     expect(result.dieselUtxos).toEqual([]);
-    expect(result.pendingDieselChainAtLimit).toEqual({
-      txid: '19'.padStart(64, '0'),
-      vout: 1,
-      chainDepth: 25,
-    });
   });
 
   it('fails closed on unconfirmed UTXOs absent from the wallet-authored DIESEL journal', async () => {

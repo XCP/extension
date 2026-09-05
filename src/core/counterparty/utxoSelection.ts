@@ -56,8 +56,6 @@ export interface SelectedUtxos {
   excludedValue: number;
   /** Spendable pure-DIESEL UTXOs; unconfirmed entries are wallet-authored bounded-chain tips. */
   dieselUtxos?: Array<UTXO & { pendingChainDepth?: number }>;
-  /** Active tip that must confirm before this wallet extends the same lineage again. */
-  pendingDieselChainAtLimit?: { txid: string; vout: number; chainDepth: number };
 }
 
 /**
@@ -228,14 +226,6 @@ export async function selectUtxosForTransaction(
 
   // Calculate total value
   const totalValue = selectedUtxos.reduce((sum, utxo) => sum + utxo.value, 0);
-  const cappedPendingDiesel = [...pendingDieselByOutpoint.values()]
-    .find(({ chainDepth }) => chainDepth >= MAX_PENDING_DIESEL_CHAIN);
-  const pendingDieselChainAtLimit = cappedPendingDiesel ? {
-    txid: cappedPendingDiesel.txid,
-    vout: cappedPendingDiesel.vout,
-    chainDepth: cappedPendingDiesel.chainDepth,
-  } : undefined;
-
   return {
     utxos: selectedUtxos,
     inputsSet: formatInputsSet(selectedUtxos),
@@ -243,8 +233,5 @@ export async function selectUtxosForTransaction(
     excludedWithAssets,
     excludedValue,
     ...(includeDieselUtxos ? { dieselUtxos } : {}),
-    ...(includeDieselUtxos && pendingDieselChainAtLimit
-      ? { pendingDieselChainAtLimit }
-      : {}),
   };
 }

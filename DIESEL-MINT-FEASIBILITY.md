@@ -106,8 +106,9 @@ The stacked `feature/diesel-optimized-utxo` branch adds the two-pass +26-vB cons
   an input. If it cannot fund the transaction, it remains protected and clean BTC is used instead;
   the wallet never pays roughly 68 vB just to consolidate during a mint; and
 - after a successful broadcast, remember the exact verified successor in memory and roll it through
-  a single dependency chain of at most 25 unconfirmed transactions. At the ceiling, on restart, or
-  when the proof expires, wait for confirmation rather than creating a new DIESEL lineage.
+  a dependency chain of at most 25 unconfirmed transactions. At the ceiling, leave that tip
+  protected and use clean BTC for a temporary second lineage when the host transaction should not
+  wait. On restart or proof expiry, never infer unconfirmed Alkanes state.
 
 The current allow-list supports P2WPKH, P2TR, P2PKH, and wallet P2SH sources. It skips MPMA,
 Counterparty Taproot/multisig *message encodings*, legacy attach controls (`utxo_value` or
@@ -352,10 +353,11 @@ replace or roll back this state.
 
 The wallet may chain from an unconfirmed successor only when it can prove that successor came
 from its own successfully broadcast, byte-verified DIESEL transaction. It keeps this trust record
-in memory, rolls the tip through at most 25 unconfirmed transactions, and then starts another
-chain from clean BTC. Unknown unconfirmed outputs are never inferred to be safe from an indexer
-absence. A restart or 30-minute expiry discards the optimistic record and pauses that chain until
-the output confirms and an indexer proves its assets.
+in memory and rolls the tip through at most 25 unconfirmed transactions. If another real
+transaction proceeds before confirmation, it starts a temporary lineage from clean BTC rather
+than extending the capped tip or blocking the user. Unknown unconfirmed outputs are never inferred
+to be safe from an indexer absence. A restart or 30-minute expiry discards the optimistic record
+and pauses that lineage until the output confirms and an indexer proves its assets.
 
 Do not fee-bump a parent after descendants have been broadcast: replacing it changes the txid and
 invalidates every child. A bulk scheduler should either finalize the chain's fee before adding
@@ -707,8 +709,7 @@ at a meaningfully lower fee rate or when a DIESEL send already needs it.
 There are two different throughput targets, and they must not be conflated.
 
 If all 1,000 transactions must sit in the mempool before any confirmation, the default 25-ancestor
-limit requires roughly 40 independent chains. That is possible, but it leaves roughly 40 DIESEL
-UTXOs and is not the requested default.
+limit requires roughly 40 independent chains and leaves roughly 40 DIESEL UTXOs.
 
 If the wallet broadcasts 25, waits for their tip to confirm, then broadcasts the next 25, the
 confirmed tip has no unconfirmed ancestors. The policy count resets and transaction 26 can spend
@@ -724,7 +725,10 @@ root -> tx 1 -> ... -> tx 25 -> confirmed tip
 Each transaction spends the preceding wallet UTXO and routes its old DIESEL plus the new reward
 to the successor. Therefore a paced 1,000-transaction job can finish with **one DIESEL UTXO** after
 40 confirmation rounds; 2,000 takes 80 rounds and can still finish with one. Transactions must be
-composed, signed, and successfully broadcast in dependency order.
+composed, signed, and successfully broadcast in dependency order. Real use sits between the two
+extremes: if the user sends transaction 26 before confirmation, the wallet starts another safe
+lineage rather than blocking the real transaction; after confirmation it preferentially continues
+an already-open lineage and avoids creating a third.
 
 The number 25 is a mempool policy ceiling, not a promise that 25 transactions will confirm in the
 same block. A miner can include a whole chain, a prefix, or none of it. Dependency order guarantees
@@ -756,8 +760,9 @@ The wallet therefore applies these rules:
 1. Use a confirmed, sufficiently funded pure-DIESEL UTXO as a root when available; otherwise use
    clean BTC and make the returned wallet value the new root.
 2. Reuse only a pending tip that this wallet just built, verified, and successfully broadcast.
-3. Stop at 25 unconfirmed transactions and wait for the active tip to confirm. Resume the next
-   round from that same confirmed UTXO; never double-spend a root to manufacture parallel branches.
+3. At 25 unconfirmed transactions, never extend that tip. If the user continues, start from clean
+   BTC; if they wait, resume the next round from the same confirmed UTXO. Never double-spend a root
+   to manufacture parallel branches.
 4. Forget pending trust on restart/expiry and wait for confirmation/indexing. This can pause a
    batch, but cannot expose DIESEL to an ordinary spend.
 5. Do not automatically RBF a chain parent after children exist. Partial broadcast failure leaves
@@ -1109,7 +1114,7 @@ The wallet state machine should be explicit:
 | Off, no balance | No Alkanes output; ordinary operation |
 | Ask/Auto, no balance | Mint to a natural own output or explicit UTXO on an eligible transaction |
 | Ask/Auto, confirmed balance | Protect every UTXO; roll one only when it is already useful as BTC funding, otherwise create a shard or skip |
-| Mint transaction pending | Reuse only a wallet-authored verified tip, advance one child at a time, and wait for the same tip to confirm at depth 25 |
+| Mint transaction pending | Reuse only a wallet-authored verified tip; at depth 25 protect it and use clean BTC only if another real transaction proceeds |
 | Off, balance remains | Stop minting, but continue discovery, protection, Send, Consolidate, and recovery |
 | Indexer unavailable or behind | Display last-known balance as stale and block UTXO spending/mint decoration |
 
