@@ -13,6 +13,7 @@ import { generateRequestId } from '@/core/id';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
+import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
 import { BaseService } from '@/services/core/BaseService';
 import { eventEmitterService } from '@/services/eventEmitterService';
@@ -31,7 +32,6 @@ interface ConnectionServiceState {
   connectionCache: Map<string, ConnectionStatus>;
   lastSecurityCheck: Map<string, number>;
   pendingPermissionRequests: Set<string>;
-  pendingLookups: Map<string, Promise<boolean>>;
 }
 
 interface SerializedConnectionState {
@@ -43,11 +43,11 @@ interface SerializedConnectionState {
 }
 
 export class ConnectionService extends BaseService {
+  private readonly withConnectionWriteLock = createWriteLock();
   private state: ConnectionServiceState = {
     connectionCache: new Map(),
     lastSecurityCheck: new Map(),
     pendingPermissionRequests: new Set(),
-    pendingLookups: new Map(),
   };
 
   private static readonly STATE_VERSION = 1;
@@ -62,6 +62,10 @@ export class ConnectionService extends BaseService {
    * Check if an origin has permission to access wallet
    */
   async hasPermission(origin: string): Promise<boolean> {
+    return this.withConnectionWriteLock(() => this.hasPermissionInternal(origin));
+  }
+
+  private async hasPermissionInternal(origin: string): Promise<boolean> {
     // Check cache first (fast path)
     const cached = this.state.connectionCache.get(origin);
     const now = Date.now();
@@ -69,22 +73,9 @@ export class ConnectionService extends BaseService {
       return cached.isConnected;
     }
 
-    // Check if there's already a pending lookup for this origin
-    // This prevents redundant storage reads from concurrent callers
-    const pending = this.state.pendingLookups.get(origin);
-    if (pending) {
-      return pending;
-    }
-
-    // Start the lookup and track it
-    const lookupPromise = this.doPermissionLookup(origin);
-    this.state.pendingLookups.set(origin, lookupPromise);
-
-    try {
-      return await lookupPromise;
-    } finally {
-      this.state.pendingLookups.delete(origin);
-    }
+    // The connection queue serializes this read with grants and revocations, so an old
+    // storage result cannot repopulate the cache after a disconnect has completed.
+    return this.doPermissionLookup(origin);
   }
 
   /**
@@ -194,16 +185,19 @@ export class ConnectionService extends BaseService {
     walletId: string;
     pairedAddresses: boolean;
   }): Promise<void> {
+    return this.withConnectionWriteLock(() => this.grantConnectionInternal(grant));
+  }
+
+  private async grantConnectionInternal(grant: {
+    origin: string;
+    address: string;
+    walletId: string;
+    pairedAddresses: boolean;
+  }): Promise<void> {
     const { origin, address, walletId, pairedAddresses } = grant;
 
     await analytics.track('connection_established');
-    await getWalletService().addConnectedWebsite(origin);
-
-    if (pairedAddresses) {
-      await this.storePairedAddressPermission(origin, walletId, address);
-    } else {
-      await this.clearPairedAddressPermission(origin);
-    }
+    await getWalletService().addConnectedWebsite(origin, pairedAddresses ? { walletId, address } : undefined);
 
     this.state.connectionCache.set(origin, {
       origin,
@@ -228,20 +222,11 @@ export class ConnectionService extends BaseService {
     walletId: string,
     address: string
   ): Promise<void> {
-    const walletService = getWalletService();
-    const settings = await walletService.getSettings();
-    const capabilities = { ...settings.providerCapabilities };
-    capabilities[origin] = { pairedAddresses: true, walletId, address };
-    await walletService.updateSettings({ providerCapabilities: capabilities });
+    await getWalletService().setPairedAddressPermission(origin, { walletId, address });
   }
 
   private async clearPairedAddressPermission(origin: string): Promise<void> {
-    const walletService = getWalletService();
-    const settings = await walletService.getSettings();
-    if (!settings.providerCapabilities?.[origin]) return;
-    const capabilities = { ...settings.providerCapabilities };
-    delete capabilities[origin];
-    await walletService.updateSettings({ providerCapabilities: capabilities });
+    await getWalletService().setPairedAddressPermission(origin, null);
   }
 
   async requestPairedAddressPermission(
@@ -345,6 +330,10 @@ export class ConnectionService extends BaseService {
    * Disconnect a dApp from the wallet
    */
   async disconnect(origin: string): Promise<void> {
+    return this.withConnectionWriteLock(() => this.disconnectInternal(origin));
+  }
+
+  private async disconnectInternal(origin: string): Promise<void> {
     console.debug('[ConnectionService] Disconnecting dApp:', origin);
 
     // Remove from connected websites and all associated capabilities.
@@ -405,6 +394,10 @@ export class ConnectionService extends BaseService {
    * Disconnect all websites
    */
   async disconnectAll(): Promise<void> {
+    return this.withConnectionWriteLock(() => this.disconnectAllInternal());
+  }
+
+  private async disconnectAllInternal(): Promise<void> {
     const connectedSites = [...(await getWalletService().getSettings()).connectedWebsites];
 
     // Update settings
@@ -477,7 +470,6 @@ export class ConnectionService extends BaseService {
     this.state.connectionCache.clear();
     this.state.lastSecurityCheck.clear();
     this.state.pendingPermissionRequests.clear();
-    this.state.pendingLookups.clear();
     console.log('[ConnectionService] Destroyed');
   }
 
@@ -547,5 +539,10 @@ import { defineProxyService } from '@/platform/proxy';
 
 export const [registerConnectionService, getConnectionService] = defineProxyService(
   'ConnectionService',
-  () => new ConnectionService()
+  () => new ConnectionService(),
+  { methods: {
+    hasPermission: 'read', hasPairedAddressPermission: 'read', getAccounts: 'read',
+    isConnected: 'read', getConnectedWebsites: 'read', getStats: 'read',
+    disconnect: 'command', disconnectAll: 'command',
+  } },
 );

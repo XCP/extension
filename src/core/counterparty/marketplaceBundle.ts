@@ -1,6 +1,7 @@
 /** Atomic wallet proof for an exact-offer acceptance parent and its seller-funded CPFP child. */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AcceptExactOfferIntentClaim,
   type MarketplaceApprovalReview,
@@ -187,7 +188,7 @@ const sameAsset = (left: MarketplaceAssetClaim, right: MarketplaceAssetClaim): b
 /** Prove both transactions before the approval page invokes either signer. */
 export function analyzeAcceptanceCpfpBundle(
   input: AcceptanceCpfpBundleAnalysisInput,
-): MarketplaceApprovalReview {
+): MarketplaceBundleReview {
   const { parentIntent, parentReview, childIntent } = input;
   const blockers: string[] = [];
   const retry: string[] = [];
@@ -313,21 +314,39 @@ export function analyzeAcceptanceCpfpBundle(
     title:
       `Accept ${(parentIntent.priceSats / 100_000_000).toFixed(8)} BTC for ${claim.asset}`
       + ' with fee bump',
+    ...(status === 'proved' ? {
+      bundleSummary: {
+        outcome: {
+          kind: 'amount' as const, label: 'Final proceeds',
+          value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`, emphasis: 'primary' as const,
+        },
+        action: `Accept offer for ${claim.asset}`,
+        amounts: [
+          { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
+          { kind: 'amount' as const, label: 'UTXO returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
+          // The exact-offer proof has only miner fees. Do not invent a platform fee category.
+          { kind: 'amount' as const, label: 'Network fees', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
+        ],
+        timing: 'Both network fees are already deducted from your final proceeds.',
+      },
+    } : {}),
     facts: [
-      { label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
       {
-        label: 'Parent seller proceeds',
+        kind: 'amount', label: 'Your proceeds after fee bump',
+        value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`,
+        emphasis: 'primary',
+      },
+      { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
+      {
+        kind: 'amount' as const, label: 'Parent seller proceeds',
         value: `${childIntent.parentSellerProceedsSats.toLocaleString()} sats`,
       },
-      { label: 'Parent fee', value: `${childIntent.parentNetworkFeeSats.toLocaleString()} sats` },
-      { label: 'Added child fee', value: `${childIntent.childNetworkFeeSats.toLocaleString()} sats` },
-      { label: 'Package fee', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
-      { label: 'Quoted package rate', value: `${childIntent.packageFeeRate.toFixed(2)} sat/vB` },
-      {
-        label: 'Final seller proceeds',
-        value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`,
-      },
-      { label: 'Delivery', value: `Detached to ${parentIntent.delivery.address}` },
+      { kind: 'amount' as const, label: 'Parent fee', value: `${childIntent.parentNetworkFeeSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Added child fee', value: `${childIntent.childNetworkFeeSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Package fee', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Quoted package rate', value: `${childIntent.packageFeeRate.toFixed(2)} sat/vB` },
+      { kind: 'address' as const, label: 'Delivery', value: parentIntent.delivery.address, description: 'Asset detaches to this address' },
     ],
     notices: allProblems.length > 0
       ? []

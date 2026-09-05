@@ -4,8 +4,9 @@
  * Tests the dApp connection and permission management functionality
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
+import type { AppSettings } from '@/core/settings';
 
 // Mock webext-bridge to prevent browser API issues  
 vi.mock('webext-bridge/background', () => ({
@@ -42,18 +43,38 @@ vi.mock('@/services/walletService', () => ({
     // getSettings/updateSettings drivers and assertions keep working.
     getSettings: () => walletManager.getSettings(),
     updateSettings: (updates: any) => walletManager.updateSettings(updates),
-    addConnectedWebsite: async (origin: string) => {
+    addConnectedWebsite: async (origin: string, identity?: { walletId: string; address: string }) => {
       const s = walletManager.getSettings();
-      if (!s.connectedWebsites.includes(origin)) {
-        await walletManager.updateSettings({ connectedWebsites: [...s.connectedWebsites, origin] });
-      }
+      const providerCapabilities = { ...s.providerCapabilities };
+      if (identity) providerCapabilities[origin] = { pairedAddresses: true, ...identity };
+      else delete providerCapabilities[origin];
+      await walletManager.updateSettings({
+        connectedWebsites: [...new Set([...s.connectedWebsites, origin])],
+        providerCapabilities,
+      });
     },
     removeConnectedWebsite: async (origin: string) => {
       const s = walletManager.getSettings();
-      await walletManager.updateSettings({ connectedWebsites: s.connectedWebsites.filter((x: string) => x !== origin) });
+      const providerCapabilities = { ...s.providerCapabilities };
+      delete providerCapabilities[origin];
+      await walletManager.updateSettings({
+        connectedWebsites: s.connectedWebsites.filter((x: string) => x !== origin),
+        providerCapabilities,
+      });
     },
     clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [] });
+      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
+    },
+    setPairedAddressPermission: async (origin: string, identity: { walletId: string; address: string } | null) => {
+      const s = walletManager.getSettings();
+      const providerCapabilities = { ...s.providerCapabilities };
+      if (identity) {
+        if (!s.connectedWebsites.includes(origin)) throw new Error('Site disconnected before paired address access was granted');
+        providerCapabilities[origin] = { pairedAddresses: true, ...identity };
+      } else {
+        delete providerCapabilities[origin];
+      }
+      await walletManager.updateSettings({ providerCapabilities });
     },
   })),
 }));
@@ -120,8 +141,9 @@ import { eventEmitterService } from '@/services/eventEmitterService';
 import { ConnectionService } from '../connectionService';
 
 // Type the mocked functions
-const mockGetSettings = walletManager.getSettings as ReturnType<typeof vi.fn>;
-const mockUpdateSettings = walletManager.updateSettings as ReturnType<typeof vi.fn>;
+// A delayed value models the asynchronous wallet-service read used by ConnectionService.
+const mockGetSettings = walletManager.getSettings as Mock<() => Partial<AppSettings> | Promise<Partial<AppSettings>>>;
+const mockUpdateSettings = vi.mocked(walletManager.updateSettings);
 const mockEventEmitterService = eventEmitterService as any;
 
 // Get access to rate limiter mock
@@ -262,6 +284,30 @@ describe('ConnectionService', () => {
       expect(hasPermission).toBe(true);
     });
 
+    it('does not let a pending permission lookup recache an origin after revocation', async () => {
+      const origin = 'https://revoked.example';
+      let settings = { connectedWebsites: [origin] };
+      let releaseRead: (value: typeof settings) => void = () => {};
+      let enterRead = () => {};
+      const entered = new Promise<void>(resolve => { enterRead = resolve; });
+      const pendingRead = new Promise<typeof settings>(resolve => { releaseRead = resolve; });
+      mockGetSettings.mockImplementationOnce(() => { enterRead(); return pendingRead; });
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async updates => { settings = { ...settings, ...updates }; });
+
+      const lookup = connectionService.hasPermission(origin);
+      await entered;
+      const disconnect = connectionService.disconnect(origin);
+      // Let an unprotected disconnect complete while the older storage read is paused.
+      // The serialized implementation keeps that disconnect queued behind the lookup.
+      for (let turn = 0; turn < 6; turn++) await Promise.resolve();
+      releaseRead({ connectedWebsites: [origin] });
+      await Promise.all([lookup, disconnect]);
+
+      expect(settings.connectedWebsites).toEqual([]);
+      expect(await connectionService.hasPermission(origin)).toBe(false);
+    });
+
   });
 
   describe('connect', () => {
@@ -279,6 +325,7 @@ describe('ConnectionService', () => {
       // Should save to storage
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://newsite.com'],
+        providerCapabilities: {},
       });
     });
 
@@ -305,6 +352,7 @@ describe('ConnectionService', () => {
         })
       );
       expect(mockUpdateSettings).toHaveBeenCalledWith({
+        connectedWebsites: ['https://paired.com'],
         providerCapabilities: {
           'https://paired.com': {
             pairedAddresses: true,
@@ -333,7 +381,10 @@ describe('ConnectionService', () => {
         'wallet-123'
       );
 
-      expect(mockUpdateSettings).toHaveBeenCalledWith({ providerCapabilities: {} });
+      expect(mockUpdateSettings).toHaveBeenCalledWith({
+        connectedWebsites: ['https://reconnect.com'],
+        providerCapabilities: {},
+      });
     });
 
     it('should return existing connection if already connected', async () => {
@@ -462,6 +513,7 @@ describe('ConnectionService', () => {
       // Should update storage with remaining sites
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: ['https://other.com'],
+        providerCapabilities: {},
       });
     });
 
@@ -471,6 +523,7 @@ describe('ConnectionService', () => {
       // Should update storage (removing non-existent site doesn't change empty array)
       expect(mockUpdateSettings).toHaveBeenCalledWith({
         connectedWebsites: [],
+        providerCapabilities: {},
       });
     });
   });

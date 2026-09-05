@@ -82,6 +82,9 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
   const lpAssetId = hasPool ? integer(fields[18]!, 'LP asset') : 0n;
   const mimeTypeIndex = hasPool ? 19 : 17;
   const descriptionIndex = hasPool ? 20 : 18;
+  const mimeType = fields.length > mimeTypeIndex ? text(fields[mimeTypeIndex]!, 'MIME type') : '';
+  const description = fields.length > descriptionIndex
+    ? content(fields[descriptionIndex]!, mimeType, 'description') : '';
 
   return {
     asset: assetIdToName(integer(fields[0]!, 'asset')),
@@ -107,11 +110,7 @@ export function unpackFairminter(payload: Uint8Array): FairminterData {
     // value would make a fairminter that named that type indistinguishable from one that named
     // none, and any comparison against the request would then reject honest transactions. Callers
     // that need a default for display should apply it themselves.
-    mimeType: text(fields[mimeTypeIndex]!, 'MIME type'),
-    description: content(
-      fields[descriptionIndex]!,
-      text(fields[mimeTypeIndex]!, 'MIME type'),
-      'description'
-    ),
+    mimeType,
+    description,
   };
 }

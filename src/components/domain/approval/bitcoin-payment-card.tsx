@@ -1,113 +1,144 @@
-import type {
-  BitcoinPaymentIntentV1,
-  BitcoinPaymentProof,
-} from '@/core/bitcoin/providerPayment';
-import { formatAddress, formatAmount } from '@/core/format';
-import { fromSatoshis } from '@/core/numeric';
+import type { BitcoinPaymentIntentV1, BitcoinPaymentProof } from '@/core/bitcoin/providerPayment';
+import type { DecodedOutput } from '@/core/bitcoin/psbt';
+import { formatAmount } from '@/core/format';
+import { fromSatoshis, subtract, toBigNumber, toNumber } from '@/core/numeric';
+import { ApprovalIdentifier } from './approval-identifier';
+import type { MoneyMovement } from './money-movement';
 
 const btc = (sats: number) => formatAmount({
-  value: fromSatoshis(sats, true),
-  minimumFractionDigits: 8,
-  maximumFractionDigits: 8,
+  value: fromSatoshis(sats, true), minimumFractionDigits: 8, maximumFractionDigits: 8,
 });
 
-/**
- * Semantic context for the dedicated plain-Bitcoin provider capability.
- *
- * In the failure state this card is the screen's one voice: the approval page suppresses its
- * generic warning stack for the payment gate, so the concrete reasons must be carried here —
- * and the mismatch must be inspectable, which means showing the site's claim beside what the
- * transaction actually pays.
- */
-export function BitcoinPaymentCard({
-  intent,
-  proof,
-  failure,
-}: {
+function AmountRow({ label, sats }: { label: string; sats: number }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <dt>{label}</dt>
+      <dd className="font-medium tabular-nums">{btc(sats)} BTC</dd>
+    </div>
+  );
+}
+
+/** Payment facts are neutral; failed comparisons carry the exact claim and actual outputs. */
+export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }: {
   intent: BitcoinPaymentIntentV1;
   proof: BitcoinPaymentProof | undefined;
-  /** The gating reasons from the analyzer, when the payment could not be proved. */
   failure?: string[];
+  movement?: MoneyMovement;
+  outputs?: DecodedOutput[];
 }) {
+  const reasons = [...new Set([...(failure ?? []), ...(proof?.errors ?? [])])];
+  const proved = proof?.proved === true && reasons.length === 0;
+  const declared = intent.outputs[0];
+  const actual = proof?.outputs[0];
+  const unresolved = outputs?.filter(output => !output.address) ?? [];
+  // Only a single, identical destination permits a shared address. Multiple or changed
+  // destinations keep both complete lists: no positional pairing of unrelated outputs.
+  const sameDestination = !proved && intent.outputs.length === 1 && proof?.outputs.length === 1
+    && declared?.address === actual?.address;
+  const difference = sameDestination && declared && actual ? toNumber(subtract(actual.amountSats, declared.amountSats)) : undefined;
+  const changedDestination = intent.outputs.length === 1 && proof?.outputs.length === 1
+    && declared?.address !== actual?.address;
+  const lead = difference !== undefined && difference !== 0
+    ? `Transaction pays ${toNumber(toBigNumber(difference).abs()).toLocaleString()} ${toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats'} ${difference > 0 ? 'more' : 'less'} than requested.`
+    : changedDestination ? 'The transaction pays a different destination.'
+    : !proof ? reasons[0] ?? 'Payment outputs could not be reviewed.'
+    : reasons[0] ?? 'The transaction does not match the requested payments.';
+  const context = (
+    <>
+      {movement && (
+        <dl className={`mt-3 space-y-2 border-t pt-3 text-sm leading-5 ${proved ? 'border-gray-100' : 'border-danger-200'}`}>
+          {movement.incomplete
+            ? <div className="flex flex-wrap justify-between gap-2"><dt>Network fee</dt><dd>Unavailable</dd></div>
+            : <AmountRow label="Network fee" sats={movement.fee} />}
+          {movement.incomplete
+            ? <div className="flex flex-wrap justify-between gap-2"><dt>Wallet total</dt><dd>Unavailable</dd></div>
+            : <AmountRow label={movement.net <= 0 ? 'Total leaving wallet' : 'Total entering wallet'} sats={toNumber(toBigNumber(movement.net).abs())} />}
+        </dl>
+      )}
+      {(intent.description || intent.reference) && (
+        <div className={`mt-3 space-y-1 border-t pt-3 text-xs leading-normal [overflow-wrap:anywhere] ${proved ? 'border-gray-100 text-gray-600' : 'border-danger-200 text-danger-800'}`}>
+          {intent.description && <p>Site description: {intent.description}</p>}
+          {intent.reference && <p>Reference: {intent.reference}</p>}
+        </div>
+      )}
+    </>
+  );
   return (
-    <div className={`rounded-lg border p-4 ${
-      proof?.proved ? 'border-blue-200 bg-blue-50' : 'border-danger-200 bg-danger-50'
-    }`}>
-      <p className={`text-sm font-semibold ${proof?.proved ? 'text-blue-900' : 'text-danger-900'}`}>
-        {proof?.proved ? 'Bitcoin payment outputs verified' : 'Bitcoin payment did not verify'}
-      </p>
-      {intent.description && (
-        <p className={`mt-1 text-xs ${proof?.proved ? 'text-blue-800' : 'text-danger-800'}`}>
-          Site description: {intent.description}
-        </p>
-      )}
-      {intent.reference && (
-        <p className={`mt-1 text-xs ${proof?.proved ? 'text-blue-700' : 'text-danger-700'}`}>
-          Reference: {intent.reference}
-        </p>
-      )}
-      {proof?.proved && (
-        <div className="mt-3 space-y-2 border-t border-blue-200 pt-3">
-          {proof.outputs.map((output) => (
-            <div key={output.index} className="text-xs text-blue-950">
-              <div className="flex justify-between gap-3">
-                <span>Payment output #{output.index}</span>
-                <span className="font-semibold">{btc(output.amountSats)} BTC</span>
-              </div>
-              <p className="mt-1 break-all font-mono text-blue-800">
-                {formatAddress(output.address, false)}
-              </p>
+    <div className={`rounded-lg p-4 ${proved
+      ? 'bg-white shadow-sm text-gray-900'
+      : 'border border-danger-200 bg-danger-50 text-danger-900'}`}>
+      <div data-testid={proved ? undefined : 'approval-notice'}>
+        <h2 className="text-lg font-semibold leading-6">
+          {proved ? 'Send Bitcoin' : 'Bitcoin payment did not verify'}
+        </h2>
+        {!proved && <p className="mt-2 text-sm leading-5">{lead}</p>}
+      </div>
+      {proved ? (
+        <>
+        <div className="mt-3 space-y-3">
+          {proof?.outputs.map((output) => (
+            <div key={output.index}>
+              <p className="text-xs leading-normal text-gray-600">Recipient receives</p>
+              <p className="text-2xl leading-tight font-semibold tabular-nums">{btc(output.amountSats)} BTC</p>
+              <p className="mt-2 text-gray-700"><ApprovalIdentifier value={output.address} /></p>
             </div>
           ))}
         </div>
-      )}
-      {proof?.proved ? (
-        <p className="mt-3 text-xs text-blue-700">
-          The wallet matched these terms to the PSBT. The site name and description are context,
-          not authority to sign.
-        </p>
+        {context}
+        </>
       ) : (
-        <>
-          {/* The claim beside the bytes, so the mismatch is inspectable rather than asserted. */}
-          <div className="mt-3 space-y-2 border-t border-danger-200 pt-3 text-xs text-danger-950">
-            <p className="font-semibold">Site declared</p>
-            {intent.outputs.map((output, index) => (
-              <div key={`declared-${index}`}>
-                <div className="flex justify-between gap-3">
-                  <span>Payment</span>
-                  <span className="font-semibold">{btc(output.amountSats)} BTC</span>
+        <Collapsible title="Compare payment details" className="mt-3">
+        <div className="mt-3 space-y-3">
+          {sameDestination && declared && actual ? (
+            <>
+              <p><ApprovalIdentifier value={actual.address} /></p>
+              <dl className="space-y-2 text-sm leading-5">
+                <AmountRow label="Site declared" sats={declared.amountSats} />
+                <AmountRow label="Transaction pays" sats={actual.amountSats} />
+                <div className="flex flex-wrap justify-between gap-2 border-t border-danger-200 pt-2">
+                  <dt>Difference</dt>
+                  <dd className="font-semibold tabular-nums">
+                    {actual.amountSats > declared.amountSats ? '+' : ''}{difference?.toLocaleString()} {toNumber(toBigNumber(difference ?? 0).abs()) === 1 ? 'sat' : 'sats'}
+                  </dd>
                 </div>
-                <p className="mt-0.5 break-all font-mono text-danger-800">
-                  {formatAddress(output.address, false)}
-                </p>
-              </div>
-            ))}
-            <p className="pt-1 font-semibold">Transaction pays</p>
-            {proof && proof.outputs.length > 0 ? (
-              proof.outputs.map((output) => (
-                <div key={`actual-${output.index}`}>
-                  <div className="flex justify-between gap-3">
-                    <span>Output #{output.index}</span>
-                    <span className="font-semibold">{btc(output.amountSats)} BTC</span>
-                  </div>
-                  <p className="mt-0.5 break-all font-mono text-danger-800">
-                    {formatAddress(output.address, false)}
-                  </p>
+              </dl>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold">Site declared</p>
+              {intent.outputs.map((output, index) => (
+                <div key={`declared-${index}`} className="space-y-1">
+                  <p className="text-sm font-medium tabular-nums">{btc(output.amountSats)} BTC</p>
+                  <p><ApprovalIdentifier value={output.address} /></p>
                 </div>
-              ))
-            ) : (
-              <p className="text-danger-800">No external payment output</p>
-            )}
-          </div>
-          {failure && failure.length > 0 && (
-            <ul className="mt-3 space-y-1 border-t border-danger-200 pt-3 text-xs leading-5 text-danger-800">
-              {failure.map((reason) => (
-                <li key={reason}>• {reason}</li>
               ))}
+              <p className="border-t border-danger-200 pt-3 text-sm font-semibold">Transaction pays</p>
+              {proof && proof.outputs.length > 0 ? proof.outputs.map((output) => (
+                <div key={output.index} className="space-y-1">
+                  <p className="text-sm font-medium tabular-nums">{btc(output.amountSats)} BTC</p>
+                  <p><ApprovalIdentifier value={output.address} /></p>
+                </div>
+              )) : <p className="text-sm">{proof ? 'No identified external payment address' : 'Payment outputs could not be reviewed'}</p>}
+            </>
+          )}
+          {unresolved.map(output => (
+            <div key={output.index} className="space-y-1 border-t border-danger-200 pt-3">
+              <p className="text-sm font-medium">Output #{output.index}: {btc(output.value)} BTC</p>
+              <p className="text-sm">{output.type === 'op_return' ? 'Data output' : 'Destination could not be identified'}</p>
+              <p><ApprovalIdentifier value={output.script} /></p>
+            </div>
+          ))}
+          {reasons.length > 0 && (
+            <ul className="space-y-2 border-t border-danger-200 pt-3 text-sm leading-5">
+              {reasons.map(reason => <li key={reason}>{reason}</li>)}
             </ul>
           )}
-        </>
+          {context}
+        </div>
+        </Collapsible>
       )}
     </div>
   );
 }
+
+import { Collapsible } from '@/components/ui/collapsible';

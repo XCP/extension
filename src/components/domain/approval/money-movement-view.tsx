@@ -53,21 +53,21 @@ export function MoneyMovementView({
             // destinations below still show what can be read from the transaction.
             <>
               <p className="text-xs text-gray-500 mb-1">Net effect</p>
-              <p className="text-2xl font-bold text-warning-600">Couldn&apos;t be determined</p>
+              <p className="text-2xl leading-tight font-semibold tabular-nums text-warning-600">Couldn&apos;t be determined</p>
             </>
           ) : (
             <>
               <p className="text-xs text-gray-500 mb-1">{sending ? 'You send' : 'You receive'}</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl leading-tight font-semibold tabular-nums text-gray-900">
                 {btc(Math.abs(net))} <span className="text-base font-medium text-gray-500">BTC</span>
               </p>
             </>
           )}
         </div>
       )}
-      <div className="pt-3 border-t border-gray-100 space-y-1.5 text-xs">
+      <div className="pt-3 border-t border-gray-100 space-y-2 text-sm leading-5">
         {external.map((dest, i) => (
-          <div key={i} className="flex items-center justify-between gap-2">
+          <div key={i} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className="text-gray-500 truncate" title={dest.address ?? undefined}>
               {dest.address
                 ? formatAddress(dest.address, true)
@@ -75,29 +75,29 @@ export function MoneyMovementView({
                   ? 'Protocol data (recoverable)'
                   : 'Unknown address'}
             </span>
-            <span className="font-medium text-gray-900 flex-shrink-0">{btc(dest.value)} BTC</span>
+            <span className="font-medium text-gray-900 tabular-nums">{btc(dest.value)} BTC</span>
           </div>
         ))}
         {atRisk > 0 && (
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <span className={deferCautions ? 'text-gray-500' : 'text-danger-600'}>Not guaranteed back</span>
-            <span className={`${deferCautions ? 'text-gray-900' : 'text-danger-600'} font-medium flex-shrink-0`}>
+            <span className={`${deferCautions ? 'text-gray-900' : 'text-danger-600'} font-medium tabular-nums`}>
               {btc(atRisk)} BTC
             </span>
           </div>
         )}
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-gray-500">Network fee</span>
-          <span className={`font-medium flex-shrink-0 ${hasHighFee && !deferCautions ? 'text-warning-600' : 'text-gray-900'}`}>
-            {unfunded ? 'Set by the other party' : `${btc(fee)} BTC`}
+          <span className={`font-medium tabular-nums ${hasHighFee && !deferCautions ? 'text-warning-600' : 'text-gray-900'}`}>
+            {unfunded ? 'Set by the other party' : incomplete ? 'Unavailable' : `${btc(fee)} BTC`}
           </span>
         </div>
         {backToYou > 0 && (
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             {/* This can include more than a conventional change output, such as a paired-address
                 asset destination, so name the ownership fact without misclassifying the outputs. */}
-            <span className="text-gray-400">Returned to wallet</span>
-            <span className="text-gray-400 font-medium flex-shrink-0">{btc(backToYou)} BTC</span>
+            <span className="text-gray-500">Returned to wallet</span>
+            <span className="text-gray-500 font-medium tabular-nums">{btc(backToYou)} BTC</span>
           </div>
         )}
         {hasHighFee && !deferCautions && (
@@ -117,7 +117,7 @@ export function MoneyMovementView({
             </p>
           )}
           {flexibility === 'inputs-only' && atRisk === 0 && (
-            <p className="text-gray-400">
+            <p className="text-gray-500">
               Other inputs may be added; every current output is fixed by your signature.
             </p>
           )}

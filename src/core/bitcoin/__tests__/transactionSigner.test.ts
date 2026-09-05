@@ -112,6 +112,22 @@ describe('Transaction Signer Utilities', () => {
   });
 
   describe('signTransaction', () => {
+    it('rechecks authorization after asynchronous prevout resolution and before signing', async () => {
+      let revoked = false;
+      mockFetchPreviousRawTransaction.mockImplementation(async () => {
+        revoked = true;
+        return mockPreviousTransaction;
+      });
+      const assertAuthorized = vi.fn(() => {
+        if (revoked) throw new Error('Signing authorization was revoked');
+      });
+      await expect(signTransaction(
+        mockRawTransaction, mockWallet, mockTargetAddress, mockPrivateKey, true,
+        undefined, undefined, mockGetTrustedBroadcastPrevout, assertAuthorized,
+      )).rejects.toThrow(/authorization was revoked/);
+      expect(assertAuthorized).toHaveBeenCalledOnce();
+    });
+
     it('should throw error when wallet is not provided', async () => {
       await expect(signTransaction(mockRawTransaction, null as any, mockTargetAddress, mockPrivateKey))
         .rejects.toThrow('Wallet not provided');

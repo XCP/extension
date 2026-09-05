@@ -1,18 +1,16 @@
 // Import onMessage directly from webext-bridge/background to prevent runtime.lastError
 import { onMessage as webextBridgeOnMessage } from 'webext-bridge/background';
-import { classifyProviderError, createJsonRpcError, JSON_RPC_ERROR_CODES } from '@/core/rpcErrors';
-import { checkSessionRecovery, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
+import { checkSessionRecovery, expireSessionIfNeeded, rearmSessionExpiry, SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { markSessionRecovery } from '@/platform/auth/sessionReady';
 import { broadcastToTabs } from '@/platform/browser';
-import { serviceKeepAlive } from '@/platform/storage/serviceStateStorage';
 import { registerApprovalService } from '@/services/approvalService';
 import { getConnectionService, registerConnectionService } from '@/services/connectionService';
-import { MessageBus, } from '@/services/core/MessageBus';
 import { ServiceRegistry } from '@/services/core/ServiceRegistry';
 import { getReadinessState, markServicesReady, whenServicesReady } from '@/services/core/serviceReadiness';
 import { eventEmitterService } from '@/services/eventEmitterService';
 import { getPopupMonitorService } from '@/services/popupMonitorService';
 import { getProviderService, registerProviderService } from '@/services/providerService';
+import { registerProviderSigningService } from '@/services/providerSigningService';
 import { getUpdateService } from '@/services/updateService';
 import { getWalletService, registerWalletService } from '@/services/walletService';
 
@@ -70,28 +68,6 @@ export default defineBackground(() => {
     // 5. Handle ping requests immediately (allowed from content scripts and extension pages)
     if (message?.action === 'ping' || message?.type === 'startup-health-check') {
       sendResponse({ status: 'ready', timestamp: Date.now(), context: 'background' });
-      return true;
-    }
-
-    // 6. Handle compose events from popup/sidepanel (cross-context event emission)
-    //    SECURITY: Only allow from extension pages, not content scripts
-    if (message?.type === 'COMPOSE_EVENT') {
-      // Verify sender is an extension page (popup, sidepanel, tab), not a content script
-      const isExtensionPage = sender.url?.startsWith(`chrome-extension://${chrome.runtime.id}/`) ||
-                              sender.url?.startsWith(`moz-extension://${chrome.runtime.id}/`);
-      if (!isExtensionPage) {
-        console.warn('[Background] Rejected COMPOSE_EVENT from non-extension page:', sender.url);
-        sendResponse({ success: false, error: { message: 'Unauthorized sender', code: 4100 } });
-        return true;
-      }
-
-      const { event, data } = message;
-      if (event) {
-        eventEmitterService.emit(event, data);
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: { message: 'Event name required', code: -32602 } });
-      }
       return true;
     }
 
@@ -166,6 +142,7 @@ export default defineBackground(() => {
       registerProviderService();
       registerConnectionService();
       registerApprovalService();
+      registerProviderSigningService();
       console.log('[Background] Proxy services registered');
 
       // 2. Initialize event emitter via registry (for lifecycle management)
@@ -285,144 +262,18 @@ export default defineBackground(() => {
 
   console.log('[Background] webext-bridge handlers registered');
   
-  // Set up MessageBus handlers for provider requests
-  // ISSUE 4 FIX: Add runtime validation before type assertion
-  MessageBus.onMessage('provider-request', async (data) => {
-    // Validate data structure before using
-    if (!data || typeof data !== 'object') {
-      console.error('[Background] Invalid provider-request data: expected object');
-      return {
-        success: false,
-        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
-      };
-    }
-
-    const message = data as Record<string, unknown>;
-
-    // Validate origin is a string
-    if (typeof message.origin !== 'string') {
-      console.error('[Background] Invalid provider-request data: origin must be string');
-      return {
-        success: false,
-        error: createJsonRpcError(JSON_RPC_ERROR_CODES.INVALID_REQUEST, 'Invalid message format')
-      };
-    }
-
-    console.debug('Provider request received:', {
-      origin: message.origin,
-      method: (message.data as Record<string, unknown>)?.method,
-      hasParams: !!(message.data as Record<string, unknown>)?.params,
-      timestamp: message.timestamp
-    });
-
-    try {
-      // The other boundary. dApp requests arrive here rather than over a service port, so the
-      // barrier proxy.ts applies to popup calls has to be applied again — a waking worker would
-      // otherwise tell a connected site it is disconnected.
-      await whenServicesReady();
-
-      const providerService = getProviderService();
-
-      // Extract request details with validation
-      const origin = message.origin as string;
-      const requestData = (message.data || {}) as Record<string, unknown>;
-      const method = requestData.method;
-      const params = Array.isArray(requestData.params) ? requestData.params : [];
-      const metadata = (typeof requestData.metadata === 'object' && requestData.metadata !== null)
-        ? requestData.metadata as Record<string, unknown>
-        : {};
-
-      if (!method || typeof method !== 'string') {
-        return {
-          success: false,
-          error: createJsonRpcError(
-            JSON_RPC_ERROR_CODES.INVALID_REQUEST,
-            'Method is required and must be a string'
-          )
-        };
-      }
-
-      // Handle the request through provider service
-      const result = await providerService.handleRequest(
-        origin,
-        method,
-        params,
-        metadata
-      );
-
-      return {
-        success: true,
-        result,
-        method // Include method for response handling
-      };
-    } catch (error: any) {
-      console.error('[Background] Provider request failed:', error);
-      const { code, message } = classifyProviderError(error);
-      return { success: false, error: createJsonRpcError(code, message) };
-    }
-  });
-
-  
-  // Handle provider event emission (for accountsChanged, disconnect, etc.)
-  // ISSUE 4 FIX: Add runtime validation before type assertion
-  MessageBus.onMessage('provider-event', async (data) => {
-    // Validate data structure before using
-    if (!data || typeof data !== 'object') {
-      console.error('[Background] Invalid provider-event data: expected object');
-      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
-    }
-
-    const message = data as Record<string, unknown>;
-
-    // Validate required fields
-    if (typeof message.event !== 'string') {
-      console.error('[Background] Invalid provider-event data: event must be string');
-      return { success: false, error: { message: 'Invalid message format', code: -32600 } };
-    }
-
-    const origin = typeof message.origin === 'string' ? message.origin : undefined;
-    const event = message.event;
-    const eventData = message.data;
-
-    try {
-      if (origin) {
-        await emitProviderEventToOrigin(origin, event, eventData);
-      } else {
-        await broadcastProviderEvent(event, eventData);
-      }
-      return { success: true };
-    } catch (error: any) {
-      console.error('[Background] Failed to emit provider event:', error);
-      return { success: false, error: { message: 'Failed to emit event', code: -32603 } };
-    }
-  });
-
-  // Set up Chrome alarms for session management and keep-alive
-  const KEEP_ALIVE_ALARM_NAME = 'keep-alive';
+  // Session expiry is authoritative in persisted metadata; idle workers may suspend.
   const SESSION_EXPIRY_ALARM_NAME = 'session-expiry';
-  
-  // Create keep-alive alarm to prevent service worker termination
-  // This replaces the memory-leaking setTimeout approach
-  chrome.alarms.create(KEEP_ALIVE_ALARM_NAME, {
-    periodInMinutes: 0.4 // 24 seconds (less than Chrome's 30s timeout)
-  });
-  
+  chrome.alarms.clear('keep-alive').catch(error => console.warn('[Background] Could not clear legacy alarm:', error));
+
   // Consolidated alarm handler to avoid multiple listeners
   if (chrome?.alarms?.onAlarm) {
-    chrome.alarms.onAlarm.addListener(async (alarm) => {
-      switch (alarm.name) {
-        case SESSION_EXPIRY_ALARM_NAME: {
-          console.log('[Background] Session expired via alarm');
-          const walletService = getWalletService();
-          await walletService.lockKeychain();
-          break;
-        }
-          
-        case KEEP_ALIVE_ALARM_NAME:
-          // Perform minimal activity to keep service worker alive
-          await serviceKeepAlive('background');
-          break;
-      }
+    chrome.alarms.onAlarm.addListener((alarm) => {
+      if (alarm.name !== SESSION_EXPIRY_ALARM_NAME) return;
+      // A delayed alarm for an earlier deadline must not lock a renewed session.
+      whenServicesReady().then(() => expireSessionIfNeeded()).catch(error => {
+        console.error('[Background] Session expiry check failed:', error);
+      });
     });
   }
 
@@ -465,34 +316,10 @@ export default defineBackground(() => {
     await broadcastToTabs(message, filter);
   }
 
-  // Register the provider event emitter with the event emitter service
-  // This makes it available to other services without using global variables
-  // ISSUE 2 FIX: Use async handler and await the calls to prevent unhandled rejections
-  // ISSUE 4 FIX: Validate eventArgs structure before using
-  eventEmitterService.on('emit-provider-event', async (...args: unknown[]) => {
-    try {
-      const [eventArgs] = args;
-
-      // Runtime validation of event args structure
-      if (!eventArgs || typeof eventArgs !== 'object') {
-        console.error('[Background] Invalid emit-provider-event args: expected object');
-        return;
-      }
-
-      const typedArgs = eventArgs as Record<string, unknown>;
-      if (typeof typedArgs.event !== 'string') {
-        console.error('[Background] Invalid emit-provider-event args: event must be string');
-        return;
-      }
-
-      if (typedArgs.origin !== undefined && typeof typedArgs.origin === 'string') {
-        await emitProviderEventToOrigin(typedArgs.origin, typedArgs.event, typedArgs.data);
-      } else {
-        await broadcastProviderEvent(typedArgs.event, typedArgs.data);
-      }
-    } catch (error) {
-      console.error('[Background] Failed to emit provider event:', error);
-    }
+  // Internal events have a typed contract; the emitter observes asynchronous delivery failures.
+  eventEmitterService.on('emit-provider-event', async ({ origin, event, data }) => {
+    if (origin !== undefined) await emitProviderEventToOrigin(origin, event, data);
+    else await broadcastProviderEvent(event, data);
   });
   
 

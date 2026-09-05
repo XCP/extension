@@ -1,3 +1,4 @@
+import { bytesToHex } from '@noble/hashes/utils.js';
 import {
   type DescribableMessage,
   describeMessage,
@@ -95,6 +96,18 @@ const ASSET_SLOT_TO_API_FIELD: Record<string, string> = {
   assetB: 'asset_b',
 };
 
+/** Approval verbs do not rename transaction types in historical/API descriptions. */
+function approvalActionLabel(messageType: string, view?: DescribableMessage): string {
+  if (messageType === 'fairmint') return 'Mint';
+  if (messageType === 'fairminter') return 'Create fairminter';
+  if (messageType === 'dispenser') {
+    if (view?.dispenserStatus === 10) return 'Close dispenser';
+    // Both opening and refilling commit escrow; the bytes alone cannot distinguish them.
+    if (view?.dispenserStatus === 0 || view?.dispenserStatus === 1) return 'Fund dispenser';
+  }
+  return labelFor(messageType);
+}
+
 /**
  * Build a human-readable label and description from decoded transaction data.
  *
@@ -129,8 +142,8 @@ export function getTxActionInfo(
     if (merged) {
       const view = localView;
       return {
-        label: labelFor(unpack.messageType!),
-        description: merged,
+        label: approvalActionLabel(unpack.messageType!, view),
+        description: unpack.messageType === 'pooldeposit' ? 'Deposit liquidity' : merged,
         protocol: protocolFields(unpack.messageType!, view, context),
       };
     }
@@ -140,15 +153,15 @@ export function getTxActionInfo(
   // adapter rather than papered over.
   if (api) {
     // No local decode to merge with, so the protocol view has nothing trustworthy to read.
-    return { label: labelFor(api.messageType), description: api.description, protocol: [] };
+    return { label: approvalActionLabel(api.messageType), description: api.description, protocol: [] };
   }
 
   if (!localUsable) return null;
   const view = fromLocalUnpack(unpack!.data);
   const description = describeMessage(unpack!.messageType!, view);
   return {
-    label: labelFor(unpack!.messageType!),
-    description: description ?? unpack!.messageType!,
+    label: approvalActionLabel(unpack!.messageType!, view),
+    description: unpack!.messageType === 'pooldeposit' ? 'Deposit liquidity' : description ?? unpack!.messageType!,
     protocol: protocolFields(unpack!.messageType!, view, context),
   };
 }
@@ -190,6 +203,8 @@ function fromLocalUnpack(
   const divisibilityOf = (asset?: string): boolean | undefined => {
     const upper = String(asset ?? '').toUpperCase();
     if (upper === 'BTC' || upper === 'XCP') return true;
+    // Issuance/fairminter bytes define the new asset's scale, even if ledger metadata is stale.
+    if (asset === data.asset && typeof data.divisible === 'boolean') return data.divisible;
     if (!apiData) return undefined;
 
     for (const [slot, apiField] of Object.entries(ASSET_SLOT_TO_API_FIELD)) {
@@ -204,6 +219,7 @@ function fromLocalUnpack(
     asset: data.asset as string | undefined,
     quantity: data.quantity,
     destination: data.destination as string | undefined,
+    ...memoForDisplay(data),
     giveAsset: data.giveAsset as string | undefined,
     giveQuantity: data.giveQuantity,
     getAsset: data.getAsset as string | undefined,
@@ -214,7 +230,7 @@ function fromLocalUnpack(
     dividendAsset: data.dividendAsset as string | undefined,
     quantityPerUnit: data.quantityPerUnit,
     offerHash: (data.offerHash ?? (data.tx0Hash && data.tx1Hash ? `${data.tx0Hash}_${data.tx1Hash}` : undefined)) as string | undefined,
-    text: data.text as string | undefined,
+    text: (data.text ?? data.description) as string | undefined,
     assetA: data.assetA as string | undefined,
     quantityA: data.quantityA,
     assetB: data.assetB as string | undefined,
@@ -241,6 +257,21 @@ function fromLocalUnpack(
     minQuantityB: data.minQuantityB,
     recipients: sends as { asset?: string; destination: string; quantity: unknown }[] | undefined,
     dispenserStatus: data.status as number | undefined,
+    price: data.price,
+    quantityByPrice: data.quantityByPrice,
+    maxMintPerTx: data.maxMintPerTx,
+    maxMintPerAddress: data.maxMintPerAddress,
+    hardCap: data.hardCap,
+    softCap: data.softCap,
+    premintQuantity: data.premintQuantity,
+    startBlock: data.startBlock as number | undefined,
+    endBlock: data.endBlock as number | undefined,
+    softCapDeadlineBlock: data.softCapDeadlineBlock as number | undefined,
+    mintedAssetCommissionInt: data.mintedAssetCommissionInt,
+    burnPayment: data.burnPayment as boolean | undefined,
+    poolQuantity: data.poolQuantity,
+    lockDescription: data.lockDescription as boolean | undefined,
+    lockQuantity: data.lockQuantity as boolean | undefined,
     format: (quantity, asset) => {
       if (quantity == null) return '?';
       const divisible = divisibilityOf(asset);
@@ -259,4 +290,28 @@ function fromLocalUnpack(
       return undefined;
     },
   };
+}
+
+/** Keep the locally decoded bytes authoritative; a hex-looking text memo is still text. */
+function memoForDisplay(data: Record<string, unknown>): Pick<DescribableMessage, 'memo' | 'memoEncoding'> {
+  const bytes = data.memoBytes;
+  if (!(bytes instanceof Uint8Array)) {
+    return typeof data.memo === 'string' ? { memo: data.memo,
+      memoEncoding: data.memoIsBinary === true ? 'hex' : 'text' } : {};
+  }
+  if (bytes.length === 0) return {};
+  if (data.memoIsBinary !== true) {
+    try {
+      // Preserve any BOM so it cannot disappear while classifying the signed bytes.
+      const text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
+      // Newlines and tabs are meaningful text. Other control/format bytes cannot be
+      // faithfully inspected as prose; a whitespace-only memo would look absent.
+      if (text.trim() && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(text.replace(/[\t\n]/g, ''))) {
+        return { memo: text, memoEncoding: 'text' };
+      }
+    } catch {
+      // Invalid UTF-8 remains visible as its exact bytes, without replacement characters.
+    }
+  }
+  return { memo: bytesToHex(bytes), memoEncoding: 'hex' };
 }

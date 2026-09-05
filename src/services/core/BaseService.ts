@@ -4,7 +4,6 @@
  * Provides:
  * - Service lifecycle management (initialize, destroy)
  * - State persistence for service worker restarts
- * - Keep-alive mechanism to prevent service worker termination
  * - Dependency declaration for explicit initialization ordering
  *
  * ## Architecture Decision Records
@@ -35,13 +34,11 @@
 
 import {
   getServiceState,
-  serviceKeepAlive,
   setServiceState,
 } from '@/platform/storage/serviceStateStorage';
 
 export abstract class BaseService {
   protected readonly serviceName: string;
-  private readonly keepAliveAlarmName: string;
   private readonly persistAlarmName: string;
   private initialized = false;
   private initializationPromise: Promise<void> | null = null;
@@ -58,7 +55,7 @@ export abstract class BaseService {
     }
     chrome.alarms.onAlarm.addListener((alarm) => {
       const handler = BaseService.alarmHandlers.get(alarm.name);
-      handler?.();
+      handler?.().catch(error => console.error('[BaseService] Alarm handler failed:', error));
     });
     this.listenerRegistered = true;
   }
@@ -72,14 +69,12 @@ export abstract class BaseService {
       throw new Error('Service name must be non-empty');
     }
     this.serviceName = serviceName;
-    this.keepAliveAlarmName = `${serviceName}-keepalive`;
     this.persistAlarmName = `${serviceName}-persist`;
   }
 
   /**
    * Initialize the service
    * - Restores persisted state
-   * - Sets up keep-alive mechanism
    * - Registers alarms for state persistence
    */
   async initialize(): Promise<void> {
@@ -111,11 +106,9 @@ export abstract class BaseService {
       // Restore any persisted state
       await this.restoreState();
 
-      // Set up keep-alive alarm (every 24 seconds to prevent 30s timeout)
+      // Persist state without keeping an idle worker alive. Recovery handles suspension.
       if (chrome?.alarms) {
-        await chrome.alarms.create(this.keepAliveAlarmName, {
-          periodInMinutes: 0.4, // 24 seconds
-        });
+        await chrome.alarms.clear(`${this.serviceName}-keepalive`);
 
         // Set up state persistence alarm (every 5 minutes)
         await chrome.alarms.create(this.persistAlarmName, {
@@ -123,10 +116,6 @@ export abstract class BaseService {
         });
 
         // Register handlers in shared static map (O(1) dispatch)
-        BaseService.alarmHandlers.set(
-          this.keepAliveAlarmName,
-          () => this.handleKeepAlive()
-        );
         BaseService.alarmHandlers.set(
           this.persistAlarmName,
           () => this.handlePersist()
@@ -185,11 +174,9 @@ export abstract class BaseService {
 
       // Clear alarms and remove from shared handler map
       if (chrome?.alarms) {
-        await chrome.alarms.clear(this.keepAliveAlarmName);
         await chrome.alarms.clear(this.persistAlarmName);
 
         // Remove handlers from shared map
-        BaseService.alarmHandlers.delete(this.keepAliveAlarmName);
         BaseService.alarmHandlers.delete(this.persistAlarmName);
       }
 
@@ -207,13 +194,6 @@ export abstract class BaseService {
       console.error(`[${this.serviceName}] Failed to destroy:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Handle keep-alive alarm - access storage to prevent service worker termination
-   */
-  private async handleKeepAlive(): Promise<void> {
-    await serviceKeepAlive(this.serviceName);
   }
 
   /**

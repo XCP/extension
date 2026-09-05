@@ -1,251 +1,251 @@
-/**
- * Port-based proxy service for cross-context communication.
- *
- * Exposes background services to content scripts and popup via persistent
- * chrome.runtime.connect ports. Ports give instant disconnect detection and
- * natural reconnection — no timeout hacks or retry loops needed.
- *
- * API is unchanged: defineProxyService(name, factory) => [register, getService]
- */
-
+/** Explicit, sender-scoped RPC over reconnectable extension ports. */
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
+import { decodeProxyResult, encodeProxyResult } from '@/platform/proxySerialization';
 import { whenServicesReady } from '@/services/core/serviceReadiness';
 
-type ServiceFactory<T> = () => T;
+type MethodName<T> = Extract<{
+  [K in keyof T]-?: T[K] extends (...args: never[]) => unknown ? K : never;
+}[keyof T], string>;
 
-interface PortRequest {
-  id: number;
-  methodName: string;
-  args: any[];
+export interface ProxyServicePolicy<T> {
+  /** Only these methods are remotely callable. Commands are never automatically replayed. */
+  methods: Partial<Record<MethodName<T>, 'read' | 'command'>>;
+  /** The page bridge may only call handleRequest; its origin comes from Chrome's sender. */
+  contentScript?: 'provider';
 }
 
-interface PortResponse {
-  id: number;
-  success: boolean;
-  result?: any;
-  error?: { message: string; code?: number };
-}
+interface PortRequest { id: number; methodName: string; args: unknown[] }
+type PortResponse =
+  | { id: number; success: true; result: unknown; resultEncoding?: 'xcp-json-v1' }
+  | { id: number; success: false; error: { message: string; code?: number } };
 
-// Prevent duplicate onConnect listeners after service worker restarts
 const registeredServices = new Set<string>();
-
-// Track all client-side ports for disconnectAllPorts()
 const activePorts = new Map<string, chrome.runtime.Port>();
-
-const PORT_PREFIX = 'proxy:';
-
-/**
- * Provider methods whose effects must NOT be silently replayed across a service
- * worker restart — they open a popup and/or sign. On a mid-call port disconnect
- * these reject (the dApp can re-request) instead of spawning a duplicate popup.
- */
-const NON_REPLAYABLE_PROVIDER_METHODS = new Set([
-  'xcp_requestAccounts',
-  'xcp_signMessage',
-  'xcp_signTransaction',
-  'xcp_signPsbt',
-  'xcp_signPsbts',
-  'xcp_signBitcoinPsbt',
+const PROVIDER_QUERIES = new Set([
+  'xcp_accounts', 'xcp_getBalances', 'xcp_getAddresses', 'xcp_chainId', 'xcp_getNetwork',
 ]);
+const MAX_REQUEST_BYTES = 1024 * 1024 + 4096;
 
-/** A call is replay-safe unless it is a provider request for a non-idempotent method. */
-function isReplaySafe(methodName: string, args: any[]): boolean {
-  return !(methodName === 'handleRequest' && NON_REPLAYABLE_PROVIDER_METHODS.has(args?.[1]));
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
-/**
- * Disconnect all cached proxy ports. Call this before BFCache freeze
- * or when the extension context is invalidated.
- */
+function parseRequest(value: unknown): PortRequest | null {
+  if (!isRecord(value) || !Number.isSafeInteger(value.id) || (value.id as number) < 1
+    || typeof value.methodName !== 'string' || value.methodName.length > 100
+    || !Array.isArray(value.args) || value.args.length > 16) return null;
+  try {
+    if (new TextEncoder().encode(JSON.stringify(value)).length > MAX_REQUEST_BYTES) return null;
+  } catch { return null; }
+  return { id: value.id as number, methodName: value.methodName, args: value.args };
+}
+
+function parseResponse(value: unknown): PortResponse | null {
+  if (!isRecord(value) || !Number.isSafeInteger(value.id)) return null;
+  if (value.success === true) {
+    try {
+      if (value.resultEncoding !== undefined && value.resultEncoding !== 'xcp-json-v1') {
+        throw new Error('Unknown RPC result encoding');
+      }
+      return { id: value.id as number, success: true, result: value.resultEncoding === 'xcp-json-v1'
+        ? decodeProxyResult(value.result) : value.result };
+    } catch {
+      return { id: value.id as number, success: false, error: { message: 'Invalid RPC result encoding' } };
+    }
+  }
+  if (value.success !== false || !isRecord(value.error) || typeof value.error.message !== 'string') return null;
+  return {
+    id: value.id as number, success: false,
+    error: { message: value.error.message, code: typeof value.error.code === 'number' ? value.error.code : undefined },
+  };
+}
+
+/** Extension tabs are trusted UI too; tab presence alone cannot distinguish them from content. */
+export function isExtensionPageSender(sender: chrome.runtime.MessageSender | undefined): boolean {
+  if (sender?.id !== chrome.runtime.id || !sender.url) return false;
+  try {
+    const actual = new URL(sender.url);
+    const expected = new URL(chrome.runtime.getURL('/'));
+    return actual.protocol === expected.protocol && actual.host === expected.host;
+  } catch { return false; }
+}
+
+function contentOrigin(sender: chrome.runtime.MessageSender | undefined): string | null {
+  if (sender?.id !== chrome.runtime.id || !sender.url || sender.frameId !== 0) return null;
+  try {
+    const url = new URL(sender.url);
+    const allowed = url.protocol === 'https:' || (url.protocol === 'http:'
+      && (url.hostname === 'localhost' || url.hostname === '127.0.0.1'));
+    if (!allowed || (sender.origin !== undefined && sender.origin !== url.origin)) return null;
+    return url.origin;
+  } catch { return null; }
+}
+
 export function disconnectAllPorts(): void {
-  for (const [, port] of activePorts) {
-    try { port.disconnect(); } catch {}
+  for (const port of activePorts.values()) {
+    try { port.disconnect(); } catch { /* already disconnected */ }
   }
   activePorts.clear();
 }
 
-export function defineProxyService<T extends Record<string, any>>(
+export function defineProxyService<T extends object>(
   serviceName: string,
-  factory: ServiceFactory<T>
+  factory: () => T,
+  policy: ProxyServicePolicy<T> = { methods: {} },
 ): [() => T, () => T] {
   let serviceInstance: T | undefined;
-  const portName = `${PORT_PREFIX}${serviceName}`;
+  const portName = `proxy:${serviceName}`;
+  const methods = policy.methods as Readonly<Record<string, 'read' | 'command' | undefined>>;
+  const canCall = (method: string) => Object.hasOwn(methods, method);
+  const canRetry = (method: string, args: unknown[]) => canCall(method) && (
+    methods[method] === 'read' || (policy.contentScript === 'provider' && method === 'handleRequest'
+      && typeof args[1] === 'string' && PROVIDER_QUERIES.has(args[1]))
+  );
 
-  // ---------------------------------------------------------------------------
-  // Background side: listen for port connections, dispatch to service methods
-  // ---------------------------------------------------------------------------
   const register = (): T => {
-    if (!isBackgroundScript()) {
-      throw new Error(
-        `[ProxyService] ${serviceName} can only be registered in the background script`
-      );
-    }
-
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
-      throw new Error(`[ProxyService] Chrome runtime not available for ${serviceName}`);
-    }
-
-    if (registeredServices.has(serviceName)) {
-      serviceInstance = factory();
-      return serviceInstance;
-    }
-
-    registeredServices.add(serviceName);
+    if (!isBackgroundScript()) throw new Error(`[ProxyService] ${serviceName} can only be registered in the background script`);
     serviceInstance = factory();
+    if (registeredServices.has(serviceName)) return serviceInstance;
+    registeredServices.add(serviceName);
 
-    chrome.runtime.onConnect.addListener((port) => {
-      if (port.name !== portName) return;
-      if (port.sender?.id !== chrome.runtime.id) {
-        port.disconnect();
-        return;
-      }
+    chrome.runtime.onConnect.addListener((incoming) => {
+      if (incoming.name !== portName) return;
+      const trustedUI = isExtensionPageSender(incoming.sender);
+      const origin = policy.contentScript === 'provider' ? contentOrigin(incoming.sender) : null;
+      if (!trustedUI && !origin) { incoming.disconnect(); return; }
 
-      port.onMessage.addListener(async (msg: PortRequest) => {
-        const { id, methodName, args } = msg;
-
-        // Nothing is dispatched until initialisation has finished. A waking worker would otherwise
-        // answer from state it has not loaded and a session it has not checked — see
-        // serviceReadiness.
+      let disconnected = false;
+      const reply = (response: PortResponse) => {
+        if (!disconnected) {
+          try { incoming.postMessage(response); } catch { /* the requesting document closed */ }
+        }
+      };
+      const dispatch = async (value: unknown): Promise<void> => {
+        const request = parseRequest(value);
+        if (!request) {
+          if (isRecord(value) && Number.isSafeInteger(value.id)) {
+            reply({ id: value.id as number, success: false, error: { message: 'Invalid RPC request', code: -32600 } });
+          }
+          return;
+        }
+        const { id, methodName } = request;
+        if (!canCall(methodName) || (!trustedUI && methodName !== 'handleRequest')) {
+          reply({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } });
+          return;
+        }
+        let args = request.args;
+        if (!trustedUI) {
+          // Never forward a claimed page origin or arbitrary service arguments.
+          if (typeof args[1] !== 'string' || (args[2] !== undefined && !Array.isArray(args[2]))) {
+            reply({ id, success: false, error: { message: 'Invalid provider request', code: -32602 } });
+            return;
+          }
+          args = [origin, args[1], args[2] ?? []];
+        }
         try {
           await whenServicesReady();
+          if (disconnected) return;
+          const method = serviceInstance?.[methodName as keyof T];
+          if (typeof method !== 'function') throw new Error(`Method ${methodName} not found on ${serviceName}`);
+          const result: unknown = await Reflect.apply(method, serviceInstance, args);
+          // Encode before replying: serialization failures are service failures, not closed ports.
+          reply({ id, success: true, result: encodeProxyResult(result), resultEncoding: 'xcp-json-v1' });
         } catch (error) {
-          try {
-            port.postMessage({
-              id,
-              success: false,
-              error: { message: error instanceof Error ? error.message : String(error) },
-            } as PortResponse);
-          } catch {}
-          return;
+          reply({ id, success: false, error: {
+            message: error instanceof Error ? error.message : 'Service call failed',
+            code: error instanceof ProviderError ? error.code : undefined,
+          } });
         }
-
-        if (!serviceInstance || !(methodName in serviceInstance) || typeof serviceInstance[methodName] !== 'function') {
-          try {
-            port.postMessage({ id, success: false, error: { message: `Method ${methodName} not found on ${serviceName}` } } as PortResponse);
-          } catch {}
-          return;
-        }
-
-        try {
-          const result = await serviceInstance[methodName](...args);
-          try { port.postMessage({ id, success: true, result } as PortResponse); } catch {}
-        } catch (error) {
-          try {
-            port.postMessage({
-              id,
-              success: false,
-              error: {
-                message: error instanceof Error ? error.message : String(error),
-                // Only deliberately-coded errors carry a code across the wire.
-                code: error instanceof ProviderError ? error.code : undefined,
-              },
-            } as PortResponse);
-          } catch {}
-        }
+      };
+      incoming.onMessage.addListener((value: unknown) => {
+        void dispatch(value).catch(() => { /* dispatch reports failures; closed ports need no response */ });
       });
-
-      port.onDisconnect.addListener(() => {
+      incoming.onDisconnect.addListener(() => {
+        disconnected = true;
         if (chrome.runtime.lastError) { /* consumed */ }
       });
     });
-
     return serviceInstance;
   };
 
-  // ---------------------------------------------------------------------------
-  // Client side: lazy port connection with id-based multiplexing
-  // ---------------------------------------------------------------------------
   let port: chrome.runtime.Port | null = null;
-  let pendingCalls = new Map<number, { resolve: (v: any) => void; reject: (e: Error) => void }>();
+  const pendingCalls = new Map<number, { port: chrome.runtime.Port; resolve: (value: unknown) => void; reject: (error: Error) => void }>();
   let nextId = 0;
 
   function ensurePort(): chrome.runtime.Port {
     if (port) return port;
-
-    port = chrome.runtime.connect({ name: portName });
-    activePorts.set(serviceName, port);
-
-    port.onMessage.addListener((msg: PortResponse) => {
-      const pending = pendingCalls.get(msg.id);
-      if (!pending) return;
-      pendingCalls.delete(msg.id);
-      if (msg.success) {
-        pending.resolve(msg.result);
-      } else {
-        const message = msg.error?.message || `${serviceName} call failed`;
-        pending.reject(
-          typeof msg.error?.code === 'number'
-            ? new ProviderError(msg.error.code, message)
-            : new Error(message),
-        );
-      }
+    const connected = chrome.runtime.connect({ name: portName });
+    port = connected;
+    activePorts.set(serviceName, connected);
+    connected.onMessage.addListener((value: unknown) => {
+      const response = parseResponse(value);
+      if (!response) return;
+      const pending = pendingCalls.get(response.id);
+      if (!pending || pending.port !== connected) return;
+      pendingCalls.delete(response.id);
+      if (response.success) pending.resolve(response.result);
+      else pending.reject(typeof response.error.code === 'number'
+        ? new ProviderError(response.error.code, response.error.message)
+        : new Error(response.error.message));
     });
-
-    port.onDisconnect.addListener(() => {
+    connected.onDisconnect.addListener(() => {
       if (chrome.runtime?.lastError) { /* consumed */ }
-      port = null;
-      activePorts.delete(serviceName);
-      // Reject all in-flight calls — callers can retry. Coded DISCONNECTED so the
-      // boundary surfaces it (not masked) and the dApp SDK recognizes it as transient.
-      for (const [, pending] of pendingCalls) {
+      if (port === connected) port = null;
+      if (activePorts.get(serviceName) === connected) activePorts.delete(serviceName);
+      for (const [id, pending] of pendingCalls) {
+        if (pending.port !== connected) continue;
+        pendingCalls.delete(id);
         pending.reject(new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, 'Port disconnected'));
       }
-      pendingCalls.clear();
     });
-
-    return port;
+    return connected;
   }
 
   const getService = (): T => {
     if (isBackgroundScript()) {
-      if (!serviceInstance) {
-        throw new Error(
-          `Failed to get an instance of ${serviceName}: in background, but registerService has not been called. Did you forget to call registerService?`
-        );
-      }
+      if (!serviceInstance) throw new Error(`Failed to get an instance of ${serviceName}: registerService has not been called`);
       return serviceInstance;
     }
-
     return new Proxy({} as T, {
-      get: (_target, prop: string) => {
-        return async (...args: any[]) => {
-          // Try the call, and if the port is dead, reconnect once and retry
+      get: (_target, prop) => {
+        // Service objects are not thenables; inherited/symbol members are not RPC methods.
+        if (typeof prop !== 'string' || prop === 'then' || !canCall(prop)) return undefined;
+        return async (...args: unknown[]) => {
           for (let attempt = 0; attempt < 2; attempt++) {
+            const connected = ensurePort();
+            const id = ++nextId;
             try {
-              const p = ensurePort();
-              const id = ++nextId;
-
-              return await new Promise<any>((resolve, reject) => {
-                pendingCalls.set(id, { resolve, reject });
-                p.postMessage({ id, methodName: prop, args } as PortRequest);
+              return await new Promise<unknown>((resolve, reject) => {
+                pendingCalls.set(id, { port: connected, resolve, reject });
+                try { connected.postMessage({ id, methodName: prop, args } satisfies PortRequest); }
+                catch (error) { pendingCalls.delete(id); reject(error); }
               });
             } catch (error) {
-              const msg = error instanceof Error ? error.message : '';
-              const isDisconnect = msg.includes('Port disconnected') ||
-                msg.includes('Attempting to use a disconnected port') ||
-                msg.includes('Extension context invalidated');
-
-              if (isDisconnect && attempt === 0 && isReplaySafe(prop, args)) {
-                // Port died — null it out and retry once (idempotent calls only)
-                port = null;
-                activePorts.delete(serviceName);
-                await new Promise(r => setTimeout(r, 200));
-                continue;
-              }
-              throw error;
+              const message = error instanceof Error ? error.message : '';
+              const isDisconnect = error instanceof ProviderError && error.code === PROVIDER_ERROR_CODES.DISCONNECTED
+                || message.includes('Attempting to use a disconnected port') || message.includes('Extension context invalidated');
+              if (!isDisconnect || attempt !== 0 || !canRetry(prop, args)) throw error;
+              if (port === connected) port = null;
+              if (activePorts.get(serviceName) === connected) activePorts.delete(serviceName);
+              await new Promise(resolve => setTimeout(resolve, 200));
             }
           }
+          throw new ProviderError(PROVIDER_ERROR_CODES.DISCONNECTED, 'Port disconnected');
         };
       },
     });
   };
-
   return [register, getService];
 }
 
 export function isBackgroundScript(): boolean {
-  if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.id) {
+  if (typeof chrome === 'undefined' || !chrome.runtime?.id) return false;
+  if (typeof window === 'undefined') return typeof self !== 'undefined';
+  // Firefox's MV2 target runs in a background document. A popup also has a window
+  // and extension APIs, so only the actual background page's object identity qualifies.
+  try {
+    return chrome.extension?.getBackgroundPage?.() === window;
+  } catch {
     return false;
   }
-  return typeof self !== 'undefined' && typeof window === 'undefined';
 }

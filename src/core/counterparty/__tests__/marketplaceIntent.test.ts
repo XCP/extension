@@ -462,8 +462,8 @@ describe('attach-for-listing proof', () => {
     expect(review.family).toBe('attach_for_listing');
     expect(review.blockers).toEqual([]);
     expect(review.facts).toContainEqual({
-      label: 'Quoted XCP fee',
-      value: '0.25 XCP (finalized at confirmation)',
+      kind: 'amount', label: 'Quoted XCP fee',
+      value: '0.25 XCP', description: 'Finalized at confirmation',
     });
     // The block-dependence lives in the fact row itself; the attach carries no extra notice.
     expect(review.notices).toEqual([]);
@@ -503,8 +503,8 @@ describe('attach-for-listing proof', () => {
 
     expect(review.status).toBe('caution');
     expect(review.blockers).toEqual([]);
-    expect(review.facts).toContainEqual({ label: 'Asset source', value: SELLER });
-    expect(review.facts).toContainEqual({ label: 'New UTXO owner', value: SELLER_TWO });
+    expect(review.facts).toContainEqual({ kind: 'address', label: 'Asset source', value: SELLER });
+    expect(review.facts).toContainEqual({ kind: 'address', label: 'New UTXO owner', value: SELLER_TWO });
   });
 
   it.each([
@@ -601,8 +601,8 @@ describe('prepare-asset proof', () => {
       blockers: [],
     });
     expect(review.facts).toContainEqual({
-      label: 'Quoted XCP fee',
-      value: '0.25 XCP (finalized at confirmation)',
+      kind: 'amount', label: 'Quoted XCP fee',
+      value: '0.25 XCP', description: 'Finalized at confirmation',
     });
     expect(review.title).not.toMatch(/list/i);
   });
@@ -629,8 +629,8 @@ describe('prepare-asset proof', () => {
     expect(review.status).toBe('caution');
     expect(review.blockers).toEqual([]);
     expect(review.facts).toEqual(expect.arrayContaining([
-      { label: 'Asset source', value: SELLER },
-      { label: 'New UTXO owner', value: SELLER_TWO },
+      { kind: 'address', label: 'Asset source', value: SELLER },
+      { kind: 'address', label: 'New UTXO owner', value: SELLER_TWO },
     ]));
   });
 
@@ -658,24 +658,44 @@ describe('prepare-asset proof', () => {
 });
 
 describe('create-listing proof', () => {
+  it.each([330, 546])('separates the sale price from the actual %i-sat carrier return', carrier => {
+    const input = base();
+    input.inputs[1]!.value = carrier;
+    input.outputs[1]!.value = 250_000 + carrier;
+    input.intent = { ...input.intent, carrierValueSats: carrier, guaranteedSellerPaymentSats: 250_000 + carrier };
+    const review = analyzeMarketplaceIntent(input);
+    expect(review.status).toBe('proved');
+    expect(review.facts).toEqual(expect.arrayContaining([
+      { kind: 'amount', label: 'Sale price', value: '250,000 sats' },
+      {
+        kind: 'amount', label: 'Your UTXO sats returned', value: `${carrier} sats`, layout: 'stacked',
+      },
+      { kind: 'amount', label: 'Your payout if sold', value: (250_000 + carrier).toLocaleString() + ' sats', emphasis: 'primary' },
+    ]));
+    // A display redesign must not replace the actual prevout with a configured carrier default.
+    expect(analyzeMarketplaceIntent({ ...input, intent: { ...input.intent, carrierValueSats: carrier + 1 } }).status).toBe('blocked');
+  });
+
   it('proves exact seller payment and explains the bounded listing authorization', () => {
     const review = analyzeMarketplaceIntent(base());
 
     expect(review.status).toBe('proved');
     expect(review.blockers).toEqual([]);
     expect(review.title).toContain('RAREPEPE');
-    expect(review.facts).toContainEqual({ label: 'Price', value: '250,000 sats' });
+    expect(review.summary).toEqual({ label: 'List for sale', description: '1 RAREPEPE' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Sale price', value: '250,000 sats' });
     expect(review.facts).toContainEqual({
-      label: 'Seller receives',
-      value: '250,546 sats (price + 546-sat asset UTXO)',
+      kind: 'amount', label: 'Your payout if sold',
+      value: '250,546 sats',
+      emphasis: 'primary',
     });
-    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'None' });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not broadcast now.' });
     expect(review.facts).toContainEqual({
-      label: 'Marketplace cancellation',
+      kind: 'paragraph', label: 'Marketplace cancellation',
       value: 'Delist without a transaction',
     });
     expect(review.facts).toContainEqual({
-      label: 'Signature invalidation',
+      kind: 'paragraph', label: 'Signature invalidation',
       value: 'Spend the asset UTXO',
     });
     expect(review.notices).toEqual([]);
@@ -694,6 +714,7 @@ describe('create-listing proof', () => {
 
     expect(review.status).toBe('proved');
     expect(review.title).toBe('Reprice 1 RAREPEPE to 0.00250000 BTC');
+    expect(review.summary).toEqual({ label: 'Reprice listing', description: '1 RAREPEPE' });
   });
 
   it.each([
@@ -735,6 +756,73 @@ describe('create-listing proof', () => {
 });
 
 describe('buy-listings proof', () => {
+  it.each([
+    { mode: 'attached' as const, sellerCarrier: 330 },
+    { mode: 'attached' as const, sellerCarrier: 546 },
+    { mode: 'detached' as const, sellerCarrier: 330 },
+    { mode: 'detached' as const, sellerCarrier: 546 },
+  ])('preserves the seller $sellerCarrier-sat return with $mode buyer delivery', ({ mode, sellerCarrier }) => {
+    const request = attachedBuyBase();
+    const deliveryCarrier = mode === 'attached' ? 330 : 0;
+    const sellerPayout = 100_000 + sellerCarrier;
+    const delivery: BuyListingsIntentClaim['delivery'] = mode === 'attached'
+      ? { mode, address: BUYER, carrierValueSats: deliveryCarrier }
+      : { mode, address: BUYER };
+    const checkout = {
+      ...request,
+      intent: {
+        ...request.intent,
+        delivery,
+        items: request.intent.items.map(item => ({
+          ...item, carrierValueSats: sellerCarrier, sellerPaymentSats: sellerPayout,
+        })),
+      },
+      inputs: request.inputs.map(input => input.index === 1 ? { ...input, value: sellerCarrier } : input),
+      outputs: [
+        { index: 0, type: mode === 'attached' ? 'p2wpkh' : 'op_return', address: mode === 'attached' ? BUYER : undefined, value: deliveryCarrier },
+        { ...request.outputs[1]!, value: sellerPayout },
+        request.outputs[2]!,
+        { ...request.outputs[3]!, value: 294_000 - deliveryCarrier },
+      ],
+      hasCounterpartyPayload: mode === 'detached',
+      localCounterpartyMessage: mode === 'detached'
+        ? { messageType: 'detach', data: { destination: BUYER } } : undefined,
+    };
+    const originalListing = base();
+    const [listedAsset] = checkout.intent.assets;
+    if (!listedAsset || checkout.intent.assets.length !== 1) {
+      throw new Error('This linked listing fixture must contain exactly one asset');
+    }
+    const listing = analyzeMarketplaceIntent({
+      ...originalListing,
+      intent: {
+        ...originalListing.intent, assets: [listedAsset],
+        priceSats: 100_000, carrierValueSats: sellerCarrier, guaranteedSellerPaymentSats: sellerPayout,
+      },
+      inputs: originalListing.inputs.map(input => input.index === 1 ? { ...input, value: sellerCarrier } : input),
+      outputs: originalListing.outputs.map(output => output.index === 1 ? { ...output, value: sellerPayout } : output),
+      attachedAssets: checkout.attachedAssets,
+    });
+
+    expect(listing.status).toBe('proved');
+    expect(listing.facts).toEqual(expect.arrayContaining([
+      { kind: 'amount', label: 'Sale price', value: '100,000 sats' },
+      { kind: 'amount', label: 'Your UTXO sats returned', value: `${sellerCarrier} sats`, layout: 'stacked' },
+      { kind: 'amount', label: 'Your payout if sold', value: `${sellerPayout.toLocaleString()} sats`, emphasis: 'primary' },
+    ]));
+    expect(analyzeMarketplaceIntent(checkout)).toMatchObject({ status: 'proved', blockers: [] });
+    expect(checkout.outputs[1]).toMatchObject({ address: SELLER, value: sellerPayout });
+    // The buyer funds its separate attached output; it does not reduce the seller's payout.
+    expect(checkout.inputs[0]!.value - checkout.outputs[3]!.value - checkout.intent.totalSats).toBe(deliveryCarrier);
+    if (mode === 'attached') {
+      expect(analyzeMarketplaceIntent({
+        ...checkout,
+        outputs: checkout.outputs.map(output => output.index === 1
+          ? { ...output, value: output.value - deliveryCarrier } : output),
+      }).status).toBe('blocked');
+    }
+  });
+
   it('proves the complete atomic checkout and detached delivery', () => {
     const review = analyzeMarketplaceIntent(buyBase());
 
@@ -742,18 +830,19 @@ describe('buy-listings proof', () => {
     expect(review.family).toBe('buy_listings');
     expect(review.blockers).toEqual([]);
     expect(review.title).toContain('2 collectibles');
-    expect(review.facts).toContainEqual({ label: 'You pay', value: '306,000 sats' });
-    expect(review.facts).toContainEqual({ label: 'Delivery', value: `Detached to ${BUYER}` });
+    expect(review.summary).toEqual({ label: 'Buy collectibles', description: '2 collectibles' });
+    expect(review.facts[0]).toEqual({ kind: 'amount', label: 'You pay', value: '306,000 sats', emphasis: 'primary' });
+    expect(review.facts).toContainEqual({ kind: 'address', label: 'Delivery', value: BUYER, description: 'Assets detach to this address' });
   });
 
   it('proves one attached purchase and its buyer-owned carrier', () => {
     const review = analyzeMarketplaceIntent(attachedBuyBase());
 
     expect(review).toMatchObject({ status: 'proved', family: 'buy_listings', blockers: [] });
-    expect(review.facts).toContainEqual({ label: 'You receive', value: '1 RAREPEPE' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'You receive', value: '1 RAREPEPE' });
     expect(review.facts).toContainEqual({
-      label: 'Delivery',
-      value: `Attached to ${BUYER} on a 330-sat UTXO`,
+      kind: 'address', label: 'Delivery', value: BUYER,
+      description: 'Asset stays attached to a 330-sat UTXO at this address',
     });
   });
 
@@ -769,7 +858,7 @@ describe('buy-listings proof', () => {
     const review = analyzeMarketplaceIntent(request);
 
     expect(review.status).toBe('proved');
-    expect(review.facts).toContainEqual({ label: 'You receive', value: '1 PEPECASH' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'You receive', value: '1 PEPECASH' });
 
     request.intent.items[0]!.quantityRaw = '200000000';
     const mismatchedReview = analyzeMarketplaceIntent(request);
@@ -828,6 +917,7 @@ describe('buy-listings proof', () => {
   ])('blocks a mutation of %s', (_label, override) => {
     const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
     expect(review.status).toBe('blocked');
+    expect(review.summary).toBeUndefined();
     expect(review.blockers.length).toBeGreaterThan(0);
   });
 
@@ -846,6 +936,7 @@ describe('buy-listings proof', () => {
   ])('requires a retry when %s cannot be proved', (_label, override) => {
     const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
     expect(review.status).toBe('retry');
+    expect(review.summary).toBeUndefined();
     expect(review.blockers.length).toBeGreaterThan(0);
   });
 });
@@ -859,7 +950,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
       family: 'authorize_exact_offer',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Offer price', value: '250,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
     expect(review.notices[0]?.message).toMatch(/without another approval/i);
     expect(review.notices[0]?.message).toMatch(/first confirmed spend wins/i);
   });
@@ -871,8 +962,8 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     expect(authorization).toMatchObject({ status: 'caution', blockers: [] });
     expect(acceptance).toMatchObject({ status: 'proved', blockers: [] });
     expect(authorization.facts).toContainEqual({
-      label: 'Delivery',
-      value: `Attached to ${BUYER} on a 330-sat UTXO`,
+      kind: 'address', label: 'Delivery', value: BUYER,
+      description: 'Asset stays attached to a 330-sat UTXO at this address',
     });
   });
 
@@ -996,7 +1087,7 @@ describe('bulk fan-out funding proof', () => {
       family: 'prepare_bulk_fanout',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '2 × 10,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'New UTXOs', value: '2 × 10,000 sats' });
     expect(review.notices[0]?.message).toMatch(/no asset moves/i);
   });
 

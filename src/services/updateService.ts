@@ -42,14 +42,14 @@ class UpdateService {
     if (chrome.runtime.onUpdateAvailable) {
       chrome.runtime.onUpdateAvailable.addListener((details) => {
         console.log('[UpdateService] Update available:', details.version);
-        void this.handleUpdateAvailable(details.version).catch((error) => {
-          console.error('[UpdateService] Failed to handle available update:', error);
+        this.handleUpdateAvailable(details.version).catch(error => {
+          console.error('[UpdateService] Failed to process available update:', error);
         });
       });
     }
 
     // Set up periodic check alarm
-    this.setupPeriodicCheck();
+    await this.setupPeriodicCheck();
 
     // Check for version changes after reload
     await this.checkVersionAfterReload();
@@ -119,16 +119,16 @@ class UpdateService {
   /**
    * Set up periodic check to catch missed updates
    */
-  private setupPeriodicCheck(): void {
+  private async setupPeriodicCheck(): Promise<void> {
     // Create periodic alarm
-    chrome.alarms.create(this.ALARM_NAME, {
+    await chrome.alarms.create(this.ALARM_NAME, {
       periodInMinutes: this.CHECK_INTERVAL / (1000 * 60)
     });
 
     // Store bound handler reference so we can remove it in destroy()
     this.boundAlarmHandler = (alarm) => {
       if (alarm.name === this.ALARM_NAME) {
-        void this.performPeriodicCheck().catch((error) => {
+        this.performPeriodicCheck().catch(error => {
           console.error('[UpdateService] Periodic update check failed:', error);
         });
       }
@@ -220,7 +220,9 @@ class UpdateService {
     }
 
     // Clear the alarm
-    chrome.alarms.clear(this.ALARM_NAME);
+    chrome.alarms.clear(this.ALARM_NAME).catch(error => {
+      console.error('[UpdateService] Failed to clear update alarm:', error);
+    });
 
     // Remove the alarm handler to prevent memory leaks
     if (this.boundAlarmHandler) {

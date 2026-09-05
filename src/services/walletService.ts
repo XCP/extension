@@ -25,9 +25,10 @@ interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
-  addConnectedWebsite: (origin: string) => Promise<void>;
+  addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
   clearConnectedWebsites: () => Promise<void>;
+  setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string } | null) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;
@@ -37,7 +38,7 @@ interface WalletService {
   /** Load the keychain from the session master key, if a valid session has one. */
   ensureKeychainLoaded: () => Promise<void>;
   lockKeychain: () => Promise<void>;
-  emitProviderEvent: (origin: string, event: string, data: any) => Promise<void>;
+  emitProviderEvent: (origin: string, event: 'accountsChanged', data: string[]) => Promise<void>;
   createMnemonicWallet: (
     mnemonic: string,
     password: string,
@@ -74,10 +75,10 @@ interface WalletService {
   getPreviewAddressForFormat: (walletId: string, addressFormat: AddressFormat) => Promise<string>;
   getPairedAddresses: () => Promise<PairedAddresses>;
   isAddressInAnyWallet: (address: string) => Promise<boolean>;
-  signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions) => Promise<string>;
+  signTransaction: (rawTxHex: string, sourceAddress: string, options?: SignTransactionOptions, expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   broadcastTransaction: (signedTxHex: string) => Promise<{ txid: string; fees?: number }>;
-  signMessage: (message: string, address: string) => Promise<{ signature: string; address: string }>;
-  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[]) => Promise<string>;
+  signMessage: (message: string, address: string, expectedIdentity?: { walletId: string; address: string }) => Promise<{ signature: string; address: string }>;
+  signPsbt: (psbtHex: string, signInputs?: Record<string, number[]>, sighashTypes?: number[], expectedIdentity?: { walletId: string; address: string }) => Promise<string>;
   getLastActiveAddress: () => Promise<string | undefined>;
   setLastActiveAddress: (address: string) => Promise<void>;
   setLastActiveTime: () => Promise<void>;
@@ -114,26 +115,10 @@ function createWalletService(): WalletService {
     updateSettings: async (updates) => {
       await walletManager.updateSettings(updates);
     },
-    addConnectedWebsite: async (origin) => {
-      const settings = walletManager.getSettings();
-      if (!settings.connectedWebsites.includes(origin)) {
-        await walletManager.updateSettings({
-          connectedWebsites: [...settings.connectedWebsites, origin],
-        });
-      }
-    },
-    removeConnectedWebsite: async (origin) => {
-      const settings = walletManager.getSettings();
-      const providerCapabilities = { ...settings.providerCapabilities };
-      delete providerCapabilities[origin];
-      await walletManager.updateSettings({
-        connectedWebsites: settings.connectedWebsites.filter((site) => site !== origin),
-        providerCapabilities,
-      });
-    },
-    clearConnectedWebsites: async () => {
-      await walletManager.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
-    },
+    addConnectedWebsite: async (origin, pairedIdentity) => walletManager.addConnectedWebsite(origin, pairedIdentity),
+    removeConnectedWebsite: async (origin) => walletManager.removeConnectedWebsite(origin),
+    clearConnectedWebsites: async () => walletManager.clearConnectedWebsites(),
+    setPairedAddressPermission: async (origin, identity) => walletManager.setPairedAddressPermission(origin, identity),
     getWallets: async () => walletManager.getWallets(),
     getActiveWallet: async () => walletManager.getActiveWallet(),
     getActiveAddress: async () => {
@@ -237,17 +222,17 @@ function createWalletService(): WalletService {
     isAddressInAnyWallet: async (address) => {
       return walletManager.isAddressInAnyWallet(address);
     },
-    signTransaction: async (rawTxHex, sourceAddress, options) => {
-      return walletManager.signTransaction(rawTxHex, sourceAddress, options);
+    signTransaction: async (rawTxHex, sourceAddress, options, expectedIdentity) => {
+      return walletManager.signTransaction(rawTxHex, sourceAddress, options, expectedIdentity);
     },
     broadcastTransaction: async (signedTxHex) => {
       return walletManager.broadcastTransaction(signedTxHex);
     },
-    signMessage: async (message, address) => {
-      return walletManager.signMessage(message, address);
+    signMessage: async (message, address, expectedIdentity) => {
+      return walletManager.signMessage(message, address, expectedIdentity);
     },
-    signPsbt: async (psbtHex, signInputs, sighashTypes) => {
-      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes);
+    signPsbt: async (psbtHex, signInputs, sighashTypes, expectedIdentity) => {
+      return walletManager.signPsbt(psbtHex, signInputs, sighashTypes, expectedIdentity);
     },
     getLastActiveAddress: async () => {
       const settings = walletManager.getSettings();
@@ -260,6 +245,10 @@ function createWalletService(): WalletService {
     },
     setLastActiveTime: async () => await walletManager.setLastActiveTime(),
     emitProviderEvent: async (origin, event, data) => {
+      if (typeof origin !== 'string' || event !== 'accountsChanged' ||
+          !Array.isArray(data) || !data.every(address => typeof address === 'string')) {
+        throw new Error('Invalid provider event');
+      }
       // Emit provider event through the event emitter service
       eventEmitterService.emit('emit-provider-event', {
         origin,
@@ -296,7 +285,24 @@ function createWalletService(): WalletService {
 // Create the proxy service
 const [registerWalletService, getWalletServiceRaw] = defineProxyService(
   'WalletService',
-  createWalletService
+  createWalletService,
+  { methods: {
+    refreshWallets: 'command', getSettings: 'read', updateSettings: 'command',
+    addConnectedWebsite: 'command', removeConnectedWebsite: 'command', clearConnectedWebsites: 'command',
+    setPairedAddressPermission: 'command',
+    getWallets: 'read', getActiveWallet: 'read', getActiveAddress: 'read',
+    unlockKeychain: 'command', selectWallet: 'command', isKeychainUnlocked: 'read',
+    ensureKeychainLoaded: 'command', lockKeychain: 'command', emitProviderEvent: 'command',
+    createMnemonicWallet: 'command', createPrivateKeyWallet: 'command', importTestAddress: 'command',
+    createHardwareWalletWithDiscovery: 'command', addAddress: 'command', addUtxoAddress: 'command',
+    removeUtxoAddress: 'command', sweepUtxoAddresses: 'command', verifyPassword: 'command',
+    resetKeychain: 'command', updatePassword: 'command', updateWalletAddressFormat: 'command',
+    updateWalletPinnedAssets: 'command', getUnencryptedMnemonic: 'command', getPrivateKey: 'command',
+    removeWallet: 'command', getPreviewAddressForFormat: 'read', getPairedAddresses: 'read',
+    isAddressInAnyWallet: 'read', signTransaction: 'command', broadcastTransaction: 'command',
+    signMessage: 'command', signPsbt: 'command', getLastActiveAddress: 'read',
+    setLastActiveAddress: 'command', setLastActiveTime: 'command', consolidateBareMultisig: 'command',
+  } },
 );
 
 // Get the wallet service directly from the proxy

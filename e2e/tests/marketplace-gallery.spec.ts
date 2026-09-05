@@ -1,3 +1,4 @@
+import { captureApprovalSizes } from '../utils/approval-layout';
 /**
  * Screenshots every marketplace / provider-safety approval screen the 0.9 work added, one file
  * per state — the companion to approval-gallery.spec.ts for the surfaces that gallery cannot
@@ -14,6 +15,7 @@
  * same analyzer, the same screens.
  *
  * Output: test-results/marketplace-gallery/*.png
+ * Optional subset: XCP_GALLERY_SCENARIOS=listing-create-proved,listing-create-retry.
  */
 
 import { createHash } from 'node:crypto';
@@ -24,6 +26,7 @@ import { Address, OutScript } from '@scure/btc-signer';
 import { expect, navigateTo, walletTest } from '../fixtures';
 import { settings } from '../selectors';
 import { ADDRESS_TYPE_DISPLAY_NAMES, type AddressType } from '../test-data';
+import { assertGalleryWorkerRouting, authorizeGalleryOrigin, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
 
 const OUT_DIR = 'test-results/marketplace-gallery';
 
@@ -180,13 +183,13 @@ interface StubBalance {
  * for them would be an accident. Everything else still reaches the real API.
  */
 async function stubUtxoBalances(
-  page: Page,
+  api: GalleryApi,
   balances: Record<string, StubBalance[] | 'fail'>
 ): Promise<void> {
-  await page.route('**/v2/utxos/**', async (route: Route) => {
+  await api.route('**/v2/utxos/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const match = url.pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
-    if (!match) return route.continue();
+    if (!match) return route.fallback();
     const utxo = decodeURIComponent(match[1]!);
     const entry = balances[utxo];
     if (entry === 'fail') return route.fulfill({ status: 500, body: 'stubbed ledger outage' });
@@ -262,20 +265,25 @@ interface Scenario {
   balances: Record<string, StubBalance[] | 'fail'>;
   /** The footer state this scenario is expected to reach — a drifting state fails the run. */
   expectFooter:
-    | 'Sign'
+    | 'Sign transaction'
+    | 'Buy collectibles'
+    | 'Accept offer'
+    | 'Prepare funds'
+    | 'Send Bitcoin'
     | 'Review'
     | 'Blocked'
+    | 'Awaiting verification'
     | 'Authorize listing'
     | 'Authorize reprice'
     | 'Prepare asset'
-    | 'Attach and authorize listing';
+    | 'Attach and list';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
   /** False-positive warnings that would make an ordinary marketplace request look unsafe. */
   absentText?: string[];
 }
 
-function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
+function buildScenarios(wallet: string, pairedLegacy: string, walletId: string): Scenario[] {
   const SELLER_A = fakeAddress(0x11);
   const SELLER_B = fakeAddress(0x22);
   const BUYER_EXT = fakeAddress(0x33);
@@ -294,7 +302,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     origin: ORIGIN,
     timestamp: Date.now(),
     address: wallet,
-    walletId: '',
+    walletId,
     status: 'pending',
     ...fields,
   });
@@ -312,7 +320,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'listing-attach-caution',
       route: '/requests/psbt/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Sign transaction',
       record: seedRecord('mk-attach', {
         requestKey: 'xcp_signPsbt:mk-attach',
         kind: 'sign-psbt',
@@ -378,7 +386,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'listing-attach-paired-legacy-source',
       route: '/requests/psbt/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Sign transaction',
       expectedText: [
         'Signing addresses (2)',
         'Asset source',
@@ -553,7 +561,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'bundle-attach-and-list-paired-legacy',
       route: '/requests/psbts/approve',
-      expectFooter: 'Attach and authorize listing',
+      expectFooter: 'Attach and list',
       expectedText: [
         'Attach and list COLLECTOR',
         'Asset source',
@@ -673,7 +681,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
         [`${ASSET_TXID}:7`]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],
       },
       expectedText: [
-        'Broadcast now',
+        'Not broadcast now.',
         'Marketplace cancellation',
         'Signature invalidation',
         'Spend the asset UTXO',
@@ -707,7 +715,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'listing-create-retry',
       route: '/requests/psbt/approve',
-      expectFooter: 'Blocked',
+      expectFooter: 'Awaiting verification',
       record: seedRecord('mk-listing-retry', {
         requestKey: 'xcp_signPsbt:mk-listing-retry',
         kind: 'sign-psbt',
@@ -787,7 +795,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'checkout-buy-proved',
       route: '/requests/psbt/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Buy collectibles',
       record: seedRecord('mk-buy', {
         requestKey: 'xcp_signPsbt:mk-buy',
         kind: 'sign-psbt',
@@ -884,7 +892,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'offer-accept-proved',
       route: '/requests/psbt/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Accept offer',
       record: seedRecord('mk-accept', {
         requestKey: 'xcp_signPsbt:mk-accept',
         kind: 'sign-psbt',
@@ -906,7 +914,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'bundle-accept-cpfp-proved',
       route: '/requests/psbts/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Accept offer',
       record: seedRecord('mk-bundle', {
         requestKey: 'xcp_signPsbts:mk-bundle',
         kind: 'sign-psbts',
@@ -994,7 +1002,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'bundle-bulk-fanout-proved',
       route: '/requests/psbts/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Prepare funds',
       record: seedRecord('mk-fanout', {
         requestKey: 'xcp_signPsbts:mk-fanout',
         kind: 'sign-psbts',
@@ -1025,7 +1033,7 @@ function buildScenarios(wallet: string, pairedLegacy: string): Scenario[] {
     scenarios.push({
       name: 'bitcoin-pay-proved',
       route: '/requests/psbt/approve',
-      expectFooter: 'Sign',
+      expectFooter: 'Send Bitcoin',
       record: seedRecord('mk-pay', {
         requestKey: 'xcp_signBitcoinPsbt:mk-pay',
         kind: 'sign-psbt',
@@ -1080,32 +1088,38 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
   expect(pairedLegacy).toMatch(/^1/);
   expect(wallet).toMatch(/^bc1q/);
 
-  const scenarios = buildScenarios(wallet, pairedLegacy);
+  const identity = await authorizeGalleryOrigin(page, ORIGIN, true);
+  expect(identity.address).toBe(wallet);
+  await assertGalleryWorkerRouting(context, extensionId);
+  const scenarios = selectGalleryScenarios(buildScenarios(wallet, pairedLegacy, identity.walletId), scenario => scenario.name);
   const captured: string[] = [];
   const stateMismatches: string[] = [];
 
   for (const scenario of scenarios) {
     await walletTest.step('Capture marketplace approval', async () => {
       await settle(SCREEN_SPACING_MS);
+      const api = await createGalleryApi(context, page, scenario.name);
+      await stubUtxoBalances(api, scenario.balances);
       await page.evaluate(async (record) => {
         await chrome.storage.session.set({ pending_sign_flow: [record] });
-      }, scenario.record);
+      }, { ...scenario.record, ...identity, timestamp: Date.now() });
 
       const approval = await context.newPage();
       await approval.setViewportSize({ width: 380, height: 1400 });
-      await stubUtxoBalances(approval, scenario.balances);
       await approval.goto(
         `chrome-extension://${extensionId}/popup.html#${scenario.route}?requestId=${scenario.record.id}`
       );
 
       const footer = approval.getByRole('button', {
-        name: /^(sign|review|blocked|authorize listing|authorize reprice|prepare asset|attach and authorize listing)$/i,
+        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|prepare asset|attach and list)$/i,
       });
       await expect(footer).toBeVisible({ timeout: 60_000 });
       const footerLabel = (await footer.textContent())?.trim() ?? '';
       if (footerLabel.toLowerCase() !== scenario.expectFooter.toLowerCase()) {
         stateMismatches.push(`${scenario.name}: footer reads "${footerLabel}", expected "${scenario.expectFooter}"`);
       }
+
+      await captureApprovalSizes(approval, OUT_DIR, scenario.name);
 
       // Capture the paired signer disclosure at the top of the approval before opening lower
       // transaction details, whose focus movement scrolls the real popup viewport downward.
@@ -1122,7 +1136,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       }
 
       // Open the lower-level transaction surfaces for the companion detail capture.
-      for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/]) {
+      for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/, /^Compare payment details$/, /^Payout and fee details$/, /^Why signing is unavailable$/, /^What to review$/]) {
         const toggle = approval.getByText(title);
         if (await toggle.count()) await toggle.first().click();
       }
@@ -1147,8 +1161,20 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
         await approval.getByRole('button', { name: 'Back' }).click();
       }
 
+      if (scenario.name === 'listing-create-retry') {
+        // Recovery must keep the same request and wait for new background evidence.
+        await expect(approval.getByRole('button', { name: 'Awaiting verification' })).toBeDisabled();
+        await stubUtxoBalances(api, {
+          [Object.keys(scenario.balances)[0]!]: [{ asset: 'RAREPEPE', quantity: '100000000', quantity_normalized: '1' }],
+        });
+        await approval.getByRole('button', { name: 'Retry verification' }).click();
+        await expect(approval.getByRole('button', { name: 'Authorize listing' })).toBeEnabled({ timeout: 60_000 });
+        await expect(approval.getByRole('button', { name: 'Retry verification' })).toHaveCount(0);
+        await captureApprovalSizes(approval, OUT_DIR, `${scenario.name}-recovered`);
+      }
       captured.push(scenario.name);
       await approval.close();
+      await api.dispose();
     }, {
       subtitle: scenario.name,
       params: { scenario: scenario.name, requestType: scenario.record.kind },

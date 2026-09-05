@@ -12,6 +12,10 @@ Self-reported security assessment based on industry checklists.
 
 **Internal Review:** July 2026 — code-verified review of the cryptography, session, storage, and secret-handling layers against this checklist. Findings were remediated and this document updated to match the code.
 
+**Hardening update:** September 2026 — background-owned signing decisions, explicit RPC permissions,
+serialized vault writes, session deadline consistency, and transaction integrity checks are described
+in [ARCHITECTURE.md](ARCHITECTURE.md). This remains an internal review, not an independent audit.
+
 August 2026 — review of the transaction construction, verification and signing path, ranked by how many files depend on each and by how often each has needed fixing. Findings were remediated and the Transaction Security section below rewritten to match: message verification is now byte equality against a locally rebuilt message rather than a field-by-field comparison against the request.
 
 **Automated Analysis:** The encryption module has been analyzed with Trail of Bits security tools:
@@ -164,9 +168,9 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 
 | Status | Item | Implementation |
 |--------|------|----------------|
-| ✅ | Origin verification | Validated from content script context |
+| ✅ | Origin verification | Background derives the origin from the browser sender, checks the top frame and rejects opaque or mismatched origins |
 | ✅ | Per-origin permissions | Connection approval required |
-| ✅ | No silent signing | All signing requires popup approval |
+| ✅ | Approval for website signing | Website-supplied messages and transactions require a decision bound to the reviewed facts; state and permissions are rechecked at execution. Extension-generated connection proofs use the existing connection grant |
 | ✅ | Locked state protection | Sensitive APIs blocked when locked |
 | ✅ | WYSIWYS | Full transaction details shown before sign |
 | ✅ | Rate limiting per origin | Tiered: 5 connections, 10 transactions, 100 API calls/min |
@@ -179,7 +183,8 @@ Invalid inputs are rejected with exceptions (fail-closed), not silently accepted
 | ✅ | Uncommitted outputs priced as at-risk | SINGLE\|ANYONECANPAY commits to one output and leaves the rest free, so the approval summary counts only committed outputs as change and reports the remainder as at-risk; the headline shows the worst case and signing is gated on acknowledging that amount. Verified by `psbt.test.ts`, `money-movement.test.ts`, `marketplace-psbts.test.ts` |
 | ✅ | `sighashTypes` coverage | Supplied entries are positional by absolute PSBT input index; a signed input with no entry is rejected rather than falling back to a different sighash. Verified by `providerService.test.ts` |
 | ✅ | Legacy input amount integrity | Legacy (P2PKH) inputs must carry the full previous transaction; a bare witnessUtxo is rejected, so a declared amount can't be forged into a drain-to-fee |
-| ✅ | Sign-flow origin binding | Rejoin/recovery of a signing flow matches the requesting origin, not just the request key, so a hash collision can't cross origins |
+| ✅ | Sign-flow origin binding | SHA-256 request correlation includes origin, method, parameters, wallet and address; recovery also rechecks origin, identity and permissions |
+| ✅ | Result delivery authorization | Live completion, polling, and recovery use the persisted result and synchronously recheck current identity, grants, session generation, and expiry at background result exposure. A refused delivery preserves an already completed record; this is not an atomic guarantee of website receipt |
 | ✅ | Attached-asset disclosure | On both PSBT and raw-transaction approval, each input's UTXO is checked for attached Counterparty assets, signed inputs first. Assets are shown per input and a warning is raised when a signed input carries them; an input the lookup cap displaced reports as unknown rather than as carrying nothing. Verified by `inputAssets.test.ts` |
 | ✅ | Local address resolution | Input and output addresses are decoded from their scripts, so the money-movement summary can tell change from a stranger's output without an indexer call; an address that cannot be resolved marks the summary incomplete. Verified by `marketplace-psbts.test.ts` |
 
@@ -328,13 +333,13 @@ This is not true constant-time code. For higher-security applications, constant-
 | ADR-003 | No distributed tracing (future enhancement) | [MessageBus.ts](src/services/core/MessageBus.ts) |
 | ADR-004 | Promise-based write mutex for storage | [mutex.ts](src/platform/storage/mutex.ts) |
 | ADR-005 | Explicit service dependency ordering | [BaseService.ts](src/services/core/BaseService.ts) |
-| ADR-006 | Request callbacks lost on service worker restart | [RequestManager.ts](src/services/core/RequestManager.ts) |
+| ADR-006 | Request callbacks lost on service worker restart; durable requests provide recovery | [signFlow.ts](src/platform/provider/signFlow.ts) |
 | ADR-007 | Distributed request state design | [approvalService.ts](src/services/approvalService.ts) |
 | ADR-008 | Storage error handling pattern | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
 | ADR-009 | Key derivation with HKDF domain separation — superseded by ADR-015 | [walletManager.ts](src/platform/walletManager.ts) |
 | ADR-010 | Storage pattern decisions (class vs function) | [requestStorage.ts](src/platform/storage/requestStorage.ts) |
 | ADR-011 | Isolated wallet and settings storage | [walletStorage.ts](src/platform/storage/walletStorage.ts) |
-| ADR-012 | Type organization and extraction strategy | [types/index.ts](src/types/index.ts) |
+| ADR-012 | Type organization and extraction strategy | [wallet.ts](src/types/wallet.ts), [provider.ts](src/types/provider.ts) |
 | ADR-013 | Constants organization strategy | [wallet/constants.ts](src/core/wallet/constants.ts) |
 | ADR-014 | Input validation thresholds for encryption | [encryption.ts](src/core/encryption/encryption.ts) |
 | ADR-015 | Unified keychain architecture | [walletManager.ts](src/platform/walletManager.ts) |

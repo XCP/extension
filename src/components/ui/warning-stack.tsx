@@ -4,6 +4,8 @@ import { Banner, type BannerSeverity } from '@/components/ui/banner';
 export interface WarningItem {
   key: string;
   severity: BannerSeverity;
+  /** Prioritize the actual signing blocker over unrelated signable cautions. */
+  blocking?: boolean;
   title: string;
   description?: string;
   children?: ReactNode;

@@ -19,7 +19,6 @@ import {
   recordApprovalOutcome,
 } from '@/platform/provider/approvalFlow';
 import { BaseService } from '@/services/core/BaseService';
-import { eventEmitterService } from '@/services/eventEmitterService';
 import type { ApprovalRequest, ApprovalRequestOptions, ApprovalResult } from '@/types/provider';
 
 /** The screen every approval opens. Signing requests have their own screens and their own flow. */
@@ -53,7 +52,6 @@ export class ApprovalService extends BaseService {
     currentWindow: null,
   };
   private windowRemovedListener: ((windowId: number) => void) | null = null;
-  private resolveRequestHandler: ((data: any) => void) | null = null;
 
   private static readonly STATE_VERSION = 3;
   private static readonly REQUEST_TIMEOUT = 5 * 60 * 1000; // 5 minutes fallback
@@ -328,18 +326,6 @@ export class ApprovalService extends BaseService {
   // BaseService implementation
 
   protected async onInitialize(): Promise<void> {
-    // Set up approval resolution handler
-    this.resolveRequestHandler = ({ requestId, approved, updatedParams }: any) => {
-      if (approved) {
-        void this.resolveApproval(requestId, { approved: true, updatedParams }).catch((error) => {
-          console.error('[ApprovalService] Failed to resolve approval:', error);
-        });
-      } else {
-        this.rejectApproval(requestId, 'User denied the request');
-      }
-    };
-    eventEmitterService.on('resolve-pending-request', this.resolveRequestHandler);
-
     // Pick up a request left behind by a previous worker. It has no waiter, so it can only be
     // finished by a completion handler; the store has already dropped it if its window passed.
     const pending = await findPendingApproval();
@@ -354,12 +340,6 @@ export class ApprovalService extends BaseService {
   }
 
   protected async onDestroy(): Promise<void> {
-    // Unregister event listener
-    if (this.resolveRequestHandler) {
-      eventEmitterService.off('resolve-pending-request', this.resolveRequestHandler);
-      this.resolveRequestHandler = null;
-    }
-
     // Clear pending approval
     await this.clearAllRequests('Service shutting down');
 
@@ -388,5 +368,9 @@ import { defineProxyService } from '@/platform/proxy';
 
 export const [registerApprovalService, getApprovalService] = defineProxyService(
   'ApprovalService',
-  () => new ApprovalService()
+  () => new ApprovalService(),
+  { methods: {
+    resolveApproval: 'command', rejectApproval: 'command',
+    getCurrentApproval: 'read', hasPendingApproval: 'read',
+  } },
 );

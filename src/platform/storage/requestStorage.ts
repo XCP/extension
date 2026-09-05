@@ -59,24 +59,30 @@ function isValidBaseRequest(value: unknown): value is BaseRequest {
   return (
     typeof obj.id === 'string' &&
     typeof obj.origin === 'string' &&
-    typeof obj.timestamp === 'number'
+    typeof obj.timestamp === 'number' && Number.isFinite(obj.timestamp) &&
+    obj.timestamp >= 0 && obj.timestamp <= Date.now()
   );
 }
 
 /**
  * Configuration for a request storage instance.
  */
-interface RequestStorageConfig {
+interface RequestStorageConfig<T extends BaseRequest> {
   /** Storage key for chrome.storage.session */
   storageKey: string;
   /** Human-readable name for error messages */
   requestName: string;
   /** Time-to-live in milliseconds (default: 10 minutes) */
   ttlMs?: number;
+  validate?: (value: unknown) => value is T;
 }
 
 /** Default TTL: 10 minutes */
 const DEFAULT_REQUEST_TTL = 10 * 60 * 1000;
+
+// Every writer for a key in the background shares one lock. Callers in other
+// extension contexts submit commands to that owner instead of writing arrays.
+const storageLocks = new Map<string, ReturnType<typeof createWriteLock>>();
 
 /**
  * Generic request storage class.
@@ -89,12 +95,16 @@ export class RequestStorage<T extends BaseRequest> {
   private readonly requestName: string;
   private readonly ttlMs: number;
   private readonly withWriteLock: <R>(fn: () => Promise<R>) => Promise<R>;
+  private readonly validate?: (value: unknown) => value is T;
 
-  constructor(config: RequestStorageConfig) {
+  constructor(config: RequestStorageConfig<T>) {
     this.storageKey = config.storageKey;
     this.requestName = config.requestName;
     this.ttlMs = config.ttlMs ?? DEFAULT_REQUEST_TTL;
-    this.withWriteLock = createWriteLock();
+    this.validate = config.validate;
+    const lock = storageLocks.get(config.storageKey) ?? createWriteLock();
+    storageLocks.set(config.storageKey, lock);
+    this.withWriteLock = lock;
   }
 
   /**
@@ -103,13 +113,26 @@ export class RequestStorage<T extends BaseRequest> {
    * Throws if session storage API is unavailable (per ADR-008).
    */
   async store(request: T): Promise<void> {
+    return this.write(request, true);
+  }
+
+  /** Insert immutable request parameters; a duplicate ID cannot replace approval state. */
+  async insert(request: T): Promise<void> {
+    return this.write(request, false);
+  }
+
+  private async write(request: T, replace: boolean): Promise<void> {
     if (!chrome?.storage?.session) {
       throw new Error('Session storage API unavailable');
     }
 
     return this.withWriteLock(async () => {
       try {
-        const requests = await this.getAllRaw();
+        const existing = await this.getAllRaw(true);
+        if (!replace && existing.some(item => item.id === request.id)) {
+          throw new Error('Request ID already exists');
+        }
+        const requests = existing.filter(item => item.id !== request.id);
         requests.push(request);
 
         // Clean up expired requests
@@ -144,11 +167,26 @@ export class RequestStorage<T extends BaseRequest> {
     return requests.filter(r => !isExpired(r.timestamp, this.ttlMs));
   }
 
+  /** One read/modify/write transaction, including conditional state transitions. */
+  async update(id: string, change: (request: T) => T | null): Promise<T | null> {
+    if (!chrome?.storage?.session) throw new Error('Session storage API unavailable');
+    return this.withWriteLock(async () => {
+      const requests = (await this.getAllRaw(true)).filter(item => !isExpired(item.timestamp, this.ttlMs));
+      const index = requests.findIndex(item => item.id === id);
+      if (index < 0) return null;
+      const updated = change(requests[index]!);
+      if (updated) requests[index] = updated;
+      else requests.splice(index, 1);
+      await chrome.storage.session.set({ [this.storageKey]: requests });
+      return updated;
+    });
+  }
+
   /**
    * Get all requests without filtering (internal use).
    * Validates each item has the required BaseRequest shape.
    */
-  private async getAllRaw(): Promise<T[]> {
+  private async getAllRaw(forWrite = false): Promise<T[]> {
     if (!chrome?.storage?.session) {
       return [];
     }
@@ -160,9 +198,12 @@ export class RequestStorage<T extends BaseRequest> {
         return [];
       }
       // Filter to only valid requests (must have id, origin, timestamp)
-      return value.filter((item): item is T => isValidBaseRequest(item));
+      return value.filter((item): item is T => isValidBaseRequest(item)
+        && (!this.validate || this.validate(item)));
     } catch (err) {
       console.error(`Failed to read ${this.requestName}s:`, err);
+      // A failed read is never evidence that it is safe to overwrite the store.
+      if (forWrite) throw new Error('Storage operation failed');
       return [];
     }
   }
@@ -178,7 +219,7 @@ export class RequestStorage<T extends BaseRequest> {
 
     return this.withWriteLock(async () => {
       try {
-        const requests = await this.getAllRaw();
+        const requests = await this.getAllRaw(true);
         const filtered = requests.filter(r => r.id !== id);
 
         await chrome.storage.session.set({

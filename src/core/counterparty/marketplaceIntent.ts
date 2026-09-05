@@ -8,6 +8,7 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import type { AttachedAssetDestination } from '@/core/counterparty/attachedAssetMovement';
+import type { ProtocolField } from '@/core/counterparty/describe';
 import type { InputAttachedAssets } from '@/core/counterparty/inputAssets';
 
 export const MARKETPLACE_INTENT_STANDARD = 'counterparty-marketplace' as const;
@@ -178,6 +179,8 @@ export type MarketplaceIntentClaimV1 =
   | PrepareBulkFanoutIntentClaim;
 
 export interface MarketplaceApprovalReview {
+  /** Optional concise action summary, separate from the full transaction description. */
+  summary?: { label: string; description: string };
   status: 'proved' | 'caution' | 'retry' | 'blocked';
   family:
     | 'attach_for_listing'
@@ -190,7 +193,7 @@ export interface MarketplaceApprovalReview {
     | 'prepare_bulk_fanout'
     | 'marketplace_batch';
   title: string;
-  facts: Array<{ label: string; value: string }>;
+  facts: ProtocolField[];
   notices: Array<{ severity: 'info' | 'warning' | 'danger'; message: string }>;
   blockers: string[];
 }
@@ -770,30 +773,39 @@ function analyzeCreateListingIntent({
   return {
     status,
     family: 'create_listing',
+    ...(status === 'proved' && provedQuantity !== null ? {
+      summary: {
+        label: intent.listingContext?.mode === 'reprice' ? 'Reprice listing' : 'List for sale',
+        description: `${provedQuantity} ${claim.asset}`,
+      },
+    } : {}),
     title: `${intent.listingContext?.mode === 'reprice' ? 'Reprice' : 'List'} 1 ${claim.asset} ` +
       `${intent.listingContext?.mode === 'reprice' ? 'to' : 'for'} ` +
       `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { label: 'Price', value: `${intent.priceSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Sale price', value: `${intent.priceSats.toLocaleString()} sats` },
       {
-        label: 'Seller receives',
-        value:
-          `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats ` +
-          `(price + ${intent.carrierValueSats.toLocaleString()}-sat asset UTXO)`,
+        kind: 'amount' as const, label: 'Your UTXO sats returned',
+        value: `${intent.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
       },
-      { label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
-      { label: 'Delivery', value: 'Detached to the eventual buyer' },
-      // The signature commits only the seller-payment output; state who controls the rest.
-      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
-      { label: 'Broadcast now', value: 'None' },
       {
-        label: 'Marketplace expiry',
+        kind: 'amount' as const, label: 'Your payout if sold',
+        value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats`,
+        emphasis: 'primary',
+      },
+      { kind: 'amount' as const, label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
+      { kind: 'paragraph' as const, label: 'Delivery', value: 'Buyer chooses attached or detached delivery' },
+      // The signature commits only the seller-payment output; state who controls the rest.
+      { kind: 'paragraph' as const, label: 'Buyer controls', value: 'Funding, fees, and delivery destination' },
+      { kind: 'text' as const, label: 'Broadcast', value: 'Not broadcast now.' },
+      {
+        kind: 'text' as const, label: 'Marketplace expiry',
         value: intent.marketplaceExpiresAt === null
           ? 'None requested'
           : formatExpiry(intent.marketplaceExpiresAt),
       },
-      { label: 'Marketplace cancellation', value: 'Delist without a transaction' },
-      { label: 'Signature invalidation', value: 'Spend the asset UTXO' },
+      { kind: 'paragraph' as const, label: 'Marketplace cancellation', value: 'Delist without a transaction' },
+      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend the asset UTXO' },
     ],
     notices: [],
     blockers: allProblems,
@@ -998,15 +1010,16 @@ function analyzeAttachIntent(
     title: preparing ? `Prepare ${claim.asset}` : `Attach ${claim.asset} for listing`,
     facts: [
       ...(!sameAddress(assetSource, carrierOwner) ? [
-        { label: 'Asset source', value: assetSource },
-        { label: 'New UTXO owner', value: carrierOwner },
+        { kind: 'address' as const, label: 'Asset source', value: assetSource },
+        { kind: 'address' as const, label: 'New UTXO owner', value: carrierOwner },
       ] : []),
-      { label: 'New UTXO value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'New UTXO value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
       {
-        label: 'Quoted XCP fee',
-        value: `${formatXcpRaw(intent.protocolFee.quotedAmountRaw)} (finalized at confirmation)`,
+        kind: 'amount' as const, label: 'Quoted XCP fee',
+        value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
+        description: 'Finalized at confirmation',
       },
-      { label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
+      { kind: 'text' as const, label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
     ],
     notices: [],
     blockers: allProblems,
@@ -1265,30 +1278,36 @@ function analyzeBuyListingsIntent(
   return {
     status,
     family: 'buy_listings',
+    ...(status === 'proved' ? {
+      summary: {
+        label: 'Buy collectibles',
+        description: `${itemCount} collectible${itemCount === 1 ? '' : 's'}`,
+      },
+    } : {}),
     title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
+      { kind: 'amount' as const, label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats`, emphasis: 'primary' },
       ...(receivedAsset
-        ? [{ label: 'You receive', value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}` }]
+        ? [{ kind: 'amount' as const, label: 'You receive', value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}` }]
         : []),
       // Per-item rows already name each asset; this row only adds the distinct-asset count when it
       // differs from the item count.
       {
-        label: 'Items',
+        kind: 'text' as const, label: 'Items',
         value: itemCount === distinctAssets
           ? `${itemCount}`
           : `${itemCount} (${distinctAssets} assets)`,
       },
       // No network-fee row: the money-movement summary beside these facts already states it.
-      { label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
-      { label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
-      { label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
       {
-        label: 'Delivery',
-        value: attachedDelivery
-          ? `Attached to ${intent.delivery.address} on a ${deliveryCarrierSats.toLocaleString()}-sat UTXO`
-          : `Detached to ${intent.delivery.address}`,
+        kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
+        description: attachedDelivery
+          ? `Asset stays attached to a ${deliveryCarrierSats.toLocaleString()}-sat UTXO at this address`
+          : 'Assets detach to this address',
       },
-      { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
+      { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
     ],
     notices: allProblems.length > 0
       ? []
@@ -1519,17 +1538,17 @@ function analyzeExactOfferIntent(
     title: `${authorizing ? 'Authorize' : 'Accept'} ${(intent.priceSats / 100_000_000).toFixed(8)} BTC` +
       ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
     facts: [
-      { label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
-      { label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
       {
-        label: 'Delivery',
-        value: attachedDelivery
-          ? `Attached to ${intent.delivery.address} on a ${deliveryCarrierSats.toLocaleString()}-sat UTXO`
-          : `Detached to ${intent.delivery.address}`,
+        kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
+        description: attachedDelivery
+          ? `Asset stays attached to a ${deliveryCarrierSats.toLocaleString()}-sat UTXO at this address`
+          : 'Asset detaches to this address',
       },
-      { label: 'Funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
-      { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
-      { label: 'Cancellation', value: 'Anytime — spend the funding UTXO' },
+      { kind: 'outpoint' as const, label: 'Funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
+      { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
+      { kind: 'paragraph' as const, label: 'Cancellation', value: 'Anytime — spend the funding UTXO' },
     ],
     notices: allProblems.length > 0
       ? []
@@ -1646,14 +1665,14 @@ function analyzePrepareBulkFanoutIntent(
     family: 'prepare_bulk_fanout',
     title: `Create ${intent.slotCount} listing UTXO${intent.slotCount === 1 ? '' : 's'}`,
     facts: [
-      { label: 'Funding input', value: `${intent.fundingValueSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Funding input', value: `${intent.fundingValueSats.toLocaleString()} sats` },
       {
-        label: 'New UTXOs',
+        kind: 'amount' as const, label: 'New UTXOs',
         value: `${intent.slotCount} × ${intent.slotValueSats.toLocaleString()} sats`,
       },
-      { label: 'Change', value: `${intent.changeSats.toLocaleString()} sats` },
-      { label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
-      { label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
+      { kind: 'amount' as const, label: 'Change', value: `${intent.changeSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
+      { kind: 'text' as const, label: 'Operation expiry', value: formatExpiry(intent.operationExpiresAt) },
     ],
     notices: allProblems.length > 0
       ? []

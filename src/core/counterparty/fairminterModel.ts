@@ -35,7 +35,7 @@ export interface FairminterPaymentInput {
   /** Price per lot. Either the normalized or the base-unit figure; only zero-ness is read. */
   price?: string | number | null;
   burnPayment?: boolean | null;
-  /** XCP set aside to open a pool once the soft cap is reached. */
+  /** Minted-asset quantity allocated to the pool once the soft cap is reached. */
   poolQuantity?: string | number | null;
 }
 
@@ -76,7 +76,7 @@ export interface FairminterPaymentFields {
  * This exists because the extraction is the part that goes wrong, not the rule. Four screens each
  * spelled out `{price, burnPayment}` by hand and three of them omitted `poolQuantity`, so the
  * `pool` branch below was unreachable from the entire fairmint flow: LAUNCHCOIN, which sets
- * `pool_quantity` to 31,000,000 XCP, described itself as "XCP Fee (to issuer)" and named the
+ * `pool_quantity` to 31,000,000 minted tokens, described itself as "XCP Fee (to issuer)" and named the
  * issuer's address under "Paid to" — an address that receives none of it. The form, the summary and
  * the review screen were all wrong together, which is the pairing that matters, because the review
  * screen is the one being signed from.

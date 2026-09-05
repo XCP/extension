@@ -1,33 +1,35 @@
-import { useEffect, useState } from 'react';
-import { ApprovalSiteBar } from '@/components/domain/approval/approval-chrome';
-import { FiClock } from '@/components/icons';
-import { Button } from '@/components/ui/button';
-import { ErrorAlert } from '@/components/ui/error-alert';
-import { WarningStack } from '@/components/ui/warning-stack';
-import { useHeader } from '@/contexts/header-context';
-import { useWallet } from '@/contexts/wallet-context';
-import { getMessageSigningRisks } from '@/core/bitcoin/messageRisk';
-import { usePopupLifecycle } from '@/hooks/usePopupLifecycle';
-import { useSignMessageRequest } from '@/hooks/useSignMessageRequest';
-import { getIdentityMismatchError, getMessagePermissionError } from '@/platform/provider/requestIdentity';
-import { getConnectionService } from '@/services/connectionService';
-import { getWalletService } from '@/services/walletService';
+import { useEffect, useState } from "react";
+import {
+  ApprovalExpired,
+  ApprovalFooter,
+  ApprovalLayout,
+  ApprovalLoading,
+  ApprovalNoWallet,
+} from "@/components/domain/approval/approval-chrome";
+import { ErrorAlert } from "@/components/ui/error-alert";
+import { WarningStack } from "@/components/ui/warning-stack";
+import { useHeader } from "@/contexts/header-context";
+import { useWallet } from "@/contexts/wallet-context";
+import { getMessageSigningRisks } from "@/core/bitcoin/messageRisk";
+import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
+import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
 
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet } = useWallet();
   const { setHeaderProps } = useHeader();
   const {
     request,
+    requestId,
     isLoading,
     error: loadError,
-    handleSuccess,
+    handleApprove,
     handleCancel,
   } = useSignMessageRequest();
-  usePopupLifecycle(request?.id, 'sign-message');
-  const signingRisks = getMessageSigningRisks(request?.message ?? '');
+  usePopupLifecycle(requestId, "sign-message");
+  const signingRisks = getMessageSigningRisks(request?.message ?? "");
 
   const [isSigning, setIsSigning] = useState(false);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
 
   // Configure header
   useEffect(() => {
@@ -37,37 +39,14 @@ export default function ApproveMessagePage() {
   }, [setHeaderProps]);
 
   const handleSign = async () => {
-    if (!request || !activeWallet || !activeAddress) return;
-
-    const identityError = getIdentityMismatchError(request, activeAddress.address, activeWallet.id);
-    if (identityError) {
-      setError(identityError);
-      return;
-    }
-
-    // A request stays open for up to ten minutes, so the site's grant is rechecked here rather
-    // than trusted from when the request was created — revoking a site in Settings must take
-    // effect on an approval already on screen. The transaction and PSBT paths both do this.
-    const revokedError = await getMessagePermissionError(request, getConnectionService());
-    if (revokedError) {
-      setError(revokedError);
-      return;
-    }
-
+    if (!request) return;
     setIsSigning(true);
-    setError('');
-
+    setError("");
     try {
-      const result = await getWalletService().signMessage(
-        request.message,
-        request.signingAddress ?? request.address,
-      );
-
-      await handleSuccess({ signature: result.signature });
+      await handleApprove(false);
       window.close();
-    } catch (err) {
-      console.error('Failed to sign message:', err);
-      setError(err instanceof Error ? err.message : 'Failed to sign message');
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Failed to sign request");
       setIsSigning(false);
     }
   };
@@ -78,122 +57,54 @@ export default function ApproveMessagePage() {
       await handleCancel();
       window.close();
     } catch (err) {
-      console.error('Failed to cancel:', err);
+      console.error("Failed to cancel:", err);
       setIsSigning(false);
     }
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-dvh p-4">
-        <div className="text-center">
-          <div className="animate-spin rounded-full size-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading request…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (loadError || !request) {
-    return (
-      <div className="flex flex-col items-center justify-center h-dvh p-6">
-        <div className="bg-gray-100 rounded-full p-4 mb-4">
-          <FiClock className="size-8 text-gray-400" aria-hidden="true" />
-        </div>
-        <p className="text-sm font-medium text-gray-700 mb-1">Request Expired</p>
-        <p className="text-xs text-gray-500 mb-6 text-center max-w-[240px]">
-          {loadError || 'This signing request is no longer available.'}
-        </p>
-        <Button color="gray" onClick={() => window.close()} className="min-w-[160px]">
-          Close Window
-        </Button>
-      </div>
-    );
-  }
-
-  // No wallet state
-  if (!activeAddress || !activeWallet) {
-    return (
-      <div className="flex items-center justify-center h-dvh p-4">
-        <div className="text-center">
-          <p className="text-gray-500">Please unlock your wallet first</p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <ApprovalLoading />;
+  if (loadError || !request) return <ApprovalExpired message={loadError} />;
+  if (!activeAddress || !activeWallet) return <ApprovalNoWallet />;
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="max-w-md mx-auto space-y-4">
-          {/* Wallet info - shown at top */}
-          <div className="flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {activeWallet.name}
-              </p>
-              <p className="text-xs text-gray-500 truncate">
-                {request.signingAddress ?? request.address}
-              </p>
-            </div>
-            <div className="ml-3 flex-shrink-0">
-              <div className="size-2.5 bg-green-500 rounded-full"></div>
-            </div>
-          </div>
-
-          <ApprovalSiteBar origin={request.origin} />
-
-          {error && <ErrorAlert message={error} />}
-
-          {/* Where the rendered message is a poor witness for the bytes being signed. The PSBT and
+    <ApprovalLayout
+      walletName={activeWallet.name}
+      address={request.signingAddress ?? request.address}
+      origin={request.origin}
+      footer={
+        <ApprovalFooter
+          onCancel={handleReject}
+          onSign={handleSign}
+          busy={isSigning}
+          blocked={false}
+          isHardware={activeWallet.type === "hardware"}
+          signLabel="Sign message"
+        />
+      }
+    >
+      {error && <ErrorAlert message={error} />}
+      {/* Where the rendered message is a poor witness for the bytes being signed. The PSBT and
               transaction screens have warned for a while; this one showed the text and a button. */}
-          {signingRisks.length > 0 && (
-            <WarningStack
-              items={signingRisks.map((risk) => ({
-                key: risk.key,
-                severity: 'warning',
-                title: risk.title,
-                description: risk.description,
-              }))}
-            />
-          )}
+      {signingRisks.length > 0 && (
+        <WarningStack
+          items={signingRisks.map((risk) => ({
+            key: risk.key,
+            severity: "warning",
+            title: risk.title,
+            description: risk.description,
+          }))}
+        />
+      )}
 
-          {/* Message content */}
-          <div className="bg-white rounded-lg shadow-sm p-5">
-            <p className="text-xs text-gray-500 mb-2">Message to sign</p>
-            <div className="bg-gray-50 rounded-lg p-3 max-h-48 overflow-y-auto">
-              <p className="text-sm text-gray-900 whitespace-pre-wrap break-words">
-                {request.message}
-              </p>
-            </div>
-          </div>
+      {/* Message content */}
+      <div className="bg-white rounded-lg shadow-sm p-4">
+        <p className="text-lg leading-6 font-semibold text-gray-900 mb-3">Message to sign</p>
+        <div className="bg-gray-50 rounded-lg p-3">
+          <p className="text-sm leading-5 text-gray-900 whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {request.message}
+          </p>
         </div>
       </div>
-
-      {/* Actions */}
-      <div className="bg-white border-t border-gray-200 p-4">
-        <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-          <Button
-            color="gray"
-            onClick={handleReject}
-            disabled={isSigning}
-            fullWidth
-          >
-            Cancel
-          </Button>
-          <Button
-            color="blue"
-            onClick={handleSign}
-            disabled={isSigning}
-            fullWidth
-          >
-            {isSigning ? (activeWallet.type === 'hardware' ? 'Confirm on device…' : 'Signing…') : 'Sign'}
-          </Button>
-        </div>
-      </div>
-    </div>
+    </ApprovalLayout>
   );
 }

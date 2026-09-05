@@ -14,8 +14,11 @@
  * chrome.storage.session (its PSBT decode is local, no dApp connection needed);
  * the active address is derived at runtime, so it is read from the details view.
  */
-import { walletTest, expect } from '@e2e/fixtures';
+import { expect, walletTest } from '@e2e/fixtures';
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import type { Page } from '@playwright/test';
+import { Address, OutScript, Transaction } from '@scure/btc-signer';
+import { authorizeGalleryOrigin } from '../utils/provider-gallery';
 
 // A Counterparty send — the OP_RETURN payload of the `send-divisible-bech32` gallery fixture —
 // against a 1 BTC input and a 10k-sat output, so the fee reads as absurd and the screen shows the
@@ -44,26 +47,38 @@ async function readActiveAddress(page: Page): Promise<string> {
 
 async function seedPsbtAndOpenApproval(page: Page, psbtHex: string, origin = 'https://app.example.com') {
   const address = await readActiveAddress(page);
+  const identity = await authorizeGalleryOrigin(page, origin);
+  expect(identity.address).toBe(address);
+  // The background review checks the real signer and prevout script. Keep the
+  // high-fee fixture, but make its funding input belong to the active test wallet.
+  const psbt = Transaction.fromPSBT(hexToBytes(psbtHex));
+  const input = psbt.getInput(0);
+  psbt.updateInput(0, { witnessUtxo: {
+    amount: input.witnessUtxo!.amount,
+    script: OutScript.encode(Address().decode(address)),
+  } });
+  psbtHex = bytesToHex(psbt.toPSBT());
   // One record per signing request, in the shape `beginSignFlow` writes (`signFlow.ts`). Seeded
   // directly rather than through a dApp connection, so `requestKey` only has to be present — it
   // exists for rejoining a duplicate request, which this test never makes.
-  await page.evaluate(async ({ address, psbtHex, origin }) => {
+  await page.evaluate(async ({ identity, psbtHex, origin }) => {
     await chrome.storage.session.set({
       pending_sign_flow: [
         {
           id: 'visual-check',
           origin,
           timestamp: Date.now(),
-          address,
-          walletId: '',
+          ...identity,
           requestKey: 'xcp_signPsbt:visual-check',
           kind: 'sign-psbt',
           status: 'pending',
           psbtHex,
+          signInputs: { [identity.address]: [0] },
+          sighashTypes: [0x01],
         },
       ],
     });
-  }, { address, psbtHex, origin });
+  }, { identity, psbtHex, origin });
   await page.goto(
     page.url().replace(/\/addresses.*/, `/requests/psbt/approve?requestId=visual-check&origin=${encodeURIComponent(origin)}`),
     { waitUntil: 'domcontentloaded' }
@@ -73,7 +88,7 @@ async function seedPsbtAndOpenApproval(page: Page, psbtHex: string, origin = 'ht
   // itself to resolve to either the signable view or an error gate. A signable
   // request with cautions labels its footer button Review rather than Sign.
   await expect(
-    page.getByRole('button', { name: /^(Sign|Review)$/ }).or(page.getByText('Request Expired'))
+    page.getByRole('button', { name: /^(Sign transaction|Review)$/ })
   ).toBeVisible({ timeout: 20000 });
 }
 
@@ -105,8 +120,9 @@ walletTest.describe('UX visual check', () => {
     // BTC-to-external cautions defer signing behind a Review step, so the footer
     // reads Review rather than Sign and the main screen stays visually quiet.
     await expect(page.getByText('app.example.com', { exact: true })).toBeVisible();
-    const review = page.getByRole('button', { name: 'Review' });
+    const review = page.getByTestId('approval-footer').getByRole('button', { name: 'Review', exact: true });
     await expect(review).toBeVisible();
+    await expect(page.getByRole('button', { name: 'What to review', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel' })).toBeVisible();
 
     await testInfo.attach('approval-high-fee', {
@@ -117,8 +133,9 @@ walletTest.describe('UX visual check', () => {
     // The cautions themselves live on the attention screen behind Review: the
     // high-fee item and the BTC-to-external severity item.
     await review.click();
-    await expect(page.getByText(/unusually high network fee/i)).toBeVisible();
-    await expect(page.getByText(/BTC Sent to External Address/i)).toBeVisible();
+    const attention = page.getByRole('dialog');
+    await expect(attention.getByRole('heading', { name: 'Unusually high network fee', exact: true })).toBeVisible();
+    await expect(attention.getByRole('heading', { name: 'BTC Sent to External Address', exact: true })).toBeVisible();
 
     await testInfo.attach('approval-high-fee-attention', {
       body: await page.screenshot({ fullPage: true }),

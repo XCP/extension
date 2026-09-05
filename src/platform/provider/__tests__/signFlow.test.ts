@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import {
   beginSignFlow,
+  cancelPendingSignFlow,
+  claimSignFlow,
   computeRequestKey,
   findActiveFlowByKey,
   findSafeChangeSigningAddress,
@@ -27,6 +29,15 @@ describe('signFlow', () => {
       expect(computeRequestKey('https://y.com', 'xcp_signTransaction', ['00'])).not.toBe(base);
       expect(computeRequestKey('https://x.com', 'xcp_signPsbt', ['00'])).not.toBe(base);
       expect(computeRequestKey('https://x.com', 'xcp_signTransaction', ['01'])).not.toBe(base);
+    });
+
+    it('binds the signing identity and canonicalizes parameter object order with SHA-256', () => {
+      const identity = { walletId: 'wallet-1', address: 'address-1' };
+      const key = computeRequestKey('https://x.com', 'method', { a: 1, b: 2 }, identity);
+      expect(key).toMatch(/^method:[a-f0-9]{64}$/);
+      expect(computeRequestKey('https://x.com', 'method', { b: 2, a: 1 }, identity)).toBe(key);
+      expect(computeRequestKey('https://x.com', 'method', { a: 1, b: 2 }, { ...identity, walletId: 'other' })).not.toBe(key);
+      expect(computeRequestKey('https://x.com', 'method', { a: 1, b: 2 }, { ...identity, address: 'other' })).not.toBe(key);
     });
   });
 
@@ -54,7 +65,7 @@ describe('signFlow', () => {
       });
       flow = await getSignFlow('id-1');
       expect(flow?.status).toBe('completed');
-      expect(flow?.result).toEqual({ signedTxHex: 'deadbeef', safeOwnChange: true });
+      expect(flow?.status === 'completed' ? flow.result : undefined).toEqual({ signedTxHex: 'deadbeef', safeOwnChange: true });
       expect(await findSafeChangeSigningAddress('deadbeef', 'https://x.com'))
         .toBe('bc1qexample');
       expect(await findSafeChangeSigningAddress('deadbeef', 'https://elsewhere.com'))
@@ -84,7 +95,55 @@ describe('signFlow', () => {
     });
 
     it('recordSignOutcome is a no-op for an unknown id', async () => {
-      await expect(recordSignOutcome('nope', 'completed', {})).resolves.toBeUndefined();
+      await expect(recordSignOutcome('nope', 'completed', {})).resolves.toBeNull();
+    });
+
+    it('claims once, refuses an ID overwrite, and prevents late popup cancellation after approval', async () => {
+      const entry = { id: 'claim', origin: 'https://x.com', requestKey: 'key', kind: 'sign-message' as const,
+        walletId: 'wallet', address: 'address', message: 'approved message', timestamp: Date.now() };
+      await beginSignFlow(entry);
+      await claimSignFlow('claim');
+      await expect(claimSignFlow('claim')).rejects.toThrow(/no longer pending/);
+      await expect(beginSignFlow({ ...entry, message: 'replacement' })).rejects.toThrow();
+      expect(await cancelPendingSignFlow('claim')).toBe(false);
+      expect(await getSignFlow('claim')).toMatchObject({ status: 'signing', message: 'approved message' });
+    });
+
+    it('does not lose another request when a completion and insertion overlap', async () => {
+      const base = { origin: 'https://x.com', requestKey: 'key', kind: 'sign-message' as const,
+        walletId: 'wallet', address: 'address', message: 'hello', timestamp: Date.now() };
+      await beginSignFlow({ ...base, id: 'a' });
+      await Promise.all([recordSignOutcome('a', 'completed', { signature: 'signature' }),
+        beginSignFlow({ ...base, id: 'b' })]);
+      expect(await getSignFlow('a')).toMatchObject({ status: 'completed', result: { signature: 'signature' } });
+      expect(await getSignFlow('b')).toMatchObject({ status: 'pending' });
+      expect(await recordSignOutcome('a', 'cancelled')).toMatchObject({
+        status: 'completed', result: { signature: 'signature' },
+      });
+      expect(await getSignFlow('a')).toMatchObject({ status: 'completed' });
+    });
+
+    it('reports cancellation when cancellation wins a competing completion', async () => {
+      await beginSignFlow({ id: 'race', origin: 'https://x.com', requestKey: 'key', kind: 'sign-message',
+        walletId: 'wallet', address: 'address', message: 'hello', timestamp: Date.now() });
+      const [cancelled, attemptedCompletion] = await Promise.all([
+        recordSignOutcome('race', 'cancelled'),
+        recordSignOutcome('race', 'completed', { signature: 'must-not-be-published' }),
+      ]);
+      expect(cancelled).toMatchObject({ status: 'cancelled' });
+      expect(attemptedCompletion).toMatchObject({ status: 'cancelled' });
+      expect(await getSignFlow('race')).not.toHaveProperty('result');
+    });
+
+    it('rejects malformed persisted variants and non-finite or future timestamps', async () => {
+      const base = { id: 'bad', origin: 'https://x.com', requestKey: 'key', kind: 'sign-message',
+        walletId: 'wallet', address: 'address', timestamp: Date.now(), status: 'pending' };
+      for (const entry of [{ ...base, message: 42 }, { ...base, message: 'hello', timestamp: Infinity },
+        { ...base, message: 'hello', timestamp: Date.now() + 60_000 },
+        { ...base, status: 'completed', result: { signedPsbtHex: 'wrong-result' } }]) {
+        await chrome.storage.session.set({ pending_sign_flow: [entry] });
+        expect(await getSignFlow('bad')).toBeNull();
+      }
     });
   });
 });

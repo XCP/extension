@@ -1,79 +1,43 @@
+import { Button } from '@/components/ui/button';
 import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
+import { ApprovalFacts } from './approval-facts';
+import { ApprovalNotice } from './approval-notice';
 
 /** Semantic review produced after the wallet independently evaluates the marketplace family. */
-export function MarketplaceReviewCard({ review }: { review: MarketplaceApprovalReview }) {
+export function MarketplaceReviewCard({ review, onRetry, retrying = false, retryError }: {
+  review: MarketplaceApprovalReview;
+  onRetry?: () => void;
+  retrying?: boolean;
+  retryError?: string | null;
+}) {
   const proved = review.status === 'proved';
   const caution = review.status === 'caution';
   const retry = review.status === 'retry';
   const showFacts = proved || caution;
-  const palette = proved || caution
-    ? {
-        box: 'border-gray-100 bg-white shadow-sm',
-        heading: 'text-gray-900',
-        body: 'text-gray-600',
-        border: 'border-gray-100',
-        muted: 'text-gray-500',
-      }
-    : retry
-      ? {
-          box: 'border-amber-200 bg-amber-50',
-          heading: 'text-amber-950',
-          body: 'text-amber-900',
-          border: 'border-amber-200',
-          muted: 'text-amber-700',
-        }
-      : {
-          box: 'border-danger-200 bg-danger-50',
-          heading: 'text-danger-900',
-          body: 'text-danger-800',
-          border: 'border-danger-200',
-          muted: 'text-danger-700',
-        };
+  if (!showFacts) {
+    return (
+      <div>
+        <ApprovalNotice blocked statusLabel={retry ? 'Verification incomplete — retry' : 'Marketplace terms did not verify'} items={
+          (review.blockers.length > 0 ? review.blockers : [review.title]).map((reason, index) => ({
+            key: `marketplace-blocker-${index}`, severity: retry ? 'warning' : 'danger',
+            title: reason,
+            ...(index === 0 ? { description: `${review.title}. Signing ${retry ? 'stays unavailable until verification succeeds' : 'is blocked'}.` } : {}),
+          }))
+        } />
+        {retry && onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} className="mt-3 text-sm" fullWidth>
+          {retrying ? 'Verifying…' : 'Retry verification'}
+        </Button>}
+        {retry && retryError && <p role="alert" className="mt-2 text-sm leading-5 text-danger-800">{retryError}</p>}
+      </div>
+    );
+  }
   return (
-    <div className={`rounded-lg border p-4 ${palette.box}`}>
-      {!showFacts && (
-        <p className={`text-sm font-semibold ${palette.heading}`}>
-          {retry ? 'Verification incomplete — retry' : 'Marketplace terms did not verify'}
-        </p>
-      )}
-      <p className={`${showFacts ? 'font-semibold' : 'mt-1'} text-sm ${palette.heading}`}>
-        {review.title}
-      </p>
-      {showFacts && (
-        <dl className={`mt-3 space-y-2 border-t pt-3 text-xs ${palette.border}`}>
-          {review.facts.map((fact) => (
-            <div key={fact.label} className="flex justify-between gap-3">
-              <dt className={palette.muted}>{fact.label}</dt>
-              <dd className={`max-w-[65%] break-all text-right font-medium ${palette.heading}`}>
-                {fact.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
+    <div className="rounded-lg border border-gray-100 bg-white p-4 shadow-sm">
+      <p className="text-sm font-semibold text-gray-900">{review.title}</p>
+      <div className="mt-3 border-t border-gray-100 pt-3"><ApprovalFacts fields={review.facts} /></div>
       {caution && review.notices.map((notice, index) => (
-        <p key={`${notice.severity}-${index}`} className={`mt-3 border-t pt-3 text-xs leading-5 ${palette.border} ${palette.body}`}>
-          {notice.message}
-        </p>
+        <p key={`${notice.severity}-${index}`} className="mt-3 border-t border-gray-100 pt-3 text-sm leading-5 text-gray-600">{notice.message}</p>
       ))}
-      {/* The one and only failure surface: the approval screens suppress their generic warning
-          stacks and error alerts when this card gates signing, so it must say everything. */}
-      {!showFacts && (
-        <>
-          <p className={`mt-3 text-xs ${palette.muted}`}>
-            {retry
-              ? "The wallet couldn't verify this against the ledger. Nothing looks wrong with the request — retry in a moment."
-              : 'The wallet checked the transaction bytes and found marketplace terms it could not prove. Signing is blocked.'}
-          </p>
-          {review.blockers.length > 0 && (
-            <ul className={`mt-2 space-y-1 text-xs ${palette.body}`}>
-              {review.blockers.map((blocker) => (
-                <li key={blocker}>• {blocker}</li>
-              ))}
-            </ul>
-          )}
-        </>
-      )}
     </div>
   );
 }

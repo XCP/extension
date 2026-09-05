@@ -5,9 +5,10 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
-import { signPSBT as btcSignPSBT, completePsbtWithInputValues } from '@/core/bitcoin/psbt';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues, parsePSBT } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
+import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
@@ -33,12 +34,14 @@ import { detectUtxoAddress, isUtxoAddressPath, parseUtxoAddressPath, utxoAddress
 import * as sessionManager from '@/platform/auth/sessionManager';
 import { SessionRecoveryState } from '@/platform/auth/sessionManager';
 import { whenSessionRecovered } from '@/platform/auth/sessionReady';
+import type { SigningIdentity } from '@/platform/auth/signingIdentity';
 import {
   assertUnlockAllowed,
   clearUnlockAttempts,
   recordFailedUnlockAttempt,
 } from '@/platform/auth/unlockRateLimiter';
 import { getTrustedBroadcastPrevout } from '@/platform/provider/recentBroadcasts';
+import { createWriteLock } from '@/platform/storage/mutex';
 import {
   assertNoKeychainRecord,
   deleteKeychain,
@@ -108,6 +111,37 @@ export class WalletManager {
   /** Decrypted keychain metadata; null when locked */
   private keychain: Keychain | null = null;
 
+  // Popup, side panel, and provider calls share this background owner. Only public entry points
+  // join the queue; internal steps call their private counterparts, so nested mutations never
+  // reacquire the lock. Locking itself is immediate and invalidates work already awaiting I/O.
+  private readonly withVaultWriteLock = createWriteLock();
+  private vaultGeneration = 0;
+  private mutationGeneration: number | null = null;
+  private lockInFlight: Promise<void> | null = null;
+
+  private mutateVault<T>(operation: () => Promise<T>): Promise<T> {
+    const generation = this.vaultGeneration;
+    return this.withVaultWriteLock(async () => {
+      if (this.lockInFlight) await this.lockInFlight;
+      if (generation !== this.vaultGeneration) throw new Error('Wallet session changed; please try again.');
+      this.mutationGeneration = generation;
+      try {
+        return await operation();
+      } finally {
+        this.mutationGeneration = null;
+      }
+    });
+  }
+
+  /** Check each asynchronous boundary before using a captured key or publishing wallet state. */
+  private async mutationStep<T>(operation: Promise<T>): Promise<T> {
+    const result = await operation;
+    if (this.mutationGeneration !== this.vaultGeneration) {
+      throw new Error('Wallet session changed; please try again.');
+    }
+    return result;
+  }
+
   public async setLastActiveTime(): Promise<void> {
     await sessionManager.setLastActiveTime();
   }
@@ -122,7 +156,7 @@ export class WalletManager {
 
   public async refreshWallets(): Promise<void> {
     if (this.refreshInFlight) return this.refreshInFlight;
-    this.refreshInFlight = this.doRefreshWallets().finally(() => {
+    this.refreshInFlight = this.mutateVault(() => this.doRefreshWallets()).finally(() => {
       this.refreshInFlight = null;
     });
     return this.refreshInFlight;
@@ -157,22 +191,22 @@ export class WalletManager {
   private async doRefreshWallets(): Promise<void> {
     // If keychain is already loaded, just refresh addresses
     if (this.keychain) {
-      await this.refreshWalletAddresses();
+      await this.mutationStep(this.refreshWalletAddresses());
       return;
     }
 
     // Try to reload keychain from session
-    const masterKey = await sessionManager.getKeychainMasterKey();
+    const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) return;
 
-    const keychainRecord = await getKeychainRecord();
+    const keychainRecord = await this.mutationStep(getKeychainRecord());
     if (!keychainRecord) return;
 
     try {
-      const decryptedKeychain = await decryptKeychain(keychainRecord, masterKey);
+      const decryptedKeychain = await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
       this.keychain = decryptedKeychain;
       this.wallets = decryptedKeychain.wallets.map((r) => this.walletFromRecord(r));
-      await this.refreshWalletAddresses();
+      await this.mutationStep(this.refreshWalletAddresses());
 
       // Restore active wallet — use selectWallet() instead of just setting activeWalletId
       // so the wallet secret is decrypted and addresses are derived.
@@ -181,7 +215,7 @@ export class WalletManager {
       const settings = this.getSettings();
       const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
       if (walletId && this.getWalletById(walletId)) {
-        await this.selectWallet(walletId);
+        await this.mutationStep(this.selectWalletInternal(walletId));
       }
     } catch {
       this.wallets = [];
@@ -209,7 +243,7 @@ export class WalletManager {
     if (!this.keychain) return;
 
     for (const wallet of this.wallets) {
-      const secret = await sessionManager.getUnlockedSecret(wallet.id);
+      const secret = await this.mutationStep(sessionManager.getUnlockedSecret(wallet.id));
       if (!secret) {
         wallet.addresses = [];
         continue;
@@ -288,6 +322,15 @@ export class WalletManager {
     name?: string,
     addressFormat: AddressFormat = DEFAULT_ADDRESS_FORMAT
   ): Promise<Wallet> {
+    return this.mutateVault(() => this.createMnemonicWalletInternal(mnemonic, password, name, addressFormat));
+  }
+
+  private async createMnemonicWalletInternal(
+    mnemonic: string,
+    password: string,
+    name?: string,
+    addressFormat: AddressFormat = AddressFormat.P2WPKH
+  ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
     }
@@ -302,14 +345,14 @@ export class WalletManager {
     }
 
     const walletName = name || `Wallet ${this.wallets.length + 1}`;
-    const id = await generateWalletId(mnemonic, addressFormat);
+    const id = await this.mutationStep(generateWalletId(mnemonic, addressFormat));
 
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this mnemonic+addressType combination already exists.');
     }
 
-    const masterKey = await this.getOrCreateKeychain(password);
-    const encryptedSecret = await encryptWithKey(mnemonic, masterKey);
+    const masterKey = await this.mutationStep(this.getOrCreateKeychain(password));
+    const encryptedSecret = await this.mutationStep(encryptWithKey(mnemonic, masterKey));
 
     // Derive first address for preview display
     const derivationPath = `${getDerivationPathForAddressFormat(addressFormat)}/0`;
@@ -332,7 +375,7 @@ export class WalletManager {
       throw new Error('Keychain not initialized');
     }
     this.keychain.wallets.push(walletRecord);
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     // Add to runtime wallet list
     const wallet: Wallet = {
@@ -347,7 +390,7 @@ export class WalletManager {
     this.wallets.push(wallet);
 
     // Select the newly created wallet
-    await this.selectWallet(id);
+    await this.mutationStep(this.selectWalletInternal(id));
 
     return wallet;
   }
@@ -357,6 +400,15 @@ export class WalletManager {
     password: string,
     name?: string,
     addressFormat: AddressFormat = DEFAULT_ADDRESS_FORMAT
+  ): Promise<Wallet> {
+    return this.mutateVault(() => this.createPrivateKeyWalletInternal(privateKey, password, name, addressFormat));
+  }
+
+  private async createPrivateKeyWalletInternal(
+    privateKey: string,
+    password: string,
+    name?: string,
+    addressFormat: AddressFormat = AddressFormat.P2TR
   ): Promise<Wallet> {
     if (this.wallets.length >= MAX_WALLETS) {
       throw new Error(`Maximum number of wallets (${MAX_WALLETS}) reached`);
@@ -385,13 +437,13 @@ export class WalletManager {
       compressed
     });
 
-    const id = await generateWalletIdFromPrivateKey(privateKeyHex, addressFormat);
+    const id = await this.mutationStep(generateWalletIdFromPrivateKey(privateKeyHex, addressFormat));
     if (this.wallets.some((w) => w.id === id)) {
       throw new Error('A wallet with this private key already exists.');
     }
 
-    const masterKey = await this.getOrCreateKeychain(password);
-    const encryptedSecret = await encryptWithKey(secretJson, masterKey);
+    const masterKey = await this.mutationStep(this.getOrCreateKeychain(password));
+    const encryptedSecret = await this.mutationStep(encryptWithKey(secretJson, masterKey));
 
     // Derive address for preview display
     const previewAddress = getAddressFromPrivateKey(privateKeyHex, addressFormat, compressed);
@@ -413,7 +465,7 @@ export class WalletManager {
       throw new Error('Keychain not initialized');
     }
     this.keychain.wallets.push(walletRecord);
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     // Add to runtime wallet list
     const wallet: Wallet = {
@@ -428,12 +480,19 @@ export class WalletManager {
     this.wallets.push(wallet);
 
     // Select the newly created wallet
-    await this.selectWallet(id);
+    await this.mutationStep(this.selectWalletInternal(id));
 
     return wallet;
   }
 
   public async importTestAddress(
+    address: string,
+    name?: string
+  ): Promise<Wallet> {
+    return this.mutateVault(() => this.importTestAddressInternal(address, name));
+  }
+
+  private async importTestAddressInternal(
     address: string,
     name?: string
   ): Promise<Wallet> {
@@ -479,13 +538,13 @@ export class WalletManager {
       throw new Error('Keychain must be unlocked to import test addresses');
     }
 
-    const masterKey = await sessionManager.getKeychainMasterKey();
+    const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
       throw new Error('Keychain must be unlocked to import test addresses');
     }
 
     // Encrypt test marker with master key (for consistency)
-    const encryptedSecret = await encryptWithKey(testMarker, masterKey);
+    const encryptedSecret = await this.mutationStep(encryptWithKey(testMarker, masterKey));
 
     // Create wallet record for keychain
     const walletRecord: WalletRecord = {
@@ -502,7 +561,7 @@ export class WalletManager {
 
     // Add to keychain
     this.keychain.wallets.push(walletRecord);
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     // Create wallet object with the test address
     const wallet: Wallet = {
@@ -527,10 +586,10 @@ export class WalletManager {
     this.activeWalletId = id;
 
     // Set the test address as the last active address
-    await this.updateSettings({
+    await this.mutationStep(this.updateSettingsInternal({
       lastActiveWalletId: id,
       lastActiveAddress: address
-    });
+    }));
 
     // Store test marker as "unlocked" secret
     sessionManager.storeUnlockedSecret(id, testMarker);
@@ -568,7 +627,7 @@ export class WalletManager {
       throw new Error('Keychain must be unlocked to add hardware wallets');
     }
 
-    const masterKey = await sessionManager.getKeychainMasterKey();
+    const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
       throw new Error('Keychain must be unlocked to add hardware wallets');
     }
@@ -602,7 +661,7 @@ export class WalletManager {
     const hardwareSecretJson = JSON.stringify(hardwareSecret);
 
     // Encrypt and persist
-    const encryptedSecret = await encryptWithKey(hardwareSecretJson, masterKey);
+    const encryptedSecret = await this.mutationStep(encryptWithKey(hardwareSecretJson, masterKey));
 
     const walletRecord: WalletRecord = {
       id,
@@ -616,7 +675,7 @@ export class WalletManager {
     };
 
     this.keychain.wallets.push(walletRecord);
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     // Create runtime wallet object
     const wallet: Wallet = {
@@ -642,10 +701,10 @@ export class WalletManager {
     sessionManager.storeUnlockedSecret(id, hardwareSecretJson);
 
     // Update settings
-    await this.updateSettings({
+    await this.mutationStep(this.updateSettingsInternal({
       lastActiveWalletId: id,
       lastActiveAddress: account.address,
-    });
+    }));
 
     return wallet;
   }
@@ -667,24 +726,32 @@ export class WalletManager {
     name?: string,
     usePassphrase: boolean = false
   ): Promise<Wallet> {
+    return this.mutateVault(() => this.createHardwareWalletWithDiscoveryInternal(deviceType, name, usePassphrase));
+  }
+
+  private async createHardwareWalletWithDiscoveryInternal(
+    deviceType: 'trezor' | 'ledger',
+    name?: string,
+    usePassphrase: boolean = false
+  ): Promise<Wallet> {
     // Currently only Trezor is supported
     if (deviceType !== 'trezor') {
       throw new Error(`Hardware wallet type '${deviceType}' is not yet supported`);
     }
 
     // Dynamically import Trezor adapter
-    const { getTrezorAdapter } = await import('@/core/hardware/trezorAdapter');
+    const { getTrezorAdapter } = await this.mutationStep(import('@/core/hardware/trezorAdapter'));
     const trezor = getTrezorAdapter();
 
     // Initialize with settings
     const settings = this.getSettings();
-    await trezor.init({ testMode: settings?.trezorEmulatorMode });
+    await this.mutationStep(trezor.init({ testMode: settings?.trezorEmulatorMode }));
 
     // Perform account discovery - this shows Trezor's account selection UI
     // discoverAccount validates the path internally and returns accountIndex
     // KEY: xpub is extracted from descriptor - NO separate getXpub() call needed!
     // This reduces TrezorConnect calls from 2 to 1, meaning fewer permission prompts.
-    const discovered = await trezor.discoverAccount(usePassphrase);
+    const discovered = await this.mutationStep(trezor.discoverAccount(usePassphrase));
 
     return this.finalizeHardwareWallet({
       deviceType,
@@ -711,27 +778,31 @@ export class WalletManager {
    * @param password - User's keychain password
    */
   public async unlockKeychain(password: string): Promise<void> {
-    // Throttle password guessing across service worker restarts
-    await assertUnlockAllowed();
+    return this.mutateVault(() => this.unlockKeychainInternal(password));
+  }
 
-    const keychainRecord = await getKeychainRecord();
+  private async unlockKeychainInternal(password: string): Promise<void> {
+    // Throttle password guessing across service worker restarts
+    await this.mutationStep(assertUnlockAllowed());
+
+    const keychainRecord = await this.mutationStep(getKeychainRecord());
     if (!keychainRecord) {
       throw new Error('No keychain found. Create a wallet first.');
     }
 
     // Derive master key from password + salt (uses Web Worker for non-blocking UI)
     const salt = base64ToBuffer(keychainRecord.salt);
-    const masterKey = await deriveKeyAsync(password, salt, keychainRecord.kdf.iterations);
+    const masterKey = await this.mutationStep(deriveKeyAsync(password, salt, keychainRecord.kdf.iterations));
 
     // Decrypt keychain
     let decryptedKeychain: Keychain;
     try {
-      decryptedKeychain = await decryptKeychain(keychainRecord, masterKey);
+      decryptedKeychain = await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
     } catch {
-      await recordFailedUnlockAttempt();
+      await this.mutationStep(recordFailedUnlockAttempt());
       throw new Error('Invalid password');
     }
-    await clearUnlockAttempts();
+    await this.mutationStep(clearUnlockAttempts());
 
     // Validate keychain version
     if (decryptedKeychain.version !== KEYCHAIN_VERSION) {
@@ -743,9 +814,9 @@ export class WalletManager {
     // it as expired while unlock is still in flight.
     const settings = decryptedKeychain.settings;
     const timeout = getAutoLockTimeoutMs(settings.autoLockTimer);
-    await sessionManager.initializeSession(timeout);
-    await sessionManager.scheduleSessionExpiry(timeout);
-    await sessionManager.storeKeychainMasterKey(masterKey);
+    await this.mutationStep(sessionManager.initializeSession(timeout));
+    await this.mutationStep(sessionManager.scheduleSessionExpiry(timeout));
+    await this.mutationStep(sessionManager.storeKeychainMasterKey(masterKey));
 
     // Publish the decrypted in-memory view only after the session is fully valid.
     this.keychain = decryptedKeychain;
@@ -764,7 +835,7 @@ export class WalletManager {
     // Auto-load last active wallet (from settings inside keychain)
     const walletId = settings.lastActiveWalletId || decryptedKeychain.wallets[0]?.id;
     if (walletId) {
-      await this.selectWallet(walletId);
+      await this.mutationStep(this.selectWalletInternal(walletId));
     }
   }
 
@@ -776,7 +847,11 @@ export class WalletManager {
    * @param walletId - ID of the wallet to load
    */
   public async selectWallet(walletId: string): Promise<void> {
-    const masterKey = await sessionManager.getKeychainMasterKey();
+    return this.mutateVault(() => this.selectWalletInternal(walletId));
+  }
+
+  private async selectWalletInternal(walletId: string): Promise<void> {
+    const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
       throw new Error('Keychain not unlocked');
     }
@@ -805,7 +880,7 @@ export class WalletManager {
     }
 
     // Decrypt and derive addresses
-    const secret = await decryptWithKey(record.encryptedSecret, masterKey);
+    const secret = await this.mutationStep(decryptWithKey(record.encryptedSecret, masterKey));
     sessionManager.storeUnlockedSecret(walletId, secret);
     wallet.addresses = deriveAddressesFromSecret(secret, record);
     // Extra paths are appended to the same list but are not part of the sequential run, so they
@@ -817,7 +892,7 @@ export class WalletManager {
 
     // Persist lastActiveWalletId in settings (only on explicit selection)
     if (this.getSettings().lastActiveWalletId !== walletId) {
-      await this.updateSettings({ lastActiveWalletId: walletId });
+      await this.mutationStep(this.updateSettingsInternal({ lastActiveWalletId: walletId }));
     }
   }
 
@@ -864,6 +939,10 @@ export class WalletManager {
    * Requires keychain to be unlocked.
    */
   public async updateSettings(updates: Partial<AppSettings>): Promise<void> {
+    return this.mutateVault(() => this.updateSettingsInternal(updates));
+  }
+
+  private async updateSettingsInternal(updates: Partial<AppSettings>): Promise<void> {
     if (!this.keychain) {
       throw new Error('Cannot update settings: keychain not unlocked');
     }
@@ -874,13 +953,57 @@ export class WalletManager {
       ...updates,
     };
 
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
-    // If autoLockTimer changed, reschedule the session expiry alarm
+    // Persist the new idle limit in session metadata too, so activity and worker recovery keep it.
     if (updates.autoLockTimer) {
       const timeoutMs = getAutoLockTimeoutMs(updates.autoLockTimer);
-      await sessionManager.scheduleSessionExpiry(timeoutMs);
+      await this.mutationStep(sessionManager.updateSessionTimeout(timeoutMs));
     }
+  }
+
+  /** Persist a connection and its optional paired-address grant in one keychain write. */
+  public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string }): Promise<void> {
+    return this.mutateVault(async () => {
+      const settings = this.getSettings();
+      const providerCapabilities = { ...settings.providerCapabilities };
+      if (pairedIdentity) providerCapabilities[origin] = { pairedAddresses: true, ...pairedIdentity };
+      else delete providerCapabilities[origin];
+      await this.updateSettingsInternal({
+        connectedWebsites: [...new Set([...settings.connectedWebsites, origin])],
+        providerCapabilities,
+      });
+    });
+  }
+
+  public removeConnectedWebsite(origin: string): Promise<void> {
+    return this.mutateVault(async () => {
+      const settings = this.getSettings();
+      const providerCapabilities = { ...settings.providerCapabilities };
+      delete providerCapabilities[origin];
+      await this.updateSettingsInternal({
+        connectedWebsites: settings.connectedWebsites.filter(site => site !== origin),
+        providerCapabilities,
+      });
+    });
+  }
+
+  public clearConnectedWebsites(): Promise<void> {
+    return this.updateSettings({ connectedWebsites: [], providerCapabilities: {} });
+  }
+
+  /** A revoked connection cannot be recreated by an in-flight capability approval. */
+  public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string } | null): Promise<void> {
+    return this.mutateVault(async () => {
+      const settings = this.getSettings();
+      if (identity && !settings.connectedWebsites.includes(origin)) {
+        throw new Error('Site disconnected before paired address access was granted');
+      }
+      const providerCapabilities = { ...settings.providerCapabilities };
+      if (identity) providerCapabilities[origin] = { pairedAddresses: true, ...identity };
+      else delete providerCapabilities[origin];
+      await this.updateSettingsInternal({ providerCapabilities });
+    });
   }
 
   /**
@@ -892,25 +1015,29 @@ export class WalletManager {
       throw new Error('No keychain to persist');
     }
 
-    const masterKey = await sessionManager.getKeychainMasterKey();
+    // Snapshot before yielding: locking clears the live view, and no async crypto operation may
+    // serialize that cleared view (or metadata from a subsequent session).
+    const keychain = structuredClone(this.keychain);
+
+    const masterKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (!masterKey) {
       throw new Error('Cannot persist keychain: keychain locked');
     }
 
     // Get existing keychain record for salt
-    const existingRecord = await getKeychainRecord();
+    const existingRecord = await this.mutationStep(getKeychainRecord());
     if (!existingRecord) {
       throw new Error('Cannot persist keychain: no existing record');
     }
 
-    const updatedRecord = await encryptKeychainRecord(
-      this.keychain,
+    const updatedRecord = await this.mutationStep(encryptKeychainRecord(
+      keychain,
       masterKey,
       existingRecord.salt,
       existingRecord.kdf.iterations,
-    );
+    ));
 
-    await saveKeychainRecord(updatedRecord);
+    await this.mutationStep(saveKeychainRecord(updatedRecord));
   }
 
   /**
@@ -923,9 +1050,9 @@ export class WalletManager {
   }> {
     // A missing session key means "locked" as well as "first use". Prove absence on disk before
     // doing any work, then recheck immediately before the destructive write.
-    await assertNoKeychainRecord();
+    await this.mutationStep(assertNoKeychainRecord());
     const salt = generateRandomBytes(16);
-    const masterKey = await deriveKey(password, salt, DEFAULT_PBKDF2_ITERATIONS);
+    const masterKey = await this.mutationStep(deriveKey(password, salt, DEFAULT_PBKDF2_ITERATIONS));
 
     const newKeychain: Keychain = {
       version: KEYCHAIN_VERSION,
@@ -933,15 +1060,15 @@ export class WalletManager {
       settings: { ...DEFAULT_SETTINGS },
     };
 
-    const keychainRecord = await encryptKeychainRecord(
+    const keychainRecord = await this.mutationStep(encryptKeychainRecord(
       newKeychain,
       masterKey,
       bufferToBase64(salt),
       DEFAULT_PBKDF2_ITERATIONS,
-    );
+    ));
 
-    await assertNoKeychainRecord();
-    await saveKeychainRecord(keychainRecord);
+    await this.mutationStep(assertNoKeychainRecord());
+    await this.mutationStep(saveKeychainRecord(keychainRecord));
 
     return { masterKey, keychain: newKeychain };
   }
@@ -951,19 +1078,19 @@ export class WalletManager {
    * Used by wallet creation methods to handle both first-wallet and subsequent-wallet cases.
    */
   private async getOrCreateKeychain(password: string): Promise<CryptoKey> {
-    const existingKey = await sessionManager.getKeychainMasterKey();
+    const existingKey = await this.mutationStep(sessionManager.getKeychainMasterKey());
     if (existingKey) {
       return existingKey;
     }
 
     // First wallet - create keychain and initialize session
-    const { masterKey, keychain } = await this.createKeychain(password);
+    const { masterKey, keychain } = await this.mutationStep(this.createKeychain(password));
 
     // Settings are inside keychain, use default timeout for new keychain
     const timeout = getAutoLockTimeoutMs(keychain.settings.autoLockTimer);
-    await sessionManager.initializeSession(timeout);
-    await sessionManager.scheduleSessionExpiry(timeout);
-    await sessionManager.storeKeychainMasterKey(masterKey);
+    await this.mutationStep(sessionManager.initializeSession(timeout));
+    await this.mutationStep(sessionManager.scheduleSessionExpiry(timeout));
+    await this.mutationStep(sessionManager.storeKeychainMasterKey(masterKey));
     this.keychain = keychain;
 
     return masterKey;
@@ -982,16 +1109,26 @@ export class WalletManager {
   }
 
   public async lockKeychain(): Promise<void> {
+    if (this.lockInFlight) return this.lockInFlight;
+    ++this.vaultGeneration;
+    // Clear the visible state before the first await. Pending crypto/storage reads cannot restore
+    // it: every mutation continuation checks the generation before publishing its result.
+    this.wallets.forEach((wallet) => { wallet.addresses = []; });
+    this.keychain = null;
+    const lock = this.finishLock().finally(() => {
+      if (this.lockInFlight === lock) this.lockInFlight = null;
+    });
+    this.lockInFlight = lock;
+    return lock;
+  }
+
+  private async finishLock(): Promise<void> {
     let cleanupError: unknown;
     try {
       await sessionManager.clearAllUnlockedSecrets();
     } catch (err) {
       cleanupError = err;
     }
-
-    // The in-memory view must become locked even if browser storage cleanup fails.
-    this.wallets.forEach((wallet) => { wallet.addresses = []; });
-    this.keychain = null;
 
     try {
       await sessionManager.clearSessionExpiry();
@@ -1003,11 +1140,15 @@ export class WalletManager {
   }
 
   public async addAddress(walletId: string): Promise<Address> {
+    return this.mutateVault(() => this.addAddressInternal(walletId));
+  }
+
+  private async addAddressInternal(walletId: string): Promise<Address> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found.');
     if (wallet.type !== 'mnemonic')
       throw new Error('Can only add addresses to a mnemonic wallet.');
-    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
     if (!mnemonic)
       throw new Error('Wallet is locked. Please unlock first.');
     if (wallet.addressCount >= MAX_ADDRESSES_PER_WALLET) {
@@ -1024,12 +1165,16 @@ export class WalletManager {
     const keychainRecord = this.keychain.wallets.find((r) => r.id === walletId);
     if (!keychainRecord) throw new Error('Missing keychain record.');
     keychainRecord.addressCount = wallet.addressCount;
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     return newAddr;
   }
 
   public async removeWallet(walletId: string): Promise<void> {
+    return this.mutateVault(() => this.removeWalletInternal(walletId));
+  }
+
+  private async removeWalletInternal(walletId: string): Promise<void> {
     const idx = this.wallets.findIndex((w) => w.id === walletId);
     if (idx === -1) throw new Error('Wallet not found in memory.');
 
@@ -1048,8 +1193,8 @@ export class WalletManager {
       this.activeWalletId = null;
     }
 
-    await this.renumberWallets();
-    await this.persistKeychain();
+    this.renumberWallets();
+    await this.mutationStep(this.persistKeychain());
   }
 
   private renumberWallets(): void {
@@ -1068,31 +1213,39 @@ export class WalletManager {
   }
 
   public async verifyPassword(password: string): Promise<boolean> {
-    // Shares the unlock failure window: verifyPassword is the same oracle
-    await assertUnlockAllowed();
+    return this.mutateVault(() => this.verifyPasswordInternal(password));
+  }
 
-    const keychainRecord = await getKeychainRecord();
+  private async verifyPasswordInternal(password: string): Promise<boolean> {
+    // Shares the unlock failure window: verifyPassword is the same oracle
+    await this.mutationStep(assertUnlockAllowed());
+
+    const keychainRecord = await this.mutationStep(getKeychainRecord());
     if (!keychainRecord) return false;
 
     // Try to decrypt the keychain with the given password
     try {
       const salt = base64ToBuffer(keychainRecord.salt);
-      const masterKey = await deriveKey(password, salt, keychainRecord.kdf.iterations);
-      await decryptKeychain(keychainRecord, masterKey);
-      await clearUnlockAttempts();
+      const masterKey = await this.mutationStep(deriveKey(password, salt, keychainRecord.kdf.iterations));
+      await this.mutationStep(decryptKeychain(keychainRecord, masterKey));
+      await this.mutationStep(clearUnlockAttempts());
       return true;
     } catch {
-      await recordFailedUnlockAttempt();
+      await this.mutationStep(recordFailedUnlockAttempt());
       return false;
     }
   }
 
   public async resetKeychain(password: string): Promise<void> {
-    const valid = await this.verifyPassword(password);
+    return this.mutateVault(() => this.resetKeychainInternal(password));
+  }
+
+  private async resetKeychainInternal(password: string): Promise<void> {
+    const valid = await this.mutationStep(this.verifyPasswordInternal(password));
     if (!valid) throw new Error('Invalid password');
 
+    await this.mutationStep(deleteKeychain());
     await this.lockKeychain();
-    await deleteKeychain();
 
     this.wallets = [];
     this.keychain = null;
@@ -1100,47 +1253,55 @@ export class WalletManager {
   }
 
   public async updatePassword(currentPassword: string, newPassword: string): Promise<void> {
-    const valid = await this.verifyPassword(currentPassword);
+    return this.mutateVault(() => this.updatePasswordInternal(currentPassword, newPassword));
+  }
+
+  private async updatePasswordInternal(currentPassword: string, newPassword: string): Promise<void> {
+    const valid = await this.mutationStep(this.verifyPasswordInternal(currentPassword));
     if (!valid) throw new Error('Current password is incorrect');
 
-    const keychainRecord = await getKeychainRecord();
+    const keychainRecord = await this.mutationStep(getKeychainRecord());
     if (!keychainRecord) throw new Error('No keychain found');
 
     // Decrypt keychain with current password
     const currentSalt = base64ToBuffer(keychainRecord.salt);
-    const currentKey = await deriveKey(currentPassword, currentSalt, keychainRecord.kdf.iterations);
-    const decryptedKeychain = await decryptKeychain(keychainRecord, currentKey);
+    const currentKey = await this.mutationStep(deriveKey(currentPassword, currentSalt, keychainRecord.kdf.iterations));
+    const decryptedKeychain = await this.mutationStep(decryptKeychain(keychainRecord, currentKey));
 
     // Re-encrypt each wallet's secret with new key
     const newSalt = generateRandomBytes(16);
-    const newKey = await deriveKey(newPassword, newSalt, DEFAULT_PBKDF2_ITERATIONS);
+    const newKey = await this.mutationStep(deriveKey(newPassword, newSalt, DEFAULT_PBKDF2_ITERATIONS));
 
     // For each wallet, decrypt secret with current key, re-encrypt with new key
     for (const walletRecord of decryptedKeychain.wallets) {
-      const secret = await decryptWithKey(walletRecord.encryptedSecret, currentKey);
-      walletRecord.encryptedSecret = await encryptWithKey(secret, newKey);
+      const secret = await this.mutationStep(decryptWithKey(walletRecord.encryptedSecret, currentKey));
+      walletRecord.encryptedSecret = await this.mutationStep(encryptWithKey(secret, newKey));
     }
 
     // Re-encrypt the keychain with the new key (settings are inside, so they
     // are re-encrypted automatically).
-    const newKeychainRecord = await encryptKeychainRecord(
+    const newKeychainRecord = await this.mutationStep(encryptKeychainRecord(
       decryptedKeychain,
       newKey,
       bufferToBase64(newSalt),
       DEFAULT_PBKDF2_ITERATIONS,
-    );
-    await saveKeychainRecord(newKeychainRecord);
+    ));
+    await this.mutationStep(saveKeychainRecord(newKeychainRecord));
 
     await this.lockKeychain();
   }
 
   public async updateWalletAddressFormat(walletId: string, newType: AddressFormat): Promise<void> {
+    return this.mutateVault(() => this.updateWalletAddressFormatInternal(walletId, newType));
+  }
+
+  private async updateWalletAddressFormatInternal(walletId: string, newType: AddressFormat): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found');
     if (wallet.type !== 'mnemonic') {
       throw new Error('Only mnemonic wallets can change address type.');
     }
-    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
     if (!mnemonic) {
       throw new Error('Wallet is locked. Please unlock first.');
     }
@@ -1177,7 +1338,7 @@ export class WalletManager {
       this.keychain.settings.lastActiveAddress = wallet.addresses[selectedIndex]!.address;
     }
 
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
   }
 
   /**
@@ -1202,7 +1363,7 @@ export class WalletManager {
       throw new Error('UTXO addresses exist only for Counterwallet address formats.');
     }
 
-    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
     if (!mnemonic) {
       throw new Error('Wallet is locked. Please unlock first.');
     }
@@ -1215,16 +1376,16 @@ export class WalletManager {
       return wallet.addresses.filter((address) => kept.has(address.path));
     }
 
-    const results = await Promise.all(
+    const results = await this.mutationStep(Promise.all(
       pending.map(async (path) => ({
         path,
-        result: await detectUtxoAddress(
+        result: await this.mutationStep(detectUtxoAddress(
           mnemonic,
           wallet.addressFormat,
           parseUtxoAddressPath(path) as number
-        ),
+        )),
       }))
-    );
+    ));
 
     if (onUnavailable === 'throw' && results.some(({ result }) => result.status === 'unavailable')) {
       throw new Error('Could not check for a UTXO address. Please try again.');
@@ -1242,7 +1403,7 @@ export class WalletManager {
     keychainRecord.extraPaths = [...(keychainRecord.extraPaths ?? []), ...discovered];
     wallet.extraPaths = keychainRecord.extraPaths;
     wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
 
     return wallet.addresses.filter((address) => discovered.includes(address.path));
   }
@@ -1255,7 +1416,11 @@ export class WalletManager {
    * lookup could not be made, so an outage is never reported as "you don't have one".
    */
   public async addUtxoAddress(walletId: string, index: number): Promise<Address | null> {
-    const found = await this.findUtxoAddresses(walletId, [index], 'throw');
+    return this.mutateVault(() => this.addUtxoAddressInternal(walletId, index));
+  }
+
+  private async addUtxoAddressInternal(walletId: string, index: number): Promise<Address | null> {
+    const found = await this.mutationStep(this.findUtxoAddresses(walletId, [index], 'throw'));
     return found[0] ?? null;
   }
 
@@ -1268,13 +1433,17 @@ export class WalletManager {
    * deliberate check that does report an outage.
    */
   public async sweepUtxoAddresses(walletId: string, indexes?: number[]): Promise<Address[]> {
+    return this.mutateVault(() => this.sweepUtxoAddressesInternal(walletId, indexes));
+  }
+
+  private async sweepUtxoAddressesInternal(walletId: string, indexes?: number[]): Promise<Address[]> {
     const wallet = this.getWalletById(walletId);
     if (!wallet || wallet.type !== 'mnemonic') return [];
     if (!isCounterwalletFormat(wallet.addressFormat)) return [];
 
     const targets = indexes ?? Array.from({ length: wallet.addressCount }, (_, index) => index);
     try {
-      return await this.findUtxoAddresses(walletId, targets, 'ignore');
+      return await this.mutationStep(this.findUtxoAddresses(walletId, targets, 'ignore'));
     } catch (error) {
       console.warn('UTXO address sweep failed:', error);
       return [];
@@ -1283,6 +1452,10 @@ export class WalletManager {
 
   /** Drops a kept UTXO address. The funds are unaffected; only the listing forgets it. */
   public async removeUtxoAddress(walletId: string, path: string): Promise<void> {
+    return this.mutateVault(() => this.removeUtxoAddressInternal(walletId, path));
+  }
+
+  private async removeUtxoAddressInternal(walletId: string, path: string): Promise<void> {
     const wallet = this.getWalletById(walletId);
     if (!wallet) throw new Error('Wallet not found');
     if (!this.keychain) throw new Error('Keychain not loaded');
@@ -1295,13 +1468,13 @@ export class WalletManager {
     keychainRecord.extraPaths = remaining;
     wallet.extraPaths = remaining;
 
-    const mnemonic = await sessionManager.getUnlockedSecret(walletId);
+    const mnemonic = await this.mutationStep(sessionManager.getUnlockedSecret(walletId));
     if (mnemonic) {
       wallet.addresses = deriveAddressesFromSecret(mnemonic, keychainRecord);
     } else {
       wallet.addresses = wallet.addresses.filter((address) => address.path !== path);
     }
-    await this.persistKeychain();
+    await this.mutationStep(this.persistKeychain());
   }
 
   /**
@@ -1429,22 +1602,43 @@ export class WalletManager {
     return { trezor, DerivationPaths, hardwareData };
   }
 
-  /**
-   * Sign a Bitcoin transaction.
-   *
-   * For software wallets (mnemonic/privateKey), signs the raw transaction hex.
-   * For hardware wallets, requires PSBT and signs via the hardware device.
-   *
-   * @param rawTxHex - Raw transaction hex (used for software wallets)
-   * @param sourceAddress - Address signing the transaction
-   * @param options - Optional signing options (psbtHex, inputValues, lockScripts for hardware wallets)
-   * @returns Signed transaction hex ready for broadcast
-   */
+  /** Bind in-flight signing to the session and active identity captured before any awaited work. */
+  private createSigningGuard(expectedIdentity?: SigningIdentity): () => void {
+    const generation = sessionManager.getSessionGeneration();
+    const wallet = this.getActiveWallet();
+    const activeAddress = wallet?.addresses.find(
+      address => address.address === this.getSettings().lastActiveAddress
+    ) ?? wallet?.addresses[0];
+    if (!wallet || !activeAddress) throw new Error('No active signing identity');
+    const identity = { walletId: wallet.id, address: activeAddress.address };
+    if (expectedIdentity && (
+      expectedIdentity.walletId !== identity.walletId
+      || normalizeAddressForComparison(expectedIdentity.address) !== normalizeAddressForComparison(identity.address)
+    )) {
+      throw new Error('The signing identity changed after this request was approved.');
+    }
+    const assertStillAuthorized = () => {
+      sessionManager.assertSessionGeneration(generation);
+      const currentWallet = this.getActiveWallet();
+      const currentAddress = currentWallet?.addresses.find(
+        address => address.address === this.getSettings().lastActiveAddress
+      ) ?? currentWallet?.addresses[0];
+      if (currentWallet?.id !== identity.walletId || currentAddress?.address !== identity.address) {
+        throw new Error('The signing identity changed after this request was approved.');
+      }
+    };
+    assertStillAuthorized();
+    return assertStillAuthorized;
+  }
+
+  /** Sign the reviewed raw transaction; a hardware PSBT must describe those exact same bytes. */
   public async signTransaction(
     rawTxHex: string,
     sourceAddress: string,
-    options?: SignTransactionOptions
+    options?: SignTransactionOptions,
+    expectedIdentity?: SigningIdentity,
   ): Promise<string> {
+    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
     const { psbtHex, inputValues, lockScripts } = options ?? {};
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
@@ -1491,6 +1685,9 @@ export class WalletManager {
         verifiedScripts,
       );
 
+      const reviewed = parseTransactionForIntegrity(rawTxHex);
+      assertTransactionMatchesReviewed(parsePSBT(completedPsbtHex), reviewed);
+
       const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
       const inputPaths = mapVerifiedInputPaths(
         verified.prevouts,
@@ -1499,18 +1696,22 @@ export class WalletManager {
       );
 
       // Sign PSBT with hardware wallet - returns fully signed raw tx
+      assertStillAuthorized();
       const result = await trezor.signPsbt({
         psbtHex: completedPsbtHex,
         inputPaths,
       });
 
+      assertStillAuthorized();
+      assertTransactionMatchesReviewed(parseTransactionForIntegrity(result.signedTxHex), reviewed);
       return result.signedTxHex;
     }
 
     // Software wallet signing path (mnemonic or private key)
     // Pass input values and lock scripts when available to avoid fetching previous transactions
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
-    return btcSignTransaction(
+    assertStillAuthorized();
+    const signedTxHex = await btcSignTransaction(
       rawTxHex,
       wallet,
       targetAddress,
@@ -1518,8 +1719,11 @@ export class WalletManager {
       privateKeyResult.compressed,
       inputValues,
       lockScripts,
-      getTrustedBroadcastPrevout
+      getTrustedBroadcastPrevout,
+      assertStillAuthorized,
     );
+    assertStillAuthorized();
+    return signedTxHex;
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
@@ -1536,7 +1740,8 @@ export class WalletManager {
    * @param address - Address to sign with
    * @returns Signature and signing address
    */
-  public async signMessage(message: string, address: string): Promise<{ signature: string; address: string }> {
+  public async signMessage(message: string, address: string, expectedIdentity?: SigningIdentity): Promise<{ signature: string; address: string }> {
+    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
@@ -1573,12 +1778,14 @@ export class WalletManager {
       const pathArray = DerivationPaths.stringToPath(targetAddress.path);
 
       // Sign message with hardware wallet
+      assertStillAuthorized();
       const result = await trezor.signMessage({
         message,
         path: pathArray,
         coin: 'Bitcoin',
       });
 
+      assertStillAuthorized();
       return {
         signature: result.signature,
         address: result.address,
@@ -1589,7 +1796,10 @@ export class WalletManager {
     const privateKeyResult = await this.getPrivateKey(wallet.id, targetAddress.path);
 
     // Use the signMessage function
-    return signMessage(message, privateKeyResult.hex, targetFormat, privateKeyResult.compressed);
+    assertStillAuthorized();
+    const result = await signMessage(message, privateKeyResult.hex, targetFormat, privateKeyResult.compressed);
+    assertStillAuthorized();
+    return result;
   }
 
   /**
@@ -1610,8 +1820,10 @@ export class WalletManager {
   public async signPsbt(
     psbtHex: string,
     signInputs?: Record<string, number[]>,
-    sighashTypes?: number[]
+    sighashTypes?: number[],
+    expectedIdentity?: SigningIdentity,
   ): Promise<string> {
+    const assertStillAuthorized = this.createSigningGuard(expectedIdentity);
     if (!this.activeWalletId) throw new Error("No active wallet set");
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
@@ -1665,6 +1877,7 @@ export class WalletManager {
         const privateKeyHex = targetFormat === wallet.addressFormat
           ? (await this.getPrivateKey(wallet.id, targetAddress.path)).hex
           : getPrivateKeyFromMnemonic(secret, targetAddress.path, targetFormat);
+        assertStillAuthorized();
         signedPsbtHex = btcSignPSBT(
           signedPsbtHex,
           privateKeyHex,
@@ -1685,6 +1898,7 @@ export class WalletManager {
       }
 
       const privateKeyResult = await this.getPrivateKey(wallet.id, activeAddress.path);
+      assertStillAuthorized();
       return btcSignPSBT(
         psbtHex,
         privateKeyResult.hex,
