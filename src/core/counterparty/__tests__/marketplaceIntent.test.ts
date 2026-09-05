@@ -273,6 +273,7 @@ const authorizeExactIntent: AuthorizeExactOfferIntentClaim = {
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
+  platformFeeSats: 0,
   expectedTxid: EXACT_TXID,
   delivery: { mode: 'detached', address: BUYER },
   marketplaceExpiresAt: 2_000_003_600,
@@ -340,6 +341,17 @@ const attachedExactBase = (accepting = false) => ({
   hasCounterpartyPayload: false,
   localCounterpartyMessage: undefined,
 });
+
+const feeExactBase = (accepting = false, attached = false, feeSats = 6_250) => {
+  const request = attached ? attachedExactBase(accepting) : exactBase(accepting);
+  return {
+    ...request,
+    intent: { ...request.intent, platformFeeSats: feeSats },
+    inputs: request.inputs.map(entry => entry.index === 0
+      ? { ...entry, value: entry.value + feeSats } : entry),
+    outputs: [...request.outputs, { index: 2, type: 'p2tr', address: PLATFORM, value: feeSats }],
+  };
+};
 
 const fanoutIntent: PrepareBulkFanoutIntentClaim = {
   standard: 'counterparty-marketplace',
@@ -942,6 +954,77 @@ describe('buy-listings proof', () => {
 });
 
 describe('exact-offer authorization and unilateral acceptance proof', () => {
+  it('defaults only omitted pre-fee claims to zero, without allowing an undeclared fee output', () => {
+    const { platformFeeSats: _fee, ...legacy } = authorizeExactIntent;
+    expect(parseMarketplaceIntent(legacy)).toEqual(authorizeExactIntent);
+    const request = feeExactBase();
+    expect(analyzeMarketplaceIntent({
+      ...request, intent: parseMarketplaceIntent(legacy),
+    }).status).toBe('blocked');
+  });
+
+  it.each([-1, 0.5, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, '6250', null])(
+    'rejects an invalid platform fee %s at the request boundary', platformFeeSats => {
+      expect(() => parseMarketplaceIntent({ ...authorizeExactIntent, platformFeeSats })).toThrow(/platformFeeSats/);
+    },
+  );
+
+  for (const accepting of [false, true]) {
+    for (const attached of [false, true]) {
+      describe(`${accepting ? 'seller acceptance' : 'buyer authorization'}, ${attached ? 'attached' : 'detached'}`, () => {
+        it.each([1_000, 6_250, 6_251])('proves and displays a buyer-funded %i-sat fee separately from miner fees', feeSats => {
+          const request = feeExactBase(accepting, attached, feeSats);
+          const parsed = parseMarketplaceIntent(request.intent);
+          expect(parsed).toEqual(request.intent);
+          const review = analyzeMarketplaceIntent({ ...request, intent: parsed });
+          expect(review).toMatchObject({ status: accepting ? 'proved' : 'caution', blockers: [] });
+          expect(review.facts).toContainEqual({
+            kind: 'amount', label: 'Platform fee', value: `${feeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
+          });
+          expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
+          expect(review.facts).toContainEqual({ kind: 'amount', label: 'Seller receives', value: '250,046 sats' });
+          expect(review.facts).toContainEqual({
+            kind: 'amount', label: 'Network fee', value: '500 sats', description: 'Deducted from seller proceeds',
+          });
+          if (!accepting) {
+            expect(review.facts).toContainEqual(expect.objectContaining({
+              label: 'Buyer funding', value: `${(250_000 + feeSats + (attached ? 330 : 0)).toLocaleString()} sats`,
+            }));
+          }
+        });
+
+        const mutations: Array<[string, (request: ReturnType<typeof feeExactBase>) => void]> = [
+          ['wrong fee amount', request => { request.outputs[2]!.value -= 1; }],
+          ['missing fee output', request => { request.outputs.pop(); }],
+          ['extra output', request => { request.outputs.push({ ...request.outputs[2]!, index: 3 }); }],
+          ['reordered payments', request => {
+            [request.outputs[1], request.outputs[2]] = [request.outputs[2]!, request.outputs[1]!];
+          }],
+          ['burned fee', request => { request.outputs[2]!.type = 'op_return'; }],
+          ['unknown fee recipient', request => { request.outputs[2]!.address = undefined; }],
+          ['fee returned to bidder', request => { request.outputs[2]!.address = BUYER; }],
+          ['fee sent to seller', request => { request.outputs[2]!.address = SELLER; }],
+          ['unfunded fee', request => { request.inputs[0]!.value -= request.intent.platformFeeSats; }],
+          ['understated fee claim', request => { request.intent.platformFeeSats -= 1; }],
+          ['fee charged twice to seller', request => {
+            request.outputs[1]!.value -= request.intent.platformFeeSats;
+            request.intent.sellerProceedsSats -= request.intent.platformFeeSats;
+          }],
+          ['weakened sighash', request => { request.signedInputs[0]!.sighashType = 0x81; }],
+          ['different transaction', request => { request.transactionId = TXID_TWO; }],
+          ['unsafe funding sum', request => { request.intent.platformFeeSats = Number.MAX_SAFE_INTEGER; }],
+        ];
+        it.each(mutations)('blocks %s', (_name, mutate) => {
+          const request = feeExactBase(accepting, attached);
+          mutate(request);
+          const review = analyzeMarketplaceIntent(request);
+          expect(review.status).toBe('blocked');
+          expect(review.blockers.length).toBeGreaterThan(0);
+        });
+      });
+    }
+  }
+
   it('proves the buyer authorization while clearly labeling shared-slot authority', () => {
     const review = analyzeMarketplaceIntent(exactBase());
 

@@ -28,6 +28,7 @@ const parentIntent = {
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
+  platformFeeSats: 6_250,
   expectedTxid: PARENT_TXID,
   delivery: { mode: 'detached', address: BUYER },
   marketplaceExpiresAt: 2_000_003_600,
@@ -121,6 +122,34 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Added child fee', value: '1,000 sats' });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Your proceeds after fee bump', value: '249,046 sats', emphasis: 'primary' });
     expect(review.notices[0]?.message).toMatch(/before either signature/i);
+    const platformFee = {
+      kind: 'amount', label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',
+    };
+    expect(review.facts).toContainEqual(platformFee);
+    expect(review.bundleSummary?.amounts).toContainEqual(platformFee);
+    expect(review.bundleSummary?.amounts).toContainEqual({
+      kind: 'amount', label: 'Network fees', value: '1,500 sats',
+    });
+  });
+
+  it('does not describe attached delivery as a detach in the bundle', () => {
+    const request = base();
+    request.parentIntent.delivery = { mode: 'attached', address: BUYER, carrierValueSats: 330 };
+    const review = analyzeAcceptanceCpfpBundle(request);
+    expect(review.status).toBe('proved');
+    expect(review.facts).toContainEqual({
+      kind: 'address', label: 'Delivery', value: BUYER,
+      description: 'Asset stays attached to a 330-sat UTXO at this address',
+    });
+  });
+
+  it('does not invent a platform fee for a fee-free parent', () => {
+    const request = base();
+    request.parentIntent.platformFeeSats = 0;
+    const review = analyzeAcceptanceCpfpBundle(request);
+    expect(review.status).toBe('proved');
+    expect(review.bundleSummary?.amounts.some(field => field.label === 'Platform fee')).toBe(false);
+    expect(review.facts.some(field => field.label === 'Platform fee')).toBe(false);
   });
 
   it.each([
@@ -141,6 +170,12 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     }],
     ['parent txid', {
       childInputs: [{ ...base().childInputs[0]!, txid: '13'.repeat(32) }],
+    }],
+    ['spending the platform output instead of seller proceeds', {
+      childInputs: [{ ...base().childInputs[0]!, vout: 2 }],
+    }],
+    ['charging the buyer platform fee again as a package fee', {
+      childIntent: { ...base().childIntent, packageFeeSats: 7_750 },
     }],
     ['parent value', {
       childInputs: [{ ...base().childInputs[0]!, value: 250_045 }],

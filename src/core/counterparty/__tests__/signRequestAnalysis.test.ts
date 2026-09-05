@@ -142,6 +142,7 @@ const EXACT_AUTHORIZATION_INTENT = parseMarketplaceIntent({
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
+  platformFeeSats: 6_250,
   expectedTxid: EXACT_TXID,
   delivery: { mode: 'detached', address: SIGNER },
   marketplaceExpiresAt: 2_000_003_600,
@@ -451,7 +452,7 @@ describe('the marketplace intent proof', () => {
         txid: EXACT_FUNDING_TXID,
         vout: 1,
         address: SIGNER,
-        value: 250_000,
+        value: 256_250,
         hasSignatures: accepting,
       },
       {
@@ -466,6 +467,7 @@ describe('the marketplace intent proof', () => {
     outputs: [
       { index: 0, value: 0, type: 'op_return' },
       { index: 1, value: 250_046, type: 'witness_v0_keyhash', address: VAULT },
+      { index: 2, value: 6_250, type: 'witness_v0_keyhash', address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs' },
     ],
     signerAddresses: [accepting ? VAULT : SIGNER],
     signedInputIndices: [accepting ? 1 : 0],
@@ -493,7 +495,7 @@ describe('the marketplace intent proof', () => {
         txid: EXACT_FUNDING_TXID,
         vout: 1,
         address: SIGNER,
-        value: 250_330,
+        value: 256_580,
         hasSignatures: accepting,
       },
       {
@@ -508,6 +510,7 @@ describe('the marketplace intent proof', () => {
     outputs: [
       { index: 0, value: 330, type: 'witness_v0_keyhash', address: SIGNER },
       { index: 1, value: 250_046, type: 'witness_v0_keyhash', address: VAULT },
+      { index: 2, value: 6_250, type: 'witness_v0_keyhash', address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs' },
     ],
     ...overrides,
   });
@@ -652,6 +655,21 @@ describe('the marketplace intent proof', () => {
     expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
       code: 'external_btc_output',
     }));
+    expect(analysis.marketplaceReview?.facts).toContainEqual(expect.objectContaining({
+      label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',
+    }));
+  });
+
+  it('keeps the signing gate closed when a fee-bearing offer hides its fee claim', async () => {
+    vi.mocked(verifyProviderTransaction).mockReturnValue({
+      localUnpack: { success: true, messageType: 'detach', data: { destination: SIGNER } },
+    } as never);
+    const analysis = await exact(false, {
+      marketplaceIntent: parseMarketplaceIntent({ ...EXACT_AUTHORIZATION_INTENT, platformFeeSats: 0 }),
+    });
+    expect(analysis.safety.blocked).toBe(true);
+    expect(analysis.marketplaceReview?.status).toBe('blocked');
+    expect(analysis.safety.warnings[0]?.title).toBe('Blocked: Marketplace Intent Mismatch');
   });
 
   it.each([

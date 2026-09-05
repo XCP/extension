@@ -832,12 +832,13 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       const buyerAddr = accepting ? BUYER_EXT : wallet;
       const sellerAddr = accepting ? wallet : SELLER_A;
       const inputs: BuiltInput[] = [
-        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 250_000, signed: accepting },
+        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250, signed: accepting },
         { txid: ASSET_TXID, vout: 7, address: sellerAddr, value: 546 },
       ];
       const outputs: BuiltOutput[] = [
         { scriptHex: opReturnScript(detachPayload(buyerAddr), BID_TXID), value: 0 },
         { scriptHex: scriptFor(sellerAddr), value: 250_046 },
+        { scriptHex: scriptFor(PLATFORM), value: 6_250 },
       ];
       const { psbtHex, txid } = buildPsbt(inputs, outputs);
       const intent = {
@@ -858,6 +859,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         carrierValueSats: 546,
         sellerProceedsSats: 250_046,
         networkFeeSats: 500,
+        platformFeeSats: 6_250,
         expectedTxid: txid,
         delivery: { mode: 'detached', address: buyerAddr },
         marketplaceExpiresAt: FUTURE + 3_600,
@@ -873,6 +875,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     const authorize = offer(false);
     scenarios.push({
       name: 'offer-authorize-caution',
+      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '256,250 sats'],
       route: '/requests/psbt/approve',
       expectFooter: 'Review',
       record: seedRecord('mk-authorize', {
@@ -891,6 +894,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     const accept = offer(true);
     scenarios.push({
       name: 'offer-accept-proved',
+      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '250,046 sats'],
       route: '/requests/psbt/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-accept', {
@@ -913,6 +917,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     );
     scenarios.push({
       name: 'bundle-accept-cpfp-proved',
+      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '249,046 sats'],
       route: '/requests/psbts/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-bundle', {
