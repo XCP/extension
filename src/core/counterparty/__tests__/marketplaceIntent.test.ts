@@ -151,6 +151,39 @@ const buyBase = () => ({
   localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
 });
 
+const attachedBuyBase = () => ({
+  intent: {
+    ...buyIntent,
+    assets: [buyIntent.assets[0]!],
+    items: [buyIntent.items[0]!],
+    subtotalSats: 100_000,
+    networkFeeSats: 1_000,
+    platformFeeSats: 5_000,
+    totalSats: 106_000,
+    delivery: { mode: 'attached' as const, address: BUYER, carrierValueSats: 330 },
+  },
+  inputs: [
+    { index: 0, txid: '11'.repeat(32), vout: 0, address: BUYER, value: 400_000, hasSignatures: false },
+    { index: 1, txid: TXID, vout: 7, address: SELLER, value: 546, hasSignatures: false },
+  ],
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: BUYER, value: 330 },
+    { index: 1, type: 'p2wpkh', address: SELLER, value: 100_546 },
+    { index: 2, type: 'p2wpkh', address: PLATFORM, value: 5_000 },
+    { index: 3, type: 'p2wpkh', address: BUYER, value: 293_670 },
+  ],
+  signedInputs: [{ index: 0, sighashType: 0x01 }],
+  signerAddresses: [BUYER],
+  attachedAssets: [{
+    inputIndex: 1,
+    utxo: `${TXID}:7`,
+    assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+  }],
+  attachedAssetDestination: null,
+  hasCounterpartyPayload: false,
+  transactionId: BUY_TXID,
+});
+
 const attachIntent: AttachForListingIntentClaim = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -292,6 +325,22 @@ const exactBase = (accepting = false) => ({
   localCounterpartyMessage: { messageType: 'detach', data: { destination: BUYER } },
 });
 
+const attachedExactBase = (accepting = false) => ({
+  ...exactBase(accepting),
+  intent: {
+    ...(accepting ? acceptExactIntent : authorizeExactIntent),
+    delivery: { mode: 'attached' as const, address: BUYER, carrierValueSats: 330 },
+  },
+  inputs: exactBase(accepting).inputs.map(transactionInput =>
+    transactionInput.index === 0 ? { ...transactionInput, value: 250_330 } : transactionInput),
+  outputs: [
+    { index: 0, type: 'p2wpkh', address: BUYER, value: 330 },
+    { index: 1, type: 'p2wpkh', address: SELLER, value: 250_046 },
+  ],
+  hasCounterpartyPayload: false,
+  localCounterpartyMessage: undefined,
+});
+
 const fanoutIntent: PrepareBulkFanoutIntentClaim = {
   standard: 'counterparty-marketplace',
   version: 1,
@@ -352,6 +401,18 @@ describe('marketplace intent wire parser', () => {
 
   it('copies a bounded multi-item buy claim', () => {
     expect(parseMarketplaceIntent(buyIntent)).toEqual(buyIntent);
+  });
+
+  it('copies attached one-item purchase and exact-offer claims', () => {
+    expect(parseMarketplaceIntent(attachedBuyBase().intent)).toEqual(attachedBuyBase().intent);
+    expect(parseMarketplaceIntent(attachedExactBase().intent)).toEqual(attachedExactBase().intent);
+  });
+
+  it('refuses attached delivery for a multi-item checkout', () => {
+    expect(() => parseMarketplaceIntent({
+      ...buyIntent,
+      delivery: { mode: 'attached', address: BUYER, carrierValueSats: 330 },
+    })).toThrow(/exactly one item/);
   });
 
   it('copies a bounded attach-for-listing claim with a variable XCP fee', () => {
@@ -685,6 +746,49 @@ describe('buy-listings proof', () => {
     expect(review.facts).toContainEqual({ label: 'Delivery', value: `Detached to ${BUYER}` });
   });
 
+  it('proves one attached purchase and its buyer-owned carrier', () => {
+    const review = analyzeMarketplaceIntent(attachedBuyBase());
+
+    expect(review).toMatchObject({ status: 'proved', family: 'buy_listings', blockers: [] });
+    expect(review.facts).toContainEqual({ label: 'You receive', value: '1 RAREPEPE' });
+    expect(review.facts).toContainEqual({
+      label: 'Delivery',
+      value: `Attached to ${BUYER} on a 330-sat UTXO`,
+    });
+  });
+
+  it('names the ledger-normalized divisible amount in the attached purchase summary', () => {
+    const request = attachedBuyBase();
+    const asset = { asset: 'PEPECASH', quantityRaw: '100000000' };
+    request.intent.assets[0] = { ...request.intent.assets[0]!, ...asset };
+    request.intent.items[0] = { ...request.intent.items[0]!, ...asset };
+    request.attachedAssets[0]!.assets[0] = {
+      asset: 'PEPECASH', quantity: '100000000', quantity_normalized: '1',
+    };
+
+    const review = analyzeMarketplaceIntent(request);
+
+    expect(review.status).toBe('proved');
+    expect(review.facts).toContainEqual({ label: 'You receive', value: '1 PEPECASH' });
+
+    request.intent.items[0]!.quantityRaw = '200000000';
+    const mismatchedReview = analyzeMarketplaceIntent(request);
+    expect(mismatchedReview.status).toBe('blocked');
+    expect(mismatchedReview.facts.some(fact => fact.label === 'You receive')).toBe(false);
+  });
+
+  it('blocks an attached purchase whose carrier is redirected or resized', () => {
+    const request = attachedBuyBase();
+    expect(analyzeMarketplaceIntent({
+      ...request,
+      outputs: [{ ...request.outputs[0]!, address: SELLER }, ...request.outputs.slice(1)],
+    }).status).toBe('blocked');
+    expect(analyzeMarketplaceIntent({
+      ...request,
+      outputs: [{ ...request.outputs[0]!, value: 329 }, ...request.outputs.slice(1)],
+    }).status).toBe('blocked');
+  });
+
   it.each([
     ['detach destination', {
       localCounterpartyMessage: { messageType: 'detach', data: { destination: SELLER } },
@@ -758,6 +862,30 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     expect(review.facts).toContainEqual({ label: 'Offer price', value: '250,000 sats' });
     expect(review.notices[0]?.message).toMatch(/without another approval/i);
     expect(review.notices[0]?.message).toMatch(/first confirmed spend wins/i);
+  });
+
+  it('proves attached delivery for both buyer authorization and seller acceptance', () => {
+    const authorization = analyzeMarketplaceIntent(attachedExactBase());
+    const acceptance = analyzeMarketplaceIntent(attachedExactBase(true));
+
+    expect(authorization).toMatchObject({ status: 'caution', blockers: [] });
+    expect(acceptance).toMatchObject({ status: 'proved', blockers: [] });
+    expect(authorization.facts).toContainEqual({
+      label: 'Delivery',
+      value: `Attached to ${BUYER} on a 330-sat UTXO`,
+    });
+  });
+
+  it('blocks an attached offer that omits the carrier funding or redirects output 0', () => {
+    const request = attachedExactBase();
+    expect(analyzeMarketplaceIntent({
+      ...request,
+      inputs: [{ ...request.inputs[0]!, value: 250_000 }, request.inputs[1]!],
+    }).status).toBe('blocked');
+    expect(analyzeMarketplaceIntent({
+      ...request,
+      outputs: [{ ...request.outputs[0]!, address: SELLER }, request.outputs[1]!],
+    }).status).toBe('blocked');
   });
 
   it('proves that the seller signature completes the exact sale without a buyer callback', () => {

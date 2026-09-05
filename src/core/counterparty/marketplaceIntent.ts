@@ -24,6 +24,10 @@ export interface MarketplaceAssetClaim {
   sourceOutpoint: MarketplaceOutpointClaim;
 }
 
+export type MarketplaceSettlementDelivery =
+  | { mode: 'detached'; address: string }
+  | { mode: 'attached'; address: string; carrierValueSats: number };
+
 export interface AttachForListingIntentClaim {
   standard: typeof MARKETPLACE_INTENT_STANDARD;
   version: typeof MARKETPLACE_INTENT_VERSION;
@@ -111,7 +115,7 @@ export interface BuyListingsIntentClaim {
   platformFeeSats: number;
   totalSats: number;
   expectedTxid: string;
-  delivery: { mode: 'detached'; address: string };
+  delivery: MarketplaceSettlementDelivery;
   marketplaceExpiresAt: number;
 }
 
@@ -130,7 +134,7 @@ interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | 'accept_
   sellerProceedsSats: number;
   networkFeeSats: number;
   expectedTxid: string;
-  delivery: { mode: 'detached'; address: string };
+  delivery: MarketplaceSettlementDelivery;
   marketplaceExpiresAt: number;
   bitcoinExpiresAt: null;
   bitcoinInvalidation: {
@@ -268,6 +272,24 @@ const nonNegativeSafeInteger = (value: unknown, label: string): number => {
     throw new Error(`${label} must be a non-negative safe integer`);
   }
   return parsed;
+};
+
+const settlementDelivery = (value: unknown, label: string): MarketplaceSettlementDelivery => {
+  if (!isRecord(value)) throw new Error(`${label} must be an object`);
+  const address = boundedString(value.address, `${label}.address`, 128);
+  if (value.mode === 'detached') return { mode: 'detached', address };
+  if (value.mode === 'attached') {
+    return {
+      mode: 'attached',
+      address,
+      carrierValueSats: safeInteger(
+        value.carrierValueSats,
+        `${label}.carrierValueSats`,
+        { positive: true },
+      )!,
+    };
+  }
+  throw new Error(`${label}.mode must be detached or attached`);
 };
 
 const outpoint = (value: unknown, label: string): MarketplaceOutpointClaim => {
@@ -525,9 +547,7 @@ const parseExactOfferIntent = <
   if (!Array.isArray(value.assets) || value.assets.length !== 1) {
     throw new Error(`${action} intent must claim exactly one asset`);
   }
-  if (!isRecord(value.delivery) || value.delivery.mode !== 'detached') {
-    throw new Error(`${action} delivery must be detached`);
-  }
+  const delivery = settlementDelivery(value.delivery, 'delivery');
   if (value.bitcoinExpiresAt !== null) {
     throw new Error(`${action} has no Bitcoin-level expiry`);
   }
@@ -561,10 +581,7 @@ const parseExactOfferIntent = <
     })!,
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
     expectedTxid,
-    delivery: {
-      mode: 'detached',
-      address: boundedString(value.delivery.address, 'delivery.address', 128),
-    },
+    delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
     })!,
@@ -592,11 +609,9 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
   ) {
     throw new Error('buy_listings intent must claim 1..20 aligned assets and items');
   }
-  if (
-    !isRecord(value.delivery)
-    || value.delivery.mode !== 'detached'
-  ) {
-    throw new Error('buy_listings delivery must be detached');
+  const delivery = settlementDelivery(value.delivery, 'delivery');
+  if (delivery.mode === 'attached' && value.items.length !== 1) {
+    throw new Error('buy_listings attached delivery requires exactly one item');
   }
 
   const items = value.items.map((itemValue, index) => {
@@ -639,10 +654,7 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
     platformFeeSats: nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
     totalSats: safeInteger(value.totalSats, 'totalSats', { positive: true })!,
     expectedTxid,
-    delivery: {
-      mode: 'detached',
-      address: boundedString(value.delivery.address, 'delivery.address', 128),
-    },
+    delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
       positive: true,
     })!,
@@ -1020,28 +1032,51 @@ function analyzeBuyListingsIntent(
   const retry: string[] = [];
   const itemCount = intent.items.length;
   const firstAdditionalBuyerInput = itemCount + 1;
+  const attachedDelivery = intent.delivery.mode === 'attached';
+  const deliveryCarrierSats = intent.delivery.mode === 'attached'
+    ? intent.delivery.carrierValueSats
+    : 0;
 
   if (!sameAddress(intent.delivery.address, intent.buyer)) {
-    blockers.push('the claimed detach address differs from the claimed buyer');
+    blockers.push('the claimed delivery address differs from the claimed buyer');
   }
   if (!transactionId) {
     retry.push('the wallet could not establish the unsigned transaction id');
   } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
     blockers.push('the unsigned transaction id differs from the claim');
   }
-  if (!hasCounterpartyPayload) {
-    blockers.push('the checkout carries no Counterparty payload');
-  }
   const detachData = isRecord(localCounterpartyMessage?.data)
     ? localCounterpartyMessage.data
     : undefined;
-  if (localCounterpartyMessage?.messageType !== 'detach' || !detachData) {
-    blockers.push('the Counterparty payload is not a locally decoded detach');
-  } else if (
-    typeof detachData.destination !== 'string'
-    || !sameAddress(detachData.destination, intent.delivery.address)
-  ) {
-    blockers.push('the locally decoded detach destination differs from the buyer');
+  if (attachedDelivery) {
+    if (itemCount !== 1) {
+      blockers.push('attached checkout must contain exactly one collectible');
+    }
+    if (hasCounterpartyPayload) {
+      blockers.push('attached checkout must use ordinary Counterparty UTXO movement, not a protocol message');
+    }
+    if (
+      outputs[0]?.type === 'op_return'
+      || !sameAddress(outputs[0]?.address, intent.delivery.address)
+      || outputs[0]?.value !== deliveryCarrierSats
+    ) {
+      blockers.push('output 0 is not the claimed buyer-owned attached carrier');
+    }
+  } else {
+    if (!hasCounterpartyPayload) {
+      blockers.push('the checkout carries no Counterparty payload');
+    }
+    if (localCounterpartyMessage?.messageType !== 'detach' || !detachData) {
+      blockers.push('the Counterparty payload is not a locally decoded detach');
+    } else if (
+      typeof detachData.destination !== 'string'
+      || !sameAddress(detachData.destination, intent.delivery.address)
+    ) {
+      blockers.push('the locally decoded detach destination differs from the buyer');
+    }
+    if (outputs[0]?.type !== 'op_return' || outputs[0]?.value !== 0) {
+      blockers.push('output 0 is not the zero-value Counterparty detach output');
+    }
   }
 
   if (inputs.length < itemCount + 1) {
@@ -1056,10 +1091,6 @@ function analyzeBuyListingsIntent(
   if (new Set(listingIds).size !== listingIds.length) {
     blockers.push('the checkout contains a duplicate listing id');
   }
-  if (outputs[0]?.type !== 'op_return' || outputs[0]?.value !== 0) {
-    blockers.push('output 0 is not the zero-value Counterparty detach output');
-  }
-
   const expectedSignedIndices = [
     0,
     ...Array.from(
@@ -1217,7 +1248,10 @@ function analyzeBuyListingsIntent(
   if (!buyerInputValues.some(value => value === undefined)) {
     const buyerInputTotal = safeSum(buyerInputValues as number[]);
     const buyerChange = changeOutput?.value ?? 0;
-    if (buyerInputTotal === null || buyerInputTotal - buyerChange !== intent.totalSats) {
+    if (
+      buyerInputTotal === null
+      || buyerInputTotal - buyerChange - deliveryCarrierSats !== intent.totalSats
+    ) {
       blockers.push('the buyer funding minus change differs from the claimed total');
     }
   }
@@ -1225,13 +1259,19 @@ function analyzeBuyListingsIntent(
   const allProblems = [...retry, ...blockers];
   const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
   const distinctAssets = new Set(intent.items.map(item => item.asset)).size;
+  // An attached checkout has no decoded Counterparty message to supply asset summary rows.
+  // Name the independently checked ledger amount on the decision screen, never raw base units.
+  const receivedAsset = attachedDelivery && status === 'proved' ? balances.get(1)?.assets[0] : undefined;
   return {
     status,
     family: 'buy_listings',
     title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      // The per-asset "Detached" rows below already name each asset; this row only adds the
-      // distinct-asset count when it differs from the item count.
+      ...(receivedAsset
+        ? [{ label: 'You receive', value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}` }]
+        : []),
+      // Per-item rows already name each asset; this row only adds the distinct-asset count when it
+      // differs from the item count.
       {
         label: 'Items',
         value: itemCount === distinctAssets
@@ -1242,7 +1282,12 @@ function analyzeBuyListingsIntent(
       { label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
       { label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
       { label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats` },
-      { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
+      {
+        label: 'Delivery',
+        value: attachedDelivery
+          ? `Attached to ${intent.delivery.address} on a ${deliveryCarrierSats.toLocaleString()}-sat UTXO`
+          : `Detached to ${intent.delivery.address}`,
+      },
       { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
     ],
     notices: allProblems.length > 0
@@ -1250,7 +1295,9 @@ function analyzeBuyListingsIntent(
       : [{
           severity: 'info',
           message:
-            'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the detach destination shown above.',
+            attachedDelivery
+              ? 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the separate buyer-owned carrier shown above.'
+              : 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the detach destination shown above.',
         }],
     blockers: allProblems,
   };
@@ -1259,8 +1306,8 @@ function analyzeBuyListingsIntent(
 /**
  * Prove the fixed transaction shared by exact-offer authorization and unilateral acceptance.
  * The role changes, but the economics never do: buyer input 0 pays the exact price, seller input
- * 1 contributes the asset carrier, output 0 detaches to the bidder, and output 1 returns carrier
- * plus price minus the miner fee to the seller. Both signatures bind the whole transaction.
+ * 1 contributes the asset carrier, output 0 applies the selected delivery, and output 1 returns
+ * the seller carrier plus price minus the miner fee. Both signatures bind the whole transaction.
  */
 function analyzeExactOfferIntent(
   input: MarketplaceAnalysisInput,
@@ -1280,30 +1327,50 @@ function analyzeExactOfferIntent(
   const retry: string[] = [];
   const claim = intent.assets[0];
   const authorizing = intent.action === 'authorize_exact_offer';
+  const attachedDelivery = intent.delivery.mode === 'attached';
+  const deliveryCarrierSats = intent.delivery.mode === 'attached'
+    ? intent.delivery.carrierValueSats
+    : 0;
   const requestedInputIndex = authorizing ? 0 : 1;
   const requestedSigner = authorizing ? intent.bidder : intent.seller;
 
   if (!sameAddress(intent.delivery.address, intent.bidder)) {
-    blockers.push('the detach delivery address differs from the bidder');
+    blockers.push('the delivery address differs from the bidder');
   }
   if (!transactionId) {
     retry.push('the wallet could not establish the unsigned transaction id');
   } else if (transactionId.toLowerCase() !== intent.expectedTxid) {
     blockers.push('the unsigned transaction id differs from the exact authorization');
   }
-  if (!hasCounterpartyPayload) {
-    blockers.push('the exact offer carries no Counterparty payload');
-  }
   const detachData = isRecord(localCounterpartyMessage?.data)
     ? localCounterpartyMessage.data
     : undefined;
-  if (localCounterpartyMessage?.messageType !== 'detach' || !detachData) {
-    blockers.push('the Counterparty payload is not a locally decoded detach');
-  } else if (
-    typeof detachData.destination !== 'string'
-    || !sameAddress(detachData.destination, intent.delivery.address)
-  ) {
-    blockers.push('the locally decoded detach destination differs from the bidder');
+  if (attachedDelivery) {
+    if (hasCounterpartyPayload) {
+      blockers.push('attached exact offer must use ordinary Counterparty UTXO movement, not a protocol message');
+    }
+    if (
+      outputs[0]?.type === 'op_return'
+      || !sameAddress(outputs[0]?.address, intent.delivery.address)
+      || outputs[0]?.value !== deliveryCarrierSats
+    ) {
+      blockers.push('output 0 is not the claimed bidder-owned attached carrier');
+    }
+  } else {
+    if (!hasCounterpartyPayload) {
+      blockers.push('the exact offer carries no Counterparty payload');
+    }
+    if (localCounterpartyMessage?.messageType !== 'detach' || !detachData) {
+      blockers.push('the Counterparty payload is not a locally decoded detach');
+    } else if (
+      typeof detachData.destination !== 'string'
+      || !sameAddress(detachData.destination, intent.delivery.address)
+    ) {
+      blockers.push('the locally decoded detach destination differs from the bidder');
+    }
+    if (outputs[0]?.type !== 'op_return' || outputs[0]?.value !== 0) {
+      blockers.push('output 0 is not the zero-value Counterparty detach output');
+    }
   }
 
   if (inputs.length !== 2 || outputs.length !== 2) {
@@ -1314,10 +1381,6 @@ function analyzeExactOfferIntent(
   if (new Set(inputOutpoints).size !== inputOutpoints.length) {
     blockers.push('the exact offer contains a duplicate input outpoint');
   }
-  if (outputs[0]?.type !== 'op_return' || outputs[0]?.value !== 0) {
-    blockers.push('output 0 is not the zero-value Counterparty detach output');
-  }
-
   if (
     signedInputs.length !== 1
     || signedInputs[0]?.index !== requestedInputIndex
@@ -1355,8 +1418,11 @@ function analyzeExactOfferIntent(
     }
     if (bidderInput.value === undefined) {
       retry.push('buyer funding input 0 has no authenticated value');
-    } else if (bidderInput.value !== intent.priceSats) {
-      blockers.push('buyer funding input 0 does not equal the exact offer price');
+    } else if (
+      bidderInput.value
+      !== intent.priceSats + deliveryCarrierSats
+    ) {
+      blockers.push('buyer funding input 0 does not equal the offer price and selected delivery carrier');
     }
   }
 
@@ -1455,7 +1521,12 @@ function analyzeExactOfferIntent(
     facts: [
       { label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
       { label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
-      { label: 'Delivery', value: `Detached to ${intent.delivery.address}` },
+      {
+        label: 'Delivery',
+        value: attachedDelivery
+          ? `Attached to ${intent.delivery.address} on a ${deliveryCarrierSats.toLocaleString()}-sat UTXO`
+          : `Detached to ${intent.delivery.address}`,
+      },
       { label: 'Funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
       { label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
       { label: 'Cancellation', value: 'Anytime — spend the funding UTXO' },

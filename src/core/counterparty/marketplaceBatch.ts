@@ -87,8 +87,10 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     if (!fanouts.every(intent => intent.operationId === operationId)) {
       throw new Error('bulk fan-out parents must belong to one operation');
     }
-    if (fanouts.some((intent, index) => intent.batchIndex !== index)) {
-      throw new Error('bulk fan-out batch indices must be ordered from zero');
+    // Resuming filters out completed parents while preserving their original indices. Each
+    // remaining parent proves independently, so gaps do not imply a missing dependency.
+    if (fanouts.some((intent, index) => index > 0 && intent.batchIndex <= fanouts[index - 1]!.batchIndex)) {
+      throw new Error('bulk fan-out batch indices must be unique and ordered');
     }
     if (new Set(fanouts.map(intent => intent.fundingOutpoint.txid + ':' + intent.fundingOutpoint.vout)).size
       !== fanouts.length) {
