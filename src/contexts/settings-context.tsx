@@ -27,10 +27,13 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
-import { type AppSettings, DEFAULT_SETTINGS } from "@/core/settings";
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { type AppSettings, DEFAULT_SETTINGS, setSettingsProvider } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
 import { analytics } from "@/platform/fathom";
 import { watchKeychainRecord } from "@/platform/storage/walletStorage";
@@ -61,6 +64,22 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
+  // Core compose and approval code runs in this document, whereas walletService is a background
+  // proxy. Publish the same loaded snapshot synchronously before rendering any settings consumer.
+  const settingsRef = useRef<AppSettings>(DEFAULT_SETTINGS);
+  const hasLoadedSettings = useRef(false);
+  const loadVersion = useRef(0);
+  const lockVersion = useRef(0);
+  const invalidateSettingsRequests = useCallback(() => {
+    lockVersion.current++;
+    loadVersion.current++;
+  }, []);
+  const publishSettings = useCallback((next: AppSettings) => {
+    settingsRef.current = next;
+    setSettings(next);
+  }, []);
 
   /**
    * @param showLoading - False when re-reading settings that changed elsewhere. Every surface
@@ -68,30 +87,44 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
    *   another window would flash all of them.
    */
   const loadSettings = useCallback(async (showLoading = true) => {
+    const version = ++loadVersion.current;
     try {
       if (showLoading) setIsLoading(true);
       const walletService = getWalletService();
       const storedSettings = await walletService.getSettings();
-      setSettings(storedSettings);
+      if (version === loadVersion.current) {
+        hasLoadedSettings.current = true;
+        setHasHydratedSettings(true);
+        publishSettings(storedSettings);
+        setLoadError(false);
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      // Initial/unlock reads must not expose transaction pages using false-default protections.
+      // A failed background refresh keeps the last known snapshot and the current screen.
+      if (version === loadVersion.current && !hasLoadedSettings.current) {
+        setLoadError(true);
+      }
     } finally {
-      if (showLoading) setIsLoading(false);
+      if (version === loadVersion.current) setIsLoading(false);
     }
-  }, []);
+  }, [publishSettings]);
 
   useEffect(() => {
+    const restoreSettingsProvider = setSettingsProvider(() => settingsRef.current);
     loadSettings();
 
     // Listen for wallet lock events from background
     // When locked, settings encryption key is cleared, so reset to defaults
-    // Use withStateLock to serialize with any concurrent loadSettings operations
+    // Invalidate in-flight reads immediately so a late pre-lock reply cannot restore settings.
     const handleLockMessage = ({ data }: { data: { locked: boolean } }) => {
       if (data.locked) {
-        withStateLock('settings-lock', async () => {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[SettingsContext] Lock event - resetting to defaults');
-          }
-          setSettings({ ...DEFAULT_SETTINGS });
-        });
+        invalidateSettingsRequests();
+        hasLoadedSettings.current = false;
+        setHasHydratedSettings(false);
+        publishSettings({ ...DEFAULT_SETTINGS });
+        setLoadError(false);
+        setIsLoading(false);
       }
     };
     const unsubscribe = onMessage('keychainLocked', handleLockMessage);
@@ -109,13 +142,21 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
     return () => {
       unsubscribe();
       stopWatching();
+      invalidateSettingsRequests();
+      restoreSettingsProvider();
     };
-  }, [loadSettings]);
+  }, [invalidateSettingsRequests, loadSettings, publishSettings]);
 
   const updateSettingsHandler = useCallback(async (newSettings: Partial<AppSettings>) => {
+    const version = lockVersion.current;
+    const previous = settingsRef.current;
+    const editVersion = ++loadVersion.current;
     try {
       // Optimistically update state for instant UI response
-      setSettings(prev => ({ ...prev, ...newSettings }));
+      const next = { ...settingsRef.current, ...newSettings };
+      // Match WalletManager's normalization before a subsequent compose reads the snapshot.
+      if (next.enableDieselMinting) next.protectAlkanesUtxos = true;
+      publishSettings(next);
 
       // Persist to storage via background service
       const walletService = getWalletService();
@@ -126,10 +167,13 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // On error, reload from storage to get the authoritative state.
       // This avoids race conditions with stale rollback values when
       // multiple rapid updates are attempted.
-      await loadSettings();
+      if (version === lockVersion.current) {
+        if (editVersion === loadVersion.current) publishSettings(previous);
+        await loadSettings();
+      }
       throw error; // Re-throw to let component handle user feedback
     }
-  }, [loadSettings]);
+  }, [loadSettings, publishSettings]);
 
   const contextValue = useMemo(() => ({
     settings,
@@ -140,7 +184,20 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
 
   return (
     <SettingsContext value={contextValue}>
-      {children}
+      {isLoading && !hasHydratedSettings && !loadError ? (
+        <Spinner message="Loading settings…" className="min-h-dvh" />
+      ) : loadError ? (
+        <div className="min-h-dvh flex items-center justify-center p-6">
+          <div className="space-y-4 text-center">
+            <p role="alert" className="text-sm text-gray-700">
+              Your saved settings could not be loaded. Retry to continue safely.
+            </p>
+            <Button fullWidth disabled={isLoading} onClick={() => void loadSettings()}>
+              {isLoading ? 'Retrying…' : 'Retry'}
+            </Button>
+          </div>
+        </div>
+      ) : children}
     </SettingsContext>
   );
 }

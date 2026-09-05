@@ -1,3 +1,4 @@
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
 /**
@@ -54,23 +55,7 @@ export function ReviewUtxoAttach({
     },
     ...(result.params.destination_vout !== undefined && result.params.destination_vout !== null ?
       [{ label: "Destination Output", value: String(result.params.destination_vout) }] : []),
-    ...(result.diesel_mint ? [{
-      label: "DIESEL mint",
-      value: "Included",
-      rightElement: (
-        <span className="text-right text-gray-500">
-          +{result.diesel_mint.marginal_vbytes} vB
-          {' '}(~{result.diesel_mint.estimated_marginal_fee_sats} sat at
-          {' '}{result.diesel_mint.fee_rate_sat_vbyte} sat/vB)
-          <br />
-          {result.diesel_mint.utxo_sats} sat protected wallet return; remains yours
-          {result.diesel_mint.rolled_utxo ? <><br />Existing DIESEL rolled forward</> : null}
-          {result.diesel_mint.pending_chain_position ? (
-            <><br />Unconfirmed chain {result.diesel_mint.pending_chain_position}/25</>
-          ) : null}
-        </span>
-      ),
-    }] : []),
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (

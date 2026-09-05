@@ -8,6 +8,7 @@ import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemon
 import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails } from '@/core/bitcoin/psbt';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { signTransaction as btcSignTransaction } from '@/core/bitcoin/transactionSigner';
+import { cacheSuccessfulBroadcast } from '@/core/bitcoin/utxo';
 import { isValidCounterwalletMnemonic } from '@/core/counterwallet';
 import { base64ToBuffer, bufferToBase64, generateRandomBytes } from '@/core/encryption/buffer';
 import {
@@ -1529,7 +1530,11 @@ export class WalletManager {
   }
 
   public async broadcastTransaction(signedTxHex: string): Promise<{ txid: string; fees?: number }> {
-    return btcBroadcastTransaction(signedTxHex);
+    const result = await btcBroadcastTransaction(signedTxHex);
+    // Signing lives in this background context; retain exact parent bytes here as well as
+    // in the popup's change journal. This conveys no permission to spend protected outputs.
+    cacheSuccessfulBroadcast(signedTxHex, result.txid);
+    return result;
   }
 
   /**

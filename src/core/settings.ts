@@ -175,13 +175,19 @@ export const DEFAULT_SETTINGS: AppSettings = {
 
 /**
  * Live read-only settings access for modules that need config (e.g. the API
- * base) without importing the wallet singleton. walletManager registers the
- * provider on init; until then (or when locked) DEFAULT_SETTINGS is returned.
+ * base) without importing the wallet singleton. The background walletManager supplies its own
+ * reader; popup SettingsProvider supplies the hydrated proxy snapshot. Before hydration or while
+ * locked, DEFAULT_SETTINGS is returned.
  */
 let settingsProvider: (() => AppSettings) | null = null;
 
-export function setSettingsProvider(provider: () => AppSettings): void {
+/** Install a reader for this context; the disposer restores the previous reader. */
+export function setSettingsProvider(provider: () => AppSettings): () => void {
+  const previous = settingsProvider;
   settingsProvider = provider;
+  return () => {
+    if (settingsProvider === provider) settingsProvider = previous;
+  };
 }
 
 /**

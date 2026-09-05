@@ -19,8 +19,8 @@ interface PendingDieselEntry extends PendingDieselUtxo {
   active: boolean;
 }
 
-// Long enough for an interactive bulk operation. After restart or expiry, unconfirmed UTXOs fail
-// closed until an indexer proves their Alkanes state.
+// Long enough for an interactive bulk operation. Expiry ends optimistic chain eligibility, but
+// must not erase protection for a known token output while the indexer is still catching up.
 const PENDING_DIESEL_TTL_MS = 30 * 60_000;
 /** Bitcoin Core's default ancestor count includes the transaction itself. */
 export const MAX_PENDING_DIESEL_CHAIN = 25;
@@ -63,9 +63,8 @@ export function recordPendingDieselUtxo(
 export function getPendingDieselUtxos(address: string): PendingDieselUtxo[] {
   const now = Date.now();
   const result: PendingDieselUtxo[] = [];
-  for (const [key, entry] of pendingDieselUtxos) {
+  for (const entry of pendingDieselUtxos.values()) {
     if (now - entry.timestamp > PENDING_DIESEL_TTL_MS) {
-      pendingDieselUtxos.delete(key);
       continue;
     }
     if (!entry.active || entry.address !== address) continue;
@@ -80,7 +79,16 @@ export function getPendingDieselUtxos(address: string): PendingDieselUtxo[] {
   return result;
 }
 
-/** A chain tip reached a block; its next child starts a fresh 25-transaction policy window. */
+/** Known active token outputs, including expired chain tips awaiting positive indexer proof. */
+export function getKnownDieselUtxos(address: string): PendingDieselUtxo[] {
+  return [...pendingDieselUtxos.values()]
+    .filter((entry) => entry.active && entry.address === address)
+    .map(({ txid, vout, address: entryAddress, value, chainDepth }) => ({
+      txid, vout, address: entryAddress, value, chainDepth,
+    }));
+}
+
+/** Bitcoin confirmation AND a positive Alkanes lookup make the public index authoritative. */
 export function confirmPendingDieselUtxo(txid: string, vout: number): void {
   pendingDieselUtxos.delete(makeKey(txid, vout));
 }

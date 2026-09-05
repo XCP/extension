@@ -1,3 +1,4 @@
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
 interface ReviewAddressOptionsProps {
@@ -37,6 +38,7 @@ export function ReviewAddressOptions({
       label: "Options",
       value: formatOptionsText(result.params.options || result.params.text),
     },
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (

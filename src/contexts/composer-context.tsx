@@ -265,6 +265,13 @@ export function ComposerProvider<T>({
         const { normalizedData } = await normalizeFormData(formData, composeType);
         dataForApi = { ...normalizedData, sourceAddress: activeAddress.address };
       }
+      // FormData supplies strings, but compose policy (including the DIESEL ceiling) accepts
+      // a finite numeric fee rate. Normalize this shared boundary for every compose family.
+      if (dataForApi.sat_per_vbyte !== undefined) {
+        const feeRate = Number(dataForApi.sat_per_vbyte);
+        if (!Number.isFinite(feeRate) || feeRate <= 0) throw new Error('Invalid transaction fee rate.');
+        dataForApi.sat_per_vbyte = feeRate;
+      }
 
       // Check if aborted before API call
       if (signal.aborted) return;
@@ -384,7 +391,7 @@ export function ComposerProvider<T>({
       // buggy fee estimate is rejected before the review screen.
       const feeCheck = await checkTransactionFee({
         rawTransaction: response.result.rawtransaction,
-        // sat_per_vbyte arrives as a form string; checkTransactionFee coerces it.
+        // The form fee rate was normalized before composition.
         userFeeRate: dataForApi.sat_per_vbyte ?? null,
       }, fetchInputValues);
       if (!feeCheck.ok) {

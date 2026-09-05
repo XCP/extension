@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getDieselMintReviewFields } from "@/components/domain/tx/diesel-mint-review-fields";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatPriceRatio } from "@/core/format";
@@ -85,6 +86,7 @@ export function ReviewOrder({
     ...(result.params.fee_required && isGreaterThan(result.params.fee_required, 0)
       ? [{ label: "Fee Required", value: `${result.params.fee_required} satoshis` }]
       : []),
+    ...getDieselMintReviewFields(result.diesel_mint),
   ];
 
   return (

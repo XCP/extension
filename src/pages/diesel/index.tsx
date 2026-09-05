@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import dieselLogo from '@/assets/diesel.jpg';
 import { BalanceHeader } from '@/components/domain/balance/balance-header';
+import { FiInfo } from '@/components/icons';
 import { SettingSwitch } from '@/components/ui/inputs/setting-switch';
 import type { ActionSection } from '@/components/ui/lists/action-list';
 import { ActionList } from '@/components/ui/lists/action-list';
@@ -34,6 +35,8 @@ export default function DieselBalancePage(): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [feeRateInput, setFeeRateInput] = useState(String(settings.dieselMintMaxFeeRate));
+  const [isHelpTextOverride, setIsHelpTextOverride] = useState(false);
+  const shouldShowHelpText = isHelpTextOverride ? !settings.showHelpText : settings.showHelpText;
 
   useEffect(() => {
     setFeeRateInput(String(settings.dieselMintMaxFeeRate));
@@ -58,7 +61,15 @@ export default function DieselBalancePage(): ReactElement {
   }, [load]);
 
   useEffect(() => {
-    setHeaderProps({ title: 'DIESEL', onBack: () => navigate('/index') });
+    setHeaderProps({
+      title: 'DIESEL',
+      onBack: () => navigate('/index'),
+      rightButton: {
+        icon: <FiInfo className="size-4" aria-hidden="true" />,
+        onClick: () => setIsHelpTextOverride((previous) => !previous),
+        ariaLabel: 'Toggle help text',
+      },
+    });
     return () => setHeaderProps(null);
   }, [navigate, setHeaderProps]);
 
@@ -116,7 +127,7 @@ export default function DieselBalancePage(): ReactElement {
           onChange={(checked) => void updateSettings(checked
             ? { enableDieselMinting: true, protectAlkanesUtxos: true }
             : { enableDieselMinting: false })}
-          showHelpText
+          showHelpText={shouldShowHelpText}
         />
         <div className="space-y-2">
           <label htmlFor="diesel-max-fee-rate" className="block text-sm font-semibold">
@@ -139,15 +150,15 @@ export default function DieselBalancePage(): ReactElement {
             />
             <span className="text-sm text-gray-500">sat/vB</span>
           </div>
-          <p className="text-xs text-gray-500">
+          {shouldShowHelpText && <p className="text-xs text-gray-500">
             Above this rate the original transaction proceeds without mining. At this limit, the
             optimized +26-vB mint costs about {optimizedMintCost} sats; the +57-vB fallback costs
             about {fallbackMintCost} sats.
-          </p>
-          <p className="text-xs text-amber-700">
+          </p>}
+          {shouldShowHelpText && <p className="text-xs text-amber-700">
             This limits cost; it does not guarantee profit. Profit-aware mining needs a verified
             recent reward estimate and an executable DIESEL-to-BTC exit quote.
-          </p>
+          </p>}
         </div>
       </div>
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
@@ -160,10 +171,10 @@ export default function DieselBalancePage(): ReactElement {
           <span className="text-gray-500">Reserved Bitcoin</span>
           <span className="text-gray-900">{dieselUtxoSats.toLocaleString()} sats</span>
         </div>
-        <p className="text-xs text-gray-500">
+        {shouldShowHelpText && <p className="text-xs text-gray-500">
           Your DIESEL is shown as one balance. Behind the scenes it is secured by Bitcoin outputs
           that the wallet excludes from ordinary BTC and Counterparty spending.
-        </p>
+        </p>}
         {error && <p className="text-xs text-red-600">{error}</p>}
       </div>
       <ActionList sections={sections} />

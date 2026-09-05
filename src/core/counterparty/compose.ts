@@ -5,6 +5,7 @@ import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import type { ApiResponse, BaseComposeOptions } from '@/core/counterparty/composeTypes';
 import {
   composeCounterpartyWithDieselMint,
+  composeDataTransactionWithDieselMint,
   composeDieselSendTransaction,
   type DieselSendOptions,
 } from '@/core/counterparty/dieselCompose';
@@ -682,7 +683,9 @@ export async function composeBroadcast(options: BroadcastOptions): Promise<ApiRe
     ...(mime_type && { mime_type }),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'broadcast', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeBTCPay(options: BTCPayOptions): Promise<ApiResponse> {
@@ -729,7 +732,9 @@ export async function composeCancel(options: CancelOptions): Promise<ApiResponse
     offer_hash: offer_hash.trim(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'cancel', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeDestroy(options: DestroyOptions): Promise<ApiResponse> {
@@ -939,7 +944,9 @@ export async function composeOrder(options: OrderOptions): Promise<ApiResponse> 
     fee_required: fee_required.toString(),
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
   };
-  return composeTransaction('order', paramsObj, sourceAddress, sat_per_vbyte, encoding);
+  return composeDataTransactionWithDieselMint(
+    composeTransaction, 'order', paramsObj, sourceAddress, sat_per_vbyte, encoding,
+  );
 }
 
 export async function composeSend(options: SendOptions): Promise<ApiResponse> {

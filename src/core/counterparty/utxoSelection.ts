@@ -8,9 +8,10 @@
  */
 
 import { DIESEL_ALKANE_ID } from '@/core/alkanes/api';
-import { fetchInputsAlkanes, type InputAlkaneBalances } from '@/core/alkanes/inputAssets';
+import { fetchInputsAlkanes, type InputAlkaneBalances, MAX_ALKANES_LOOKUP_INPUTS } from '@/core/alkanes/inputAssets';
 import {
   confirmPendingDieselUtxo,
+  getKnownDieselUtxos,
   getPendingDieselUtxos,
   MAX_PENDING_DIESEL_CHAIN,
 } from '@/core/alkanes/pendingDieselUtxos';
@@ -107,12 +108,7 @@ export async function selectUtxosForTransaction(
   const pendingDieselByOutpoint = new Map(
     pendingDiesel.map((utxo) => [`${utxo.txid}:${utxo.vout}`, utxo]),
   );
-  for (const utxo of allUtxos) {
-    const key = `${utxo.txid}:${utxo.vout}`;
-    if (!utxo.status.confirmed || !pendingDieselByOutpoint.has(key)) continue;
-    pendingDieselByOutpoint.delete(key);
-    confirmPendingDieselUtxo(utxo.txid, utxo.vout);
-  }
+  const knownDiesel = getKnownDieselUtxos(address);
   const virtualDiesel: UTXO[] = pendingDiesel
     .filter(({ txid, vout }) => !fetched.has(`${txid}:${vout}`))
     .map(({ txid, vout, value }) => ({
@@ -140,20 +136,37 @@ export async function selectUtxosForTransaction(
   // are exposed only to flows whose pointer returns every unallocated Alkane to an owned successor.
   const protectedAlkanes = new Map<string, InputAlkaneBalances>();
   const settings = getActiveSettings();
-  if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
-    const alkanes = await fetchInputsAlkanes(
-      candidateUtxos.map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout })),
-      candidateUtxos.map((_, index) => index),
-    );
-    for (const entry of alkanes) protectedAlkanes.set(entry.utxo, entry);
+  const protectAlkanes = settings.protectAlkanesUtxos || settings.enableDieselMinting || includeDieselUtxos;
+  if (protectAlkanes) {
+    // The signing helper deliberately caps one request's inputs. Coin discovery must instead
+    // inspect every candidate in bounded batches, or a clean coin after position 30 is never seen.
+    const prioritized = [...candidateUtxos].sort((a, b) => b.value - a.value)
+      .map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout }));
+    for (let offset = 0; offset < prioritized.length; offset += MAX_ALKANES_LOOKUP_INPUTS) {
+      const batch = prioritized.slice(offset, offset + MAX_ALKANES_LOOKUP_INPUTS);
+      const alkanes = await fetchInputsAlkanes(batch, batch.map(({ index }) => index));
+      for (const entry of alkanes) protectedAlkanes.set(entry.utxo, entry);
+    }
     // The extension built, signed, and successfully broadcast these outputs itself. Public
-    // Alkanes indexers may not expose mempool state, so the trusted journal is authoritative until
-    // confirmation. Unknown unconfirmed outputs that are not in this journal remain unavailable.
-    for (const [utxo] of pendingDieselByOutpoint) {
+    // Alkanes indexers may lag Bitcoin confirmation too. Keep a known output protected until a
+    // positive lookup sees its token balance; Bitcoin confirmation alone does not prove indexing.
+    for (const known of knownDiesel) {
+      const utxo = `${known.txid}:${known.vout}`;
+      const candidateIndex = candidateUtxos.findIndex((item) => `${item.txid}:${item.vout}` === utxo);
+      const confirmed = candidateUtxos[candidateIndex]?.status.confirmed;
+      const indexed = protectedAlkanes.get(utxo);
+      if (confirmed && !indexed?.lookupFailed
+        && indexed?.balances.some((balance) => balance.id === DIESEL_ALKANE_ID)) {
+        pendingDieselByOutpoint.delete(utxo);
+        confirmPendingDieselUtxo(known.txid, known.vout);
+        continue;
+      }
+      const trustedPending = !confirmed && pendingDieselByOutpoint.has(utxo);
       protectedAlkanes.set(utxo, {
-        inputIndex: candidateUtxos.findIndex((item) => `${item.txid}:${item.vout}` === utxo),
+        inputIndex: candidateIndex,
         utxo,
-        balances: [{ id: DIESEL_ALKANE_ID, value: '1' }],
+        balances: trustedPending ? [{ id: DIESEL_ALKANE_ID, value: '1' }] : [],
+        ...(!trustedPending ? { lookupFailed: true } : {}),
       });
     }
   }
@@ -195,7 +208,7 @@ export async function selectUtxosForTransaction(
       continue;
     }
     const unprovedUnconfirmedAlkanes = !utxo.status.confirmed
-      && (settings.protectAlkanesUtxos || settings.enableDieselMinting)
+      && protectAlkanes
       && !pendingDieselUtxo;
     if (utxosWithAssets.has(utxoKey) || alkanes || unprovedUnconfirmedAlkanes) {
       excludedWithAssets++;

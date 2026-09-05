@@ -13,14 +13,17 @@ import {
   dieselBaseUnitsToDisplay,
   fetchDieselBalance,
 } from '@/core/alkanes/api';
+import { dieselUtxoMinimumSats } from '@/core/alkanes/diesel';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { composeDieselSend } from '@/core/counterparty/compose';
 import { formatAmount } from '@/core/format';
-import { toSatoshis } from '@/core/numeric';
+import { fromSatoshis, toSatoshis } from '@/core/numeric';
 import { validateQuantity } from '@/core/validation/amount';
 
 interface DieselSendFormData {
   destination: string;
   amountBaseUnits: string;
+  diesel_display_amount?: string;
   asset: 'BTC';
   quantity: string;
   sat_per_vbyte: number;
@@ -35,9 +38,11 @@ function DieselSendForm({
 }): ReactElement {
   const { activeAddress, showHelpText } = useComposer<DieselSendFormData>();
   const [balance, setBalance] = useState<DieselAddressBalance | null>(null);
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(() => initialFormData?.diesel_display_amount
+    ?? (initialFormData?.amountBaseUnits && /^\d+$/.test(initialFormData.amountBaseUnits)
+      ? fromSatoshis(initialFormData.amountBaseUnits, { removeTrailingZeros: true }) : ''));
   const [destination, setDestination] = useState(initialFormData?.destination ?? '');
-  const [destinationValid, setDestinationValid] = useState(false);
+  const recipientSats = dieselUtxoMinimumSats(destination);
 
   useEffect(() => {
     if (!activeAddress) return;
@@ -59,12 +64,13 @@ function DieselSendForm({
     && BigInt(amountBaseUnits) <= BigInt(balance?.baseUnits ?? '0');
 
   const handleSubmit = (formData: FormData) => {
+    if (recipientSats === undefined || !amountValid) return;
     formData.set('destination', destination);
     formData.set('amountBaseUnits', amountBaseUnits);
-    // The outer composer verifies this as a 546-sat BTC output. DIESEL quantity is independently
-    // committed by the exact protostone script checked in composeDieselSend.
+    // The outer BTC verification and the transfer builder use the same recipient dust policy.
+    // DIESEL quantity is independently committed by the proved protostone script.
     formData.set('asset', 'BTC');
-    formData.set('quantity', '0.00000546');
+    formData.set('quantity', fromSatoshis(recipientSats));
     formData.set('no_dispense', 'true');
     return formAction(formData);
   };
@@ -73,7 +79,7 @@ function DieselSendForm({
     <ComposerForm
       formAction={handleSubmit}
       submitText="Review DIESEL send"
-      submitDisabled={!amountValid || !destinationValid}
+      submitDisabled={!amountValid || recipientSats === undefined}
       showFeeRate
     >
       <div className="rounded-lg bg-gray-50 p-3 text-sm flex items-center gap-3">
@@ -92,9 +98,10 @@ function DieselSendForm({
       <DestinationInput
         value={destination}
         onChange={setDestination}
-        onValidationChange={setDestinationValid}
         showHelpText={showHelpText}
-        helpText="The recipient receives DIESEL on a 546-sat Bitcoin output."
+        helpText={recipientSats === undefined
+          ? 'Use a supported Bitcoin address. SegWit and Taproot recipients receive 330 sats; legacy addresses require a higher minimum.'
+          : `The recipient receives DIESEL on a ${recipientSats}-sat Bitcoin output. Remaining Bitcoin returns to your wallet after the fee.`}
       />
       <Field>
         <Label className="text-sm font-medium text-gray-700">
@@ -135,6 +142,9 @@ function DieselSendReview({
   const display = transfer
     ? dieselBaseUnitsToDisplay(transfer.amount_base_units)
     : 'Unknown';
+  const recipient = transfer
+    ? parseRawTransactionLocally(apiResponse.result.rawtransaction)?.outputs[transfer.recipient_vout]
+    : undefined;
   return (
     <ReviewScreen
       apiResponse={apiResponse}
@@ -144,7 +154,8 @@ function DieselSendReview({
       isSigning={isSigning}
       customFields={[
         { label: 'Amount', value: `${formatAmount({ value: display, maximumFractionDigits: 8 })} DIESEL` },
-        { label: 'Remainder', value: 'Returned to this wallet' },
+        { label: 'Recipient Bitcoin', value: recipient ? `${recipient.value} sats (${fromSatoshis(recipient.value)} BTC)` : 'Unknown' },
+        { label: 'Remainder', value: 'Unsent DIESEL and remaining Bitcoin return to this wallet' },
       ]}
     />
   );

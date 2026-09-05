@@ -13,10 +13,13 @@ import {
   DIESEL_RUNESTONE_MARGINAL_VBYTES,
   dieselUtxoMinimumSats,
   isSupportedDieselUtxoAddress,
+  shouldAttachDieselMint,
 } from '@/core/alkanes/diesel';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import type { ApiResponse, BaseComposeOptions } from '@/core/counterparty/composeTypes';
+import { packComposeMessage } from '@/core/counterparty/pack/messages';
+import { arc4, bytesToHex, hexToBytes } from '@/core/counterparty/unpack/binary';
 import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import { multiply, roundUp, subtract, sum, toSafeInteger } from '@/core/numeric';
@@ -43,8 +46,57 @@ export interface DieselSendOptions extends BaseComposeOptions {
   amountBaseUnits: string;
 }
 
-/** Safe dust value for every address type accepted by the send form. */
-const DIESEL_RECIPIENT_SATS = 546;
+type DieselDataHost = 'order' | 'cancel' | 'broadcast';
+
+/**
+ * These Core composers have no positional BTC destination and return one short data output.
+ * Validate the complete packed size before forcing OP_RETURN: an auto-encoded long broadcast
+ * must keep its ordinary multisig path. The final data script must also match the user's message,
+ * independently of the API's echoes and of agreement between its two responses.
+ */
+export async function composeDataTransactionWithDieselMint(
+  compose: CounterpartyComposer,
+  endpoint: DieselDataHost,
+  params: Record<string, unknown>,
+  sourceAddress: string,
+  satPerVbyte: number,
+  encoding?: string,
+): Promise<ApiResponse> {
+  const settings = getActiveSettings();
+  const eligible = shouldAttachDieselMint({
+    enabled: settings.enableDieselMinting,
+    sourceAddress,
+    feeRate: satPerVbyte,
+    maximumFeeRate: settings.dieselMintMaxFeeRate,
+    encoding,
+  }) && !params.inscription
+    && (!params.mime_type || params.mime_type === 'text/plain');
+  const packed = eligible ? packComposeMessage(endpoint, params) : null;
+  // Packed bytes already include CNTRPRTY. Core's current one-OP_RETURN limit is 80 bytes.
+  if (!packed || packed.bytes.length > 80) {
+    return compose(endpoint, params, sourceAddress, satPerVbyte, encoding);
+  }
+
+  const response = await composeCounterpartyWithDieselMint(
+    compose, endpoint, params, sourceAddress, satPerVbyte, 1,
+  );
+  const parsed = parseRawTransactionLocally(response.result.rawtransaction);
+  const firstInput = parsed?.inputs[0];
+  const hostOutput = parsed?.outputs[0];
+  const encrypted = firstInput ? arc4(hexToBytes(firstInput.txid), packed.bytes) : null;
+  const expectedScript = encrypted ? bytesToHex(Uint8Array.from([
+    0x6a,
+    ...(encrypted.length <= 75 ? [encrypted.length] : [0x4c, encrypted.length]),
+    ...encrypted,
+  ])) : null;
+  if (!expectedScript || hostOutput?.value !== 0
+    || hostOutput.opReturnData?.toLowerCase() !== expectedScript) {
+    throw new CounterpartyApiError(
+      'Counterparty compose did not preserve the requested DIESEL host message.', endpoint,
+    );
+  }
+  return response;
+}
 
 function ownedStandardOutputVbytes(
   output: NonNullable<ReturnType<typeof parseRawTransactionLocally>>['outputs'][number] | undefined,
@@ -134,7 +186,7 @@ function annotateDieselMint(
  */
 export async function composeCounterpartyWithDieselMint(
   compose: CounterpartyComposer,
-  endpoint: 'send' | 'attach',
+  endpoint: 'send' | 'attach' | DieselDataHost,
   paramsObj: Record<string, unknown>,
   sourceAddress: string,
   satPerVbyte: number,
@@ -356,6 +408,10 @@ export async function composeDieselSendTransaction(
     throw new Error('DIESEL sends require a supported wallet source address.');
   }
   const minimumDieselUtxoSats = dieselUtxoMinimumSats(sourceAddress)!;
+  const recipientSats = dieselUtxoMinimumSats(destination);
+  if (recipientSats === undefined) {
+    throw new Error('DIESEL sends require a supported recipient address.');
+  }
   if (!/^\d+$/.test(amountBaseUnits) || BigInt(amountBaseUnits) <= 0n) {
     throw new Error('DIESEL amount must be positive.');
   }
@@ -415,17 +471,18 @@ export async function composeDieselSendTransaction(
   const selectedFunding: typeof selection.utxos = [];
   let fundingSats = 0;
   for (const utxo of selection.utxos.slice(0, 20 - dieselUtxos.length)) {
-    selectedFunding.push(utxo);
-    fundingSats += utxo.value;
     // Conservative budget: four outputs plus overhead and the source format's worst-case input
-    // size per DIESEL/funding coin. Core computes the exact fee; this only chooses enough coins.
+    // size per DIESEL/funding coin. Check the token inputs first so a funded carrier does not
+    // pull in an unnecessary clean coin. Core computes the exact fee.
     const estimatedVsize = 160 + inputVbytes * (dieselUtxos.length + selectedFunding.length);
-    const needed = DIESEL_RECIPIENT_SATS + minimumDieselUtxoSats
+    const needed = recipientSats + minimumDieselUtxoSats
       + Math.ceil(estimatedVsize * sat_per_vbyte);
     if (dieselInputSats + fundingSats >= needed) break;
+    selectedFunding.push(utxo);
+    fundingSats += utxo.value;
   }
   const estimatedVsize = 160 + inputVbytes * (dieselUtxos.length + selectedFunding.length);
-  if (dieselInputSats + fundingSats < DIESEL_RECIPIENT_SATS + minimumDieselUtxoSats
+  if (dieselInputSats + fundingSats < recipientSats + minimumDieselUtxoSats
     + Math.ceil(estimatedVsize * sat_per_vbyte)) {
     throw new Error('Insufficient clean BTC to fund the DIESEL send fee.');
   }
@@ -435,7 +492,7 @@ export async function composeDieselSendTransaction(
   const response = await compose('send', {
     destination,
     asset: 'BTC',
-    quantity: DIESEL_RECIPIENT_SATS.toString(),
+    quantity: recipientSats.toString(),
     no_dispense: 'true',
     more_outputs: `${minimumDieselUtxoSats}:${sourceAddress},0:${transferScript}`,
     ...(max_fee !== undefined && { max_fee: max_fee.toString() }),
@@ -465,7 +522,7 @@ export async function composeDieselSendTransaction(
     || offeredInputSet.size !== offeredInputs.length
     || actualInputSet.size !== actualInputs.length
     || offeredInputs.some((input) => !actualInputSet.has(input))
-    || recipient?.value !== DIESEL_RECIPIENT_SATS
+    || recipient?.value !== recipientSats
     || !recipient.address
     || normalizeAddressForComparison(recipient.address) !== normalizeAddressForComparison(destination)
     || remainder?.value !== minimumDieselUtxoSats

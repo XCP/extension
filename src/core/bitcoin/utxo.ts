@@ -1,5 +1,10 @@
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { Transaction } from '@scure/btc-signer';
 import { CacheTTL, cachedFetch, KeyedTTLCache } from '@/core/api/cache';
 import { apiClient, isCancel } from '@/core/api/client';
+import { decodeAddressFromScript } from '@/core/bitcoin/address';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
+import { toSafeInteger } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
 
 // UTXOs can change with each block but short cache prevents API spam
@@ -13,6 +18,56 @@ const inflightTxRequests = new Map<string, Promise<BitcoinTransactionWithStatus 
 // Transaction hex is immutable once fetched - use long TTL
 const rawTxCache = new KeyedTTLCache<string, string | null>(CacheTTL.VERY_LONG);
 const inflightRawTxRequests = new Map<string, Promise<string | null>>();
+
+interface BroadcastPrevout {
+  value: number;
+  scriptPubKey: string;
+  address?: string;
+}
+
+// Immutable transaction facts only: this cache never makes an output spendable or asset-free.
+// Like the other Bitcoin caches, it is local to this document and expires after ten minutes.
+const broadcastPrevouts = new KeyedTTLCache<string, BroadcastPrevout[]>(CacheTTL.VERY_LONG);
+
+/**
+ * Cache exact parent bytes only after our broadcast succeeds. Derive every output and verify
+ * the supplied transaction id locally; never seed this from a compose response's echoed values.
+ * This lets fee verification resolve a just-created input while public explorers catch up.
+ */
+export function cacheSuccessfulBroadcast(rawTxHex: string, expectedTxid: string): boolean {
+  try {
+    const parsed = parseRawTransactionLocally(rawTxHex);
+    if (!parsed || parsed.txid !== expectedTxid.toLowerCase()) return false;
+    const rawBytes = hexToBytes(rawTxHex.replace(/^0x/, ''));
+    const tx = Transaction.fromRaw(rawBytes, {
+      allowUnknownInputs: true,
+      allowUnknownOutputs: true,
+      disableScriptCheck: true,
+    });
+    const outputs: BroadcastPrevout[] = [];
+    for (let index = 0; index < tx.outputsLength; index++) {
+      const output = tx.getOutput(index);
+      const value = toSafeInteger(output.amount);
+      if (value === undefined || value < 0 || !output.script) return false;
+      const scriptPubKey = bytesToHex(output.script);
+      const address = decodeAddressFromScript(scriptPubKey);
+      outputs.push({ value, scriptPubKey, ...(address ? { address } : {}) });
+    }
+    rawTxCache.set(parsed.txid, bytesToHex(rawBytes));
+    broadcastPrevouts.set(parsed.txid, outputs);
+    return true;
+  } catch {
+    // Recording immutable facts must never turn a successful broadcast into an apparent failure.
+    return false;
+  }
+}
+
+/** A locally recorded output's value and script, with no assertion that it remains unspent. */
+export function getCachedBroadcastPrevout(txid: string, vout: number): BroadcastPrevout | null {
+  if (!Number.isSafeInteger(vout) || vout < 0) return null;
+  const output = broadcastPrevouts.get(txid.toLowerCase())?.[vout];
+  return output ? { ...output } : null;
+}
 
 /**
  * Clears the UTXO cache for a specific address or all addresses.
@@ -34,6 +89,7 @@ export function clearBitcoinCaches(): void {
   utxoCache.invalidateAll();
   txCache.invalidateAll();
   rawTxCache.invalidateAll();
+  broadcastPrevouts.invalidateAll();
 }
 
 /**

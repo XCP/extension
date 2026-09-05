@@ -28,7 +28,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
 
   const requestId = searchParams.get('requestId');
 
-  const decodePsbt = useCallback(decodePsbtForApproval, []);
+  const decodePsbt = decodePsbtForApproval;
 
   // Load PSBT request data if we have a request ID
   useEffect(() => {
@@ -57,7 +57,7 @@ export function useSignPsbtRequest(signerAddress?: string) {
         const decoded = await decodePsbt(
           req.psbtHex,
           requestedSigners.length > 0 ? requestedSigners : signerAddress ? [signerAddress] : [],
-          Object.values(req.signInputs ?? {}).flat(),
+          requestedSigners.length > 0 ? Object.values(req.signInputs!).flat() : undefined,
           req.sighashTypes,
           req.inscription,
           req.signingPurpose,

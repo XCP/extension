@@ -26,6 +26,7 @@ import {
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
+import { cacheSuccessfulBroadcast } from '@/core/bitcoin/utxo';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
@@ -140,11 +141,15 @@ export function recordOwnChangeFromRawTx(
   rawTxHex: string,
   ownAddresses: Iterable<string>
 ): void {
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed) return;
+  // Preserve independently derived parent facts even for protected DIESEL/attachment outputs.
+  // Caching their values is distinct from the spendability classification below.
+  cacheSuccessfulBroadcast(rawTxHex, parsed.txid);
   const addresses = [...ownAddresses];
   const dieselUtxo = extractOwnDieselUtxo(rawTxHex, addresses);
   if (dieselUtxo) {
-    const parsed = parseRawTransactionLocally(rawTxHex);
-    if (parsed) recordPendingDieselUtxo(dieselUtxo, parsed.inputs);
+    recordPendingDieselUtxo(dieselUtxo, parsed.inputs);
     return;
   }
   const entries = extractSafeOwnChangeOutputs(rawTxHex, addresses);

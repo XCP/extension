@@ -109,13 +109,13 @@ describe('Compose Send Operations', () => {
         index: 0,
         witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
       });
-      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+      tx.addOutput({ script: destinationPayment.script, amount: 330n });
       tx.addOutput({ script: sourcePayment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
       tx.addOutput({ script: sourcePayment.script, amount: 90_000n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
-        btc_fee: 9_454,
+        btc_fee: 9_670,
       }));
 
       const response = await composeDieselSend({
@@ -181,15 +181,11 @@ describe('Compose Send Operations', () => {
         index: 1,
         witnessUtxo: { script: sourcePayment.script, amount: 10_000n },
       });
-      tx.addInput({
-        txid: hexToBytes('aa'.repeat(32)),
-        index: 0,
-        witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
-      });
-      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+
+      tx.addOutput({ script: destinationPayment.script, amount: 330n });
       tx.addOutput({ script: sourcePayment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
-      tx.addOutput({ script: sourcePayment.script, amount: 108_124n });
+      tx.addOutput({ script: sourcePayment.script, amount: 8_340n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
         btc_fee: 1_000,
@@ -214,7 +210,7 @@ describe('Compose Send Operations', () => {
         utxos: [{
           txid: dieselTxid,
           vout: 1,
-          value: 100_000,
+          value: 1_000,
           balances: [{ id: '2:0', value: '200000000' }],
         }],
       });
@@ -222,17 +218,17 @@ describe('Compose Send Operations', () => {
         utxos: [{
           txid: 'aa'.repeat(32),
           vout: 0,
-          value: 100_000,
+          value: 1_000,
           status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
         }],
         inputsSet: `${'aa'.repeat(32)}:0`,
-        totalValue: 100_000,
+        totalValue: 1_000,
         excludedWithAssets: 0,
         excludedValue: 0,
         dieselUtxos: [{
           txid: dieselTxid,
           vout: 1,
-          value: 100_000,
+          value: 1_000,
           status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
         }],
       });
@@ -240,18 +236,18 @@ describe('Compose Send Operations', () => {
       tx.addInput({
         txid: hexToBytes(dieselTxid),
         index: 1,
-        witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
+        witnessUtxo: { script: sourcePayment.script, amount: 1_000n },
       });
-      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+      tx.addOutput({ script: destinationPayment.script, amount: 330n });
       tx.addOutput({ script: sourcePayment.script, amount: 330n });
       tx.addOutput({
         script: hexToBytes(buildDieselTransferScript(100_000_000n, 0, 1)),
         amount: 0n,
       });
-      tx.addOutput({ script: sourcePayment.script, amount: 98_124n });
+      tx.addOutput({ script: sourcePayment.script, amount: 330n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
-        btc_fee: 1_000,
+        btc_fee: 10,
       }));
 
       await expect(composeDieselSend({
