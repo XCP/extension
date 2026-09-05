@@ -84,8 +84,8 @@ walletTest.describe('Consolidation Success Page (/actions/consolidate/success)',
   walletTest('consolidation success page redirects without state data', async ({ page }) => {
     await page.goto(page.url().replace(/\/index.*/, '/actions/consolidate/success'));
 
-    // The consolidate flow requires ephemeral state, so a direct deep link falls back to Actions.
-    await expect(page).toHaveURL(/#\/actions$/, { timeout: 10000 });
+    // Without results state, ConsolidateSuccessPage returns to '/' (the wallet index).
+    await expect(page).toHaveURL(/#\/index$/, { timeout: 10000 });
   });
 
   walletTest('consolidation success page has correct route defined', async ({ page }) => {

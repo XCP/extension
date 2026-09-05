@@ -194,7 +194,7 @@ describe('ApprovalService', () => {
       await whenPending(approvalService);
 
       // Resolve the approval
-      approvalService.resolveApproval('test-approve', { approved: true });
+      await approvalService.resolveApproval('test-approve', { approved: true });
 
       const result = await approvalPromise;
       expect(result).toEqual({ approved: true });
@@ -361,7 +361,7 @@ describe('ApprovalService', () => {
       expect(approvalService.hasPendingApproval()).toBe(true);
 
       // Resolve to clear
-      approvalService.resolveApproval('badge-test', { approved: true });
+      await approvalService.resolveApproval('badge-test', { approved: true });
 
       // Should be cleared
       expect(approvalService.hasPendingApproval()).toBe(false);

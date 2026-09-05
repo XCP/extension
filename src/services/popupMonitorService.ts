@@ -83,7 +83,7 @@ class PopupMonitorService {
   /**
    * Handle popup closed event
    */
-  private async handlePopupClosed(reason: string): Promise<void> {
+  private handlePopupClosed(reason: string): void {
     console.log(`[PopupMonitor] Popup closed: ${reason}`);
 
     // Check for any active requests
@@ -92,7 +92,9 @@ class PopupMonitorService {
 
       // Give a short grace period (user might reopen quickly)
       setTimeout(() => {
-        this.cancelAbandonedRequests();
+        void this.cancelAbandonedRequests().catch((error) => {
+          console.error('[PopupMonitor] Failed to cancel abandoned requests:', error);
+        });
       }, 5000); // 5 second grace period
     }
   }

@@ -173,7 +173,8 @@ export class MessageBus {
         }
       };
 
-      checkReady();
+      // checkReady resolves this outer promise and handles retry failures itself.
+      void checkReady();
     });
   }
   

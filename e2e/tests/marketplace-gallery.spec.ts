@@ -1085,69 +1085,74 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
   const stateMismatches: string[] = [];
 
   for (const scenario of scenarios) {
-    await settle(SCREEN_SPACING_MS);
-    await page.evaluate(async (record) => {
-      await chrome.storage.session.set({ pending_sign_flow: [record] });
-    }, scenario.record);
+    await walletTest.step('Capture marketplace approval', async () => {
+      await settle(SCREEN_SPACING_MS);
+      await page.evaluate(async (record) => {
+        await chrome.storage.session.set({ pending_sign_flow: [record] });
+      }, scenario.record);
 
-    const approval = await context.newPage();
-    await approval.setViewportSize({ width: 380, height: 1400 });
-    await stubUtxoBalances(approval, scenario.balances);
-    await approval.goto(
-      `chrome-extension://${extensionId}/popup.html#${scenario.route}?requestId=${scenario.record.id}`
-    );
+      const approval = await context.newPage();
+      await approval.setViewportSize({ width: 380, height: 1400 });
+      await stubUtxoBalances(approval, scenario.balances);
+      await approval.goto(
+        `chrome-extension://${extensionId}/popup.html#${scenario.route}?requestId=${scenario.record.id}`
+      );
 
-    const footer = approval.getByRole('button', {
-      name: /^(sign|review|blocked|authorize listing|authorize reprice|prepare asset|attach and authorize listing)$/i,
+      const footer = approval.getByRole('button', {
+        name: /^(sign|review|blocked|authorize listing|authorize reprice|prepare asset|attach and authorize listing)$/i,
+      });
+      await expect(footer).toBeVisible({ timeout: 60_000 });
+      const footerLabel = (await footer.textContent())?.trim() ?? '';
+      if (footerLabel.toLowerCase() !== scenario.expectFooter.toLowerCase()) {
+        stateMismatches.push(`${scenario.name}: footer reads "${footerLabel}", expected "${scenario.expectFooter}"`);
+      }
+
+      // Capture the paired signer disclosure at the top of the approval before opening lower
+      // transaction details, whose focus movement scrolls the real popup viewport downward.
+      const signerToggle = approval.getByText(/^Signing addresses \(\d+\)$/);
+      if (await signerToggle.count()) {
+        await signerToggle.first().click();
+        await approval.locator('.overflow-y-auto').first().evaluate((element) => {
+          element.scrollTop = 0;
+        });
+        await approval.screenshot({
+          path: path.join(OUT_DIR, `${scenario.name}-signers.png`),
+          fullPage: true,
+        });
+      }
+
+      // Open the lower-level transaction surfaces for the companion detail capture.
+      for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/]) {
+        const toggle = approval.getByText(title);
+        if (await toggle.count()) await toggle.first().click();
+      }
+
+      const body = approval.locator('body');
+      for (const expectedText of scenario.expectedText ?? []) {
+        await expect(body).toContainText(expectedText);
+      }
+      for (const absentText of scenario.absentText ?? []) {
+        await expect(body).not.toContainText(absentText);
+      }
+      await approval.screenshot({ path: path.join(OUT_DIR, `${scenario.name}.png`), fullPage: true });
+
+      const review = approval.getByRole('button', { name: /^review$/i });
+      if (await review.count()) {
+        await review.click();
+        await expect(approval.getByRole('button', { name: 'Back' })).toBeVisible({ timeout: 10_000 });
+        await approval.screenshot({
+          path: path.join(OUT_DIR, `${scenario.name}-attention.png`),
+          fullPage: true,
+        });
+        await approval.getByRole('button', { name: 'Back' }).click();
+      }
+
+      captured.push(scenario.name);
+      await approval.close();
+    }, {
+      subtitle: scenario.name,
+      params: { scenario: scenario.name, requestType: scenario.record.kind },
     });
-    await expect(footer).toBeVisible({ timeout: 60_000 });
-    const footerLabel = (await footer.textContent())?.trim() ?? '';
-    if (footerLabel.toLowerCase() !== scenario.expectFooter.toLowerCase()) {
-      stateMismatches.push(`${scenario.name}: footer reads "${footerLabel}", expected "${scenario.expectFooter}"`);
-    }
-
-    // Capture the paired signer disclosure at the top of the approval before opening lower
-    // transaction details, whose focus movement scrolls the real popup viewport downward.
-    const signerToggle = approval.getByText(/^Signing addresses \(\d+\)$/);
-    if (await signerToggle.count()) {
-      await signerToggle.first().click();
-      await approval.locator('.overflow-y-auto').first().evaluate((element) => {
-        element.scrollTop = 0;
-      });
-      await approval.screenshot({
-        path: path.join(OUT_DIR, `${scenario.name}-signers.png`),
-        fullPage: true,
-      });
-    }
-
-    // Open the lower-level transaction surfaces for the companion detail capture.
-    for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/]) {
-      const toggle = approval.getByText(title);
-      if (await toggle.count()) await toggle.first().click();
-    }
-
-    const body = approval.locator('body');
-    for (const expectedText of scenario.expectedText ?? []) {
-      await expect(body).toContainText(expectedText);
-    }
-    for (const absentText of scenario.absentText ?? []) {
-      await expect(body).not.toContainText(absentText);
-    }
-    await approval.screenshot({ path: path.join(OUT_DIR, `${scenario.name}.png`), fullPage: true });
-
-    const review = approval.getByRole('button', { name: /^review$/i });
-    if (await review.count()) {
-      await review.click();
-      await expect(approval.getByRole('button', { name: 'Back' })).toBeVisible({ timeout: 10_000 });
-      await approval.screenshot({
-        path: path.join(OUT_DIR, `${scenario.name}-attention.png`),
-        fullPage: true,
-      });
-      await approval.getByRole('button', { name: 'Back' }).click();
-    }
-
-    captured.push(scenario.name);
-    await approval.close();
   }
 
   expect(stateMismatches, 'scenarios did not reach their expected approval states').toEqual([]);

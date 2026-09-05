@@ -38,6 +38,10 @@ export default defineConfig({
     viewport: { width: 350, height: 600 },
     video: 'retain-on-failure',
     screenshot: 'only-on-failure',
+    trace: {
+      mode: 'retain-on-failure',
+      snapshots: { dom: true, aria: true, screen: true },
+    },
     
     // Longer timeouts in CI (can be slower)
     actionTimeout: isCI ? 15000 : 10000,

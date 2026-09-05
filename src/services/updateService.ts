@@ -42,7 +42,9 @@ class UpdateService {
     if (chrome.runtime.onUpdateAvailable) {
       chrome.runtime.onUpdateAvailable.addListener((details) => {
         console.log('[UpdateService] Update available:', details.version);
-        this.handleUpdateAvailable(details.version);
+        void this.handleUpdateAvailable(details.version).catch((error) => {
+          console.error('[UpdateService] Failed to handle available update:', error);
+        });
       });
     }
 
@@ -126,7 +128,9 @@ class UpdateService {
     // Store bound handler reference so we can remove it in destroy()
     this.boundAlarmHandler = (alarm) => {
       if (alarm.name === this.ALARM_NAME) {
-        this.performPeriodicCheck();
+        void this.performPeriodicCheck().catch((error) => {
+          console.error('[UpdateService] Periodic update check failed:', error);
+        });
       }
     };
     chrome.alarms.onAlarm.addListener(this.boundAlarmHandler);

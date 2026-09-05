@@ -38,18 +38,17 @@ export function recoverPublicKeyFromSignature(
     recoveredSig[0] = recoveryId;  // Raw recovery ID (0-3)
     recoveredSig.set(raw, 1);
 
-    // Use noble's recoverPublicKey with correct parameter order and options
-    const publicKeyBytes = secp256k1.recoverPublicKey(
+    // Ask noble for the exact SEC encoding carried by the BIP-137 header. Compressed and
+    // uncompressed encodings hash to different P2PKH addresses, so this is semantic rather than
+    // cosmetic.
+    return secp256k1.recoverPublicKey(
       recoveredSig,           // signature (65 bytes)
       messageHash,            // message hash (32 bytes)
-      { prehash: false }      // don't hash again - we already hashed
+      {
+        prehash: false,       // don't hash again - we already hashed
+        isCompressed: compressed,
+      }
     );
-
-    // Noble returns a compressed key. Re-encode through the curve point so that
-    // asking for an uncompressed key actually yields all 65 bytes: the two
-    // encodings hash to different addresses, and BIP-137 flags 27-30 mean
-    // uncompressed. Truncating a 65-byte key to 33 does NOT compress it.
-    return secp256k1.Point.fromBytes(publicKeyBytes).toBytes(compressed);
   } catch (_error) {
     return null;
   }
