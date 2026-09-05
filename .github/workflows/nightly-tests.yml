@@ -26,7 +26,7 @@ jobs:
     # The image runs as root, which Chromium normally refuses — the e2e fixtures already pass
     # `--no-sandbox` and `--disable-dev-shm-usage`, so no user remapping is needed.
     container:
-      image: mcr.microsoft.com/playwright:v1.62.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 120  # Hard backstop so a stalled setup can't burn the 6h job cap
 
     steps:
