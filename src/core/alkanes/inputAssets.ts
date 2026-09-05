@@ -10,6 +10,24 @@ export interface InputAlkaneBalances {
 
 export const MAX_ALKANES_LOOKUP_INPUTS = 30;
 
+export function classifySignedInputAlkanes(
+  entries: InputAlkaneBalances[],
+  signedInputIndices: number[],
+): {
+  withBalances: InputAlkaneBalances[];
+  unknownStatus: InputAlkaneBalances[];
+} {
+  const signed = new Set(signedInputIndices);
+  return {
+    withBalances: entries.filter(
+      (entry) => signed.has(entry.inputIndex) && entry.balances.length > 0,
+    ),
+    unknownStatus: entries.filter(
+      (entry) => signed.has(entry.inputIndex) && entry.lookupFailed,
+    ),
+  };
+}
+
 /**
  * Check signed inputs first and report every token-bearing or unknown input. Confirmed-empty inputs are
  * omitted. This mirrors Counterparty attached-asset approval semantics but intentionally does not

@@ -151,6 +151,28 @@ export function isSupportedDieselUtxoAddress(address: string): boolean {
   return dieselUtxoMinimumSats(address) !== undefined;
 }
 
+/** One policy gate shared by every host transaction currently proven to support a mint. */
+export function shouldAttachDieselMint(input: {
+  enabled: boolean;
+  sourceAddress: string;
+  feeRate: number;
+  maximumFeeRate: number;
+  encoding?: string;
+}): boolean {
+  return input.enabled
+    && Number.isFinite(input.feeRate)
+    && input.feeRate > 0
+    && Number.isFinite(input.maximumFeeRate)
+    && input.maximumFeeRate > 0
+    && input.feeRate <= input.maximumFeeRate
+    && isSupportedDieselUtxoAddress(input.sourceAddress)
+    && (
+      input.encoding === undefined
+      || input.encoding === 'auto'
+      || input.encoding === 'opreturn'
+    );
+}
+
 /** Standard relay dust floor for the wallet output that receives DIESEL. */
 export function dieselUtxoMinimumSats(address: string): number | undefined {
   const result = validateBitcoinAddress(address);

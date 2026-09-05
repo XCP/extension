@@ -5,6 +5,7 @@ import {
   decodeDieselMintScript,
   dieselUtxoMinimumSats,
   isSupportedDieselUtxoAddress,
+  shouldAttachDieselMint,
 } from '../diesel';
 
 describe('DIESEL mint protostone', () => {
@@ -43,5 +44,15 @@ describe('DIESEL mint protostone', () => {
     expect(dieselUtxoMinimumSats('1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa')).toBe(546);
     expect(dieselUtxoMinimumSats('3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy')).toBe(540);
     expect(dieselUtxoMinimumSats('bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l')).toBe(330);
+  });
+
+  it('uses one inclusive policy gate for supported send and attach composes', () => {
+    const sourceAddress = 'bc1q9vza2e8x573nczrlzms0wvx3gsqjx7vavgkx0l';
+    const base = { enabled: true, sourceAddress, feeRate: 2, maximumFeeRate: 2 };
+    expect(shouldAttachDieselMint(base)).toBe(true);
+    expect(shouldAttachDieselMint({ ...base, feeRate: 2.01 })).toBe(false);
+    expect(shouldAttachDieselMint({ ...base, encoding: 'multisig' })).toBe(false);
+    expect(shouldAttachDieselMint({ ...base, enabled: false })).toBe(false);
+    expect(shouldAttachDieselMint({ ...base, feeRate: Number.NaN })).toBe(false);
   });
 });

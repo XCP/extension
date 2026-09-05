@@ -73,6 +73,21 @@ describe('Alkanes outpoint API', () => {
     });
   });
 
+  it('rejects an outpoint index that cannot be represented exactly', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      result: {
+        outpoints: [{
+          outpoint: { txid: 'cd'.repeat(32), vout: '9007199254740992' },
+          balance_sheet: { cached: { balances: [] } },
+        }],
+      },
+    }), { status: 200 })));
+
+    await expect(fetchAlkanesByAddress('bc1qexample')).rejects.toThrow(
+      'Invalid Alkanes outpoint at index 0',
+    );
+  });
+
   it('aggregates DIESEL only and formats all eight decimal places exactly', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({
       result: {

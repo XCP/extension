@@ -142,6 +142,26 @@ describe('WalletManager', () => {
       walletManager.setLastActiveTime();
       expect(mocks.sessionManager.setLastActiveTime).toHaveBeenCalledOnce();
     });
+
+    it('enforces DIESEL protection and validates its fee ceiling at persistence', async () => {
+      walletManager['keychain'] = createTestKeychain([]);
+      mocks.sessionManager.getKeychainMasterKey.mockResolvedValue({} as CryptoKey);
+      mocks.walletStorage.getKeychainRecord.mockResolvedValue(createTestKeychainRecord());
+
+      await walletManager.updateSettings({
+        enableDieselMinting: true,
+        protectAlkanesUtxos: false,
+        dieselMintMaxFeeRate: 2,
+      });
+      expect(walletManager.getSettings()).toMatchObject({
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+        dieselMintMaxFeeRate: 2,
+      });
+
+      await expect(walletManager.updateSettings({ dieselMintMaxFeeRate: 0 }))
+        .rejects.toThrow('between 0 and 1,000');
+    });
   });
 
   describe('Wallet Refresh (Service Worker Restart)', () => {

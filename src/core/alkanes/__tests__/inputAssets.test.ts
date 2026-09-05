@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchAlkanesByOutpoint } from '../api';
-import { fetchInputsAlkanes, MAX_ALKANES_LOOKUP_INPUTS } from '../inputAssets';
+import {
+  classifySignedInputAlkanes,
+  fetchInputsAlkanes,
+  MAX_ALKANES_LOOKUP_INPUTS,
+} from '../inputAssets';
 
 vi.mock('../api', () => ({ fetchAlkanesByOutpoint: vi.fn() }));
 const mockedFetch = vi.mocked(fetchAlkanesByOutpoint);
@@ -44,5 +48,18 @@ describe('Alkanes input UTXO lookup', () => {
 
     expect(mockedFetch).toHaveBeenCalledTimes(MAX_ALKANES_LOOKUP_INPUTS);
     expect(result).toContainEqual(expect.objectContaining({ inputIndex: 30, lookupFailed: true }));
+  });
+
+  it('classifies only inputs the wallet was asked to sign', () => {
+    const entries = [
+      { inputIndex: 0, utxo: 'a:0', balances: [{ id: '2:0', value: '1' }] },
+      { inputIndex: 1, utxo: 'b:0', balances: [], lookupFailed: true },
+      { inputIndex: 2, utxo: 'c:0', balances: [{ id: '4:7', value: '1' }] },
+    ];
+
+    expect(classifySignedInputAlkanes(entries, [0, 1])).toEqual({
+      withBalances: [entries[0]],
+      unknownStatus: [entries[1]],
+    });
   });
 });

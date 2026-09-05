@@ -36,7 +36,7 @@ export interface SelectUtxosOptions {
   minUtxos?: number;
   /** Maximum number of UTXOs to return */
   maxUtxos?: number;
-  /** Identify pure DIESEL UTXOs for an explicitly routing mint flow; never ordinary spending. */
+  /** Identify DIESEL UTXOs for an explicitly routing flow; never ordinary spending. */
   includeDieselUtxos?: boolean;
 }
 
@@ -54,7 +54,7 @@ export interface SelectedUtxos {
   excludedWithAssets: number;
   /** Total value of UTXOs excluded due to attached assets in satoshis */
   excludedValue: number;
-  /** Spendable pure-DIESEL UTXOs; unconfirmed entries are wallet-authored bounded-chain tips. */
+  /** Spendable DIESEL UTXOs; unconfirmed entries are wallet-authored bounded-chain tips. */
   dieselUtxos?: Array<UTXO & { pendingChainDepth?: number }>;
 }
 
@@ -136,8 +136,8 @@ export async function selectUtxosForTransaction(
   }
 
   // Counterparty's balance endpoint cannot see Alkanes. When protection is on, every positive or
-  // unknown result is unavailable to ordinary builders. The mint flow may receive pure, confirmed
-  // Pure DIESEL UTXOs stay in a separate list; they never enter ordinary eligible inputs.
+  // unknown result is unavailable to ordinary builders. DIESEL UTXOs stay in a separate list and
+  // are exposed only to flows whose pointer returns every unallocated Alkane to an owned successor.
   const protectedAlkanes = new Map<string, InputAlkaneBalances>();
   const settings = getActiveSettings();
   if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
@@ -179,15 +179,15 @@ export async function selectUtxosForTransaction(
 
     // Skip if UTXO has attached Counterparty assets
     const alkanes = protectedAlkanes.get(utxoKey);
-    const isPureDieselUtxo = includeDieselUtxos
+    const isRoutableDieselUtxo = includeDieselUtxos
       && (utxo.status.confirmed || !!pendingDieselUtxo)
       && (pendingDieselUtxo?.chainDepth ?? 0) < MAX_PENDING_DIESEL_CHAIN
       && !utxosWithAssets.has(utxoKey)
       && !!alkanes
       && !alkanes.lookupFailed
       && alkanes.balances.length > 0
-      && alkanes.balances.every((balance) => balance.id === DIESEL_ALKANE_ID);
-    if (isPureDieselUtxo) {
+      && alkanes.balances.some((balance) => balance.id === DIESEL_ALKANE_ID);
+    if (isRoutableDieselUtxo) {
       dieselUtxos.push({
         ...utxo,
         ...(pendingDieselUtxo ? { pendingChainDepth: pendingDieselUtxo.chainDepth } : {}),

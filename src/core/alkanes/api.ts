@@ -149,7 +149,12 @@ export async function fetchAlkanesByAddress(
     const outpoint = asRecord(record?.outpoint);
     const txid = outpoint?.txid;
     const vout = exactInteger(outpoint?.vout ?? outpoint?.index);
-    if (typeof txid !== 'string' || !/^[0-9a-f]{64}$/i.test(txid) || vout === undefined) {
+    if (
+      typeof txid !== 'string'
+      || !/^[0-9a-f]{64}$/i.test(txid)
+      || vout === undefined
+      || BigInt(vout) > BigInt(Number.MAX_SAFE_INTEGER)
+    ) {
       throw new Error(`Invalid Alkanes outpoint at index ${index}`);
     }
     const output = asRecord(record?.output);

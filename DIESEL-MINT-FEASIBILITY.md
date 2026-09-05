@@ -2,8 +2,8 @@
 
 **Feasibility review for Dan — 2026-09-04**
 
-**Status:** source review complete; combined transaction proven on local regtest; base draft wallet
-implementation complete; stacked branch implements the measured +26-vB optimization
+**Status:** source review complete; combined transaction proven on local regtest; the single draft
+implementation includes the measured +26-vB optimization, protection, balance, and send flows
 
 **Verdict:** **the narrow feature is feasible and implemented behind an off-by-default switch;
 keep the PR draft until release-line and live-network acceptance are rechecked**
@@ -66,7 +66,7 @@ The PR should remain a draft for two reasons:
 
 ## What this draft PR implements
 
-The base PR carries the complete narrow vertical slice:
+The draft PR carries the complete narrow vertical slice:
 
 - a dependency-free DIESEL mint protostone builder and strict decoder, pinned against both the
   canonical pointer-0 script and the pointer/refund-1 script used by the regtest proof;
@@ -88,7 +88,7 @@ The base PR carries the complete narrow vertical slice:
   recipient amount with an edict, returns every leftover unit to an owned UTXO, and verifies the
   finished input/output layout before signing.
 
-The stacked `feature/diesel-optimized-utxo` branch adds the two-pass +26-vB construction:
+The same PR includes the two-pass +26-vB construction:
 
 - first compose the already-safe 330-sat UTXO plus runestone shape against a locally selected,
   asset-filtered input set;
@@ -102,7 +102,7 @@ The stacked `feature/diesel-optimized-utxo` branch adds the two-pass +26-vB cons
 - retain the verified explicit-output first compose whenever no ordinary change output can safely
   be absorbed. Its cost is 26 vB plus the actual wallet output size. Unsupported shapes are not
   guessed; and
-- prefer one confirmed, pure-DIESEL UTXO as the sole funding input when it can fund the
+- prefer one confirmed DIESEL UTXO with no Counterparty attachment as the sole funding input when it can fund the
   transaction by itself. This rolls accumulated DIESEL into the successor UTXO without adding
   an input. If it cannot fund the transaction, it remains protected and clean BTC is used instead;
   the wallet never pays roughly 68 vB just to consolidate during a mint; and
@@ -116,6 +116,15 @@ Counterparty Taproot/multisig *message encodings*, legacy attach controls (`utxo
 `destination_vout`), detach/move, and every other unproved transaction family.
 The provider surface does not add mints; it only enforces UTXO protection. Swap and Subfrost
 unwrap remain research-only and are not presented as available actions.
+
+The consolidation QA pass added three fail-closed boundaries that were missing from the first
+draft. A DIESEL send now intersects the Alkanes address result with the wallet's independent
+Bitcoin/Counterparty UTXO filter, so an outpoint carrying a Counterparty attachment cannot be
+silently consumed. It then requires the exact offered input set, only owned trailing change, and
+an independently reconciled fee. Atomic provider batches now propagate every item's wallet-safety
+result and independently inspect a fee-bump child for Alkanes. Finally, settings persistence itself
+forces UTXO protection on whenever mining is enabled and rejects an invalid fee-rate ceiling; this
+invariant no longer depends on which UI toggle invoked it.
 
 ## Executed validation
 
@@ -155,7 +164,7 @@ an exact `inputs_set`, `use_all_inputs_set=true`, `exact_fee=382`, and
 zero-value runestone script. Counterparty therefore had no residual change to
 append. The predicted and actual signed sizes were both 191 vB.
 
-The stacked implementation was then rerun end to end on 2026-09-04 against fresh controlled
+The implementation was then rerun end to end on 2026-09-04 against fresh controlled
 regtest funds and a newly issued indivisible asset, `A95428956669999001`. The extension algorithm
 produced, signed, broadcast, and mined the optimized transaction
 `3a930995f7eac57afa17dd39424836cf64c06e35921dd9021234f8948cbe31f7`:
@@ -780,7 +789,7 @@ cover every recipient/attach output and fee.
 
 The wallet therefore applies these rules:
 
-1. Use a confirmed, sufficiently funded pure-DIESEL UTXO as a root when available; otherwise use
+1. Use a confirmed, sufficiently funded DIESEL UTXO with no Counterparty attachment as a root when available; otherwise use
    clean BTC and make the returned wallet value the new root.
 2. Reuse only a pending tip that this wallet just built, verified, and successfully broadcast.
 3. At 25 unconfirmed transactions, never extend that tip. If the user continues, start from clean
@@ -1043,14 +1052,13 @@ existing or newly received UTXO ordinary BTC. Only inputs this wallet signs are
 asset-loss authority in a collaborative PSBT; an Alkane on another participant's
 input can be displayed but is not ours to authorize.
 
-This must be enforced twice: in the shared approval analysis for an intelligible
-error, and immediately before the low-level signer as a defense-in-depth invariant.
-The signer should default-deny an owned Alkanes input unless an internal
-wallet-authored operation supplies a verified Alkanes spend plan bound to the exact
-unsigned transaction. Provider calls never receive that authorization. The plan
-for an internal mint/send/swap must bind input outpoints and balances, runestone
-bytes, output scripts and indices, pointer/refund, expected conservation or
-contract simulation, and fee bounds; any byte change invalidates it.
+The current implementation enforces this in the shared approval analysis and again
+in each approval execution handler before it calls the signer. Atomic multi-PSBT
+approval propagates every item's safety result and independently checks the CPFP
+child, closing a path that the first implementation missed. A future lower-level
+signer authorization object would be worthwhile hardening, but it must distinguish
+wallet-authored, byte-proved DIESEL spends from provider requests; adding a blanket
+signer block would also reject the legitimate rolling mint and send flows.
 
 The existing recent-broadcast shortcut also needs a cross-protocol correction.
 Today `safeOwnChange` and `recent_safe_broadcast_prevouts` establish that a newly
@@ -1060,12 +1068,12 @@ Only journal an output as generally safe when all signed inputs were confirmed c
 on **both** ledgers and the transaction creates no Alkanes result. A mint UTXO
 goes into the protected Alkanes registry, never the ordinary safe-change journal.
 
-For `xcp_broadcastTransaction`, do not treat arbitrary signed bytes as a trusted
-state transition or seed safe change. As defense in depth, refuse provider broadcast
-of a transaction spending a known UTXO unless it matches a previously approved
-future Alkanes-provider flow. This is not a complete security boundary—a dApp can
-broadcast elsewhere—but prevents this extension from publishing or blessing a
-known destructive spend.
+For `xcp_broadcastTransaction`, arbitrary signed bytes are not treated as a trusted
+state transition and cannot seed safe change. Only a transaction that exactly
+matches this origin's successfully completed wallet approval may do so. Refusing
+to relay unrelated signed bytes would not be a security boundary—a dApp can
+broadcast them elsewhere—so the implementation keeps broadcast generic while
+withholding all wallet trust from unmatched bytes.
 
 A future dApp-facing Alkanes capability should be separate and explicit, not folded
 into `xcp_signPsbt`. It would require a local runestone/protostone decoder, exact

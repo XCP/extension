@@ -12,7 +12,10 @@
  * account of them (ADR-019).
  */
 
-import type { InputAlkaneBalances } from '@/core/alkanes/inputAssets';
+import {
+  classifySignedInputAlkanes,
+  type InputAlkaneBalances,
+} from '@/core/alkanes/inputAssets';
 import {
   type BitcoinPaymentIntentV1,
   type BitcoinPaymentProof,
@@ -249,13 +252,10 @@ export async function analyzeSignRequest(
 
   const attachedAssets = await input.attachedAssets;
   const alkaneBalances = await (input.alkaneBalances ?? Promise.resolve([]));
-  const signed = new Set(signedInputIndices);
-  const signedAlkaneUtxos = alkaneBalances.filter(
-    (entry) => signed.has(entry.inputIndex) && entry.balances.length > 0,
-  );
-  const unknownAlkaneStatus = alkaneBalances.filter(
-    (entry) => signed.has(entry.inputIndex) && entry.lookupFailed,
-  );
+  const {
+    withBalances: signedAlkaneUtxos,
+    unknownStatus: unknownAlkaneStatus,
+  } = classifySignedInputAlkanes(alkaneBalances, signedInputIndices);
 
   if (signedAlkaneUtxos.length > 0 || unknownAlkaneStatus.length > 0) {
     safety.warnings = [

@@ -118,7 +118,7 @@ describe('selectUtxosForTransaction', () => {
     expect(result.excludedWithAssets).toBe(1);
   });
 
-  it('separates a pure DIESEL UTXO only for an explicitly routing mint flow', async () => {
+  it('separates DIESEL UTXOs only for an explicitly routing flow', async () => {
     const dieselTxid = 'b'.repeat(64);
     const otherAlkaneTxid = 'c'.repeat(64);
     const pendingDieselTxid = 'd'.repeat(64);
@@ -135,7 +135,7 @@ describe('selectUtxosForTransaction', () => {
       {
         inputIndex: 1,
         utxo: `${dieselTxid}:1`,
-        balances: [{ id: '2:0', value: '250000000' }],
+        balances: [{ id: '2:0', value: '250000000' }, { id: '4:7', value: '1' }],
       },
       {
         inputIndex: 2,

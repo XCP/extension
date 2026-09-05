@@ -3,7 +3,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchDieselBalance } from '@/core/alkanes/api';
-import { buildDieselMintScript } from '@/core/alkanes/diesel';
+import { buildDieselMintScript, buildDieselTransferScript } from '@/core/alkanes/diesel';
 import * as apiClientUtils from '@/core/api/client';
 import { asBaseUnits } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -75,6 +75,24 @@ describe('Compose Send Operations', () => {
           balances: [{ id: '2:0', value: '200000000' }],
         }],
       });
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 0,
+        excludedValue: 0,
+        dieselUtxos: [{
+          txid: dieselTxid,
+          vout: 1,
+          value: 330,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+      });
       mockedGetSettings.mockReturnValue({
         ...mockSettings,
         protectAlkanesUtxos: true,
@@ -97,6 +115,7 @@ describe('Compose Send Operations', () => {
       tx.addOutput({ script: sourcePayment.script, amount: 90_000n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
+        btc_fee: 9_454,
       }));
 
       const response = await composeDieselSend({
@@ -119,6 +138,163 @@ describe('Compose Send Operations', () => {
         remainder_vout: 1,
         runestone_vout: 2,
       });
+    });
+
+    it('keeps unrelated Alkanes on the owned remainder output', async () => {
+      const sourcePayment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const destinationPayment = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
+      const dieselTxid = 'bb'.repeat(32);
+      mockedFetchDieselBalance.mockResolvedValue({
+        baseUnits: '200000000',
+        utxos: [{
+          txid: dieselTxid,
+          vout: 1,
+          value: 10_000,
+          balances: [
+            { id: '2:0', value: '200000000' },
+            { id: '4:7', value: '1' },
+          ],
+        }],
+      });
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 0,
+        excludedValue: 0,
+        dieselUtxos: [{
+          txid: dieselTxid,
+          vout: 1,
+          value: 10_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+      });
+      const transferScript = buildDieselTransferScript(100_000_000n, 0, 1);
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes(dieselTxid),
+        index: 1,
+        witnessUtxo: { script: sourcePayment.script, amount: 10_000n },
+      });
+      tx.addInput({
+        txid: hexToBytes('aa'.repeat(32)),
+        index: 0,
+        witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
+      });
+      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+      tx.addOutput({ script: sourcePayment.script, amount: 330n });
+      tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
+      tx.addOutput({ script: sourcePayment.script, amount: 108_124n });
+      mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
+        rawtransaction: bytesToHex(tx.unsignedTx),
+        btc_fee: 1_000,
+      }));
+
+      await expect(composeDieselSend({
+        sourceAddress: sourcePayment.address!,
+        destination: destinationPayment.address!,
+        amountBaseUnits: '100000000',
+        sat_per_vbyte: 2,
+      })).resolves.toMatchObject({
+        result: { diesel_transfer: { remainder_vout: 1 } },
+      });
+    });
+
+    it('rejects a composer that omits an offered input despite use_all_inputs_set', async () => {
+      const sourcePayment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const destinationPayment = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
+      const dieselTxid = 'bb'.repeat(32);
+      mockedFetchDieselBalance.mockResolvedValue({
+        baseUnits: '200000000',
+        utxos: [{
+          txid: dieselTxid,
+          vout: 1,
+          value: 100_000,
+          balances: [{ id: '2:0', value: '200000000' }],
+        }],
+      });
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 0,
+        excludedValue: 0,
+        dieselUtxos: [{
+          txid: dieselTxid,
+          vout: 1,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+      });
+      const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
+      tx.addInput({
+        txid: hexToBytes(dieselTxid),
+        index: 1,
+        witnessUtxo: { script: sourcePayment.script, amount: 100_000n },
+      });
+      tx.addOutput({ script: destinationPayment.script, amount: 546n });
+      tx.addOutput({ script: sourcePayment.script, amount: 330n });
+      tx.addOutput({
+        script: hexToBytes(buildDieselTransferScript(100_000_000n, 0, 1)),
+        amount: 0n,
+      });
+      tx.addOutput({ script: sourcePayment.script, amount: 98_124n });
+      mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
+        rawtransaction: bytesToHex(tx.unsignedTx),
+        btc_fee: 1_000,
+      }));
+
+      await expect(composeDieselSend({
+        sourceAddress: sourcePayment.address!,
+        destination: destinationPayment.address!,
+        amountBaseUnits: '100000000',
+        sat_per_vbyte: 2,
+      })).rejects.toThrow('did not preserve the required DIESEL transfer layout');
+    });
+
+    it('refuses DIESEL co-located with a Counterparty attachment', async () => {
+      const sourcePayment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const destinationPayment = p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true));
+      mockedFetchDieselBalance.mockResolvedValue({
+        baseUnits: '100000000',
+        utxos: [{
+          txid: 'bb'.repeat(32),
+          vout: 1,
+          value: 10_000,
+          balances: [{ id: '2:0', value: '100000000' }],
+        }],
+      });
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 1,
+        excludedValue: 10_000,
+        dieselUtxos: [],
+      });
+
+      await expect(composeDieselSend({
+        sourceAddress: sourcePayment.address!,
+        destination: destinationPayment.address!,
+        amountBaseUnits: '100000000',
+        sat_per_vbyte: 2,
+      })).rejects.toThrow('UTXO is not safe to spend from this screen');
+      expect(mockedApiClient.get).not.toHaveBeenCalled();
     });
   });
 
