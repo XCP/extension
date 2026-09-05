@@ -416,72 +416,78 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   const warningMismatches: string[] = [];
 
   for (const [name, { rawTxHex }] of scenarios) {
-    const id = `gallery-${name}`;
-    await seed(id, rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
-    const approval = await openApproval(id, name);
+    await walletTest.step('Capture transaction approval', async () => {
+      const id = `gallery-${name}`;
+      await seed(id, rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
+      const approval = await openApproval(id, name);
 
-    // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
-    // for a multi-destination send that panel is the only place the payees appear at all.
-    // Exact match: warning copy also mentions 'the transaction details', which makes a loose
-    // locator ambiguous on any screen that carries one.
-    const details = approval.getByText(/^Transaction Details$/);
-    await expect(details).toBeVisible({ timeout: 30_000 });
-    await details.click();
-    await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
+      // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
+      // for a multi-destination send that panel is the only place the payees appear at all.
+      // Exact match: warning copy also mentions 'the transaction details', which makes a loose
+      // locator ambiguous on any screen that carries one.
+      const details = approval.getByText(/^Transaction Details$/);
+      await expect(details).toBeVisible({ timeout: 30_000 });
+      await details.click();
+      await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
 
-    const shown = (
-      await collectWarnings(approval, path.join(OUT_DIR, `${name}-attention.png`))
-    ).map((re) => re.source).sort();
-    const expected = (EXPECTED_WARNINGS[name] ?? []).map((re) => re.source).sort();
-    if (JSON.stringify(shown) !== JSON.stringify(expected)) {
-      warningMismatches.push(`${name}
-    on screen: ${shown.join(', ') || '(none)'}
-    expected:  ${expected.join(', ') || '(none)'}`);
-    }
+      const shown = (
+        await collectWarnings(approval, path.join(OUT_DIR, `${name}-attention.png`))
+      ).map((re) => re.source).sort((a, b) => a.localeCompare(b));
+      const expected = (EXPECTED_WARNINGS[name] ?? [])
+        .map((re) => re.source)
+        .sort((a, b) => a.localeCompare(b));
+      if (JSON.stringify(shown) !== JSON.stringify(expected)) {
+        warningMismatches.push(`${name}
+      on screen: ${shown.join(', ') || '(none)'}
+      expected:  ${expected.join(', ') || '(none)'}`);
+      }
 
-    await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
-    captured.push(name);
-    await approval.close();
+      await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
+      captured.push(name);
+      await approval.close();
+    }, { subtitle: name, params: { scenario: name, requestType: 'transaction' } });
   }
 
   // The same payloads through the PSBT screen. It runs the same decode, comparator and describer,
   // so any divergence between the two screens is a drift bug rather than a design difference.
   for (const [name, { rawTxHex }] of scenarios) {
-    const id = `gallery-psbt-${name}`;
-    await page.evaluate(
-      async (req) => {
-        await chrome.storage.session.set({ pending_sign_flow: [req] });
-      },
-      {
-        id,
-        origin: 'https://launchpad.xcp.fun',
-        timestamp: Date.now(),
-        address: signerAddress!,
-        walletId: '',
-        requestKey: `xcp_signPsbt:${id}`,
-        kind: 'sign-psbt',
-        status: 'pending',
-        psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name))),
-      }
-    );
+    await walletTest.step('Capture PSBT approval', async () => {
+      const id = `gallery-psbt-${name}`;
+      await page.evaluate(
+        async (req) => {
+          await chrome.storage.session.set({ pending_sign_flow: [req] });
+        },
+        {
+          id,
+          origin: 'https://launchpad.xcp.fun',
+          timestamp: Date.now(),
+          address: signerAddress!,
+          walletId: '',
+          requestKey: `xcp_signPsbt:${id}`,
+          kind: 'sign-psbt',
+          status: 'pending',
+          psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name))),
+        }
+      );
 
-    await settle(SCREEN_SPACING_MS);
-    const approval = await context.newPage();
-    await approval.setViewportSize({ width: 380, height: 1400 });
-    await installScenarioStubs(approval, name);
-    await approval.goto(
-      `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
-    );
-    await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+      await settle(SCREEN_SPACING_MS);
+      const approval = await context.newPage();
+      await approval.setViewportSize({ width: 380, height: 1400 });
+      await installScenarioStubs(approval, name);
+      await approval.goto(
+        `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
+      );
+      await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
 
-    // Expanded, for the same reason as above: the recipients list and the checks line live in
-    // this panel, and they are precisely what was missing from this screen.
-    const psbtDetails = approval.getByText(/^Transaction Details$/);
-    await expect(psbtDetails).toBeVisible({ timeout: 30_000 });
-    await psbtDetails.click();
+      // Expanded, for the same reason as above: the recipients list and the checks line live in
+      // this panel, and they are precisely what was missing from this screen.
+      const psbtDetails = approval.getByText(/^Transaction Details$/);
+      await expect(psbtDetails).toBeVisible({ timeout: 30_000 });
+      await psbtDetails.click();
 
-    await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
-    await approval.close();
+      await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
+      await approval.close();
+    }, { subtitle: name, params: { scenario: name, requestType: 'psbt' } });
   }
 
   // Every warning is a claim about the user's money, so a spurious one is not cosmetic — it

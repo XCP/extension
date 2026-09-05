@@ -138,8 +138,8 @@ describe('WalletManager', () => {
       expect(walletManager.getActiveWallet()).toBeUndefined();
     });
 
-    it('should update last active time', () => {
-      walletManager.setLastActiveTime();
+    it('should update last active time', async () => {
+      await walletManager.setLastActiveTime();
       expect(mocks.sessionManager.setLastActiveTime).toHaveBeenCalledOnce();
     });
   });

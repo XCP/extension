@@ -102,6 +102,53 @@ describe('normalizePsbtToHex', () => {
   });
 });
 
+describe('untrusted PSBT policy', () => {
+  it('rejects Taproot metadata that does not commit to the previous output', () => {
+    const privateKey = hexToBytes(TEST_PRIVATE_KEY);
+    const internalKey = getPublicKey(privateKey, true).slice(1, 33);
+    const unrelatedKey = getPublicKey(hexToBytes('11'.repeat(32)), true).slice(1, 33);
+    const payment = p2tr(internalKey);
+
+    // disableScriptCheck is used only to manufacture the malformed PSBT. The wallet parser must
+    // reject the unrelated internal key before approval or signing.
+    const malformed = new Transaction({ disableScriptCheck: true });
+    malformed.addInput({
+      txid: hexToBytes('22'.repeat(32)),
+      index: 0,
+      witnessUtxo: { script: payment.script, amount: 100_000n },
+      tapInternalKey: unrelatedKey,
+    });
+    malformed.addOutputAddress(payment.address!, 90_000n);
+
+    expect(() => parsePSBT(bytesToHex(malformed.toPSBT())))
+      .toThrow('Taproot commitment does not match previous output');
+  });
+
+  it('round-trips PSBTv2 locktime and transaction-modifiable metadata', () => {
+    const internalKey = getPublicKey(hexToBytes(TEST_PRIVATE_KEY), true).slice(1, 33);
+    const payment = p2tr(internalKey);
+    const original = new Transaction({ PSBTVersion: 2, version: 2, lockTime: 840_000 });
+    original.addInput({
+      txid: hexToBytes('33'.repeat(32)),
+      index: 1,
+      sequence: 0xfffffffe,
+      witnessUtxo: { script: payment.script, amount: 100_000n },
+    });
+    original.addOutputAddress(payment.address!, 90_000n);
+    const encoded = original.toPSBT(2);
+
+    const parsed = parsePSBT(bytesToHex(encoded));
+
+    expect(parsed.opts.PSBTVersion).toBe(2);
+    expect(parsed.version).toBe(2);
+    expect(parsed.lockTime).toBe(840_000);
+    expect(parsed.toPSBT(2)).toEqual(encoded);
+    // A newly emitted PSBTv2 declares both inputs and outputs modifiable. If that field is lost,
+    // another standards-compliant implementation must treat the transaction as immutable.
+    expect(() => parsed.addOutputAddress(payment.address!, 1n)).not.toThrow();
+  });
+});
+
 /**
  * Create a simple test PSBT with one input and two outputs
  */

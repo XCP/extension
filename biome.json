@@ -57,7 +57,23 @@
         "noSkippedTests": "error",
         "useArraySortCompare": "error",
         "useIterableCallbackReturn": "error"
+      },
+      "nursery": {
+        "noInvalidFileInputAccept": "error",
+        "noUnmodifiedLoopCondition": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["src/platform/**/*.ts", "src/services/**/*.ts"],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noFloatingPromises": "error"
+          }
+        }
+      }
+    }
+  ]
 }

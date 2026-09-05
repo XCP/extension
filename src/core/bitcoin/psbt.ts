@@ -253,7 +253,10 @@ export function parsePSBT(psbt: string): Transaction {
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
-      disableScriptCheck: true,
+      // A website controls these bytes. Keep redeem/witness wrapper and Taproot commitment
+      // validation enabled, and do not return opaque fingerprinting/exfiltration fields.
+      unknown: 'strip',
+      proprietary: 'strip',
     });
   } catch (err) {
     throw new ValidationError(
@@ -499,7 +502,8 @@ export function signPSBT(
     // Require the full prev tx for legacy inputs: a bare witnessUtxo lets a
     // dApp declare a false amount and drain the real UTXO to fees.
     allowLegacyWitnessUtxo: false,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
   });
 
   const privateKeyBytes = hexToBytes(privateKeyHex);
@@ -659,7 +663,8 @@ export function finalizePSBT(psbt: string): string {
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
     allowLegacyWitnessUtxo: true,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
   });
 
   tx.finalize();
@@ -691,7 +696,8 @@ export function completePsbtWithInputValues(
     allowUnknownInputs: true,
     allowUnknownOutputs: true,
     allowLegacyWitnessUtxo: true,
-    disableScriptCheck: true,
+    unknown: 'strip',
+    proprietary: 'strip',
   });
 
   // Validate arrays match input count
