@@ -104,7 +104,10 @@ The stacked `feature/diesel-optimized-utxo` branch adds the two-pass +26-vB cons
 - prefer one confirmed, pure-DIESEL UTXO as the sole funding input when it can fund the
   transaction by itself. This rolls accumulated DIESEL into the successor UTXO without adding
   an input. If it cannot fund the transaction, it remains protected and clean BTC is used instead;
-  the wallet never pays roughly 68 vB just to consolidate during a mint.
+  the wallet never pays roughly 68 vB just to consolidate during a mint; and
+- after a successful broadcast, remember the exact verified successor in memory and roll it through
+  a single dependency chain of at most 25 unconfirmed transactions. At the ceiling, on restart, or
+  when the proof expires, start from clean BTC or wait for confirmation rather than guessing.
 
 The current allow-list supports P2WPKH, P2TR, P2PKH, and wallet P2SH sources. It skips MPMA,
 Counterparty Taproot/multisig *message encodings*, legacy attach controls (`utxo_value` or
@@ -347,10 +350,17 @@ and confirmation state. The existing pending-change cache must not classify the
 successor as ordinary spendable BTC. RBF replacement and reorgs must atomically
 replace or roll back this state.
 
-For an MVP, do not chain another transaction from an unconfirmed successor. A later
-RBF of the parent would invalidate the descendant. While a UTXO roll is pending,
-skip attached minting and keep the pending successor protected. Unconfirmed chaining
-can be a later, explicitly tested feature.
+The wallet may chain from an unconfirmed successor only when it can prove that successor came
+from its own successfully broadcast, byte-verified DIESEL transaction. It keeps this trust record
+in memory, rolls the tip through at most 25 unconfirmed transactions, and then starts another
+chain from clean BTC. Unknown unconfirmed outputs are never inferred to be safe from an indexer
+absence. A restart or 30-minute expiry discards the optimistic record and pauses that chain until
+the output confirms and an indexer proves its assets.
+
+Do not fee-bump a parent after descendants have been broadcast: replacing it changes the txid and
+invalidates every child. A bulk scheduler should either finalize the chain's fee before adding
+children or replace the entire suffix as one explicit operation. The current implementation takes
+the conservative path and does not automatically replace a parent chain.
 
 ## Bare multisig and Taproot
 
@@ -694,42 +704,59 @@ at a meaningfully lower fee rate or when a DIESEL send already needs it.
 
 ### Bulk attachment: 1,000–2,000 transactions
 
-Bulk attachment changes the recommendation because it combines a legitimate sunk host cost with
-extreme concurrency:
+Bulk attachment combines a legitimate sunk host cost with high throughput. The efficient shape is
+not 1,000 independent UTXOs and not a thousand-deep chain. It is a pool of bounded chains:
 
-- If transactions are sent **sequentially after confirmation**, each can spend the prior DIESEL
-  UTXO and route `old DIESEL + new mint` to its successor. This keeps one token-bearing UTXO, but
-  one confirmation per attachment is far too slow for most 1,000-transaction jobs.
-- If 1,000 transactions are composed or broadcast **in parallel**, they cannot all spend the same
-  UTXO. Bitcoin would treat 999 of them as double spends. The safe first version creates up to
-  1,000 independent DIESEL UTXOs.
-- An unconfirmed chain can reduce fragmentation, but not eliminate it: default ancestor/descendant
-  package policy is bounded, RBF invalidates descendants, and a thousand-deep chain is neither a
-  relay-safe nor operationally sane wallet strategy. This is out of scope for the first release.
+```text
+root 1 -> tx 1 -> tx 2 -> ... -> tx 25 -> DIESEL tip 1
+root 2 -> tx 26 -> ...           -> tx 50 -> DIESEL tip 2
+...
+root 40 -> ...                   -> tx 1000 -> DIESEL tip 40
+```
 
-The visible +26-vB mining delta is therefore not the whole cost of a parallel batch. Spending
-1,000 P2WPKH DIESEL UTXOs later contributes about **68,000 vB of inputs** before transaction
-overhead and outputs; 2,000 contribute about **136,000 vB**. At 1 sat/vB that is roughly 68,000
-or 136,000 sats, and at 5 sat/vB roughly 340,000 or 680,000 sats. A single transaction also cannot
-use them all through Counterparty's 20-input compose limit, so consolidation or a large DIESEL send
-would require many transactions.
+Each transaction spends the preceding wallet UTXO and routes its old DIESEL plus the new reward
+to the successor. For 1,000 transactions, 40 chains of 25 leave about **40 DIESEL UTXOs**, not
+1,000. For 2,000, the corresponding count is about 80. The transactions must be composed, signed,
+and successfully broadcast in dependency order within each chain; separate chains may run in
+parallel.
 
-That future input cost is not necessarily a dedicated consolidation bill. The wallet should first
-use confirmed DIESEL UTXOs as funding inputs for later transactions when they replace BTC inputs
-that were already needed, rolling several balances toward fewer successor UTXOs. Only the
-unabsorbed remainder should be deliberately consolidated during low fees. The economics screen
-must nevertheless allocate a future-spend cost; otherwise a 1,000-mint batch can look profitable
-up front while merely deferring more fees than it earned.
+The number 25 is a mempool policy ceiling, not a promise that 25 transactions will confirm in the
+same block. A miner can include a whole chain, a prefix, or none of it. Dependency order guarantees
+that child 17 cannot confirm without children 1–16, while the wallet resumes from whichever tip is
+confirmed after the block. If the local node or broadcast route advertises a lower ancestor limit,
+the scheduler must use that lower value.
 
-Recommended bulk policy for this PR:
+This was exercised against the repository's live regtest stack. Bitcoin Core accepted 25
+unconfirmed combined enhanced-send+DIESEL transactions in one dependency chain and rejected the
+26th with `too-long-mempool-chain, too many unconfirmed ancestors [limit: 25]`. Mining one block
+confirmed all 25; Counterparty indexed every member as a supported, valid enhanced send:
 
-1. Roll the largest confirmed DIESEL UTXO when it can fund the next transaction by itself.
-2. Never add an underfunded DIESEL UTXO beside another funding input merely to make the balance
-   list look tidy.
-3. For simultaneous jobs, mint to separate UTXOs and show the projected count and future input
-   vbytes before broadcast.
-4. Add bounded chain/pool scheduling only after a regtest fixture covers package limits, RBF,
-   restarts, and partial batch failure.
+- first child: `bffd0f9fa2d94c0f8ce42c8ce16e259fb6132a04b5e976bc04f383f986087f5c`;
+- 25th tip: `4c155b94342519760422b4bae94c33a2a39c4b2d826ec748e4b0b84b2ca7fa2b`;
+- block 2,358: `600a8bf9e34958e426dfe4e90eb0d34b6d70a41351df670567fb2a5c78fdc8a4`.
+
+Chaining solves future fragmentation but does **not** improve the per-mint reward or avoid
+self-dilution. If 1,000 of our mints confirm in one block with `N_other` other successful mints and
+effective pot `B`, their combined reward remains `B * 1000 / (N_other + 1000)`. It also does not
+make the host transaction free: every chain root must contain enough BTC for all descendant host
+outputs and miner fees. A 25-transaction enhanced-send chain consumes roughly 25 times its
+recipient dust plus fee; an attach chain also consumes the attached-output value each step.
+
+The wallet therefore applies these rules:
+
+1. Use a confirmed, sufficiently funded pure-DIESEL UTXO as a root when available; otherwise use
+   clean BTC and make the returned wallet value the new root.
+2. Reuse only a pending tip that this wallet just built, verified, and successfully broadcast.
+3. Stop at 25 unconfirmed transactions and start a new chain from clean BTC. Never double-spend a
+   root to manufacture parallel branches.
+4. Forget pending trust on restart/expiry and wait for confirmation/indexing. This can pause a
+   batch, but cannot expose DIESEL to an ordinary spend.
+5. Do not automatically RBF a chain parent after children exist. Partial broadcast failure leaves
+   the last accepted tip protected and the remaining work resumable.
+
+Without chaining, later spending 1,000 P2WPKH shards would contribute about 68,000 vB of inputs.
+Forty chain tips contribute about 2,720 vB instead. This is the main economic benefit of chaining;
+the on-the-way mint still adds the same measured 26 vB to every optimized host transaction.
 
 ### Recommended two-pass compose
 
@@ -779,20 +806,21 @@ the encoded values from the finished transaction.
 
 ### RBF, CPFP, concurrency, and reorgs
 
-- Use opt-in RBF for the host transaction. A replacement changes the txid and hence
-  the UTXO outpoint; update the pending-successor record atomically and re-check
-  the replacement's exact payload and UTXO index.
-- Do not use the UTXO as an automatic CPFP input in v1. That creates another
-  protocol-sensitive spend and an unconfirmed chain merely to accelerate a lottery
-  reward whose high-fee-block payout may already be worse.
-- Allow at most one pending successor per confirmed UTXO. While it is pending,
-  create a separate UTXO or skip; do not spend an unconfirmed successor in the
-  first release.
+- A transaction may use opt-in RBF while it has no descendants. Once a pending DIESEL tip has been
+  spent by a child, replacing any ancestor invalidates the suffix; the wallet must not silently
+  bump it as an isolated transaction.
+- Spending the tip is ordinary dependency chaining and also acts as CPFP for its ancestors. Price
+  the whole package before broadcast; a high-fee child can make the package confirm but can also
+  erase the expected mint value.
+- Allow exactly one pending successor per root and no branches. The wallet-authored journal moves
+  the active marker from parent to child after each successful broadcast.
+- Cap each unconfirmed chain at 25 under the tested default Core policy. Start another chain rather
+  than attempting the 26th descendant.
 - A reorg returns the old UTXO to confirmed state and invalidates its successor.
   The address-level balance must be reconciled from the Alkanes indexer rather than
   adjusted by optimistic arithmetic alone.
-- If concurrency becomes important, maintain a small pool of confirmed UTXOs.
-  That is a throughput optimization, not an MVP requirement.
+- Bulk concurrency is a pool of independent bounded chains. Never make several children spend the
+  same tip: those are conflicts, not parallelism.
 
 ### Eligible transaction families
 
@@ -1072,7 +1100,7 @@ The wallet state machine should be explicit:
 | Off, no balance | No Alkanes output; ordinary operation |
 | Ask/Auto, no balance | Mint to a natural own output or explicit UTXO on an eligible transaction |
 | Ask/Auto, confirmed balance | Protect every UTXO; roll one only when it is already useful as BTC funding, otherwise create a shard or skip |
-| Mint transaction pending | Reserve the selected inputs and successor; do not chain-spend it in v1 |
+| Mint transaction pending | Reuse only a wallet-authored verified tip, advance one child at a time, and start a new chain at depth 25 |
 | Off, balance remains | Stop minting, but continue discovery, protection, Send, Consolidate, and recovery |
 | Indexer unavailable or behind | Display last-known balance as stale and block UTXO spending/mint decoration |
 

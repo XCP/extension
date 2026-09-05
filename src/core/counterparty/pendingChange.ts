@@ -21,7 +21,11 @@
 import { decodeDieselMintScript } from '@/core/alkanes/diesel';
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
-import { recordPendingChange } from '@/core/bitcoin/spentUtxoCache';
+import {
+  recordPendingChange,
+  recordPendingDieselUtxo,
+  type PendingDieselUtxo,
+} from '@/core/bitcoin/spentUtxoCache';
 import { unpackCounterpartyMessage } from '@/core/counterparty/unpack';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
@@ -40,6 +44,39 @@ export interface SafeOwnChangeOutput {
   address: string;
   value: number;
   scriptPubKey: string;
+}
+
+/** Locate the one wallet-owned output selected by an exact DIESEL mint script. */
+export function extractOwnDieselUtxo(
+  rawTxHex: string,
+  ownAddresses: Iterable<string>,
+): Omit<PendingDieselUtxo, 'chainDepth'> | null {
+  const parsed = parseRawTransactionLocally(rawTxHex);
+  if (!parsed) return null;
+  const own = new Set([...ownAddresses].map(normalizeAddressForComparison));
+  const matches = parsed.outputs.flatMap((output) => {
+    if (!output.opReturnData) return [];
+    try {
+      const mint = decodeDieselMintScript(output.opReturnData);
+      if (mint.pointer !== mint.refund) return [];
+      const target = parsed.outputs[mint.pointer];
+      if (
+        !target?.address
+        || !target.script
+        || target.value <= 0
+        || !own.has(normalizeAddressForComparison(target.address))
+      ) return [];
+      return [{
+        txid: parsed.txid,
+        vout: target.index,
+        address: target.address,
+        value: target.value,
+      }];
+    } catch {
+      return [];
+    }
+  });
+  return matches.length === 1 ? matches[0]! : null;
 }
 
 /**
@@ -103,7 +140,14 @@ export function recordOwnChangeFromRawTx(
   rawTxHex: string,
   ownAddresses: Iterable<string>
 ): void {
-  const entries = extractSafeOwnChangeOutputs(rawTxHex, ownAddresses);
+  const addresses = [...ownAddresses];
+  const dieselUtxo = extractOwnDieselUtxo(rawTxHex, addresses);
+  if (dieselUtxo) {
+    const parsed = parseRawTransactionLocally(rawTxHex);
+    if (parsed) recordPendingDieselUtxo(dieselUtxo, parsed.inputs);
+    return;
+  }
+  const entries = extractSafeOwnChangeOutputs(rawTxHex, addresses);
 
   if (entries.length > 0) recordPendingChange(entries);
 }

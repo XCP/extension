@@ -3,10 +3,13 @@ import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearSpentUtxoCache,
+  confirmPendingDieselUtxo,
   getPendingChangeUtxos,
+  getPendingDieselUtxos,
   getSpentUtxoCacheSize,
   isUtxoRecentlySpent,
   recordPendingChange,
+  recordPendingDieselUtxo,
   recordSpentInputsFromRawTx,
   recordSpentUtxos,
 } from '../spentUtxoCache';
@@ -85,6 +88,76 @@ describe('spentUtxoCache', () => {
   it('should handle recording empty inputs array', () => {
     recordSpentUtxos([]);
     expect(getSpentUtxoCacheSize()).toBe(0);
+  });
+});
+
+describe('pending DIESEL UTXO registry', () => {
+  beforeEach(() => {
+    clearSpentUtxoCache();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('keeps only the active tip and derives chain depth from the spent parent', () => {
+    const first = recordPendingDieselUtxo(
+      { txid: '11'.repeat(32), vout: 1, address: 'addr-a', value: 50_000 },
+      [],
+    );
+    const second = recordPendingDieselUtxo(
+      { txid: '22'.repeat(32), vout: 1, address: 'addr-a', value: 49_000 },
+      [{ txid: first.txid, vout: first.vout }],
+    );
+
+    expect(first.chainDepth).toBe(1);
+    expect(second.chainDepth).toBe(2);
+    expect(getPendingDieselUtxos('addr-a')).toEqual([{
+      txid: second.txid,
+      vout: second.vout,
+      address: second.address,
+      value: second.value,
+      chainDepth: second.chainDepth,
+    }]);
+  });
+
+  it('forgets a confirmed tip so the next unconfirmed child starts at depth one', () => {
+    const tip = recordPendingDieselUtxo(
+      { txid: '33'.repeat(32), vout: 1, address: 'addr-a', value: 50_000 },
+      [],
+    );
+
+    confirmPendingDieselUtxo(tip.txid, tip.vout);
+    const child = recordPendingDieselUtxo(
+      { txid: '44'.repeat(32), vout: 1, address: 'addr-a', value: 49_000 },
+      [{ txid: tip.txid, vout: tip.vout }],
+    );
+
+    expect(child.chainDepth).toBe(1);
+    expect(getPendingDieselUtxos('addr-a')).toEqual([{
+      txid: child.txid,
+      vout: child.vout,
+      address: child.address,
+      value: child.value,
+      chainDepth: child.chainDepth,
+    }]);
+  });
+
+  it('expires unconfirmed tips and clears them with the rest of the session cache', () => {
+    recordPendingDieselUtxo(
+      { txid: '55'.repeat(32), vout: 1, address: 'addr-a', value: 50_000 },
+      [],
+    );
+    vi.advanceTimersByTime(30 * 60_000 + 1);
+    expect(getPendingDieselUtxos('addr-a')).toEqual([]);
+
+    recordPendingDieselUtxo(
+      { txid: '66'.repeat(32), vout: 1, address: 'addr-a', value: 50_000 },
+      [],
+    );
+    clearSpentUtxoCache();
+    expect(getPendingDieselUtxos('addr-a')).toEqual([]);
   });
 });
 

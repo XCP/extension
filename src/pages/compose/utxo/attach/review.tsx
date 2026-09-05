@@ -65,6 +65,9 @@ export function ReviewUtxoAttach({
           <br />
           {result.diesel_mint.utxo_sats} sat protected wallet return; remains yours
           {result.diesel_mint.rolled_utxo ? <><br />Existing DIESEL rolled forward</> : null}
+          {result.diesel_mint.pending_chain_position ? (
+            <><br />Unconfirmed chain {result.diesel_mint.pending_chain_position}/25</>
+          ) : null}
         </span>
       ),
     }] : []),

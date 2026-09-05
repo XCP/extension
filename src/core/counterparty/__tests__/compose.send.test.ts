@@ -400,7 +400,7 @@ describe('Compose Send Operations', () => {
       });
     });
 
-    it('rolls a funded DIESEL UTXO when it replaces the ordinary funding input', async () => {
+    it('rolls a funded pending DIESEL tip and reports its chain position', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
@@ -420,7 +420,8 @@ describe('Compose Send Operations', () => {
           txid: dieselTxid,
           vout: 1,
           value: 100_000,
-          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+          status: { confirmed: false, block_height: 0, block_hash: '', block_time: 0 },
+          pendingChainDepth: 7,
         }],
       });
       const buildTx = (dieselUtxoSats: bigint, includeChange: boolean) => {
@@ -469,6 +470,7 @@ describe('Compose Send Operations', () => {
         marginal_vbytes: 26,
         utxo_kind: 'change',
         rolled_utxo: `${dieselTxid}:1`,
+        pending_chain_position: 8,
       });
     });
 

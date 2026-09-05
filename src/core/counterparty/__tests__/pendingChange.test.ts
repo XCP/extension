@@ -13,7 +13,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { buildDieselMintScript } from '@/core/alkanes/diesel';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
-import { clearSpentUtxoCache, getPendingChangeUtxos } from '@/core/bitcoin/spentUtxoCache';
+import {
+  clearSpentUtxoCache,
+  getPendingChangeUtxos,
+  getPendingDieselUtxos,
+} from '@/core/bitcoin/spentUtxoCache';
 import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { packAddress } from '@/core/counterparty/unpack/address';
 import { arc4 } from '@/core/counterparty/unpack/binary';
@@ -42,9 +46,13 @@ function encryptedOpReturn(typeId: number, payloadHex: string): string {
 }
 
 /** A finished-enough transaction: one input keying the ARC4, then the given output scripts. */
-function buildRawTx(outputScriptHexes: string[], values: bigint[] = []): string {
+function buildRawTx(
+  outputScriptHexes: string[],
+  values: bigint[] = [],
+  inputTxid = FAKE_TXID,
+): string {
   const tx = new Transaction({ allowUnknownOutputs: true, allowLegacyWitnessUtxo: true });
-  tx.addInput({ txid: hexToBytes(FAKE_TXID), index: 0 });
+  tx.addInput({ txid: hexToBytes(inputTxid), index: inputTxid === FAKE_TXID ? 0 : 1 });
   outputScriptHexes.forEach((script, i) => {
     tx.addOutput({ script: hexToBytes(script), amount: values[i] ?? 5000n });
   });
@@ -87,6 +95,38 @@ describe('recordOwnChangeFromRawTx', () => {
     recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
 
     expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([]);
+    expect(getPendingDieselUtxos(OWN_ADDRESS)).toEqual([{
+      txid: parseRawTransactionLocally(raw)!.txid,
+      vout: 1,
+      address: OWN_ADDRESS,
+      value: 330,
+      chainDepth: 1,
+    }]);
+  });
+
+  it('replaces a pending DIESEL tip and increments its unconfirmed chain depth', () => {
+    const first = buildRawTx(
+      [encryptedOpReturn(2, '00'.repeat(52)), OWN_SCRIPT, buildDieselMintScript(1)],
+      [0n, 50_000n, 0n],
+    );
+    const firstTxid = parseRawTransactionLocally(first)!.txid;
+    recordOwnChangeFromRawTx(first, [OWN_ADDRESS]);
+    const second = buildRawTx(
+      [encryptedOpReturn(2, '00'.repeat(52)), OWN_SCRIPT, buildDieselMintScript(1)],
+      [0n, 49_000n, 0n],
+      firstTxid,
+    );
+    const secondTxid = parseRawTransactionLocally(second)!.txid;
+
+    recordOwnChangeFromRawTx(second, [OWN_ADDRESS]);
+
+    expect(getPendingDieselUtxos(OWN_ADDRESS)).toEqual([{
+      txid: secondTxid,
+      vout: 1,
+      address: OWN_ADDRESS,
+      value: 49_000,
+      chainDepth: 2,
+    }]);
   });
 
   // The rule this module exists for: attach binds an asset to an output of this very

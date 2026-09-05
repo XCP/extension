@@ -157,6 +157,8 @@ export interface ComposeResult {
     utxo_kind: 'change' | 'explicit';
     /** Previous DIESEL UTXO deliberately consumed and routed into this successor. */
     rolled_utxo?: string;
+    /** Predicted position of this transaction in the wallet's unconfirmed dependency chain. */
+    pending_chain_position?: number;
   };
   diesel_transfer?: {
     amount_base_units: string;
@@ -1099,6 +1101,7 @@ function annotateDieselMint(
   dieselUtxoVout: number,
   runestoneVout: number,
   rolledUtxo?: string,
+  pendingChainPosition?: number,
 ): ApiResponse {
   response.result.params.more_outputs = moreOutputs;
   response.result.diesel_mint = {
@@ -1110,6 +1113,7 @@ function annotateDieselMint(
     fee_rate_sat_vbyte: feeRate,
     utxo_kind: utxoKind,
     ...(rolledUtxo ? { rolled_utxo: rolledUtxo } : {}),
+    ...(pendingChainPosition ? { pending_chain_position: pendingChainPosition } : {}),
   };
   return response;
 }
@@ -1219,6 +1223,7 @@ async function composeWithDieselMint(
       dieselUtxoVout,
       runestoneVout,
       rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+      rolledUtxo?.pendingChainDepth ? rolledUtxo.pendingChainDepth + 1 : undefined,
     );
   }
 
@@ -1264,6 +1269,7 @@ async function composeWithDieselMint(
       dieselUtxoVout,
       runestoneVout,
       rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+      rolledUtxo?.pendingChainDepth ? rolledUtxo.pendingChainDepth + 1 : undefined,
     );
   }
 
@@ -1327,6 +1333,7 @@ async function composeWithDieselMint(
     dieselUtxoVout,
     runestoneVout,
     rolledUtxo ? `${rolledUtxo.txid}:${rolledUtxo.vout}` : undefined,
+    rolledUtxo?.pendingChainDepth ? rolledUtxo.pendingChainDepth + 1 : undefined,
   );
 }
 

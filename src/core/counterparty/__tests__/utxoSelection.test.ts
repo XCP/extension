@@ -3,6 +3,7 @@ import * as alkanesInputAssets from '@/core/alkanes/inputAssets';
 import {
   clearSpentUtxoCache,
   recordPendingChange,
+  recordPendingDieselUtxo,
   recordSpentUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
@@ -156,6 +157,59 @@ describe('selectUtxosForTransaction', () => {
     expect(result.utxos.map((utxo) => utxo.txid)).toEqual(['a'.repeat(64)]);
     expect(result.dieselUtxos?.map((utxo) => utxo.txid)).toEqual([dieselTxid]);
     expect(result.excludedWithAssets).toBe(2);
+  });
+
+  it('uses a wallet-authored unconfirmed DIESEL tip for a bounded rolling chain', async () => {
+    const txid = 'e'.repeat(64);
+    mockedFetchUTXOs.mockResolvedValue([]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, enableDieselMinting: true });
+    recordPendingDieselUtxo({ txid, vout: 1, address: mockAddress, value: 80_000 }, []);
+
+    const result = await selectUtxosForTransaction(mockAddress, {
+      includeDieselUtxos: true,
+      allowUnconfirmed: true,
+    });
+
+    expect(result.utxos).toEqual([]);
+    expect(result.dieselUtxos).toEqual([expect.objectContaining({
+      txid,
+      vout: 1,
+      value: 80_000,
+      pendingChainDepth: 1,
+    })]);
+  });
+
+  it('starts a new chain after the pending DIESEL tip reaches the 25-transaction policy limit', async () => {
+    let parent: { txid: string; vout: number } | undefined;
+    for (let depth = 1; depth <= 25; depth++) {
+      const txid = depth.toString(16).padStart(64, '0');
+      recordPendingDieselUtxo(
+        { txid, vout: 1, address: mockAddress, value: 100_000 - depth },
+        parent ? [parent] : [],
+      );
+      parent = { txid, vout: 1 };
+    }
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('a'.repeat(64), 0, 50_000)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, enableDieselMinting: true });
+
+    const result = await selectUtxosForTransaction(mockAddress, {
+      includeDieselUtxos: true,
+      allowUnconfirmed: true,
+    });
+
+    expect(result.utxos.map((utxo) => utxo.txid)).toEqual(['a'.repeat(64)]);
+    expect(result.dieselUtxos).toEqual([]);
+  });
+
+  it('fails closed on unconfirmed UTXOs absent from the wallet-authored DIESEL journal', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('f'.repeat(64), 0, 50_000, false)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+
+    await expect(selectUtxosForTransaction(mockAddress, { allowUnconfirmed: true }))
+      .rejects.toThrow('Insufficient UTXOs');
   });
 
   it('also filters inputs whose Alkanes status is unknown', async () => {
