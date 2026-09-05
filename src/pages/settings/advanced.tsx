@@ -214,7 +214,7 @@ export default function AdvancedSettingsPage(): ReactElement {
             </Description>
           )}
         </Field>
-        <Field>
+        {(settings.enableDieselMinting || settings.protectAlkanesUtxos) && <Field>
           <Label htmlFor="alkanes-api-url" className="font-bold">Alkanes API</Label>
           <input
             id="alkanes-api-url"
@@ -258,7 +258,7 @@ export default function AdvancedSettingsPage(): ReactElement {
               Use a trusted mainnet Alkanes JSON-RPC endpoint. It sees your queried addresses and its responses determine which outputs are protected.
             </Description>
           )}
-        </Field>
+        </Field>}
       </SettingsSection>
 
       <SettingsSection id="adv-privacy" title="Privacy & Display">
