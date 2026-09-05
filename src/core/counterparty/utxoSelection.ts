@@ -11,8 +11,11 @@ import { DIESEL_ALKANE_ID } from '@/core/alkanes/api';
 import { fetchInputsAlkanes, type InputAlkaneBalances } from '@/core/alkanes/inputAssets';
 import {
   confirmPendingDieselUtxo,
-  getPendingChangeUtxos,
   getPendingDieselUtxos,
+  MAX_PENDING_DIESEL_CHAIN,
+} from '@/core/alkanes/pendingDieselUtxos';
+import {
+  getPendingChangeUtxos,
   isUtxoRecentlySpent,
 } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs, formatInputsSet, type UTXO } from '@/core/bitcoin/utxo';
@@ -23,9 +26,6 @@ import { getActiveSettings } from '@/core/settings';
  * Maximum number of UTXOs to include in inputs_set (API limit).
  */
 const MAX_INPUTS_SET = 20;
-/** Bitcoin Core's default ancestor count includes the transaction itself. */
-export const MAX_PENDING_DIESEL_CHAIN = 25;
-
 /**
  * Options for selecting UTXOs.
  */

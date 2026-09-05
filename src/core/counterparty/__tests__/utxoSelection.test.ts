@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as alkanesInputAssets from '@/core/alkanes/inputAssets';
 import {
+  clearPendingDieselUtxos,
+  recordPendingDieselUtxo,
+} from '@/core/alkanes/pendingDieselUtxos';
+import {
   clearSpentUtxoCache,
   recordPendingChange,
-  recordPendingDieselUtxo,
   recordSpentUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import * as bitcoinUtxo from '@/core/bitcoin/utxo';
@@ -48,6 +51,7 @@ describe('selectUtxosForTransaction', () => {
     mockedGetSettings.mockReturnValue(DEFAULT_SETTINGS);
     mockedFetchInputsAlkanes.mockResolvedValue([]);
     clearSpentUtxoCache();
+    clearPendingDieselUtxos();
     // Default mock for formatInputsSet
     mockedFormatInputsSet.mockImplementation((utxos) =>
       utxos.map(u => `${u.txid}:${u.vout}`).join(',')

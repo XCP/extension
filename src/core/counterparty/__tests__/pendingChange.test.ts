@@ -11,12 +11,15 @@ import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { buildDieselMintScript } from '@/core/alkanes/diesel';
+import {
+  clearPendingDieselUtxos,
+  getPendingDieselUtxos,
+} from '@/core/alkanes/pendingDieselUtxos';
 import { decodeAddressFromScript } from '@/core/bitcoin/address';
 import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
 import {
   clearSpentUtxoCache,
   getPendingChangeUtxos,
-  getPendingDieselUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { packAddress } from '@/core/counterparty/unpack/address';
@@ -60,7 +63,10 @@ function buildRawTx(
 }
 
 describe('recordOwnChangeFromRawTx', () => {
-  beforeEach(() => clearSpentUtxoCache());
+  beforeEach(() => {
+    clearSpentUtxoCache();
+    clearPendingDieselUtxos();
+  });
 
   it('registers outputs paying own addresses from a plain BTC transaction', () => {
     const raw = buildRawTx([OTHER_SCRIPT, OWN_SCRIPT], [7000n, 5000n]);

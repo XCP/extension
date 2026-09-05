@@ -53,9 +53,18 @@ const review = (
   blockers: [],
 });
 
-const decodedParent = (safetyBlocked: boolean) => ({
+const decodedParent = (
+  safetyBlocked: boolean,
+  alkaneBalances: Array<{
+    inputIndex: number;
+    utxo: string;
+    balances: Array<{ id: string; value: string }>;
+    lookupFailed?: boolean;
+  }> = [],
+) => ({
   psbtDetails: { inputs: [], outputs: [] },
   safety: { blocked: safetyBlocked, warnings: [] },
+  alkaneBalances,
   marketplaceReview: review('create_listing'),
 });
 
@@ -69,7 +78,7 @@ describe('useSignPsbtsRequest wallet safety propagation', () => {
     vi.mocked(fetchInputsAlkanes).mockResolvedValue([]);
   });
 
-  it('blocks the whole batch when an item safety analysis is blocked', async () => {
+  it('does not let a marketplace proof override unsafe Alkanes inputs', async () => {
     const intent = { action: 'create_listing' };
     vi.mocked(getSignFlow).mockResolvedValue({
       kind: 'sign-psbts',
@@ -85,7 +94,11 @@ describe('useSignPsbtsRequest wallet safety propagation', () => {
       kind: 'bulk-listing',
       intents: [intent as never],
     });
-    vi.mocked(decodePsbtForApproval).mockResolvedValue(decodedParent(true) as never);
+    vi.mocked(decodePsbtForApproval).mockResolvedValue(decodedParent(false, [{
+      inputIndex: 0,
+      utxo: `${'ab'.repeat(32)}:0`,
+      balances: [{ id: '2:0', value: '1' }],
+    }]) as never);
     vi.mocked(analyzeMarketplaceBatch).mockReturnValue(review());
 
     const { result } = renderHook(() => useSignPsbtsRequest());
@@ -95,6 +108,30 @@ describe('useSignPsbtsRequest wallet safety propagation', () => {
       blockers: ['wallet safety checks rejected at least one requested signature'],
       notices: [],
     }));
+  });
+
+  it('allows a proved plain-Bitcoin batch phase despite the generic item gate', async () => {
+    const intent = { action: 'prepare_bulk_fanout' };
+    vi.mocked(getSignFlow).mockResolvedValue({
+      kind: 'sign-psbts',
+      bundleKind: 'bulk-fanout',
+      items: [{
+        psbtHex: '00',
+        signInputs: { bc1qexample: [0] },
+        sighashTypes: [1],
+        marketplaceIntent: intent,
+      }],
+    } as never);
+    vi.mocked(parseMarketplaceBatchIntents).mockReturnValue({
+      kind: 'bulk-fanout',
+      intents: [intent as never],
+    });
+    vi.mocked(decodePsbtForApproval).mockResolvedValue(decodedParent(true) as never);
+    vi.mocked(analyzeMarketplaceBatch).mockReturnValue(review());
+
+    const { result } = renderHook(() => useSignPsbtsRequest());
+
+    await waitFor(() => expect(result.current.decodedInfo?.review.status).toBe('proved'));
   });
 
   it('checks the signed fee-bump child for Alkanes before approving the pair', async () => {

@@ -117,14 +117,39 @@ Counterparty Taproot/multisig *message encodings*, legacy attach controls (`utxo
 The provider surface does not add mints; it only enforces UTXO protection. Swap and Subfrost
 unwrap remain research-only and are not presented as available actions.
 
+### Implementation boundaries
+
+The feature is modular at the protocol and transaction-policy layers, while keeping its required
+wallet safety hooks explicit:
+
+- `core/alkanes/diesel.ts` owns dependency-free runestone encoding/decoding, constants, supported
+  address rules, dust floors, and mint eligibility. It knows nothing about React or Counterparty's
+  HTTP API.
+- `core/alkanes/api.ts`, `inputAssets.ts`, and `pendingDieselUtxos.ts` own indexer reads, signed-input
+  classification, and the short-lived journal for wallet-authored unconfirmed DIESEL chains.
+- `core/counterparty/dieselCompose.ts` is the single bridge: it owns all DIESEL-specific
+  Counterparty output layouts, two-pass fee optimization, rolling-UTXO selection, transfer coin
+  selection, and byte-level post-compose proofs. The generic composer injects its compose function
+  and retains only the two eligibility call sites for `send` and `attach`.
+- `core/counterparty/composeTypes.ts` keeps shared response contracts independent of both modules,
+  so the bridge does not create a circular runtime dependency.
+- Settings, UTXO selection, provider signing, broadcast journaling, routing, and the dedicated UI
+  retain small integration points because those are the places where protection must be enforced.
+  Hiding them behind a single opaque hook would make it easier for a new signing or spending path
+  to bypass Alkanes protection.
+
+This refactor removed the DIESEL transaction engine from the generic 1,800-line composer and the
+DIESEL chain journal from Bitcoin's generic spent-UTXO cache without changing transaction bytes.
+
 The consolidation QA pass added three fail-closed boundaries that were missing from the first
 draft. A DIESEL send now intersects the Alkanes address result with the wallet's independent
 Bitcoin/Counterparty UTXO filter, so an outpoint carrying a Counterparty attachment cannot be
 silently consumed. It then requires the exact offered input set, only owned trailing change, and
-an independently reconciled fee. Atomic provider batches now propagate every item's wallet-safety
-result and independently inspect a fee-bump child for Alkanes. Finally, settings persistence itself
-forces UTXO protection on whenever mining is enabled and rejects an invalid fee-rate ceiling; this
-invariant no longer depends on which UI toggle invoked it.
+an independently reconciled fee. Atomic provider batches now preserve their separately proved
+plain-Bitcoin phases while refusing any batch item with a positive or unknown Alkanes state; the
+fee-bump child is independently inspected too. Finally, settings persistence itself forces UTXO
+protection on whenever mining is enabled and rejects an invalid fee-rate ceiling; this invariant
+no longer depends on which UI toggle invoked it.
 
 ## Executed validation
 
