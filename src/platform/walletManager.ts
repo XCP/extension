@@ -5,7 +5,7 @@ import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { AddressFormat, DEFAULT_ADDRESS_FORMAT, getAddressFromMnemonic, getDerivationPathForAddressFormat, isCounterwalletFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { decodeWIF, encodeWIF, getAddressFromPrivateKey, getPrivateKeyFromMnemonic, getPublicKeyFromPrivateKey, isWIF } from '@/core/bitcoin/privateKey';
-import { signPSBT as btcSignPSBT, completePsbtWithInputValues, parsePSBT } from '@/core/bitcoin/psbt';
+import { signPSBT as btcSignPSBT, completePsbtWithInputValues, extractPsbtDetails, parsePSBT, resolvePsbtSighashType, validateSignInputs } from '@/core/bitcoin/psbt';
 import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { broadcastTransaction as btcBroadcastTransaction } from '@/core/bitcoin/transactionBroadcaster';
 import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
@@ -1808,9 +1808,9 @@ export class WalletManager {
    * This method is used by the web provider API (window.bitcoin.signPsbt) for external dApps.
    * It returns a signed PSBT hex (not finalized) that can be combined with other signatures.
    *
-   * Note: Hardware wallets cannot use this method because they return fully signed
-   * transactions, not PSBTs. For hardware wallet PSBT signing that produces a final
-   * transaction, use signTransaction() with a PSBT parameter instead.
+   * Trezor provider signing is supported for explicit Native SegWit SIGHASH_ALL inputs. Any
+   * unselected input must already carry a verifiable Native SegWit SIGHASH_ALL signature. This
+   * permits unilateral exact-offer acceptance without weakening the device's safety checks.
    *
    * @param psbtHex - PSBT in hex format
    * @param signInputs - Optional map of address → input indices to sign
@@ -1828,14 +1828,60 @@ export class WalletManager {
     const wallet = this.getWalletById(this.activeWalletId);
     if (!wallet) throw new Error("Wallet not found");
 
-    // Hardware wallets cannot return signed PSBTs - they return fully signed transactions
-    // For PSBT signing that produces a final transaction, use signTransaction() with psbt param
     if (wallet.type === 'hardware') {
-      throw new Error(
-        "Hardware wallets cannot sign PSBTs through this API. " +
-        "Hardware wallets produce fully signed transactions, not signed PSBTs. " +
-        "Use the built-in transaction composer or your hardware wallet's native dApp connector."
+      if (!signInputs || Object.keys(signInputs).length === 0) {
+        throw new Error('Hardware wallet PSBT signing requires explicit signInputs');
+      }
+
+      const psbtDetails = extractPsbtDetails(psbtHex);
+      const walletAddresses = wallet.addresses.map(address => address.address);
+      const selection = validateSignInputs(signInputs, walletAddresses, psbtDetails.inputs.length);
+      if (!selection.valid) throw new Error(selection.error);
+      const requestedIndices = new Set(Object.values(signInputs).flat());
+      for (let inputIndex = 0; inputIndex < psbtDetails.inputs.length; inputIndex++) {
+        const input = psbtDetails.inputs[inputIndex]!;
+        const selected = requestedIndices.has(inputIndex);
+        if (!selected && !input.hasSignatures) {
+          throw new Error(`Trezor requires external input ${inputIndex} to be pre-signed`);
+        }
+        // An explicit request entry describes what the wallet should add. It must never hide the
+        // sighash already embedded in an unselected external signature.
+        const effectiveSighash = selected
+          ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType)
+          : resolvePsbtSighashType(undefined, input.sighashType);
+        if (effectiveSighash !== 0x01) {
+          throw new Error(selected
+            ? 'Trezor provider signing supports only ordinary SIGHASH_ALL transactions'
+            : `Trezor can preserve only SIGHASH_ALL external inputs; input ${inputIndex} uses 0x${effectiveSighash.toString(16)}`);
+        }
+      }
+
+      // The device displays every input's amount, including presigned external inputs.
+      // Resolve every parent and bind the requested signer to that authenticated prevout.
+      const verified = await verifyPsbtPrevouts(psbtHex, { resolveTrustedPrevout: getTrustedBroadcastPrevout });
+      assertStillAuthorized();
+      const ownership = validateSignInputs(signInputs, walletAddresses, psbtDetails.inputs.length,
+        verified.prevouts.map(prevout => prevout.address));
+      if (!ownership.valid) throw new Error(ownership.error);
+      const completedPsbtHex = completePsbtWithInputValues(verified.hex,
+        verified.prevouts.map(prevout => Number(prevout.amount)),
+        verified.prevouts.map(prevout => bytesToHex(prevout.script)));
+      const { trezor, DerivationPaths } = await this.getInitializedTrezor(wallet.id);
+      const inputPaths = mapVerifiedInputPaths(
+        verified.prevouts.filter(prevout => requestedIndices.has(prevout.index)),
+        wallet.addresses,
+        path => DerivationPaths.stringToPath(path),
       );
+      assertStillAuthorized();
+      const result = await trezor.signPsbt({
+        psbtHex: completedPsbtHex,
+        inputPaths,
+        sighashTypes,
+        resultFormat: 'signed_psbt',
+      });
+      assertStillAuthorized();
+      if (!result.signedPsbtHex) throw new Error('Hardware wallet did not return a signed PSBT');
+      return result.signedPsbtHex;
     }
 
     // The PSBT may contain witnessUtxo metadata supplied by an untrusted dApp. Validate every

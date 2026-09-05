@@ -11,7 +11,7 @@ import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoi
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
-import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, resolvePsbtSighashType, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
 import { parseAcceptanceCpfpBundleIntents } from '@/core/counterparty/marketplaceBundle';
@@ -20,6 +20,10 @@ import {
   parseMarketplaceIntent,
 } from '@/core/counterparty/marketplaceIntent';
 import { generateRequestId } from '@/core/id';
+import {
+  assertProviderPsbtSigningRequest,
+  providerPsbtSigningCapabilities,
+} from '@/core/providerCapabilities';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
@@ -613,10 +617,12 @@ export function createProviderService(): ProviderService {
             publicKey: activeAddress.pubKey,
             type: activeWallet.addressFormat,
           };
-          if (!paired) return { active };
+          const signing = providerPsbtSigningCapabilities(activeWallet);
+          if (!paired) return { active, signing };
           const addresses = await walletService.getPairedAddresses();
           return {
             active,
+            signing,
             legacy: {
               address: addresses.legacy.address,
               publicKey: addresses.legacy.pubKey,
@@ -884,6 +890,7 @@ export function createProviderService(): ProviderService {
               : [],
           );
           const normalizedActiveAddress = normalizeAddressForComparison(activeAddress.address);
+          const signing = providerPsbtSigningCapabilities(activeWallet).psbtBatch;
           let usesPairedAddress = false;
 
           for (const [requestIndex, request] of parsedRequests.entries()) {
@@ -933,6 +940,18 @@ export function createProviderService(): ProviderService {
                 `PSBT bundle request ${requestIndex} is missing absolute sighash entries for inputs: ${missing.join(', ')}`,
               );
             }
+            assertProviderPsbtSigningRequest(signing, {
+              inputCount: details.inputs.length,
+              requestedInputIndices,
+              sighashTypes: details.inputs.map((input, inputIndex) =>
+                requestedInputIndices.includes(inputIndex)
+                  ? resolvePsbtSighashType(request.sighashTypes[inputIndex], input.sighashType)
+                  : resolvePsbtSighashType(undefined, input.sighashType)
+              ),
+              presignedInputIndices: details.inputs
+                .filter(input => input.hasSignatures)
+                .map(input => input.index),
+            });
             usesPairedAddress ||= Object.keys(request.signInputs).some(address => {
               const normalizedAddress = normalizeAddressForComparison(address);
               return normalizedAddress !== normalizedActiveAddress
@@ -1043,7 +1062,7 @@ export function createProviderService(): ProviderService {
           }
           if (sighashTypes !== undefined) {
             if (!Array.isArray(sighashTypes) || sighashTypes.some(
-              value => !(isBitcoinPayment ? [0x01] : [0x01, 0x81, 0x83]).includes(value)
+              value => !(isBitcoinPayment ? [0x01] : [0x00, 0x01, 0x81, 0x83]).includes(value)
             )) {
               throw new Error(isBitcoinPayment
                 ? 'Plain Bitcoin payment requests support only SIGHASH_ALL'
@@ -1067,7 +1086,29 @@ export function createProviderService(): ProviderService {
           }
 
           const psbtDetails = extractPsbtDetails(psbtHex);
+          if (activeWallet.type === 'hardware' && signInputs === undefined) {
+            throw new Error('The active wallet requires PSBT inputs to be selected explicitly');
+          }
           signInputs = resolveProviderSignInputs(psbtDetails, activeAddress.address, signInputs, sighashTypes);
+          const requestedInputIndices = signInputs === undefined
+            ? undefined
+            : Object.values(signInputs).flat();
+          const requestedInputSet = new Set(requestedInputIndices ?? []);
+          assertProviderPsbtSigningRequest(
+            providerPsbtSigningCapabilities(activeWallet).psbt,
+            {
+              inputCount: psbtDetails.inputs.length,
+              requestedInputIndices,
+              sighashTypes: psbtDetails.inputs.map((input, inputIndex) =>
+                requestedInputSet.has(inputIndex)
+                  ? resolvePsbtSighashType(sighashTypes?.[inputIndex], input.sighashType)
+                  : resolvePsbtSighashType(undefined, input.sighashType)
+              ),
+              presignedInputIndices: psbtDetails.inputs
+                .filter(input => input.hasSignatures)
+                .map(input => input.index),
+            },
+          );
           if (marketplaceIntent) {
             const headerProblem = marketplaceTransactionHeaderProblem(
               marketplaceIntent,

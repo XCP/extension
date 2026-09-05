@@ -1,5 +1,5 @@
 import { hex } from '@scure/base';
-import { Transaction } from '@scure/btc-signer';
+import { p2tr, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
@@ -36,6 +36,8 @@ vi.mock('@/core/hardware/trezorAdapter', () => ({
   TrezorAdapter: vi.fn()
 }));
 
+import { AddressFormat } from '@/core/bitcoin/address';
+import { signPSBT } from '@/core/bitcoin/psbt';
 import * as replayPrevention from '@/core/replayPrevention';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import * as rateLimiter from '@/platform/provider/rateLimiter';
@@ -739,8 +741,60 @@ describe('ProviderService', () => {
             publicKey: '02aa',
             type: 'p2wpkh',
           },
+          signing: {
+            psbt: {
+              supported: true,
+              sighashTypes: [0x01, 0x81, 0x83],
+              inputScope: 'selected',
+              externalInputs: 'any',
+            },
+            psbtBatch: {
+              supported: true,
+              sighashTypes: [0x01, 0x83],
+              inputScope: 'selected',
+              externalInputs: 'any',
+              maxRequests: 8,
+            },
+          },
         });
         expect(vi.mocked(walletService.getWalletService)().getPairedAddresses).not.toHaveBeenCalled();
+      });
+
+      it('reports the narrow hardware signing contract without exposing wallet type', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        connection.hasPairedAddressPermission = vi.fn().mockResolvedValue(false);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Trezor',
+          type: 'hardware',
+          addressFormat: 'p2wpkh',
+          addresses: [],
+        } as never);
+
+        const result = await providerService.handleRequest(
+          'https://connected.com',
+          'xcp_getAddresses',
+          [],
+        ) as any;
+
+        expect(result.signing).toEqual({
+          psbt: {
+            supported: true,
+            sighashTypes: [0x01],
+            inputScope: 'selected',
+            externalInputs: 'presigned',
+          },
+          psbtBatch: {
+            supported: true,
+            sighashTypes: [0x01],
+            inputScope: 'selected',
+            externalInputs: 'presigned',
+            maxRequests: 8,
+          },
+        });
+        expect(result).not.toHaveProperty('walletType');
       });
 
       it('returns both formats only with identity-bound paired permission', async () => {
@@ -883,6 +937,39 @@ describe('ProviderService', () => {
   
   describe('Phase 2 - Signing Methods', () => {
     describe('xcp_signPsbt', () => {
+      it.each(['omitted selection', 'explicit selection', 'explicit DEFAULT'] as const)(
+        'admits and signs the same real Taproot DEFAULT PSBT with %s', async mode => {
+          const internalKey = hex.decode('79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798');
+          const taproot = p2tr(internalKey);
+          const tx = new Transaction();
+          tx.addInput({ txid: '11'.repeat(32), index: 0, sighashType: 0,
+            tapInternalKey: internalKey, witnessUtxo: { script: taproot.script, amount: 100_000n } });
+          tx.addOutput({ script: taproot.script, amount: 99_000n });
+          const psbtHex = hex.encode(tx.toPSBT());
+          const connection = vi.mocked(connectionService.getConnectionService)();
+          vi.mocked(connection.hasPermission).mockResolvedValue(true);
+          const wallet = vi.mocked(walletService.getWalletService)();
+          vi.mocked(wallet.getActiveWallet).mockResolvedValue({
+            ...(await wallet.getActiveWallet())!, addressFormat: AddressFormat.P2TR,
+          });
+          vi.mocked(wallet.getActiveAddress).mockResolvedValue({
+            ...(await wallet.getActiveAddress())!, address: taproot.address,
+          });
+          vi.mocked(signFlow.beginSignFlow).mockRejectedValueOnce(new Error('preflight complete'));
+          await expect(providerService.handleRequest('https://test.com', 'xcp_signPsbt', [{
+            hex: psbtHex,
+            ...(mode === 'omitted selection' ? {} : { signInputs: { [taproot.address]: [0] } }),
+            ...(mode === 'explicit DEFAULT' ? { sighashTypes: [0] } : {}),
+          }])).rejects.toThrow('preflight complete');
+          expect(signFlow.beginSignFlow).toHaveBeenCalledWith(expect.objectContaining({
+            signInputs: { [taproot.address]: [0] },
+          }));
+          const signed = signPSBT(psbtHex, '01'.padStart(64, '0'), [0], AddressFormat.P2TR,
+            mode === 'explicit DEFAULT' ? [0] : undefined);
+          expect(Transaction.fromPSBT(hex.decode(signed)).getInput(0).tapKeySig).toHaveLength(64);
+        },
+      );
+
       it('should require authorization', async () => {
         // Mock connection service to return false (not connected)
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -1166,6 +1253,63 @@ describe('ProviderService', () => {
     });
 
     describe('Sign PSBT Request', () => {
+      it('rejects an unsigned external hardware input before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Trezor',
+          type: 'hardware',
+          addressFormat: 'p2wpkh',
+          addresses: [{
+            address: 'bc1qtest123',
+            path: "m/84'/0'/0'/0/0",
+            pubKey: '02aa',
+            name: 'Address 1',
+          }],
+        } as never);
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { bc1qtest123: [0] },
+            sighashTypes: [0x01, 0x01],
+            intent: MARKETPLACE_PREPARE_INTENT,
+          }],
+        )).rejects.toThrow('requires external input 1 to be pre-signed');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
+      it('rejects an unsupported hardware address format before opening approval', async () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        connection.hasPermission = vi.fn().mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        wallet.getActiveWallet = vi.fn().mockResolvedValue({
+          id: 'wallet1',
+          name: 'Trezor',
+          type: 'hardware',
+          addressFormat: 'p2tr',
+          addresses: [],
+        } as never);
+
+        await expect(providerService.handleRequest(
+          'https://digirare.com',
+          'xcp_signPsbt',
+          [{
+            hex: VALID_PSBT_HEX,
+            signInputs: { bc1qtest123: [0, 1] },
+            sighashTypes: [0x01, 0x01],
+            intent: MARKETPLACE_PREPARE_INTENT,
+          }],
+        )).rejects.toThrow('cannot sign PSBTs through the provider');
+
+        expect(signFlow.beginSignFlow).not.toHaveBeenCalled();
+      });
+
       it('rejects an explicitly empty signer map before opening approval', async () => {
         const connection = vi.mocked(connectionService.getConnectionService)();
         connection.hasPermission = vi.fn().mockResolvedValue(true);

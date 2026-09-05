@@ -148,22 +148,29 @@ export interface HardwareMessageSignRequest {
 export interface HardwarePsbtSignRequest {
   /** PSBT in hex format */
   psbtHex: string;
-  /** Map of input index to derivation path (for inputs to sign) */
+  /**
+   * Map of input index to derivation path for inputs this device must sign.
+   * Omitted inputs are accepted only when the PSBT already contains a
+   * verifiable signature which Trezor can preserve as an external input.
+   */
   inputPaths: Map<number, number[]>;
   /** Optional sighash types per input */
   sighashTypes?: number[];
+  /** Reconstruct and return a signed PSBT for the external provider contract. */
+  resultFormat?: 'raw_transaction' | 'signed_psbt';
 }
 
 /**
  * PSBT signing result
  *
- * Note: For hardware wallets like Trezor, this is actually a fully signed
- * raw transaction hex, not a PSBT. The hardware wallet signs completely
- * in one operation and returns a finalized transaction ready for broadcast.
+ * Trezor returns a raw transaction. For the restricted provider-safe P2WPKH
+ * path, the adapter verifies it and reconstructs the signed PSBT.
  */
 export interface HardwarePsbtSignResult {
-  /** Signed transaction hex (fully signed raw transaction, ready for broadcast) */
+  /** Signed transaction hex returned by the hardware wallet. */
   signedTxHex: string;
+  /** Verified signed PSBT when resultFormat is signed_psbt. */
+  signedPsbtHex?: string;
 }
 
 /**

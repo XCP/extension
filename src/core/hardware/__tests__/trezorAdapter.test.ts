@@ -1,6 +1,6 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, Script, Transaction } from '@scure/btc-signer';
+import { p2tr, p2wpkh, Script, Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
@@ -696,6 +696,66 @@ describe('TrezorAdapter', () => {
         version: 1, lock_time: 950_000, coin: 'btc', push: false,
         inputs: [expect.objectContaining({ prev_hash: '11'.repeat(32), prev_index: 0, sequence: 0xffffffff, amount: '100000', script_type: 'SPENDWITNESS' })],
         outputs: [{ address: recipient.address, amount: '99000', script_type: 'PAYTOADDRESS' }],
+      }));
+    });
+
+    it('returns a PSBT with independently verified device signatures', async () => {
+      const result = await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [1], resultFormat: 'signed_psbt' });
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(signed(reviewed));
+      expect(result.signedTxHex).toBe(signed(reviewed));
+    });
+
+    it('applies an explicit ALL override to the returned PSBT signature metadata', async () => {
+      reviewed.updateInput(0, { sighashType: 0x83 });
+      const result = await adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [1], resultFormat: 'signed_psbt' });
+      const returned = Transaction.fromPSBT(hexToBytes(result.signedPsbtHex!));
+      expect(returned.getInput(0).sighashType).toBe(1);
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(result.signedTxHex);
+    });
+
+    it('preserves a real presigned external input and reconstructs the exact completed transaction', async () => {
+      const acceptance = new Transaction({ version: 1, lockTime: 950_000 });
+      acceptance.addInput({ txid: '22'.repeat(32), index: 1, sequence: 0xfffffffc,
+        witnessUtxo: { script: recipient.script, amount: 20_000n } });
+      acceptance.addInput(reviewed.getInput(0));
+      acceptance.addOutput({ script: recipient.script, amount: 119_000n });
+      const buyerSigned = signPSBT(psbt(acceptance), '02'.padStart(64, '0'), [0], AddressFormat.P2WPKH, [1, 1]);
+      const completed = finalizePSBT(signPSBT(buyerSigned, key, [1], AddressFormat.P2WPKH, [1, 1]));
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: completed } });
+      const result = await adapter.signPsbt({ psbtHex: buyerSigned, inputPaths: new Map([[1, path]]),
+        sighashTypes: [0x83, 1], resultFormat: 'signed_psbt' });
+      expect(finalizePSBT(result.signedPsbtHex!)).toBe(completed);
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        version: 1, lock_time: 950_000,
+        inputs: [expect.objectContaining({ prev_hash: '22'.repeat(32), prev_index: 1, amount: '20000',
+          script_type: 'EXTERNAL', script_pubkey: bytesToHex(recipient.script), sequence: 0xfffffffc,
+          witness: expect.any(String) }), expect.objectContaining({ address_n: path, script_type: 'SPENDWITNESS' })],
+      }));
+    });
+
+    it('rejects unsupported provider sighashes and derivation formats before prompting', async () => {
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed), inputPaths,
+        sighashTypes: [0x83], resultFormat: 'signed_psbt' })).rejects.toMatchObject({ code: 'UNSUPPORTED_SIGHASH' });
+      await expect(adapter.signPsbt({ psbtHex: psbt(reviewed),
+        inputPaths: new Map([[0, [44 | 0x80000000, ...path.slice(1)]]]),
+        resultFormat: 'signed_psbt' })).rejects.toMatchObject({ code: 'UNSUPPORTED_PROVIDER_PSBT' });
+      expect(mockSignTransaction).not.toHaveBeenCalled();
+    });
+
+    it('preserves DEFAULT sighash for the existing raw Taproot composer path', async () => {
+      const internalKey = getPublicKey(hexToBytes(key)).slice(1);
+      const taproot = p2tr(internalKey);
+      const tx = createTransaction();
+      tx.updateInput(0, { witnessUtxo: { script: taproot.script, amount: 100_000n },
+        tapInternalKey: internalKey, sighashType: 0 }, true);
+      const raw = finalizePSBT(signPSBT(psbt(tx), key, [0], AddressFormat.P2TR, [0]));
+      mockSignTransaction.mockResolvedValue({ success: true, payload: { serializedTx: raw } });
+      await expect(adapter.signPsbt({ psbtHex: psbt(tx),
+        inputPaths: new Map([[0, [86 | 0x80000000, ...path.slice(1)]]]) })).resolves.toEqual({ signedTxHex: raw });
+      expect(mockSignTransaction).toHaveBeenCalledWith(expect.objectContaining({
+        inputs: [expect.objectContaining({ script_type: 'SPENDTAPROOT' })],
       }));
     });
 

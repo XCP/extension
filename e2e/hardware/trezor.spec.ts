@@ -13,6 +13,7 @@
  */
 import { test, expect, Page } from '@playwright/test';
 import { launchExtension, cleanup, createWallet, TEST_PASSWORD } from '../fixtures';
+import { emulatorPressYes } from '../helpers/trezor-emulator';
 
 // Check if emulator tests should run
 const SKIP_EMULATOR_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
@@ -50,20 +51,6 @@ async function setupWalletForHardwareTest(page: Page): Promise<void> {
   // Wait for wallet content to appear (confirms auth state is UNLOCKED)
   // This ensures AuthRequired sees the proper state before navigation
   await page.waitForTimeout(500);
-}
-
-/**
- * Helper to auto-confirm on Trezor emulator via HTTP API
- * The emulator control API runs on port 9001
- */
-async function emulatorPressYes(): Promise<void> {
-  try {
-    await fetch('http://localhost:9001/emulator/decision?value=true', {
-      method: 'POST',
-    });
-  } catch {
-    // Ignore errors - emulator might not need confirmation
-  }
 }
 
 /**

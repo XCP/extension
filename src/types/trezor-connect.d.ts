@@ -246,11 +246,15 @@ declare module '@trezor/connect-webextension' {
 
     signTransaction(params: {
       inputs: Array<{
-        address_n: number[];
+        address_n?: number[];
         prev_hash: string;
         prev_index: number;
         amount: string;
         script_type?: string;
+        sequence?: number;
+        script_pubkey?: string;
+        script_sig?: string;
+        witness?: string;
       }>;
       outputs: Array<{
         address?: string;

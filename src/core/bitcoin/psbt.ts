@@ -201,6 +201,7 @@ export interface DecodedInput {
   index: number;
   txid: string;
   vout: number;
+  sequence?: number;
   address?: string;
   value?: number;          // in satoshis, if known from witnessUtxo
   sighashType?: number;    // sighash type from PSBT input (e.g. 0x83 for SINGLE|ANYONECANPAY)
@@ -429,6 +430,7 @@ export function extractPsbtDetails(psbtHex: string): PsbtDetails {
         index: i,
         txid: txidHex,
         vout: input.index ?? 0,
+        sequence: input.sequence ?? 0xffffffff,
         address,
         value,
         sighashType: input.sighashType,

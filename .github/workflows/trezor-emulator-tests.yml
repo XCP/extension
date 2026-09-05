@@ -8,13 +8,19 @@ on:
     branches: [ main, develop ]
     paths:
       - 'src/core/hardware/**'
+      - 'src/core/bitcoin/**'
       - 'src/pages/wallet/connect-hardware.tsx'
       - 'e2e/hardware/**'
+      - 'e2e/helpers/trezor-emulator.ts'
+      - 'docker-compose.trezor.yml'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/trezor-emulator-tests.yml'
   push:
     branches: [ main, feature/trezor-hardware-wallet ]
     paths:
       - 'src/core/hardware/**'
+      - 'src/core/bitcoin/**'
       - 'e2e/hardware/init-trezor-emulator.js'
       - 'e2e/hardware/**'
       - '.github/workflows/trezor-emulator-tests.yml'
@@ -31,11 +37,10 @@ jobs:
     # Reference: https://github.com/trezor/connect/blob/develop/.github/workflows/test_with_trezor-user-env.yml
     services:
       trezor-user-env:
-        image: ghcr.io/trezor/trezor-user-env:1d12b626fdd4aab4b5c8e148e42a81c269e7e5b5
+        image: ghcr.io/trezor/trezor-user-env@sha256:f1a45f0eb212f47f8facffb8489c9dcacb71236d39175dfc2cecf7f7e859b952
         ports:
           - 9001:9001
-          - 21326:21326
-          - 21325:21326
+          - 21325:21328
         env:
           SDL_VIDEODRIVER: dummy
           USE_TX_CACHE: 'true'
@@ -75,10 +80,6 @@ jobs:
       - name: Initialize Trezor emulator
         timeout-minutes: 2
         run: |
-          echo "Installing ws for WebSocket communication..."
-          # Keep this direct helper install aligned with the pinned security override in
-          # package.json; npm rejects a different direct version with EOVERRIDE.
-          npm install --no-save ws@8.21.3
           echo "Starting emulator and bridge via WebSocket API..."
           node e2e/hardware/init-trezor-emulator.js
 
@@ -86,7 +87,7 @@ jobs:
           echo ""
           echo "Waiting for bridge to be ready..."
           for i in $(seq 1 30); do
-            if curl -s -X POST http://localhost:21325 > /dev/null 2>&1; then
+            if curl -s -X POST http://localhost:21325/enumerate > /dev/null 2>&1; then
               echo "Bridge is responding!"
               curl -s -X POST http://localhost:21325/enumerate 2>&1 | head -50
               break
@@ -129,7 +130,7 @@ jobs:
           echo "Checking bridge availability before tests..."
           echo ""
           echo "1. Checking if bridge is responding..."
-          if curl -s -X POST http://localhost:21325 > /dev/null 2>&1; then
+          if curl -s -X POST http://localhost:21325/enumerate > /dev/null 2>&1; then
             echo "   ✓ Bridge is responding"
           else
             echo "   ✗ Bridge NOT responding"
@@ -144,11 +145,11 @@ jobs:
           DEVICES=$(curl -s -X POST http://localhost:21325/enumerate 2>&1) || DEVICES="Failed to enumerate"
           echo "   $DEVICES"
           echo ""
-          echo "3. Checking emulator HTTP API..."
-          if curl -s http://localhost:9001/status > /dev/null 2>&1; then
-            echo "   ✓ Emulator HTTP API is responding"
+          echo "3. Checking emulator WebSocket controller listener..."
+          if nc -z localhost 9001 2>/dev/null; then
+            echo "   ✓ Emulator WebSocket controller is listening"
           else
-            echo "   ✗ Emulator HTTP API NOT responding"
+            echo "   ✗ Emulator WebSocket controller is NOT listening"
           fi
           echo ""
 
@@ -161,13 +162,13 @@ jobs:
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
         continue-on-error: true
-        run: npx vitest run e2e/hardware/trezor-node-integration.test.ts --reporter=verbose
+        run: npm run test:emulator
 
       - name: Run Trezor Direct API tests (emulator verification)
         id: direct-tests
         timeout-minutes: 5
         env:
-          TREZOR_EMULATOR_URL: ws://localhost:21326
+          TREZOR_EMULATOR_URL: ws://localhost:9001
           TREZOR_BRIDGE_URL: http://localhost:21325
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
@@ -180,7 +181,7 @@ jobs:
         id: ui-tests
         timeout-minutes: 15
         env:
-          TREZOR_EMULATOR_URL: ws://localhost:21326
+          TREZOR_EMULATOR_URL: ws://localhost:9001
           TREZOR_BRIDGE_URL: http://localhost:21325
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096
@@ -211,7 +212,7 @@ jobs:
         id: ops-tests
         timeout-minutes: 15
         env:
-          TREZOR_EMULATOR_URL: ws://localhost:21326
+          TREZOR_EMULATOR_URL: ws://localhost:9001
           TREZOR_BRIDGE_URL: http://localhost:21325
           TREZOR_EMULATOR_AVAILABLE: '1'
           NODE_OPTIONS: --max-old-space-size=4096

@@ -66,7 +66,11 @@ import { bytesToHex } from '@noble/hashes/utils.js';
 import { Script, Transaction } from '@scure/btc-signer';
 import TrezorConnect, { DEVICE, DEVICE_EVENT } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
-import { parsePSBT } from '@/core/bitcoin/psbt';
+import {
+  extractPresignedExternalP2wpkhInput,
+  importVerifiedHardwareP2wpkhSignatures,
+} from '@/core/bitcoin/hardwarePsbt';
+import { parsePSBT, resolvePsbtSighashType } from '@/core/bitcoin/psbt';
 import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
 import type { IHardwareWalletAdapter } from '@/core/hardware/interface';
 import {
@@ -77,6 +81,7 @@ import {
   type HardwareMessageSignRequest,
   type HardwareMessageSignResult,
   type HardwarePsbtSignRequest,
+  type HardwarePsbtSignResult,
   type HardwareSignRequest,
   type HardwareSignResult,
   HardwareWalletError,
@@ -103,7 +108,7 @@ type TrezorScriptType = InputScriptType | OutputScriptType;
 /**
  * Input format expected by TrezorConnect.signTransaction()
  */
-interface TrezorSignInput {
+interface TrezorInternalSignInput {
   address_n: number[];
   prev_hash: string;
   prev_index: number;
@@ -111,6 +116,19 @@ interface TrezorSignInput {
   script_type: TrezorScriptType;
   sequence?: number;
 }
+
+interface TrezorExternalSignInput {
+  prev_hash: string;
+  prev_index: number;
+  amount: string;
+  script_type: 'EXTERNAL';
+  script_pubkey: string;
+  script_sig: string;
+  witness: string;
+  sequence?: number;
+}
+
+type TrezorSignInput = TrezorInternalSignInput | TrezorExternalSignInput;
 
 // Sequence number that enables RBF (Replace-By-Fee)
 // 0xffffffff = final (no RBF), 0xfffffffd or lower = RBF enabled
@@ -950,31 +968,19 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
   /**
    * Sign a PSBT using Trezor
    *
-   * **IMPORTANT: Output format clarification**
-   *
-   * Despite the method name and return type, Trezor does NOT return a PSBT.
-   * The Trezor SDK's signTransaction() returns a fully-signed raw transaction
-   * hex, not a Partially Signed Bitcoin Transaction.
-   *
-   * This means:
-   * - The `signedTxHex` return value is a fully signed raw transaction hex
-   * - The transaction is effectively finalized (all signatures applied)
-   * - It is ready for immediate broadcast, not for further PSBT processing
-   * - This differs from standard PSBT workflow where multiple parties
-   *   might add signatures incrementally
-   *
-   * The method name and interface are maintained for API consistency with
-   * other hardware wallets that may return actual PSBTs.
+   * Trezor Connect returns a raw transaction. Provider mode accepts P2WPKH SIGHASH_ALL inputs
+   * selected for this device plus already-signed P2WPKH SIGHASH_ALL external inputs. It verifies
+   * the returned transaction and signatures, then reconstructs the PSBT expected by external dApps.
    *
    * @param request - PSBT signing request containing:
    *   - psbtHex: The PSBT to sign (parsed internally)
    *   - inputPaths: Map of input index to BIP32 derivation paths
-   * @returns Object with signedTxHex (fully signed raw transaction hex, ready for broadcast)
+   * @returns The raw device transaction and an optional verified signed PSBT
    */
-  async signPsbt(request: HardwarePsbtSignRequest): Promise<{ signedTxHex: string }> {
+  async signPsbt(request: HardwarePsbtSignRequest): Promise<HardwarePsbtSignResult> {
     this.ensureInitialized();
 
-    const { psbtHex, inputPaths } = request;
+    const { psbtHex, inputPaths, sighashTypes, resultFormat = 'raw_transaction' } = request;
 
     const transaction = parsePSBT(psbtHex);
     // Build the SDK's transaction in parallel. This catches any script/amount normalization
@@ -993,15 +999,6 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       const input = transaction.getInput(i);
       const path = inputPaths.get(i);
 
-      if (!path) {
-        throw new HardwareWalletError(
-          `No derivation path provided for input ${i}`,
-          'MISSING_PATH',
-          'trezor',
-          'Unable to sign transaction: missing key information.'
-        );
-      }
-
       // Validate input value - don't silently default to 0
       const prevout = (input.index === undefined ? undefined : input.nonWitnessUtxo?.outputs[input.index])
         ?? input.witnessUtxo;
@@ -1014,16 +1011,70 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         );
       }
 
-      // Determine script type from the derivation path (purpose)
-      const purpose = path[0]! & ~DerivationPaths.HARDENED;
-      const scriptType = getScriptTypeFromPurpose(purpose);
+      const scriptType = path ? getScriptTypeFromPurpose(path[0]! & ~DerivationPaths.HARDENED) : undefined;
+      const sighashType = resolvePsbtSighashType(path ? sighashTypes?.[i] : undefined, input.sighashType);
+      const taprootDefault = resultFormat === 'raw_transaction' && scriptType === 'SPENDTAPROOT' && sighashType === 0x00;
+      if (sighashType !== 0x01 && !taprootDefault) {
+        throw new HardwareWalletError(
+          `Trezor input ${i} requires unsupported sighash type 0x${sighashType.toString(16)}`,
+          'UNSUPPORTED_SIGHASH',
+          'trezor',
+          'This hardware wallet can sign only ordinary SIGHASH_ALL transactions.',
+        );
+      }
+      if (path && sighashTypes?.[i] !== undefined) {
+        transaction.updateInput(i, { sighashType }, true);
+      }
+
+      if (!path) {
+        if (resultFormat !== 'signed_psbt') {
+          throw new HardwareWalletError(
+            `No derivation path provided for input ${i}`,
+            'MISSING_PATH',
+            'trezor',
+            'Unable to sign transaction: missing key information.'
+          );
+        }
+        let external: ReturnType<typeof extractPresignedExternalP2wpkhInput>;
+        try {
+          external = extractPresignedExternalP2wpkhInput(psbtHex, i);
+        } catch (error) {
+          throw new HardwareWalletError(
+            `Unsupported external input ${i}: ${error instanceof Error ? error.message : 'unknown error'}`,
+            'UNSUPPORTED_EXTERNAL_INPUT',
+            'trezor',
+            'Trezor can preserve only an already-signed Native SegWit SIGHASH_ALL input.',
+          );
+        }
+        inputs.push({
+          prev_hash: bytesToHex(input.txid),
+          prev_index: input.index,
+          amount: String(prevout.amount),
+          script_type: 'EXTERNAL',
+          script_pubkey: external.scriptPubKey,
+          script_sig: external.scriptSig,
+          witness: external.witness,
+          sequence: input.sequence ?? 0xffffffff,
+        });
+        mapped.addInput({ txid: input.txid, index: input.index, sequence: input.sequence ?? 0xffffffff });
+        continue;
+      }
+
+      if (resultFormat === 'signed_psbt' && scriptType !== 'SPENDWITNESS') {
+        throw new HardwareWalletError(
+          `Provider PSBT input ${i} uses unsupported script type ${scriptType}`,
+          'UNSUPPORTED_PROVIDER_PSBT',
+          'trezor',
+          'Trezor provider signing currently supports Native SegWit inputs only.',
+        );
+      }
 
       inputs.push({
         address_n: path,
         prev_hash: bytesToHex(input.txid),
         prev_index: input.index,
         amount: String(prevout.amount),
-        script_type: scriptType,
+        script_type: scriptType!,
         sequence: input.sequence ?? 0xffffffff,
       });
       mapped.addInput({ txid: input.txid, index: input.index, sequence: input.sequence ?? 0xffffffff });
@@ -1123,11 +1174,28 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     assertTransactionMatchesReviewed(parseTransactionForIntegrity(result.payload.serializedTx), transaction);
 
-    // Trezor returns a fully signed raw transaction, not a PSBT
-    // The signedTxHex property name makes this clear to callers
-    return {
-      signedTxHex: result.payload.serializedTx,
-    };
+    const signedTxHex = result.payload.serializedTx;
+    if (resultFormat === 'signed_psbt') {
+      try {
+        return {
+          signedTxHex,
+          signedPsbtHex: importVerifiedHardwareP2wpkhSignatures(
+            bytesToHex(transaction.toPSBT()),
+            signedTxHex,
+            [...inputPaths.keys()],
+          ),
+        };
+      } catch (error) {
+        throw new HardwareWalletError(
+          `Failed to verify Trezor PSBT result: ${error instanceof Error ? error.message : 'unknown error'}`,
+          'INVALID_HARDWARE_SIGNATURE',
+          'trezor',
+          'The signed transaction did not exactly match the reviewed PSBT.',
+        );
+      }
+    }
+
+    return { signedTxHex };
   }
 
   /**

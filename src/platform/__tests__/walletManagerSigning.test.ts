@@ -4,6 +4,7 @@ import { p2wpkh, Transaction } from '@scure/btc-signer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { finalizePSBT, signPSBT } from '@/core/bitcoin/psbt';
+import { fetchPreviousRawTransaction } from '@/core/bitcoin/utxo';
 import { WalletManager } from '@/platform/walletManager';
 import type { Wallet } from '@/types/wallet';
 
@@ -117,4 +118,46 @@ describe('WalletManager signing identity and transaction integrity', () => {
     await expect(manager.signPsbt(bytesToHex(transaction().toPSBT()), undefined, [1], identity))
       .rejects.toThrow(/signing identity changed/);
   });
+
+  it('resolves provider PSBT prevouts and maps the verified owner through the actual derivation helper', async () => {
+    const tx = transaction();
+    const signedPsbtHex = signPSBT(bytesToHex(tx.toPSBT()), privateKey, [0], AddressFormat.P2WPKH, [1]);
+    mockHardware.signPsbt.mockResolvedValue({ signedTxHex: signed(tx), signedPsbtHex });
+    await expect(manager.signPsbt(bytesToHex(tx.toPSBT()), { [own.address]: [0] }, [1], identity))
+      .resolves.toBe(signedPsbtHex);
+    expect(fetchPreviousRawTransaction).toHaveBeenCalledWith(parent.id);
+    expect(mockHardware.signPsbt).toHaveBeenCalledWith(expect.objectContaining({
+      inputPaths: new Map([[0, [0x80000054, 0x80000000, 0x80000000, 0, 0]]]), resultFormat: 'signed_psbt',
+    }));
+  });
+
+  it('rejects a forged provider input amount before initializing the device', async () => {
+    const tx = transaction();
+    tx.updateInput(0, { witnessUtxo: { script: own.script, amount: 200_000n } }, true);
+    await expect(manager.signPsbt(bytesToHex(tx.toPSBT()), { [own.address]: [0] }, [1], identity))
+      .rejects.toThrow('does not match its real previous output');
+    expect(mockHardware.init).not.toHaveBeenCalled();
+    expect(mockHardware.signPsbt).not.toHaveBeenCalled();
+  });
+
+  it('rejects signing a different owner even when the claimed address belongs to the wallet', async () => {
+    const otherAddress = { ...wallet.addresses[0]!, address: attacker.address, path: "m/84'/0'/0'/0/1" };
+    manager['wallets'] = [{ ...wallet, addresses: [...wallet.addresses, otherAddress] }];
+    await expect(manager.signPsbt(bytesToHex(transaction().toPSBT()), { [attacker.address]: [0] }, [1], identity))
+      .rejects.toThrow(/does not belong/);
+    expect(mockHardware.init).not.toHaveBeenCalled();
+  });
+
+  it.each(['initialization', 'signing'] as const)(
+    'withholds provider PSBT signing after the session changes during device %s', async boundary => {
+      if (boundary === 'initialization') mockHardware.init.mockImplementation(async () => { session.generation++; });
+      else mockHardware.signPsbt.mockImplementation(async () => {
+        session.generation++;
+        return { signedPsbtHex: 'must-not-be-delivered' };
+      });
+      await expect(manager.signPsbt(bytesToHex(transaction().toPSBT()), { [own.address]: [0] }, [1], identity))
+        .rejects.toThrow(/Wallet session changed/);
+      if (boundary === 'initialization') expect(mockHardware.signPsbt).not.toHaveBeenCalled();
+    },
+  );
 });
