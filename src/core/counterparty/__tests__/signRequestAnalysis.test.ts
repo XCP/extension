@@ -393,6 +393,52 @@ describe('the marketplace intent proof', () => {
     }]),
     ...overrides,
   });
+  const attachedCheckout = (
+    overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {},
+  ) => run({
+    marketplaceIntent: parseMarketplaceIntent({
+      ...CHECKOUT_INTENT,
+      delivery: { mode: 'attached', address: SIGNER, carrierValueSats: 330 },
+    }),
+    inputs: [
+      {
+        index: 0,
+        txid: '11'.repeat(32),
+        vout: 0,
+        address: SIGNER,
+        value: 400_000,
+        hasSignatures: false,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 330, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 250_546, type: 'witness_v0_keyhash', address: VAULT },
+      {
+        index: 2,
+        value: 5_000,
+        type: 'witness_v0_keyhash',
+        address: 'bc1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9e75rs',
+      },
+      { index: 3, value: 142_670, type: 'witness_v0_keyhash', address: SIGNER },
+    ],
+    signedInputIndices: [0],
+    signedInputs: [{ index: 0, sighashType: 0x01 }],
+    transactionId: CHECKOUT_TXID,
+    attachedAssets: Promise.resolve([{
+      inputIndex: 1,
+      utxo: `${LISTING_TXID}:4`,
+      assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
+    }]),
+    ...overrides,
+  });
   const exact = (
     accepting: boolean,
     overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {},
@@ -430,6 +476,39 @@ describe('the marketplace intent proof', () => {
       utxo: `${LISTING_TXID}:4`,
       assets: [{ asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1' }],
     }]),
+    ...overrides,
+  });
+  const attachedExact = (
+    accepting: boolean,
+    overrides: Partial<Parameters<typeof analyzeSignRequest>[0]> = {},
+  ) => exact(accepting, {
+    counterpartyDataHex: undefined,
+    marketplaceIntent: parseMarketplaceIntent({
+      ...(accepting ? EXACT_ACCEPTANCE_INTENT : EXACT_AUTHORIZATION_INTENT),
+      delivery: { mode: 'attached', address: SIGNER, carrierValueSats: 330 },
+    }),
+    inputs: [
+      {
+        index: 0,
+        txid: EXACT_FUNDING_TXID,
+        vout: 1,
+        address: SIGNER,
+        value: 250_330,
+        hasSignatures: accepting,
+      },
+      {
+        index: 1,
+        txid: LISTING_TXID,
+        vout: 4,
+        address: VAULT,
+        value: 546,
+        hasSignatures: false,
+      },
+    ],
+    outputs: [
+      { index: 0, value: 330, type: 'witness_v0_keyhash', address: SIGNER },
+      { index: 1, value: 250_046, type: 'witness_v0_keyhash', address: VAULT },
+    ],
     ...overrides,
   });
 
@@ -518,6 +597,20 @@ describe('the marketplace intent proof', () => {
     }));
   });
 
+  it('allows a proved attached checkout through the Counterparty-only provider gate', async () => {
+    const analysis = await attachedCheckout();
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({
+      status: 'proved',
+      family: 'buy_listings',
+      blockers: [],
+    });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'counterparty_only_gate',
+    }));
+  });
+
   it('hard-blocks checkout when the locally decoded detach differs from the site claim', async () => {
     vi.mocked(verifyProviderTransaction).mockReturnValue({
       localUnpack: {
@@ -558,6 +651,23 @@ describe('the marketplace intent proof', () => {
     }));
     expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
       code: 'external_btc_output',
+    }));
+  });
+
+  it.each([
+    { accepting: false, status: 'caution', family: 'authorize_exact_offer' },
+    { accepting: true, status: 'proved', family: 'accept_exact_offer' },
+  ])('allows attached exact-offer $family without weakening unrelated Bitcoin signing', async ({
+    accepting,
+    status,
+    family,
+  }) => {
+    const analysis = await attachedExact(accepting);
+
+    expect(analysis.safety.blocked).toBe(false);
+    expect(analysis.marketplaceReview).toMatchObject({ status, family, blockers: [] });
+    expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
+      code: 'counterparty_only_gate',
     }));
   });
 });

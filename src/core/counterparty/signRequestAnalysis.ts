@@ -306,6 +306,7 @@ export async function analyzeSignRequest(
   } else if (!movesCounterpartyValue(Boolean(counterpartyDataHex), attachedAssets, signedInputIndices)) {
     safety.warnings = [
       {
+        code: 'counterparty_only_gate',
         severity: 'block',
         title: 'Blocked: Not a Counterparty Transaction',
         message:
@@ -375,12 +376,29 @@ export async function analyzeSignRequest(
         || marketplaceReview.family === 'accept_exact_offer'
       )
     ) {
-      // These semantic cards prove the exact detach destination, attached asset, payments, and
+      // These semantic cards prove the exact delivery output, attached asset, payments, and
       // signature scope. The generic warnings are intentionally alarming because they lack those
       // facts; once independently established, keeping them trains users to ignore red warnings.
       safety.warnings = safety.warnings.filter(
         warning => warning.code !== 'detach_all' && warning.code !== 'external_btc_output',
       );
+      if (
+        'delivery' in input.marketplaceIntent
+        && input.marketplaceIntent.delivery.mode === 'attached'
+        && (
+          marketplaceReview.family === 'buy_listings'
+          || marketplaceReview.family === 'authorize_exact_offer'
+        )
+      ) {
+        // In these two roles the wallet signs clean buyer funding, while the exact transaction also
+        // spends a seller's proved attached asset. There is intentionally no Counterparty message:
+        // Core moves that one asset to output 0. The semantic proof is the narrow exception to the
+        // provider's usual Counterparty-only gate.
+        safety.warnings = safety.warnings.filter(
+          warning => warning.code !== 'counterparty_only_gate',
+        );
+      }
+      safety.blocked = safety.warnings.some(warning => warning.severity === 'block');
     }
   }
 
