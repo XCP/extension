@@ -127,10 +127,10 @@ walletTest.describe('Show Private Key Page (/secrets/show-private-key)', () => {
     await page.goto(page.url().replace(/\/index.*/, '/keychain/secrets/show-private-key/invalid-wallet-id-12345'));
     await page.waitForLoadState('networkidle');
 
-    // Page checks wallet existence on load and shows "Wallet not found." error
-    // (from source: line 37)
-    await expect(common.errorAlert(page)).toBeVisible({ timeout: 5000 });
-    await expect(common.errorAlert(page)).toContainText(/Wallet not found/i);
+    // A global API status alert can appear alongside the page's wallet error.
+    const error = page.getByRole('region', { name: 'Show Private Key', exact: true }).getByRole('alert');
+    await expect(error).toBeVisible({ timeout: 5000 });
+    await expect(error).toContainText(/Wallet not found/i);
   });
 
   walletTest('page shows Private Key title', async ({ page }) => {
