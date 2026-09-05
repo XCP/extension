@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 /**
  * Trezor Node.js Integration Tests
  *
@@ -13,13 +15,13 @@
  * Run with: npx vitest run e2e/hardware/trezor-node-integration.test.ts
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-
-// Quarantined: @trezor/connect (the Node SDK) was dropped in the connect-webextension
-// 10.x-alpha migration, so this Node-direct suite can no longer resolve it.
-// TODO(trezor): re-add @trezor/connect as a devDep (regenerate the lockfile on Linux)
-// or port these to connect-webextension, then un-skip the describe below.
-const TrezorConnect: any = undefined;
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
+import { getPublicKey } from '@noble/secp256k1';
+import { Address, OutScript, p2wpkh, RawWitness, SigHash, Transaction } from '@scure/btc-signer';
+import TrezorConnect from '@trezor/connect';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { importVerifiedHardwareP2wpkhSignatures } from '../../src/core/bitcoin/hardwarePsbt';
+import { finalizePSBT } from '../../src/core/bitcoin/psbt';
 
 // Use HTTP-based emulator control instead of WebSocket-based trezor-user-env-link
 // This avoids TypeScript errors in the trezor-user-env-link package
@@ -46,10 +48,54 @@ const EXPECTED_ADDRESSES = {
   NESTED_SEGWIT: '3L6TyTisPBmrDAj6RoKmDzNnj4eQi54gD2',
 };
 
+const syntheticFundingTransaction = (
+  marker: number,
+  amount: bigint,
+  script: Uint8Array,
+): Transaction => {
+  const funding = new Transaction({ version: 2, lockTime: 0 });
+  funding.addInput({ txid: new Uint8Array(32).fill(marker), index: 0 });
+  funding.addOutput({ amount, script });
+  funding.updateInput(0, { finalScriptSig: new Uint8Array([1, marker]) }, true);
+  return funding;
+};
+
+const asTrezorRefTx = (funding: Transaction) => {
+  const input = funding.getInput(0);
+  return {
+    hash: funding.id,
+    version: funding.version,
+    lock_time: funding.lockTime,
+    inputs: [{
+      prev_hash: bytesToHex(input.txid!),
+      prev_index: input.index,
+      script_sig: bytesToHex(input.finalScriptSig!),
+      sequence: input.sequence ?? 0xffffffff,
+    }],
+    bin_outputs: Array.from({ length: funding.outputsLength }, (_, index) => {
+      const output = funding.getOutput(index);
+      return {
+        amount: String(output.amount),
+        script_pubkey: bytesToHex(output.script!),
+      };
+    }),
+  };
+};
+
+function confirmDevicePrompts(): () => void {
+  const handler = () => {
+    setTimeout(() => {
+      void emulatorPressYes();
+    }, 100);
+  };
+  TrezorConnect.on('ui-button', handler);
+  return () => TrezorConnect.off('ui-button', handler);
+}
+
 // Skip if emulator is not available
 const SKIP_TESTS = process.env.TREZOR_EMULATOR_AVAILABLE !== '1';
 
-describe.skip('Trezor Node.js Integration Tests', () => {
+describe('Trezor Node.js Integration Tests', () => {
   // Skip entire suite if emulator not available
   if (SKIP_TESTS) {
     it.skip('Trezor emulator not available', () => {});
@@ -75,8 +121,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
       console.log(`Bridge available: ${bridgeOk}`);
 
       if (!emulatorOk || !bridgeOk) {
-        console.error('Emulator or bridge not available');
-        return;
+        throw new Error('Emulator or bridge not available');
       }
 
       // Wait for device to be detected
@@ -84,8 +129,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
       console.log(`Device ready: ${deviceReady}`);
 
       if (!deviceReady) {
-        console.error('No device detected via bridge');
-        return;
+        throw new Error('No device detected via bridge');
       }
 
       // Initialize TrezorConnect (Node.js version)
@@ -104,7 +148,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
       connected = true;
     } catch (error) {
       console.error('Setup failed:', error);
-      // Don't throw - let individual tests handle the failure
+      throw error;
     }
   }, 120000); // Increased timeout for emulator setup
 
@@ -231,10 +275,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
 
       const testMessage = 'Hello from XCP Wallet integration test!';
 
-      // Start auto-confirm loop for multi-step confirmation
-      const confirmLoop = setInterval(() => {
-        emulatorPressYes();
-      }, 500);
+      const stopConfirming = confirmDevicePrompts();
 
       try {
         const result = await TrezorConnect.signMessage({
@@ -243,6 +284,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
           coin: 'Bitcoin',
         });
 
+        if (!result.success) throw new Error(result.payload.error);
         expect(result.success).toBe(true);
         if (result.success) {
           console.log('Signed message:', testMessage);
@@ -252,7 +294,7 @@ describe.skip('Trezor Node.js Integration Tests', () => {
           expect(result.payload.signature).toBeTruthy();
         }
       } finally {
-        clearInterval(confirmLoop);
+        stopConfirming();
       }
     }, 60000);
   });
@@ -288,66 +330,54 @@ describe.skip('Trezor Node.js Integration Tests', () => {
   });
 
   describe('Transaction Signing', () => {
-    it('can sign a simple Native SegWit transaction', async () => {
-      if (!connected) {
-        console.log('Skipping - not connected');
-        return;
-      }
+    it('signs and verifies a real all-input Native SegWit PSBT shape', async () => {
+      if (!connected) throw new Error('Trezor emulator did not connect');
 
-      // This tests that Trezor can sign transactions in the format our adapter produces
-      // Using Native SegWit (P2WPKH) which is the simplest for SegWit
-      //
-      // Note: This is a mock transaction structure - the emulator will sign it
-      // but the resulting tx won't be valid on mainnet (no real UTXOs)
-
-      const testTx = {
-        inputs: [
-          {
-            // BIP84 Native SegWit path: m/84'/0'/0'/0/0
-            address_n: [84 | 0x80000000, 0 | 0x80000000, 0 | 0x80000000, 0, 0],
-            // Mock previous transaction hash
-            prev_hash: '0000000000000000000000000000000000000000000000000000000000000001',
-            prev_index: 0,
-            amount: '100000', // 0.001 BTC in satoshis
-            script_type: 'SPENDWITNESS' as const,
-          },
-        ],
-        outputs: [
-          {
-            // Send to a P2WPKH address
-            address: 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',
-            amount: '90000', // 0.0009 BTC (0.0001 BTC fee)
-            script_type: 'PAYTOWITNESS' as const,
-          },
-        ],
-        coin: 'Bitcoin',
-        push: false, // Don't broadcast
-      };
-
-      // Start auto-confirm loop for multi-step signing
-      const confirmLoop = setInterval(() => {
-        emulatorPressYes();
-      }, 300);
+      const deviceScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
+      const funding = syntheticFundingTransaction(0x41, 100_000n, deviceScript);
+      const transaction = new Transaction({ version: 2, lockTime: 0 });
+      transaction.addInput({
+        txid: funding.id,
+        index: 0,
+        sequence: 0xfffffffd,
+        witnessUtxo: { amount: 100_000n, script: deviceScript },
+        sighashType: SigHash.ALL,
+      });
+      transaction.addOutput({ amount: 99_000n, script: deviceScript });
+      const originalPsbt = bytesToHex(transaction.toPSBT());
+      const stopConfirming = confirmDevicePrompts();
 
       try {
-        const result = await TrezorConnect.signTransaction(testTx);
+        const result = await TrezorConnect.signTransaction({
+          inputs: [{
+            address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
+            prev_hash: funding.id,
+            prev_index: 0,
+            amount: '100000',
+            script_type: 'SPENDWITNESS',
+            sequence: 0xfffffffd,
+          }],
+          outputs: [{
+            address: EXPECTED_ADDRESSES.NATIVE_SEGWIT,
+            amount: '99000',
+            script_type: 'PAYTOADDRESS',
+          }],
+          coin: 'btc',
+          push: false,
+          version: 2,
+          locktime: 0,
+          refTxs: [asTrezorRefTx(funding)],
+        });
 
-        // The emulator may reject this because the UTXO doesn't exist
-        // But if it gets far enough to attempt signing, our format is correct
-        if (result.success) {
-          console.log('Transaction signed successfully!');
-          console.log('Signed tx hex:', result.payload.serializedTx?.substring(0, 40) + '...');
-          expect(result.payload.serializedTx).toBeTruthy();
-        } else {
-          // Expected failure modes from emulator (not enough info for signing)
-          const error = (result.payload as any)?.error || 'Unknown error';
-          console.log('Transaction signing result:', error);
-          // If we get here without crashing, our input format is valid
-          // The error is likely about missing UTXO data, not format issues
-          expect(error).toBeDefined();
-        }
+        if (!result.success) throw new Error(result.payload.error);
+        const signedPsbt = importVerifiedHardwareP2wpkhSignatures(
+          originalPsbt,
+          result.payload.serializedTx,
+          [0],
+        );
+        expect(finalizePSBT(signedPsbt)).toBe(result.payload.serializedTx);
       } finally {
-        clearInterval(confirmLoop);
+        stopConfirming();
       }
     }, 60000);
 
@@ -415,6 +445,246 @@ describe.skip('Trezor Node.js Integration Tests', () => {
 
       console.log('OP_RETURN output format verified');
     });
+
+    it('rejects a marketplace 0x83 pre-signed external input', async () => {
+      if (!connected) throw new Error('Trezor emulator did not connect');
+
+      const deviceScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
+      const externalPrivateKey = hexToBytes('22'.repeat(32));
+      const externalPayment = p2wpkh(getPublicKey(externalPrivateKey, true));
+      if (!externalPayment.address) throw new Error('Failed to derive external test address');
+
+      const deviceFunding = syntheticFundingTransaction(0x42, 100_000n, deviceScript);
+      const externalFunding = syntheticFundingTransaction(0x43, 50_000n, externalPayment.script);
+
+      const transaction = new Transaction({ version: 2, lockTime: 0 });
+      transaction.addInput({
+        txid: deviceFunding.id,
+        index: 0,
+        sequence: 0xfffffffd,
+        witnessUtxo: { amount: 100_000n, script: deviceScript },
+        sighashType: SigHash.ALL,
+      });
+      transaction.addInput({
+        txid: externalFunding.id,
+        index: 0,
+        sequence: 0xfffffffe,
+        witnessUtxo: { amount: 50_000n, script: externalPayment.script },
+        sighashType: SigHash.SINGLE_ANYONECANPAY,
+      });
+      transaction.addOutput({ amount: 108_000n, script: deviceScript });
+      transaction.addOutput({ amount: 40_000n, script: externalPayment.script });
+      transaction.signIdx(externalPrivateKey, 1, [SigHash.SINGLE_ANYONECANPAY]);
+
+      const finalizedExternal = transaction.clone();
+      finalizedExternal.finalizeIdx(1);
+      const externalWitness = finalizedExternal.getInput(1).finalScriptWitness;
+      if (!externalWitness) throw new Error('Failed to finalize external fixture');
+      const firstInput = transaction.getInput(0);
+      const secondInput = transaction.getInput(1);
+      if (!firstInput.txid || !secondInput.txid) throw new Error('Test transaction has no outpoint');
+      const stopConfirming = confirmDevicePrompts();
+
+      try {
+        const result = await TrezorConnect.signTransaction({
+          inputs: [
+            {
+              address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
+              prev_hash: bytesToHex(firstInput.txid),
+              prev_index: firstInput.index,
+              amount: '100000',
+              script_type: 'SPENDWITNESS',
+              sequence: firstInput.sequence,
+            },
+            {
+              prev_hash: bytesToHex(secondInput.txid),
+              prev_index: secondInput.index,
+              amount: '50000',
+              script_type: 'EXTERNAL',
+              sequence: secondInput.sequence,
+              script_pubkey: bytesToHex(externalPayment.script),
+              script_sig: '',
+              witness: bytesToHex(RawWitness.encode(externalWitness)),
+            },
+          ],
+          outputs: [
+            {
+              address: EXPECTED_ADDRESSES.NATIVE_SEGWIT,
+              amount: '108000',
+              script_type: 'PAYTOADDRESS',
+            },
+            {
+              address: externalPayment.address,
+              amount: '40000',
+              script_type: 'PAYTOADDRESS',
+            },
+          ],
+          coin: 'btc',
+          push: false,
+          version: 2,
+          locktime: 0,
+          refTxs: [asTrezorRefTx(deviceFunding), asTrezorRefTx(externalFunding)],
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('Trezor unexpectedly signed a marketplace 0x83 input');
+        expect(result.payload.error).toMatch(/Invalid witness|Unsupported sighash/i);
+      } finally {
+        stopConfirming();
+        externalPrivateKey.fill(0);
+      }
+    }, 60_000);
+
+    it('accepts an exact offer with a pre-signed SIGHASH_ALL buyer input', async () => {
+      if (!connected) throw new Error('Trezor emulator did not connect');
+
+      const sellerScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
+      const buyerPrivateKey = hexToBytes('33'.repeat(32));
+      const buyerPayment = p2wpkh(getPublicKey(buyerPrivateKey, true));
+      if (!buyerPayment.address) throw new Error('Failed to derive buyer test address');
+
+      const buyerFunding = syntheticFundingTransaction(0x51, 110_000n, buyerPayment.script);
+      const sellerFunding = syntheticFundingTransaction(0x52, 330n, sellerScript);
+      const acceptance = new Transaction({ version: 2, lockTime: 0 });
+      acceptance.addInput({
+        txid: buyerFunding.id,
+        index: 0,
+        sequence: 0xfffffffd,
+        witnessUtxo: { amount: 110_000n, script: buyerPayment.script },
+        sighashType: SigHash.ALL,
+      });
+      acceptance.addInput({
+        txid: sellerFunding.id,
+        index: 0,
+        sequence: 0xfffffffe,
+        witnessUtxo: { amount: 330n, script: sellerScript },
+        sighashType: SigHash.ALL,
+      });
+      acceptance.addOutput({ amount: 100_330n, script: sellerScript });
+      acceptance.addOutput({ amount: 9_000n, script: buyerPayment.script });
+      acceptance.signIdx(buyerPrivateKey, 0, [SigHash.ALL]);
+      const originalPsbt = bytesToHex(acceptance.toPSBT());
+
+      const finalizedBuyer = acceptance.clone();
+      finalizedBuyer.finalizeIdx(0);
+      const buyerWitness = finalizedBuyer.getInput(0).finalScriptWitness;
+      if (!buyerWitness) throw new Error('Failed to finalize buyer input');
+      const buyerInput = acceptance.getInput(0);
+      const sellerInput = acceptance.getInput(1);
+      if (!buyerInput.txid || !sellerInput.txid) throw new Error('Acceptance has no outpoint');
+      const stopConfirming = confirmDevicePrompts();
+
+      try {
+        const result = await TrezorConnect.signTransaction({
+          inputs: [
+            {
+              prev_hash: bytesToHex(buyerInput.txid),
+              prev_index: buyerInput.index,
+              amount: '110000',
+              script_type: 'EXTERNAL',
+              sequence: buyerInput.sequence,
+              script_pubkey: bytesToHex(buyerPayment.script),
+              script_sig: '',
+              witness: bytesToHex(RawWitness.encode(buyerWitness)),
+            },
+            {
+              address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
+              prev_hash: bytesToHex(sellerInput.txid),
+              prev_index: sellerInput.index,
+              amount: '330',
+              script_type: 'SPENDWITNESS',
+              sequence: sellerInput.sequence,
+            },
+          ],
+          outputs: [
+            {
+              address: EXPECTED_ADDRESSES.NATIVE_SEGWIT,
+              amount: '100330',
+              script_type: 'PAYTOADDRESS',
+            },
+            {
+              address: buyerPayment.address,
+              amount: '9000',
+              script_type: 'PAYTOADDRESS',
+            },
+          ],
+          coin: 'btc',
+          push: false,
+          version: 2,
+          locktime: 0,
+          refTxs: [asTrezorRefTx(buyerFunding), asTrezorRefTx(sellerFunding)],
+        });
+
+        if (!result.success) throw new Error(result.payload.error);
+        const signedPsbt = importVerifiedHardwareP2wpkhSignatures(
+          originalPsbt,
+          result.payload.serializedTx,
+          [1],
+        );
+        expect(finalizePSBT(signedPsbt)).toBe(result.payload.serializedTx);
+      } finally {
+        stopConfirming();
+        buyerPrivateKey.fill(0);
+      }
+    }, 60_000);
+
+    it('rejects offer creation with an unsigned external seller input', async () => {
+      if (!connected) throw new Error('Trezor emulator did not connect');
+
+      const buyerScript = OutScript.encode(Address().decode(EXPECTED_ADDRESSES.NATIVE_SEGWIT));
+      const sellerPrivateKey = hexToBytes('44'.repeat(32));
+      const sellerPayment = p2wpkh(getPublicKey(sellerPrivateKey, true));
+      const buyerFunding = syntheticFundingTransaction(0x61, 110_000n, buyerScript);
+      const sellerFunding = syntheticFundingTransaction(0x62, 330n, sellerPayment.script);
+      const buyerInput = buyerFunding.getInput(0);
+      const sellerInput = sellerFunding.getInput(0);
+      if (!buyerInput.txid || !sellerInput.txid) throw new Error('Offer fixture has no outpoint');
+      const stopConfirming = confirmDevicePrompts();
+
+      try {
+        const result = await TrezorConnect.signTransaction({
+          inputs: [
+            {
+              address_n: [84 | 0x80000000, 0x80000000, 0x80000000, 0, 0],
+              prev_hash: buyerFunding.id,
+              prev_index: 0,
+              amount: '110000',
+              script_type: 'SPENDWITNESS',
+              sequence: 0xfffffffd,
+            },
+            {
+              prev_hash: sellerFunding.id,
+              prev_index: 0,
+              amount: '330',
+              script_type: 'EXTERNAL',
+              sequence: 0xfffffffe,
+              script_pubkey: bytesToHex(sellerPayment.script),
+              script_sig: '',
+              witness: '',
+            },
+          ],
+          outputs: [
+            {
+              address: EXPECTED_ADDRESSES.NATIVE_SEGWIT,
+              amount: '100330',
+              script_type: 'PAYTOADDRESS',
+            },
+          ],
+          coin: 'btc',
+          push: false,
+          version: 2,
+          locktime: 0,
+          refTxs: [asTrezorRefTx(buyerFunding), asTrezorRefTx(sellerFunding)],
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('Trezor unexpectedly signed an unverified external input');
+        expect(result.payload.error).toMatch(/external input|ownership proof|Invalid witness/i);
+      } finally {
+        stopConfirming();
+        sellerPrivateKey.fill(0);
+      }
+    }, 60_000);
   });
 });
 

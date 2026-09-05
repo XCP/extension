@@ -33,10 +33,12 @@ vi.mock('@/core/bitcoin/privateKey');
 vi.mock('@/core/bitcoin/messageSigner');
 vi.mock('@/core/bitcoin/transactionSigner');
 vi.mock('@/core/bitcoin/transactionBroadcaster');
-vi.mock('@/core/bitcoin/psbt', () => ({
+vi.mock('@/core/bitcoin/psbt', async original => ({
+  ...(await original<typeof import('@/core/bitcoin/psbt')>()),
   signPSBT: vi.fn().mockReturnValue('signed-psbt'),
   extractPsbtDetails: vi.fn(),
-  completePsbtWithInputValues: vi.fn(),
+  completePsbtWithInputValues: vi.fn((psbt: string) => psbt),
+  resolvePsbtSighashType: (explicit?: number, embedded?: number) => explicit ?? embedded ?? 0x01,
 }));
 vi.mock('@/core/bitcoin/psbtPrevouts', () => ({
   verifyPsbtPrevouts: vi.fn(async (psbt: string) => ({ hex: psbt, prevouts: [] })),
@@ -63,7 +65,8 @@ import {
 } from '@/core/bitcoin/address';
 import { signMessage } from '@/core/bitcoin/messageSigner';
 import { getAddressFromPrivateKey } from '@/core/bitcoin/privateKey';
-import { signPSBT } from '@/core/bitcoin/psbt';
+import { extractPsbtDetails, signPSBT } from '@/core/bitcoin/psbt';
+import { verifyPsbtPrevouts } from '@/core/bitcoin/psbtPrevouts';
 import { base64ToBuffer } from '@/core/encryption/buffer';
 import { decryptJsonWithKey, decryptWithKey, deriveKey, deriveKeyAsync } from '@/core/encryption/encryption';
 // Import modules to get access to mocked functions
@@ -663,6 +666,10 @@ describe('WalletManager', () => {
   });
 
   describe('PSBT Signing', () => {
+    const verifiedInput = (index: number, address = 'bc1qhardware') => ({
+      index, address, txid: '11'.repeat(32), vout: 0, amount: 100_000n,
+      script: new Uint8Array(22), rawTransaction: new Uint8Array(),
+    });
     it('uses the active address for fallback signing when signInputs is omitted', async () => {
       const wallet = createTestWallet({
         addresses: [
@@ -690,6 +697,154 @@ describe('WalletManager', () => {
         AddressFormat.P2WPKH,
         undefined
       );
+    });
+
+    it('returns a verified Trezor PSBT for an explicit all-input Native SegWit request', async () => {
+      const wallet = createTestWallet({
+        type: 'hardware',
+        addresses: [{
+          name: 'Address 1',
+          address: 'bc1qhardware',
+          path: "m/84'/0'/0'/0/0",
+          pubKey: '02aa',
+        }],
+      });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [{ index: 0, txid: '11'.repeat(32), vout: 0, sighashType: 0x01 }],
+      } as ReturnType<typeof extractPsbtDetails>);
+      vi.mocked(verifyPsbtPrevouts).mockResolvedValueOnce({ hex: 'provider_psbt', prevouts: [verifiedInput(0)] });
+      const signHardwarePsbt = vi.fn().mockResolvedValue({
+        signedTxHex: 'signed_raw',
+        signedPsbtHex: 'signed_hardware_psbt',
+      });
+      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+        trezor: { signPsbt: signHardwarePsbt },
+        DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
+        hardwareData: {},
+      });
+
+      await expect(walletManager.signPsbt(
+        'provider_psbt',
+        { bc1qhardware: [0] },
+        [0x01],
+      )).resolves.toBe('signed_hardware_psbt');
+      expect(signHardwarePsbt).toHaveBeenCalledWith(expect.objectContaining({
+        psbtHex: 'provider_psbt',
+        sighashTypes: [0x01],
+        resultFormat: 'signed_psbt',
+        inputPaths: new Map([[0, [0x80000054, 0x80000000, 0x80000000, 0, 0]]]),
+      }));
+    });
+
+    it('accepts a pre-signed buyer input while signing exact-offer acceptance', async () => {
+      vi.mocked(verifyPsbtPrevouts).mockResolvedValueOnce({ hex: 'provider_psbt',
+        prevouts: [verifiedInput(0, 'bc1qbuyer'), verifiedInput(1)] });
+      const wallet = createTestWallet({
+        type: 'hardware',
+        addresses: [{
+          name: 'Address 1',
+          address: 'bc1qhardware',
+          path: "m/84'/0'/0'/0/0",
+          pubKey: '02aa',
+        }],
+      });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      const signHardwarePsbt = vi.fn().mockResolvedValue({
+        signedTxHex: 'signed_raw',
+        signedPsbtHex: 'signed_acceptance_psbt',
+      });
+      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+        trezor: { signPsbt: signHardwarePsbt },
+        DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
+        hardwareData: {},
+      });
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [
+          {
+            index: 0,
+            txid: '11'.repeat(32),
+            vout: 0,
+            sighashType: 0x01,
+            hasSignatures: true,
+          },
+          { index: 1, txid: '22'.repeat(32), vout: 0, sighashType: 0x01 },
+        ],
+      } as ReturnType<typeof extractPsbtDetails>);
+
+      await expect(walletManager.signPsbt(
+        'provider_psbt',
+        { bc1qhardware: [1] },
+        [0x01, 0x01],
+      )).resolves.toBe('signed_acceptance_psbt');
+      expect(signHardwarePsbt).toHaveBeenCalledWith(expect.objectContaining({
+        inputPaths: new Map([[1, [0x80000054, 0x80000000, 0x80000000, 0, 0]]]),
+      }));
+    });
+
+    it('rejects ambiguous, unsigned-external, and partial-sighash Trezor requests', async () => {
+      const wallet = createTestWallet({
+        type: 'hardware',
+        addresses: [{
+          name: 'Address 1',
+          address: 'bc1qhardware',
+          path: "m/84'/0'/0'/0/0",
+          pubKey: '02aa',
+        }],
+      });
+      walletManager['wallets'] = [wallet];
+      walletManager['activeWalletId'] = wallet.id;
+      const signHardwarePsbt = vi.fn();
+      vi.spyOn(walletManager as any, 'getInitializedTrezor').mockResolvedValue({
+        trezor: { signPsbt: signHardwarePsbt },
+        DerivationPaths: { stringToPath: vi.fn().mockReturnValue([0x80000054, 0x80000000, 0x80000000, 0, 0]) },
+        hardwareData: {},
+      });
+
+      await expect(walletManager.signPsbt('provider_psbt')).rejects.toThrow(/explicit signInputs/);
+
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [
+          { index: 0, txid: '11'.repeat(32), vout: 0, sighashType: 0x01 },
+          { index: 1, txid: '22'.repeat(32), vout: 0, sighashType: 0x01 },
+        ],
+      } as ReturnType<typeof extractPsbtDetails>);
+      await expect(walletManager.signPsbt(
+        'provider_psbt',
+        { bc1qhardware: [0] },
+        [0x01, 0x01],
+      )).rejects.toThrow(/external input 1.*pre-signed/);
+
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [{ index: 0, txid: '11'.repeat(32), vout: 0, sighashType: 0x83 }],
+      } as ReturnType<typeof extractPsbtDetails>);
+      await expect(walletManager.signPsbt(
+        'provider_psbt',
+        { bc1qhardware: [0] },
+        [0x83],
+      )).rejects.toThrow(/only ordinary SIGHASH_ALL/);
+
+      vi.mocked(extractPsbtDetails).mockReturnValue({
+        inputs: [
+          { index: 0, txid: '11'.repeat(32), vout: 0, sighashType: 0x01 },
+          {
+            index: 1,
+            txid: '22'.repeat(32),
+            vout: 0,
+            sighashType: 0x83,
+            hasSignatures: true,
+          },
+        ],
+      } as ReturnType<typeof extractPsbtDetails>);
+      await expect(walletManager.signPsbt(
+        'provider_psbt',
+        { bc1qhardware: [0] },
+        // A site cannot disguise the embedded external 0x83 signature with an all-1 array.
+        [0x01, 0x01],
+      )).rejects.toThrow(/external inputs.*0x83/);
+      expect(signHardwarePsbt).not.toHaveBeenCalled();
     });
   });
   describe('Message Signing', () => {
