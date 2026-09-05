@@ -997,10 +997,15 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
           expect(parsed).toEqual(request.intent);
           const review = analyzeMarketplaceIntent({ ...request, intent: parsed });
           expect(review).toMatchObject({ status: accepting ? 'proved' : 'caution', blockers: [] });
-          expect(review.facts).toContainEqual({
-            kind: 'amount', label: 'Platform fee', value: `${feeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
-          });
-          expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
+          // The buyer sees the fee they pay and where it goes; the seller's screen omits both.
+          expect(review.facts.some(field => field.label === 'Platform fee')).toBe(!accepting);
+          expect(review.facts.some(field => field.label === 'Fee recipient')).toBe(!accepting);
+          if (!accepting) {
+            expect(review.facts).toContainEqual({
+              kind: 'amount', label: 'Platform fee', value: `${feeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
+            });
+            expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
+          }
           expect(review.facts).toContainEqual({
             kind: 'amount', label: accepting ? 'You receive' : 'Seller receives', value: '250,046 sats',
             ...(accepting ? { emphasis: 'primary' } : {}),
@@ -1066,6 +1071,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
       blockers: [],
     });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
+    expect(review.notices[0]?.severity).toBe('info');
     expect(review.notices[0]?.message).toMatch(/without another approval/i);
     expect(review.notices[0]?.message).toMatch(/first confirmed spend wins/i);
   });

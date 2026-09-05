@@ -655,9 +655,14 @@ describe('the marketplace intent proof', () => {
     expect(analysis.safety.warnings).not.toContainEqual(expect.objectContaining({
       code: 'external_btc_output',
     }));
-    expect(analysis.marketplaceReview?.facts).toContainEqual(expect.objectContaining({
-      label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',
-    }));
+    // Only the buyer, who pays the platform fee, sees it named; the seller's screen omits it.
+    if (accepting) {
+      expect(analysis.marketplaceReview?.facts.some(field => field.label === 'Platform fee')).toBe(false);
+    } else {
+      expect(analysis.marketplaceReview?.facts).toContainEqual(expect.objectContaining({
+        label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',
+      }));
+    }
   });
 
   it('keeps the signing gate closed when a fee-bearing offer hides its fee claim', async () => {

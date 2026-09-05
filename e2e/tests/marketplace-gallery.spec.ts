@@ -320,7 +320,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     ];
     const { psbtHex, txid } = buildPsbt([funding], outputs);
     scenarios.push({
-      name: 'listing-attach-caution',
+      name: 'listing-attach',
       route: '/requests/psbt/approve',
       expectFooter: 'Sign transaction',
       record: seedRecord('mk-attach', {
@@ -879,12 +879,12 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
     const authorize = offer(false);
     scenarios.push({
-      name: `offer-authorize-caution${suffix}`,
+      name: `offer-authorize${suffix}`,
       initialText: ['Offer to buy', 'You pay if accepted', '256,250 sats', 'Platform fee', 'Paid by the buyer'],
-      absentText: ['Returned to wallet'],
-      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '256,250 sats'],
+      absentText: ['Returned to wallet', 'The seller can complete this sale at any time', 'What to review'],
+      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '256,250 sats', 'Withdraw by spending your funding UTXO'],
       route: '/requests/psbt/approve',
-      expectFooter: 'Review',
+      expectFooter: 'Authorize offer',
       record: seedRecord('mk-authorize', {
         requestKey: 'xcp_signPsbt:mk-authorize',
         kind: 'sign-psbt',
@@ -902,8 +902,9 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     scenarios.push({
       name: `offer-accept-proved${suffix}`,
       initialText: ['You receive', '250,046 sats', 'Deducted from seller proceeds'],
-      absentText: ['Returned to wallet', 'Cancellation', 'Withdraw by spending your funding UTXO'],
-      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '250,046 sats'],
+      // The seller does not pay the platform fee, so their screen never names it.
+      absentText: ['Returned to wallet', 'Cancellation', 'Withdraw by spending your funding UTXO', 'Platform fee', 'Fee recipient'],
+      expectedText: ['250,046 sats', 'Offer price', '250,000 sats'],
       route: '/requests/psbt/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-accept', {
@@ -926,9 +927,9 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     );
     scenarios.push({
       name: `bundle-accept-cpfp-proved${suffix}`,
-      initialText: ['You receive', '249,046 sats', 'Paid by the buyer', 'Accept offer for 1 RAREPEPE'],
-      absentText: ['Returned to wallet'],
-      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '249,046 sats'],
+      initialText: ['You receive', '249,046 sats', 'Accept offer for 1 RAREPEPE'],
+      absentText: ['Returned to wallet', 'Platform fee', 'Paid by the buyer'],
+      expectedText: ['249,046 sats', 'Added child fee', '1,000 sats'],
       route: '/requests/psbts/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-bundle', {
@@ -1127,7 +1128,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       );
 
       const footer = approval.getByRole('button', {
-        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|prepare asset|attach and list)$/i,
+        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|prepare asset|attach and list)$/i,
       });
       await expect(footer).toBeVisible({ timeout: 60_000 });
       const footerLabel = (await footer.textContent())?.trim() ?? '';
@@ -1155,7 +1156,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       }
 
       // Open the lower-level transaction surfaces for the companion detail capture.
-      for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/, /^Compare payment details$/, /^Payout and fee details$/, /^Why signing is unavailable$/, /^What to review$/]) {
+      for (const title of [/^Transaction$/, /^Transactions$/, /^Compare payment details$/, /^Payout and fee details$/, /^Why signing is unavailable$/, /^What to review$/]) {
         const toggle = approval.getByText(title);
         if (await toggle.count()) await toggle.first().click();
       }

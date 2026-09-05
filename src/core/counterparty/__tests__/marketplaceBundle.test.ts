@@ -125,11 +125,9 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     expect(review.bundleSummary?.outcome).toEqual({ kind: 'amount', label: 'You receive', value: '249,046 sats', emphasis: 'primary' });
     expect(review.bundleSummary?.action).toBe('Accept offer for 1 RAREPEPE');
     expect(review.notices[0]?.message).toMatch(/before either signature/i);
-    const platformFee = {
-      kind: 'amount', label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',
-    };
-    expect(review.facts).toContainEqual(platformFee);
-    expect(review.bundleSummary?.amounts).toContainEqual(platformFee);
+    // The seller does not pay the platform fee, so neither the summary nor the facts list it.
+    expect(review.facts.some(field => field.label === 'Platform fee')).toBe(false);
+    expect(review.bundleSummary?.amounts.some(field => field.label === 'Platform fee')).toBe(false);
     expect(review.bundleSummary?.amounts).toContainEqual({
       kind: 'amount', label: 'Network fees', value: '1,500 sats',
     });

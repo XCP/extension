@@ -39,7 +39,7 @@ export function MoneyMovementView({
   unfunded,
   showHeadline = true,
 }: MoneyMovementViewProps) {
-  const { net, external, backToYou, atRisk, fee, incomplete } = movement;
+  const { net, external, atRisk, fee, incomplete } = movement;
   const sending = net < 0;
 
   return (
@@ -92,14 +92,9 @@ export function MoneyMovementView({
             {unfunded ? 'Set by the other party' : incomplete ? 'Unavailable' : `${btc(fee)} BTC`}
           </span>
         </div>
-        {backToYou > 0 && (
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-            {/* This can include more than a conventional change output, such as a paired-address
-                asset destination, so name the ownership fact without misclassifying the outputs. */}
-            <span className="text-gray-500">Returned to wallet</span>
-            <span className="text-gray-500 font-medium tabular-nums">{btc(backToYou)} BTC</span>
-          </div>
-        )}
+        {/* Outputs that come back to this wallet are not listed: change is routine, and every
+            such output is still itemized under Transaction. Only the at-risk portion above is
+            a decision fact. */}
         {hasHighFee && !deferCautions && (
           <p className="text-warning-600 text-center">Unusually high — double-check before signing.</p>
         )}

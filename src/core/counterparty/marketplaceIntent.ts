@@ -801,7 +801,7 @@ function analyzeCreateListingIntent({
       `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
       payout, salePrice, utxoReturn,
-      { kind: 'amount' as const, label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
+      // The headline already names the proved quantity and asset.
       { kind: 'paragraph' as const, label: 'Delivery', value: 'Buyer chooses attached or detached delivery' },
       // The signature commits only the seller-payment output; state who controls the rest.
       { kind: 'paragraph' as const, label: 'Buyer controls', value: 'Funding, fees, and delivery destination' },
@@ -1607,12 +1607,11 @@ function analyzeExactOfferIntent(
       ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
     facts: [
       ...paymentSummary,
-      ...(intent.platformFeeSats > 0 ? [
-        ...(!authorizing ? [platformFee] : []),
-        ...(outputs[2]?.address ? [{
-          kind: 'address' as const, label: 'Fee recipient', value: outputs[2].address,
-        }] : []),
-      ] : []),
+      // The platform fee is the buyer's cost. The seller does not pay it, so their screen does
+      // not list it; the fee output itself remains itemized in the raw transaction section.
+      ...(authorizing && intent.platformFeeSats > 0 && outputs[2]?.address ? [{
+        kind: 'address' as const, label: 'Fee recipient', value: outputs[2].address,
+      }] : []),
       ...(authorizing && buyerFundingSats !== null ? [{
         kind: 'amount' as const, label: 'Buyer funding', value: `${buyerFundingSats.toLocaleString()} sats`,
         description: 'Offer price, platform fee, and any attached delivery UTXO',
@@ -1631,7 +1630,8 @@ function analyzeExactOfferIntent(
     notices: allProblems.length > 0
       ? []
       : [{
-          severity: authorizing ? 'warning' : 'info',
+          // Both are statements of what the signature is for, not exceptions to act on.
+          severity: 'info',
           message: authorizing
             ? 'After signing, this seller can complete this exact trade without another approval. Other exact offers backed by the same funding UTXO are alternatives: the first confirmed spend wins and invalidates its siblings.'
             : 'Your signature completes this exact sale without a buyer callback. If the buyer already spent the shared funding UTXO, broadcast fails and your asset remains yours.',

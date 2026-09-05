@@ -26,7 +26,7 @@ export async function captureApprovalSizes(page: Page, directory: string, name: 
     if (name === 'checkout-buy-proved') {
       await expect(content.getByText('You pay', { exact: true }).locator('..')).toBeInViewport({ ratio: 1 });
     }
-    const outcome = name.startsWith('offer-authorize-') ? 'You pay if accepted'
+    const outcome = /^offer-authorize(-|$)/.test(name) ? 'You pay if accepted'
       : /^(offer-accept-|bundle-accept-cpfp-)/.test(name) ? 'You receive' : null;
     if (outcome) {
       await expect(content.getByText(outcome, { exact: true }).first().locator('..'),

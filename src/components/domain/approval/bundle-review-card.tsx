@@ -31,7 +31,8 @@ export function BundleReviewCard({ review }: { review: MarketplaceBundleReview }
       </dl>
       {summary.timing && <p className="mt-3 text-xs leading-4 text-gray-600">{summary.timing}</p>}
       <Collapsible className="mt-3 border-t border-gray-100 pt-3" title="Payout and fee details">
-        <ApprovalFacts fields={review.facts.filter(field => field.emphasis !== 'primary')} />
+        <ApprovalFacts fields={review.facts.filter(field =>
+          field.emphasis !== 'primary' && !summary.amounts.some(amount => amount.label === field.label))} />
       </Collapsible>
     </div>
   );

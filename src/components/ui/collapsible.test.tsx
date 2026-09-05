@@ -24,10 +24,10 @@ describe('Collapsible', () => {
 
   it('supports the card variant (white surface + title header)', () => {
     const { container } = render(
-      <Collapsible variant="card" title="Transaction Details"><p>rows</p></Collapsible>
+      <Collapsible variant="card" title="Transaction"><p>rows</p></Collapsible>
     );
     expect(container.firstChild).toHaveClass('bg-white');
-    expect(screen.getByRole('button', { name: /transaction details/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^transaction$/i })).toBeInTheDocument();
   });
 
   it('forwards a custom className to the wrapper', () => {

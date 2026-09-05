@@ -155,7 +155,7 @@ export default function ApprovePsbtsPage() {
         </Button>
       )}
       <BundleReviewCard review={decodedInfo.review} />
-      <Collapsible compact variant="card" title="Linked Transaction Details">
+      <Collapsible compact variant="card" title="Transactions">
         <div className="space-y-3 text-xs">
           {decodedInfo.items.map((item, index) => (
             <div
