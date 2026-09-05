@@ -1,6 +1,8 @@
 import { shouldAttachDieselMint } from '@/core/alkanes/diesel';
 import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { apiClient } from '@/core/api/client';
+import { parseRawTransactionLocally } from '@/core/bitcoin/localTransactionParse';
+import { fetchPreviousRawTransaction } from '@/core/bitcoin/utxo';
 import { requireCounterpartyFeature } from '@/core/counterparty/capabilities';
 import type { ApiResponse, BaseComposeOptions } from '@/core/counterparty/composeTypes';
 import {
@@ -11,7 +13,7 @@ import {
 } from '@/core/counterparty/dieselCompose';
 import { checkInputPolicy } from '@/core/counterparty/inputPolicy';
 import { getSourcePubkey } from '@/core/counterparty/sourcePubkey';
-import { selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
+import { type SelectedUtxos, selectUtxosForTransaction } from '@/core/counterparty/utxoSelection';
 import { CounterpartyApiError } from '@/core/errors';
 import {
   getActiveSettings,
@@ -74,10 +76,10 @@ function toStringParams(obj: Record<string, unknown>): Record<string, string> {
 async function trySelectUtxos(
   sourceAddress: string,
   allowUnconfirmed: boolean
-): Promise<string | undefined> {
+): Promise<SelectedUtxos | undefined> {
   try {
     const selection = await selectUtxosForTransaction(sourceAddress, { allowUnconfirmed });
-    return selection.inputsSet;
+    return selection;
   } catch (error) {
     // Falling back to server-selected inputs would bypass the separate Alkanes indexer entirely.
     const settings = getActiveSettings();
@@ -352,6 +354,15 @@ interface ComposeRequestOptions {
 interface ComposeControl {
   inputsSet: string;
   useAllInputsSet: boolean;
+  excludedUtxos?: string[];
+}
+
+function composeExclusions(params: Record<string, unknown>, excluded: string[] = [], offered?: string): string | undefined {
+  const explicitlyOffered = new Set(offered?.toLowerCase().split(',') ?? []);
+  const original = typeof params.exclude_utxos === 'string' ? params.exclude_utxos.split(',') : [];
+  const protectedOutputs = excluded.filter(outpoint => !explicitlyOffered.has(outpoint.toLowerCase()));
+  const value = [...new Set([...original, ...protectedOutputs])].join(',');
+  return value || undefined;
 }
 
 /**
@@ -451,9 +462,13 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   // check it (`transactionSafety.ts`) instead of trusting whatever key the composer embedded.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
+  const selection = control ? undefined : await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  const excludedUtxos = control?.excludedUtxos ?? selection?.excludedUtxos;
+
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...paramsObj,
+      exclude_utxos: composeExclusions(paramsObj, excludedUtxos, inputsSet),
       sat_per_vbyte: sat_per_vbyte.toString(),
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
@@ -488,7 +503,7 @@ export async function composeTransaction<T extends Record<string, unknown>>(
   };
 
   const inputsSet = control?.inputsSet
-    ?? await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+    ?? selection?.inputsSet;
   if (control) {
     try {
       return await makeRequest({ inputsSet, allowUnconfirmed: settings.allowUnconfirmedTxs });
@@ -523,9 +538,12 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
   // path's caller — produces on almost every send.
   const multisigPubkey = getSourcePubkey(sourceAddress);
 
+  const selection = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+
   const makeRequest = async ({ inputsSet, allowUnconfirmed }: ComposeRequestOptions): Promise<ApiResponse> => {
     const params = new URLSearchParams(toStringParams({
       ...paramsObj,
+      exclude_utxos: composeExclusions(paramsObj, selection?.excludedUtxos, inputsSet),
       sat_per_vbyte: sat_per_vbyte.toString(),
       exclude_utxos_with_balances: 'true',
       allow_unconfirmed_inputs: allowUnconfirmed.toString(),
@@ -568,7 +586,7 @@ async function composeTransactionWithArrays<T extends Record<string, unknown>>(
     return composed;
   };
 
-  const inputsSet = await trySelectUtxos(sourceAddress, settings.allowUnconfirmedTxs);
+  const inputsSet = selection?.inputsSet;
   return executeWithUtxoFallback(
     makeRequest,
     inputsSet,
@@ -595,6 +613,9 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
   // Get user's unconfirmed transaction preference
   const settings = getActiveSettings();
 
+  let protectedInputsSet: string | undefined;
+  let excludedUtxos: string[] | undefined;
+
   if (settings.protectAlkanesUtxos || settings.enableDieselMinting) {
     const match = /^([0-9a-f]{64}):(\d+)$/i.exec(sourceUtxo);
     if (!match) throw new CounterpartyApiError('Invalid source UTXO', endpoint);
@@ -612,10 +633,26 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
         endpoint,
       );
     }
+    // Detach/move also need funding. Resolve the source owner from independent transaction bytes,
+    // then constrain every funding input instead of allowing Core to choose a large DIESEL output.
+    const rawSource = await fetchPreviousRawTransaction(match[1]!);
+    const source = rawSource ? parseRawTransactionLocally(rawSource) : null;
+    if (source?.txid.toLowerCase() !== match[1]!.toLowerCase()) {
+      throw new CounterpartyApiError('The source transaction bytes do not match its outpoint.', endpoint);
+    }
+    const sourceAddress = source?.outputs[Number(match[2])]?.address;
+    if (!sourceAddress) throw new CounterpartyApiError('Could not verify the source UTXO owner.', endpoint);
+    const funding = await selectUtxosForTransaction(sourceAddress, {
+      allowUnconfirmed: settings.allowUnconfirmedTxs, minUtxos: 0,
+    });
+    protectedInputsSet = [...new Set([sourceUtxo, ...funding.utxos.map(utxo => `${utxo.txid}:${utxo.vout}`)])].join(',');
+    excludedUtxos = funding.excludedUtxos;
   }
 
   const params = new URLSearchParams(toStringParams({
     ...paramsObj,
+    ...(protectedInputsSet && { inputs_set: protectedInputsSet }),
+    exclude_utxos: composeExclusions(paramsObj, excludedUtxos, protectedInputsSet),
     sat_per_vbyte: sat_per_vbyte.toString(),
     exclude_utxos_with_balances: 'true',
     allow_unconfirmed_inputs: settings.allowUnconfirmedTxs.toString(),
@@ -637,7 +674,16 @@ export async function composeUtxoTransaction<T extends Record<string, unknown>>(
       throw new CounterpartyApiError(response.data.error, endpoint, {});
     }
 
-    return response.data as ApiResponse;
+    const composed = response.data as ApiResponse;
+    if (protectedInputsSet) {
+      const parsed = parseRawTransactionLocally(composed.result?.rawtransaction ?? '');
+      if (!parsed || !parsed.inputs.some(input => `${input.txid}:${input.vout}`.toLowerCase() === sourceUtxo.toLowerCase())) {
+        throw new CounterpartyApiError('The composed transaction does not spend the verified source UTXO.', endpoint);
+      }
+      const inputCheck = checkInputPolicy({ rawTransaction: composed.result.rawtransaction, offeredInputs: protectedInputsSet });
+      if (!inputCheck.ok) throw new UnofferedInputsError(inputCheck.error ?? 'Unoffered funding input', endpoint);
+    }
+    return composed;
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
@@ -999,6 +1045,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
     sat_per_vbyte,
     1 + precedingOutputCount,
     more_outputs,
+    encoding,
   );
 }
 
@@ -1251,6 +1298,8 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
     sourceAddress,
     sat_per_vbyte,
     2,
+    undefined,
+    encoding,
   );
 }
 

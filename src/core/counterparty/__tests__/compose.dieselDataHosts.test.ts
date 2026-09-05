@@ -16,6 +16,7 @@ import type { BaseComposeOptions } from '../composeTypes';
 import { createMockComposeResponse } from './helpers/composeTestHelpers';
 
 vi.mock('@/core/api/client');
+vi.mock('@/core/bitcoin/blockHeight', () => ({ getCurrentBlockHeight: vi.fn(async () => 965600) }));
 vi.mock('@/core/counterparty/utxoSelection');
 vi.mock('@/core/counterparty/capabilities', () => ({ requireCounterpartyFeature: vi.fn() }));
 vi.mock('@/core/settings', async (importOriginal) => ({
@@ -75,7 +76,7 @@ function fixtureResponse(requestUrl: string, payload: string, options: {
   const hasChange = !exactFee;
   if (hasChange) tx.addOutput({ script: sourcePayment.script, amount: 1n });
   // Conservatively sized witness; changing the amount never changes an output's serialized size.
-  const vsize = tx.unsignedTx.length + 28;
+  const vsize = tx.unsignedTx.length + (sourcePayment.script[0] === 0x51 ? 17 : 28);
   const fee = exactFee ? Number(exactFee) : Math.ceil(vsize * Number(url.searchParams.get('sat_per_vbyte')));
   const change = hasChange ? inputValue - dieselSats - fee : 0;
   if (hasChange) tx.updateOutput(tx.outputsLength - 1, { amount: BigInt(change) });

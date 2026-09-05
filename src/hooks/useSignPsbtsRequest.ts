@@ -68,9 +68,8 @@ function applyWalletSafetyBlock(
   };
 }
 
-function hasUnsafeAlkanes(item: DecodedPsbtInfo): boolean {
-  const checkedIndices = item.alkaneBalances.map(({ inputIndex }) => inputIndex);
-  const classified = classifySignedInputAlkanes(item.alkaneBalances, checkedIndices);
+function hasUnsafeAlkanes(item: DecodedPsbtInfo, signedIndices: number[]): boolean {
+  const classified = classifySignedInputAlkanes(item.alkaneBalances, signedIndices);
   return classified.withBalances.length > 0 || classified.unknownStatus.length > 0;
 }
 
@@ -192,7 +191,10 @@ export function useSignPsbtsRequest() {
           // A proved marketplace batch intentionally supplies semantics for plain-Bitcoin phases
           // such as bulk fan-out, which the generic single-transaction gate blocks on its own.
           // That proof must never override the independent Alkanes-input protection, though.
-          decoded.some(hasUnsafeAlkanes),
+          decoded.some((item, index) => hasUnsafeAlkanes(
+            item,
+            Object.values(stored.items[index]!.signInputs).flat(),
+          )),
         );
         setRequest(stored);
         setDecodedInfo({ items: decoded, review });

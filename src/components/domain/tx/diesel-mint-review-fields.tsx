@@ -11,7 +11,7 @@ export function getDieselMintReviewFields(metadata?: DieselMintMetadata): Review
   return [{
     label: 'DIESEL mint',
     value: (
-      <div className="space-y-2 text-sm break-words">
+      <div className="space-y-2 text-sm break-normal">
         <div className="font-medium">Included</div>
         <div className="text-gray-600">
           +{metadata.marginal_vbytes} vB

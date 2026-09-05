@@ -39,6 +39,11 @@ import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
  */
 const BINDS_ASSETS_TO_OUTPUTS = new Set(['utxo', 'attach', 'detach']);
 
+/** OP_RETURN OP_13 is the shared Runes/Alkanes envelope, including transfers and cenotaphs. */
+function isRunestoneScript(script: string | undefined): boolean {
+  return script?.toLowerCase().startsWith('6a5d') ?? false;
+}
+
 export interface SafeOwnChangeOutput {
   txid: string;
   vout: number;
@@ -54,8 +59,12 @@ export function extractOwnDieselUtxo(
 ): Omit<PendingDieselUtxo, 'chainDepth'> | null {
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed) return null;
+  // A second token envelope makes assignment ambiguous even if one happens to decode as our
+  // mint. Only the exact single-runestone layout may establish a trusted pending DIESEL tip.
+  const runestones = parsed.outputs.filter((output) => isRunestoneScript(output.opReturnData));
+  if (runestones.length !== 1) return null;
   const own = new Set([...ownAddresses].map(normalizeAddressForComparison));
-  const matches = parsed.outputs.flatMap((output) => {
+  const matches = runestones.flatMap((output) => {
     if (!output.opReturnData) return [];
     try {
       const mint = decodeDieselMintScript(output.opReturnData);
@@ -94,19 +103,10 @@ export function extractSafeOwnChangeOutputs(
   const parsed = parseRawTransactionLocally(rawTxHex);
   if (!parsed || parsed.inputs.length === 0 || !parsed.inputs[0]?.txid) return [];
 
-  // A DIESEL mint assigns Alkanes to one of our outputs in this same transaction. Until the
-  // Alkanes indexer has caught up, none of its owned outputs may be advertised as ordinary BTC
-  // change: doing so would let a rapid follow-up compose spend the new token storage as if empty.
-  const hasDieselMint = parsed.outputs.some((output) => {
-    if (!output.opReturnData) return false;
-    try {
-      decodeDieselMintScript(output.opReturnData);
-      return true;
-    } catch {
-      return false;
-    }
-  });
-  if (hasDieselMint) return [];
+  // Every runestone can assign tokens to an owned output. Recognizing only our mint misses
+  // transfers, other Alkanes calls, and Runes. Unknown/malformed envelopes also fail closed:
+  // none of this transaction's outputs can be called ordinary BTC until independently checked.
+  if (parsed.outputs.some((output) => isRunestoneScript(output.opReturnData))) return [];
 
   const outputScripts = parsed.outputs.map((output) => output.script ?? output.opReturnData ?? '');
   const payload = extractPayloadFromOutputs(outputScripts, parsed.inputs[0].txid);

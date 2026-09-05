@@ -24,6 +24,7 @@ import {
 
 // Mock dependencies
 vi.mock('@/core/api/client');
+vi.mock('@/core/bitcoin/blockHeight', () => ({ getCurrentBlockHeight: vi.fn(async () => 965600) }));
 vi.mock('@/core/alkanes/api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/core/alkanes/api')>();
   return { ...actual, fetchDieselBalance: vi.fn() };
@@ -112,10 +113,10 @@ describe('Compose Send Operations', () => {
       tx.addOutput({ script: destinationPayment.script, amount: 330n });
       tx.addOutput({ script: sourcePayment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
-      tx.addOutput({ script: sourcePayment.script, amount: 90_000n });
+      tx.addOutput({ script: sourcePayment.script, amount: 97_170n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
-        btc_fee: 9_670,
+        btc_fee: 2_500,
       }));
 
       const response = await composeDieselSend({
@@ -185,10 +186,10 @@ describe('Compose Send Operations', () => {
       tx.addOutput({ script: destinationPayment.script, amount: 330n });
       tx.addOutput({ script: sourcePayment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(transferScript), amount: 0n });
-      tx.addOutput({ script: sourcePayment.script, amount: 8_340n });
+      tx.addOutput({ script: sourcePayment.script, amount: 8_940n });
       mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
-        btc_fee: 1_000,
+        btc_fee: 400,
       }));
 
       await expect(composeDieselSend({
@@ -386,7 +387,7 @@ describe('Compose Send Operations', () => {
         index: 0,
         witnessUtxo: { script: payment.script, amount: 100_000n },
       });
-      first.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      first.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
       first.addOutput({ script: payment.script, amount: 330n });
       first.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
       first.addOutput({ script: payment.script, amount: 99_226n });
@@ -397,7 +398,7 @@ describe('Compose Send Operations', () => {
         index: 0,
         witnessUtxo: { script: payment.script, amount: 100_000n },
       });
-      optimized.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+      optimized.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
       optimized.addOutput({ script: payment.script, amount: 99_618n });
       optimized.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
       mockedGetSettings.mockReturnValue({
@@ -421,7 +422,7 @@ describe('Compose Send Operations', () => {
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
         memo: 'keep this memo',
@@ -464,7 +465,7 @@ describe('Compose Send Operations', () => {
           index: 0,
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
-        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
         tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 99_202n });
@@ -491,7 +492,7 @@ describe('Compose Send Operations', () => {
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
         sat_per_vbyte: 2,
@@ -523,7 +524,7 @@ describe('Compose Send Operations', () => {
           index: 0,
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
-        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
         tx.addOutput({ script: recipient.script, amount: 1_000n });
         tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(dieselScript), amount: 0n });
@@ -538,6 +539,7 @@ describe('Compose Send Operations', () => {
       mockedApiClient.get
         .mockResolvedValueOnce(createMockComposeResponse({
           rawtransaction: buildTx(330n, true),
+          btc_fee: 506,
           signed_tx_estimated_size: { vsize: 253, adjusted_vsize: 253, sigops_count: 1 },
         }))
         .mockResolvedValueOnce(createMockComposeResponse({
@@ -549,7 +551,7 @@ describe('Compose Send Operations', () => {
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
         more_outputs: extraOutput,
@@ -603,7 +605,7 @@ describe('Compose Send Operations', () => {
           index: 1,
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
-        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
         tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
@@ -617,6 +619,7 @@ describe('Compose Send Operations', () => {
       mockedApiClient.get
         .mockResolvedValueOnce(createMockComposeResponse({
           rawtransaction: buildTx(330n, true),
+          btc_fee: 444,
           signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
         }))
         .mockResolvedValueOnce(createMockComposeResponse({
@@ -628,7 +631,7 @@ describe('Compose Send Operations', () => {
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
         sat_per_vbyte: 2,
@@ -677,7 +680,7 @@ describe('Compose Send Operations', () => {
           index: 0,
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
-        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 44, ...new Uint8Array(44)]), amount: 0n });
         tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 99_226n });
@@ -692,6 +695,7 @@ describe('Compose Send Operations', () => {
         .mockRejectedValueOnce(new Error('Insufficient BTC'))
         .mockResolvedValueOnce(createMockComposeResponse({
           rawtransaction: buildTx(330n, true),
+          btc_fee: 444,
           signed_tx_estimated_size: { vsize: 222, adjusted_vsize: 222, sigops_count: 1 },
         }))
         .mockResolvedValueOnce(createMockComposeResponse({
@@ -703,7 +707,7 @@ describe('Compose Send Operations', () => {
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
         asset: testAssets.XCP,
         quantity: testQuantities.MEDIUM,
         sat_per_vbyte: 2,
@@ -721,7 +725,7 @@ describe('Compose Send Operations', () => {
       });
     });
 
-    it('keeps the verified +57-vB form when there is no separate change to reshape', async () => {
+    it('recomposes the ordinary host when there is no separate change to reshape', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
       const sourceAddress = payment.address!;
@@ -731,7 +735,7 @@ describe('Compose Send Operations', () => {
         index: 0,
         witnessUtxo: { script: payment.script, amount: 100_000n },
       });
-      tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 99_100n });
+      tx.addOutput({ script: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).script, amount: 99_100n });
       tx.addOutput({ script: payment.script, amount: 330n });
       tx.addOutput({ script: hexToBytes(buildDieselMintScript(1)), amount: 0n });
       mockedGetSettings.mockReturnValue({
@@ -739,29 +743,23 @@ describe('Compose Send Operations', () => {
         enableDieselMinting: true,
         protectAlkanesUtxos: true,
       });
-      mockedApiClient.get.mockResolvedValue(createMockComposeResponse({
+      mockedApiClient.get.mockResolvedValueOnce(createMockComposeResponse({
         rawtransaction: bytesToHex(tx.unsignedTx),
-        signed_tx_estimated_size: { vsize: 191, adjusted_vsize: 191, sigops_count: 1 },
+        btc_fee: 570,
+        signed_tx_estimated_size: { vsize: 167, adjusted_vsize: 167, sigops_count: 1 },
       }));
 
       const response = await composeSend({
         sourceAddress,
-        destination: mockDestAddress,
-        asset: testAssets.XCP,
-        quantity: testQuantities.MEDIUM,
+        destination: p2wpkh(getPublicKey(hexToBytes('33'.repeat(32)), true)).address,
+        asset: testAssets.BTC,
+        quantity: asBaseUnits(99100),
         sat_per_vbyte: 2,
       });
 
-      expect(mockedApiClient.get).toHaveBeenCalledTimes(1);
-      expect(response.result.diesel_mint).toEqual({
-        utxo_vout: 1,
-        runestone_vout: 2,
-        utxo_sats: 330,
-        marginal_vbytes: 57,
-        estimated_marginal_fee_sats: 114,
-        fee_rate_sat_vbyte: 2,
-        utxo_kind: 'explicit',
-      });
+      expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+      expect(new URL(mockedApiClient.get.mock.calls[1]![0] as string).searchParams.has('more_outputs')).toBe(false);
+      expect(response.result.diesel_mint).toBeUndefined();
     });
 
     it('skips DIESEL for explicit bare-multisig encoding', async () => {

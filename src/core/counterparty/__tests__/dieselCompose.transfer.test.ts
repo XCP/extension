@@ -36,21 +36,21 @@ it.each([
   const compose = vi.fn<CounterpartyComposer>(async (_endpoint, params, _sourceAddress, _rate, _encoding, control) => {
     expect(params.quantity).toBe(String(expectedSats));
     // The existing 50k-sat DIESEL carrier alone covers dust and fees. Do not add the clean coin.
-    expect(control).toEqual({ inputsSet: `${dieselTxid}:1`, useAllInputsSet: true });
+    expect(control).toEqual({ inputsSet: `${dieselTxid}:1`, useAllInputsSet: true, excludedUtxos: undefined });
     const tx = new Transaction({ allowUnknownOutputs: true });
     tx.addInput({ txid: hexToBytes(dieselTxid), index: 1 });
     tx.addOutput({ script: recipient.script, amount: BigInt(expectedSats) });
     tx.addOutput({ script: source.script, amount: 330n });
     tx.addOutput({ script: hexToBytes(String(params.more_outputs).split(',')[1]!.slice(2)), amount: 0n });
-    tx.addOutput({ script: source.script, amount: BigInt(50000 - expectedSats - 330 - 1000) });
-    return { result: createMockComposeResult({ rawtransaction: bytesToHex(tx.unsignedTx), btc_fee: 1000 }) };
+    tx.addOutput({ script: source.script, amount: BigInt(50000 - expectedSats - 330 - 400) });
+    return { result: createMockComposeResult({ rawtransaction: bytesToHex(tx.unsignedTx), btc_fee: 400 }) };
   });
   const result = await composeDieselSendTransaction(compose, { sourceAddress: source.address, destination: recipient.address, amountBaseUnits: '100000000', sat_per_vbyte: 2, max_fee: 2000 });
   const parsed = parseRawTransactionLocally(result.result.rawtransaction)!;
   expect(parsed.inputs).toHaveLength(1);
   expect(parsed.outputs[0]!.value).toBe(expectedSats);
   expect(parsed.outputs[3]!.address).toBe(source.address);
-  expect(parsed.outputs[3]!.value).toBe(50000 - expectedSats - 330 - 1000);
+  expect(parsed.outputs[3]!.value).toBe(50000 - expectedSats - 330 - 400);
   expect(result.result.diesel_transfer?.input_utxos).toEqual([`${dieselTxid}:1`]);
 });
 
@@ -73,9 +73,32 @@ it('rejects a recipient amount that exceeds the requested minimum even if the fe
     tx.addOutput({ script: source.script, amount: 330n });
     tx.addOutput({ script: hexToBytes(String(params.more_outputs).split(',')[1]!.slice(2)), amount: 0n });
     tx.addOutput({ script: source.script, amount: 48124n });
-    return { result: createMockComposeResult({ rawtransaction: bytesToHex(tx.unsignedTx), btc_fee: 1000 }) };
+    return { result: createMockComposeResult({ rawtransaction: bytesToHex(tx.unsignedTx), btc_fee: 400 }) };
   });
   await expect(composeDieselSendTransaction(compose, {
     sourceAddress: source.address, destination: p2wpkh(recipientKey).address, amountBaseUnits: '100000000', sat_per_vbyte: 2,
   })).rejects.toThrow('required DIESEL transfer layout');
+});
+
+it.each([
+  { fee: 10000, maxFee: undefined },
+  { fee: 400, maxFee: 300 },
+])('rejects excessive transfer fees even when the echoed fee balances: %j', async ({ fee, maxFee }) => {
+  const compose = vi.fn<CounterpartyComposer>(async (_endpoint, params) => {
+    const tx = new Transaction({ allowUnknownOutputs: true });
+    tx.addInput({ txid: hexToBytes(dieselTxid), index: 1 });
+    tx.addOutput({ script: p2wpkh(recipientKey).script, amount: 330n });
+    tx.addOutput({ script: source.script, amount: 330n });
+    tx.addOutput({ script: hexToBytes(String(params.more_outputs).split(',')[1]!.slice(2)), amount: 0n });
+    tx.addOutput({ script: source.script, amount: BigInt(50000 - 660 - fee) });
+    return { result: createMockComposeResult({
+      rawtransaction: bytesToHex(tx.unsignedTx), btc_fee: fee,
+      signed_tx_estimated_size: { vsize: 5000, adjusted_vsize: 5000, sigops_count: 1 },
+    }) };
+  });
+  await expect(composeDieselSendTransaction(compose, {
+    sourceAddress: source.address, destination: p2wpkh(recipientKey).address,
+    amountBaseUnits: '100000000', sat_per_vbyte: 2, max_fee: maxFee,
+  })).rejects.toThrow();
+  expect(compose).toHaveBeenCalledTimes(1);
 });

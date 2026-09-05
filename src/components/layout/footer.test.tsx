@@ -45,6 +45,7 @@ vi.mock('@/components/icons', () => ({
   FaWallet: ({ className }: any) => <div data-testid="wallet-icon" className={className} />,
   FaUniversity: ({ className }: any) => <div data-testid="university-icon" className={className} />,
   FaTools: ({ className }: any) => <div data-testid="tools-icon" className={className} />,
+  FaSpinner: ({ className }: any) => <div data-testid="spinner-icon" className={className} />,
   FaCog: ({ className }: any) => <div data-testid="cog-icon" className={className} />
 }));
 
@@ -54,16 +55,18 @@ describe('Footer', () => {
     mockLocation.pathname = '/index';
   });
 
-  const renderFooter = () => {
-    return render(
+  const renderFooter = async () => {
+    const rendered = render(
       <SettingsProvider>
         <Footer />
       </SettingsProvider>
     );
+    await screen.findByRole('contentinfo', { name: 'Primary' });
+    return rendered;
   };
 
-  it('should render all navigation buttons', () => {
-    renderFooter();
+  it('should render all navigation buttons', async () => {
+    await renderFooter();
     
     expect(screen.getByTestId('wallet-icon')).toBeInTheDocument();
     expect(screen.getByTestId('university-icon')).toBeInTheDocument();
@@ -71,15 +74,15 @@ describe('Footer', () => {
     expect(screen.getByTestId('cog-icon')).toBeInTheDocument();
   });
 
-  it('should have 4 navigation buttons', () => {
-    renderFooter();
+  it('should have 4 navigation buttons', async () => {
+    await renderFooter();
     
     const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(4);
   });
 
-  it('should navigate to index when wallet button is clicked', () => {
-    renderFooter();
+  it('should navigate to index when wallet button is clicked', async () => {
+    await renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     fireEvent.click(walletButton!);
@@ -87,8 +90,8 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/index');
   });
 
-  it('should navigate to market when university button is clicked', () => {
-    renderFooter();
+  it('should navigate to market when university button is clicked', async () => {
+    await renderFooter();
     
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
     fireEvent.click(marketButton!);
@@ -96,8 +99,8 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/market');
   });
 
-  it('should navigate to actions when tools button is clicked', () => {
-    renderFooter();
+  it('should navigate to actions when tools button is clicked', async () => {
+    await renderFooter();
     
     const actionsButton = screen.getByTestId('tools-icon').parentElement?.parentElement;
     fireEvent.click(actionsButton!);
@@ -105,8 +108,8 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/actions');
   });
 
-  it('should navigate to settings when cog button is clicked', () => {
-    renderFooter();
+  it('should navigate to settings when cog button is clicked', async () => {
+    await renderFooter();
     
     const settingsButton = screen.getByTestId('cog-icon').parentElement?.parentElement;
     fireEvent.click(settingsButton!);
@@ -114,9 +117,9 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/settings');
   });
 
-  it('should highlight active route with blue color', () => {
+  it('should highlight active route with blue color', async () => {
     mockLocation.pathname = '/index';
-    renderFooter();
+    await renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     expect(walletButton).toHaveClass('text-blue-600');
@@ -125,9 +128,9 @@ describe('Footer', () => {
     expect(marketButton).toHaveClass('text-gray-600');
   });
 
-  it('should highlight market when on market route', () => {
+  it('should highlight market when on market route', async () => {
     mockLocation.pathname = '/market';
-    renderFooter();
+    await renderFooter();
     
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
     expect(marketButton).toHaveClass('text-blue-600');
@@ -136,9 +139,9 @@ describe('Footer', () => {
     expect(walletButton).toHaveClass('text-gray-600');
   });
 
-  it('should highlight actions when on actions route', () => {
+  it('should highlight actions when on actions route', async () => {
     mockLocation.pathname = '/actions';
-    renderFooter();
+    await renderFooter();
     
     const actionsButton = screen.getByTestId('tools-icon').parentElement?.parentElement;
     expect(actionsButton).toHaveClass('text-blue-600');
@@ -147,9 +150,9 @@ describe('Footer', () => {
     expect(walletButton).toHaveClass('text-gray-600');
   });
 
-  it('should highlight settings when on settings route', () => {
+  it('should highlight settings when on settings route', async () => {
     mockLocation.pathname = '/settings';
-    renderFooter();
+    await renderFooter();
     
     const settingsButton = screen.getByTestId('cog-icon').parentElement?.parentElement;
     expect(settingsButton).toHaveClass('text-blue-600');
@@ -158,8 +161,8 @@ describe('Footer', () => {
     expect(walletButton).toHaveClass('text-gray-600');
   });
 
-  it('should apply hover styles to buttons', () => {
-    renderFooter();
+  it('should apply hover styles to buttons', async () => {
+    await renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -167,8 +170,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should apply transparent variant to all buttons', () => {
-    renderFooter();
+  it('should apply transparent variant to all buttons', async () => {
+    await renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -177,8 +180,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should apply fullWidth to all buttons', () => {
-    renderFooter();
+  it('should apply fullWidth to all buttons', async () => {
+    await renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -186,8 +189,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should have correct container styles', () => {
-    const { container } = renderFooter();
+  it('should have correct container styles', async () => {
+    const { container } = await renderFooter();
     
     const footerContainer = container.firstChild as HTMLElement;
     expect(footerContainer).toHaveClass('p-2');
@@ -199,8 +202,8 @@ describe('Footer', () => {
     expect(footerContainer).toHaveAttribute('aria-label', 'Primary');
   });
 
-  it('should use grid layout for buttons', () => {
-    const { container } = renderFooter();
+  it('should use grid layout for buttons', async () => {
+    const { container } = await renderFooter();
     
     const gridContainer = container.querySelector('.grid');
     expect(gridContainer).toBeInTheDocument();
@@ -208,8 +211,8 @@ describe('Footer', () => {
     expect(gridContainer).toHaveClass('gap-2');
   });
 
-  it('should center icons in buttons', () => {
-    renderFooter();
+  it('should center icons in buttons', async () => {
+    await renderFooter();
     
     const iconContainers = screen.getAllByRole('button').map(button => 
       button.querySelector('.flex.flex-col.items-center')
@@ -223,8 +226,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should apply correct icon styles', () => {
-    renderFooter();
+  it('should apply correct icon styles', async () => {
+    await renderFooter();
     
     const icons = [
       screen.getByTestId('wallet-icon'),
@@ -239,8 +242,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should handle rapid navigation clicks', () => {
-    renderFooter();
+  it('should handle rapid navigation clicks', async () => {
+    await renderFooter();
     
     const walletButton = screen.getByTestId('wallet-icon').parentElement?.parentElement;
     const marketButton = screen.getByTestId('university-icon').parentElement?.parentElement;
@@ -255,9 +258,9 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenNthCalledWith(3, '/index');
   });
 
-  it('should not highlight any button for unknown route', () => {
+  it('should not highlight any button for unknown route', async () => {
     mockLocation.pathname = '/unknown';
-    renderFooter();
+    await renderFooter();
     
     const buttons = screen.getAllByRole('button');
     buttons.forEach(button => {
@@ -266,8 +269,8 @@ describe('Footer', () => {
     });
   });
 
-  it('should pass event name to handleNavigation', () => {
-    renderFooter();
+  it('should pass event name to handleNavigation', async () => {
+    await renderFooter();
     
     // Note: The handleNavigation function passes a second parameter
     // but doesn't use it. This is likely for analytics/tracking
@@ -278,8 +281,8 @@ describe('Footer', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/index');
   });
 
-  it('should maintain layout on different screen sizes', () => {
-    const { container } = renderFooter();
+  it('should maintain layout on different screen sizes', async () => {
+    const { container } = await renderFooter();
     
     const gridContainer = container.querySelector('.grid');
     // Grid should always be 4 columns

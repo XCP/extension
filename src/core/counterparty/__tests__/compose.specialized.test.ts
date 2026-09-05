@@ -32,6 +32,7 @@ import {
 
 // Mock dependencies
 vi.mock('@/core/api/client');
+vi.mock('@/core/bitcoin/blockHeight', () => ({ getCurrentBlockHeight: vi.fn(async () => 965600) }));
 vi.mock('@/core/counterparty/capabilities', () => ({
   requireCounterpartyFeature: vi.fn().mockResolvedValue(undefined),
 }));
@@ -558,7 +559,7 @@ describe('Compose Specialized Operations', () => {
           witnessUtxo: { script: payment.script, amount: 100_000n },
         });
         tx.addOutput({ script: payment.script, amount: 546n });
-        tx.addOutput({ script: Uint8Array.from([0x6a, 0x00]), amount: 0n });
+        tx.addOutput({ script: Uint8Array.from([0x6a, 30, ...new Uint8Array(30)]), amount: 0n });
         tx.addOutput({ script: payment.script, amount: dieselUtxoSats });
         tx.addOutput({ script: hexToBytes(dieselScript), amount: 0n });
         if (includeChange) tx.addOutput({ script: payment.script, amount: 98_646n });
@@ -572,6 +573,7 @@ describe('Compose Specialized Operations', () => {
       mockedApiClient.get
         .mockResolvedValueOnce(createMockComposeResponse({
           rawtransaction: buildAttach(330n, true),
+          btc_fee: 478,
           signed_tx_estimated_size: { vsize: 239, adjusted_vsize: 239, sigops_count: 1 },
         }))
         .mockResolvedValueOnce(createMockComposeResponse({

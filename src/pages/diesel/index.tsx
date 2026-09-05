@@ -50,7 +50,7 @@ export default function DieselBalancePage(): ReactElement {
       setBalance(await fetchDieselBalance(activeAddress.address));
     } catch (cause) {
       console.error('Failed to load DIESEL balance:', cause);
-      setError('The Alkanes indexer could not be reached. Your DIESEL remains protected.');
+      setError('The Alkanes indexer could not be reached.');
     } finally {
       setLoading(false);
     }
@@ -74,7 +74,10 @@ export default function DieselBalancePage(): ReactElement {
   }, [navigate, setHeaderProps]);
 
   if (loading && !balance) return <Spinner message="Loading DIESEL…" />;
-  if (!balance) return <div className="p-4 text-center text-gray-600">{error ?? 'No balance data'}</div>;
+  const protectionStatus = settings.protectAlkanesUtxos
+    ? 'Your DIESEL remains protected.'
+    : 'Alkanes protection is off. Ordinary transactions can burn your tokens.';
+  if (!balance) return <div className="p-4 text-center text-gray-600">{error ?? 'No balance data'} {protectionStatus}</div>;
 
   const token: TokenBalance = {
     asset: 'DIESEL',
@@ -93,7 +96,6 @@ export default function DieselBalancePage(): ReactElement {
     ? displayedFeeRate
     : settings.dieselMintMaxFeeRate;
   const optimizedMintCost = roundUp(multiply(26, validDisplayedFeeRate)).toFixed(0);
-  const fallbackMintCost = roundUp(multiply(57, validDisplayedFeeRate)).toFixed(0);
   const saveFeeRate = () => {
     const value = toFiniteNumber(feeRateInput);
     if (
@@ -151,9 +153,8 @@ export default function DieselBalancePage(): ReactElement {
             <span className="text-sm text-gray-500">sat/vB</span>
           </div>
           {shouldShowHelpText && <p className="text-xs text-gray-500">
-            Above this rate the original transaction proceeds without mining. At this limit, the
-            optimized +26-vB mint costs about {optimizedMintCost} sats; the +57-vB fallback costs
-            about {fallbackMintCost} sats.
+            Above this rate or with an unsupported transaction, the original transaction proceeds
+            without mining. At this limit, the +26-vB mint costs about {optimizedMintCost} sats.
           </p>}
           {shouldShowHelpText && <p className="text-xs text-amber-700">
             This limits cost; it does not guarantee profit. Profit-aware mining needs a verified
@@ -165,17 +166,22 @@ export default function DieselBalancePage(): ReactElement {
         <h2 id="diesel-balance-title" className="text-sm font-medium text-gray-900">DIESEL storage</h2>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Status</span>
-          <span className="text-gray-900">Protected</span>
+          <span className={settings.protectAlkanesUtxos ? 'text-gray-900' : 'text-amber-700'}>
+            {settings.protectAlkanesUtxos ? 'Protected' : 'Protection off'}
+          </span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-500">Reserved Bitcoin</span>
           <span className="text-gray-900">{dieselUtxoSats.toLocaleString()} sats</span>
         </div>
-        {shouldShowHelpText && <p className="text-xs text-gray-500">
+        {!settings.protectAlkanesUtxos && <p role="status" className="text-xs text-amber-700">
+          Ordinary transactions can burn your tokens. Enable Alkanes protection in Advanced settings.
+        </p>}
+        {shouldShowHelpText && settings.protectAlkanesUtxos && <p className="text-xs text-gray-500">
           Your DIESEL is shown as one balance. Behind the scenes it is secured by Bitcoin outputs
           that the wallet excludes from ordinary BTC and Counterparty spending.
         </p>}
-        {error && <p className="text-xs text-red-600">{error}</p>}
+        {error && <p className="text-xs text-red-600">{error} {protectionStatus}</p>}
       </div>
       <ActionList sections={sections} />
     </section>

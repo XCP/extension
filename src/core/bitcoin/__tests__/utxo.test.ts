@@ -108,6 +108,31 @@ describe('UTXO Utilities', () => {
       );
     });
 
+    it('refreshes confirmation evidence instead of reusing the 30-second UTXO cache', async () => {
+      const reorged = { ...mockApiUtxo, status: { confirmed: false } };
+      mockApiClient.get
+        .mockResolvedValueOnce(mockApiResponse([mockApiUtxo]))
+        .mockResolvedValueOnce(mockApiResponse([reorged]));
+      expect((await fetchUTXOs(mockAddress))[0]!.status.confirmed).toBe(true);
+      expect((await fetchUTXOs(mockAddress))[0]!.status.confirmed).toBe(true);
+      expect(mockApiClient.get).toHaveBeenCalledTimes(1);
+      expect((await fetchUTXOs(mockAddress, undefined, true))[0]!.status.confirmed).toBe(false);
+      expect(mockApiClient.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not reuse an earlier in-flight discovery as fresh confirmation evidence', async () => {
+      let finishOld!: (response: ReturnType<typeof mockApiResponse>) => void;
+      mockApiClient.get.mockImplementationOnce(() => new Promise(resolve => { finishOld = resolve; }));
+      const oldRequest = fetchUTXOs(mockAddress);
+      const reorged = { ...mockApiUtxo, status: { confirmed: false } };
+      mockApiClient.get.mockResolvedValueOnce(mockApiResponse([reorged]));
+      const refreshed = await fetchUTXOs(mockAddress, undefined, true);
+      expect(refreshed[0]!.status.confirmed).toBe(false);
+      expect(mockApiClient.get).toHaveBeenCalledTimes(2);
+      finishOld(mockApiResponse([mockApiUtxo]));
+      expect((await oldRequest)[0]!.status.confirmed).toBe(true);
+    });
+
     it('should return empty array when no UTXOs found', async () => {
       mockApiClient.get.mockResolvedValueOnce(mockApiResponse([]));
 

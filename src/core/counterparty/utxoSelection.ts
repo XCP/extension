@@ -55,6 +55,10 @@ export interface SelectedUtxos {
   excludedWithAssets: number;
   /** Total value of UTXOs excluded due to attached assets in satoshis */
   excludedValue: number;
+  /** Unverified outputs are distinct from outputs known to carry assets. */
+  excludedUnknown?: number;
+  /** Explicit server-side exclusions, retained on compose retries. */
+  excludedUtxos?: string[];
   /** Spendable DIESEL UTXOs; unconfirmed entries are wallet-authored bounded-chain tips. */
   dieselUtxos?: Array<UTXO & { pendingChainDepth?: number }>;
 }
@@ -83,10 +87,12 @@ export async function selectUtxosForTransaction(
     maxUtxos = MAX_INPUTS_SET,
     includeDieselUtxos = false,
   } = options;
+  const settings = getActiveSettings();
+  const protectAlkanes = settings.protectAlkanesUtxos || settings.enableDieselMinting || includeDieselUtxos;
 
   // 1. Fetch fresh UTXOs from mempool.space and UTXO balances from Counterparty in parallel
   const [allUtxos, utxoBalances] = await Promise.all([
-    fetchUTXOs(address),
+    protectAlkanes ? fetchUTXOs(address, undefined, true) : fetchUTXOs(address),
     fetchTokenBalances(address, { type: 'utxo', limit: 1000, verbose: false }),
   ]);
 
@@ -135,13 +141,12 @@ export async function selectUtxosForTransaction(
   // unknown result is unavailable to ordinary builders. DIESEL UTXOs stay in a separate list and
   // are exposed only to flows whose pointer returns every unallocated Alkane to an owned successor.
   const protectedAlkanes = new Map<string, InputAlkaneBalances>();
-  const settings = getActiveSettings();
-  const protectAlkanes = settings.protectAlkanesUtxos || settings.enableDieselMinting || includeDieselUtxos;
   if (protectAlkanes) {
     // The signing helper deliberately caps one request's inputs. Coin discovery must instead
     // inspect every candidate in bounded batches, or a clean coin after position 30 is never seen.
     const prioritized = [...candidateUtxos].sort((a, b) => b.value - a.value)
-      .map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout }));
+      .map((utxo, index) => ({ index, txid: utxo.txid, vout: utxo.vout,
+        confirmed: utxo.status.confirmed, blockHeight: utxo.status.block_height }));
     for (let offset = 0; offset < prioritized.length; offset += MAX_ALKANES_LOOKUP_INPUTS) {
       const batch = prioritized.slice(offset, offset + MAX_ALKANES_LOOKUP_INPUTS);
       const alkanes = await fetchInputsAlkanes(batch, batch.map(({ index }) => index));
@@ -174,6 +179,8 @@ export async function selectUtxosForTransaction(
   // 3. Filter UTXOs
   let excludedWithAssets = 0;
   let excludedValue = 0;
+  let excludedUnknown = 0;
+  const excludedUtxos = new Set<string>([...utxosWithAssets, ...protectedAlkanes.keys()]);
   const eligibleUtxos: UTXO[] = [];
   const dieselUtxos: Array<UTXO & { pendingChainDepth?: number }> = [];
 
@@ -211,7 +218,9 @@ export async function selectUtxosForTransaction(
       && protectAlkanes
       && !pendingDieselUtxo;
     if (utxosWithAssets.has(utxoKey) || alkanes || unprovedUnconfirmedAlkanes) {
-      excludedWithAssets++;
+      if (utxosWithAssets.has(utxoKey) || alkanes?.balances.length) excludedWithAssets++;
+      else excludedUnknown++;
+      excludedUtxos.add(utxoKey);
       excludedValue += utxo.value;
       continue;
     }
@@ -222,7 +231,8 @@ export async function selectUtxosForTransaction(
   if (eligibleUtxos.length < minUtxos && dieselUtxos.length === 0) {
     throw new Error(
       `Insufficient UTXOs: found ${eligibleUtxos.length}, need at least ${minUtxos}. ` +
-      `${excludedWithAssets} UTXOs have attached assets.`
+      `${excludedWithAssets} UTXOs have attached assets. ` +
+      `${excludedUnknown} UTXOs could not be verified by the Alkanes indexer; wait for indexing or retry.`
     );
   }
 
@@ -245,6 +255,8 @@ export async function selectUtxosForTransaction(
     totalValue,
     excludedWithAssets,
     excludedValue,
+    excludedUnknown,
+    excludedUtxos: [...excludedUtxos],
     ...(includeDieselUtxos ? { dieselUtxos } : {}),
   };
 }

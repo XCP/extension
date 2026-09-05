@@ -10,7 +10,7 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { buildDieselMintScript } from '@/core/alkanes/diesel';
+import { buildDieselMintScript, buildDieselTransferScript } from '@/core/alkanes/diesel';
 import {
   clearPendingDieselUtxos,
   getPendingDieselUtxos,
@@ -24,7 +24,7 @@ import {
   getPendingChangeUtxos,
 } from '@/core/bitcoin/spentUtxoCache';
 import { clearBitcoinCaches, fetchPreviousRawTransaction } from '@/core/bitcoin/utxo';
-import { recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
+import { extractOwnDieselUtxo, extractSafeOwnChangeOutputs, recordOwnChangeFromRawTx } from '@/core/counterparty/pendingChange';
 import { fetchInputValues } from '@/core/counterparty/transaction';
 import { packAddress } from '@/core/counterparty/unpack/address';
 import { arc4 } from '@/core/counterparty/unpack/binary';
@@ -139,6 +139,36 @@ describe('recordOwnChangeFromRawTx', () => {
       value: 49_000,
       chainDepth: 2,
     }]);
+  });
+
+  it.each([
+    ['DIESEL transfer', buildDieselTransferScript(100_000_000n, 0, 1)],
+    ['another runestone', '6a5d020101'],
+    ['malformed runestone', '6a5d01ff'],
+    ['empty runestone', '6a5d'],
+  ])('does not journal ordinary BTC or an inferred DIESEL mint for a %s', (_name, runestone) => {
+    const raw = buildRawTx([OTHER_SCRIPT, OWN_SCRIPT, runestone], [546n, 80_000n, 0n]);
+
+    recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
+
+    expect(extractSafeOwnChangeOutputs(raw, [OWN_ADDRESS])).toEqual([]);
+    expect(extractOwnDieselUtxo(raw, [OWN_ADDRESS])).toBeNull();
+    expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([]);
+    expect(getPendingDieselUtxos(OWN_ADDRESS)).toEqual([]);
+  });
+
+  it('does not trust a mint tip when another token envelope makes routing ambiguous', () => {
+    const raw = buildRawTx(
+      [OWN_SCRIPT, buildDieselMintScript(0), '6a5d020101'],
+      [80_000n, 0n, 0n],
+    );
+
+    recordOwnChangeFromRawTx(raw, [OWN_ADDRESS]);
+
+    expect(extractOwnDieselUtxo(raw, [OWN_ADDRESS])).toBeNull();
+    expect(extractSafeOwnChangeOutputs(raw, [OWN_ADDRESS])).toEqual([]);
+    expect(getPendingChangeUtxos(OWN_ADDRESS)).toEqual([]);
+    expect(getPendingDieselUtxos(OWN_ADDRESS)).toEqual([]);
   });
 
   it('verifies a DIESEL child fee from the successful parent bytes while explorers lag', async () => {

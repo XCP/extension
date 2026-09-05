@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchInputsAlkanes } from '@/core/alkanes/inputAssets';
 import { clearPendingDieselUtxos, getKnownDieselUtxos, getPendingDieselUtxos, recordPendingDieselUtxo } from '@/core/alkanes/pendingDieselUtxos';
+import { getCurrentBlockHeight } from '@/core/bitcoin/blockHeight';
 import { clearSpentUtxoCache } from '@/core/bitcoin/spentUtxoCache';
 import { fetchUTXOs } from '@/core/bitcoin/utxo';
 import { fetchTokenBalances } from '@/core/counterparty/api';
@@ -9,6 +10,7 @@ import { selectUtxosForTransaction } from '../utxoSelection';
 
 vi.mock('@/core/bitcoin/utxo', async (importOriginal) => ({ ...await importOriginal<typeof import('@/core/bitcoin/utxo')>(), fetchUTXOs: vi.fn() }));
 vi.mock('@/core/alkanes/inputAssets');
+vi.mock('@/core/bitcoin/blockHeight', () => ({ getCurrentBlockHeight: vi.fn() }));
 vi.mock('@/core/counterparty/api');
 vi.mock('@/core/settings', async (importOriginal) => ({ ...await importOriginal<typeof import('@/core/settings')>(), getActiveSettings: vi.fn() }));
 
@@ -27,7 +29,8 @@ describe('DIESEL funding protection', () => {
     clearSpentUtxoCache();
     vi.mocked(fetchTokenBalances).mockResolvedValue([]);
     vi.mocked(fetchInputsAlkanes).mockResolvedValue([]);
-    vi.mocked(getActiveSettings).mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+    vi.mocked(getActiveSettings).mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true, alkanesApiBase: 'https://alkanes.fixture.test/rpc' });
+    vi.mocked(getCurrentBlockHeight).mockResolvedValue(950000);
   });
 
   afterEach(() => {
@@ -85,6 +88,7 @@ describe('DIESEL funding protection', () => {
     vi.mocked(fetchUTXOs).mockResolvedValue([...protectedCoins, makeUtxo(cleanTxid, 10000000)]);
     const fetchMock = vi.fn(async (_url: unknown, init: RequestInit | undefined) => {
       const request = JSON.parse(String(init?.body));
+      if (request.method === 'metashrew_height') return new Response(JSON.stringify({ result: '950000' }));
       return new Response(JSON.stringify({ result: { balance_sheet: { cached: { balances:
         request.params[0].txid === cleanTxid ? [] : [{ id: '2:0', value: '1' }],
       } } } }), { status: 200 });
@@ -92,7 +96,7 @@ describe('DIESEL funding protection', () => {
     vi.stubGlobal('fetch', fetchMock);
     const selected = await selectUtxosForTransaction(address);
     expect(selected.utxos).toEqual([makeUtxo(cleanTxid, 10000000)]);
-    expect(fetchMock).toHaveBeenCalledTimes(61);
+    expect(fetchMock).toHaveBeenCalledTimes(67); // 61 sheets + two height gates per batch.
     expect(vi.mocked(fetchInputsAlkanes).mock.calls.map(([batch]) => batch.length)).toEqual([30, 30, 1]);
   });
 });

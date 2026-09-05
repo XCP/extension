@@ -54,6 +54,7 @@ import {
 import { useHeader } from "@/contexts/header-context";
 import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { isDieselMintHeightAllowed } from '@/core/alkanes/dieselMintPolicy';
 import { isApiError } from "@/core/api/client";
 import { checkTransactionFee } from "@/core/bitcoin/feeVerification";
 import { fetchOrderMatch } from "@/core/counterparty/api";
@@ -79,7 +80,7 @@ import { packAddress } from "@/core/counterparty/unpack/address";
 import { bytesToHex } from "@/core/counterparty/unpack/binary";
 import { extractCounterpartyPayload } from "@/core/counterparty/unpack/opReturn";
 import { verifyTransaction } from "@/core/counterparty/unpack/verify";
-import { fromSatoshis } from '@/core/numeric';
+import { fromSatoshis, toFiniteNumber } from '@/core/numeric';
 import { checkReplayAttempt, recordTransaction } from "@/core/replayPrevention";
 import { analytics, classifyTransactionError, getBtcBucket } from "@/platform/fathom";
 
@@ -268,8 +269,8 @@ export function ComposerProvider<T>({
       // FormData supplies strings, but compose policy (including the DIESEL ceiling) accepts
       // a finite numeric fee rate. Normalize this shared boundary for every compose family.
       if (dataForApi.sat_per_vbyte !== undefined) {
-        const feeRate = Number(dataForApi.sat_per_vbyte);
-        if (!Number.isFinite(feeRate) || feeRate <= 0) throw new Error('Invalid transaction fee rate.');
+        const feeRate = toFiniteNumber(dataForApi.sat_per_vbyte);
+        if (feeRate === undefined || feeRate <= 0) throw new Error('Invalid transaction fee rate.');
         dataForApi.sat_per_vbyte = feeRate;
       }
 
@@ -551,6 +552,13 @@ export function ComposerProvider<T>({
     const inputValues = state.apiResponse.result.inputs_values;
     const lockScripts = state.apiResponse.result.lock_scripts;
 
+    const requireCurrentMintHeight = async () => {
+      if (state.apiResponse?.result.diesel_mint && !await isDieselMintHeightAllowed()) {
+        throw new Error('DIESEL mining is paused pending protocol validation. Go back and recompose this transaction without a mint.');
+      }
+    };
+    await requireCurrentMintHeight();
+
     // Check for replay attempt before signing
     const replayCheck = await checkReplayAttempt(
       window.location.origin,
@@ -579,6 +587,9 @@ export function ComposerProvider<T>({
         setHardwareOperationInProgress(false);
       }
     }
+
+    // Hardware approval can span a block boundary. Do not broadcast an obsolete mint afterward.
+    await requireCurrentMintHeight();
 
     // Record transaction before broadcast to prevent double-broadcast
     // Use timestamp + random suffix to avoid any collision risk

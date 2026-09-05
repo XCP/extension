@@ -187,14 +187,11 @@ function isValidUtxoArray(data: unknown): data is UTXO[] {
  * @param signal - Optional AbortSignal for cancelling the request.
  *                 Note: If a cached result exists, signal is ignored (instant return).
  *                 If another request is in-flight, signal won't cancel the shared request.
+ * @param forceRefresh - Bypass both cached and in-flight reads for current asset-protection status.
  * @returns A promise that resolves to an array of UTXO objects.
  */
-export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise<UTXO[]> {
-  return cachedFetch(
-    utxoCache,
-    inflightUtxoRequests,
-    address,
-    async () => {
+export async function fetchUTXOs(address: string, signal?: AbortSignal, forceRefresh = false): Promise<UTXO[]> {
+  const fetchFresh = async () => {
       const endpoints = [
         `https://mempool.space/api/address/${address}/utxo`,
         `https://blockstream.info/api/address/${address}/utxo`,
@@ -220,8 +217,8 @@ export async function fetchUTXOs(address: string, signal?: AbortSignal): Promise
       }
 
       throw new Error('Failed to fetch UTXOs.');
-    }
-  );
+  };
+  return forceRefresh ? fetchFresh() : cachedFetch(utxoCache, inflightUtxoRequests, address, fetchFresh);
 }
 
 /**

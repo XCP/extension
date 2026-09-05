@@ -134,6 +134,45 @@ describe('useSignPsbtsRequest wallet safety propagation', () => {
     await waitFor(() => expect(result.current.decodedInfo?.review.status).toBe('proved'));
   });
 
+  it.each([
+    ['token-bearing', { balances: [{ id: '2:0', value: '1' }] }],
+    ['unknown', { balances: [], lookupFailed: true }],
+  ])('does not block a proved batch for an unsigned third-party %s input', async (_name, status) => {
+    const intent = { action: 'create_listing' };
+    vi.mocked(getSignFlow).mockResolvedValue({
+      kind: 'sign-psbts',
+      bundleKind: 'bulk-listing',
+      items: [{
+        psbtHex: '00',
+        signInputs: { bc1qwallet: [0] },
+        sighashTypes: [1],
+        marketplaceIntent: intent,
+      }],
+    } as never);
+    vi.mocked(parseMarketplaceBatchIntents).mockReturnValue({
+      kind: 'bulk-listing',
+      intents: [intent as never],
+    });
+    vi.mocked(decodePsbtForApproval).mockResolvedValue({
+      ...decodedParent(false, [{ inputIndex: 1, utxo: `${'ab'.repeat(32)}:1`, ...status }]),
+      psbtDetails: {
+        inputs: [
+          { index: 0, txid: 'cd'.repeat(32), vout: 0, address: 'bc1qwallet' },
+          { index: 1, txid: 'ab'.repeat(32), vout: 1, address: 'bc1qthirdparty' },
+        ],
+        outputs: [],
+      },
+    } as never);
+    vi.mocked(analyzeMarketplaceBatch).mockReturnValue(review());
+
+    const { result } = renderHook(() => useSignPsbtsRequest());
+
+    await waitFor(() => expect(result.current.decodedInfo?.review.status).toBe('proved'));
+    expect(decodePsbtForApproval).toHaveBeenCalledWith(
+      '00', ['bc1qwallet'], [0], [1], undefined, 'counterparty', undefined, intent,
+    );
+  });
+
   it('checks the signed fee-bump child for Alkanes before approving the pair', async () => {
     const parentIntent = { action: 'accept_exact_offer' };
     const childIntent = { action: 'bump_acceptance_fee' };

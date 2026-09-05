@@ -17,6 +17,7 @@ export interface AlkaneUtxo {
   vout: number;
   /** Bitcoin value of the token-bearing output in satoshis, when supplied by the indexer. */
   value?: number;
+  /** Provider metadata; some releases put the Alkane id block here, NOT Bitcoin confirmation. */
   height?: number;
   balances: AlkaneBalance[];
 }
@@ -32,6 +33,57 @@ export const DIESEL_ALKANE_ID = '2:0';
 export const DIESEL_WALLET_ASSET = 'ALKANES:DIESEL';
 
 type JsonRecord = Record<string, unknown>;
+
+// The anonymous default endpoint has a shared 20-request/minute limit and does not accept
+// JSON-RPC arrays. Serialize starts below that limit instead of bursting 30 outpoint POSTs.
+let defaultRequestQueue: Promise<unknown> = Promise.resolve();
+let nextDefaultRequestAt = 0;
+const DEFAULT_REQUEST_INTERVAL_MS = 3_200;
+
+async function rpc(apiBase: string, method: string, params: unknown[]): Promise<unknown> {
+  const request = async () => {
+    if (apiBase === DEFAULT_ALKANES_API_BASE) {
+      const wait = nextDefaultRequestAt - Date.now();
+      if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait));
+      nextDefaultRequestAt = Date.now() + DEFAULT_REQUEST_INTERVAL_MS;
+    }
+    const response = await fetch(apiBase, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    });
+    if (response.status === 429) {
+      const retrySeconds = Number(response.headers.get('Retry-After'));
+      if (apiBase === DEFAULT_ALKANES_API_BASE) {
+        nextDefaultRequestAt = Date.now() + Math.max(60_000,
+          Number.isFinite(retrySeconds) ? retrySeconds * 1_000 : 0);
+      }
+      throw new Error('Alkanes indexer rate limit reached. Please wait a minute and retry.');
+    }
+    if (!response.ok) throw new Error(`Alkanes lookup failed (${response.status})`);
+    const body: unknown = await response.json();
+    const error = asRecord(asRecord(body)?.error);
+    if (error) throw new Error(String(error.message ?? 'Alkanes JSON-RPC error'));
+    return body;
+  };
+  if (apiBase !== DEFAULT_ALKANES_API_BASE) return request();
+  const pending = defaultRequestQueue.then(request, request);
+  defaultRequestQueue = pending.catch(() => undefined);
+  return pending;
+}
+
+/** The indexer's processed Bitcoin height, not AlkaneUtxo.height (which is an asset id). */
+export async function fetchAlkanesIndexedHeight(
+  apiBase = getActiveSettings().alkanesApiBase ?? DEFAULT_ALKANES_API_BASE,
+): Promise<number> {
+  const body = await rpc(apiBase, 'metashrew_height', []);
+  const height = exactInteger(asRecord(body)?.result);
+  if (height === undefined || BigInt(height) > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Alkanes indexer returned an invalid processed height');
+  }
+  return Number(height);
+}
 
 function asRecord(value: unknown): JsonRecord | undefined {
   return typeof value === 'object' && value !== null ? value as JsonRecord : undefined;
@@ -95,21 +147,9 @@ export async function fetchAlkanesByOutpoint(
   if (!/^[0-9a-f]{64}$/i.test(txid)) throw new Error('Invalid Alkanes outpoint txid');
   if (!Number.isSafeInteger(vout) || vout < 0) throw new Error('Invalid Alkanes outpoint index');
 
-  const response = await fetch(apiBase, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    signal: AbortSignal.timeout(10_000),
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'alkanes_protorunesbyoutpoint',
-      params: [{ txid, vout, protocolTag: ALKANES_PROTOCOL_TAG }],
-    }),
-  });
-  if (!response.ok) throw new Error(`Alkanes lookup failed (${response.status})`);
-  const body: unknown = await response.json();
-  const error = asRecord(asRecord(body)?.error);
-  if (error) throw new Error(String(error.message ?? 'Alkanes JSON-RPC error'));
+  const body = await rpc(apiBase, 'alkanes_protorunesbyoutpoint', [
+    { txid, vout, protocolTag: ALKANES_PROTOCOL_TAG },
+  ]);
   return parseAlkaneBalances(body);
 }
 
@@ -122,19 +162,9 @@ export async function fetchAlkanesByAddress(
   apiBase = getActiveSettings().alkanesApiBase ?? DEFAULT_ALKANES_API_BASE,
 ): Promise<AlkaneUtxo[]> {
   if (!address.trim()) throw new Error('Invalid Alkanes address');
-  const response = await fetch(apiBase, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    signal: AbortSignal.timeout(10_000),
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'alkanes_protorunesbyaddress',
-      params: [{ address, protocolTag: ALKANES_PROTOCOL_TAG }],
-    }),
-  });
-  if (!response.ok) throw new Error(`Alkanes lookup failed (${response.status})`);
-  const body: unknown = await response.json();
+  const body = await rpc(apiBase, 'alkanes_protorunesbyaddress', [
+    { address, protocolTag: ALKANES_PROTOCOL_TAG },
+  ]);
   const root = asRecord(body);
   const error = asRecord(root?.error);
   if (error) throw new Error(String(error.message ?? 'Alkanes JSON-RPC error'));

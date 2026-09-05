@@ -8,6 +8,59 @@ implementation includes the measured +26-vB optimization, protection, balance, a
 **Verdict:** **the narrow feature is feasible and implemented behind an off-by-default switch;
 keep the PR draft until release-line and live-network acceptance are rechecked**
 
+## Independent review follow-up — 2026-09-05
+
+The independent review supplied by goat targets `bc6e6d07`. The follow-up implementation keeps
+this PR draft and adds a conservative stop before the next block can reach 966,000. Unknown
+Bitcoin height also skips mining. The height is checked again before signing and broadcasting;
+this is a precaution around the staging proposal, not a claim that v3 has been released.
+The +57-vB explicit-carrier fallback is disabled: if the +26-vB layout cannot be proved, recompose
+the original transaction without a mint. This also avoids relying on a pre-966,200 Counterparty
+fee-parser result that the regtest benchmark did not exercise.
+
+The wallet now establishes `metashrew_height >= independently observed Bitcoin height` before
+accepting empty outpoint sheets, checks Bitcoin confirmation, and invalidates a read if the tip
+changes or the indexer falls behind. `AlkaneUtxo.height` is provider metadata and must never be used
+as Bitcoin confirmation height. This addresses ordinary indexing lag, including after reopening
+the popup; retaining the wallet's pending journal alone does not do so.
+
+The shared anonymous endpoint rejected a JSON-RPC array in a read-only probe on 2026-09-05, while
+single `metashrew_height` returned the decimal string `965633`. Despite the provider's
+[batch-request documentation](https://docs.subfrost.io/api-reference/platform/rate-limits/), the
+wallet uses paced single requests at this endpoint and observes HTTP 429 cooldowns. Large wallets
+can therefore take longer to classify. Unknown, unqueried, and token-bearing outputs remain
+protected, with unknown counts distinguished from balances. An address-level empty response is
+not used as proof that funding is safe. Advanced settings expose the indexer endpoint and an
+explicit protection switch; turning mining off alone continues to protect existing tokens.
+
+Funding exclusions are sent explicitly on compose requests and retained across retries. Detach
+and move also constrain and verify their funding inputs. Mint fee bounds use locally decoded
+transaction structure rather than the server's size estimate, and caller `max_fee` is enforced.
+Unsupported hosts and existing runestones skip decoration. A runestone transfer or an unfamiliar
+runestone envelope cannot be journaled as ordinary wallet BTC. Provider batch approval checks
+only the actual wallet signing set.
+
+### Limits that remain open
+
+- A freshness check does not authenticate an indexer's balance claims. A configurable endpoint
+  provides recovery and lets users choose their operator; it is not independent consensus or a
+  signed state attestation. A well-formed false empty sheet remains a trust boundary. Disabling
+  protection can destroy tokens, and must be an explicit user choice.
+- The production broadcaster's acceptance of the exact Counterparty-plus-runestone transaction
+  has not been established by a mainnet broadcast. The wallet tries Counterparty, BlockCypher,
+  Blockstream, and mempool.space; their live node policy is not proved by an HTTP server version.
+  The review's observed multi-OP_RETURN transactions do not establish this exact combination.
+- The review's 81-block economics sample and address-index anomaly were supplied as findings;
+  their raw evidence is not in this repository and has not been independently rerun here. The
+  original 20-block window remains a historical measurement, not a profitability predictor or a
+  validation of the fee ceiling. A correlation over either window cannot prove a universal return
+  law. The fee-rate ceiling is a cost control only; no payout or profitability is promised.
+- The upcoming contract's activation and owner-controlled payout parameters need release-line
+  and deployed-state verification before mining is re-enabled. No fixed payout is compiled in.
+
+The sections below retain the original feasibility evidence. Where they describe the +57-vB
+fallback or permanent protection, the implementation changes in this follow-up supersede them.
+
 ## Executive verdict
 
 The idea is technically feasible without forcing Counterparty data into bare
@@ -23,13 +76,17 @@ them:
 [ordinary BTC change, if any]
 ```
 
-That order is load-bearing. Counterparty reads its data and then stops interpreting
+For a host carrying Counterparty data, that order is load-bearing. Counterparty reads its data and then stops interpreting
 outputs at the first ordinary output. Alkanes independently scans the whole
 transaction for `OP_RETURN OP_13`, so it can find the later runestone. Current
 Counterparty Core can construct this ordering through `more_outputs`, including a
 raw script output. This is now both a source-level conclusion and a successful
 local-regtest result, but not an end-to-end mainnet proof. See the current [Counterparty composer](https://github.com/CounterpartyXCP/counterparty-core/blob/67e10db3ee266068c1effc4e83653df39ace5ca8/counterparty-core/counterpartycore/lib/api/composer.py)
 and [Rust transaction parser](https://github.com/CounterpartyXCP/counterparty-core/blob/67e10db3ee266068c1effc4e83653df39ace5ca8/counterparty-rs/src/indexer/bitcoin_client.rs).
+
+The stop rule depends on Counterparty data already being present. A plain BTC host or DIESEL
+transfer does not establish that premise; the parser may instead reject it as non-Counterparty.
+The two cases must not be used interchangeably as a parser-boundary proof.
 
 The best construction depends on the host transaction:
 

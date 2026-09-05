@@ -81,6 +81,24 @@ describe('selectUtxosForTransaction', () => {
     });
   });
 
+  it.each([
+    { protectAlkanesUtxos: true },
+    { enableDieselMinting: true },
+  ])('requires fresh explorer discovery when Alkanes protection is active: %j', async settings => {
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, ...settings });
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('ab'.repeat(32), 0, 50000)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    await selectUtxosForTransaction(mockAddress);
+    expect(mockedFetchUTXOs).toHaveBeenCalledWith(mockAddress, undefined, true);
+  });
+
+  it('requires fresh discovery for an explicit DIESEL transfer while opt-ins are disabled', async () => {
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo('ab'.repeat(32), 0, 50000)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    await selectUtxosForTransaction(mockAddress, { includeDieselUtxos: true });
+    expect(mockedFetchUTXOs).toHaveBeenCalledWith(mockAddress, undefined, true);
+  });
+
   it('should filter out UTXOs with attached Counterparty assets', async () => {
     const mockUtxos = [
       createMockUtxo('tx1', 0, 50000),
@@ -229,6 +247,48 @@ describe('selectUtxosForTransaction', () => {
     }]);
 
     await expect(selectUtxosForTransaction(mockAddress)).rejects.toThrow('Insufficient UTXOs');
+  });
+
+  it('protects a confirmed output without journal history while the Alkanes indexer is behind', async () => {
+    const txid = 'ab'.repeat(32);
+    mockedFetchUTXOs.mockResolvedValue([createMockUtxo(txid, 0, 80_000)]);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+    mockedFetchInputsAlkanes.mockResolvedValue([{
+      inputIndex: 0, utxo: `${txid}:0`, balances: [], lookupFailed: true, unknownReason: 'indexer-behind',
+    }]);
+
+    const result = await selectUtxosForTransaction(mockAddress, { includeDieselUtxos: true, minUtxos: 0 });
+
+    expect(result.utxos).toEqual([]);
+    expect(result.dieselUtxos).toEqual([]);
+    expect(result.excludedUnknown).toBe(1);
+    expect(result.excludedWithAssets).toBe(0);
+    expect(result.excludedUtxos).toContain(`${txid}:0`);
+    expect(mockedFetchInputsAlkanes).toHaveBeenCalledWith([
+      { index: 0, txid, vout: 0, confirmed: true, blockHeight: 800000 },
+    ], [0]);
+  });
+
+  it('continues discovery beyond the first lookup batch to find later clean funding', async () => {
+    const candidates = Array.from({ length: 40 }, (_, index) => createMockUtxo(
+      index.toString(16).padStart(64, '0'), 0, 100_000 - index,
+    ));
+    const clean = candidates[35]!;
+    mockedFetchUTXOs.mockResolvedValue(candidates);
+    mockedFetchTokenBalances.mockResolvedValue([]);
+    mockedGetSettings.mockReturnValue({ ...DEFAULT_SETTINGS, protectAlkanesUtxos: true });
+    mockedFetchInputsAlkanes.mockImplementation(async inputs => inputs.filter(input => input.txid !== clean.txid).map(input => ({
+      inputIndex: input.index, utxo: `${input.txid}:${input.vout}`, balances: [{ id: '4:7', value: '1' }],
+    })));
+
+    const result = await selectUtxosForTransaction(mockAddress);
+
+    expect(result.utxos).toEqual([clean]);
+    expect(mockedFetchInputsAlkanes.mock.calls.map(([inputs]) => inputs.length)).toEqual([30, 10]);
+    expect(result.excludedWithAssets).toBe(39);
+    expect(result.excludedUtxos).toHaveLength(39);
+    expect(result.excludedUtxos).not.toContain(`${clean.txid}:0`);
   });
 
   it('should sort UTXOs by value (highest first)', async () => {
