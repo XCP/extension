@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import {
-  ApprovalExpired, ApprovalFooter,ApprovalSiteBar, 
+  ApprovalExpired, ApprovalFooter,ApprovalSiteBar, ApprovalUnavailable,
 } from './approval-chrome';
 
 vi.mock('@/components/icons', () => ({
@@ -16,6 +16,20 @@ describe('ApprovalExpired', () => {
     expect(screen.getByText('Nope')).toBeInTheDocument();
     rerender(<ApprovalExpired />);
     expect(screen.getByText('This signing request is no longer available.')).toBeInTheDocument();
+  });
+});
+
+describe('ApprovalUnavailable', () => {
+  it('offers a read retry without presenting an approval or claiming expiration', () => {
+    const retry = vi.fn();
+    const { rerender } = render(<ApprovalUnavailable message="Previous output lookup failed" onRetry={retry} retrying={false} />);
+    expect(screen.getByText('Previous output lookup failed')).toBeInTheDocument();
+    expect(screen.queryByText('Request Expired')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^sign/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry verification' }));
+    expect(retry).toHaveBeenCalledOnce();
+    rerender(<ApprovalUnavailable onRetry={retry} retrying />);
+    expect(screen.getByRole('button', { name: 'Verifying…' })).toBeDisabled();
   });
 });
 
@@ -52,6 +66,10 @@ describe('ApprovalFooter', () => {
 
     rerender(<ApprovalFooter {...base} blocked />);
     expect(screen.getByRole('button', { name: 'Blocked' })).toBeDisabled();
+
+    rerender(<ApprovalFooter {...base} blocked blockedLabel="Awaiting verification" />);
+    expect(screen.getByRole('button', { name: 'Awaiting verification' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /retry/i })).not.toBeInTheDocument();
 
     rerender(<ApprovalFooter {...base} busy />);
     expect(screen.getByRole('button', { name: 'Signing…' })).toBeInTheDocument();

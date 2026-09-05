@@ -15,6 +15,8 @@ interface CollapsibleProps {
    */
   variant?: 'inline' | 'card';
   className?: string;
+  /** Match the 16px card inset used by approval screens. */
+  compact?: boolean;
 }
 
 /**
@@ -31,20 +33,21 @@ export function Collapsible({
   defaultOpen = false,
   variant = 'inline',
   className = '',
+  compact = false,
 }: CollapsibleProps) {
   if (variant === 'card') {
     return (
       <Disclosure defaultOpen={defaultOpen}>
         {({ open }) => (
           <div className={`bg-white rounded-lg shadow-sm ${className}`}>
-            <DisclosureButton className="w-full px-6 py-4 flex items-center gap-1.5 text-left cursor-pointer hover:opacity-70 transition-opacity">
+            <DisclosureButton className={`w-full ${compact ? 'px-4' : 'px-6'} py-4 flex items-center gap-1.5 text-left cursor-pointer hover:opacity-70 transition-opacity focus-visible:outline-2 focus-visible:outline-blue-600 focus-visible:-outline-offset-2`}>
               <span className="text-sm font-medium text-gray-700">{title}</span>
               <FiChevronDown
                 className={`${open ? 'rotate-180' : ''} size-4 text-gray-400 transition-transform`}
                 aria-hidden="true"
               />
             </DisclosureButton>
-            <DisclosurePanel className="px-6 pb-4 space-y-4 border-t border-gray-100 pt-4">
+            <DisclosurePanel className={`${compact ? 'px-4 space-y-3' : 'px-6 space-y-4'} pb-4 border-t border-gray-100 pt-4`}>
               {children}
             </DisclosurePanel>
           </div>

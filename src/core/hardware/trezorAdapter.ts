@@ -62,9 +62,12 @@
  * - No trust in extension: Compromised extension cannot sign without device
  */
 
+import { bytesToHex } from '@noble/hashes/utils.js';
+import { Script, Transaction } from '@scure/btc-signer';
 import TrezorConnect, { DEVICE, DEVICE_EVENT } from '@trezor/connect-webextension';
 import { AddressFormat, decodeAddressFromScript } from '@/core/bitcoin/address';
-import { extractPsbtDetails } from '@/core/bitcoin/psbt';
+import { parsePSBT } from '@/core/bitcoin/psbt';
+import { assertTransactionMatchesReviewed, parseTransactionForIntegrity } from '@/core/bitcoin/transactionIntegrity';
 import type { IHardwareWalletAdapter } from '@/core/hardware/interface';
 import {
   DerivationPaths,
@@ -132,6 +135,8 @@ interface TrezorSignTransactionRequest {
   outputs: TrezorSignOutput[];
   coin: string;
   push: boolean;
+  version?: number;
+  lock_time?: number;
   refTxs?: TrezorRefTransaction[];
 }
 
@@ -971,13 +976,21 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
     const { psbtHex, inputPaths } = request;
 
-    // Parse the PSBT to extract transaction details
-    const psbtDetails = extractPsbtDetails(psbtHex);
+    const transaction = parsePSBT(psbtHex);
+    // Build the SDK's transaction in parallel. This catches any script/amount normalization
+    // before the device is asked to sign, including noncanonical OP_RETURN push encodings.
+    const mapped = new Transaction({
+      version: transaction.version,
+      lockTime: transaction.lockTime,
+      allowUnknownInputs: true,
+      allowUnknownOutputs: true,
+      disableScriptCheck: true,
+    });
 
     // Convert inputs to Trezor format
     const inputs: TrezorSignInput[] = [];
-    for (let i = 0; i < psbtDetails.inputs.length; i++) {
-      const input = psbtDetails.inputs[i]!;
+    for (let i = 0; i < transaction.inputsLength; i++) {
+      const input = transaction.getInput(i);
       const path = inputPaths.get(i);
 
       if (!path) {
@@ -990,7 +1003,9 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       }
 
       // Validate input value - don't silently default to 0
-      if (input.value === undefined || input.value === null) {
+      const prevout = (input.index === undefined ? undefined : input.nonWitnessUtxo?.outputs[input.index])
+        ?? input.witnessUtxo;
+      if (prevout?.amount === undefined || !input.txid || input.index === undefined) {
         throw new HardwareWalletError(
           `PSBT input ${i} is missing value (amount in satoshis)`,
           'INVALID_PSBT',
@@ -1005,29 +1020,44 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
 
       inputs.push({
         address_n: path,
-        prev_hash: input.txid,
-        prev_index: input.vout,
-        amount: String(input.value),
+        prev_hash: bytesToHex(input.txid),
+        prev_index: input.index,
+        amount: String(prevout.amount),
         script_type: scriptType,
-        sequence: RBF_SEQUENCE,
+        sequence: input.sequence ?? 0xffffffff,
       });
+      mapped.addInput({ txid: input.txid, index: input.index, sequence: input.sequence ?? 0xffffffff });
     }
 
     // Convert outputs to Trezor format
     const outputs: TrezorSignOutput[] = [];
-    for (let i = 0; i < psbtDetails.outputs.length; i++) {
-      const output = psbtDetails.outputs[i]!;
+    for (let i = 0; i < transaction.outputsLength; i++) {
+      const output = transaction.getOutput(i);
+      if (!output.script || output.amount === undefined) {
+        throw new HardwareWalletError(`PSBT output ${i} is incomplete`, 'INVALID_PSBT', 'trezor');
+      }
+      const scriptHex = bytesToHex(output.script);
 
-      if (output.type === 'op_return') {
-        // OP_RETURN output
+      if (output.script[0] === 0x6a) {
+        const decoded = Script.decode(output.script);
+        const data = decoded[1];
+        if (output.amount !== 0n || decoded.length !== 2 || !(data instanceof Uint8Array)) {
+          throw new HardwareWalletError(
+            `PSBT output ${i} cannot be represented exactly as a hardware OP_RETURN output`,
+            'UNSUPPORTED_OUTPUT_SCRIPT',
+            'trezor',
+            'The transaction contains a data output the device cannot reproduce exactly. Rebuild the transaction.',
+          );
+        }
         outputs.push({
           script_type: 'PAYTOOPRETURN',
           amount: '0',
-          op_return_data: output.opReturnData,
+          op_return_data: bytesToHex(data),
         });
+        mapped.addOutput({ script: Script.encode(['RETURN', data]), amount: 0n });
       } else {
         // Regular output - decode address from script
-        const address = decodeAddressFromScript(output.script);
+        const address = decodeAddressFromScript(scriptHex);
 
         if (!address) {
           // Bare multisig is the one that actually happens here, and it is not a decoding
@@ -1037,7 +1067,7 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
           // describes one (PAYTOMULTISIG means paying your own multisig account with real,
           // derivable keys). Saying "cannot decode address" sends the user looking at their
           // recipients, which are fine.
-          if (isBareMultisigScript(output.script)) {
+          if (isBareMultisigScript(scriptHex)) {
             throw new HardwareWalletError(
               `Output ${i} is a bare multisig data output`,
               'UNSUPPORTED_OUTPUT_SCRIPT',
@@ -1061,11 +1091,14 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         // concrete script from that address.
         outputs.push({
           address,
-          amount: String(output.value),
+          amount: String(output.amount),
           script_type: 'PAYTOADDRESS',
         });
+        mapped.addOutputAddress(address, output.amount);
       }
     }
+
+    assertTransactionMatchesReviewed(mapped, transaction);
 
     // Sign the transaction with Trezor
     const signRequest: TrezorSignTransactionRequest = {
@@ -1073,6 +1106,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
       outputs,
       coin: 'btc',
       push: false,
+      version: transaction.version,
+      lock_time: transaction.lockTime,
     };
 
     const result = await TrezorConnect.signTransaction(signRequest);
@@ -1085,6 +1120,8 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         'Failed to sign transaction. Please check your Trezor and try again.'
       );
     }
+
+    assertTransactionMatchesReviewed(parseTransactionForIntegrity(result.payload.serializedTx), transaction);
 
     // Trezor returns a fully signed raw transaction, not a PSBT
     // The signedTxHex property name makes this clear to callers
@@ -1120,10 +1157,13 @@ export class TrezorAdapter implements IHardwareWalletAdapter {
         this.confirmationHandler = null;
       }
 
-      TrezorConnect.dispose();
-      this.initialized = false;
-      this.connectionStatus = 'disconnected';
-      this.deviceInfo = null;
+      try {
+        await TrezorConnect.dispose();
+      } finally {
+        this.initialized = false;
+        this.connectionStatus = 'disconnected';
+        this.deviceInfo = null;
+      }
     }
   }
 
@@ -1259,7 +1299,7 @@ export async function resetTrezorAdapter(): Promise<void> {
     // No adapter instance, but TrezorConnect might still have state
     // (e.g., from a failed init or external initialization)
     try {
-      TrezorConnect.dispose();
+      await TrezorConnect.dispose();
     } catch {
       // Ignore if already disposed or not initialized
     }

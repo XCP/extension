@@ -42,6 +42,24 @@ describe('RequestStorage<T>', () => {
       expect(all).toHaveLength(2);
     });
 
+    it('serializes different instances sharing a background-owned storage key', async () => {
+      const second = new RequestStorage<TestRequest>({ storageKey: 'test_requests', requestName: 'second caller' });
+      const timestamp = Date.now();
+      await Promise.all([
+        storage.store({ id: 'first', origin: 'https://a.com', timestamp, data: 'first' }),
+        second.store({ id: 'second', origin: 'https://a.com', timestamp, data: 'second' }),
+      ]);
+      expect((await storage.getAll()).map(item => item.id)).toEqual(['first', 'second']);
+    });
+
+    it('does not overwrite existing data when the read for a write fails', async () => {
+      await storage.store({ id: 'first', origin: 'https://a.com', timestamp: Date.now(), data: 'keep' });
+      const read = vi.spyOn(chrome.storage.session, 'get').mockRejectedValueOnce(new Error('unavailable'));
+      await expect(storage.store({ id: 'second', origin: 'https://a.com', timestamp: Date.now(), data: 'new' })).rejects.toThrow();
+      read.mockRestore();
+      expect((await storage.getAll()).map(item => item.id)).toEqual(['first']);
+    });
+
     it('should clean up expired requests on store', async () => {
       vi.useFakeTimers();
       const now = Date.now();

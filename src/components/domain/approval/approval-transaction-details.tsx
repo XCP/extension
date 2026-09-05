@@ -40,7 +40,7 @@ export function ApprovalTransactionDetails({
   const attachedByInput = new Map(attachedAssets.map((entry) => [entry.inputIndex, entry]));
 
   return (
-    <Collapsible variant="card" title="Transaction Details">
+    <Collapsible compact variant="card" title="Transaction Details">
       {txid && (
         <div>
           <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">TX Hash</h4>

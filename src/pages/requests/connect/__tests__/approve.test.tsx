@@ -80,14 +80,18 @@ describe('ApproveConnection', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    approvalMocks.getCurrentApproval.mockReturnValue(null);
+    approvalMocks.getCurrentApproval.mockReturnValue({
+      id: 'test-123', origin: 'https://test.example.com', params: [{ address: 'bc1qtest123', walletId: 'test-wallet' }],
+    });
     approvalMocks.getPairedAddresses.mockResolvedValue(null);
     approvalMocks.resolveApproval.mockResolvedValue(true);
     approvalMocks.rejectApproval.mockResolvedValue(true);
+    vi.spyOn(window, 'close').mockImplementation(() => {});
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   /**
@@ -189,7 +193,7 @@ describe('ApproveConnection', () => {
       expect(screen.getByText(/unlock your wallet/i)).toBeInTheDocument();
     });
 
-    it('should show approval UI when wallet is loaded and unlocked', () => {
+    it('should show approval UI when wallet is loaded and unlocked', async () => {
       setupWalletContext({
         activeWallet: { id: 'test-wallet' },
         activeAddress: { address: 'bc1qtest123' },
@@ -202,8 +206,13 @@ describe('ApproveConnection', () => {
       expect(mockNavigate).not.toHaveBeenCalled();
 
       // Should show approval UI elements
-      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Loading request…' })).toBeDisabled();
+      expect(await screen.findByRole('button', { name: /^connect$/i })).toBeEnabled();
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+      expect(screen.getByText('This site is requesting access to view your wallet address')).toBeVisible();
+      expect(screen.getAllByRole('listitem').map(item => item.textContent?.trim())).toEqual([
+        'View your wallet address', 'Request transaction signatures', 'Request message signatures',
+      ]);
     });
 
     it('grants requested paired addresses without an opt-in the user can miss', async () => {
@@ -218,6 +227,7 @@ describe('ApproveConnection', () => {
       });
       approvalMocks.getCurrentApproval.mockReturnValue({
         id: 'test-123',
+        origin: 'https://test.example.com',
         params: [{
           capabilities: { pairedAddresses: true },
           address: 'bc1qtest123',
@@ -226,15 +236,18 @@ describe('ApproveConnection', () => {
       });
       approvalMocks.getPairedAddresses.mockResolvedValue({
         legacy: { address: '1legacy', pubKey: '02aa', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
-        segwit: { address: 'bc1qsegwit', pubKey: '02bb', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
+        segwit: { address: 'bc1qtest123', pubKey: '02bb', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
       });
 
       renderWithRouter();
 
       // Both addresses are named in the request itself, not hidden behind a checkbox below the fold.
-      expect(await screen.findByText('1leg...gacy')).toBeInTheDocument();
-      expect(screen.getByText('bc1q...gwit')).toBeInTheDocument();
-      expect(screen.getByText('View your wallet addresses')).toBeInTheDocument();
+      expect(await screen.findByText('1legacy')).toBeVisible();
+      expect(screen.getByText('Native SegWit address').nextElementSibling?.textContent).toBe('bc1qtest123');
+      expect(screen.getByText('both of your wallet addresses')).toBeVisible();
+      expect(screen.getAllByRole('listitem').map(item => item.textContent?.trim())).toEqual([
+        'View your wallet addresses', 'Request signatures from either address', 'Request message signatures',
+      ]);
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /connect both/i })).toBeEnabled();
@@ -260,6 +273,7 @@ describe('ApproveConnection', () => {
       });
       approvalMocks.getCurrentApproval.mockReturnValue({
         id: 'test-123',
+        origin: 'https://test.example.com',
         params: [{
           capabilities: { pairedAddresses: true },
           address: 'bc1qtest123',
@@ -271,7 +285,7 @@ describe('ApproveConnection', () => {
       renderWithRouter();
 
       expect(await screen.findByText(/Paired addresses are unavailable/i)).toBeInTheDocument();
-      expect(screen.getByText('View your wallet address')).toBeInTheDocument();
+      expect(screen.getByText('This site is requesting access to view your wallet address')).toBeVisible();
       const connect = screen.getByRole('button', { name: /^connect$/i });
       expect(connect).toBeEnabled();
       fireEvent.click(connect);
@@ -295,6 +309,7 @@ describe('ApproveConnection', () => {
       });
       approvalMocks.getCurrentApproval.mockReturnValue({
         id: 'test-123',
+        origin: 'https://test.example.com',
         params: [{
           capabilities: { pairedAddresses: true },
           address: 'bc1ptest123',
@@ -304,10 +319,11 @@ describe('ApproveConnection', () => {
 
       renderWithRouter();
 
-      expect(await screen.findByText('View your wallet address')).toBeInTheDocument();
+      expect(screen.getByText('This site is requesting access to view your wallet address')).toBeVisible();
       expect(screen.queryByText(/Paired addresses are unavailable/i)).not.toBeInTheDocument();
       expect(approvalMocks.getPairedAddresses).not.toHaveBeenCalled();
-      const connect = screen.getByRole('button', { name: /^connect$/i });
+      const connect = await screen.findByRole('button', { name: /^connect$/i });
+      expect(connect).toBeEnabled();
       fireEvent.click(connect);
       await waitFor(() => {
         expect(approvalMocks.resolveApproval).toHaveBeenCalledWith('test-123', {
@@ -325,6 +341,7 @@ describe('ApproveConnection', () => {
       });
       approvalMocks.getCurrentApproval.mockReturnValue({
         id: 'test-123',
+        origin: 'https://test.example.com',
         params: [{
           capabilities: { pairedAddresses: true },
           address: 'bc1qtest123',
@@ -335,10 +352,11 @@ describe('ApproveConnection', () => {
       renderWithRouter();
 
       expect(await screen.findByText(/active address changed/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /connect/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Unavailable' })).toBeDisabled();
+      expect(approvalMocks.resolveApproval).not.toHaveBeenCalled();
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     });
-    it('should display the origin domain in approval UI', () => {
+    it('should display the background request origin domain in approval UI', async () => {
       setupWalletContext({
         activeWallet: { id: 'test-wallet' },
         activeAddress: { address: 'bc1qtest123' },
@@ -347,14 +365,14 @@ describe('ApproveConnection', () => {
 
       renderWithRouter('?origin=https://example.com&requestId=test-123');
 
-      // Should show the domain (appears in both heading and full URL)
-      const domainElements = screen.getAllByText(/example\.com/i);
-      expect(domainElements.length).toBeGreaterThan(0);
+      expect(await screen.findByText('test.example.com')).toBeVisible();
+      expect(screen.getByText('https://test.example.com')).toBeVisible();
+      expect(screen.queryByText('https://example.com')).not.toBeInTheDocument();
     });
   });
 
   describe('State Transitions', () => {
-    it('should handle transition from loading to loaded with wallet', () => {
+    it('should handle transition from loading to loaded with wallet', async () => {
       // Start with loading state
       setupWalletContext({
         activeWallet: null,
@@ -386,7 +404,8 @@ describe('ApproveConnection', () => {
 
       // Should now show approval UI
       expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Loading request…' })).toBeDisabled();
+      expect(await screen.findByRole('button', { name: /^connect$/i })).toBeEnabled();
     });
 
     it('should handle transition from loading to loaded without wallet', () => {
@@ -424,7 +443,7 @@ describe('ApproveConnection', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle missing query params gracefully', () => {
+    it('should handle missing query params gracefully', async () => {
       setupWalletContext({
         activeWallet: { id: 'test-wallet' },
         activeAddress: { address: 'bc1qtest123' },
@@ -434,8 +453,10 @@ describe('ApproveConnection', () => {
       // No query params
       renderWithRouter('');
 
-      // Should still render without crashing
-      expect(screen.getByRole('button', { name: /connect/i })).toBeInTheDocument();
+      // A missing request cannot grant access even though the review shell still renders.
+      expect(await screen.findByText('This connection request is no longer available.')).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Unavailable' })).toBeDisabled();
+      expect(approvalMocks.resolveApproval).not.toHaveBeenCalled();
     });
 
     it('should handle wallet but no address', () => {

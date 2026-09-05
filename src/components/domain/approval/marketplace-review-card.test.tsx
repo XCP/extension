@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
 import { MarketplaceReviewCard } from './marketplace-review-card';
 
 describe('MarketplaceReviewCard', () => {
@@ -80,7 +80,10 @@ describe('MarketplaceReviewCard', () => {
 
     expect(screen.getByText('Verification incomplete — retry')).toBeInTheDocument();
     expect(screen.queryByText('Marketplace terms did not verify')).not.toBeInTheDocument();
-    expect(screen.getByText(/retry in a moment/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
+    expect(screen.getByText(/Signing stays unavailable until verification succeeds/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Nothing looks wrong/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry verification' })).not.toBeInTheDocument();
   });
 
   it('keeps a proved mismatch visually distinct from a retry', () => {
@@ -94,6 +97,22 @@ describe('MarketplaceReviewCard', () => {
     }} />);
 
     expect(screen.getByText('Marketplace terms did not verify')).toBeInTheDocument();
+    expect(screen.getByTestId('approval-notice-reason')).toHaveTextContent('Seller payment differs.');
+    fireEvent.click(screen.getByRole('button', { name: 'Why signing is unavailable' }));
     expect(screen.getByText(/Signing is blocked/i)).toBeInTheDocument();
+  });
+
+  it('offers recovery independently of authorization and disables a pending retry', () => {
+    const onRetry = vi.fn();
+    const review = { status: 'retry' as const, family: 'create_listing' as const,
+      title: 'List 1 RAREPEPE', facts: [], notices: [], blockers: ['Asset lookup unavailable'] };
+    const { rerender } = render(<MarketplaceReviewCard review={review} onRetry={onRetry} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Retry verification' }));
+    expect(onRetry).toHaveBeenCalledOnce();
+    rerender(<MarketplaceReviewCard review={review} onRetry={onRetry} retrying />);
+    expect(screen.getByRole('button', { name: 'Verifying…' })).toBeDisabled();
+    rerender(<MarketplaceReviewCard review={review} onRetry={onRetry} retryError="Ledger still unavailable" />);
+    expect(screen.getByRole('alert')).toHaveTextContent('Ledger still unavailable');
+    expect(screen.queryByRole('button', { name: /^(sign|authorize)( |$)/i })).not.toBeInTheDocument();
   });
 });

@@ -1,9 +1,9 @@
+import { captureApprovalSizes } from '../utils/approval-layout';
 /**
  * Screenshots every provider approval screen, one file per state.
  *
- * Not an assertion suite — it exists so the approval screens can be reviewed as a set after a
- * change, which otherwise means clicking through a dapp by hand and hitting whichever states your
- * balances happen to allow.
+ * Captures the approval screens as a set and asserts their warning states after a change, which
+ * otherwise means clicking through a dapp by hand and hitting whichever states balances allow.
  *
  * Transactions are built here rather than composed. Half the interesting message types cannot be
  * composed on demand (cancel needs an open order, dividend needs to be the issuer, fairmint needs
@@ -17,14 +17,17 @@
  * External Address" on every screen and buries the state actually under review.
  *
  * Output: test-results/approval-gallery/*.png
+ * Optional subset: XCP_GALLERY_SCENARIOS=attach,detach (both raw and PSBT variants).
  */
 
 import { Address, OutScript } from '@scure/btc-signer';
 import * as fs from 'fs';
 import * as path from 'path';
 import { expect, walletTest } from '../fixtures';
+import { assertGalleryWorkerRouting, authorizeGalleryOrigin, createGalleryApi, type GalleryApi, selectGalleryScenarios } from '../utils/provider-gallery';
 
 const OUT_DIR = 'test-results/approval-gallery';
+const ORIGIN = 'https://launchpad.xcp.fun';
 
 
 /**
@@ -47,8 +50,8 @@ const scenarioFixtures = JSON.parse(
 ) as { input: { txid: string; vout: number }; scenarios: Record<string, { rawTxHex: string }> };
 
 /**
- * Value left to the signer as change. The input is a real 18,074-sat outpoint whose value the
- * screen resolves by lookup, so this must sit below it — change above the input yields a negative
+ * Value left to the signer as change. The mocked input is 18,074 sats, whose value the screen
+ * resolves by lookup, so this must sit below it — change above the input yields a negative
  * fee, which is what the screens showed while this was set too high.
  */
 const CHANGE_VALUE = 17_500;
@@ -152,17 +155,17 @@ function rebuildForSigner(
  */
 
 /**
- * The prevout every fixture spends: a real outpoint of 18,074 sats paying the P2PKH address that
- * composed them. Encoded as PSBT_IN_WITNESS_UTXO (key 0x01) followed by the map terminator.
+ * The same fabricated signer-owned 18,074-sat prevout supplied to the raw decoder's network
+ * lookup. Encoded as PSBT_IN_WITNESS_UTXO (key 0x01) followed by the map terminator.
  */
-function witnessUtxo(): string {
-  const script = '76a9145c333992ab554e7573df3d2a412df750a60d1f5b88ac';
+function witnessUtxo(signerAddress: string): string {
+  const script = Buffer.from(OutScript.encode(Address().decode(signerAddress))).toString('hex');
   const value = le(18_074, 8);
   const record = value + le(script.length / 2, 1) + script;
   return '01' + '01' + le(record.length / 2, 1) + record + '00';
 }
 
-function toPsbt(rawTxHex: string): string {
+function toPsbt(rawTxHex: string, signerAddress: string): string {
   const bytes = rawTxHex.length / 2;
   const varint = (n: number): string => {
     if (n < 0xfd) return le(n, 1);
@@ -191,7 +194,7 @@ function toPsbt(rawTxHex: string): string {
     // — on every screenshot. That is an artifact of a hand-built envelope, not of the product:
     // real PSBTs from the integrator carry these records. Omitting them made all 25 PSBT
     // screenshots show a warning a user would not see.
-    witnessUtxo().repeat(inputCount),
+    witnessUtxo(signerAddress).repeat(inputCount),
     '00'.repeat(outputCount),          // one empty map per output
   ].join('');
 }
@@ -247,6 +250,20 @@ async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp
   return ALL_WARNING_PATTERNS.filter((re) => re.test(body));
 }
 
+/** Consequential facts must survive both approval presentation paths. */
+async function assertScenarioFacts(page: import('@playwright/test').Page, name: string): Promise<void> {
+  if (name === 'dividend') {
+    await expect(page.getByText('0.00000001 XCP per unit', { exact: true })).toBeVisible();
+    const total = page.locator('dl > div').filter({ has: page.locator('dt').filter({ hasText: /^Total dividend$/ }) });
+    await expect(total.locator('dd')).toHaveText('0.00001779 XCP');
+    return;
+  }
+  if (name !== 'send-with-memo') return;
+  const memo = page.locator('dl > div').filter({ has: page.locator('dt').filter({ hasText: /^Memo$/ }) });
+  await expect(memo.locator('dd')).toHaveText('invoice 42');
+  await expect(memo.locator('dd')).toBeVisible();
+}
+
 /**
  * Ledger answers for the states the live ledger cannot produce on demand. The fixture outpoint
  * carries no attached assets, the fake dispenser address runs no dispenser, and the pool test
@@ -255,31 +272,37 @@ async function warningsOn(page: import('@playwright/test').Page): Promise<RegExp
  * These stubs answer only those specific lookups; every other request still hits the real API.
  */
 async function installScenarioStubs(
-  page: import('@playwright/test').Page,
-  name: string
+  api: GalleryApi,
+  name: string,
+  signerAddress: string,
 ): Promise<void> {
   const fixtureOutpoint = `${scenarioFixtures.input.txid}:${scenarioFixtures.input.vout}`;
-  if (name === 'detach') {
-    await page.route(/\/v2\/utxos\//, (route) => {
-      const match = new URL(route.request().url()).pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
-      if (!match) return route.continue();
-      const utxo = decodeURIComponent(match[1]!);
-      return route.fulfill({
-        json: {
-          result: utxo === fixtureOutpoint
-            ? [
-                { asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1', asset_info: { divisible: false, asset_longname: null } },
-                { asset: 'PEPECASH', quantity: '50000000', quantity_normalized: '0.5', asset_info: { divisible: true, asset_longname: null } },
-              ]
-            : [],
-          next_cursor: null,
-          result_count: utxo === fixtureOutpoint ? 2 : 0,
-        },
-      });
+  // Both raw and PSBT screenshots describe a fabricated signer-owned 18,074-sat input. Its
+  // outpoint stays fixed because it is also the fixture payload's ARC4 key; these never sign.
+  await api.route(new RegExp(`/api/tx/${scenarioFixtures.input.txid}$`), route => route.fulfill({
+    json: { vout: Array.from({ length: scenarioFixtures.input.vout + 1 }, () => ({
+      value: 18_074, scriptpubkey_address: signerAddress,
+    })) },
+  }));
+  await api.route(/\/v2\/utxos\//, (route) => {
+    const match = new URL(route.request().url()).pathname.match(/\/v2\/utxos\/([^/]+)\/balances/);
+    if (!match) return route.fallback();
+    const utxo = decodeURIComponent(match[1]!);
+    return route.fulfill({
+      json: {
+        result: name === 'detach' && utxo === fixtureOutpoint
+          ? [
+              { asset: 'RAREPEPE', quantity: '1', quantity_normalized: '1', asset_info: { divisible: false, asset_longname: null } },
+              { asset: 'PEPECASH', quantity: '50000000', quantity_normalized: '0.5', asset_info: { divisible: true, asset_longname: null } },
+            ]
+          : [],
+        next_cursor: null,
+        result_count: name === 'detach' && utxo === fixtureOutpoint ? 2 : 0,
+      },
     });
-  }
+  });
   if (name === 'dispense') {
-    await page.route(/\/dispensers/, (route) => route.fulfill({
+    await api.route(/\/dispensers/, (route) => route.fulfill({
       json: {
         result: [{
           asset: 'BAMBOU',
@@ -298,7 +321,7 @@ async function installScenarioStubs(
   if (name.startsWith('pool-')) {
     // The unpack endpoint names an asset its ledger cannot resolve as the literal 0, and the
     // divisibility enrichment then looks THAT up — so the stub answers both spellings.
-    await page.route(/\/v2\/assets\/(A9542\d+|0)([/?]|$)/, (route) => {
+    await api.route(/\/v2\/assets\/(A9542\d+|0)([/?]|$)/, (route) => {
       const match = new URL(route.request().url()).pathname.match(/\/v2\/assets\/([^/?]+)/);
       return route.fulfill({
         json: {
@@ -312,7 +335,7 @@ async function installScenarioStubs(
         },
       });
     });
-    await page.route(/\/v2\/pools\//, (route) => route.fulfill({
+    await api.route(/\/v2\/pools\//, (route) => route.fulfill({
       json: {
         result: {
           asset_a: 'XCP',
@@ -355,11 +378,14 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   walletTest.setTimeout(300_000);
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
-  const scenarios = Object.entries(scenarioFixtures.scenarios);
+  const scenarios = selectGalleryScenarios(Object.entries(scenarioFixtures.scenarios), ([name]) => name);
+  const identity = await authorizeGalleryOrigin(page, ORIGIN);
+  const signerAddress = identity.address;
+  await assertGalleryWorkerRouting(context, extensionId);
 
   // One record per signing request, in the shape `beginSignFlow` writes (`signFlow.ts`). Seeded
-  // directly rather than through a dApp connection, so `requestKey` only has to be present — it
-  // exists for rejoining a duplicate request, which this gallery never makes.
+  // directly after granting the origin through WalletService. `requestKey` exists for rejoining
+  // a duplicate request, which this gallery never makes; identity and grants are real.
   const seed = async (id: string, rawTxHex: string) => {
     await page.evaluate(
       async (req) => {
@@ -367,10 +393,9 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       },
       {
         id,
-        origin: 'https://launchpad.xcp.fun',
+        origin: ORIGIN,
         timestamp: Date.now(),
-        address: '',
-        walletId: '',
+        ...identity,
         requestKey: `xcp_signTransaction:${id}`,
         kind: 'sign-transaction',
         status: 'pending',
@@ -379,7 +404,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     );
   };
 
-  const openApproval = async (id: string, scenarioName?: string) => {
+  const openApproval = async (id: string) => {
     await settle(SCREEN_SPACING_MS);
     const approval = await context.newPage();
     // Popup width, because the horizontal-overflow bugs this gallery exists to catch are width
@@ -387,30 +412,14 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
     // captures nothing below the fold and warnings and the recipient list were cut off. A tall
     // viewport puts the whole screen in one image.
     await approval.setViewportSize({ width: 380, height: 1400 });
-    if (scenarioName) await installScenarioStubs(approval, scenarioName);
     await approval.goto(
       `chrome-extension://${extensionId}/popup.html#/requests/transaction/approve?requestId=${id}`
     );
     // The screen decodes and cross-checks before it can describe anything, so wait on the footer
     // rather than a fixed delay. A signable request with cautions labels the button Review.
-    await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+    await expect(approval.getByRole('button', { name: /^(sign transaction|review|blocked|awaiting verification)$/i })).toBeVisible({ timeout: 60_000 });
     return approval;
   };
-
-  // The signing address is derived after unlock and never written to storage, and the header
-  // renders it CSS-truncated — so read it off a first render, where textContent holds it in full.
-  await seed('gallery-probe', scenarios[0]![1].rawTxHex);
-  const probe = await openApproval('gallery-probe');
-  const signerAddress = (
-    await probe
-      .locator('p')
-      .filter({ hasText: /^(bc1|tb1|[13])[a-zA-Z0-9]{25,}$/ })
-      .first()
-      .textContent()
-  )?.trim();
-  await probe.close();
-
-  expect(signerAddress, 'signing address must be readable from the approval header').toBeTruthy();
 
   const captured: string[] = [];
   const warningMismatches: string[] = [];
@@ -418,8 +427,12 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   for (const [name, { rawTxHex }] of scenarios) {
     await walletTest.step('Capture transaction approval', async () => {
       const id = `gallery-${name}`;
-      await seed(id, rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
-      const approval = await openApproval(id, name);
+      const api = await createGalleryApi(context, page, id);
+      await installScenarioStubs(api, name, signerAddress);
+      await seed(id, rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
+      const approval = await openApproval(id);
+      await assertScenarioFacts(approval, name);
+      await captureApprovalSizes(approval, OUT_DIR, name);
 
       // Expanded, so inputs, outputs and the mpma recipient list are part of the captured state —
       // for a multi-destination send that panel is the only place the payees appear at all.
@@ -445,6 +458,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       await approval.screenshot({ path: path.join(OUT_DIR, `${name}.png`), fullPage: true });
       captured.push(name);
       await approval.close();
+      await api.dispose();
     }, { subtitle: name, params: { scenario: name, requestType: 'transaction' } });
   }
 
@@ -453,31 +467,34 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   for (const [name, { rawTxHex }] of scenarios) {
     await walletTest.step('Capture PSBT approval', async () => {
       const id = `gallery-psbt-${name}`;
+      const api = await createGalleryApi(context, page, id);
+      await installScenarioStubs(api, name, signerAddress);
       await page.evaluate(
         async (req) => {
           await chrome.storage.session.set({ pending_sign_flow: [req] });
         },
         {
           id,
-          origin: 'https://launchpad.xcp.fun',
+          origin: ORIGIN,
           timestamp: Date.now(),
-          address: signerAddress!,
-          walletId: '',
+          ...identity,
           requestKey: `xcp_signPsbt:${id}`,
           kind: 'sign-psbt',
           status: 'pending',
-          psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress!, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name))),
+          psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)), signerAddress),
         }
       );
 
       await settle(SCREEN_SPACING_MS);
       const approval = await context.newPage();
       await approval.setViewportSize({ width: 380, height: 1400 });
-      await installScenarioStubs(approval, name);
       await approval.goto(
         `chrome-extension://${extensionId}/popup.html#/requests/psbt/approve?requestId=${id}`
       );
-      await expect(approval.getByRole('button', { name: /^(sign|review|blocked)$/i })).toBeVisible({ timeout: 60_000 });
+      await expect(approval.getByRole('button', { name: /^(sign transaction|review|blocked|awaiting verification)$/i })).toBeVisible({ timeout: 60_000 });
+
+      await assertScenarioFacts(approval, name);
+      await captureApprovalSizes(approval, OUT_DIR, `psbt-${name}`);
 
       // Expanded, for the same reason as above: the recipients list and the checks line live in
       // this panel, and they are precisely what was missing from this screen.
@@ -487,6 +504,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
       await approval.screenshot({ path: path.join(OUT_DIR, `psbt-${name}.png`), fullPage: true });
       await approval.close();
+      await api.dispose();
     }, { subtitle: name, params: { scenario: name, requestType: 'psbt' } });
   }
 
@@ -497,5 +515,5 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
   expect(warningMismatches, 'warnings did not match these scenarios').toEqual([]);
 
   expect(captured).toEqual(scenarios.map(([name]) => name));
-  console.log(`\nApproval gallery: ${captured.length} screens in ${OUT_DIR}\n`);
+  console.log(`\nApproval gallery: ${captured.length * 2} transaction and PSBT screens in ${OUT_DIR}\n`);
 });

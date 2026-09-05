@@ -43,6 +43,19 @@ describe('MoneyMovementView', () => {
     expect(screen.getByText(/some amounts couldn't be determined/i)).toBeInTheDocument();
   });
 
+  it('does not turn a missing prevout into a zero network fee', () => {
+    render(<MoneyMovementView movement={movement({ fee: 0, incomplete: true })} />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('Unavailable');
+    expect(screen.queryByText('0.00000000 BTC')).not.toBeInTheDocument();
+  });
+
+  it('still shows a verified zero fee, and keeps unfunded fee terms distinct', () => {
+    const { rerender } = render(<MoneyMovementView movement={movement({ fee: 0 })} showHeadline={false} />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('0.00000000 BTC');
+    rerender(<MoneyMovementView movement={movement({ fee: 0, incomplete: true })} unfunded />);
+    expect(screen.getByText('Network fee').parentElement).toHaveTextContent('Set by the other party');
+  });
+
   it('does not claim a direction when the totals are incomplete', () => {
     // An input whose value or owner could not be resolved is excluded from `spent`, which drives
     // `net` non-negative — so a draining transaction used to announce "You receive". The direction

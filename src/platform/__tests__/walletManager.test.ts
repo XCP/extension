@@ -566,7 +566,7 @@ describe('WalletManager', () => {
       );
 
       await expect(
-        walletManager['getOrCreateKeychain']('test-password')
+        walletManager['mutateVault'](() => walletManager['getOrCreateKeychain']('test-password'))
       ).rejects.toThrow('already exists');
       expect(saveKeychainRecord).not.toHaveBeenCalled();
     });

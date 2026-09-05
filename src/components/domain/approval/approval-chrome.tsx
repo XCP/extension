@@ -1,6 +1,67 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { FiClock, FiGlobe } from '@/components/icons';
 import { Button } from '@/components/ui/button';
+
+/** One scrolling decision area and one persistent action area for every approval. */
+export function ApprovalLayout({ walletName, address, origin, children, footer, attention }: {
+  walletName: string;
+  address: string;
+  origin: string;
+  children: ReactNode;
+  footer: ReactNode;
+  attention?: ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-gray-50">
+      <div data-testid="approval-content" className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="mx-auto max-w-md space-y-3 text-sm leading-5 [overflow-wrap:anywhere]">
+          <ApprovalWalletHeader walletName={walletName} address={address} />
+          <ApprovalSiteBar origin={origin} />
+          {children}
+        </div>
+      </div>
+      {footer}
+      {attention}
+    </div>
+  );
+}
+
+/** Recovery stays in the content area, away from the authorization button. */
+export function ApprovalRetry({ onRetry, retrying, error }: {
+  onRetry: () => void;
+  retrying: boolean;
+  error?: string | null;
+}) {
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-5 text-amber-950">
+      <p>Required information is unavailable. Retry the checks before signing.</p>
+      <Button color="gray" onClick={onRetry} disabled={retrying} fullWidth className="mt-3 min-h-11">
+        {retrying ? 'Verifying…' : 'Retry verification'}
+      </Button>
+      {error && <p role="alert" className="mt-2">{error}</p>}
+    </div>
+  );
+}
+
+/** A failed read is not evidence that a request expired. Retrying cannot authorize it. */
+export function ApprovalUnavailable({ message, onRetry, retrying }: {
+  message?: string | null;
+  onRetry?: () => void;
+  retrying: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
+      <h1 className="text-lg font-semibold leading-6 text-gray-900">Unable to review request</h1>
+      <p role="alert" className="text-sm leading-5 text-gray-700 [overflow-wrap:anywhere]">
+        {message || 'The request details are unavailable.'}
+      </p>
+      {onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} fullWidth>
+        {retrying ? 'Verifying…' : 'Retry verification'}
+      </Button>}
+      <Button color="gray" onClick={() => window.close()} fullWidth>Close Window</Button>
+    </div>
+  );
+}
 
 /*
  * Shared chrome for the provider approval screens (PSBT and raw transaction),
@@ -92,7 +153,7 @@ export function ApprovalSiteBar({ origin }: { origin: string }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-gray-900 break-all" title={domain}>{domain}</p>
-        <p className="text-xs text-gray-400 break-all" title={origin}>{origin}</p>
+        <p className="text-xs leading-normal text-gray-500 break-all" title={origin}>{origin}</p>
       </div>
     </div>
   );
@@ -106,6 +167,8 @@ export function ApprovalFooter({
   blocked,
   isHardware,
   signLabel = 'Sign',
+  blockedLabel = 'Blocked',
+  busyLabel,
 }: {
   onCancel: () => void;
   onSign: () => void;
@@ -114,15 +177,17 @@ export function ApprovalFooter({
   isHardware: boolean;
   /** Use "Review" when signing first opens a focused consequence screen. */
   signLabel?: string;
+  blockedLabel?: string;
+  busyLabel?: string;
 }) {
   return (
-    <div className="bg-white border-t border-gray-200 p-4">
-      <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
-        <Button color="gray" onClick={onCancel} disabled={busy} fullWidth>
+    <div data-testid="approval-footer" className="shrink-0 bg-white border-t border-gray-200 p-4 text-sm leading-5">
+      <div className="max-w-md mx-auto flex flex-wrap gap-3">
+        <Button color="gray" onClick={onCancel} disabled={busy} fullWidth className="min-h-11 flex-[1_1_5rem]">
           Cancel
         </Button>
-        <Button color="blue" onClick={onSign} disabled={busy || blocked} fullWidth>
-          {busy ? (isHardware ? 'Confirm on device…' : 'Signing…') : blocked ? 'Blocked' : signLabel}
+        <Button color="blue" onClick={onSign} disabled={busy || blocked} fullWidth className="min-h-11 flex-[2_1_10rem] bg-blue-600 hover:bg-blue-700">
+          {busy ? (busyLabel ?? (isHardware ? 'Confirm on device…' : 'Signing…')) : blocked ? blockedLabel : signLabel}
         </Button>
       </div>
     </div>

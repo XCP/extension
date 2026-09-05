@@ -1,7 +1,11 @@
 import { defineContentScript, injectScript } from '#imports';
 import { MESSAGE_TARGETS, MESSAGE_TYPES } from '@/constants/messaging';
-import { classifyProviderError } from '@/core/rpcErrors';
+import { classifyProviderError, JSON_RPC_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { disconnectAllPorts } from '@/platform/proxy';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 // Always include localhost for local dApp testing (safe - only accessible locally)
 // HTTPS for all other sites
@@ -44,7 +48,7 @@ export default defineContentScript({
       }
 
       // Type guard for message object
-      const msg = message as { type?: string; action?: string; event?: string; data?: unknown } | undefined;
+      const msg = isRecord(message) ? message : undefined;
 
       // Handle startup health checks
       if (msg?.type === 'startup-health-check' || msg?.action === 'ping') {
@@ -78,108 +82,30 @@ export default defineContentScript({
     // Register the runtime message handler IMMEDIATELY
     browser.runtime.onMessage.addListener(runtimeMessageHandler);
 
-    // Set up message relay between page and background
-    const messageHandler = async (event: MessageEvent) => {
-      // Security: Validate message source AND origin
-      // - event.source !== window: Reject messages from iframes/other windows
-      // - event.origin check: Reject messages from different origins (defense-in-depth)
-      if (event.source !== window) return;
-      if (event.origin !== window.location.origin) return;
-
-      // Check for XCP wallet messages
-      if (event.data?.target === MESSAGE_TARGETS.CONTENT && event.data?.type === MESSAGE_TYPES.REQUEST) {
-        try {
-          let response: any;
-          
-          // Use Proxy Pattern (same as popup) with retry logic for service worker
-          try {
-            const { getProviderService } = await import('@/services/providerService');
-            const providerService = getProviderService();
-
-            // The provider service expects method and params from the request
-            const { method, params } = event.data.data;
-
-            // ISSUE 5 FIX: Validate input types at boundary (defense-in-depth)
-            if (typeof method !== 'string') {
-              throw new Error('Invalid request: method must be a string');
-            }
-            if (params !== undefined && !Array.isArray(params)) {
-              throw new Error('Invalid request: params must be an array');
-            }
-
-            const result = await providerService.handleRequest(
-              window.location.origin,
-              method,
-              params
-            );
-
-            // Format response to match expected structure
-            response = {
-              success: true,
-              method,
-              result
-            };
-          } catch (error: any) {
-            console.debug('Provider service request failed:', error);
-            // The proxy delivers only the message, so the structured code a dApp
-            // branches on is derived from it here at the boundary.
-            response = { success: false, error: classifyProviderError(error) };
-          }
-          
-          // Handle the response properly
-          if (!response) {
-            // No response from background
-            window.postMessage({
-              target: MESSAGE_TARGETS.INJECTED,
-              type: MESSAGE_TYPES.RESPONSE,
-              id: event.data.id,
-              error: {
-                message: 'No response from extension background',
-                code: -32603 // Internal JSON-RPC error
-              }
-            }, window.location.origin);
-          } else if (response?.success) {
-            // Successful response
-            window.postMessage({
-              target: MESSAGE_TARGETS.INJECTED,
-              type: MESSAGE_TYPES.RESPONSE,
-              id: event.data.id,
-              data: {
-                method: response?.method || event.data.data.method,
-                result: response?.result
-              }
-            }, window.location.origin);
-          } else {
-            // Error response
-            window.postMessage({
-              target: MESSAGE_TARGETS.INJECTED,
-              type: MESSAGE_TYPES.RESPONSE,
-              id: event.data.id,
-              error: response?.error || {
-                message: 'Unknown error',
-                code: -32603 // Internal JSON-RPC error
-              }
-            }, window.location.origin);
-          }
-        } catch (error) {
-          console.error('Content script error handling provider request:', error);
-          // ISSUE 1 FIX: Use generic error message to prevent information leakage
-          // Internal errors should not expose implementation details to dApps
-          const errorCode = error && typeof error === 'object' && 'code' in error ? (error as any).code : -32603;
-
-          window.postMessage({
-            target: MESSAGE_TARGETS.INJECTED,
-            type: MESSAGE_TYPES.RESPONSE,
-            id: event.data.id,
-            error: {
-              message: 'Request failed',
-              code: errorCode
-            }
-          }, window.location.origin);
+    // The page controls the payload. The background independently validates the
+    // transport and derives the origin from the browser sender.
+    const messageHandler = async (event: MessageEvent<unknown>) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const request = event.data;
+      if (!isRecord(request) || request.target !== MESSAGE_TARGETS.CONTENT || request.type !== MESSAGE_TYPES.REQUEST) return;
+      if (!(typeof request.id === 'string' && request.id.length <= 256)
+        && !(typeof request.id === 'number' && Number.isSafeInteger(request.id))) return;
+      const envelope = { target: MESSAGE_TARGETS.INJECTED, type: MESSAGE_TYPES.RESPONSE, id: request.id };
+      try {
+        if (!isRecord(request.data) || typeof request.data.method !== 'string') {
+          throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Invalid request: method must be a string');
         }
+        const { method, params } = request.data;
+        if (params !== undefined && !Array.isArray(params)) {
+          throw new ProviderError(JSON_RPC_ERROR_CODES.INVALID_PARAMS, 'Invalid request: params must be an array');
+        }
+        const { getProviderService } = await import('@/services/providerService');
+        const result = await getProviderService().handleRequest(window.location.origin, method, params);
+        window.postMessage({ ...envelope, data: { method, result } }, window.location.origin);
+      } catch (error: unknown) {
+        window.postMessage({ ...envelope, error: classifyProviderError(error) }, window.location.origin);
       }
     };
-
     // Add message event listeners
     window.addEventListener('message', messageHandler);
 

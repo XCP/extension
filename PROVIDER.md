@@ -116,6 +116,15 @@ await xcpwallet.request({ method: 'xcp_disconnect' });
 
 All signing methods require an active connection and open a popup for user approval.
 
+Requests expire ten minutes after creation. The background binds approval to the requesting
+origin, wallet, address, and the reviewed transaction. It rechecks permissions and verification
+when the user approves. A request is refused if the selected identity or permissions no longer
+match; changed review facts must be presented again before signing. A repeated identical request
+can recover a completed result within its original lifetime, subject to current wallet identity,
+connection and paired-address grants, and session checks. Live results and recovery use the same
+delivery checks. Refused delivery does not erase an already persisted completion, and a lost
+response does not prove signing failed. An interrupted signing command is not automatically signed again.
+
 #### What this wallet will sign
 
 `xcp_signTransaction` and `xcp_signPsbt` are for Counterparty transactions. A request is refused

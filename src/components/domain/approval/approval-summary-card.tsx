@@ -1,7 +1,10 @@
+import { ApprovalFacts } from '@/components/domain/approval/approval-facts';
+import { ApprovalIdentifier } from '@/components/domain/approval/approval-identifier';
 import type { MoneyMovement } from '@/components/domain/approval/money-movement';
 import { MoneyMovementView } from '@/components/domain/approval/money-movement-view';
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
+import type { ProtocolField } from '@/core/counterparty/describe';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -37,6 +40,10 @@ export function splitTrailingAddress(
 interface ApprovalSummaryCardProps {
   /** Decoded Counterparty action, if any — the "what kind" headline. */
   txAction: { label: string; description: string } | null;
+  /** A structured marketplace summary contains a quantity, rather than a sentence. */
+  principal?: boolean;
+  /** Verified principal consequences that must precede supporting BTC movement. */
+  primaryFacts?: ProtocolField[];
   /**
    * A DEX order, which gets a card of its own instead of the label-and-sentence treatment: a trade
    * is two amounts that only mean something as a pair. Takes precedence over txAction.
@@ -57,8 +64,22 @@ interface ApprovalSummaryCardProps {
    * the semantic facts already describe precisely.
    */
   hideMovement?: boolean;
-  /** Counterparty protocol (XCP) fee in sats, if any. */
-  protocolFeeXcp: number | null;
+  /** Counterparty protocol fee in base units. Preserve the decoder's exact string/bigint. */
+  protocolFeeXcp: unknown;
+}
+
+function formatProtocolFee(value: unknown): string | null {
+  if (value == null) return null;
+  let digits: string;
+  if (typeof value === 'bigint' && value >= 0n) digits = value.toString();
+  else if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) digits = String(value);
+  else if (typeof value === 'string' && /^\d+$/.test(value.trim())) digits = value.trim();
+  else return 'Unavailable';
+  if (!/[1-9]/.test(digits)) return null;
+  // Both the division and the formatter consume decimal strings: Number would round a uint64.
+  return `${formatAmount({
+    value: fromSatoshis(digits), minimumFractionDigits: 8, maximumFractionDigits: 8,
+  })} XCP`;
 }
 
 /**
@@ -70,6 +91,8 @@ interface ApprovalSummaryCardProps {
  */
 export function ApprovalSummaryCard({
   txAction,
+  principal = false,
+  primaryFacts = [],
   order,
   movement,
   flexibility,
@@ -79,26 +102,32 @@ export function ApprovalSummaryCard({
   hideMovement,
   protocolFeeXcp,
 }: ApprovalSummaryCardProps) {
+  const protocolFee = formatProtocolFee(protocolFeeXcp);
   return (
-    <div className="bg-white rounded-lg shadow-sm p-5">
+    <div className="bg-white rounded-lg shadow-sm p-4">
       {order ? <OrderCard order={order} /> : txAction && (
         <div className={`text-center ${hideMovement ? '' : 'mb-3'}`}>
           {/* No eyebrow when the page header already names the action (marketplace screens). */}
-          {txAction.label && <p className="text-xs text-gray-500 mb-1">{txAction.label}</p>}
+          {txAction.label && <p className={principal ? 'mb-2 text-lg leading-6 font-semibold text-gray-900' : 'text-xs text-gray-500 mb-1'}>{txAction.label}</p>}
           {(() => {
             const { sentence, address, subline } = splitTrailingAddress(txAction.description);
             return (
               <>
-                <p className="text-lg font-bold text-gray-900 break-words">{sentence}</p>
-                {subline && <p className="mt-1 text-sm text-gray-700 break-words">{subline}</p>}
+                <p className={`${principal ? 'text-2xl leading-tight tabular-nums' : 'text-lg leading-6'} font-semibold text-gray-900 break-words`}>{sentence}</p>
+                {subline && <p className="mt-1 text-sm leading-5 text-gray-700 break-words">{subline}</p>}
                 {address && (
-                  <p className="mt-1 text-sm font-medium font-mono text-gray-700 break-all">
-                    {address}
+                  <p className="mt-2 text-gray-700">
+                    <ApprovalIdentifier value={address} />
                   </p>
                 )}
               </>
             );
           })()}
+        </div>
+      )}
+      {primaryFacts.length > 0 && (
+        <div className="mb-3 border-b border-gray-100 pb-3">
+          <ApprovalFacts fields={primaryFacts} />
         </div>
       )}
       {!hideMovement && (
@@ -111,11 +140,11 @@ export function ApprovalSummaryCard({
           showHeadline={!txAction && !order}
         />
       )}
-      {protocolFeeXcp != null && protocolFeeXcp > 0 && (
+      {protocolFee !== null && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
           <span className="text-gray-500">Protocol Fee:</span>
           <span className="text-sm font-medium text-purple-700">
-            {formatAmount({ value: fromSatoshis(protocolFeeXcp, true), minimumFractionDigits: 8, maximumFractionDigits: 8 })} XCP
+            {protocolFee}
           </span>
         </div>
       )}

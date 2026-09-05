@@ -9,8 +9,8 @@
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
-import { signMessage as signMessageDirect } from '@/core/bitcoin/messageSigner';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
+import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
 import { extractPsbtDetails, tapLeafOwnerAddress, validateSignInputs } from '@/core/bitcoin/psbt';
 import { fetchTokenBalance } from '@/core/counterparty/api';
 import { parseMarketplaceBatchIntents } from '@/core/counterparty/marketplaceBatch';
@@ -23,19 +23,24 @@ import { generateRequestId } from '@/core/id';
 import { checkReplayAttempt, markTransactionBroadcasted, recordTransaction } from '@/core/replayPrevention';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { getPairedAddressFormats } from '@/core/wallet/addressDeriver';
+import { getSessionGeneration } from '@/platform/auth/sessionManager';
 import { analytics } from '@/platform/fathom';
 import { openExtensionPopup } from '@/platform/popup';
 import { apiRateLimiter, connectionRateLimiter, transactionRateLimiter } from '@/platform/provider/rateLimiter';
 import { rememberSuccessfulBroadcast } from '@/platform/provider/recentBroadcasts';
+import { assertSignDeliveryAuthorized, type SignDeliveryGuard } from '@/platform/provider/signDelivery';
 import {
   beginSignFlow,
+  type CompletedSignFlow,
   computeRequestKey,
   findActiveFlowByKey,
   findSafeChangeSigningAddress,
   getSignFlow,
-  removeSignFlow,
+  SIGN_FLOW_TTL_MS,
+  type SignFlowEventPrefix,
 } from '@/platform/provider/signFlow';
 import { defineProxyService } from '@/platform/proxy';
+import { createWriteLock } from '@/platform/storage/mutex';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import { getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
@@ -92,11 +97,13 @@ export interface ProviderService {
  */
 function awaitSignApproval<T>(opts: {
   requestId: string;
-  eventPrefix: string;
+  expiresAt: number;
+  eventPrefix: SignFlowEventPrefix;
   analyticsEvent: string;
   cancelMessage: string;
   timeoutMessage: string;
   mapResult: (result: any) => T;
+  authorizeDelivery: (flow: CompletedSignFlow) => Promise<SignDeliveryGuard>;
   onCleanup?: () => void;
 }): Promise<T> {
   const updateService = getUpdateService();
@@ -104,6 +111,7 @@ function awaitSignApproval<T>(opts: {
 
   return new Promise<T>((resolve, reject) => {
     let settled = false;
+    let completing = false;
     let timeout: ReturnType<typeof setTimeout>;
     let poll: ReturnType<typeof setInterval>;
 
@@ -113,16 +121,39 @@ function awaitSignApproval<T>(opts: {
       updateService.unregisterCriticalOperation(`${opts.eventPrefix}-${opts.requestId}`);
       eventEmitterService.off(`${opts.eventPrefix}-complete-${opts.requestId}`, handleComplete);
       eventEmitterService.off(`${opts.eventPrefix}-cancel-${opts.requestId}`, handleCancel);
-      void removeSignFlow(opts.requestId);
+      // Keep the terminal result until its original deadline. Removing it here
+      // loses recovery when the worker stops after signing but before delivery.
       opts.onCleanup?.();
     };
 
-    const handleComplete = (result: any) => {
+    const handleFailure = (error: unknown) => {
       if (settled) return;
       settled = true;
       cleanup();
-      analytics.track(opts.analyticsEvent);
-      resolve(opts.mapResult(result));
+      reject(error);
+    };
+
+    const handleComplete = async () => {
+      if (settled || completing) return;
+      completing = true;
+      try {
+        // The event is a wake-up signal. Only the persisted terminal outcome is
+        // authoritative, including when this listener rejoins after a restart.
+        const flow = await getSignFlow(opts.requestId);
+        if (flow?.status !== 'completed') throw new Error('Signing result is unavailable or expired');
+        const assertDelivery = await opts.authorizeDelivery(flow);
+        if (settled) return;
+        assertDelivery();
+        const result = opts.mapResult(flow.result);
+        settled = true;
+        cleanup();
+        void analytics.track(opts.analyticsEvent);
+        resolve(result);
+      } catch (error) {
+        handleFailure(error);
+      } finally {
+        completing = false;
+      }
     };
 
     const handleCancel = () => {
@@ -137,7 +168,7 @@ function awaitSignApproval<T>(opts: {
       settled = true;
       cleanup();
       reject(new Error(opts.timeoutMessage));
-    }, 10 * 60 * 1000);
+    }, Math.max(0, opts.expiresAt - Date.now()));
 
     eventEmitterService.on(`${opts.eventPrefix}-complete-${opts.requestId}`, handleComplete);
     eventEmitterService.on(`${opts.eventPrefix}-cancel-${opts.requestId}`, handleCancel);
@@ -146,11 +177,11 @@ function awaitSignApproval<T>(opts: {
     // outcome is persisted in signFlow even though the original listener was lost.
     poll = setInterval(() => {
       if (settled) return;
-      void getSignFlow(opts.requestId).then((flow) => {
+      void getSignFlow(opts.requestId).then(async (flow) => {
         if (settled || !flow) return;
-        if (flow.status === 'completed') handleComplete(flow.result);
+        if (flow.status === 'completed') await handleComplete();
         else if (flow.status === 'cancelled') handleCancel();
-      });
+      }).catch(handleFailure);
     }, 1500);
   });
 }
@@ -160,12 +191,16 @@ function awaitSignApproval<T>(opts: {
  * rejoin a pending one (no new popup), or begin a fresh flow. createAndOpen
  * stores the per-type request and opens the popup for the new-flow case.
  */
+const withFlowCreationLock = createWriteLock();
+
 async function runSignFlow<T>(args: {
   origin: string;
   method: string;
   params: unknown;
+  identity: { walletId: string; address: string };
+  pairedAddresses?: boolean;
   approval: {
-    eventPrefix: string;
+    eventPrefix: SignFlowEventPrefix;
     analyticsEvent: string;
     cancelMessage: string;
     timeoutMessage: string;
@@ -173,25 +208,29 @@ async function runSignFlow<T>(args: {
   };
   createAndOpen: (requestId: string, requestKey: string) => Promise<void>;
 }): Promise<T> {
-  const requestKey = computeRequestKey(args.origin, args.method, args.params);
-  const existing = await findActiveFlowByKey(requestKey, args.origin);
+  const sessionGeneration = getSessionGeneration();
+  const requestKey = computeRequestKey(args.origin, args.method, args.params, args.identity);
+  // Lookup and creation are one command; concurrent identical calls join it.
+  const flow = await withFlowCreationLock(async () => {
+    const existing = await findActiveFlowByKey(requestKey, args.origin);
+    if (existing) return existing;
+    const requestId = generateRequestId(args.approval.eventPrefix);
+    await args.createAndOpen(requestId, requestKey);
+    const created = await getSignFlow(requestId);
+    if (!created) throw new Error('Signing request could not be stored');
+    return created;
+  });
 
-  const awaitFor = (requestId: string) =>
-    awaitSignApproval({ ...args.approval, requestId });
-
-  if (existing?.status === 'completed') {
-    await removeSignFlow(existing.id);
-    analytics.track(args.approval.analyticsEvent);
-    return args.approval.mapResult(existing.result);
+  const authorizeDelivery = (completed: CompletedSignFlow) =>
+    assertSignDeliveryAuthorized(completed, args.pairedAddresses ?? false, sessionGeneration);
+  if (flow.status === 'completed') {
+    const assertDelivery = await authorizeDelivery(flow);
+    assertDelivery();
+    void analytics.track(args.approval.analyticsEvent);
+    return args.approval.mapResult(flow.result);
   }
-  if (existing?.status === 'pending') {
-    // Rejoin the original flow rather than opening a duplicate popup.
-    return awaitFor(existing.id);
-  }
-
-  const requestId = generateRequestId(args.approval.eventPrefix);
-  await args.createAndOpen(requestId, requestKey);
-  return awaitFor(requestId);
+  return awaitSignApproval({ ...args.approval, authorizeDelivery, requestId: flow.id,
+    expiresAt: flow.timestamp + SIGN_FLOW_TTL_MS });
 }
 
 export function createProviderService(): ProviderService {
@@ -220,16 +259,10 @@ export function createProviderService(): ProviderService {
 
       const addressFormat = activeWallet.addressFormat || 'p2tr';
 
-      const privateKeyResult = await walletService.getPrivateKey(
-        activeWallet.id,
-        activeAddress.path
-      );
-
-      const result = await signMessageDirect(
+      const result = await walletService.signMessage(
         message,
-        privateKeyResult.hex,
-        addressFormat,
-        privateKeyResult.compressed
+        activeAddress.address,
+        { walletId: activeWallet.id, address: activeAddress.address },
       );
 
       return {
@@ -618,7 +651,9 @@ export function createProviderService(): ProviderService {
           return runSignFlow({
             origin,
             method,
-            params,
+            params: { message, signingAddress },
+            identity: { walletId: activeWallet.id, address: activeAddress.address },
+            pairedAddresses: signingAddress !== activeAddress.address,
             approval: {
               eventPrefix: 'sign-message',
               analyticsEvent: 'message_signed',
@@ -670,7 +705,8 @@ export function createProviderService(): ProviderService {
           return runSignFlow({
             origin,
             method,
-            params,
+            params: { rawTxHex },
+            identity: { walletId: activeWallet.id, address: activeAddress.address },
             approval: {
               eventPrefix: 'sign-tx',
               analyticsEvent: 'transaction_signed',
@@ -858,7 +894,9 @@ export function createProviderService(): ProviderService {
           return runSignFlow({
             origin,
             method,
-            params,
+            params: { requests: parsedRequests, bundle: parsedBundle },
+            identity: { walletId: activeWallet.id, address: activeAddress.address },
+            pairedAddresses: usesPairedAddress,
             approval: {
               eventPrefix: 'sign-psbts',
               analyticsEvent: 'psbt_bundle_signed',
@@ -898,13 +936,14 @@ export function createProviderService(): ProviderService {
             throw new Error('PSBT parameters must be an object with hex property');
           }
 
-          const { hex: psbtHex, signInputs, sighashTypes, inscription, intent } = psbtParams as {
+          const { hex: psbtHex, signInputs: requestedSignInputs, sighashTypes, inscription, intent } = psbtParams as {
             hex?: string;
             signInputs?: Record<string, number[]>;
             sighashTypes?: number[];
             inscription?: { revealScript?: string; tapInternalKey?: string };
             intent?: unknown;
           };
+          let signInputs = requestedSignInputs;
 
           if (!psbtHex) {
             throw new Error('PSBT hex is required');
@@ -966,6 +1005,7 @@ export function createProviderService(): ProviderService {
           }
 
           const psbtDetails = extractPsbtDetails(psbtHex);
+          signInputs = resolveProviderSignInputs(psbtDetails, activeAddress.address, signInputs, sighashTypes);
           if (marketplaceIntent) {
             const headerProblem = marketplaceTransactionHeaderProblem(
               marketplaceIntent,
@@ -1051,7 +1091,9 @@ export function createProviderService(): ProviderService {
           return runSignFlow({
             origin,
             method,
-            params,
+            params: { psbtHex, signInputs, sighashTypes, inscription, bitcoinPaymentIntent, marketplaceIntent },
+            identity: { walletId: activeWallet.id, address: activeAddress.address },
+            pairedAddresses: Object.keys(signInputs ?? {}).some(address => normalizeAddressForComparison(address) !== normalizeAddressForComparison(activeAddress.address)),
             approval: {
               eventPrefix: 'sign-psbt',
               analyticsEvent: 'psbt_signed',
@@ -1304,5 +1346,7 @@ export function createProviderService(): ProviderService {
 // Register proxy service for cross-context communication
 export const [registerProviderService, getProviderService] = defineProxyService(
   'ProviderService',
-  createProviderService
+  createProviderService,
+  { methods: { handleRequest: 'command', isConnected: 'read', disconnect: 'command',
+    getCurrentApproval: 'read', getRequestStats: 'read' }, contentScript: 'provider' },
 );

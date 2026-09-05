@@ -1,44 +1,37 @@
 /**
  * Event Emitter Service
  *
- * Provides a centralized, type-safe event system for cross-context communication
- * Replaces unsafe global variable usage
- * Now extends BaseService for state persistence across service worker restarts
- *
- * ## Non-Standard Pattern Documentation
- *
- * ### Event-Driven Approval Resolution
- *
- * **Pattern**: Approval requests are resolved via events rather than direct
- * promise resolution. The flow is:
- * 1. ProviderService creates a managed promise (RequestManager)
- * 2. ApprovalService emits 'approval-resolved' event
- * 3. EventEmitter forwards to registered listeners
- * 4. RequestManager resolves the promise
- *
- * **Why Not Direct Promises?**:
- * - Popup runs in different context than background service worker
- * - Direct promise passing between contexts is not possible
- * - Events provide loose coupling between popup UI and background services
- * - Enables multiple listeners (logging, analytics, state updates)
- *
- * **Trade-offs**:
- * - Harder to trace request flow (no stack trace)
- * - Mitigated by: request IDs, debug logging, ADR-003 future tracing
- *
- * ### Singleton Export Pattern
- *
- * **Pattern**: Service is exported as singleton instance, not class.
- *
- * **Why**:
- * - Single source of truth for event subscriptions
- * - Prevents duplicate listeners from multiple imports
- * - Aligns with Chrome extension single-background-worker model
+ * Delivers typed events inside the background worker. The singleton carries wallet
+ * events; tests can create independent instances with their own event contracts.
+ * Provider notifications cross contexts through the background forwarding listener.
+ * Callbacks and waiting callers are never restored after a worker restart.
  */
 
+import type { SignFlowEventPrefix, SignFlowResults } from '@/platform/provider/signFlow';
 import { BaseService } from '@/services/core/BaseService';
 
-type EventCallback = (...args: unknown[]) => void;
+export interface ProviderEvents {
+  accountsChanged: string[];
+  disconnect: Record<string, never>;
+}
+
+export type ProviderEventPayload = {
+  [K in keyof ProviderEvents]: { origin?: string; event: K; data: ProviderEvents[K] }
+}[keyof ProviderEvents];
+
+type CompletedEvents = {
+  [P in SignFlowEventPrefix as `${P}-complete-${string}`]: SignFlowResults[P extends 'sign-tx' ? 'sign-transaction' : P]
+};
+type CancelledEvents = { [K in `${SignFlowEventPrefix}-cancel-${string}`]: { reason: string } };
+
+export type WalletEvents = CompletedEvents & CancelledEvents & ProviderEvents & {
+  'emit-provider-event': ProviderEventPayload;
+  'wallet-created': { walletId: string };
+  'wallet-unlocked': Record<string, never>;
+  'pending-unlock-connection': { requestId: string; origin: string; method: 'xcp_requestAccounts' };
+};
+
+type EventCallback<T = unknown> = (data: T, origin?: string) => void | Promise<void>;
 type PendingRequestResolver = (value: unknown) => void;
 
 interface TimedListener {
@@ -59,7 +52,7 @@ interface SerializedEventEmitterState {
   pendingRequestIds: string[];
 }
 
-class EventEmitterService extends BaseService {
+export class EventEmitterService<Events extends object> extends BaseService {
   private state: EventEmitterState = {
     listeners: new Map(),
     pendingRequests: new Map(),
@@ -76,17 +69,13 @@ class EventEmitterService extends BaseService {
   /**
    * Emit a provider event to a specific origin or all listeners
    */
-  emitProviderEvent(origin: string | null, event: string, data: unknown): void {
+  emitProviderEvent<K extends keyof Events & string>(origin: string | null, event: K, data: NoInfer<Events[K]>): void {
     const key = origin ? `${origin}:${event}` : event;
     const listeners = this.state.listeners.get(key);
     
     if (listeners) {
       listeners.forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`[EventEmitter] Error in event listener for ${key}:`, error);
-        }
+        this.invoke(callback, key, [data]);
       });
     }
     
@@ -95,11 +84,7 @@ class EventEmitterService extends BaseService {
       const wildcardListeners = this.state.listeners.get(event);
       if (wildcardListeners) {
         wildcardListeners.forEach(callback => {
-          try {
-            callback(data, origin);
-          } catch (error) {
-            console.error(`[EventEmitter] Error in wildcard listener for ${event}:`, error);
-          }
+          this.invoke(callback, event, [data, origin]);
         });
       }
     }
@@ -108,41 +93,43 @@ class EventEmitterService extends BaseService {
   /**
    * Register an event listener
    */
-  on(event: string, callback: EventCallback, origin?: string): void {
+  on<K extends keyof Events & string>(event: K, callback: EventCallback<Events[K]>, origin?: string): void {
     const key = origin ? `${origin}:${event}` : event;
     
     if (!this.state.listeners.has(key)) {
       this.state.listeners.set(key, new Set());
     }
     
-    this.state.listeners.get(key)!.add(callback);
+    // The heterogeneous map erases payload types only here; public registration and emission
+    // agree through Events[K], including request-specific completion names.
+    this.state.listeners.get(key)!.add(callback as EventCallback);
   }
 
   /**
    * Remove an event listener
    */
-  off(event: string, callback: EventCallback, origin?: string): void {
+  off<K extends keyof Events & string>(event: K, callback: EventCallback<Events[K]>, origin?: string): void {
     const key = origin ? `${origin}:${event}` : event;
     const listeners = this.state.listeners.get(key);
 
     if (listeners) {
-      listeners.delete(callback);
+      listeners.delete(callback as EventCallback);
       if (listeners.size === 0) {
         this.state.listeners.delete(key);
       }
     }
 
     // Also clean up from timed listeners
-    this.removeTimedListener(key, callback);
+    this.removeTimedListener(key, callback as EventCallback);
   }
 
   /**
    * Register an event listener with automatic timeout cleanup
    * Use this for single-use dynamic event keys to prevent memory leaks
    */
-  onWithTimeout(
-    event: string,
-    callback: EventCallback,
+  onWithTimeout<K extends keyof Events & string>(
+    event: K,
+    callback: EventCallback<Events[K]>,
     timeoutMs: number = EventEmitterService.DEFAULT_LISTENER_TIMEOUT
   ): void {
     // Register normally
@@ -150,7 +137,7 @@ class EventEmitterService extends BaseService {
 
     // Track for timeout cleanup
     const timedListener: TimedListener = {
-      callback,
+      callback: callback as EventCallback,
       registeredAt: Date.now(),
       timeoutMs,
     };
@@ -199,7 +186,7 @@ class EventEmitterService extends BaseService {
   /**
    * Resolve a pending request
    */
-  resolvePendingRequest(id: string, value: any): boolean {
+  resolvePendingRequest(id: string, value: unknown): boolean {
     const resolver = this.state.pendingRequests.get(id);
     
     if (resolver) {
@@ -228,17 +215,26 @@ class EventEmitterService extends BaseService {
   /**
    * Emit a general event (not provider-specific)
    */
-  emit(event: string, data: any): void {
+  emit<K extends keyof Events & string>(event: K, data: NoInfer<Events[K]>): void {
     const listeners = this.state.listeners.get(event);
     
     if (listeners) {
       listeners.forEach(callback => {
-        try {
-          callback(data);
-        } catch (error) {
-          console.error(`[EventEmitter] Error in event listener for ${event}:`, error);
-        }
+        this.invoke(callback, event, [data]);
       });
+    }
+  }
+
+  /** Event delivery is synchronous; asynchronous listener failures are observed independently. */
+  private invoke(callback: EventCallback, event: string, args: [unknown, string?]): void {
+    const report = (error: unknown) => {
+      console.error(`[EventEmitter] Error in event listener for ${event}:`, error);
+    };
+    try {
+      const pending = callback(...args);
+      if (pending) pending.catch(report);
+    } catch (error) {
+      report(error);
     }
   }
 
@@ -286,7 +282,11 @@ class EventEmitterService extends BaseService {
     };
   }
 
-  protected hydrateState(state: SerializedEventEmitterState): void {
+  protected hydrateState(value: unknown): void {
+    if (!value || typeof value !== 'object') return;
+    const state = value as Record<string, unknown>;
+    if (!Array.isArray(state.listenerKeys) || !state.listenerKeys.every(key => typeof key === 'string') ||
+        !Array.isArray(state.pendingRequestIds) || !state.pendingRequestIds.every(id => typeof id === 'string')) return;
     // We can't restore actual callbacks, but we can log what was previously registered
     // This helps with debugging service worker restarts
     if (state.listenerKeys.length > 0) {
@@ -335,7 +335,7 @@ class EventEmitterService extends BaseService {
 }
 
 // Export singleton instance
-export const eventEmitterService = new EventEmitterService();
+export const eventEmitterService = new EventEmitterService<WalletEvents>();
 
 // Export types for consumers
 export type { EventCallback, PendingRequestResolver };

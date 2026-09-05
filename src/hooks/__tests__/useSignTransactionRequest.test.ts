@@ -1,104 +1,67 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { analyzeSignRequest } from '@/core/counterparty/signRequestAnalysis';
-import { getSignFlow } from '@/platform/provider/signFlow';
 import { useSignTransactionRequest } from '../useSignTransactionRequest';
 
-vi.mock('react-router', () => ({
-  useSearchParams: () => [new URLSearchParams('requestId=req-1')],
+const mocks = vi.hoisted(() => ({
+  getReview: vi.fn(), approveAndSign: vi.fn(), reject: vi.fn(),
+  wallet: { activeAddress: { address: 'bound-address' }, activeWallet: { id: 'bound-wallet' }, isLoading: false },
 }));
+vi.mock('react-router', () => ({ useSearchParams: () => [new URLSearchParams('requestId=req-1')] }));
+vi.mock('@/services/providerSigningService', () => ({ getProviderSigningService: () => mocks }));
+vi.mock('@/contexts/wallet-context', () => ({ useWallet: () => mocks.wallet }));
 
-vi.mock('@/platform/provider/signFlow', () => ({
-  getSignFlow: vi.fn(),
-  recordSignOutcome: vi.fn(),
-}));
-
-vi.mock('@/platform/provider/emitToBackground', () => ({
-  emitToBackground: vi.fn(),
-}));
-
-vi.mock('@/core/bitcoin/localTransactionParse', () => ({
-  parseRawTransactionLocally: () => ({
-    txid: 'tx-1',
-    inputs: [{ txid: 'prev-1', vout: 0 }],
-    outputs: [{ index: 0, value: 10_000, type: 'p2wpkh', address: 'bc1qmine' }],
-    vsize: 110,
-    hasOpReturn: false,
-  }),
-}));
-
-vi.mock('@/core/counterparty/inputAssets', () => ({
-  fetchInputsAttachedAssets: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('@/core/counterparty/transaction', () => ({
-  fetchInputPrevouts: vi.fn().mockResolvedValue(new Map()),
-}));
-
-vi.mock('@/core/counterparty/unpack/opReturn', () => ({
-  extractCounterpartyPayload: () => undefined,
-}));
-
-vi.mock('@/core/counterparty/signRequestAnalysis', () => ({
-  analyzeSignRequest: vi.fn(),
-}));
-
-/** The signer addresses each `analyzeSignRequest` call was made with, in order. */
-function signerAddressesPerCall(): string[][] {
-  return vi.mocked(analyzeSignRequest).mock.calls.map(([input]) => input.signerAddresses);
-}
+const review = {
+  kind: 'sign-transaction', reviewKey: 'review-digest',
+  request: { id: 'req-1', address: 'bound-address', walletId: 'bound-wallet', rawTxHex: 'stored-hex' },
+  decodedInfo: { fee: 1000 }, policy: { blocked: false, requiresAcknowledgement: false },
+};
 
 describe('useSignTransactionRequest', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getSignFlow).mockResolvedValue({
-      id: 'req-1',
-      rawTxHex: '0100000000',
-    } as any);
-    vi.mocked(analyzeSignRequest).mockResolvedValue({
-      counterpartyMessage: undefined,
-      verification: {} as any,
-      safety: { blocked: false, warnings: [] } as any,
-      attachedAssets: [],
-      mpmaRecipients: [],
-      structureFindings: [],
-      protocolContext: {} as any,
-      attachedAssetDestination: null,
-    });
+    mocks.wallet = { activeAddress: { address: 'bound-address' }, activeWallet: { id: 'bound-wallet' }, isLoading: false };
+    mocks.getReview.mockResolvedValue(review);
+    mocks.approveAndSign.mockResolvedValue(undefined);
+    mocks.reject.mockResolvedValue(undefined);
   });
 
-  // The approval screen passes `activeAddress?.address`, which is null until the wallet context
-  // hydrates. If the analysis is not recomputed once the address arrives, the screen decides
-  // whose outputs are whose with an empty signer list — every output back to the user reads as
-  // leaving the wallet.
-  it('re-analyzes with the signer address once the wallet context hydrates', async () => {
-    const { result, rerender } = renderHook(
-      ({ signer }: { signer?: string }) => useSignTransactionRequest(signer),
-      { initialProps: { signer: undefined } as { signer?: string } }
-    );
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(signerAddressesPerCall()).toEqual([[]]);
-
-    rerender({ signer: 'bc1qmine' });
-
-    await waitFor(() => {
-      expect(signerAddressesPerCall()).toContainEqual(['bc1qmine']);
-    });
+  it('waits for wallet hydration and refuses to display a bound review for a different identity', async () => {
+    mocks.wallet.isLoading = true;
+    const { result, rerender } = renderHook(() => useSignTransactionRequest());
+    await act(async () => { await Promise.resolve(); });
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.request).toBeNull();
+    await expect(result.current.handleApprove()).rejects.toThrow(/No reviewed/);
+    mocks.wallet.isLoading = false;
+    rerender();
+    expect(result.current.request?.address).toBe('bound-address');
+    mocks.wallet.activeAddress.address = 'different-address';
+    rerender();
+    expect(result.current.request).toBeNull();
+    expect(result.current.decodedInfo).toBeNull();
+    expect(result.current.error).toMatch(/active address changed/);
+    await expect(result.current.handleApprove()).rejects.toThrow(/active address changed/);
+    expect(mocks.approveAndSign).not.toHaveBeenCalled();
+    expect(mocks.getReview).toHaveBeenCalledTimes(1);
   });
 
-  it('does not re-analyze when the signer address is unchanged', async () => {
-    const { result, rerender } = renderHook(
-      ({ signer }: { signer?: string }) => useSignTransactionRequest(signer),
-      { initialProps: { signer: 'bc1qmine' } as { signer?: string } }
-    );
-
+  it('submits only the reviewed decision and lets the background obtain the bytes and signer', async () => {
+    const { result } = renderHook(() => useSignTransactionRequest());
     await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(signerAddressesPerCall()).toEqual([['bc1qmine']]);
+    await act(() => result.current.handleApprove(true));
+    expect(mocks.approveAndSign).toHaveBeenCalledWith('req-1', {
+      reviewKey: 'review-digest', risksAcknowledged: true,
+    });
+    await act(() => result.current.handleCancel());
+    expect(mocks.reject).toHaveBeenCalledWith('req-1');
+  });
 
-    rerender({ signer: 'bc1qmine' });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(signerAddressesPerCall()).toEqual([['bc1qmine']]);
+  it('refuses a request loaded through the wrong approval route', async () => {
+    mocks.getReview.mockResolvedValue({ ...review, kind: 'sign-message' });
+    const { result } = renderHook(() => useSignTransactionRequest());
+    await waitFor(() => expect(result.current.error).toMatch(/different approval screen/));
+    expect(result.current.request).toBeNull();
+    await expect(result.current.handleApprove()).rejects.toThrow(/No reviewed/);
+    expect(mocks.approveAndSign).not.toHaveBeenCalled();
   });
 });

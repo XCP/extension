@@ -194,7 +194,7 @@ describe('describeCounterpartyMessage', () => {
       asset: 'PEPECASH',
     });
     expect(desc).not.toMatch(/^Dividend/);
-    expect(desc).toContain('XCP');
+    expect(desc).toContain('XCP per unit');
     expect(desc).toContain('PEPECASH');
   });
 

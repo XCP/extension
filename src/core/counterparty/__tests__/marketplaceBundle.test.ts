@@ -118,8 +118,8 @@ describe('exact acceptance plus CPFP atomic proof', () => {
       family: 'accept_exact_offer_with_cpfp',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Added child fee', value: '1,000 sats' });
-    expect(review.facts).toContainEqual({ label: 'Final seller proceeds', value: '249,046 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Added child fee', value: '1,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Your proceeds after fee bump', value: '249,046 sats', emphasis: 'primary' });
     expect(review.notices[0]?.message).toMatch(/before either signature/i);
   });
 

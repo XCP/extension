@@ -164,8 +164,6 @@ async function fetchWithTimeout<T>(
       signal: combinedSignal,
     });
 
-    clearTimeout(timeoutId);
-
     // Parse response body based on content-type
     const contentType = response.headers.get('content-type');
     let data: T;
@@ -176,8 +174,11 @@ async function fetchWithTimeout<T>(
         // 64-bit Counterparty quantity loses digits before application code sees it and no
         // BigNumber discipline downstream can recover them. Oversized integers arrive as strings,
         // which numeric.ts handles exactly. See losslessJson.ts.
-        data = parseJsonLossless<T>(await response.text());
+        const body = await response.text();
+        combinedSignal.throwIfAborted();
+        data = parseJsonLossless<T>(body);
       } catch {
+        combinedSignal.throwIfAborted();
         // Wrap JSON parse errors with generic message to avoid leaking response details
         throw createApiError('Failed to parse API response as JSON', 'NETWORK_ERROR');
       }
@@ -185,6 +186,7 @@ async function fetchWithTimeout<T>(
       // For non-JSON responses, return text as-is
       // Callers expecting JSON should check content-type or handle string responses
       const textData = await response.text();
+      combinedSignal.throwIfAborted();
       data = textData as T;
     }
 
@@ -217,10 +219,8 @@ async function fetchWithTimeout<T>(
       headers: response.headers,
     };
   } catch (error) {
-    clearTimeout(timeoutId);
-
     // Handle abort/cancellation
-    if (error instanceof DOMException && error.name === 'AbortError') {
+    if (combinedSignal.aborted || (error instanceof DOMException && error.name === 'AbortError')) {
       // Check if it was from external signal (user cancellation) or timeout
       if (externalSignal?.aborted) {
         throw createApiError('Request cancelled', 'CANCELLED');
@@ -249,6 +249,9 @@ async function fetchWithTimeout<T>(
       error instanceof Error ? error.message : 'Unknown error occurred',
       'NETWORK_ERROR'
     );
+  } finally {
+    // The deadline covers receipt and parsing of the body, not just headers.
+    clearTimeout(timeoutId);
   }
 }
 

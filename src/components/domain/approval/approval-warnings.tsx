@@ -51,6 +51,7 @@ export function buildApprovalWarnings({
   const warningItems: WarningItem[] = presentedSafetyWarnings.map((warning, idx) => ({
     key: `safety-${idx}`,
     severity: warning.severity === 'block' ? 'danger' : warning.severity,
+    blocking: warning.severity === 'block',
     title: warning.title,
     description: warning.message,
   }));
@@ -130,12 +131,13 @@ export function buildApprovalWarnings({
   }
 
   // The message's own references to this transaction, where they do not resolve against it. A
-  // warning rather than a block: core rejects such a transaction, so it is ineffective rather than
-  // dangerous — but the screen cannot describe what it claims to do.
+  // Core rejects such a transaction. Signing is blocked because the screen cannot describe what
+  // it claims to do; the finding must lead ahead of unrelated signable cautions.
   for (const [idx, finding] of structureFindings.entries()) {
     warningItems.push({
       key: `structure-${idx}`,
       severity: 'warning',
+      blocking: true,
       title: finding.title,
       description: finding.message,
     });
@@ -155,6 +157,7 @@ export function buildApprovalWarnings({
     warningItems.push({
       key: 'unknown-status',
       severity: 'warning',
+      blocking: true,
       title: "Couldn't verify asset status",
       // The inputs are listed below and the severity already carries the "be careful" — a closing
       // "proceed only if you trust this" sentence adds words the reader cannot act on.

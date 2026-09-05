@@ -3,6 +3,14 @@ import { Transaction } from '@scure/btc-signer';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 
+const session = vi.hoisted(() => ({ generation: 0 }));
+vi.mock('@/platform/auth/sessionManager', () => ({
+  getSessionGeneration: () => session.generation,
+  assertSessionGeneration: (generation: number) => {
+    if (generation !== session.generation) throw new Error('Wallet session changed');
+  },
+}));
+
 // Mock webext-bridge completely before any imports that use it
 vi.mock('webext-bridge/background', () => ({
   sendMessage: vi.fn(),
@@ -37,6 +45,7 @@ import { walletManager } from '@/platform/walletManager';
 import * as updateService from '@/services/updateService';
 import * as approvalService from '../approvalService';
 import * as connectionService from '../connectionService';
+import { eventEmitterService } from '../eventEmitterService';
 import { createProviderService } from '../providerService';
 import * as walletService from '../walletService';
 
@@ -92,10 +101,10 @@ const MARKETPLACE_ATTACH_INTENT = {
   operationId: 'attach-1',
   protocolVersion: 'counterparty_attach_listing_v1',
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
-  seller: 'bc1qtest123',
+  seller: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
   assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
   expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
-  carrierAddress: 'bc1qtest123',
+  carrierAddress: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
   carrierValueSats: 546,
   networkFeeSats: 1_000,
   protocolFee: {
@@ -114,7 +123,7 @@ const MARKETPLACE_PREPARE_INTENT = {
   operationId: 'prepare-1',
   protocolVersion: 'counterparty_prepare_assets_v1',
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
-  carrierOwner: 'bc1qtest123',
+  carrierOwner: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
   assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
   expectedAttachedOutpoint: { txid: 'ac'.repeat(32), vout: 0 },
   carrierValueSats: 546,
@@ -145,7 +154,7 @@ const MARKETPLACE_BUY_INTENT = {
     quantityRaw: '1',
     sourceOutpoint: { txid: 'ab'.repeat(32), vout: 4 },
     listingId: 'listing-1',
-    seller: 'bc1qtest123',
+    seller: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
     carrierValueSats: 546,
     priceSats: 250_000,
     sellerPaymentSats: 250_546,
@@ -171,7 +180,7 @@ const MARKETPLACE_EXACT_INTENT = {
   }],
   authorizationId: 'authorization-1',
   bidder: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
-  seller: 'bc1qtest123',
+  seller: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
   priceSats: 250_000,
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
@@ -229,6 +238,7 @@ vi.mock('../connectionService');
 vi.mock('../approvalService');
 vi.mock('@/platform/walletManager', () => ({
   walletManager: {
+    getActiveWallet: vi.fn(),
     getSettings: vi.fn().mockReturnValue({
       connectedWebsites: [],
       analyticsAllowed: true,
@@ -238,7 +248,7 @@ vi.mock('@/platform/walletManager', () => ({
   },
 }));
 vi.mock('@/core/bitcoin/messageSigner', () => ({
-  signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qtest123' }),
+  signMessage: vi.fn().mockResolvedValue({ signature: 'mock-proof-sig', address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty' }),
 }));
 // Partial: the rest of the flow module (request keys, rejoin lookups) must stay real.
 vi.mock('@/platform/provider/signFlow', async (importOriginal) => ({
@@ -298,6 +308,8 @@ describe('ProviderService', () => {
   let providerService: ReturnType<typeof createProviderService>;
 
   beforeEach(() => {
+    session.generation = 0;
+    const sessionData: Record<string, unknown> = {};
     // Mock chrome runtime for storage operations
     global.chrome = {
       runtime: {
@@ -312,12 +324,15 @@ describe('ProviderService', () => {
       storage: {
         session: {
           set: vi.fn().mockImplementation((data, callback) => {
+            Object.assign(sessionData, structuredClone(data));
             if (callback) callback();
             return Promise.resolve();
           }),
           get: vi.fn().mockImplementation((keys, callback) => {
-            if (callback) callback({});
-            return Promise.resolve({});
+            const values = typeof keys === 'string' ? { [keys]: sessionData[keys] } : sessionData;
+            const result = structuredClone(values);
+            if (callback) callback(result);
+            return Promise.resolve(result);
           }),
           remove: vi.fn().mockImplementation((keys, callback) => {
             if (callback) callback();
@@ -354,20 +369,21 @@ describe('ProviderService', () => {
     
     // Create a comprehensive mock for wallet service
     const mockWalletService = {
+      signMessage: vi.fn().mockResolvedValue({signature: 'mock-proof-sig', address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty'}),
       refreshWallets: vi.fn().mockResolvedValue(undefined),
       getWallets: vi.fn().mockResolvedValue([{
         id: 'wallet1',
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
-        addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
+        addresses: [{ address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }]),
       getActiveWallet: vi.fn().mockResolvedValue({
         id: 'wallet1',
         name: 'Test Wallet',
         type: 'mnemonic',
         addressFormat: 'p2wpkh',
-        addresses: [{ address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
+        addresses: [{ address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' }]
       }),
       unlockKeychain: vi.fn().mockResolvedValue(undefined),
       lockKeychain: vi.fn().mockResolvedValue(undefined),
@@ -385,11 +401,11 @@ describe('ProviderService', () => {
       getPreviewAddressForFormat: vi.fn(),
       getPairedAddresses: vi.fn().mockResolvedValue({
         legacy: { address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7', pubKey: '02bb', path: "m/44'/0'/0'/0/0", name: 'Legacy', format: 'p2pkh', type: 'p2pkh' },
-        segwit: { address: 'bc1qtest123', pubKey: '02aa', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
+        segwit: { address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', pubKey: '02aa', path: "m/84'/0'/0'/0/0", name: 'SegWit', format: 'p2wpkh', type: 'p2wpkh' },
       }),
       signTransaction: vi.fn(),
       broadcastTransaction: vi.fn(),
-      getLastActiveAddress: vi.fn().mockResolvedValue('bc1qtest123'),
+      getLastActiveAddress: vi.fn().mockResolvedValue('bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty'),
       setLastActiveAddress: vi.fn().mockResolvedValue(undefined),
       setLastActiveTime: vi.fn(),
       isKeychainUnlocked: vi.fn().mockResolvedValue(true),
@@ -397,7 +413,7 @@ describe('ProviderService', () => {
       getAuthState: vi.fn().mockResolvedValue('unlocked'),
       getActiveAddress: vi.fn().mockResolvedValue({
         id: 'addr1',
-        address: 'bc1qtest123',
+        address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
         label: 'Test Address',
         walletId: 'wallet1',
         walletName: 'Test Wallet',
@@ -416,7 +432,7 @@ describe('ProviderService', () => {
       requestPermission: vi.fn().mockResolvedValue(true),
       revokePermission: vi.fn().mockResolvedValue(undefined),
       disconnect: vi.fn().mockResolvedValue(undefined),
-      connect: vi.fn().mockResolvedValue(['bc1qtest123']),
+      connect: vi.fn().mockResolvedValue(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']),
       getConnectedSites: vi.fn().mockResolvedValue([]),
       initialize: vi.fn().mockResolvedValue(undefined),
       destroy: vi.fn().mockResolvedValue(undefined)
@@ -445,7 +461,8 @@ describe('ProviderService', () => {
     };
     vi.mocked(updateService.getUpdateService).mockReturnValue(mockUpdateService as any);
 
-    vi.mocked(signFlow.beginSignFlow).mockResolvedValue(undefined);
+    vi.mocked(signFlow.beginSignFlow).mockImplementation(entry =>
+      signFlow.signFlowStorage.store({ ...entry, status: 'pending' }));
     vi.mocked(signFlow.findSafeChangeSigningAddress).mockResolvedValue(null);
     
     // Setup settings mocks - default to no connected sites
@@ -468,6 +485,7 @@ describe('ProviderService', () => {
   });
   
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -484,7 +502,7 @@ describe('ProviderService', () => {
           []
         ) as any;
 
-        expect(result.accounts).toEqual(['bc1qtest123']);
+        expect(result.accounts).toEqual(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
         expect(result.proof).toBeDefined();
       });
       
@@ -492,7 +510,7 @@ describe('ProviderService', () => {
         // Mock connection service to return false for hasPermission, then connect
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
         mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
-        mockConnectionService.connect = vi.fn().mockResolvedValue(['bc1qtest123']);
+        mockConnectionService.connect = vi.fn().mockResolvedValue(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
 
         // Request accounts should call connectionService.connect
         const result = await providerService.handleRequest(
@@ -504,13 +522,13 @@ describe('ProviderService', () => {
         // Verify connect was called with correct parameters
         expect(mockConnectionService.connect).toHaveBeenCalledWith(
           'https://newsite.com',
-          'bc1qtest123',  // activeAddress from mock
+          'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',  // activeAddress from mock
           'wallet1',      // activeWallet.id from mock (no hyphen)
           false            // paired addresses are opt-in
         );
 
         // Should return accounts with proof
-        expect((result as any).accounts).toEqual(['bc1qtest123']);
+        expect((result as any).accounts).toEqual(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
         expect((result as any).proof).toBeDefined();
       });
 
@@ -542,7 +560,7 @@ describe('ProviderService', () => {
           []
         );
 
-        expect(result).toEqual(['bc1qtest123']);
+        expect(result).toEqual(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
       });
       
       it('should return empty array if wallet is locked', async () => {
@@ -579,7 +597,7 @@ describe('ProviderService', () => {
 
         expect(result).toEqual({
           active: {
-            address: 'bc1qtest123',
+            address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
             publicKey: '02aa',
             type: 'p2wpkh',
           },
@@ -598,13 +616,13 @@ describe('ProviderService', () => {
           []
         ) as any;
 
-        expect(result.active.address).toBe('bc1qtest123');
+        expect(result.active.address).toBe('bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty');
         expect(result.legacy.address).toBe('1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7');
-        expect(result.segwit.address).toBe('bc1qtest123');
+        expect(result.segwit.address).toBe('bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty');
         expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
           'https://connected.com',
           'wallet1',
-          'bc1qtest123'
+          'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty'
         );
       });
     });
@@ -787,7 +805,7 @@ describe('ProviderService', () => {
         const mockWalletService = vi.mocked(walletService.getWalletService)();
         mockWalletService.broadcastTransaction = vi.fn().mockResolvedValue({ txid: 'ab'.repeat(32) });
         const signedTx = '01000000000000000000';
-        vi.mocked(signFlow.findSafeChangeSigningAddress).mockResolvedValue('bc1qtest123');
+        vi.mocked(signFlow.findSafeChangeSigningAddress).mockResolvedValue('bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty');
 
         await providerService.handleRequest(
           'https://connected.com',
@@ -795,7 +813,7 @@ describe('ProviderService', () => {
           [signedTx]
         );
 
-        expect(rememberSuccessfulBroadcast).toHaveBeenCalledWith(signedTx, ['bc1qtest123']);
+        expect(rememberSuccessfulBroadcast).toHaveBeenCalledWith(signedTx, ['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
       });
 
       it('does not trust change from a transaction the extension did not safely sign', async () => {
@@ -930,7 +948,7 @@ describe('ProviderService', () => {
         // Mock storage
 
         const message = 'Hello Bitcoin';
-        const address = 'bc1qtest123';
+        const address = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
 
         // Start the request - it will return a promise that waits for events
         providerService.handleRequest(
@@ -970,11 +988,11 @@ describe('ProviderService', () => {
         expect(connection.hasPairedAddressPermission).toHaveBeenCalledWith(
           'https://test.com',
           'wallet1',
-          'bc1qtest123'
+          'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty'
         );
         expect(signFlow.beginSignFlow).toHaveBeenCalledWith(
           expect.objectContaining({
-            address: 'bc1qtest123',
+            address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty',
             signingAddress: pairedLegacy,
           })
         );
@@ -1057,7 +1075,7 @@ describe('ProviderService', () => {
           type: 'mnemonic',
           addressFormat: 'p2wpkh',
           addresses: [
-            { address: 'bc1qtest123', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' },
+            { address: 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty', path: "m/84'/0'/0'/0/0", pubKey: '02aa', name: 'Address 1' },
             { address: 'bc1qotherindex', path: "m/84'/0'/0'/0/1", pubKey: '02cc', name: 'Address 2' },
           ],
         });
@@ -1622,6 +1640,145 @@ describe('ProviderService', () => {
     });
 
     describe('Critical Operations and Update Management', () => {
+      beforeEach(() => {
+        const address = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+        vi.mocked(walletManager.getSettings).mockReturnValue({
+          ...DEFAULT_SETTINGS, connectedWebsites: ['https://test.com'], providerCapabilities: {
+            'https://test.com': { pairedAddresses: true, walletId: 'wallet1', address },
+          },
+        });
+        vi.mocked(walletManager.getActiveWallet).mockReturnValue({
+          id: 'wallet1', name: 'Test Wallet', type: 'mnemonic', addressFormat: 'p2wpkh', addressCount: 1,
+          addresses: [{ address, name: 'Address 1', path: "m/84'/0'/0'/0/0", pubKey: '02aa' }],
+        });
+      });
+      describe.each(['live', 'poll', 'recovery'] as const)('%s signature delivery', mode => {
+        it.each(['connected', 'revoked', 'paired', 'address', 'wallet', 'locked', 'session', 'late-revoked', 'late-paired', 'continuation-revoked'] as const)(
+          'checks authorization after terminal storage when %s', async state => {
+            vi.useFakeTimers();
+            const origin = 'https://test.com';
+            const address = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+            const signingAddress = state.includes('paired') ? '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' : address;
+            const identity = { address, walletId: 'wallet1' };
+            const id = `delivery-${mode}-${state}`;
+            const connection = vi.mocked(connectionService.getConnectionService)();
+            vi.mocked(connection.hasPermission).mockResolvedValue(true);
+            vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(true);
+            const wallet = vi.mocked(walletService.getWalletService)();
+            await signFlow.beginSignFlow({
+              ...identity, origin, id, timestamp: Date.now(), kind: 'sign-message',
+              message: 'deliver me', signingAddress,
+              requestKey: signFlow.computeRequestKey(origin, 'xcp_signMessage', {
+                message: 'deliver me', signingAddress,
+              }, identity),
+            });
+            const storedResult = { signature: 'durable-signature' };
+            const reachedStorage = Promise.withResolvers<void>();
+            const releaseStorage = Promise.withResolvers<void>();
+            if (mode === 'recovery') {
+              await signFlow.recordSignOutcome(id, 'completed', storedResult);
+              const read = signFlow.signFlowStorage.getAll.bind(signFlow.signFlowStorage);
+              vi.spyOn(signFlow.signFlowStorage, 'getAll').mockImplementationOnce(async () => {
+                const snapshot = await read();
+                reachedStorage.resolve();
+                await releaseStorage.promise;
+                return snapshot;
+              });
+            } else {
+              const update = signFlow.signFlowStorage.update.bind(signFlow.signFlowStorage);
+              vi.spyOn(signFlow.signFlowStorage, 'update').mockImplementationOnce(async (requestId, change) => {
+                const result = await update(requestId, change);
+                reachedStorage.resolve();
+                await releaseStorage.promise;
+                return result;
+              });
+            }
+            const delivery = providerService.handleRequest(origin, 'xcp_signMessage', ['deliver me', signingAddress])
+              .then(value => ({ ok: true as const, value }), error => ({ ok: false as const, error }));
+            let persistence: Promise<signFlow.SignFlowEntry | null> | undefined;
+            if (mode !== 'recovery') {
+              await vi.waitFor(() => expect(updateService.getUpdateService().registerCriticalOperation)
+                .toHaveBeenCalledWith(`sign-message-${id}`));
+              persistence = signFlow.recordSignOutcome(id, 'completed', storedResult);
+            }
+            await reachedStorage.promise;
+            if (state === 'revoked') vi.mocked(connection.hasPermission).mockResolvedValue(false);
+            if (state === 'paired') vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(false);
+            if (state === 'address') vi.mocked(wallet.getActiveAddress).mockResolvedValue({
+              address: 'other-address', pubKey: '02aa', path: "m/84'/0'/0'/0/1", name: 'Other',
+            });
+            if (state === 'wallet') {
+              const activeWallet = await wallet.getActiveWallet();
+              if (!activeWallet) throw new Error('Missing fixture wallet');
+              vi.mocked(wallet.getActiveWallet).mockResolvedValue({ ...activeWallet, id: 'other-wallet' });
+            }
+            if (state === 'locked') vi.mocked(wallet.isKeychainUnlocked).mockResolvedValue(false);
+            if (state === 'session') session.generation += 1;
+            if (state === 'late-revoked' || state === 'late-paired') {
+              const activeWallet = await wallet.getActiveWallet();
+              vi.mocked(wallet.getActiveWallet).mockImplementationOnce(async () => {
+                // The permission reads have returned true. A queued settings
+                // mutation runs before the last awaited identity read resumes.
+                queueMicrotask(() => vi.mocked(walletManager.getSettings).mockReturnValue({
+                  ...DEFAULT_SETTINGS,
+                  connectedWebsites: state === 'late-revoked' ? [] : [origin],
+                  providerCapabilities: {},
+                }));
+                return activeWallet;
+              });
+            }
+            if (state === 'continuation-revoked') {
+              const granted = walletManager.getSettings();
+              vi.mocked(walletManager.getSettings).mockImplementationOnce(() => {
+                // The helper's final snapshot is valid, but returning its
+                // Promise still yields before the provider resolves the site.
+                queueMicrotask(() => vi.mocked(walletManager.getSettings).mockReturnValue({
+                  ...granted, connectedWebsites: [], providerCapabilities: {},
+                }));
+                return granted;
+              });
+            }
+            releaseStorage.resolve();
+            await persistence;
+            if (mode === 'live') {
+              eventEmitterService.emit(`sign-message-complete-${id}`, { signature: 'event-payload-is-not-authoritative' });
+            } else if (mode === 'poll') await vi.advanceTimersByTimeAsync(1500);
+            const outcome = await delivery;
+            if (state === 'connected') expect(outcome).toEqual({ ok: true, value: storedResult.signature });
+            else expect(outcome).toMatchObject({ ok: false, error: expect.any(Error) });
+            expect(await signFlow.getSignFlow(id)).toMatchObject({ status: 'completed', result: storedResult });
+            expect(wallet.signMessage).not.toHaveBeenCalled();
+          },
+        );
+      });
+
+      it.each(['connected', 'revoked', 'locked', 'identity'])('rechecks authorization while recovering a completed signature: %s', async state => {
+        const origin = 'https://test.com';
+        const address = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+        const identity = { address, walletId: 'wallet1' };
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        vi.mocked(connection.hasPermission).mockResolvedValue(true);
+        const wallet = vi.mocked(walletService.getWalletService)();
+        await signFlow.beginSignFlow({
+          ...identity, origin, id: 'completed-recovery', timestamp: Date.now(), kind: 'sign-message',
+          message: 'recover me', signingAddress: address,
+          requestKey: signFlow.computeRequestKey(origin, 'xcp_signMessage', {
+            message: 'recover me', signingAddress: address,
+          }, identity),
+        });
+        await signFlow.recordSignOutcome('completed-recovery', 'completed', { signature: 'original-signature' });
+        if (state === 'revoked') vi.mocked(connection.hasPermission).mockResolvedValueOnce(true).mockResolvedValue(false);
+        if (state === 'locked') vi.mocked(wallet.isKeychainUnlocked).mockResolvedValue(false);
+        if (state === 'identity') vi.mocked(wallet.getActiveAddress)
+          .mockResolvedValueOnce({ address } as never).mockResolvedValue({ address: 'new-address' } as never);
+        const call = providerService.handleRequest(origin, 'xcp_signMessage', ['recover me']);
+        if (state === 'connected') {
+          await expect(call).resolves.toBe('original-signature');
+          expect(await signFlow.getSignFlow('completed-recovery')).toMatchObject({ status: 'completed' });
+        } else await expect(call).rejects.toThrow();
+        expect(wallet.signMessage).not.toHaveBeenCalled();
+      });
+
       it('should register critical operations during signing', async () => {
         const mockUpdateService = vi.mocked(updateService.getUpdateService)();
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();

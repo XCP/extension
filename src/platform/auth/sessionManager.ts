@@ -63,6 +63,7 @@ import {
   getCachedKeychainMasterKey,
   setCachedKeychainMasterKey,
 } from '@/platform/storage/keyStorage';
+import { createWriteLock } from '@/platform/storage/mutex';
 import {
   clearSessionMetadata,
   getSessionMetadata,
@@ -73,6 +74,30 @@ import {
 // In-memory store for decrypted secrets (by wallet ID).
 let unlockedSecrets: Record<string, string> = {};
 let lastActiveTime: number = Date.now();
+
+// Reads may finish after a lock or a different unlock. The generation changes synchronously,
+// before storage cleanup can yield, so those reads cannot publish an old key or signature.
+let sessionGeneration = 0;
+let sessionInvalidated = false;
+const withSessionWriteLock = createWriteLock();
+
+export function getSessionGeneration(): number {
+  return sessionGeneration;
+}
+
+export function assertSessionGeneration(generation: number): void {
+  if (generation !== sessionGeneration || sessionInvalidated) {
+    throw new Error('Wallet session changed; please try again.');
+  }
+}
+
+function sessionDeadline(metadata: SessionMetadata): number {
+  return Math.min(metadata.lastActiveTime + metadata.timeout, metadata.unlockedAt + MAX_SESSION_DURATION_MS);
+}
+
+function metadataExpired(metadata: SessionMetadata): boolean {
+  return Date.now() >= sessionDeadline(metadata);
+}
 
 /**
  * Invoked when getUnlockedSecret finds the session expired, so expiry
@@ -125,26 +150,29 @@ async function persistSessionMetadata(metadata: SessionMetadata): Promise<void> 
  * - Absolute timeout exceeded (session created too long ago)
  */
 export async function isSessionExpired(): Promise<boolean> {
+  const generation = sessionGeneration;
   const metadata = await getSessionMetadata();
-  if (!metadata) {
+  if (!metadata || sessionInvalidated || generation !== sessionGeneration) {
     return true; // No session = expired
   }
 
-  const now = Date.now();
+  return metadataExpired(metadata);
+}
 
-  // Check idle timeout (time since last activity)
-  const idleTime = now - metadata.lastActiveTime;
-  if (idleTime > metadata.timeout) {
-    return true;
-  }
-
-  // Check absolute timeout (time since session creation)
-  const sessionDuration = now - metadata.unlockedAt;
-  if (sessionDuration > MAX_SESSION_DURATION_MS) {
-    return true;
-  }
-
-  return false;
+/** Ignore delayed alarms belonging to an earlier session or an idle deadline since extended. */
+export async function expireSessionIfNeeded(): Promise<boolean> {
+  const generation = sessionGeneration;
+  const expiryGeneration = await withSessionWriteLock(async () => {
+    const metadata = await getSessionMetadata();
+    if (!metadata || generation !== sessionGeneration || sessionInvalidated || !metadataExpired(metadata)) return null;
+    // Invalidate while still serialized with activity. Perform full cleanup after releasing this
+    // lock, since the registered wallet-lock handler also needs the session write queue.
+    sessionInvalidated = true;
+    return ++sessionGeneration;
+  });
+  if (expiryGeneration === null || expiryGeneration !== sessionGeneration) return false;
+  await handleExpiredSession();
+  return true;
 }
 
 /**
@@ -152,14 +180,14 @@ export async function isSessionExpired(): Promise<boolean> {
  */
 export async function initializeSession(timeout: number): Promise<void> {
   validateTimeout(timeout);
-  
+  const generation = ++sessionGeneration;
   const now = Date.now();
   lastActiveTime = now;
-  
-  await persistSessionMetadata({
-    unlockedAt: now,
-    timeout,
-    lastActiveTime: now
+  await withSessionWriteLock(async () => {
+    if (generation !== sessionGeneration) throw new Error('Wallet session changed; please try again.');
+    await persistSessionMetadata({ unlockedAt: now, timeout, lastActiveTime: now });
+    if (generation !== sessionGeneration) throw new Error('Wallet session changed; please try again.');
+    sessionInvalidated = false;
   });
 }
 
@@ -193,6 +221,7 @@ export function storeUnlockedSecret(walletId: string, secret: string): void {
  * @returns The decrypted secret, or null if not stored or session expired.
  */
 export async function getUnlockedSecret(walletId: string): Promise<string | null> {
+  const generation = sessionGeneration;
   if (!walletId) {
     return null;
   }
@@ -206,9 +235,11 @@ export async function getUnlockedSecret(walletId: string): Promise<string | null
   }
   
   // Check if session has expired
-  if (await isSessionExpired()) {
+  const expired = await isSessionExpired();
+  if (generation !== sessionGeneration || sessionInvalidated) return null;
+  if (expired) {
     // Session expired - perform a full lock (or at minimum clear secrets)
-    await handleExpiredSession();
+    await expireSessionIfNeeded();
     return null;
   }
   
@@ -255,6 +286,8 @@ export function clearUnlockedSecret(walletId: string): void {
  * Clears all stored unlocked secrets and session metadata.
  */
 export async function clearAllUnlockedSecrets(): Promise<void> {
+  ++sessionGeneration;
+  sessionInvalidated = true;
   Object.keys(unlockedSecrets).forEach((walletId) => { clearUnlockedSecret(walletId); });
 
   // Clear all rate limiting data
@@ -262,18 +295,20 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
 
   // Invalidate metadata first so an expiry-aware reader cannot use a cached key even if its
   // removal fails. Attempt both removals and surface the first error only after both ran.
-  let cleanupError: unknown;
-  try {
-    await clearSessionMetadata();
-  } catch (err) {
-    cleanupError = err;
-  }
-  try {
-    await clearCachedKeychainMasterKey();
-  } catch (err) {
-    cleanupError ??= err;
-  }
-  if (cleanupError) throw cleanupError;
+  await withSessionWriteLock(async () => {
+    let cleanupError: unknown;
+    try {
+      await clearSessionMetadata();
+    } catch (err) {
+      cleanupError = err;
+    }
+    try {
+      await clearCachedKeychainMasterKey();
+    } catch (err) {
+      cleanupError ??= err;
+    }
+    if (cleanupError) throw cleanupError;
+  });
 }
 
 // ============================================================================
@@ -287,8 +322,13 @@ export async function clearAllUnlockedSecrets(): Promise<void> {
  * @param key - The derived CryptoKey to store
  */
 export async function storeKeychainMasterKey(key: CryptoKey): Promise<void> {
+  const generation = sessionGeneration;
   const keyBase64 = await exportKey(key);
-  await setCachedKeychainMasterKey(keyBase64);
+  await withSessionWriteLock(async () => {
+    assertSessionGeneration(generation);
+    await setCachedKeychainMasterKey(keyBase64);
+    assertSessionGeneration(generation);
+  });
 }
 
 /**
@@ -297,21 +337,27 @@ export async function storeKeychainMasterKey(key: CryptoKey): Promise<void> {
  * Returns null if no key is cached (keychain locked).
  */
 export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
+  const generation = sessionGeneration;
+  if (sessionInvalidated) return null;
   const keyBase64 = await getCachedKeychainMasterKey();
-  if (!keyBase64) {
+  if (!keyBase64 || generation !== sessionGeneration || sessionInvalidated) {
     return null;
   }
 
   // Alarms are best effort. Enforce the deadline before importing or returning any cached key.
   // A true first run has neither metadata nor a key; it is merely locked, not an expired session,
   // and must not emit a full-lock event while wallet creation is starting.
-  if (await isSessionExpired()) {
-    await handleExpiredSession();
+  const expired = await isSessionExpired();
+  if (generation !== sessionGeneration || sessionInvalidated) return null;
+  if (expired) {
+    await expireSessionIfNeeded();
     return null;
   }
 
   try {
-    return await importKey(keyBase64);
+    const key = await importKey(keyBase64);
+    assertSessionGeneration(generation);
+    return key;
   } catch {
     // Corrupted key in session - treat as locked
     return null;
@@ -322,25 +368,36 @@ export async function getKeychainMasterKey(): Promise<CryptoKey | null> {
  * Updates the last active time to mark user activity.
  * Also updates the persisted session metadata and reschedules the expiry alarm.
  *
- * Note: There's a potential TOCTOU race between reading and writing metadata.
- * We re-check session validity after the async read to avoid resurrecting
- * a session that was cleared by clearAllUnlockedSecrets() during the await.
+ * Serialized with timeout changes and lock cleanup. An activity write already in progress when
+ * locking starts is followed by cleanup; a queued one is discarded by the generation check.
  */
 export async function setLastActiveTime(): Promise<void> {
+  const generation = sessionGeneration;
   lastActiveTime = Date.now();
-
-  // Update persisted session metadata
-  const metadata = await getSessionMetadata();
-
-  // Re-check: If session was cleared during await, metadata might be stale
-  // or the session might have been intentionally cleared. Don't resurrect it.
-  if (metadata && !await isSessionExpired()) {
-    metadata.lastActiveTime = lastActiveTime;
+  const activityTime = lastActiveTime;
+  await withSessionWriteLock(async () => {
+    const metadata = await getSessionMetadata();
+    if (!metadata || generation !== sessionGeneration || sessionInvalidated || metadataExpired(metadata)) return;
+    metadata.lastActiveTime = Math.max(metadata.lastActiveTime, activityTime);
     await persistSessionMetadata(metadata);
+    if (generation !== sessionGeneration || sessionInvalidated) return;
+    await scheduleSessionExpiry(sessionDeadline(metadata) - Date.now());
+  });
+}
 
-    // Reschedule the session expiry alarm to reset the countdown
-    await scheduleSessionExpiry(metadata.timeout);
-  }
+/** Apply an idle-timeout setting without extending the absolute lifetime of this session. */
+export async function updateSessionTimeout(timeout: number): Promise<void> {
+  validateTimeout(timeout);
+  const generation = sessionGeneration;
+  await withSessionWriteLock(async () => {
+    const metadata = await getSessionMetadata();
+    assertSessionGeneration(generation);
+    if (!metadata || metadataExpired(metadata)) throw new Error('Wallet session expired');
+    metadata.timeout = timeout;
+    await persistSessionMetadata(metadata);
+    assertSessionGeneration(generation);
+    await scheduleSessionExpiry(Math.max(0, sessionDeadline(metadata) - Date.now()));
+  });
 }
 
 /**
@@ -373,15 +430,12 @@ export async function scheduleSessionExpiry(timeout: number): Promise<void> {
  * scheduling calls; a no-op when no valid session exists.
  */
 export async function rearmSessionExpiry(): Promise<void> {
-  const metadata = await getSessionMetadata();
-  if (!metadata || await isSessionExpired()) {
-    return;
-  }
-  const now = Date.now();
-  const idleRemaining = metadata.timeout - (now - metadata.lastActiveTime);
-  const absoluteRemaining = MAX_SESSION_DURATION_MS - (now - metadata.unlockedAt);
-  const remaining = Math.max(1000, Math.min(idleRemaining, absoluteRemaining));
-  await scheduleSessionExpiry(remaining);
+  const generation = sessionGeneration;
+  await withSessionWriteLock(async () => {
+    const metadata = await getSessionMetadata();
+    if (!metadata || generation !== sessionGeneration || sessionInvalidated || metadataExpired(metadata)) return;
+    await scheduleSessionExpiry(Math.max(0, sessionDeadline(metadata) - Date.now()));
+  });
 }
 
 /**
@@ -418,26 +472,16 @@ export enum SessionRecoveryState {
  * Determines if session is still valid and if re-authentication is needed.
  */
 export async function checkSessionRecovery(): Promise<SessionRecoveryState> {
+  const generation = sessionGeneration;
   const metadata = await getSessionMetadata();
 
   // No session metadata = locked
-  if (!metadata) {
+  if (!metadata || generation !== sessionGeneration || sessionInvalidated) {
     return SessionRecoveryState.LOCKED;
   }
 
-  const now = Date.now();
-
-  // Check idle timeout (time since last activity)
-  const idleTime = now - metadata.lastActiveTime;
-  if (idleTime > metadata.timeout) {
-    await clearSessionMetadata();
-    return SessionRecoveryState.LOCKED;
-  }
-
-  // Check absolute timeout (time since session creation)
-  const sessionDuration = now - metadata.unlockedAt;
-  if (sessionDuration > MAX_SESSION_DURATION_MS) {
-    await clearSessionMetadata();
+  if (metadataExpired(metadata)) {
+    await clearAllUnlockedSecrets();
     return SessionRecoveryState.LOCKED;
   }
 

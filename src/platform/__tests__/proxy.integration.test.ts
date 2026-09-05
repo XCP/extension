@@ -52,6 +52,7 @@ describe('Proxy Service Integration', () => {
   interface TestWalletService {
     getBalance: (address: string) => Promise<number>;
     sendTransaction: (to: string, amount: number) => Promise<string>;
+    getReview: () => Promise<Record<string, unknown>>;
   }
 
   let mockWalletService: TestWalletService;
@@ -72,11 +73,13 @@ describe('Proxy Service Integration', () => {
     mockWalletService = {
       getBalance: vi.fn().mockResolvedValue(100000000),
       sendTransaction: vi.fn().mockResolvedValue('abc123txhash'),
+      getReview: vi.fn().mockResolvedValue({}),
     };
 
     [registerService, getService] = defineProxyService(
       'WalletService',
-      () => mockWalletService
+      () => mockWalletService,
+      { methods: { getBalance: 'read', sendTransaction: 'command', getReview: 'read' } },
     );
   });
 
@@ -116,11 +119,13 @@ describe('Proxy Service Integration', () => {
 
       // Client postMessage → server onMessage
       clientPort.postMessage.mockImplementation((msg: any) => {
-        setTimeout(() => serverPort._fireMessage(msg), 0);
+        const wire = JSON.parse(JSON.stringify(msg));
+        setTimeout(() => serverPort._fireMessage(wire), 0);
       });
       // Server postMessage → client onMessage
       serverPort.postMessage.mockImplementation((msg: any) => {
-        setTimeout(() => clientPort._fireMessage(msg), 0);
+        const wire = JSON.parse(JSON.stringify(msg));
+        setTimeout(() => clientPort._fireMessage(wire), 0);
       });
 
       // Notify background of new connection
@@ -149,5 +154,41 @@ describe('Proxy Service Integration', () => {
 
     expect(txHash).toBe('abc123txhash');
     expect(mockWalletService.sendTransaction).toHaveBeenCalledWith('bc1q789...', 50000000);
+  });
+
+  it('delivers an exact production Counterparty decode and its fingerprint through Chrome JSON messaging', async () => {
+    const { unpackAttach } = await import('@/core/counterparty/unpack/messages/attach');
+    const { fingerprintReview } = await import('@/platform/provider/signFlow');
+    const data = unpackAttach(new TextEncoder().encode('XCP|18446744073709551615|0'));
+    const facts = { verification: { localUnpack: { success: true, messageType: 'attach', data } } };
+    const review = { ...facts, reviewKey: fingerprintReview(facts) };
+    vi.mocked(mockWalletService.getReview).mockResolvedValue(review);
+    setupIntegration();
+
+    const received = await getService().getReview();
+    expect(received).toEqual(review);
+    const receivedData = (received.verification as typeof facts.verification).localUnpack.data;
+    expect(typeof receivedData.quantity).toBe('bigint');
+    expect(receivedData.quantity).toBe(18446744073709551615n);
+    expect(fingerprintReview({ verification: received.verification })).toBe(review.reviewKey);
+  });
+
+  it('preserves ordinary objects resembling type tags and byte data beside bigint values', async () => {
+    const review = {
+      quantity: 9007199254740993n,
+      untrusted: { resultEncoding: 'xcp-json-v1', result: ['bigint', '123'], tag: 'bigint' },
+      bytes: new Uint8Array([0, 127, 255]),
+      unknown: undefined,
+      nested: [null, true, { amount: -1n }],
+    };
+    vi.mocked(mockWalletService.getReview).mockResolvedValue(review);
+    setupIntegration();
+    expect(await getService().getReview()).toEqual(review);
+  });
+
+  it('reports unsupported result values instead of swallowing a serialization failure', async () => {
+    vi.mocked(mockWalletService.getReview).mockResolvedValue({ invalid: () => 'function' });
+    setupIntegration();
+    await expect(getService().getReview()).rejects.toThrow('unsupported value');
   });
 });

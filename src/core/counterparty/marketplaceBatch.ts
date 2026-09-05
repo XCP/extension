@@ -1,6 +1,7 @@
 /** Homogeneous multi-PSBT marketplace phases. Every item proves independently first. */
 
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import type { MarketplaceBundleReview } from '@/core/counterparty/marketplaceBundleReview';
 import {
   type AttachForListingIntentClaim,
   type CreateListingIntentClaim,
@@ -146,7 +147,7 @@ export function analyzeMarketplaceBatch(
   kind: MarketplaceBatchKind,
   intents: MarketplaceBatchIntent[],
   reviews: MarketplaceApprovalReview[],
-): MarketplaceApprovalReview {
+): MarketplaceBundleReview {
   if (intents.length !== reviews.length || intents.length < 1) {
     throw new Error('marketplace batch proof count does not match its intents');
   }
@@ -160,12 +161,14 @@ export function analyzeMarketplaceBatch(
         ? 'caution'
         : 'proved';
   const seller = batchIdentity(intents[0]!);
-  const facts: MarketplaceApprovalReview['facts'] = [
-    { label: 'Transactions', value: intents.length.toLocaleString() },
-    { label: 'Seller wallet', value: seller },
+  const identityFacts: MarketplaceApprovalReview['facts'] = [
+    { kind: 'text' as const, label: 'Transactions', value: intents.length.toLocaleString() },
+    { kind: 'address' as const, label: 'Seller wallet', value: seller },
   ];
+  const facts: MarketplaceApprovalReview['facts'] = kind === 'attach-and-list' ? [] : [...identityFacts];
   let title: string;
   let notice: string;
+  let summary: MarketplaceBundleReview['bundleSummary'];
 
   if (kind === 'attach-and-list') {
     const [attach, listing] = intents as [
@@ -173,26 +176,48 @@ export function analyzeMarketplaceBatch(
       CreateListingIntentClaim,
     ];
     title = `Attach and list ${attach.assets[0].asset}`;
+    if (status === 'proved' || status === 'caution') {
+      summary = {
+        outcome: {
+          kind: 'amount', label: 'Your payout if sold',
+          value: `${listing.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary',
+        },
+        action: title,
+        amounts: [
+          { kind: 'amount', label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
+          { kind: 'amount', label: 'UTXO returned', value: `${listing.carrierValueSats.toLocaleString()} sats` },
+          { kind: 'amount', label: 'Attach fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
+          { kind: 'amount', label: 'XCP fee quote', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+        ],
+        timing: 'Attach costs are paid first; payout requires a sale. The XCP fee may change at confirmation.',
+      };
+    }
     facts.push(
+      { kind: 'amount', label: 'Your payout if sold', value: `${listing.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary' },
+      { kind: 'amount' as const, label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
+      {
+        kind: 'amount', label: 'Your UTXO sats returned',
+        value: `${listing.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
+      },
+      { kind: 'amount' as const, label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
+      ...identityFacts,
       ...(sameAddress(attach.assetSource, attach.seller)
         ? []
-        : [{ label: 'Asset source', value: attach.assetSource }]),
-      { label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
-      { label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
-      { label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
-      { label: 'Broadcast now', value: 'Attach transaction only' },
-      { label: 'Listing activation', value: 'After confirmation and Counterparty verification' },
-      { label: 'Signature invalidation', value: 'Spend the attached asset UTXO' },
+        : [{ kind: 'address' as const, label: 'Asset source', value: attach.assetSource }]),
+      { kind: 'text' as const, label: 'Broadcast now', value: 'Attach transaction only' },
+      { kind: 'paragraph' as const, label: 'Listing activation', value: 'After confirmation and Counterparty verification' },
+      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend the attached asset UTXO' },
     );
-    notice = 'The wallet resolves the listing to the final signed attach transaction before adding the listing signature. The marketplace cannot activate it until the attached asset is independently verified.';
+    notice = 'The attach transaction is broadcast first. The listing becomes available after confirmation and independent verification of the attached asset.';
   } else if (kind === 'bulk-fanout') {
     const fanouts = intents as PrepareBulkFanoutIntentClaim[];
     const slots = exactSafeSum(fanouts.map(intent => intent.slotCount), 'slot count');
     const fees = exactSafeSum(fanouts.map(intent => intent.networkFeeSats), 'network fee');
     title = `Create ${slots} listing UTXO${slots === 1 ? '' : 's'}`;
     facts.push(
-      { label: 'New UTXOs', value: slots.toLocaleString() },
-      { label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'New UTXOs', value: slots.toLocaleString() },
+      { kind: 'amount' as const, label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
     );
     notice = 'Every fan-out input and same-wallet output was proved before this batch can sign. No Counterparty asset moves in this phase.';
   } else if (kind === 'bulk-attach' || kind === 'prepare-assets') {
@@ -202,9 +227,9 @@ export function analyzeMarketplaceBatch(
       ? `Prepare ${attaches.length} collectible${attaches.length === 1 ? '' : 's'}`
       : `Attach ${attaches.length} collectibles for listing`;
     facts.push(
-      { label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Total network fees', value: `${fees.toLocaleString()} sats` },
       {
-        label: 'Total quoted XCP fees',
+        kind: 'amount' as const, label: 'Total quoted XCP fees',
         value: formatXcpRaw(attaches.map(intent => intent.protocolFee.quotedAmountRaw)),
       },
     );
@@ -212,6 +237,8 @@ export function analyzeMarketplaceBatch(
   } else {
     const listings = intents as CreateListingIntentClaim[];
     const gross = exactSafeSum(listings.map(intent => intent.priceSats), 'listing prices');
+    const returned = exactSafeSum(listings.map(intent => intent.carrierValueSats), 'asset UTXO values');
+    const payouts = exactSafeSum(listings.map(intent => intent.guaranteedSellerPaymentSats), 'seller payouts');
     // A batch where every item replaces an existing authorization is a reprice, and saying
     // "listings" would describe it as putting new items up for sale. Mixed batches stay generic.
     const allReprice = listings.every(intent => intent.listingContext?.mode === 'reprice');
@@ -221,10 +248,14 @@ export function analyzeMarketplaceBatch(
     // Proved reviews speak through facts, not notices, so the durable-signature boundary has to
     // live here — the same rows the single-listing screen shows.
     facts.push(
-      { label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` },
-      { label: 'Buyer controls', value: 'Funding, fees, and detach destination' },
-      { label: 'Broadcast now', value: 'None' },
-      { label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
+      { kind: 'amount' as const, label: 'Combined asking prices', value: `${gross.toLocaleString()} sats` },
+      {
+        kind: 'amount', label: 'Your UTXO sats returned', value: `${returned.toLocaleString()} sats`,
+      },
+      { kind: 'amount', label: 'Your payout if all sell', value: `${payouts.toLocaleString()} sats`, emphasis: 'primary' },
+      { kind: 'paragraph' as const, label: 'Buyer controls', value: 'Funding, fees, and delivery destination' },
+      { kind: 'text' as const, label: 'Broadcast', value: 'Not broadcast now.' },
+      { kind: 'paragraph' as const, label: 'Signature invalidation', value: 'Spend each attached asset UTXO' },
     );
     notice = 'Every listing independently guarantees its seller payment. Each flexible signature remains valid until its attached asset outpoint is spent.';
   }
@@ -233,6 +264,7 @@ export function analyzeMarketplaceBatch(
     status,
     family: 'marketplace_batch',
     title,
+    ...(summary ? { bundleSummary: summary } : {}),
     facts,
     notices: blockers.length > 0 ? [] : [{ severity: status === 'caution' ? 'warning' : 'info', message: notice }],
     blockers,

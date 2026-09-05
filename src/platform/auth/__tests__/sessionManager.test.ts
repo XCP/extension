@@ -6,6 +6,7 @@ import {
   getKeychainMasterKey,
   getLastActiveTime,
   getUnlockedSecret,
+  initializeSession,
   MAX_SESSION_DURATION_MS,
   setLastActiveTime,
   storeUnlockedSecret,
@@ -44,6 +45,7 @@ describe('sessionManager', () => {
     
     // Clear all secrets before each test
     await clearAllUnlockedSecrets();
+    await initializeSession(5 * 60 * 1000);
     vi.clearAllMocks();
   });
 
@@ -225,6 +227,7 @@ describe('sessionManager', () => {
 
       storeUnlockedSecret(walletId, firstSecret);
       await clearAllUnlockedSecrets();
+      await initializeSession(5 * 60 * 1000);
       storeUnlockedSecret(walletId, secondSecret);
 
       expect(await getUnlockedSecret(walletId)).toBe(secondSecret);
@@ -544,6 +547,7 @@ describe('sessionManager', () => {
       
       // Clear all secrets first
       await clearAllUnlockedSecrets();
+      await initializeSession(5 * 60 * 1000);
       
       const { checkSessionRecovery, SessionRecoveryState } = await import('../sessionManager');
       const state = await checkSessionRecovery();

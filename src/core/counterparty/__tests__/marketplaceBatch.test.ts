@@ -181,11 +181,22 @@ describe('marketplace batch aggregate proof', () => {
       title: 'Attach and list RAREPEPE',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Asset source', value: attach().assetSource });
-    expect(review.facts).toContainEqual({ label: 'Listing price', value: '100,000 sats' });
-    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'Attach transaction only' });
+    expect(review.facts).toContainEqual({ kind: 'address', label: 'Asset source', value: attach().assetSource });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Listing price', value: '100,000 sats' });
+    expect(review.facts.slice(0, 3)).toEqual([
+      { kind: 'amount', label: 'Your payout if sold', value: '100,546 sats', emphasis: 'primary' },
+      { kind: 'amount', label: 'Listing price', value: '100,000 sats' },
+      {
+        kind: 'amount', label: 'Your UTXO sats returned', value: '546 sats', layout: 'stacked',
+      },
+    ]);
+    expect(review.facts.slice(3).map(field => field.label)).toEqual([
+      'Attach network fee', 'Quoted XCP fee', 'Transactions', 'Seller wallet', 'Asset source',
+      'Broadcast now', 'Listing activation', 'Signature invalidation',
+    ]);
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast now', value: 'Attach transaction only' });
     expect(review.facts).toContainEqual({
-      label: 'Listing activation',
+      kind: 'paragraph', label: 'Listing activation',
       value: 'After confirmation and Counterparty verification',
     });
   });
@@ -214,8 +225,8 @@ describe('marketplace batch aggregate proof', () => {
       family: 'marketplace_batch',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'New UTXOs', value: '4' });
-    expect(review.facts).toContainEqual({ label: 'Total network fees', value: '2,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'New UTXOs', value: '4' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total network fees', value: '2,000 sats' });
   });
 
   it('summarizes a price-free preparation phase without calling it a listing', () => {
@@ -230,8 +241,8 @@ describe('marketplace batch aggregate proof', () => {
       title: 'Prepare 2 collectibles',
       blockers: [],
     });
-    expect(review.facts).toContainEqual({ label: 'Total network fees', value: '908 sats' });
-    expect(review.facts).toContainEqual({ label: 'Total quoted XCP fees', value: '0.5 XCP' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total network fees', value: '908 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Total quoted XCP fees', value: '0.5 XCP' });
   });
 
   // The bulk-listing screen has no attention interstitial: these facts are the only place the
@@ -245,14 +256,14 @@ describe('marketplace batch aggregate proof', () => {
 
     expect(review.status).toBe('proved');
     expect(review.title).toBe('Authorize 2 marketplace listings');
-    expect(review.facts).toContainEqual({ label: 'Combined asking prices', value: '200,000 sats' });
+    expect(review.facts).toContainEqual({ kind: 'amount', label: 'Combined asking prices', value: '200,000 sats' });
     expect(review.facts).toContainEqual({
-      label: 'Buyer controls',
-      value: 'Funding, fees, and detach destination',
+      kind: 'paragraph', label: 'Buyer controls',
+      value: 'Funding, fees, and delivery destination',
     });
-    expect(review.facts).toContainEqual({ label: 'Broadcast now', value: 'None' });
+    expect(review.facts).toContainEqual({ kind: 'text', label: 'Broadcast', value: 'Not broadcast now.' });
     expect(review.facts).toContainEqual({
-      label: 'Signature invalidation',
+      kind: 'paragraph', label: 'Signature invalidation',
       value: 'Spend each attached asset UTXO',
     });
   });

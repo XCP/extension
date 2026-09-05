@@ -41,17 +41,20 @@ Report vulnerabilities via [GitHub Security Advisories](../../security/advisorie
 
 ## Dependencies
 
-We intentionally minimized runtime dependencies—most wallets ship dozens, we ship 14. What remains is carefully vetted.
+The wallet has 13 direct runtime dependencies, pinned to exact versions in `package.json`.
 
 | Package | Purpose |
 |---------|---------|
-| [@noble/curves](https://github.com/paulmillr/noble-curves), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Audited cryptography |
+| [@noble/secp256k1](https://github.com/paulmillr/noble-secp256k1), [@noble/hashes](https://github.com/paulmillr/noble-hashes), [@scure/*](https://github.com/paulmillr/scure-bip32) | Cryptography and Bitcoin serialization |
+| [@trezor/connect-webextension](https://github.com/trezor/trezor-suite) | Hardware wallet connection |
 | [bignumber.js](https://github.com/MikeMcl/bignumber.js) | Arbitrary precision arithmetic |
 | [react](https://react.dev/), [react-router](https://reactrouter.com/) | UI framework |
 | [@headlessui/react](https://headlessui.com/) | Accessible components |
 | [webext-bridge](https://github.com/nickytonline/webext-bridge) | Extension messaging |
 
 ## Development
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the code map, trust boundaries, and signing lifecycle.
 
 ```bash
 npm install        # plain install — never --legacy-peer-deps, it prunes @testing-library/dom
@@ -94,10 +97,16 @@ that the previous version has published before uploading the next one.
 ## Test
 
 ```bash
-npm test           # All tests
-npm run test:unit  # Unit only
-npm run test:e2e   # E2E only
+npm run compile
+npm run lint
+npx vitest run src/platform/__tests__/proxy.test.ts --retry=0
+npx playwright test e2e/tests/provider-message-signing.spec.ts
 ```
+
+Full-suite commands (`npm test`, `test:unit`, `test:e2e`) are restricted to CI.
+Locally, select the tests affected by the change. `npm run lint` includes type-aware
+promise checks and rejects increases in the existing per-file/rule warning budgets.
+After fixing warnings, run `npm run lint:prune` to reduce those budgets; it cannot add allowances.
 
 ## Community
 

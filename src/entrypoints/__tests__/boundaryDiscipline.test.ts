@@ -37,7 +37,7 @@ interface Door {
 const DOORS: Record<string, Door> = {
   "background.ts chrome.runtime.onMessage#1": {
     gated: false,
-    reason: 'Liveness ping, content-script-ready signal and event relay. Answers nothing about ' +
+    reason: 'Liveness ping and content-script-ready signal. Answers nothing about ' +
       'wallet state, and the ping must respond while still initialising.',
   },
   "background.ts chrome.runtime.onConnect#1": {
@@ -52,17 +52,9 @@ const DOORS: Record<string, Door> = {
     gated: false,
     reason: 'Reports whether initialisation finished. Gating it would deadlock the question.',
   },
-  "background.ts provider-request": {
-    gated: true,
-    reason: 'The site\'s door. Every dApp request arrives here rather than over a service port.',
-  },
-  "background.ts provider-event": {
-    gated: false,
-    reason: 'Outbound only — relays an event to tabs and reads no wallet state.',
-  },
   "proxy.ts chrome.runtime.onConnect#1": {
     gated: true,
-    reason: 'The popup\'s door. Dispatches every proxied service call.',
+    reason: 'Dispatches trusted UI methods and the content bridge provider entry point after recovery.',
   },
 };
 

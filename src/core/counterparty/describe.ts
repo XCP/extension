@@ -18,6 +18,8 @@
  * carries only names and must label a quantity whose units it cannot establish.
  */
 
+import { getFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
+import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
 import {
   type DisplayUnits,
   divide,
@@ -44,6 +46,8 @@ export interface DescribableMessage {
   quantity?: unknown;
   destination?: string;
   memo?: string;
+  /** Representation established from the decoded bytes, not guessed from the memo string. */
+  memoEncoding?: 'text' | 'hex';
 
   giveAsset?: string;
   giveQuantity?: unknown;
@@ -106,6 +110,23 @@ export interface DescribableMessage {
    * Both carry the same fields, so without this the two opposite acts rendered identically.
    */
   dispenserStatus?: number;
+
+  /** Fairminter terms use their decoded names rather than unrelated order/pool fields. */
+  price?: unknown;
+  quantityByPrice?: unknown;
+  maxMintPerTx?: unknown;
+  maxMintPerAddress?: unknown;
+  hardCap?: unknown;
+  softCap?: unknown;
+  premintQuantity?: unknown;
+  startBlock?: number;
+  endBlock?: number;
+  softCapDeadlineBlock?: number;
+  mintedAssetCommissionInt?: unknown;
+  burnPayment?: boolean;
+  poolQuantity?: unknown;
+  lockDescription?: boolean;
+  lockQuantity?: boolean;
 
   /**
    * Render a quantity in display units for the given asset.
@@ -241,7 +262,7 @@ export function describeMessage(
 
     case 'dividend':
       // The rate is the headline; who it is paid across reads beneath it.
-      return `${q(m.quantityPerUnit, m.dividendAsset)} ${n(m.dividendAsset)}\nAll ${n(m.asset)} holders`;
+      return `${q(m.quantityPerUnit, m.dividendAsset)} ${n(m.dividendAsset)} per unit\nAll ${n(m.asset)} holders`;
 
     case 'btcpay':
       // Not "BTC Pay for Order Match": that is the label above it, and the eyebrow repeating the
@@ -263,17 +284,14 @@ export function describeMessage(
       return m.quantity == null ? n(m.asset) : `${q(m.quantity, m.asset)} ${n(m.asset)}`;
 
     case 'pooldeposit': {
-      // The two legs are the headline; the price they imply reads beneath. The ratio is withheld
-      // when either side's divisibility is unknown — a rate on a guessed scale is wrong by 1e8.
+      // General transaction descriptions retain the amounts. Approval summaries use the typed
+      // facts below and a short action heading instead of putting this sentence in a hero.
       const legs = `${q(m.quantityA, m.assetA)} ${n(m.assetA)} / ${q(m.quantityB, m.assetB)} ${n(m.assetB)}`;
       const a = m.numeric?.(m.quantityA, m.assetA);
       const b = m.numeric?.(m.quantityB, m.assetB);
-      const ratio =
-        a !== undefined && b !== undefined
-        && toBigNumber(a).isFinite() && toBigNumber(b).isFinite()
-        && isGreaterThan(a, 0)
-          ? `1 ${n(m.assetA)} = ${toGroupedString(divide(b, a))} ${n(m.assetB)}`
-          : null;
+      const ratio = a !== undefined && b !== undefined
+        && toBigNumber(a).isFinite() && toBigNumber(b).isFinite() && isGreaterThan(a, 0)
+        ? `1 ${n(m.assetA)} = ${toGroupedString(divide(b, a))} ${n(m.assetB)}` : null;
       return ratio ? `${legs}\n${ratio}` : legs;
     }
 
@@ -375,6 +393,12 @@ export interface ProtocolContext {
 export interface ProtocolField {
   label: string;
   value: string;
+  /** Producers choose meaning explicitly; older persisted reviews default to ordinary text. */
+  kind?: 'amount' | 'address' | 'outpoint' | 'identifier' | 'text' | 'paragraph';
+  emphasis?: 'primary';
+  layout?: 'stacked';
+  /** Supporting context stays separate from an amount or identifier. */
+  description?: string;
 }
 
 /**
@@ -452,10 +476,15 @@ export function protocolFields(
   const q = (quantity: unknown, asset?: string) => m.format(quantity, asset);
   const n = (asset?: string) => (m.name ? m.name(asset) : (asset ?? ''));
   const fields: ProtocolField[] = [];
-  const add = (label: string, value: unknown) => {
+  const add = (label: string, value: unknown, kind: ProtocolField['kind'] = 'text') => {
     if (value === undefined || value === null || value === '') return;
-    fields.push({ label, value: String(value) });
+    fields.push({ label, value: String(value), kind });
   };
+  const addMemo = (label = 'Memo') => add(
+    m.memoEncoding === 'hex' ? `${label} (hex)` : label,
+    m.memo,
+    m.memoEncoding === 'hex' ? 'identifier' : 'paragraph',
+  );
 
   /**
    * A quantity with its asset, or nothing when the message does not carry one.
@@ -478,7 +507,7 @@ export function protocolFields(
     case 'send':
       // Asset, amount and destination are the headline in full; the memo is the only field it
       // cannot carry.
-      add('Memo', m.memo);
+      addMemo();
       break;
 
     case 'mpma_send':
@@ -488,11 +517,11 @@ export function protocolFields(
       break;
 
     case 'order':
-      add('Price', priceOf(m, n));
+      add('Price', priceOf(m, n), 'amount');
       // Only orders with a BTC side carry one; every other order sets it to zero, and a row
       // reading "BTC fee: 0.00000000 BTC" is noise on the majority of orders.
       if (m.feeRequired != null && isGreaterThan(String(m.feeRequired), 0)) {
-        add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'));
+        add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'), 'amount');
       }
       add('Expiry', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
       break;
@@ -501,10 +530,10 @@ export function protocolFields(
       // Closing is stated in the headline and refunds rather than commits, so the escrow figures
       // describe the opening case only.
       if (m.dispenserStatus !== DISPENSER_STATUS_CLOSED) {
-        add('Escrow', amount(m.escrowQuantity, m.asset));
-        add('Dispense', amount(m.giveQuantity, m.asset));
+        add('Escrow', amount(m.escrowQuantity, m.asset), 'amount');
+        add('Dispense', amount(m.giveQuantity, m.asset), 'amount');
         if (m.mainchainrate != null && isGreaterThan(String(m.mainchainrate), 0)) {
-          add('Per dispense', `${fromSatoshis(String(m.mainchainrate), { removeTrailingZeros: false })} BTC`);
+          add('Per dispense', `${fromSatoshis(String(m.mainchainrate), { removeTrailingZeros: false })} BTC`, 'amount');
         }
         add('Dispenses', dispensesAvailable(m));
       }
@@ -513,17 +542,56 @@ export function protocolFields(
     case 'dispense':
       // "Trigger a dispenser" says nothing about what comes back, and core pays out from every
       // open dispenser at the address - so one payment can return several assets.
-      for (const payout of context.dispensePayouts ?? []) add('You receive', payout);
+      for (const payout of context.dispensePayouts ?? []) add('You receive', payout, 'amount');
       break;
 
-    case 'fairminter':
-      // The headline is the asset name alone; everything being agreed to is here.
-      add('XCP price', amount(m.giveQuantity, 'XCP', 'XCP'));
-      add('Lot size', amount(m.quantityA, m.asset));
-      add('Hard cap', amount(m.getQuantity, m.asset));
-      add('Soft cap', amount(m.quantityB, m.asset));
-      add('Deadline', m.expiration ? `block ${m.expiration.toLocaleString()}` : undefined);
+    case 'fairminter': {
+      add('XCP price per lot', amount(m.price, 'XCP', 'XCP'), 'amount');
+      add('Lot size', amount(m.quantityByPrice, m.asset), 'amount');
+      const cap = (value: unknown) => value == null ? undefined
+        : isGreaterThan(String(value), 0) ? amount(value, m.asset) : 'No limit';
+      add('Per transaction limit', cap(m.maxMintPerTx), 'amount');
+      add('Per address limit', cap(m.maxMintPerAddress), 'amount');
+      add('Hard cap', cap(m.hardCap), 'amount');
+      if (m.softCap != null && isGreaterThan(String(m.softCap), 0)) {
+        add('Soft cap', amount(m.softCap, m.asset), 'amount');
+        add('Soft cap deadline', m.softCapDeadlineBlock
+          ? `Block ${m.softCapDeadlineBlock.toLocaleString()}` : undefined);
+      }
+      if (m.premintQuantity != null && isGreaterThan(String(m.premintQuantity), 0)) {
+        add('Premint', amount(m.premintQuantity, m.asset), 'amount');
+      }
+      if (m.poolQuantity != null && isGreaterThan(String(m.poolQuantity), 0)) {
+        add('Pool allocation', amount(m.poolQuantity, m.asset), 'amount');
+        add('LP asset', m.lpAsset);
+      }
+      if (m.price != null) {
+        const payment = getFairminterPaymentModel({
+          price: String(m.price), burnPayment: m.burnPayment,
+          poolQuantity: m.poolQuantity == null ? undefined : String(m.poolQuantity),
+        });
+        add('XCP payment', {
+          free: 'None (free mint)', burned: 'Burned', pool: 'Seeds the liquidity pool', issuer: 'Paid to issuer',
+        }[payment]);
+      }
+      add('Starts', m.startBlock === undefined ? undefined
+        : m.startBlock === 0 ? 'On confirmation' : `Block ${m.startBlock.toLocaleString()}`);
+      add('Ends', m.endBlock === undefined ? undefined
+        : m.endBlock === 0 ? 'No end block' : `Block ${m.endBlock.toLocaleString()}`);
+      if (m.mintedAssetCommissionInt != null) {
+        add('Minted asset commission', `${toGroupedString(divide(String(m.mintedAssetCommissionInt), 1_000_000))}%`, 'amount');
+      }
+      add('Divisible', m.divisible === undefined ? undefined : m.divisible ? 'Yes' : 'No');
+      add('Lock description', m.lockDescription === undefined ? undefined : m.lockDescription ? 'Yes' : 'No');
+      add('Lock quantity', m.lockQuantity === undefined ? undefined : m.lockQuantity ? 'Yes' : 'No');
+      if (m.mimeType && !isTextualMimeType(m.mimeType)) {
+        add('Description format', m.mimeType);
+        add('Description content', m.text, 'identifier');
+      } else {
+        add('Description', m.text, 'paragraph');
+      }
       break;
+    }
 
     case 'fairmint':
       // Headline: the amount being minted. Not in it: what it costs, and where the payment goes —
@@ -535,7 +603,8 @@ export function protocolFields(
           : context.fairmintPaymentModel === 'pool'
             ? 'XCP to pool'
             : 'XCP price',
-        context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined
+        context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined,
+        'amount'
       );
       break;
 
@@ -545,20 +614,21 @@ export function protocolFields(
     case 'lr_subasset':
       // Ordered by consequence: the switches that cannot be undone and the change of owner come
       // before a description that can run several lines and change nothing.
-      if (m.lock) add('Lock', 'Yes - supply can never be increased again');
-      if (m.reset) add('Reset', 'Yes - existing supply is destroyed and replaced');
-      add('New owner', m.destination);
+      if (m.lock) add('Lock', 'Yes - supply can never be increased again', 'paragraph');
+      if (m.reset) add('Reset', 'Yes - existing supply is destroyed and replaced', 'paragraph');
+      add('New owner', m.destination, 'address');
       if (m.divisible !== undefined) add('Divisible', m.divisible ? 'Yes' : 'No');
-      add('Description', m.text);
+      add('Description', m.text, 'paragraph');
       break;
 
     case 'dividend':
       // Headline: the rate. Here: the bill.
       add(
         'Total dividend',
-        context.dividendTotal ? `${context.dividendTotal} ${n(m.dividendAsset)}` : undefined
+        context.dividendTotal ? `${context.dividendTotal} ${n(m.dividendAsset)}` : undefined,
+        'amount'
       );
-      add('XCP fee', context.dividendFeeXcp ? `${context.dividendFeeXcp} XCP` : undefined);
+      add('XCP fee', context.dividendFeeXcp ? `${context.dividendFeeXcp} XCP` : undefined, 'amount');
       break;
 
     case 'destroy': {
@@ -567,7 +637,8 @@ export function protocolFields(
       // ledger's supply is the pre-burn figure, which "Total supply" alone left ambiguous.
       add(
         'Supply before',
-        context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined
+        context.assetSupply ? `${context.assetSupply} ${n(m.asset)}` : undefined,
+        'amount'
       );
       const destroyed = m.numeric?.(m.quantity, m.asset);
       if (context.assetSupply && destroyed !== undefined) {
@@ -577,19 +648,19 @@ export function protocolFields(
           toBigNumber(destroyed).isFinite() &&
           !isLessThan(subtract(total, destroyed), 0)
         ) {
-          add('Supply after', `${toGroupedString(subtract(total, destroyed))} ${n(m.asset)}`);
+          add('Supply after', `${toGroupedString(subtract(total, destroyed))} ${n(m.asset)}`, 'amount');
         }
       }
       add('Share destroyed', shareOfSupply(m, context.assetSupply));
-      add('Tag', m.memo);
+      addMemo('Tag');
       break;
     }
 
     case 'sweep':
       // Headline: the destination. Not in it: what actually moves, which is the whole question -
       // a sweep can hand over asset ownership as well as balances.
-      add('Includes', sweepContents(m));
-      add('Memo', m.memo);
+      add('Includes', sweepContents(m), 'paragraph');
+      addMemo();
       break;
 
     case 'broadcast': {
@@ -598,7 +669,7 @@ export function protocolFields(
       const mime = m.mimeType && m.mimeType !== '' ? m.mimeType : 'text/plain';
       add('Format', mime === 'text/plain' ? 'Plain text' : mime);
       if (mime !== 'text/plain') {
-        add('Content', 'Inscribed - this broadcast carries data, not a message');
+        add('Content', 'Inscribed - this broadcast carries data, not a message', 'paragraph');
       }
       if (m.value) add('Value', m.value.toLocaleString());
       if (m.feeFractionInt) {
@@ -616,25 +687,32 @@ export function protocolFields(
           'Time left',
           context.btcpayBlocksLeft > 0
             ? `${context.btcpayBlocksLeft} block${context.btcpayBlocksLeft === 1 ? '' : 's'}`
-            : 'Expired - this payment will not settle the match'
+            : 'Expired - this payment will not settle the match',
+          context.btcpayBlocksLeft > 0 ? 'text' : 'paragraph'
         );
       }
-      add('Order match', m.offerHash);
+      add('Order match', m.offerHash, 'identifier');
       break;
 
     case 'cancel':
       // The headline names the order in words where it resolved; the hash is what goes on chain.
-      add('Order hash', m.offerHash);
+      add('Order hash', m.offerHash, 'identifier');
       break;
 
     case 'pooldeposit': {
-      // Both amounts are the headline; the pool they belong to, its fee, and the slippage floor
-      // being signed are not.
+      add('Deposit', amount(m.quantityA, m.assetA), 'amount');
+      add('Deposit', amount(m.quantityB, m.assetB), 'amount');
+      const a = m.numeric?.(m.quantityA, m.assetA);
+      const b = m.numeric?.(m.quantityB, m.assetB);
+      if (a !== undefined && b !== undefined && toBigNumber(a).isFinite()
+        && toBigNumber(b).isFinite() && isGreaterThan(a, 0)) {
+        add('Ratio', `1 ${n(m.assetA)} = ${toGroupedString(divide(b, a))} ${n(m.assetB)}`, 'amount');
+      }
       add('Pool', m.lpAsset ? n(m.lpAsset) : context.poolLpAsset);
       add('Pool fee', context.poolFeeRate);
       // LP tokens are always divisible; a zero floor means no slippage protection was set.
       if (m.minLpQuantity != null && isGreaterThan(String(m.minLpQuantity), 0)) {
-        add('Min LP received', `${fromSatoshis(String(m.minLpQuantity))} LP`);
+        add('Min LP received', `${fromSatoshis(String(m.minLpQuantity))} LP`, 'amount');
       }
       break;
     }
@@ -644,36 +722,37 @@ export function protocolFields(
       add('Pool fee', context.poolFeeRate);
       // The withdrawal's slippage floors: it fails below these amounts back.
       if (m.minQuantityA != null && isGreaterThan(String(m.minQuantityA), 0)) {
-        add(`Min ${n(m.assetA)} back`, amount(m.minQuantityA, m.assetA, ''));
+        add(`Min ${n(m.assetA)} back`, amount(m.minQuantityA, m.assetA, ''), 'amount');
       }
       if (m.minQuantityB != null && isGreaterThan(String(m.minQuantityB), 0)) {
-        add(`Min ${n(m.assetB)} back`, amount(m.minQuantityB, m.assetB, ''));
+        add(`Min ${n(m.assetB)} back`, amount(m.minQuantityB, m.assetB, ''), 'amount');
       }
       break;
 
     case 'attach':
       // The XCP fee is a cost; the UTXO is an identifier, so it comes second. Asset and amount are
       // already stated in the headline.
-      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
+      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined, 'amount');
       add(
         'New UTXO',
         context.transactionId !== undefined && m.destinationVout !== undefined
           ? `${context.transactionId}:${m.destinationVout}`
-          : undefined
+          : undefined,
+        'outpoint'
       );
       break;
 
     case 'detach':
       // The destination is in the headline. What is not is which balances come back.
-      for (const asset of context.detachingAssets ?? []) add('Detached', asset);
-      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined);
+      for (const asset of context.detachingAssets ?? []) add('Detached', asset, 'amount');
+      add('XCP fee', context.protocolFeeXcp ? `${context.protocolFeeXcp} XCP` : undefined, 'amount');
       break;
 
     case 'utxo':
     case 'utxo_move':
       // Asset and amount are the headline; the endpoints of the move are not.
-      add('From UTXO', m.sourceUtxo);
-      add('To', m.destination);
+      add('From UTXO', m.sourceUtxo, 'outpoint');
+      add('To', m.destination, 'identifier');
       break;
 
     default:

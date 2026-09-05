@@ -48,7 +48,7 @@ const decoder = new TextDecoder();
  *
  * @param password - User password (minimum 8 characters)
  * @param salt - Random salt (minimum 16 bytes)
- * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 100K)
+ * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 500K)
  * @returns Extractable CryptoKey for AES-GCM
  * @throws Error if password, salt, or iterations don't meet security requirements
  */
@@ -276,7 +276,7 @@ interface WorkerResponse {
  *
  * @param password - User password (minimum 8 characters)
  * @param salt - Random salt (minimum 16 bytes)
- * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 100K)
+ * @param iterations - PBKDF2 iterations (defaults to 600K, minimum 500K)
  * @returns Extractable CryptoKey for AES-GCM
  * @throws Error if password, salt, or iterations don't meet security requirements
  */
@@ -305,31 +305,31 @@ export async function deriveKeyAsync(
 
   const saltBase64 = bufferToBase64(salt);
 
+  async function importDerivedKey(encoded: string): Promise<CryptoKey> {
+    // Session storage requires an extractable key. Always clear the intermediate bytes, including
+    // when the import rejects, and keep that rejection attached to the requesting promise.
+    const keyBytes = base64ToBuffer(encoded);
+    try {
+      return await crypto.subtle.importKey(
+        'raw', keyBytes, { name: 'AES-GCM', length: KEY_BITS }, true, ['encrypt', 'decrypt']
+      );
+    } finally {
+      keyBytes.fill(0);
+    }
+  }
+
   return new Promise((resolve, reject) => {
-    const handleMessage = async (e: MessageEvent<WorkerResponse>) => {
+    const handleMessage = (e: MessageEvent<WorkerResponse>) => {
       worker.removeEventListener('message', handleMessage);
       worker.removeEventListener('error', handleError);
       worker.terminate();
       kdfWorker = null;
 
       if (e.data.success && e.data.keyBase64) {
-        try {
-          // Import the raw key bytes directly as extractable (for session
-          // storage). Importing non-extractable first and calling exportKey
-          // on it would throw InvalidAccessError.
-          const keyBytes = base64ToBuffer(e.data.keyBase64);
-          const extractableKey = await crypto.subtle.importKey(
-            'raw',
-            keyBytes,
-            { name: 'AES-GCM', length: KEY_BITS },
-            true, // extractable
-            ['encrypt', 'decrypt']
-          );
-          keyBytes.fill(0);
-          resolve(extractableKey);
-        } catch (_err) {
-          reject(new Error('Failed to import derived key'));
-        }
+        importDerivedKey(e.data.keyBase64).then(
+          resolve,
+          () => reject(new Error('Failed to import derived key')),
+        );
       } else {
         reject(new Error(e.data.error || 'Key derivation failed'));
       }

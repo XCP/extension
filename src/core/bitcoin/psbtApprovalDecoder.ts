@@ -16,7 +16,6 @@ import {
   analyzeSignRequest,
   type SignRequestAnalysis,
 } from '@/core/counterparty/signRequestAnalysis';
-import { decodeRawTransaction } from '@/core/counterparty/transaction';
 import { extractPayloadFromOutputs } from '@/core/counterparty/unpack/opReturn';
 
 export interface DecodedPsbtInfo extends SignRequestAnalysis {
@@ -37,7 +36,7 @@ export async function decodePsbtForApproval(
 ): Promise<DecodedPsbtInfo> {
   const psbtDetails = extractPsbtDetails(psbtHex);
   const attachedAssetsPromise = fetchInputsAttachedAssets(psbtDetails.inputs, signedInputIndices);
-  let txid: string | undefined = psbtDetails.transactionId;
+  const txid = psbtDetails.transactionId;
   let counterpartyDataHex: string | undefined;
 
   const firstInputTxid = psbtDetails.inputs[0]?.txid;
@@ -52,22 +51,9 @@ export async function decodePsbtForApproval(
     if (reveal) counterpartyDataHex = reveal.messageHex;
   }
 
-  if (psbtDetails.rawTxHex) {
-    try {
-      const decoded = await decodeRawTransaction(psbtDetails.rawTxHex, true);
-      txid ??= decoded.txid;
-      for (const vout of decoded.vout) {
-        const output = psbtDetails.outputs.find(candidate => candidate.index === vout.n);
-        // Remote decoding may fill an address the local decoder could not establish, never replace
-        // a local address used by the money-movement and safety classifiers (ADR-019).
-        if (output && !output.address && vout.scriptPubKey.address) {
-          output.address = vout.scriptPubKey.address;
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to decode transaction via API:', error);
-    }
-  }
+  // Addresses used by policy must be proved by the output script. Even filling an unresolved
+  // address from an indexer can relabel a spendable P2PK output as our change and bypass the
+  // external-payment proof. Unknown scripts remain unknown; no remote decode is needed.
 
   const analysis = await analyzeSignRequest({
     counterpartyDataHex,

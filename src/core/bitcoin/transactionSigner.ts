@@ -3,6 +3,7 @@ import { getPublicKey } from '@noble/secp256k1';
 import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
+import { assertTransactionMatchesReviewed } from '@/core/bitcoin/transactionIntegrity';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
@@ -32,68 +33,9 @@ interface TransactionInputData {
 }
 
 /**
- * Sequence used when the parsed transaction does not carry one. Shared by the rebuild and the
- * check below so the two cannot disagree about what "unset" means.
+ * Bitcoin's default sequence when an input does not explicitly supply one.
  */
-const DEFAULT_SEQUENCE = 0xfffffffd;
-
-/**
- * Require the transaction being signed to be structurally identical to the one that was reviewed.
- *
- * signTransaction does not sign the bytes it parsed — it builds a fresh Transaction and copies
- * fields across, because the signer needs per-input prevout data the raw bytes do not carry. Any
- * field missed in that copy is silently substituted by @scure's defaults, and the user ends up
- * signing something other than what they approved. That has happened twice: version and lockTime
- * were dropped (a timelocked transaction signed as immediately spendable), and sequence was
- * overwritten with 0xfffffffd (a final transaction signed as replaceable). Both were found in the
- * field rather than by the code.
- *
- * Everything a Bitcoin transaction serialises is compared here — version, lockTime, and per input
- * and output the fields that are not the signature itself — so a third omission fails loudly
- * instead of producing a signature over bytes nobody saw.
- */
-function assertRebuildMatchesReviewed(signed: Transaction, reviewed: Transaction): void {
-  const mismatch = (what: string, expected: unknown, actual: unknown): never => {
-    throw new SigningError(
-      `Refusing to sign: rebuilt transaction differs from the reviewed one (${what}: expected ${expected}, got ${actual})`,
-      { userMessage: 'The transaction changed while being prepared, so it was not signed.' }
-    );
-  };
-
-  if (signed.version !== reviewed.version) mismatch('version', reviewed.version, signed.version);
-  if (signed.lockTime !== reviewed.lockTime) mismatch('lockTime', reviewed.lockTime, signed.lockTime);
-  if (signed.inputsLength !== reviewed.inputsLength) {
-    mismatch('input count', reviewed.inputsLength, signed.inputsLength);
-  }
-  if (signed.outputsLength !== reviewed.outputsLength) {
-    mismatch('output count', reviewed.outputsLength, signed.outputsLength);
-  }
-
-  for (let i = 0; i < reviewed.inputsLength; i++) {
-    const a = reviewed.getInput(i);
-    const b = signed.getInput(i);
-    if (bytesToHex(a.txid!) !== bytesToHex(b.txid!)) {
-      mismatch(`input ${i} txid`, bytesToHex(a.txid!), bytesToHex(b.txid!));
-    }
-    if (a.index !== b.index) mismatch(`input ${i} index`, a.index, b.index);
-    // Compared through the same default the rebuild applies. @scure omits sequence when it is
-    // absent, and the rebuild fills 0xfffffffd there — reading the raw fields would call that a
-    // mismatch and refuse a transaction that is fine. The check that matters is that a sequence
-    // the composer *did* set survives, not that the field was spelled out.
-    const seqA = a.sequence ?? DEFAULT_SEQUENCE;
-    const seqB = b.sequence ?? DEFAULT_SEQUENCE;
-    if (seqA !== seqB) mismatch(`input ${i} sequence`, seqA, seqB);
-  }
-
-  for (let i = 0; i < reviewed.outputsLength; i++) {
-    const a = reviewed.getOutput(i);
-    const b = signed.getOutput(i);
-    if (a.amount !== b.amount) mismatch(`output ${i} amount`, a.amount, b.amount);
-    if (bytesToHex(a.script!) !== bytesToHex(b.script!)) {
-      mismatch(`output ${i} script`, bytesToHex(a.script!), bytesToHex(b.script!));
-    }
-  }
-}
+const DEFAULT_SEQUENCE = 0xffffffff;
 
 /**
  * Sign a Bitcoin transaction.
@@ -121,7 +63,8 @@ export async function signTransaction(
   compressed: boolean = true,
   inputValues?: number[],
   lockScripts?: string[],
-  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout
+  resolveTrustedPrevout: TrustedPrevoutResolver = noTrustedPrevout,
+  assertStillAuthorized: () => void = () => {},
 ): Promise<string> {
   if (!wallet) {
     throw new ValidationError('INVALID_TRANSACTION', 'Wallet not provided');
@@ -333,10 +276,13 @@ export async function signTransaction(
 
     // Checked before signing, so a mismatch costs nothing and no signature over the wrong bytes
     // is ever produced.
-    assertRebuildMatchesReviewed(tx, parsedTx);
+    assertTransactionMatchesReviewed(tx, parsedTx);
 
     // Sign and finalize the transaction
     try {
+      // Prevout resolution above awaits the network; a lock or identity change during that
+      // work must invalidate the key already held by this operation before it signs anything.
+      assertStillAuthorized();
       if (!compressed && (wallet.addressFormat === AddressFormat.P2PKH || wallet.addressFormat === AddressFormat.Counterwallet || wallet.addressFormat === AddressFormat.FreewalletBIP39)) {
         // Uncompressed P2PKH - use hybrid signing approach
         const compressedPubkey = getPublicKey(privateKeyBytes, true);
