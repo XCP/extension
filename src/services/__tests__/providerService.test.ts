@@ -491,6 +491,35 @@ describe('ProviderService', () => {
 
   describe('handleRequest', () => {
     describe('xcp_requestAccounts', () => {
+      const activeAddress = 'bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty';
+      const siblingAddress = '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7';
+      const origin = 'https://test.com';
+
+      beforeEach(async () => {
+        const wallet = vi.mocked(walletService.getWalletService)();
+        vi.mocked(walletManager.getActiveWallet).mockReturnValue(await wallet.getActiveWallet());
+        vi.mocked(walletManager.getSettings).mockReturnValue({
+          ...DEFAULT_SETTINGS, connectedWebsites: [origin, 'https://newsite.com'],
+          lastActiveAddress: activeAddress,
+        });
+      });
+
+      const grantPair = () => {
+        const connection = vi.mocked(connectionService.getConnectionService)();
+        vi.mocked(connection.hasPermission).mockResolvedValue(true);
+        vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(true);
+        vi.mocked(walletManager.getSettings).mockReturnValue({
+          ...walletManager.getSettings(), providerCapabilities: {
+            [origin]: { walletId: 'wallet1', address: activeAddress, pairedAddresses: true },
+          },
+        });
+        const wallet = vi.mocked(walletService.getWalletService)();
+        vi.mocked(wallet.signMessage).mockImplementation(async (_message, address) => ({
+          address, signature: `proof-${address}`,
+        }));
+        return { connection, wallet };
+      };
+
       it('should return accounts if already connected', async () => {
         // Setup: site is already connected
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
@@ -504,12 +533,121 @@ describe('ProviderService', () => {
 
         expect(result.accounts).toEqual(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
         expect(result.proof).toBeDefined();
+        expect(result.proof.verification).toEqual({ method: 'BIP-322', format: 'p2wpkh' });
+        const wallet = vi.mocked(walletService.getWalletService)();
+        expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), activeAddress,
+          { walletId: 'wallet1', address: activeAddress });
+        expect(wallet.getPrivateKey).not.toHaveBeenCalled();
+        expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
+      });
+
+      it('returns distinct proofs only for the approved active address and its sibling', async () => {
+        const { wallet } = grantPair();
+        const result = await providerService.handleRequest(origin, 'xcp_requestAccounts', []) as any;
+        expect(result.accounts).toEqual([activeAddress]);
+        expect(result.proof).toMatchObject({ address: activeAddress,
+          verification: { method: 'BIP-322', format: 'p2wpkh' } });
+        expect(result.proofs).toEqual([
+          result.proof,
+          expect.objectContaining({ address: siblingAddress,
+            verification: { method: 'BIP-322', format: 'p2pkh' } }),
+        ]);
+        expect(new Set(result.proofs.map((proof: { message: string }) => proof.message)).size).toBe(2);
+        expect(wallet.signMessage).toHaveBeenCalledWith(expect.any(String), siblingAddress,
+          { walletId: 'wallet1', address: activeAddress });
+        expect(wallet.getPrivateKey).not.toHaveBeenCalled();
+      });
+
+      it.each(['success', 'wrong address', 'declined'] as const)(
+        'uses the guarded hardware signer and handles %s', async outcome => {
+          const { wallet, connection } = grantPair();
+          vi.mocked(connection.hasPairedAddressPermission).mockResolvedValue(false);
+          const hardware = { ...walletManager.getActiveWallet()!, id: 'trezor1', type: 'hardware' as const };
+          vi.mocked(wallet.getActiveWallet).mockResolvedValue(hardware);
+          vi.mocked(walletManager.getActiveWallet).mockReturnValue(hardware);
+          if (outcome === 'wrong address') vi.mocked(wallet.signMessage).mockResolvedValue({
+            address: siblingAddress, signature: 'wrong-proof',
+          });
+          if (outcome === 'declined') vi.mocked(wallet.signMessage).mockRejectedValue(new Error('Device declined'));
+          const result = await providerService.handleRequest(origin, 'xcp_requestAccounts', []) as any;
+          expect(result.accounts).toEqual([activeAddress]);
+          if (outcome === 'success') expect(result.proof).toMatchObject({ address: activeAddress,
+            verification: { method: 'BIP-137', format: 'legacy_recoverable' } });
+          else expect(result.proof).toBeNull();
+          expect(wallet.signMessage).toHaveBeenCalledWith(
+            expect.stringMatching(/^xcp-wallet\norigin:https:\/\/test\.com\nnonce:[0-9a-f]{16}\nissued:\d+$/),
+            activeAddress, { walletId: 'trezor1', address: activeAddress });
+          expect(wallet.getPrivateKey).not.toHaveBeenCalled();
+          expect(wallet.getPairedAddresses).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(['grant lookup', 'pair derivation'] as const)(
+        'rejects a wallet switch during %s before signing any proof', async boundary => {
+          const { wallet, connection } = grantPair();
+          const other = { ...walletManager.getActiveWallet()!, id: 'other-wallet' };
+          const switchWallet = () => {
+            vi.mocked(wallet.getActiveWallet).mockResolvedValue(other);
+            vi.mocked(walletManager.getActiveWallet).mockReturnValue(other);
+          };
+          if (boundary === 'grant lookup') {
+            vi.mocked(connection.hasPairedAddressPermission).mockImplementationOnce(async () => {
+              switchWallet();
+              return true;
+            });
+          } else {
+            const pair = await wallet.getPairedAddresses();
+            vi.mocked(wallet.getPairedAddresses).mockImplementationOnce(async () => {
+              switchWallet();
+              return pair;
+            });
+          }
+          await expect(providerService.handleRequest(origin, 'xcp_requestAccounts', [])).rejects.toThrow('The active address changed');
+          expect(wallet.signMessage).not.toHaveBeenCalled();
+        },
+      );
+
+      it.each(['lock', 'switch', 'disconnect', 'revoke pair'] as const)(
+        'withholds every proof when a pending signature encounters %s', async mutation => {
+          const { wallet } = grantPair();
+          vi.mocked(wallet.signMessage).mockImplementationOnce(async (_message, address) => {
+            if (mutation === 'lock') session.generation++;
+            if (mutation === 'switch') vi.mocked(walletManager.getActiveWallet).mockReturnValue({
+              ...walletManager.getActiveWallet()!, id: 'other-wallet',
+            });
+            if (mutation === 'disconnect') vi.mocked(walletManager.getSettings).mockReturnValue({
+              ...walletManager.getSettings(), connectedWebsites: [],
+            });
+            if (mutation === 'revoke pair') vi.mocked(walletManager.getSettings).mockReturnValue({
+              ...walletManager.getSettings(), providerCapabilities: {},
+            });
+            return { address, signature: 'must-not-be-disclosed' };
+          });
+          await expect(providerService.handleRequest(origin, 'xcp_requestAccounts', [])).rejects.toThrow();
+          expect(wallet.signMessage).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it('rechecks a grant revoked during the final asynchronous delivery validation', async () => {
+        const { wallet } = grantPair();
+        vi.mocked(wallet.signMessage).mockImplementation(async (_message, address) => {
+          if (address === siblingAddress) vi.mocked(wallet.getActiveWallet).mockImplementationOnce(async () => {
+            const active = walletManager.getActiveWallet();
+            queueMicrotask(() => vi.mocked(walletManager.getSettings).mockReturnValue({
+              ...walletManager.getSettings(), providerCapabilities: {},
+            }));
+            return active;
+          });
+          return { address, signature: 'must-not-be-disclosed' };
+        });
+        await expect(providerService.handleRequest(origin, 'xcp_requestAccounts', [])).rejects.toThrow('Paired address access was revoked');
+        expect(wallet.signMessage).toHaveBeenCalledTimes(2);
       });
       
       it('should request permission if not connected', async () => {
         // Mock connection service to return false for hasPermission, then connect
         const mockConnectionService = vi.mocked(connectionService.getConnectionService)();
-        mockConnectionService.hasPermission = vi.fn().mockResolvedValue(false);
+        mockConnectionService.hasPermission = vi.fn().mockResolvedValueOnce(false).mockResolvedValue(true);
         mockConnectionService.connect = vi.fn().mockResolvedValue(['bc1qvux25709r4uw6rzc8wyl7wwecjdhrx085hm5ty']);
 
         // Request accounts should call connectionService.connect

@@ -7,7 +7,7 @@
  * - WalletService: Wallet state and cryptographic operations
  */
 
-import { normalizeAddressForComparison } from '@/core/bitcoin/address';
+import { type AddressFormat, normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { fetchBTCBalance } from '@/core/bitcoin/balance';
 import { parseBitcoinPaymentIntent } from '@/core/bitcoin/providerPayment';
 import { resolveProviderSignInputs } from '@/core/bitcoin/providerSigningPlan';
@@ -41,6 +41,7 @@ import {
 } from '@/platform/provider/signFlow';
 import { defineProxyService } from '@/platform/proxy';
 import { createWriteLock } from '@/platform/storage/mutex';
+import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
 import { keychainExists } from '@/platform/storage/walletStorage';
 import { getApprovalService } from '@/services/approvalService';
 import { getConnectionService } from '@/services/connectionService';
@@ -56,6 +57,23 @@ export type ProviderMetadata = Record<string, unknown>;
 export type ProviderResponse = unknown;
 
 const CONNECTION_PROOF_PREFIX = 'xcp-wallet\n';
+
+type ProviderConnectionProof = {
+  address: string;
+  message: string;
+  signature: string;
+  verification:
+    | { method: 'BIP-322'; format: string }
+    | { method: 'BIP-137'; format: 'legacy_recoverable' };
+};
+
+type ConnectionProofContext = {
+  request: AuthorizedRequest;
+  sessionGeneration: number;
+  hardware: boolean;
+  pairedSupported: boolean;
+  format: AddressFormat;
+};
 
 export interface ProviderService {
   /**
@@ -239,40 +257,36 @@ export function createProviderService(): ProviderService {
    * the user controls the address. No user prompt — they already approved connecting.
    * The message format is locked down so it can't be confused with arbitrary signing.
    */
-  async function generateConnectionProof(origin: string): Promise<{
-    address: string;
-    message: string;
-    signature: string;
-    verification: { method: 'BIP-322'; format: string };
-  } | null> {
+  async function generateConnectionProof(
+    context: ConnectionProofContext,
+    target: { address: string; format: AddressFormat },
+  ): Promise<ProviderConnectionProof | null> {
     try {
       const walletService = getWalletService();
-      const activeAddress = await walletService.getActiveAddress();
-      const activeWallet = await walletService.getActiveWallet();
-      if (!activeAddress || !activeWallet) return null;
 
       const nonce = Array.from(crypto.getRandomValues(new Uint8Array(8)))
         .map(b => b.toString(16).padStart(2, '0')).join('');
       const issued = Math.floor(Date.now() / 1000);
 
-      const message = `xcp-wallet\norigin:${origin}\nnonce:${nonce}\nissued:${issued}`;
-
-      const addressFormat = activeWallet.addressFormat || 'p2tr';
+      const message = `xcp-wallet\norigin:${context.request.origin}\nnonce:${nonce}\nissued:${issued}`;
 
       const result = await walletService.signMessage(
         message,
-        activeAddress.address,
-        { walletId: activeWallet.id, address: activeAddress.address },
+        target.address,
+        { walletId: context.request.walletId, address: context.request.address },
       );
 
+      if (normalizeAddressForComparison(result.address) !== normalizeAddressForComparison(target.address)) {
+        throw new Error('Connection proof signed for a different address');
+      }
+
       return {
-        address: result.address,
+        address: target.address,
         message,
         signature: result.signature,
-        verification: {
-          method: 'BIP-322' as const,
-          format: addressFormat,
-        },
+        verification: context.hardware
+          ? { method: 'BIP-137', format: 'legacy_recoverable' }
+          : { method: 'BIP-322', format: target.format },
       };
     } catch (error) {
       console.warn('[ProviderService] Failed to generate connection proof:', error);
@@ -294,10 +308,49 @@ export function createProviderService(): ProviderService {
     return isConnected ? [activeAddress.address] : [];
   }
 
-  /** Build the standard response for xcp_requestAccounts with proof. */
-  async function buildConnectResponse(origin: string, accounts: string[]) {
-    const proof = accounts.length > 0 ? await generateConnectionProof(origin) : null;
-    return { accounts, proof };
+  /** Sign and deliver only the identity and optional sibling grant approved by this connection. */
+  async function buildConnectResponse(accounts: string[], context: ConnectionProofContext) {
+    if (accounts.length !== 1
+      || normalizeAddressForComparison(accounts[0]!) !== normalizeAddressForComparison(context.request.address)) {
+      throw new Error('The connection identity changed before its proof was generated');
+    }
+    const { request, sessionGeneration } = context;
+    const authorize = (paired: boolean) => assertSignDeliveryAuthorized(request, paired, sessionGeneration);
+    let assertCurrent = await authorize(false);
+    assertCurrent();
+    const paired = context.pairedSupported && await getConnectionService().hasPairedAddressPermission(
+      request.origin, request.walletId, request.address,
+    );
+    assertCurrent();
+
+    const targets = [{ address: request.address, format: context.format }];
+    if (paired) {
+      assertCurrent = await authorize(true);
+      // getPairedAddresses captures the current wallet synchronously. Check the pinned
+      // identity immediately before calling it and again before using the derived pair.
+      assertCurrent();
+      const addresses = await getWalletService().getPairedAddresses();
+      assertCurrent();
+      for (const target of [addresses.legacy, addresses.segwit]) {
+        if (!targets.some(candidate => normalizeAddressForComparison(candidate.address)
+          === normalizeAddressForComparison(target.address))) targets.push(target);
+      }
+    }
+
+    const proofs: ProviderConnectionProof[] = [];
+    let proof: ProviderConnectionProof | null = null;
+    for (const [index, target] of targets.entries()) {
+      assertCurrent();
+      const signed = await generateConnectionProof(context, target);
+      assertCurrent();
+      if (index === 0) proof = signed;
+      if (signed) proofs.push(signed);
+    }
+    // Device refusal may omit a proof. Locking, switching, or revoking a grant
+    // invalidates the entire response, including signatures already produced.
+    const assertDelivery = await authorize(paired);
+    assertDelivery();
+    return { accounts, proof, ...(proofs.length > 1 ? { proofs } : {}) };
   }
 
   /**
@@ -326,11 +379,20 @@ export function createProviderService(): ProviderService {
     const walletService = getWalletService();
     const connectionService = getConnectionService();
 
+    const sessionGeneration = getSessionGeneration();
     const activeAddress = await walletService.getActiveAddress();
     const activeWallet = await walletService.getActiveWallet();
     if (!activeAddress || !activeWallet) {
       throw new Error('No active wallet or address');
     }
+    const context: ConnectionProofContext = {
+      request: { id: generateRequestId('connect-proof'), origin, timestamp: Date.now(),
+        walletId: activeWallet.id, address: activeAddress.address },
+      sessionGeneration,
+      hardware: activeWallet.type === 'hardware',
+      pairedSupported: activeWallet.type === 'mnemonic' && Boolean(getPairedAddressFormats(activeWallet.addressFormat)),
+      format: activeWallet.addressFormat,
+    };
 
     if (await connectionService.hasPermission(origin)) {
       if (pairedAddresses) {
@@ -340,7 +402,7 @@ export function createProviderService(): ProviderService {
           activeWallet.id
         );
       }
-      return buildConnectResponse(origin, await getAccounts(origin));
+      return buildConnectResponse(await getAccounts(origin), context);
     }
 
     await onBeforeConnect?.();
@@ -352,7 +414,7 @@ export function createProviderService(): ProviderService {
       pairedAddresses
     );
     await analytics.track('connection_established');
-    return buildConnectResponse(origin, accounts);
+    return buildConnectResponse(accounts, context);
   }
 
   /**
