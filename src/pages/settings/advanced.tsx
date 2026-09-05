@@ -134,7 +134,7 @@ export default function AdvancedSettingsPage(): ReactElement {
 
         <SettingSwitch
           label="Mine DIESEL (Experimental)"
-          description="Attach one Alkanes DIESEL mint to eligible BTC sends, asset sends, and default UTXO attaches. When wallet change is available, DIESEL is assigned to that normal UTXO and only the 26 vB runestone is added. The wallet normally rolls the same balance forward; if its unconfirmed chain reaches 25, it leaves that tip protected and uses clean BTC for another lineage until confirmation frees the first. Review shows the estimated extra miner fee; reward is unknown until confirmation and can be worth less than the fee. Unsupported message encodings, legacy attach controls, MPMA, and provider requests are skipped. DIESEL UTXOs remain protected even after mining is disabled."
+          description="Attach one Alkanes DIESEL mint to eligible BTC sends, asset sends, and default UTXO attaches when the transaction is at or below the fee-rate limit configured on the DIESEL balance page. When wallet change is available, DIESEL is assigned to that normal UTXO and only the 26 vB runestone is added. The wallet normally rolls the same balance forward; if its unconfirmed chain reaches 25, it leaves that tip protected and uses clean BTC for another lineage until confirmation frees the first. Reward is unknown until confirmation and can be worth less than the fee. Unsupported message encodings, legacy attach controls, MPMA, and provider requests are skipped. DIESEL UTXOs remain protected even after mining is disabled."
           checked={settings.enableDieselMinting}
           onChange={(checked) => updateSettings(checked
             ? { enableDieselMinting: true, protectAlkanesUtxos: true }

@@ -604,6 +604,22 @@ describe('Compose Send Operations', () => {
       expect(url.searchParams.has('more_outputs')).toBe(false);
       expect(url.searchParams.get('encoding')).toBe('multisig');
     });
+
+    it('skips DIESEL without blocking the send above the configured fee-rate ceiling', async () => {
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        dieselMintMaxFeeRate: 2,
+      });
+      await composeSend({
+        sourceAddress: mockAddress,
+        sat_per_vbyte: 3,
+        ...defaultParams,
+      });
+
+      const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(url.searchParams.has('more_outputs')).toBe(false);
+    });
   });
 
   describe('composeSendOrMPMA', () => {

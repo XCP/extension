@@ -157,6 +157,7 @@ describe('DEFAULT_SETTINGS', () => {
   it('keeps experimental Alkanes lookups opt-in', () => {
     expect(DEFAULT_SETTINGS.protectAlkanesUtxos).toBe(false);
     expect(DEFAULT_SETTINGS.enableDieselMinting).toBe(false);
+    expect(DEFAULT_SETTINGS.dieselMintMaxFeeRate).toBe(2);
   });
 
   it('has not visited recover bitcoin page', () => {
@@ -175,6 +176,7 @@ describe('DEFAULT_SETTINGS', () => {
       'counterpartyApiBase',
       'defaultOrderExpiration',
       'defaultPoolSlippage',
+      'dieselMintMaxFeeRate',
       'enableAdvancedBroadcasts',
       'enableDieselMinting',
       'enableMPMA',

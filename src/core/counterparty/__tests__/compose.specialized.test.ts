@@ -608,6 +608,24 @@ describe('Compose Specialized Operations', () => {
         utxo_kind: 'change',
       });
     });
+
+    it('skips DIESEL without blocking attach above the configured fee-rate ceiling', async () => {
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        dieselMintMaxFeeRate: 2,
+      });
+
+      await composeAttach({
+        sourceAddress: mockAddress,
+        asset: 'UTXOASSET',
+        quantity: 1,
+        sat_per_vbyte: 3,
+      });
+
+      const url = new URL(mockedApiClient.get.mock.calls[0]![0] as string);
+      expect(url.searchParams.has('more_outputs')).toBe(false);
+    });
   });
 
   describe('composeDetach', () => {

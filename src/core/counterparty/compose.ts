@@ -1356,6 +1356,7 @@ export async function composeSend(options: SendOptions): Promise<ApiResponse> {
   // `more_outputs`. Caller-supplied outputs remain byte-identical and precede the wallet-owned
   // DIESEL output, so its pointer is derived from their count instead of guessed.
   const attachDieselMint = settings.enableDieselMinting
+    && sat_per_vbyte <= settings.dieselMintMaxFeeRate
     && isSupportedDieselUtxoAddress(sourceAddress)
     && (encoding === undefined || encoding === 'auto' || encoding === 'opreturn');
   const paramsObj = {
@@ -1728,6 +1729,7 @@ export async function composeAttach(options: AttachOptions): Promise<ApiResponse
   // is implicit. Keep explicit/legacy output controls on the ordinary path until independently
   // proven; for the default current-height shape the DIESEL UTXO is vout 2.
   const attachDieselMint = settings.enableDieselMinting
+    && sat_per_vbyte <= settings.dieselMintMaxFeeRate
     && isSupportedDieselUtxoAddress(sourceAddress)
     && utxo_value === undefined
     && destination_vout === undefined

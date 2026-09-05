@@ -113,6 +113,8 @@ export interface AppSettings {
   alkanesApiBase: string;
   /** Attach a DIESEL mint protostone to supported wallet-originated transactions. */
   enableDieselMinting: boolean;
+  /** Skip opportunistic DIESEL mints when the host transaction exceeds this fee rate. */
+  dieselMintMaxFeeRate: number;
   /** Default order expiration in blocks */
   defaultOrderExpiration: number;
   /**
@@ -160,6 +162,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   counterpartyApiBase: 'https://api.counterparty.io:4000',
   alkanesApiBase: 'https://mainnet.subfrost.io/v4/jsonrpc',
   enableDieselMinting: false,
+  dieselMintMaxFeeRate: 2,
   defaultOrderExpiration: DEFAULT_ORDER_EXPIRATION,
   defaultPoolSlippage: POOL_SLIPPAGE_AUTO,
   strictTransactionVerification: true,

@@ -178,6 +178,7 @@ export const createTestKeychain = (wallets: Wallet[] = []): Keychain => ({
     strictTransactionVerification: true,
     protectAlkanesUtxos: false,
     enableDieselMinting: false,
+    dieselMintMaxFeeRate: 2,
   },
 });
 

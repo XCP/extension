@@ -73,7 +73,8 @@ The base PR carries the complete narrow vertical slice:
 - exact, string-preserving Alkanes outpoint reads through the protocol-1
   `alkanes_protorunesbyoutpoint` method, with unknown response shapes treated as failures;
 - an off-by-default **Mine DIESEL (Experimental)** advanced setting that permanently enables
-  UTXO protection when first switched on;
+  UTXO protection when first switched on, plus a user-editable fee-rate ceiling on the dedicated
+  DIESEL page. The default ceiling is 2 sat/vB; above it the host transaction proceeds unchanged;
 - shared raw-transaction and PSBT provider analysis that blocks a signed Alkanes UTXO, and
   fails closed if UTXO status cannot be established;
 - Counterparty coin selection that excludes positive and unknown Alkanes outpoints, and disables
@@ -675,6 +676,28 @@ transaction-review treatment is **“DIESEL mint included · +57 vB / +114 sats 
 The current market and reward data are not yet trustworthy enough for the extension
 to auto-label a mint profitable.
 
+### Automatic mining policy
+
+The safe automatic gate uses facts known before signing:
+
+```text
+mint enabled AND supported shape AND host fee rate <= user's ceiling
+```
+
+The dedicated DIESEL page exposes that ceiling and translates it into both known marginal shapes.
+At the default 2 sat/vB, +26 vB costs about 52 sats and the +57-vB fallback costs about 114 sats.
+When the selected host fee rate exceeds the ceiling, composition skips the mint and proceeds with
+the original transaction; the experimental feature must not turn an ordinary payment into an
+error merely because mining is unattractive.
+
+A future `Profit-aware` option should be a stricter additional gate, not a replacement for the
+fee ceiling. It needs a conservative reward range from recent successful on-chain mints, an
+executable DIESEL-to-frBTC quote for the wallet's realizable sell size, the BTC unwrap cost,
+slippage, failures, and data freshness. A defensible rule would mine only when the lower-bound net
+value exceeds the exact marginal fee by a configurable safety margin. Until all of those inputs are
+available, the UI says profitability is unavailable rather than deriving it from a last trade or
+pool reserve ratio.
+
 ## Design-space comparison
 
 ### Balance topology
@@ -967,7 +990,8 @@ a known UTXO as ordinary BTC.
 An advanced setting fits the existing architecture, but the feature is much larger
 than a toggle and balance row. Minimum safe scope:
 
-1. **Experimental setting, off by default**, plus a protocol-health kill switch.
+1. **Experimental setting, off by default**, a deterministic maximum mining fee rate, plus a
+   protocol-health kill switch. Keep the detailed policy on the dedicated DIESEL page.
 2. **Alkanes client** for address and outpoint balance reconciliation.
 3. **Protected UTXO registry** refreshed on unlock, compose, and signing.
 4. **Alkanes-aware coin selection** for every Bitcoin/Counterparty flow.

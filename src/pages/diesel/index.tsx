@@ -5,8 +5,10 @@ import dieselLogo from '@/assets/diesel.jpg';
 import { BalanceHeader } from '@/components/domain/balance/balance-header';
 import type { ActionSection } from '@/components/ui/lists/action-list';
 import { ActionList } from '@/components/ui/lists/action-list';
+import { SettingSwitch } from '@/components/ui/inputs/setting-switch';
 import { Spinner } from '@/components/ui/spinner';
 import { useHeader } from '@/contexts/header-context';
+import { useSettings } from '@/contexts/settings-context';
 import { useWallet } from '@/contexts/wallet-context';
 import {
   type DieselAddressBalance,
@@ -20,9 +22,15 @@ export default function DieselBalancePage(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { activeAddress } = useWallet();
+  const { settings, updateSettings } = useSettings();
   const [balance, setBalance] = useState<DieselAddressBalance | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [feeRateInput, setFeeRateInput] = useState(String(settings.dieselMintMaxFeeRate));
+
+  useEffect(() => {
+    setFeeRateInput(String(settings.dieselMintMaxFeeRate));
+  }, [settings.dieselMintMaxFeeRate]);
 
   const load = useCallback(async () => {
     if (!activeAddress) return;
@@ -62,6 +70,18 @@ export default function DieselBalancePage(): ReactElement {
     },
   };
   const dieselUtxoSats = balance.utxos.reduce((sum, utxo) => sum + (utxo.value ?? 0), 0);
+  const displayedFeeRate = Number(feeRateInput);
+  const validDisplayedFeeRate = Number.isFinite(displayedFeeRate) && displayedFeeRate > 0
+    ? displayedFeeRate
+    : settings.dieselMintMaxFeeRate;
+  const saveFeeRate = () => {
+    const value = Number(feeRateInput);
+    if (!Number.isFinite(value) || value <= 0 || value > 1_000) {
+      setFeeRateInput(String(settings.dieselMintMaxFeeRate));
+      return;
+    }
+    void updateSettings({ dieselMintMaxFeeRate: value });
+  };
   const sections: ActionSection[] = [{
     items: [{
       id: 'send',
@@ -74,6 +94,49 @@ export default function DieselBalancePage(): ReactElement {
   return (
     <section className="p-4 space-y-6" aria-labelledby="diesel-balance-title">
       <BalanceHeader balance={token} className="mt-1 mb-5" iconSrc={dieselLogo} />
+      <div className="bg-white rounded-lg p-4 shadow-sm space-y-4">
+        <h2 className="text-sm font-medium text-gray-900">Mining policy</h2>
+        <SettingSwitch
+          label="Mine on eligible transactions"
+          description="Adds a mint only to supported wallet transactions at or below your fee-rate limit. Turning this off does not make existing DIESEL spendable as ordinary BTC."
+          checked={settings.enableDieselMinting}
+          onChange={(checked) => void updateSettings(checked
+            ? { enableDieselMinting: true, protectAlkanesUtxos: true }
+            : { enableDieselMinting: false })}
+          showHelpText
+        />
+        <div className="space-y-2">
+          <label htmlFor="diesel-max-fee-rate" className="block text-sm font-semibold">
+            Maximum fee rate
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              id="diesel-max-fee-rate"
+              type="text"
+              inputMode="decimal"
+              value={feeRateInput}
+              disabled={!settings.enableDieselMinting}
+              onChange={(event) => setFeeRateInput(event.target.value)}
+              onBlur={saveFeeRate}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.currentTarget.blur();
+              }}
+              aria-label="Maximum DIESEL mining fee rate"
+              className="min-w-0 flex-1 px-3 py-2.5 text-sm border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+            />
+            <span className="text-sm text-gray-500">sat/vB</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            Above this rate the original transaction proceeds without mining. At this limit, the
+            optimized +26-vB mint costs about {Math.ceil(26 * validDisplayedFeeRate)} sats; the
+            +57-vB fallback costs about {Math.ceil(57 * validDisplayedFeeRate)} sats.
+          </p>
+          <p className="text-xs text-amber-700">
+            This limits cost; it does not guarantee profit. Profit-aware mining needs a verified
+            recent reward estimate and an executable DIESEL-to-BTC exit quote.
+          </p>
+        </div>
+      </div>
       <div className="bg-white rounded-lg p-4 shadow-sm space-y-3">
         <h2 id="diesel-balance-title" className="text-sm font-medium text-gray-900">DIESEL storage</h2>
         <div className="flex justify-between text-sm">
