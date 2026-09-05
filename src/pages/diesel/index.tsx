@@ -16,7 +16,14 @@ import {
   fetchDieselBalance,
 } from '@/core/alkanes/api';
 import type { TokenBalance } from '@/core/counterparty/api';
-import { asDisplayUnits } from '@/core/numeric';
+import {
+  asDisplayUnits,
+  isGreaterThan,
+  isLessThanOrEqualTo,
+  multiply,
+  roundUp,
+  toFiniteNumber,
+} from '@/core/numeric';
 
 export default function DieselBalancePage(): ReactElement {
   const navigate = useNavigate();
@@ -70,13 +77,19 @@ export default function DieselBalancePage(): ReactElement {
     },
   };
   const dieselUtxoSats = balance.utxos.reduce((sum, utxo) => sum + (utxo.value ?? 0), 0);
-  const displayedFeeRate = Number(feeRateInput);
-  const validDisplayedFeeRate = Number.isFinite(displayedFeeRate) && displayedFeeRate > 0
+  const displayedFeeRate = toFiniteNumber(feeRateInput);
+  const validDisplayedFeeRate = displayedFeeRate !== undefined && isGreaterThan(displayedFeeRate, 0)
     ? displayedFeeRate
     : settings.dieselMintMaxFeeRate;
+  const optimizedMintCost = roundUp(multiply(26, validDisplayedFeeRate)).toFixed(0);
+  const fallbackMintCost = roundUp(multiply(57, validDisplayedFeeRate)).toFixed(0);
   const saveFeeRate = () => {
-    const value = Number(feeRateInput);
-    if (!Number.isFinite(value) || value <= 0 || value > 1_000) {
+    const value = toFiniteNumber(feeRateInput);
+    if (
+      value === undefined
+      || !isGreaterThan(value, 0)
+      || !isLessThanOrEqualTo(value, 1_000)
+    ) {
       setFeeRateInput(String(settings.dieselMintMaxFeeRate));
       return;
     }
@@ -128,8 +141,8 @@ export default function DieselBalancePage(): ReactElement {
           </div>
           <p className="text-xs text-gray-500">
             Above this rate the original transaction proceeds without mining. At this limit, the
-            optimized +26-vB mint costs about {Math.ceil(26 * validDisplayedFeeRate)} sats; the
-            +57-vB fallback costs about {Math.ceil(57 * validDisplayedFeeRate)} sats.
+            optimized +26-vB mint costs about {optimizedMintCost} sats; the +57-vB fallback costs
+            about {fallbackMintCost} sats.
           </p>
           <p className="text-xs text-amber-700">
             This limits cost; it does not guarantee profit. Profit-aware mining needs a verified
