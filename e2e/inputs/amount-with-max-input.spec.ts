@@ -13,10 +13,11 @@
 
 import { walletTest, expect, navigateTo } from '../fixtures';
 import { TEST_AMOUNTS, TEST_ADDRESSES } from '../test-data';
-import { index, compose, common } from '../selectors';
+import { index, compose } from '../selectors';
 
 // Helper to get the quantity/amount input
 const getAmountInput = (page: any) => compose.send.quantityInput(page);
+const getSendForm = (page: any) => page.locator('form').filter({ has: getAmountInput(page) });
 
 walletTest.describe('AmountWithMaxInput Component', () => {
   walletTest.beforeEach(async ({ page }) => {
@@ -167,8 +168,18 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       expect(ariaLabel?.toLowerCase()).toContain('max');
     });
 
-    walletTest('clicking Max shows no balance error when wallet is empty', async ({ page }) => {
-      // walletTest fixture wallet has no BTC balance (Available: 0.00000000)
+    walletTest('clicking Max shows a form error alongside a global API alert', async ({ page }) => {
+      // The attachment lookup is rate limited while the BTC indexer reports an empty wallet.
+      await page.route('https://mempool.space/api/v1/fees/precise', route => route.fulfill({
+        json: { fastestFee: 1, halfHourFee: 1, hourFee: 1 },
+      }));
+      await page.route('https://mempool.space/api/address/*/utxo', route => route.fulfill({ json: [] }));
+      await page.route(/\/v2\/addresses\/[^/]+\/balances(?:\?|$)/, route => route.fulfill({
+        status: 429, json: { error: 'Rate limited' },
+      }));
+      // Reset page caches so the test always exercises these responses.
+      await page.reload();
+      await expect(getSendForm(page).locator('input[name="sat_per_vbyte"]').first()).toHaveValue('1');
       await fillDestination(page);
 
       const input = getAmountInput(page);
@@ -177,30 +188,13 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       // Clear any existing value
       await input.clear();
 
-      // Click Max - should show error (either "No available balance." if API succeeded
-      // with empty array, or "Failed to fetch UTXOs." if network request failed,
-      // or generic "Failed to calculate maximum amount" if other error occurred,
-      // or "Fee rates are still loading" while no valid fee rate is available —
-      // the component fails closed instead of assuming a rate)
       await maxButton.click();
 
-      // Wait for the error to appear
-      const errorAlert = common.errorAlert(page);
+      const errorAlert = getSendForm(page).getByRole('alert');
       await expect(errorAlert).toBeVisible({ timeout: 10000 });
-
-      // Accept any error message - the important thing is that an error is shown
-      // and the input remains empty (no invalid max amount populated)
-      const errorText = await errorAlert.textContent();
-      const hasExpectedError =
-        errorText?.includes('No available balance') ||
-        errorText?.includes('Failed to fetch UTXOs') ||
-        errorText?.includes('Failed to calculate maximum amount') ||
-        errorText?.includes('Fee rates are still loading');
-      // Log the actual error for debugging if it fails
-      if (!hasExpectedError) {
-        console.log('Unexpected error text:', errorText);
-      }
-      expect(hasExpectedError).toBe(true);
+      await expect(errorAlert).toContainText('Failed to calculate maximum amount. Please try again.');
+      await expect(page.getByRole('alert').filter({ hasText: 'API rate limited' })).toBeVisible();
+      await expect(page.getByRole('alert')).toHaveCount(2);
 
       // Input should remain empty since there's no balance
       await expect(input).toHaveValue('');
@@ -240,7 +234,8 @@ walletTest.describe('AmountWithMaxInput Component', () => {
         await submitBtn.click();
 
         // Wait for validation error to appear
-        const errorMessage = page.locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
+        // Composer submission errors sit beside the form within its card.
+        const errorMessage = getSendForm(page).locator('..').locator('[role="alert"], .text-red-600, p.text-red-500, div.text-red-500');
         await expect(errorMessage.first()).toBeVisible({ timeout: 5000 });
       } else {
         // Button disabled due to validation - this is expected behavior
