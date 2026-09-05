@@ -1154,6 +1154,13 @@ async function composeWithDieselMint(
     includeDieselUtxos: true,
   });
   let rolledUtxo = selection.dieselUtxos?.[0];
+  if (selection.pendingDieselChainAtLimit) {
+    throw new CounterpartyApiError(
+      `DIESEL chain has ${selection.pendingDieselChainAtLimit.chainDepth} unconfirmed `
+        + 'transactions. Wait for its tip to confirm before continuing.',
+      endpoint,
+    );
+  }
   let offeredUtxos = rolledUtxo ? [rolledUtxo] : selection.utxos;
   let response: ApiResponse;
   try {

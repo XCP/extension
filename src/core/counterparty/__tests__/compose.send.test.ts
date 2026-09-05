@@ -400,6 +400,39 @@ describe('Compose Send Operations', () => {
       });
     });
 
+    it('waits for the 25th pending DIESEL transaction to confirm instead of starting a shard', async () => {
+      const payment = p2wpkh(getPublicKey(hexToBytes('22'.repeat(32)), true));
+      const tipTxid = 'bb'.repeat(32);
+      mockedSelectUtxos.mockResolvedValueOnce({
+        utxos: [{
+          txid: 'aa'.repeat(32),
+          vout: 0,
+          value: 100_000,
+          status: { confirmed: true, block_height: 1, block_hash: '01', block_time: 1 },
+        }],
+        inputsSet: `${'aa'.repeat(32)}:0`,
+        totalValue: 100_000,
+        excludedWithAssets: 1,
+        excludedValue: 75_000,
+        dieselUtxos: [],
+        pendingDieselChainAtLimit: { txid: tipTxid, vout: 1, chainDepth: 25 },
+      });
+      mockedGetSettings.mockReturnValue({
+        ...mockSettings,
+        enableDieselMinting: true,
+        protectAlkanesUtxos: true,
+      });
+
+      await expect(composeSend({
+        sourceAddress: payment.address!,
+        destination: mockDestAddress,
+        asset: testAssets.XCP,
+        quantity: testQuantities.MEDIUM,
+        sat_per_vbyte: 2,
+      })).rejects.toThrow('Wait for its tip to confirm');
+      expect(mockedApiClient.get).not.toHaveBeenCalled();
+    });
+
     it('rolls a funded pending DIESEL tip and reports its chain position', async () => {
       const key = getPublicKey(hexToBytes('22'.repeat(32)), true);
       const payment = p2wpkh(key);
