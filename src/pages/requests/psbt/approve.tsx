@@ -158,11 +158,6 @@ export default function ApprovePsbtPage() {
     !psbtDetails.unfunded && exceedsSaneFeeRate(psbtDetails.fee, estimatedVsize, fastestFee);
   const hasHighFee = psbtDetails.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
 
-  // Distinguish seller vs buyer in atomic swap PSBTs:
-  // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)
-  // - Buyer: the PSBT contains an ANYONECANPAY input (seller's signature) but
-  //   the user is signing with SIGHASH_ALL — they are completing the swap
-
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
   const isStrictMode = settings?.strictTransactionVerification !== false;
@@ -404,12 +399,14 @@ export default function ApprovePsbtPage() {
       ? marketplaceReview!.summary ?? { label: "", description: marketplaceReview!.title }
       : null;
   const marketplaceFacts = semanticMarketplaceReview ? marketplaceReview!.facts : [];
-  const primaryFacts = marketplaceReview?.family === "buy_listings"
+  const paymentLabels = new Set(semanticMarketplaceReview
+    ? marketplaceReview!.paymentSummary?.map(field => field.label) : []);
+  const primaryFacts = paymentLabels.size === 0 && marketplaceReview?.family === "buy_listings"
     ? marketplaceFacts.filter(field => field.emphasis === "primary")
     : [];
   const protocolFields = txAction && "protocol" in txAction ? txAction.protocol : [];
   const detailFields = [
-    ...marketplaceFacts.filter(field => !primaryFacts.includes(field)),
+    ...marketplaceFacts.filter(field => !primaryFacts.includes(field) && !paymentLabels.has(field.label)),
     // The quoted marketplace XCP fee supersedes the generic XCP-fee row on an attach.
     ...protocolFields.filter(
       (field) =>
@@ -541,6 +538,7 @@ export default function ApprovePsbtPage() {
           txAction={marketplaceHeadline ?? txAction}
           principal={Boolean(semanticMarketplaceReview && marketplaceReview?.summary)}
           primaryFacts={primaryFacts}
+          marketplaceReview={marketplaceReview}
           order={order}
           movement={movement}
           flexibility={semanticMarketplaceReview ? undefined : flexibilityReview?.kind}

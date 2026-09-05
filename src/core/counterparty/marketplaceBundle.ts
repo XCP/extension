@@ -317,13 +317,13 @@ export function analyzeAcceptanceCpfpBundle(
     ...(status === 'proved' ? {
       bundleSummary: {
         outcome: {
-          kind: 'amount' as const, label: 'Final proceeds',
+          kind: 'amount' as const, label: 'You receive',
           value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`, emphasis: 'primary' as const,
         },
-        action: `Accept offer for ${claim.asset}`,
+        action: `Accept offer for ${parentReview.summary?.description ?? claim.asset}`,
         amounts: [
           { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
-          { kind: 'amount' as const, label: 'UTXO returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
+          { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
           ...(parentIntent.platformFeeSats > 0 ? [{
             kind: 'amount' as const, label: 'Platform fee',
             value: `${parentIntent.platformFeeSats.toLocaleString()} sats`, description: 'Paid by the buyer',

@@ -183,6 +183,9 @@ export type MarketplaceIntentClaimV1 =
 export interface MarketplaceApprovalReview {
   /** Optional concise action summary, separate from the full transaction description. */
   summary?: { label: string; description: string };
+  /** Role-specific payment facts, emitted only after the transaction's economics prove.
+   * These replace the generic all-parties BTC movement on the decision screen. */
+  paymentSummary?: ProtocolField[];
   status: 'proved' | 'caution' | 'retry' | 'blocked';
   family:
     | 'attach_for_listing'
@@ -775,9 +778,18 @@ function analyzeCreateListingIntent({
 
   const allProblems = [...retry, ...blockers];
   const status = blockers.length > 0 ? 'blocked' : retry.length > 0 ? 'retry' : 'proved';
+  const payout: ProtocolField = {
+    kind: 'amount', label: 'Your payout if sold',
+    value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats`, emphasis: 'primary',
+  };
+  const salePrice: ProtocolField = { kind: 'amount', label: 'Sale price', value: `${intent.priceSats.toLocaleString()} sats` };
+  const utxoReturn: ProtocolField = {
+    kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
+  };
   return {
     status,
     family: 'create_listing',
+    ...(status === 'proved' ? { paymentSummary: [payout, salePrice, utxoReturn] } : {}),
     ...(status === 'proved' && provedQuantity !== null ? {
       summary: {
         label: intent.listingContext?.mode === 'reprice' ? 'Reprice listing' : 'List for sale',
@@ -788,16 +800,7 @@ function analyzeCreateListingIntent({
       `${intent.listingContext?.mode === 'reprice' ? 'to' : 'for'} ` +
       `${(intent.priceSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { kind: 'amount' as const, label: 'Sale price', value: `${intent.priceSats.toLocaleString()} sats` },
-      {
-        kind: 'amount' as const, label: 'Your UTXO sats returned',
-        value: `${intent.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
-      },
-      {
-        kind: 'amount' as const, label: 'Your payout if sold',
-        value: `${intent.guaranteedSellerPaymentSats.toLocaleString()} sats`,
-        emphasis: 'primary',
-      },
+      payout, salePrice, utxoReturn,
       { kind: 'amount' as const, label: 'Quantity', value: `${provedQuantity ?? claim.quantityRaw} ${claim.asset}` },
       { kind: 'paragraph' as const, label: 'Delivery', value: 'Buyer chooses attached or detached delivery' },
       // The signature commits only the seller-payment output; state who controls the rest.
@@ -1280,10 +1283,22 @@ function analyzeBuyListingsIntent(
   // An attached checkout has no decoded Counterparty message to supply asset summary rows.
   // Name the independently checked ledger amount on the decision screen, never raw base units.
   const receivedAsset = attachedDelivery && status === 'proved' ? balances.get(1)?.assets[0] : undefined;
+  const paymentSummary: ProtocolField[] = [
+    { kind: 'amount', label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats`, emphasis: 'primary' },
+    { kind: 'amount', label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
+    { kind: 'amount', label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
+    { kind: 'amount', label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
+    ...(deliveryCarrierSats > 0 ? [{
+      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryCarrierSats.toLocaleString()} sats`,
+      description: 'Still yours, separate from the purchase cost and change',
+    }] : []),
+    ...(changeOutput ? [{ kind: 'amount' as const, label: 'Change', value: `${changeOutput.value.toLocaleString()} sats` }] : []),
+  ];
   return {
     status,
     family: 'buy_listings',
     ...(status === 'proved' ? {
+      paymentSummary,
       summary: {
         label: 'Buy collectibles',
         description: `${itemCount} collectible${itemCount === 1 ? '' : 's'}`,
@@ -1291,7 +1306,7 @@ function analyzeBuyListingsIntent(
     } : {}),
     title: `Buy ${itemCount} collectible${itemCount === 1 ? '' : 's'} for ${(intent.totalSats / 100_000_000).toFixed(8)} BTC`,
     facts: [
-      { kind: 'amount' as const, label: 'You pay', value: `${intent.totalSats.toLocaleString()} sats`, emphasis: 'primary' },
+      ...paymentSummary,
       ...(receivedAsset
         ? [{ kind: 'amount' as const, label: 'You receive', value: `${receivedAsset.quantity_normalized} ${receivedAsset.asset}` }]
         : []),
@@ -1303,9 +1318,6 @@ function analyzeBuyListingsIntent(
           ? `${itemCount}`
           : `${itemCount} (${distinctAssets} assets)`,
       },
-      // No network-fee row: the money-movement summary beside these facts already states it.
-      { kind: 'amount' as const, label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
-      { kind: 'amount' as const, label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
       {
         kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
         description: attachedDelivery
@@ -1556,18 +1568,47 @@ function analyzeExactOfferIntent(
         ? 'caution'
         : 'proved';
   const fundingOutpoint = intent.bitcoinInvalidation.outpoint;
+  const offerPrice: ProtocolField = { kind: 'amount', label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` };
+  const platformFee: ProtocolField = {
+    kind: 'amount', label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
+  };
+  const networkFee: ProtocolField = {
+    kind: 'amount', label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats`, description: 'Deducted from seller proceeds',
+  };
+  const sellerReceives: ProtocolField = {
+    kind: 'amount', label: authorizing ? 'Seller receives' : 'You receive', value: `${intent.sellerProceedsSats.toLocaleString()} sats`,
+    ...(!authorizing ? { emphasis: 'primary' as const } : {}),
+  };
+  const buyerCost = safeSum([intent.priceSats, intent.platformFeeSats]);
+  const paymentSummary: ProtocolField[] = authorizing ? [
+    { kind: 'amount', label: 'You pay if accepted', value: buyerCost === null ? 'Unavailable' : `${buyerCost.toLocaleString()} sats`, emphasis: 'primary' },
+    offerPrice,
+    ...(intent.platformFeeSats > 0 ? [platformFee] : []),
+    ...(deliveryCarrierSats > 0 ? [{
+      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryCarrierSats.toLocaleString()} sats`,
+      description: 'Still yours, separate from the offer cost',
+    }] : []),
+  ] : [
+    sellerReceives, offerPrice,
+    { kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+    networkFee,
+  ];
   return {
     status,
     family: intent.action,
+    ...(allProblems.length === 0 ? {
+      paymentSummary,
+      summary: {
+        label: authorizing ? 'Offer to buy' : 'Accept offer',
+        description: `${provedQuantity} ${claim.asset}`,
+      },
+    } : {}),
     title: `${authorizing ? 'Authorize' : 'Accept'} ${(intent.priceSats / 100_000_000).toFixed(8)} BTC` +
       ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
     facts: [
-      { kind: 'amount' as const, label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
+      ...paymentSummary,
       ...(intent.platformFeeSats > 0 ? [
-        {
-          kind: 'amount' as const, label: 'Platform fee',
-          value: `${intent.platformFeeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
-        },
+        ...(!authorizing ? [platformFee] : []),
         ...(outputs[2]?.address ? [{
           kind: 'address' as const, label: 'Fee recipient', value: outputs[2].address,
         }] : []),
@@ -1576,20 +1617,16 @@ function analyzeExactOfferIntent(
         kind: 'amount' as const, label: 'Buyer funding', value: `${buyerFundingSats.toLocaleString()} sats`,
         description: 'Offer price, platform fee, and any attached delivery UTXO',
       }] : []),
-      { kind: 'amount' as const, label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
-      {
-        kind: 'amount' as const, label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats`,
-        description: 'Deducted from seller proceeds',
-      },
+      ...(authorizing ? [sellerReceives, networkFee] : []),
       {
         kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
         description: attachedDelivery
           ? `Asset stays attached to a ${deliveryCarrierSats.toLocaleString()}-sat UTXO at this address`
           : 'Asset detaches to this address',
       },
-      { kind: 'outpoint' as const, label: 'Funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
+      { kind: 'outpoint' as const, label: authorizing ? 'Funding UTXO' : 'Buyer funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },
       { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
-      { kind: 'paragraph' as const, label: 'Cancellation', value: 'Anytime — spend the funding UTXO' },
+      ...(authorizing ? [{ kind: 'paragraph' as const, label: 'Cancellation', value: 'Withdraw by spending your funding UTXO' }] : []),
     ],
     notices: allProblems.length > 0
       ? []

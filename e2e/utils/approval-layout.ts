@@ -26,6 +26,12 @@ export async function captureApprovalSizes(page: Page, directory: string, name: 
     if (name === 'checkout-buy-proved') {
       await expect(content.getByText('You pay', { exact: true }).locator('..')).toBeInViewport({ ratio: 1 });
     }
+    const outcome = name.startsWith('offer-authorize-') ? 'You pay if accepted'
+      : /^(offer-accept-|bundle-accept-cpfp-)/.test(name) ? 'You receive' : null;
+    if (outcome) {
+      await expect(content.getByText(outcome, { exact: true }).first().locator('..'),
+        `${name}: the signer outcome must be above the fold`).toBeInViewport({ ratio: 1 });
+    }
     await page.screenshot({ path: path.join(directory, `${name}-initial-${width}.png`) });
   }
   if (['listing-create-proved', 'bitcoin-pay-proved', 'bitcoin-pay-mismatch-blocked', 'bundle-accept-cpfp-proved', 'connect-proved', 'message-proved'].includes(name)) {

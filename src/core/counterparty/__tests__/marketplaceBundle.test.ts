@@ -73,6 +73,7 @@ const base = () => {
       status: 'proved' as const,
       family: 'accept_exact_offer' as const,
       title: 'Accept exact offer',
+      summary: { label: 'Accept offer', description: '1 RAREPEPE' },
       facts: [],
       notices: [],
       blockers: [],
@@ -121,6 +122,8 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Added child fee', value: '1,000 sats' });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Your proceeds after fee bump', value: '249,046 sats', emphasis: 'primary' });
+    expect(review.bundleSummary?.outcome).toEqual({ kind: 'amount', label: 'You receive', value: '249,046 sats', emphasis: 'primary' });
+    expect(review.bundleSummary?.action).toBe('Accept offer for 1 RAREPEPE');
     expect(review.notices[0]?.message).toMatch(/before either signature/i);
     const platformFee = {
       kind: 'amount', label: 'Platform fee', value: '6,250 sats', description: 'Paid by the buyer',

@@ -695,6 +695,7 @@ describe('create-listing proof', () => {
     expect(review.blockers).toEqual([]);
     expect(review.title).toContain('RAREPEPE');
     expect(review.summary).toEqual({ label: 'List for sale', description: '1 RAREPEPE' });
+    expect(review.paymentSummary?.[0]).toMatchObject({ label: 'Your payout if sold', value: '250,546 sats', emphasis: 'primary' });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Sale price', value: '250,000 sats' });
     expect(review.facts).toContainEqual({
       kind: 'amount', label: 'Your payout if sold',
@@ -845,17 +846,33 @@ describe('buy-listings proof', () => {
     expect(review.summary).toEqual({ label: 'Buy collectibles', description: '2 collectibles' });
     expect(review.facts[0]).toEqual({ kind: 'amount', label: 'You pay', value: '306,000 sats', emphasis: 'primary' });
     expect(review.facts).toContainEqual({ kind: 'address', label: 'Delivery', value: BUYER, description: 'Assets detach to this address' });
+    expect(review.paymentSummary).toContainEqual({ kind: 'amount', label: 'Change', value: '94,000 sats' });
+    expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(false);
   });
 
   it('proves one attached purchase and its buyer-owned carrier', () => {
     const review = analyzeMarketplaceIntent(attachedBuyBase());
 
     expect(review).toMatchObject({ status: 'proved', family: 'buy_listings', blockers: [] });
+    expect(review.paymentSummary?.[0]).toMatchObject({ label: 'You pay', value: '106,000 sats' });
+    expect(review.paymentSummary).toContainEqual({ kind: 'amount', label: 'Change', value: '293,670 sats' });
+    expect(review.paymentSummary).toContainEqual(expect.objectContaining({ label: 'Sats kept with your asset', value: '330 sats' }));
+    expect(review.paymentSummary?.some(field => field.value === '294,000 sats')).toBe(false);
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'You receive', value: '1 RAREPEPE' });
     expect(review.facts).toContainEqual({
       kind: 'address', label: 'Delivery', value: BUYER,
       description: 'Asset stays attached to a 330-sat UTXO at this address',
     });
+  });
+
+  it.each([false, true])('does not invent change for an exact-funded purchase (attached=%s)', (attached) => {
+    const request = attached ? attachedBuyBase() : buyBase();
+    const change = request.outputs.pop()!;
+    request.inputs[0]!.value -= change.value;
+    const review = analyzeMarketplaceIntent(request);
+    expect(review.status).toBe('proved');
+    expect(review.paymentSummary?.some(field => field.label === 'Change')).toBe(false);
+    expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(attached);
   });
 
   it('names the ledger-normalized divisible amount in the attached purchase summary', () => {
@@ -928,6 +945,7 @@ describe('buy-listings proof', () => {
     }],
   ])('blocks a mutation of %s', (_label, override) => {
     const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
+    expect(review.paymentSummary).toBeUndefined();
     expect(review.status).toBe('blocked');
     expect(review.summary).toBeUndefined();
     expect(review.blockers.length).toBeGreaterThan(0);
@@ -947,6 +965,7 @@ describe('buy-listings proof', () => {
     ['transaction id', { transactionId: undefined }],
   ])('requires a retry when %s cannot be proved', (_label, override) => {
     const review = analyzeMarketplaceIntent({ ...buyBase(), ...override });
+    expect(review.paymentSummary).toBeUndefined();
     expect(review.status).toBe('retry');
     expect(review.summary).toBeUndefined();
     expect(review.blockers.length).toBeGreaterThan(0);
@@ -982,7 +1001,19 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
             kind: 'amount', label: 'Platform fee', value: `${feeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
           });
           expect(review.facts).toContainEqual({ kind: 'address', label: 'Fee recipient', value: PLATFORM });
-          expect(review.facts).toContainEqual({ kind: 'amount', label: 'Seller receives', value: '250,046 sats' });
+          expect(review.facts).toContainEqual({
+            kind: 'amount', label: accepting ? 'You receive' : 'Seller receives', value: '250,046 sats',
+            ...(accepting ? { emphasis: 'primary' } : {}),
+          });
+          expect(review.paymentSummary?.[0]).toEqual({
+            kind: 'amount', label: accepting ? 'You receive' : 'You pay if accepted', emphasis: 'primary',
+            value: accepting ? '250,046 sats' : `${(250_000 + feeSats).toLocaleString()} sats`,
+          });
+          expect(review.paymentSummary?.some(field => field.label === 'Change')).toBe(false);
+          expect(review.paymentSummary?.some(field => field.label === 'Platform fee')).toBe(!accepting);
+          expect(review.paymentSummary?.some(field => field.label === 'Network fee')).toBe(accepting);
+          expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(!accepting && attached);
+          expect(review.facts.some(field => field.label === 'Cancellation')).toBe(!accepting);
           expect(review.facts).toContainEqual({
             kind: 'amount', label: 'Network fee', value: '500 sats', description: 'Deducted from seller proceeds',
           });
@@ -1019,6 +1050,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
           mutate(request);
           const review = analyzeMarketplaceIntent(request);
           expect(review.status).toBe('blocked');
+          expect(review.paymentSummary).toBeUndefined();
           expect(review.blockers.length).toBeGreaterThan(0);
         });
       });
@@ -1036,6 +1068,12 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Offer price', value: '250,000 sats' });
     expect(review.notices[0]?.message).toMatch(/without another approval/i);
     expect(review.notices[0]?.message).toMatch(/first confirmed spend wins/i);
+  });
+
+  it('does not label a zero-fee offer as a Bitcoin payment made immediately', () => {
+    const review = analyzeMarketplaceIntent(exactBase());
+    expect(review.paymentSummary?.[0]).toMatchObject({ label: 'You pay if accepted', value: '250,000 sats' });
+    expect(review.paymentSummary?.some(field => field.label === 'Platform fee')).toBe(false);
   });
 
   it('proves attached delivery for both buyer authorization and seller acceptance', () => {

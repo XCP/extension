@@ -25,6 +25,7 @@ export function BundleReviewCard({ review }: { review: MarketplaceBundleReview }
           <div key={field.label} className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
             <dt className="text-gray-600">{field.label}</dt>
             <dd className="ml-auto min-w-0 text-right font-medium tabular-nums text-gray-900 [overflow-wrap:anywhere]">{field.value}</dd>
+            {field.description && <dd className="w-full text-xs leading-normal text-gray-600">{field.description}</dd>}
           </div>
         ))}
       </dl>
