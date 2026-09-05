@@ -134,6 +134,8 @@ interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | 'accept_
   carrierValueSats: number;
   sellerProceedsSats: number;
   networkFeeSats: number;
+  /** Buyer-funded external fee. Omitted pre-fee v1 requests parse as zero. */
+  platformFeeSats: number;
   expectedTxid: string;
   delivery: MarketplaceSettlementDelivery;
   marketplaceExpiresAt: number;
@@ -583,6 +585,9 @@ const parseExactOfferIntent = <
       positive: true,
     })!,
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
+    platformFeeSats: value.platformFeeSats === undefined
+      ? 0
+      : nonNegativeSafeInteger(value.platformFeeSats, 'platformFeeSats'),
     expectedTxid,
     delivery,
     marketplaceExpiresAt: safeInteger(value.marketplaceExpiresAt, 'marketplaceExpiresAt', {
@@ -1352,6 +1357,9 @@ function analyzeExactOfferIntent(
     : 0;
   const requestedInputIndex = authorizing ? 0 : 1;
   const requestedSigner = authorizing ? intent.bidder : intent.seller;
+  const buyerFundingSats = safeSum([
+    intent.priceSats, deliveryCarrierSats, intent.platformFeeSats,
+  ]);
 
   if (!sameAddress(intent.delivery.address, intent.bidder)) {
     blockers.push('the delivery address differs from the bidder');
@@ -1392,8 +1400,24 @@ function analyzeExactOfferIntent(
     }
   }
 
-  if (inputs.length !== 2 || outputs.length !== 2) {
-    blockers.push(`expected exactly 2 inputs and 2 outputs, got ${inputs.length}/${outputs.length}`);
+  const expectedOutputs = intent.platformFeeSats > 0 ? 3 : 2;
+  if (inputs.length !== 2 || outputs.length !== expectedOutputs) {
+    blockers.push(`expected exactly 2 inputs and ${expectedOutputs} outputs, got ${inputs.length}/${outputs.length}`);
+  }
+  if (intent.platformFeeSats > 0) {
+    const platformOutput = outputs[2];
+    // Match the declared amount to a distinct, decoded payment output. The site chooses
+    // its fee recipient; this proves the payment, not the recipient's business identity.
+    if (
+      !platformOutput
+      || platformOutput.type === 'op_return'
+      || !platformOutput.address
+      || sameAddress(platformOutput.address, intent.bidder)
+      || sameAddress(platformOutput.address, intent.seller)
+      || platformOutput.value !== intent.platformFeeSats
+    ) {
+      blockers.push('output 2 is not the claimed external platform fee');
+    }
   }
   const inputOutpoints = inputs.map(transactionInput =>
     `${transactionInput.txid.toLowerCase()}:${transactionInput.vout}`);
@@ -1438,10 +1462,10 @@ function analyzeExactOfferIntent(
     if (bidderInput.value === undefined) {
       retry.push('buyer funding input 0 has no authenticated value');
     } else if (
-      bidderInput.value
-      !== intent.priceSats + deliveryCarrierSats
+      buyerFundingSats === null
+      || bidderInput.value !== buyerFundingSats
     ) {
-      blockers.push('buyer funding input 0 does not equal the offer price and selected delivery carrier');
+      blockers.push('buyer funding input 0 does not equal the offer price plus platform fee and selected delivery UTXO value');
     }
   }
 
@@ -1539,7 +1563,24 @@ function analyzeExactOfferIntent(
       ` for ${provedQuantity ? `${provedQuantity} ` : ''}${claim.asset}`,
     facts: [
       { kind: 'amount' as const, label: 'Offer price', value: `${intent.priceSats.toLocaleString()} sats` },
+      ...(intent.platformFeeSats > 0 ? [
+        {
+          kind: 'amount' as const, label: 'Platform fee',
+          value: `${intent.platformFeeSats.toLocaleString()} sats`, description: 'Paid by the buyer',
+        },
+        ...(outputs[2]?.address ? [{
+          kind: 'address' as const, label: 'Fee recipient', value: outputs[2].address,
+        }] : []),
+      ] : []),
+      ...(authorizing && buyerFundingSats !== null ? [{
+        kind: 'amount' as const, label: 'Buyer funding', value: `${buyerFundingSats.toLocaleString()} sats`,
+        description: 'Offer price, platform fee, and any attached delivery UTXO',
+      }] : []),
       { kind: 'amount' as const, label: 'Seller receives', value: `${intent.sellerProceedsSats.toLocaleString()} sats` },
+      {
+        kind: 'amount' as const, label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats`,
+        description: 'Deducted from seller proceeds',
+      },
       {
         kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
         description: attachedDelivery
