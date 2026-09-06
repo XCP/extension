@@ -3,9 +3,9 @@ import {
   cloneMarket,
   computePoolOutput,
   fillMarket,
+  type MarketState,
   quoteAfterMempool,
   XCP_POOL_FEE_BPS,
-  type MarketState,
 } from "@/core/counterparty/poolQuote";
 
 /**

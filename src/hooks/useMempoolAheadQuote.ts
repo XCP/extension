@@ -5,10 +5,10 @@ import {
   type Pool,
 } from "@/core/counterparty/api";
 import {
+  type MempoolQuote,
   OTHER_POOL_FEE_BPS,
   quoteAfterMempool,
   XCP_POOL_FEE_BPS,
-  type MempoolQuote,
 } from "@/core/counterparty/poolQuote";
 import { toBigNumber } from "@/core/numeric";
 
