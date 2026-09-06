@@ -29,7 +29,7 @@ const sameAddress = (left: string, right: string): boolean =>
   normalizeAddressForComparison(left) === normalizeAddressForComparison(right);
 
 const batchIdentity = (intent: MarketplaceBatchIntent): string =>
-  intent.action === 'prepare_asset' ? intent.carrierOwner : intent.seller;
+  intent.action === 'prepare_asset' ? intent.utxoOwner : intent.seller;
 
 /** Parse an untrusted request array and admit only bounded homogeneous signing phases. */
 export function parseMarketplaceBatchIntents(values: unknown[]): {
@@ -51,12 +51,12 @@ export function parseMarketplaceBatchIntents(values: unknown[]): {
     if (
       attach.operationId !== listing.operationId
       || !sameAddress(attach.seller, listing.seller)
-      || !sameAddress(attach.carrierAddress, listing.seller)
+      || !sameAddress(attach.utxoAddress, listing.seller)
       || attach.assets[0].asset !== listedAsset.asset
       || attach.assets[0].quantityRaw !== listedAsset.quantityRaw
       || attach.expectedAttachedOutpoint.txid !== listedAsset.sourceOutpoint.txid
       || attach.expectedAttachedOutpoint.vout !== listedAsset.sourceOutpoint.vout
-      || attach.carrierValueSats !== listing.carrierValueSats
+      || attach.utxoValueSats !== listing.utxoValueSats
       || listing.listingContext !== undefined
     ) {
       throw new Error('attach-and-list requests do not describe one dependent listing');
@@ -185,7 +185,7 @@ export function analyzeMarketplaceBatch(
         action: title,
         amounts: [
           { kind: 'amount', label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
-          { kind: 'amount', label: 'UTXO returned', value: `${listing.carrierValueSats.toLocaleString()} sats` },
+          { kind: 'amount', label: 'UTXO returned', value: `${listing.utxoValueSats.toLocaleString()} sats` },
           { kind: 'amount', label: 'Attach fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
           { kind: 'amount', label: 'XCP fee quote', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
         ],
@@ -197,7 +197,7 @@ export function analyzeMarketplaceBatch(
       { kind: 'amount' as const, label: 'Listing price', value: `${listing.priceSats.toLocaleString()} sats` },
       {
         kind: 'amount', label: 'Your UTXO sats returned',
-        value: `${listing.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
+        value: `${listing.utxoValueSats.toLocaleString()} sats`, layout: 'stacked',
       },
       { kind: 'amount' as const, label: 'Attach network fee', value: `${attach.networkFeeSats.toLocaleString()} sats` },
       { kind: 'amount' as const, label: 'Quoted XCP fee', value: formatXcpRaw([attach.protocolFee.quotedAmountRaw]) },
@@ -237,7 +237,7 @@ export function analyzeMarketplaceBatch(
   } else {
     const listings = intents as CreateListingIntentClaim[];
     const gross = exactSafeSum(listings.map(intent => intent.priceSats), 'listing prices');
-    const returned = exactSafeSum(listings.map(intent => intent.carrierValueSats), 'asset UTXO values');
+    const returned = exactSafeSum(listings.map(intent => intent.utxoValueSats), 'asset UTXO values');
     const payouts = exactSafeSum(listings.map(intent => intent.guaranteedSellerPaymentSats), 'seller payouts');
     // A batch where every item replaces an existing authorization is a reprice, and saying
     // "listings" would describe it as putting new items up for sale. Mixed batches stay generic.

@@ -27,7 +27,7 @@ export interface MarketplaceAssetClaim {
 
 export type MarketplaceSettlementDelivery =
   | { mode: 'detached'; address: string }
-  | { mode: 'attached'; address: string; carrierValueSats: number };
+  | { mode: 'attached'; address: string; utxoValueSats: number };
 
 export interface AttachForListingIntentClaim {
   standard: typeof MARKETPLACE_INTENT_STANDARD;
@@ -41,8 +41,8 @@ export interface AttachForListingIntentClaim {
    * It defaults to seller when parsing older same-address v1 requests. */
   assetSource: string;
   expectedAttachedOutpoint: MarketplaceOutpointClaim;
-  carrierAddress: string;
-  carrierValueSats: number;
+  utxoAddress: string;
+  utxoValueSats: number;
   networkFeeSats: number;
   protocolFee: {
     asset: 'XCP';
@@ -61,10 +61,10 @@ export interface PrepareAssetIntentClaim {
   operationId: string;
   protocolVersion: 'counterparty_prepare_assets_v1';
   assets: [{ asset: string; quantityRaw: string }];
-  carrierOwner: string;
+  utxoOwner: string;
   assetSource: string;
   expectedAttachedOutpoint: MarketplaceOutpointClaim;
-  carrierValueSats: number;
+  utxoValueSats: number;
   networkFeeSats: number;
   protocolFee: {
     asset: 'XCP';
@@ -85,7 +85,7 @@ export interface CreateListingIntentClaim {
   assets: [MarketplaceAssetClaim];
   seller: string;
   priceSats: number;
-  carrierValueSats: number;
+  utxoValueSats: number;
   guaranteedSellerPaymentSats: number;
   delivery: { mode: 'buyer_selected_detach' };
   signingRequestExpiresAt: number;
@@ -107,7 +107,7 @@ export interface BuyListingsIntentClaim {
   items: Array<MarketplaceAssetClaim & {
     listingId: string;
     seller: string;
-    carrierValueSats: number;
+    utxoValueSats: number;
     priceSats: number;
     sellerPaymentSats: number;
   }>;
@@ -131,7 +131,7 @@ interface ExactOfferIntentBase<Action extends 'authorize_exact_offer' | 'accept_
   bidder: string;
   seller: string;
   priceSats: number;
-  carrierValueSats: number;
+  utxoValueSats: number;
   sellerProceedsSats: number;
   networkFeeSats: number;
   /** Buyer-funded external fee. Omitted pre-fee v1 requests parse as zero. */
@@ -290,9 +290,9 @@ const settlementDelivery = (value: unknown, label: string): MarketplaceSettlemen
     return {
       mode: 'attached',
       address,
-      carrierValueSats: safeInteger(
-        value.carrierValueSats,
-        `${label}.carrierValueSats`,
+      utxoValueSats: safeInteger(
+        value.utxoValueSats,
+        `${label}.utxoValueSats`,
         { positive: true },
       )!,
     };
@@ -397,7 +397,7 @@ export function parseMarketplaceIntent(value: unknown): MarketplaceIntentClaimV1
     assets: [asset(value.assets[0], 'assets[0]')],
     seller: boundedString(value.seller, 'seller', 128),
     priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
-    carrierValueSats: safeInteger(value.carrierValueSats, 'carrierValueSats', { positive: true })!,
+    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', { positive: true })!,
     guaranteedSellerPaymentSats: safeInteger(
       value.guaranteedSellerPaymentSats,
       'guaranteedSellerPaymentSats',
@@ -491,7 +491,7 @@ const parseAttachTransactionClaim = (
       value.expectedAttachedOutpoint,
       'expectedAttachedOutpoint',
     ),
-    carrierValueSats: safeInteger(value.carrierValueSats, 'carrierValueSats', {
+    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', {
       positive: true,
     })!,
     networkFeeSats: nonNegativeSafeInteger(value.networkFeeSats, 'networkFeeSats'),
@@ -524,7 +524,7 @@ const parseAttachForListingIntent = (
     protocolVersion: 'counterparty_attach_listing_v1',
     seller,
     assetSource: boundedString(value.assetSource ?? seller, 'assetSource', 128),
-    carrierAddress: boundedString(value.carrierAddress, 'carrierAddress', 128),
+    utxoAddress: boundedString(value.utxoAddress, 'utxoAddress', 128),
   };
 };
 
@@ -538,7 +538,7 @@ const parsePrepareAssetIntent = (
     ...parseAttachTransactionClaim(value, 'prepare_asset'),
     action: 'prepare_asset',
     protocolVersion: 'counterparty_prepare_assets_v1',
-    carrierOwner: boundedString(value.carrierOwner, 'carrierOwner', 128),
+    utxoOwner: boundedString(value.utxoOwner, 'utxoOwner', 128),
     assetSource: boundedString(value.assetSource, 'assetSource', 128),
   };
 };
@@ -581,7 +581,7 @@ const parseExactOfferIntent = <
     bidder: boundedString(value.bidder, 'bidder', 128),
     seller: boundedString(value.seller, 'seller', 128),
     priceSats: safeInteger(value.priceSats, 'priceSats', { positive: true })!,
-    carrierValueSats: safeInteger(value.carrierValueSats, 'carrierValueSats', {
+    utxoValueSats: safeInteger(value.utxoValueSats, 'utxoValueSats', {
       positive: true,
     })!,
     sellerProceedsSats: safeInteger(value.sellerProceedsSats, 'sellerProceedsSats', {
@@ -631,9 +631,9 @@ const parseBuyListingsIntent = (value: Record<string, unknown>): BuyListingsInte
       ...asset(itemValue, `items[${index}]`),
       listingId: boundedString(itemValue.listingId, `items[${index}].listingId`),
       seller: boundedString(itemValue.seller, `items[${index}].seller`, 128),
-      carrierValueSats: safeInteger(
-        itemValue.carrierValueSats,
-        `items[${index}].carrierValueSats`,
+      utxoValueSats: safeInteger(
+        itemValue.utxoValueSats,
+        `items[${index}].utxoValueSats`,
         { positive: true },
       )!,
       priceSats: safeInteger(itemValue.priceSats, `items[${index}].priceSats`, {
@@ -726,12 +726,12 @@ function analyzeCreateListingIntent({
     if (!sameAddress(sellerInput.address, intent.seller)) {
       blockers.push('seller input 1 is not controlled by the claimed seller');
     }
-    if (sellerInput.value !== intent.carrierValueSats) {
+    if (sellerInput.value !== intent.utxoValueSats) {
       blockers.push('the seller input UTXO value differs from the claim');
     }
   }
 
-  if (intent.guaranteedSellerPaymentSats !== intent.carrierValueSats + intent.priceSats) {
+  if (intent.guaranteedSellerPaymentSats !== intent.utxoValueSats + intent.priceSats) {
     blockers.push('the claimed seller payment does not equal the asset UTXO value plus the price');
   }
   if (!sellerOutput) {
@@ -784,7 +784,7 @@ function analyzeCreateListingIntent({
   };
   const salePrice: ProtocolField = { kind: 'amount', label: 'Sale price', value: `${intent.priceSats.toLocaleString()} sats` };
   const utxoReturn: ProtocolField = {
-    kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.carrierValueSats.toLocaleString()} sats`, layout: 'stacked',
+    kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.utxoValueSats.toLocaleString()} sats`, layout: 'stacked',
   };
   return {
     status,
@@ -845,7 +845,7 @@ function formatExpiry(unixSeconds: number): string {
   });
 }
 
-/** Prove a full-input ALL-signed attach that creates one exact one-unit carrier. */
+/** Prove a full-input ALL-signed attach that creates one exact one-unit asset UTXO. */
 function analyzeAttachIntent(
   input: MarketplaceAnalysisInput,
   intent: AttachForListingIntentClaim | PrepareAssetIntentClaim,
@@ -864,11 +864,11 @@ function analyzeAttachIntent(
   const retry: string[] = [];
   const claim = intent.assets[0];
   const preparing = intent.action === 'prepare_asset';
-  const carrierOwner = preparing ? intent.carrierOwner : intent.seller;
-  const carrierAddress = preparing ? intent.carrierOwner : intent.carrierAddress;
+  const utxoOwner = preparing ? intent.utxoOwner : intent.seller;
+  const utxoAddress = preparing ? intent.utxoOwner : intent.utxoAddress;
   // A request can already be persisted when the extension updates. Those older
   // same-address v1 records bypass the wire parser, so retain its compatibility default here.
-  const assetSource = intent.assetSource ?? carrierOwner;
+  const assetSource = intent.assetSource ?? utxoOwner;
 
   if (!intent.protocolFee.variableUntilConfirmed) {
     blockers.push('the attach XCP fee must be labeled variable until confirmation');
@@ -962,16 +962,16 @@ function analyzeAttachIntent(
   }
 
   const target = outputs[intent.expectedAttachedOutpoint.vout];
-  if (!sameAddress(carrierAddress, carrierOwner)) {
-    blockers.push('the attach destination address differs from the claimed carrier owner');
+  if (!sameAddress(utxoAddress, utxoOwner)) {
+    blockers.push('the attach destination address differs from the claimed asset UTXO owner');
   }
   if (!target) {
     blockers.push('the claimed new attached UTXO is missing');
   } else {
-    if (!sameAddress(target.address, carrierAddress)) {
+    if (!sameAddress(target.address, utxoAddress)) {
       blockers.push('the new attached UTXO is not controlled by the claimed owner');
     }
-    if (target.value !== intent.carrierValueSats) {
+    if (target.value !== intent.utxoValueSats) {
       blockers.push('the new attached UTXO value differs from the claim');
     }
     if (target.type === 'op_return') {
@@ -1017,11 +1017,11 @@ function analyzeAttachIntent(
     // says each thing once.
     title: preparing ? `Prepare ${claim.asset}` : `Attach ${claim.asset} for listing`,
     facts: [
-      ...(!sameAddress(assetSource, carrierOwner) ? [
+      ...(!sameAddress(assetSource, utxoOwner) ? [
         { kind: 'address' as const, label: 'Asset source', value: assetSource },
-        { kind: 'address' as const, label: 'New UTXO owner', value: carrierOwner },
+        { kind: 'address' as const, label: 'New UTXO owner', value: utxoOwner },
       ] : []),
-      { kind: 'amount' as const, label: 'New UTXO value', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'New UTXO value', value: `${intent.utxoValueSats.toLocaleString()} sats` },
       {
         kind: 'amount' as const, label: 'Quoted XCP fee',
         value: formatXcpRaw(intent.protocolFee.quotedAmountRaw),
@@ -1054,8 +1054,8 @@ function analyzeBuyListingsIntent(
   const itemCount = intent.items.length;
   const firstAdditionalBuyerInput = itemCount + 1;
   const attachedDelivery = intent.delivery.mode === 'attached';
-  const deliveryCarrierSats = intent.delivery.mode === 'attached'
-    ? intent.delivery.carrierValueSats
+  const deliveryUtxoSats = intent.delivery.mode === 'attached'
+    ? intent.delivery.utxoValueSats
     : 0;
 
   if (!sameAddress(intent.delivery.address, intent.buyer)) {
@@ -1079,9 +1079,9 @@ function analyzeBuyListingsIntent(
     if (
       outputs[0]?.type === 'op_return'
       || !sameAddress(outputs[0]?.address, intent.delivery.address)
-      || outputs[0]?.value !== deliveryCarrierSats
+      || outputs[0]?.value !== deliveryUtxoSats
     ) {
-      blockers.push('output 0 is not the claimed buyer-owned attached carrier');
+      blockers.push('output 0 is not the claimed buyer-owned attached asset UTXO');
     }
   } else {
     if (!hasCounterpartyPayload) {
@@ -1171,7 +1171,7 @@ function analyzeBuyListingsIntent(
     ) {
       blockers.push(`item ${itemIndex + 1} does not align with its top-level asset claim`);
     }
-    if (item.sellerPaymentSats !== item.carrierValueSats + item.priceSats) {
+    if (item.sellerPaymentSats !== item.utxoValueSats + item.priceSats) {
       blockers.push(`item ${itemIndex + 1} seller payment is not the asset UTXO value plus the price`);
     }
     if (!sellerInput) {
@@ -1185,7 +1185,7 @@ function analyzeBuyListingsIntent(
       }
       if (sellerInput.value === undefined) {
         retry.push(`seller input ${sellerInputIndex} has no authenticated UTXO value`);
-      } else if (sellerInput.value !== item.carrierValueSats) {
+      } else if (sellerInput.value !== item.utxoValueSats) {
         blockers.push(`seller input ${sellerInputIndex} UTXO value differs from the claim`);
       }
     }
@@ -1271,7 +1271,7 @@ function analyzeBuyListingsIntent(
     const buyerChange = changeOutput?.value ?? 0;
     if (
       buyerInputTotal === null
-      || buyerInputTotal - buyerChange - deliveryCarrierSats !== intent.totalSats
+      || buyerInputTotal - buyerChange - deliveryUtxoSats !== intent.totalSats
     ) {
       blockers.push('the buyer funding minus change differs from the claimed total');
     }
@@ -1288,8 +1288,8 @@ function analyzeBuyListingsIntent(
     { kind: 'amount', label: 'Seller subtotal', value: `${intent.subtotalSats.toLocaleString()} sats` },
     { kind: 'amount', label: 'Platform fee', value: `${intent.platformFeeSats.toLocaleString()} sats` },
     { kind: 'amount', label: 'Network fee', value: `${intent.networkFeeSats.toLocaleString()} sats` },
-    ...(deliveryCarrierSats > 0 ? [{
-      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryCarrierSats.toLocaleString()} sats`,
+    ...(deliveryUtxoSats > 0 ? [{
+      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryUtxoSats.toLocaleString()} sats`,
       description: 'Still yours, separate from the purchase cost and change',
     }] : []),
     ...(changeOutput ? [{ kind: 'amount' as const, label: 'Change', value: `${changeOutput.value.toLocaleString()} sats` }] : []),
@@ -1321,7 +1321,7 @@ function analyzeBuyListingsIntent(
       {
         kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
         description: attachedDelivery
-          ? `Asset stays attached to a ${deliveryCarrierSats.toLocaleString()}-sat UTXO at this address`
+          ? `Asset stays attached to a ${deliveryUtxoSats.toLocaleString()}-sat UTXO at this address`
           : 'Assets detach to this address',
       },
       { kind: 'text' as const, label: 'Marketplace expiry', value: formatExpiry(intent.marketplaceExpiresAt) },
@@ -1332,7 +1332,7 @@ function analyzeBuyListingsIntent(
           severity: 'info',
           message:
             attachedDelivery
-              ? 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the separate buyer-owned carrier shown above.'
+              ? 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the separate buyer-owned asset UTXO shown above.'
               : 'SIGHASH_ALL fixes every input, seller payment, fee, change output, and the detach destination shown above.',
         }],
     blockers: allProblems,
@@ -1342,8 +1342,8 @@ function analyzeBuyListingsIntent(
 /**
  * Prove the fixed transaction shared by exact-offer authorization and unilateral acceptance.
  * The role changes, but the economics never do: buyer input 0 pays the exact price, seller input
- * 1 contributes the asset carrier, output 0 applies the selected delivery, and output 1 returns
- * the seller carrier plus price minus the miner fee. Both signatures bind the whole transaction.
+ * 1 contributes the asset UTXO, output 0 applies the selected delivery, and output 1 returns
+ * the seller asset UTXO plus price minus the miner fee. Both signatures bind the whole transaction.
  */
 function analyzeExactOfferIntent(
   input: MarketplaceAnalysisInput,
@@ -1364,13 +1364,13 @@ function analyzeExactOfferIntent(
   const claim = intent.assets[0];
   const authorizing = intent.action === 'authorize_exact_offer';
   const attachedDelivery = intent.delivery.mode === 'attached';
-  const deliveryCarrierSats = intent.delivery.mode === 'attached'
-    ? intent.delivery.carrierValueSats
+  const deliveryUtxoSats = intent.delivery.mode === 'attached'
+    ? intent.delivery.utxoValueSats
     : 0;
   const requestedInputIndex = authorizing ? 0 : 1;
   const requestedSigner = authorizing ? intent.bidder : intent.seller;
   const buyerFundingSats = safeSum([
-    intent.priceSats, deliveryCarrierSats, intent.platformFeeSats,
+    intent.priceSats, deliveryUtxoSats, intent.platformFeeSats,
   ]);
 
   if (!sameAddress(intent.delivery.address, intent.bidder)) {
@@ -1391,9 +1391,9 @@ function analyzeExactOfferIntent(
     if (
       outputs[0]?.type === 'op_return'
       || !sameAddress(outputs[0]?.address, intent.delivery.address)
-      || outputs[0]?.value !== deliveryCarrierSats
+      || outputs[0]?.value !== deliveryUtxoSats
     ) {
-      blockers.push('output 0 is not the claimed bidder-owned attached carrier');
+      blockers.push('output 0 is not the claimed bidder-owned attached asset UTXO');
     }
   } else {
     if (!hasCounterpartyPayload) {
@@ -1493,7 +1493,7 @@ function analyzeExactOfferIntent(
     }
     if (sellerInput.value === undefined) {
       retry.push('seller input 1 has no authenticated UTXO value');
-    } else if (sellerInput.value !== intent.carrierValueSats) {
+    } else if (sellerInput.value !== intent.utxoValueSats) {
       blockers.push('seller input 1 UTXO value differs from the claim');
     }
   }
@@ -1529,7 +1529,7 @@ function analyzeExactOfferIntent(
 
   const claimedProceeds = safeSum([
     intent.priceSats,
-    intent.carrierValueSats,
+    intent.utxoValueSats,
     -intent.networkFeeSats,
   ]);
   if (claimedProceeds === null || claimedProceeds !== intent.sellerProceedsSats) {
@@ -1584,13 +1584,13 @@ function analyzeExactOfferIntent(
     { kind: 'amount', label: 'You pay if accepted', value: buyerCost === null ? 'Unavailable' : `${buyerCost.toLocaleString()} sats`, emphasis: 'primary' },
     offerPrice,
     ...(intent.platformFeeSats > 0 ? [platformFee] : []),
-    ...(deliveryCarrierSats > 0 ? [{
-      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryCarrierSats.toLocaleString()} sats`,
+    ...(deliveryUtxoSats > 0 ? [{
+      kind: 'amount' as const, label: 'Sats kept with your asset', value: `${deliveryUtxoSats.toLocaleString()} sats`,
       description: 'Still yours, separate from the offer cost',
     }] : []),
   ] : [
     sellerReceives, offerPrice,
-    { kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.carrierValueSats.toLocaleString()} sats` },
+    { kind: 'amount', label: 'Your UTXO sats returned', value: `${intent.utxoValueSats.toLocaleString()} sats` },
     networkFee,
   ];
   return {
@@ -1620,7 +1620,7 @@ function analyzeExactOfferIntent(
       {
         kind: 'address' as const, label: 'Delivery', value: intent.delivery.address,
         description: attachedDelivery
-          ? `Asset stays attached to a ${deliveryCarrierSats.toLocaleString()}-sat UTXO at this address`
+          ? `Asset stays attached to a ${deliveryUtxoSats.toLocaleString()}-sat UTXO at this address`
           : 'Asset detaches to this address',
       },
       { kind: 'outpoint' as const, label: authorizing ? 'Funding UTXO' : 'Buyer funding UTXO', value: `${fundingOutpoint.txid}:${fundingOutpoint.vout}` },

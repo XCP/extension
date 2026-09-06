@@ -25,7 +25,7 @@ const parentIntent = {
   bidder: BUYER,
   seller: SELLER,
   priceSats: 250_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
   platformFeeSats: 6_250,
@@ -135,7 +135,7 @@ describe('exact acceptance plus CPFP atomic proof', () => {
 
   it('does not describe attached delivery as a detach in the bundle', () => {
     const request = base();
-    request.parentIntent.delivery = { mode: 'attached', address: BUYER, carrierValueSats: 330 };
+    request.parentIntent.delivery = { mode: 'attached', address: BUYER, utxoValueSats: 330 };
     const review = analyzeAcceptanceCpfpBundle(request);
     expect(review.status).toBe('proved');
     expect(review.facts).toContainEqual({

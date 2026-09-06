@@ -26,7 +26,7 @@ const listing = (index: number, reprice = false): CreateListingIntentClaim => ({
   }],
   seller: SELLER,
   priceSats: 100_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   guaranteedSellerPaymentSats: 100_546,
   delivery: { mode: 'buyer_selected_detach' },
   signingRequestExpiresAt: 2_000_000_000,
@@ -45,8 +45,8 @@ const attach = (): AttachForListingIntentClaim => ({
   seller: SELLER,
   assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
   expectedAttachedOutpoint: listing(0).assets[0].sourceOutpoint,
-  carrierAddress: SELLER,
-  carrierValueSats: 546,
+  utxoAddress: SELLER,
+  utxoValueSats: 546,
   networkFeeSats: 454,
   protocolFee: {
     asset: 'XCP',
@@ -65,10 +65,10 @@ const prepare = (index: number): PrepareAssetIntentClaim => ({
   operationId: 'prepare-1',
   protocolVersion: 'counterparty_prepare_assets_v1',
   assets: [{ asset: index === 0 ? 'RAREPEPE' : 'SPELLSOFGENESIS', quantityRaw: '1' }],
-  carrierOwner: SELLER,
+  utxoOwner: SELLER,
   assetSource: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7',
   expectedAttachedOutpoint: { txid: (index === 0 ? '41' : '42').repeat(32), vout: 0 },
-  carrierValueSats: 330,
+  utxoValueSats: 330,
   networkFeeSats: 454,
   protocolFee: {
     asset: 'XCP',
@@ -127,7 +127,7 @@ describe('homogeneous marketplace batch parser', () => {
       ...listing(0),
       assets: [{ ...listing(0).assets[0], sourceOutpoint: { txid: 'ff'.repeat(32), vout: 0 } }],
     }],
-    ['carrier value', { ...listing(0), carrierValueSats: 547 }],
+    ['asset UTXO value', { ...listing(0), utxoValueSats: 547 }],
     ['reprice context', listing(0, true)],
   ])('refuses an attach-and-list pair with a different %s', (_label, changedListing) => {
     expect(() => parseMarketplaceBatchIntents([attach(), changedListing])).toThrow(

@@ -38,7 +38,7 @@ const intent: CreateListingIntentClaim = {
   }],
   seller: SELLER,
   priceSats: 250_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   guaranteedSellerPaymentSats: 250_546,
   delivery: { mode: 'buyer_selected_detach' },
   signingRequestExpiresAt: 2_000_000_000,
@@ -93,7 +93,7 @@ const buyIntent: BuyListingsIntentClaim = {
       sourceOutpoint: { txid: TXID, vout: 7 },
       listingId: 'listing-1',
       seller: SELLER,
-      carrierValueSats: 546,
+      utxoValueSats: 546,
       priceSats: 100_000,
       sellerPaymentSats: 100_546,
     },
@@ -103,7 +103,7 @@ const buyIntent: BuyListingsIntentClaim = {
       sourceOutpoint: { txid: TXID_TWO, vout: 3 },
       listingId: 'listing-2',
       seller: SELLER_TWO,
-      carrierValueSats: 330,
+      utxoValueSats: 330,
       priceSats: 200_000,
       sellerPaymentSats: 200_330,
     },
@@ -160,7 +160,7 @@ const attachedBuyBase = () => ({
     networkFeeSats: 1_000,
     platformFeeSats: 5_000,
     totalSats: 106_000,
-    delivery: { mode: 'attached' as const, address: BUYER, carrierValueSats: 330 },
+    delivery: { mode: 'attached' as const, address: BUYER, utxoValueSats: 330 },
   },
   inputs: [
     { index: 0, txid: '11'.repeat(32), vout: 0, address: BUYER, value: 400_000, hasSignatures: false },
@@ -194,8 +194,8 @@ const attachIntent: AttachForListingIntentClaim = {
   seller: SELLER,
   assetSource: SELLER,
   expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
-  carrierAddress: SELLER,
-  carrierValueSats: 546,
+  utxoAddress: SELLER,
+  utxoValueSats: 546,
   networkFeeSats: 1_000,
   protocolFee: {
     asset: 'XCP',
@@ -214,10 +214,10 @@ const prepareIntent: PrepareAssetIntentClaim = {
   operationId: 'prepare-1',
   protocolVersion: 'counterparty_prepare_assets_v1',
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
-  carrierOwner: SELLER,
+  utxoOwner: SELLER,
   assetSource: SELLER,
   expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   networkFeeSats: 1_000,
   protocolFee: {
     asset: 'XCP',
@@ -270,7 +270,7 @@ const authorizeExactIntent: AuthorizeExactOfferIntentClaim = {
   bidder: BUYER,
   seller: SELLER,
   priceSats: 250_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
   platformFeeSats: 0,
@@ -330,7 +330,7 @@ const attachedExactBase = (accepting = false) => ({
   ...exactBase(accepting),
   intent: {
     ...(accepting ? acceptExactIntent : authorizeExactIntent),
-    delivery: { mode: 'attached' as const, address: BUYER, carrierValueSats: 330 },
+    delivery: { mode: 'attached' as const, address: BUYER, utxoValueSats: 330 },
   },
   inputs: exactBase(accepting).inputs.map(transactionInput =>
     transactionInput.index === 0 ? { ...transactionInput, value: 250_330 } : transactionInput),
@@ -423,7 +423,7 @@ describe('marketplace intent wire parser', () => {
   it('refuses attached delivery for a multi-item checkout', () => {
     expect(() => parseMarketplaceIntent({
       ...buyIntent,
-      delivery: { mode: 'attached', address: BUYER, carrierValueSats: 330 },
+      delivery: { mode: 'attached', address: BUYER, utxoValueSats: 330 },
     })).toThrow(/exactly one item/);
   });
 
@@ -493,7 +493,7 @@ describe('attach-for-listing proof', () => {
     expect(review.blockers).toEqual([]);
   });
 
-  it('distinguishes the Counterparty source from a paired carrier address', () => {
+  it('distinguishes the Counterparty source from a paired asset UTXO address', () => {
     const request = attachBase();
     const review = analyzeMarketplaceIntent({
       ...request,
@@ -501,7 +501,7 @@ describe('attach-for-listing proof', () => {
         ...attachIntent,
         seller: SELLER_TWO,
         assetSource: SELLER,
-        carrierAddress: SELLER_TWO,
+        utxoAddress: SELLER_TWO,
       },
       inputs: [request.inputs[0]!],
       outputs: [
@@ -541,13 +541,13 @@ describe('attach-for-listing proof', () => {
     ['source', {
       inputs: [{ ...attachBase().inputs[0]!, address: BUYER }, attachBase().inputs[1]!],
     }],
-    ['carrier value', {
+    ['asset UTXO value', {
       outputs: attachBase().outputs.map(output => output.index === 0
         ? { ...output, value: 545 }
         : output),
     }],
-    ['carrier owner', {
-      intent: { ...attachIntent, carrierAddress: SELLER_TWO },
+    ['asset UTXO owner', {
+      intent: { ...attachIntent, utxoAddress: SELLER_TWO },
     }],
     ['signature scope', {
       signedInputs: [{ index: 0, sighashType: 0x01 }, { index: 1, sighashType: 0x81 }],
@@ -619,13 +619,13 @@ describe('prepare-asset proof', () => {
     expect(review.title).not.toMatch(/list/i);
   });
 
-  it('proves a Legacy source preparing a carrier for its paired modern owner', () => {
+  it('proves a Legacy source preparing an asset UTXO for its paired modern owner', () => {
     const request = attachBase();
     const review = analyzeMarketplaceIntent({
       ...request,
       intent: {
         ...prepareIntent,
-        carrierOwner: SELLER_TWO,
+        utxoOwner: SELLER_TWO,
         assetSource: SELLER,
       },
       inputs: [request.inputs[0]!],
@@ -660,7 +660,7 @@ describe('prepare-asset proof', () => {
         data: { asset: 'SPELLS', quantity: 1n, destinationVout: 0 },
       },
     }],
-    ['carrier', { intent: { ...prepareIntent, carrierOwner: SELLER_TWO } }],
+    ['asset UTXO', { intent: { ...prepareIntent, utxoOwner: SELLER_TWO } }],
     ['signature scope', { signedInputs: [{ index: 0, sighashType: 0x81 }] }],
   ])('blocks a malicious %s mutation', (_label, override) => {
     const review = analyzeMarketplaceIntent({ ...attachBase(), intent: prepareIntent, ...override });
@@ -670,22 +670,22 @@ describe('prepare-asset proof', () => {
 });
 
 describe('create-listing proof', () => {
-  it.each([330, 546])('separates the sale price from the actual %i-sat carrier return', carrier => {
+  it.each([330, 546])('separates the sale price from the actual %i-sat asset UTXO return', utxoSats => {
     const input = base();
-    input.inputs[1]!.value = carrier;
-    input.outputs[1]!.value = 250_000 + carrier;
-    input.intent = { ...input.intent, carrierValueSats: carrier, guaranteedSellerPaymentSats: 250_000 + carrier };
+    input.inputs[1]!.value = utxoSats;
+    input.outputs[1]!.value = 250_000 + utxoSats;
+    input.intent = { ...input.intent, utxoValueSats: utxoSats, guaranteedSellerPaymentSats: 250_000 + utxoSats };
     const review = analyzeMarketplaceIntent(input);
     expect(review.status).toBe('proved');
     expect(review.facts).toEqual(expect.arrayContaining([
       { kind: 'amount', label: 'Sale price', value: '250,000 sats' },
       {
-        kind: 'amount', label: 'Your UTXO sats returned', value: `${carrier} sats`, layout: 'stacked',
+        kind: 'amount', label: 'Your UTXO sats returned', value: `${utxoSats} sats`, layout: 'stacked',
       },
-      { kind: 'amount', label: 'Your payout if sold', value: (250_000 + carrier).toLocaleString() + ' sats', emphasis: 'primary' },
+      { kind: 'amount', label: 'Your payout if sold', value: (250_000 + utxoSats).toLocaleString() + ' sats', emphasis: 'primary' },
     ]));
-    // A display redesign must not replace the actual prevout with a configured carrier default.
-    expect(analyzeMarketplaceIntent({ ...input, intent: { ...input.intent, carrierValueSats: carrier + 1 } }).status).toBe('blocked');
+    // A display redesign must not replace the actual prevout with a configured asset UTXO default.
+    expect(analyzeMarketplaceIntent({ ...input, intent: { ...input.intent, utxoValueSats: utxoSats + 1 } }).status).toBe('blocked');
   });
 
   it('proves exact seller payment and explains the bounded listing authorization', () => {
@@ -770,16 +770,16 @@ describe('create-listing proof', () => {
 
 describe('buy-listings proof', () => {
   it.each([
-    { mode: 'attached' as const, sellerCarrier: 330 },
-    { mode: 'attached' as const, sellerCarrier: 546 },
-    { mode: 'detached' as const, sellerCarrier: 330 },
-    { mode: 'detached' as const, sellerCarrier: 546 },
-  ])('preserves the seller $sellerCarrier-sat return with $mode buyer delivery', ({ mode, sellerCarrier }) => {
+    { mode: 'attached' as const, sellerAssetUtxo: 330 },
+    { mode: 'attached' as const, sellerAssetUtxo: 546 },
+    { mode: 'detached' as const, sellerAssetUtxo: 330 },
+    { mode: 'detached' as const, sellerAssetUtxo: 546 },
+  ])('preserves the seller $sellerAssetUtxo-sat return with $mode buyer delivery', ({ mode, sellerAssetUtxo }) => {
     const request = attachedBuyBase();
-    const deliveryCarrier = mode === 'attached' ? 330 : 0;
-    const sellerPayout = 100_000 + sellerCarrier;
+    const deliveryAssetUtxo = mode === 'attached' ? 330 : 0;
+    const sellerPayout = 100_000 + sellerAssetUtxo;
     const delivery: BuyListingsIntentClaim['delivery'] = mode === 'attached'
-      ? { mode, address: BUYER, carrierValueSats: deliveryCarrier }
+      ? { mode, address: BUYER, utxoValueSats: deliveryAssetUtxo }
       : { mode, address: BUYER };
     const checkout = {
       ...request,
@@ -787,15 +787,15 @@ describe('buy-listings proof', () => {
         ...request.intent,
         delivery,
         items: request.intent.items.map(item => ({
-          ...item, carrierValueSats: sellerCarrier, sellerPaymentSats: sellerPayout,
+          ...item, utxoValueSats: sellerAssetUtxo, sellerPaymentSats: sellerPayout,
         })),
       },
-      inputs: request.inputs.map(input => input.index === 1 ? { ...input, value: sellerCarrier } : input),
+      inputs: request.inputs.map(input => input.index === 1 ? { ...input, value: sellerAssetUtxo } : input),
       outputs: [
-        { index: 0, type: mode === 'attached' ? 'p2wpkh' : 'op_return', address: mode === 'attached' ? BUYER : undefined, value: deliveryCarrier },
+        { index: 0, type: mode === 'attached' ? 'p2wpkh' : 'op_return', address: mode === 'attached' ? BUYER : undefined, value: deliveryAssetUtxo },
         { ...request.outputs[1]!, value: sellerPayout },
         request.outputs[2]!,
-        { ...request.outputs[3]!, value: 294_000 - deliveryCarrier },
+        { ...request.outputs[3]!, value: 294_000 - deliveryAssetUtxo },
       ],
       hasCounterpartyPayload: mode === 'detached',
       localCounterpartyMessage: mode === 'detached'
@@ -810,9 +810,9 @@ describe('buy-listings proof', () => {
       ...originalListing,
       intent: {
         ...originalListing.intent, assets: [listedAsset],
-        priceSats: 100_000, carrierValueSats: sellerCarrier, guaranteedSellerPaymentSats: sellerPayout,
+        priceSats: 100_000, utxoValueSats: sellerAssetUtxo, guaranteedSellerPaymentSats: sellerPayout,
       },
-      inputs: originalListing.inputs.map(input => input.index === 1 ? { ...input, value: sellerCarrier } : input),
+      inputs: originalListing.inputs.map(input => input.index === 1 ? { ...input, value: sellerAssetUtxo } : input),
       outputs: originalListing.outputs.map(output => output.index === 1 ? { ...output, value: sellerPayout } : output),
       attachedAssets: checkout.attachedAssets,
     });
@@ -820,18 +820,18 @@ describe('buy-listings proof', () => {
     expect(listing.status).toBe('proved');
     expect(listing.facts).toEqual(expect.arrayContaining([
       { kind: 'amount', label: 'Sale price', value: '100,000 sats' },
-      { kind: 'amount', label: 'Your UTXO sats returned', value: `${sellerCarrier} sats`, layout: 'stacked' },
+      { kind: 'amount', label: 'Your UTXO sats returned', value: `${sellerAssetUtxo} sats`, layout: 'stacked' },
       { kind: 'amount', label: 'Your payout if sold', value: `${sellerPayout.toLocaleString()} sats`, emphasis: 'primary' },
     ]));
     expect(analyzeMarketplaceIntent(checkout)).toMatchObject({ status: 'proved', blockers: [] });
     expect(checkout.outputs[1]).toMatchObject({ address: SELLER, value: sellerPayout });
     // The buyer funds its separate attached output; it does not reduce the seller's payout.
-    expect(checkout.inputs[0]!.value - checkout.outputs[3]!.value - checkout.intent.totalSats).toBe(deliveryCarrier);
+    expect(checkout.inputs[0]!.value - checkout.outputs[3]!.value - checkout.intent.totalSats).toBe(deliveryAssetUtxo);
     if (mode === 'attached') {
       expect(analyzeMarketplaceIntent({
         ...checkout,
         outputs: checkout.outputs.map(output => output.index === 1
-          ? { ...output, value: output.value - deliveryCarrier } : output),
+          ? { ...output, value: output.value - deliveryAssetUtxo } : output),
       }).status).toBe('blocked');
     }
   });
@@ -850,7 +850,7 @@ describe('buy-listings proof', () => {
     expect(review.paymentSummary?.some(field => field.label === 'Sats kept with your asset')).toBe(false);
   });
 
-  it('proves one attached purchase and its buyer-owned carrier', () => {
+  it('proves one attached purchase and its buyer-owned asset UTXO', () => {
     const review = analyzeMarketplaceIntent(attachedBuyBase());
 
     expect(review).toMatchObject({ status: 'proved', family: 'buy_listings', blockers: [] });
@@ -895,7 +895,7 @@ describe('buy-listings proof', () => {
     expect(mismatchedReview.facts.some(fact => fact.label === 'You receive')).toBe(false);
   });
 
-  it('blocks an attached purchase whose carrier is redirected or resized', () => {
+  it('blocks an attached purchase whose asset UTXO is redirected or resized', () => {
     const request = attachedBuyBase();
     expect(analyzeMarketplaceIntent({
       ...request,
@@ -1094,7 +1094,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
     });
   });
 
-  it('blocks an attached offer that omits the carrier funding or redirects output 0', () => {
+  it('blocks an attached offer that omits the asset UTXO funding or redirects output 0', () => {
     const request = attachedExactBase();
     expect(analyzeMarketplaceIntent({
       ...request,
@@ -1137,7 +1137,7 @@ describe('exact-offer authorization and unilateral acceptance proof', () => {
         ? { ...transactionInput, value: 249_999 }
         : transactionInput),
     }],
-    ['carrier value', {
+    ['asset UTXO value', {
       inputs: exactBase().inputs.map(transactionInput => transactionInput.index === 1
         ? { ...transactionInput, value: 545 }
         : transactionInput),

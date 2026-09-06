@@ -338,8 +338,8 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
           seller: wallet,
           expectedAttachedOutpoint: { txid, vout: 0 },
-          carrierAddress: wallet,
-          carrierValueSats: 546,
+          utxoAddress: wallet,
+          utxoValueSats: 546,
           networkFeeSats: 1_000,
           protocolFee: {
             asset: 'XCP',
@@ -357,7 +357,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
   // --- attach_for_listing from paired Legacy, with SegWit paying the miner fee --------------
   // This is the real DigiRare migration shape: Counterparty reads source from input 0, while
-  // the new attached carrier belongs to the active SegWit identity. A second, same-wallet input
+  // the new attached asset UTXO belongs to the active SegWit identity. A second, same-wallet input
   // pays the fee. Legacy uses nonWitnessUtxo so the gallery cannot accidentally normalize the
   // forged-amount shape that the signer correctly refuses.
   {
@@ -416,8 +416,8 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           seller: wallet,
           assetSource: pairedLegacy,
           expectedAttachedOutpoint: { txid, vout: 0 },
-          carrierAddress: wallet,
-          carrierValueSats: 330,
+          utxoAddress: wallet,
+          utxoValueSats: 330,
           networkFeeSats: 1_000,
           protocolFee: {
             asset: 'XCP',
@@ -493,10 +493,10 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           operationId: 'prepare-1',
           protocolVersion: 'counterparty_prepare_assets_v1',
           assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
-          carrierOwner: wallet,
+          utxoOwner: wallet,
           assetSource: pairedLegacy,
           expectedAttachedOutpoint: { txid, vout: 0 },
-          carrierValueSats: 330,
+          utxoValueSats: 330,
           networkFeeSats: 1_000,
           protocolFee: {
             asset: 'XCP',
@@ -596,8 +596,8 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
               seller: wallet,
               assetSource: pairedLegacy,
               expectedAttachedOutpoint: { txid: attach.txid, vout: 0 },
-              carrierAddress: wallet,
-              carrierValueSats: 330,
+              utxoAddress: wallet,
+              utxoValueSats: 330,
               networkFeeSats: 1_000,
               protocolFee: {
                 asset: 'XCP',
@@ -622,7 +622,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
               assets: [assetClaim],
               seller: wallet,
               priceSats: 100_000,
-              carrierValueSats: 330,
+              utxoValueSats: 330,
               guaranteedSellerPaymentSats: 100_330,
               delivery: { mode: 'buyer_selected_detach' },
               signingRequestExpiresAt: FUTURE,
@@ -660,7 +660,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       }],
       seller: wallet,
       priceSats: 250_000,
-      carrierValueSats: 546,
+      utxoValueSats: 546,
       guaranteedSellerPaymentSats: 250_546,
       delivery: { mode: 'buyer_selected_detach' },
       signingRequestExpiresAt: FUTURE,
@@ -765,7 +765,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           sourceOutpoint: { txid: ASSET_TXID, vout: 7 },
           listingId: 'listing-1',
           seller: SELLER_A,
-          carrierValueSats: 546,
+          utxoValueSats: 546,
           priceSats: 100_000,
           sellerPaymentSats: 100_546,
         },
@@ -775,7 +775,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
           sourceOutpoint: { txid: ASSET_TXID_TWO, vout: 3 },
           listingId: 'listing-2',
           seller: SELLER_B,
-          carrierValueSats: 330,
+          utxoValueSats: 330,
           priceSats: 200_000,
           sellerPaymentSats: 200_330,
         },
@@ -859,13 +859,13 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         bidder: buyerAddr,
         seller: sellerAddr,
         priceSats: 250_000,
-        carrierValueSats: 546,
+        utxoValueSats: 546,
         sellerProceedsSats: 250_046,
         networkFeeSats: 500,
         platformFeeSats: 6_250,
         expectedTxid: txid,
         delivery: attached
-          ? { mode: 'attached', address: buyerAddr, carrierValueSats: 330 }
+          ? { mode: 'attached', address: buyerAddr, utxoValueSats: 330 }
           : { mode: 'detached', address: buyerAddr },
         marketplaceExpiresAt: FUTURE + 3_600,
         bitcoinExpiresAt: null,
