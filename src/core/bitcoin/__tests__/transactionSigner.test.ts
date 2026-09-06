@@ -21,7 +21,7 @@ const mockGetTrustedBroadcastPrevout = vi.fn();
 
 // Import necessary functions for test setup
 import { getPublicKey } from '@noble/secp256k1';
-import { p2sh, p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
+import { OutScript, p2sh, p2tr, p2wpkh, Transaction } from '@scure/btc-signer';
 import { hash160 } from '@scure/btc-signer/utils.js';
 
 describe('Transaction Signer Utilities', () => {
@@ -747,6 +747,64 @@ describe('Transaction Signer Utilities', () => {
         inputValues,
         lockScripts
       )).rejects.toThrow(/doesn't match/);
+    });
+  });
+
+  describe('Counterparty bare multisig outputs', () => {
+    // Counterparty's multisig data encoding: a 1-of-3 bare multisig whose first key is the
+    // sender's and whose other two "keys" carry the payload. btc-signer's checkScript rejects
+    // this output shape ("non-wrapped ms"), which broke fairminter and other data-heavy
+    // composes after the check was re-enabled. allowUnknownOutputs does not cover it because
+    // bare multisig is a known script type.
+    // Counterparty nudges its payload keys onto the curve, so they decode as real pubkeys.
+    const payloadKey = (seed: string) => getPublicKey(hexToBytes(seed.repeat(32)), true);
+    const dataOutputScript = OutScript.encode({ type: 'ms', m: 1, pubkeys: [publicKey, payloadKey('03'), payloadKey('04')] });
+
+    const buildRawTx = () => {
+      const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: mockTxid, index: 0 });
+      tx.addOutput({ script: dataOutputScript, amount: 546n });
+      tx.addOutput({ script: hexToBytes('76a914' + pubKeyHashHex + '88ac'), amount: 90000n });
+      return bytesToHex(tx.unsignedTx);
+    };
+
+    it('signs a transaction that carries a bare multisig data output', async () => {
+      const signed = await signTransaction(buildRawTx(), mockWallet, mockTargetAddress, mockPrivateKey);
+
+      const parsed = Transaction.fromRaw(hexToBytes(signed), { allowUnknownOutputs: true, disableScriptCheck: true });
+      expect(parsed.outputsLength).toBe(2);
+      expect(bytesToHex(parsed.getOutput(0).script!)).toBe(bytesToHex(dataOutputScript));
+      expect(parsed.getOutput(0).amount).toBe(546n);
+      // The P2PKH input was finalized with a scriptSig, so signing itself went through.
+      expect(parsed.getInput(0).finalScriptSig?.length).toBeGreaterThan(0);
+    });
+
+    it('still rejects a bare multisig output that is not the Counterparty data encoding', async () => {
+      const tx = new Transaction({ allowUnknownOutputs: true, disableScriptCheck: true });
+      tx.addInput({ txid: mockTxid, index: 0 });
+      // 2-of-3 is a spendable multisig script, not the 1-of-3 data carrier core composes.
+      tx.addOutput({ script: OutScript.encode({ type: 'ms', m: 2, pubkeys: [publicKey, payloadKey('03'), payloadKey('04')] }), amount: 546n });
+
+      await expect(signTransaction(bytesToHex(tx.unsignedTx), mockWallet, mockTargetAddress, mockPrivateKey))
+        .rejects.toThrow(/Output 0 is not a script this wallet signs: checkScript: non-wrapped ms/);
+    });
+
+    it('still rejects a nested SegWit input whose redeemScript does not hash to the prevout', async () => {
+      const p2shWallet = { ...mockWallet, addressFormat: AddressFormat.P2SH_P2WPKH };
+      const otherKey = getPublicKey(hexToBytes('02'.repeat(32)), true);
+      const foreignNestedScript = bytesToHex(p2sh(p2wpkh(otherKey)).script);
+
+      await expect(signTransaction(
+        buildRawTx(), p2shWallet, mockTargetAddress, mockPrivateKey, true, [100000], [foreignNestedScript],
+      )).rejects.toThrow(/does not match its previous output/);
+    });
+
+    it('still rejects Taproot key material against a non-Taproot prevout', async () => {
+      const p2trWallet = { ...mockWallet, addressFormat: AddressFormat.P2TR };
+
+      await expect(signTransaction(
+        buildRawTx(), p2trWallet, mockTargetAddress, mockPrivateKey, true, [100000], ['0014' + pubKeyHashHex],
+      )).rejects.toThrow(/does not match its previous output/);
     });
   });
 });
