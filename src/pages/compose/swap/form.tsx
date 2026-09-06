@@ -23,10 +23,13 @@ import {
   isGreaterThan,
   isLessThanOrEqualTo,
   isValidPositiveNumber,
+  roundDown,
   toBigNumber,
+  toSatoshis,
 } from "@/core/numeric";
 import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
+import { useMempoolAheadQuote } from "@/hooks/useMempoolAheadQuote";
 import { usePool } from "@/hooks/usePool";
 import { usePoolSwapQuote } from "@/hooks/usePoolQuotes";
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
@@ -40,6 +43,8 @@ interface SwapFormProps {
 
 /** Everything the UI needs from a usable quote, in display units. */
 interface QuoteView {
+  /** What the trade gets if the pending orders ahead of it confirm first; null when none are. */
+  afterMempool: string | null;
   estimated: string;
   minReceived: string;
   price: string | null;
@@ -162,8 +167,22 @@ export function SwapForm({
     : null;
   const unfilled = outcome === "partial";
 
-  // Auto reads the tolerance off this quote's own price impact; a stored percent is used as-is.
-  const slippage = resolvePoolSlippage(slippageSetting, quote?.price_impact);
+  // What is already in line ahead of this swap. Core's quote reflects the confirmed state only;
+  // the pending same-direction orders are replayed ahead of this one so Auto can cover what they
+  // leave, and so the card can say how many there are.
+  const { data: ahead } = useMempoolAheadQuote({
+    giveAsset,
+    getAsset,
+    quantity: isGiveDivisible ? toSatoshis(amount || "0") : roundDown(amount || "0").toString(),
+    pool: isPoolLoading ? undefined : pool,
+    feeBps: typeof quote?.fee_bps === "number" ? quote.fee_bps : undefined,
+    enabled: canQuote,
+  });
+  const mempoolDrop = ahead?.dropPercent ?? 0;
+
+  // Auto reads the tolerance off this quote's own price impact plus what the mempool would take;
+  // a stored percent is used as-is.
+  const slippage = resolvePoolSlippage(slippageSetting, quote?.price_impact, mempoolDrop);
 
   // Null until the quote produces actual output; all values in display units.
   const quoteView = useMemo<QuoteView | null>(() => {
@@ -176,8 +195,16 @@ export function SwapForm({
       : null;
     const priceValid = priceRatio?.isFinite() && priceRatio.isGreaterThan(0);
 
+    // Core's quote, scaled by what the replay says the mempool leaves of it — scaled rather than
+    // used directly so any drift between the port and the node cancels out.
+    const afterMempoolSats =
+      ahead && ahead.baseline > 0n
+        ? ((BigInt(toBigNumber(estimatedSats).toFixed(0)) * ahead.output) / ahead.baseline).toString()
+        : null;
+
     return {
       estimated,
+      afterMempool: afterMempoolSats !== null ? toDisplayUnits(afterMempoolSats, isGetDivisible) : null,
       minReceived: toDisplayUnits(applyPoolSlippage(estimatedSats, slippage), isGetDivisible),
       // Computed in display units: the API's effective_price is a raw satoshi
       // ratio, which is wrong across mixed divisibility.
@@ -198,7 +225,15 @@ export function SwapForm({
         : null,
       route: routeLabel(quote),
     };
-  }, [quote, amount, slippage, isGetDivisible, isGiveDivisible]);
+  }, [quote, amount, slippage, isGetDivisible, isGiveDivisible, ahead]);
+
+  // The guarantee is above what the mempool leaves: as priced, this swap rests for a block and
+  // refunds instead of filling if the pending orders confirm first. Auto never lands here; a
+  // stored percent can.
+  const minBelowMempool =
+    quoteView?.afterMempool !== null
+    && quoteView?.afterMempool !== undefined
+    && isGreaterThan(quoteView.minReceived, quoteView.afterMempool);
 
   // ---- Submission ----
   const isSlippageValid =
@@ -350,8 +385,19 @@ export function SwapForm({
           <label htmlFor="swap-receive-estimate" className="text-sm font-medium text-gray-700 flex justify-between items-center">
             <span>Amount <span className="text-red-500">*</span></span>
             {signedImpact !== null && (
-              <span className={`text-xs font-normal ${impactClass}`}>
-                Impact: {signedImpact > 0 ? "+" : ""}{formatAmount({ value: signedImpact, maximumFractionDigits: 2 })}%
+              <span className="text-xs font-normal">
+                <span className={impactClass}>
+                  Impact: {signedImpact > 0 ? "+" : ""}{formatAmount({ value: signedImpact, maximumFractionDigits: 2 })}%
+                </span>
+                {ahead && (
+                  <span
+                    className={mempoolDrop >= 3 ? "text-amber-600" : "text-gray-500"}
+                    title={`${ahead.pendingCount} unconfirmed ${ahead.pendingCount === 1 ? "order" : "orders"} on this pair in the same direction. If they confirm first, this swap gets about ${formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 })}% less than the quote. Auto slippage allows for it.`}
+                  >
+                    {" · "}{ahead.pendingCount} ahead in mempool
+                    {mempoolDrop > 0 && ` (−${formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 })}%)`}
+                  </span>
+                )}
               </span>
             )}
           </label>
@@ -396,10 +442,22 @@ export function SwapForm({
           <div className={showDetails ? "border-t border-gray-200 p-3 space-y-3 text-sm text-gray-600" : "hidden"}>
             {quoteView && (
               <>
+                {quoteView.afterMempool !== null && (
+                  <DetailRow
+                    label="After mempool"
+                    value={`≈ ${formatAmount({ value: quoteView.afterMempool, maximumFractionDigits: 8 })} ${getAsset}`}
+                  />
+                )}
                 <DetailRow
                   label="Minimum received"
                   value={`${formatAmount({ value: quoteView.minReceived, maximumFractionDigits: 8 })} ${getAsset}`}
                 />
+                {minBelowMempool && (
+                  <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
+                    Above what the pending orders would leave. If they confirm first, this swap rests for a
+                    block and refunds instead of filling — raise the slippage or use Auto.
+                  </div>
+                )}
                 {quoteView.poolFee && (
                   <DetailRow
                     label={`Pool fee (${(quoteView.poolFee.bps / 100).toFixed(2)}%)`}

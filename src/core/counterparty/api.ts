@@ -1387,3 +1387,54 @@ export async function fetchServerInfo(): Promise<ServerInfo> {
   }
   return data.result;
 }
+
+/** An order still in the node's mempool: the fields a quote replay needs. */
+export interface MempoolOpenOrder {
+  tx_hash: string;
+  source: string;
+  give_asset: string;
+  get_asset: string;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
+}
+
+/**
+ * Orders broadcast but not yet confirmed, chain-wide.
+ *
+ * Read fresh every time: the point of asking is to price a trade against what
+ * lands in the next block, and a cached answer from a minute ago is exactly the
+ * one that misses the order which just went in ahead of it.
+ */
+export async function fetchMempoolOpenOrders(): Promise<MempoolOpenOrder[]> {
+  const data = await cpApiGet<PaginatedResponse<{ tx_hash: string; params: Omit<MempoolOpenOrder, 'tx_hash'> & { status?: string } }>>(
+    '/v2/mempool/events/OPEN_ORDER',
+    { verbose: false, limit: 500 },
+    { skipCache: true }
+  );
+  return (data.result ?? [])
+    .filter((event) => event.params.status === undefined || event.params.status === 'open')
+    .map((event) => ({ tx_hash: event.tx_hash, ...event.params }));
+}
+
+/** A resting order in raw units, as the non-verbose pair endpoint returns it. */
+export interface RawBookOrder {
+  give_asset: string;
+  get_asset: string;
+  give_quantity: ApiQuantity;
+  get_quantity: ApiQuantity;
+  give_remaining: ApiQuantity;
+  get_remaining: ApiQuantity;
+}
+
+/**
+ * The open orders on a pair, raw. Non-verbose on purpose: a quote replay wants
+ * the integer quantities consensus matches on, not display strings.
+ */
+export async function fetchOpenBookOrders(giveAsset: string, getAsset: string): Promise<RawBookOrder[]> {
+  const data = await cpApiGet<PaginatedResponse<RawBookOrder>>(
+    `/v2/orders/${encodePath(giveAsset)}/${encodePath(getAsset)}`,
+    { verbose: false, status: 'open', limit: 1000 },
+    { skipCache: true }
+  );
+  return data.result ?? [];
+}
