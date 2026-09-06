@@ -1,14 +1,69 @@
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { getPublicKey } from '@noble/secp256k1';
-import { p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { OutScript, p2tr, p2wpkh, SigHash, Transaction } from '@scure/btc-signer';
+import { checkScript } from '@scure/btc-signer/payment.js';
 import { AddressFormat } from '@/core/bitcoin/address';
 import { parseConsensusTransaction, parseTransactionForSigning } from '@/core/bitcoin/rawTransaction';
 import { assertTransactionMatchesReviewed } from '@/core/bitcoin/transactionIntegrity';
 import { noTrustedPrevout, type TrustedPrevoutResolver } from '@/core/bitcoin/trustedPrevout';
 import { hybridSignTransaction } from '@/core/bitcoin/uncompressedSigner';
 import { fetchPreviousRawTransaction, fetchUTXOs, getUtxoByTxid } from '@/core/bitcoin/utxo';
+import { isBareMultisigDataOutput } from '@/core/counterparty/unpack/multisig';
 import { SigningError, UtxoError, ValidationError } from '@/core/errors';
 import type { Address, Wallet } from '@/types/wallet';
+
+/**
+ * The output validation btc-signer performs when disableScriptCheck is off, applied per output,
+ * except for Counterparty's multisig encoding.
+ *
+ * btc-signer rejects every bare multisig output ("non-wrapped ms"), and allowUnknownOutputs does
+ * not cover it because bare multisig is a known script type. Counterparty's `multisig` encoding
+ * carries message data in exactly that shape, so the library option is off on the rebuilt
+ * transaction and the rule is re-applied here to every output that is not a recognized
+ * Counterparty data output. The recognizer is the one the review policy already trusts.
+ */
+function assertOutputScriptShape(index: number, script: Uint8Array | undefined): void {
+  if (!script || isBareMultisigDataOutput(bytesToHex(script))) return;
+  try {
+    checkScript(script);
+  } catch (err) {
+    throw new ValidationError(
+      'INVALID_TRANSACTION',
+      `Output ${index} is not a script this wallet signs: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+}
+
+/**
+ * The input validation btc-signer performs when disableScriptCheck is off, applied per input.
+ *
+ * Inputs are always this wallet's own standard outputs, so the library's rules apply to them
+ * unchanged: a nested SegWit redeemScript must hash to the prevout, and Taproot key material must
+ * belong to a P2TR prevout that commits to it.
+ */
+function assertInputScriptShape(
+  index: number,
+  input: { redeemScript?: Uint8Array; witnessScript?: Uint8Array; tapInternalKey?: Uint8Array },
+  prevoutScript: Uint8Array | undefined,
+): void {
+  if (!prevoutScript) return;
+  try {
+    checkScript(prevoutScript, input.redeemScript, input.witnessScript);
+    const isTaprootPrevout = OutScript.decode(prevoutScript).type === 'tr';
+    if (input.tapInternalKey) {
+      if (!isTaprootPrevout) throw new Error('Taproot metadata without P2TR previous output');
+      const expected = p2tr(input.tapInternalKey).script;
+      if (bytesToHex(expected) !== bytesToHex(prevoutScript)) {
+        throw new Error('P2TR previous output does not commit to tapInternalKey');
+      }
+    }
+  } catch (err) {
+    throw new ValidationError(
+      'INVALID_TRANSACTION',
+      `Input ${index} does not match its previous output: ${err instanceof Error ? err.message : 'unknown error'}`,
+    );
+  }
+}
 
 /**
  * Transaction input data for signing.
@@ -117,8 +172,11 @@ export async function signTransaction(
       allowUnknownInputs: true,
       allowUnknownOutputs: true,
       allowLegacyWitnessUtxo: true,
-      // Standard inputs stay on btc-signer's validated path. Counterparty's unusual bare-multisig
-      // data appears in outputs, which is covered narrowly by allowUnknownOutputs.
+      // The library check is all-or-nothing per transaction and rejects Counterparty's bare
+      // multisig data outputs. It is off here and re-applied per input and per output by
+      // assertInputScriptShape and assertOutputScriptShape, which exempt only recognized
+      // Counterparty data outputs.
+      disableScriptCheck: true,
       lowR: true,
     });
 
@@ -263,11 +321,13 @@ export async function signTransaction(
         }
       }
 
+      assertInputScriptShape(i, inputData, inputData.witnessUtxo?.script ?? prevOutputScripts[i]);
       tx.addInput(inputData);
     }
 
     for (let i = 0; i < parsedTx.outputsLength; i++) {
       const output = parsedTx.getOutput(i);
+      assertOutputScriptShape(i, output.script);
       tx.addOutput({
         script: output.script,
         amount: output.amount,
