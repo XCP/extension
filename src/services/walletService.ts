@@ -25,10 +25,10 @@ interface WalletService {
   refreshWallets: () => Promise<void>;
   getSettings: () => Promise<import('@/core/settings').AppSettings>;
   updateSettings: (updates: Partial<import('@/core/settings').AppSettings>) => Promise<void>;
-  addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string }) => Promise<void>;
+  addConnectedWebsite: (origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }) => Promise<void>;
   removeConnectedWebsite: (origin: string) => Promise<void>;
   clearConnectedWebsites: () => Promise<void>;
-  setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string } | null) => Promise<void>;
+  setPairedAddressPermission: (origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null) => Promise<void>;
   getWallets: () => Promise<Wallet[]>;
   getActiveWallet: () => Promise<Wallet | undefined>;
   getActiveAddress: () => Promise<Address | undefined>;

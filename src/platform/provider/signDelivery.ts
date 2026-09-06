@@ -1,6 +1,7 @@
 import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { assertSessionGeneration } from '@/platform/auth/sessionManager';
+import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { getIdentityMismatchError } from '@/platform/provider/requestIdentity';
 import { type ProviderSigningRequest, SIGN_FLOW_TTL_MS } from '@/platform/provider/signFlow';
 import type { AuthorizedRequest } from '@/platform/storage/requestStorage';
@@ -55,8 +56,7 @@ export async function assertSignDeliveryAuthorized(
       throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'This site is no longer connected. Reconnect it before signing.');
     }
     const capability = settings.providerCapabilities?.[request.origin];
-    if (pairedAddresses && (capability?.pairedAddresses !== true
-      || capability.walletId !== request.walletId || capability.address !== request.address)) {
+    if (pairedAddresses && !pairedGrantCovers(capability, request.walletId, request.address)) {
       throw new ProviderError(PROVIDER_ERROR_CODES.UNAUTHORIZED, 'Paired address access was revoked');
     }
     const currentWallet = walletManager.getActiveWallet();

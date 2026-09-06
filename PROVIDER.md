@@ -81,7 +81,9 @@ await xcpwallet.request({
 ```
 
 The additional checkbox is opt-in and remains scoped to the connected site, wallet, and
-address index until disconnect. It only permits address disclosure and signing requests;
+address index until disconnect. The grant covers both halves of that index: a site that
+connected on the Legacy account keeps its paired access after the user switches the active
+account to the SegWit sibling, and vice versa. It only permits address disclosure and signing requests;
 every transaction still requires approval. Connection and paired-address grants are rechecked
 immediately before signing, so disconnecting the site invalidates an open request.
 

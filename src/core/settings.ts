@@ -95,6 +95,8 @@ export interface AppSettings {
     pairedAddresses?: boolean;
     walletId?: string;
     address?: string;
+    /** The Legacy/SegWit sibling of `address`; the grant covers both halves of the pair. */
+    pairedAddress?: string;
   }>;
 
   /** Allow unconfirmed transaction inputs */

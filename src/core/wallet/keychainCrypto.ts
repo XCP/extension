@@ -52,7 +52,8 @@ function parseSettings(value: unknown): AppSettings {
       if (!isRecord(capability) ||
           (capability.pairedAddresses !== undefined && typeof capability.pairedAddresses !== 'boolean') ||
           (capability.walletId !== undefined && typeof capability.walletId !== 'string') ||
-          (capability.address !== undefined && typeof capability.address !== 'string')) return invalidKeychain();
+          (capability.address !== undefined && typeof capability.address !== 'string') ||
+          (capability.pairedAddress !== undefined && typeof capability.pairedAddress !== 'string')) return invalidKeychain();
     }
   }
   return structuredClone(settings);
