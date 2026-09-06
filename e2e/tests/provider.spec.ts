@@ -41,6 +41,7 @@ function createTestServer(): Promise<{ server: http.Server; url: string }> {
                 hasOn: typeof provider.on === 'function',
                 hasRemoveListener: typeof provider.removeListener === 'function',
                 hasIsConnected: typeof provider.isConnected === 'function'
+                ,registered: Array.isArray(window.btc_providers) && window.btc_providers.some(p => p.id === 'XcpWalletProvider')
               };
             };
 
