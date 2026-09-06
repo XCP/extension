@@ -57,24 +57,38 @@ export function getPoolDisplayPair(assetA: string, assetB: string): string {
 /** Below the pool fee a swap mostly just fails; above 5% the tolerance stops protecting anything. */
 const MIN_AUTO_SLIPPAGE = "0.5";
 const MAX_AUTO_SLIPPAGE = "5";
+/** With the mempool counted, how far Auto may follow it. Past this the swap is not a market order
+ *  any more, and the tolerance needs a deliberate manual choice. */
+const MAX_AUTO_SLIPPAGE_WITH_MEMPOOL = "20";
 
 /**
  * Slippage tolerance Auto picks for a swap, as a percent string.
  *
- * A trade's own price impact is what another taker of the same size would move the price by, so
- * Auto tolerates roughly that and no more: rounded up to a tenth, floored at 0.5% (pool-fee
- * territory, below which a swap mostly just fails) and capped at 5%. With no quote yet there is
- * nothing to derive it from, so it falls back to the standing default.
+ * Two parts. A trade's own price impact is what another taker of the same size would move the
+ * price by, so Auto tolerates roughly that: rounded up to a tenth, floored at 0.5% (pool-fee
+ * territory, below which a swap mostly just fails) and capped at 5%. On top of that goes the drop
+ * the pending orders already in the mempool would cause if they confirm first (see
+ * useMempoolAheadQuote) — not a guess, so it is allowed through, up to the point where this stops
+ * being a market order. With no quote yet there is nothing to derive it from, so it falls back to
+ * the standing default.
  */
-export function getAutoSlippage(priceImpact: number | null | undefined): string {
+export function getAutoSlippage(
+  priceImpact: number | null | undefined,
+  mempoolDropPercent: number | null | undefined = 0
+): string {
   // price_impact arrives as a raw JSON number, so NaN and the infinities are all reachable.
   if (typeof priceImpact !== "number" || !isFiniteNumber(priceImpact)) {
     return DEFAULT_POOL_SLIPPAGE;
   }
+  const drop =
+    typeof mempoolDropPercent === "number" && isFiniteNumber(mempoolDropPercent) && mempoolDropPercent > 0
+      ? mempoolDropPercent
+      : 0;
   // Rounded through BigNumber rather than Math.ceil: the impact arrives as a float, and an impact
   // of exactly 2 can reach here as 2.0000000000000004, which raw arithmetic rounds up to 2.1.
-  const toTenth = divide(roundUp(multiply(priceImpact, 10)), 10);
-  return minimum(MAX_AUTO_SLIPPAGE, maximum(MIN_AUTO_SLIPPAGE, toTenth)).toString();
+  const impactShare = minimum(MAX_AUTO_SLIPPAGE, maximum(0, priceImpact));
+  const toTenth = divide(roundUp(multiply(impactShare.plus(drop), 10)), 10);
+  return minimum(MAX_AUTO_SLIPPAGE_WITH_MEMPOOL, maximum(MIN_AUTO_SLIPPAGE, toTenth)).toString();
 }
 
 /**
@@ -90,9 +104,10 @@ export function getAutoSlippage(priceImpact: number | null | undefined): string 
  */
 export function resolvePoolSlippage(
   setting: string | undefined,
-  priceImpact?: number | null
+  priceImpact?: number | null,
+  mempoolDropPercent?: number | null
 ): string {
-  if (!setting || setting === POOL_SLIPPAGE_AUTO) return getAutoSlippage(priceImpact);
+  if (!setting || setting === POOL_SLIPPAGE_AUTO) return getAutoSlippage(priceImpact, mempoolDropPercent);
   return setting;
 }
 

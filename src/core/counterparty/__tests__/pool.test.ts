@@ -44,6 +44,20 @@ describe("counterparty pool utilities", () => {
     expect(getAutoSlippage(-3)).toBe("0.5");
   });
 
+  it("adds what the mempool would take to Auto slippage", () => {
+    // The pending orders' drop rides on top of the impact share.
+    expect(getAutoSlippage(1.23, 2)).toBe("3.3");
+    // The impact share keeps its 5% cap; the mempool share is let through past it.
+    expect(getAutoSlippage(42, 3)).toBe("8");
+    // ...up to the point where it stops being a market order.
+    expect(getAutoSlippage(1, 40)).toBe("20");
+    // Nothing pending, or nothing usable, leaves the original figure alone.
+    expect(getAutoSlippage(1.23, 0)).toBe("1.3");
+    expect(getAutoSlippage(1.23, null)).toBe("1.3");
+    expect(getAutoSlippage(1.23, Number.NaN)).toBe("1.3");
+    expect(getAutoSlippage(1.23, -4)).toBe("1.3");
+  });
+
   it("falls back to the standing default when there is no quote to read", () => {
     expect(getAutoSlippage(null)).toBe("1");
     expect(getAutoSlippage(undefined)).toBe("1");
