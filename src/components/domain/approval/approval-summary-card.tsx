@@ -5,6 +5,7 @@ import { MoneyMovementView } from '@/components/domain/approval/money-movement-v
 import { type OrderAction, OrderCard } from '@/components/domain/approval/order-card';
 import type { PsbtFlexibilityKind } from '@/components/domain/approval/psbt-flexibility';
 import type { ProtocolField } from '@/core/counterparty/describe';
+import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceIntent';
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
@@ -44,6 +45,8 @@ interface ApprovalSummaryCardProps {
   principal?: boolean;
   /** Verified principal consequences that must precede supporting BTC movement. */
   primaryFacts?: ProtocolField[];
+  /** Background-proved role-specific economics, never website-provided display labels. */
+  marketplaceReview?: MarketplaceApprovalReview;
   /**
    * A DEX order, which gets a card of its own instead of the label-and-sentence treatment: a trade
    * is two amounts that only mean something as a pair. Takes precedence over txAction.
@@ -93,6 +96,7 @@ export function ApprovalSummaryCard({
   txAction,
   principal = false,
   primaryFacts = [],
+  marketplaceReview,
   order,
   movement,
   flexibility,
@@ -103,6 +107,9 @@ export function ApprovalSummaryCard({
   protocolFeeXcp,
 }: ApprovalSummaryCardProps) {
   const protocolFee = formatProtocolFee(protocolFeeXcp);
+  const paymentSummary = marketplaceReview?.status === 'proved' || marketplaceReview?.status === 'caution'
+    ? marketplaceReview.paymentSummary : undefined;
+  const hasPaymentSummary = Boolean(paymentSummary?.length);
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
       {order ? <OrderCard order={order} /> : txAction && (
@@ -125,12 +132,16 @@ export function ApprovalSummaryCard({
           })()}
         </div>
       )}
-      {primaryFacts.length > 0 && (
+      {hasPaymentSummary && <ApprovalFacts fields={paymentSummary!} />}
+      {hasPaymentSummary && hasHighFee && !deferCautions && (
+        <p className="mt-2 text-sm text-warning-600 text-center">Unusually high network fee. Double-check before signing.</p>
+      )}
+      {!hasPaymentSummary && primaryFacts.length > 0 && (
         <div className="mb-3 border-b border-gray-100 pb-3">
           <ApprovalFacts fields={primaryFacts} />
         </div>
       )}
-      {!hideMovement && (
+      {!hasPaymentSummary && !hideMovement && (
         <MoneyMovementView
           movement={movement}
           flexibility={flexibility}

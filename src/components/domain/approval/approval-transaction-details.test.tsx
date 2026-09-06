@@ -29,7 +29,7 @@ describe('ApprovalTransactionDetails', () => {
         }}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Transaction Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Transaction' }));
 
     expect(screen.getByText('0.00050000 BTC')).toBeInTheDocument();
     expect(screen.getAllByText('RAREPEPE')).toHaveLength(1);
@@ -49,7 +49,7 @@ describe('ApprovalTransactionDetails', () => {
         }]}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Transaction Details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Transaction' }));
 
     expect(screen.getByText('Asset status unavailable')).toBeInTheDocument();
   });

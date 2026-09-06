@@ -28,7 +28,7 @@ export function CounterpartyDetailsCard({
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-4">
-      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty Details</h3>
+      <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">Counterparty</h3>
       <ApprovalFacts fields={fields} />
       {recipients.length > 0 && (
         <div className={fields.length > 0 ? 'mt-3' : ''}>

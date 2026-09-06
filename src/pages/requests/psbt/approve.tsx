@@ -158,11 +158,6 @@ export default function ApprovePsbtPage() {
     !psbtDetails.unfunded && exceedsSaneFeeRate(psbtDetails.fee, estimatedVsize, fastestFee);
   const hasHighFee = psbtDetails.fee > 10000000 || feeRateAbsurd; // > 0.1 BTC, or an absurd rate
 
-  // Distinguish seller vs buyer in atomic swap PSBTs:
-  // - Seller: the REQUEST asks the user to sign with ANYONECANPAY (0x80 bit set)
-  // - Buyer: the PSBT contains an ANYONECANPAY input (seller's signature) but
-  //   the user is signing with SIGHASH_ALL — they are completing the swap
-
   const verificationPassed = verification?.passed;
   const verificationWarning = verification?.warning;
   const isStrictMode = settings?.strictTransactionVerification !== false;
@@ -298,27 +293,20 @@ export default function ApprovePsbtPage() {
     movement.atRisk > 0 ? attention.filter((item) => item.key !== "anyonecanpay") : attention;
   // Attach quotes are intrinsically block-dependent and already disclosed in the action card. A
   // second click on a proved listing or inventory attach would turn that routine protocol fact
-  // into warning wallpaper.
-  const marketplaceRequiresAttention = marketplaceReview?.status === "caution" && !routineAttach;
+  // into warning wallpaper. An exact offer is likewise what it says: the buyer is making an
+  // offer that the seller may accept until it expires, and the cancellation fact names the way
+  // out, so it earns neither a warning nor a second step.
+  const marketplaceRequiresAttention =
+    marketplaceReview?.status === "caution" &&
+    !routineAttach &&
+    marketplaceReview.family !== "authorize_exact_offer";
   // Plain-language consequences per family: what signing does, and how to undo it. The analyzer's
   // notices state the same facts in protocol terms; this screen is where a person decides.
   // create_listing is absent here on purpose: a fully proved listing is 'proved', never
   // 'caution', so its consequences live in the review facts on the one screen.
   const marketplaceAttention: WarningItem[] = !marketplaceRequiresAttention
     ? []
-    : marketplaceReview.family === "authorize_exact_offer"
-      ? [
-          {
-            key: "marketplace-offer",
-            severity: "warning" as const,
-            title: "The seller can complete this sale at any time",
-            description:
-              "Signing lets the seller finish this exact trade without asking you again — the " +
-              "first confirmed spend of your funding wins. To withdraw the offer, spend your " +
-              "funding UTXO.",
-          },
-        ]
-      : marketplaceReview.notices.map((notice, index) => ({
+    : marketplaceReview.notices.map((notice, index) => ({
           key: `marketplace-${index}`,
           severity: notice.severity,
           title: "This authorization remains usable after signing",
@@ -354,9 +342,7 @@ export default function ApprovePsbtPage() {
     counterpartyMessage?.messageType === "destroy" && txAction
       ? txAction.description
       : marketplaceRequiresAttention
-        ? marketplaceReview.family === "authorize_exact_offer"
-          ? "Before you authorize"
-          : "Review before signing"
+        ? "Review before signing"
         : approvalAttentionItems.some((item) => item.severity === "danger")
           ? "Review transaction risk"
           : "Review before signing";
@@ -386,14 +372,9 @@ export default function ApprovePsbtPage() {
       title: "Transaction details did not verify", description: verificationWarning,
     }] : []),
   ];
-  const visibleCautions: WarningItem[] = [
-    ...approvalAttentionItems,
-    ...(routineAttach && marketplaceReview?.status === "caution" ? [{
-      key: "attach-quote", severity: "warning" as const,
-      title: "XCP fee is finalized at confirmation",
-      description: "The displayed XCP fee is a quote. Counterparty determines the fee in the block that confirms this transaction.",
-    }] : []),
-  ];
+  // The attach XCP fee is a quote until confirmation; the fact row already says so, and a yellow
+  // notice restating a routine protocol property is not something the signer can act on.
+  const visibleCautions: WarningItem[] = [...approvalAttentionItems];
 
   // The marketplace review is the screen's one voice: proved/caution states take over the
   // headline and merge their facts into the Counterparty details instead of stacking a second
@@ -404,12 +385,14 @@ export default function ApprovePsbtPage() {
       ? marketplaceReview!.summary ?? { label: "", description: marketplaceReview!.title }
       : null;
   const marketplaceFacts = semanticMarketplaceReview ? marketplaceReview!.facts : [];
-  const primaryFacts = marketplaceReview?.family === "buy_listings"
+  const paymentLabels = new Set(semanticMarketplaceReview
+    ? marketplaceReview!.paymentSummary?.map(field => field.label) : []);
+  const primaryFacts = paymentLabels.size === 0 && marketplaceReview?.family === "buy_listings"
     ? marketplaceFacts.filter(field => field.emphasis === "primary")
     : [];
   const protocolFields = txAction && "protocol" in txAction ? txAction.protocol : [];
   const detailFields = [
-    ...marketplaceFacts.filter(field => !primaryFacts.includes(field)),
+    ...marketplaceFacts.filter(field => !primaryFacts.includes(field) && !paymentLabels.has(field.label)),
     // The quoted marketplace XCP fee supersedes the generic XCP-fee row on an attach.
     ...protocolFields.filter(
       (field) =>
@@ -460,7 +443,9 @@ export default function ApprovePsbtPage() {
                       ? "Buy collectibles"
                       : marketplaceReview?.family === "accept_exact_offer"
                         ? "Accept offer"
-                        : "Sign transaction"
+                        : marketplaceReview?.family === "authorize_exact_offer"
+                          ? "Authorize offer"
+                          : "Sign transaction"
           }
         />
       }
@@ -541,6 +526,7 @@ export default function ApprovePsbtPage() {
           txAction={marketplaceHeadline ?? txAction}
           principal={Boolean(semanticMarketplaceReview && marketplaceReview?.summary)}
           primaryFacts={primaryFacts}
+          marketplaceReview={marketplaceReview}
           order={order}
           movement={movement}
           flexibility={semanticMarketplaceReview ? undefined : flexibilityReview?.kind}

@@ -317,14 +317,13 @@ export function analyzeAcceptanceCpfpBundle(
     ...(status === 'proved' ? {
       bundleSummary: {
         outcome: {
-          kind: 'amount' as const, label: 'Final proceeds',
+          kind: 'amount' as const, label: 'You receive',
           value: `${childIntent.finalSellerProceedsSats.toLocaleString()} sats`, emphasis: 'primary' as const,
         },
-        action: `Accept offer for ${claim.asset}`,
+        action: `Accept offer for ${parentReview.summary?.description ?? claim.asset}`,
         amounts: [
           { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
-          { kind: 'amount' as const, label: 'UTXO returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
-          // The exact-offer proof has only miner fees. Do not invent a platform fee category.
+          { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
           { kind: 'amount' as const, label: 'Network fees', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
         ],
         timing: 'Both network fees are already deducted from your final proceeds.',
@@ -337,6 +336,7 @@ export function analyzeAcceptanceCpfpBundle(
         emphasis: 'primary',
       },
       { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
+      // The buyer-paid platform fee is not the seller's cost and is not listed here.
       { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
       {
         kind: 'amount' as const, label: 'Parent seller proceeds',
@@ -344,9 +344,14 @@ export function analyzeAcceptanceCpfpBundle(
       },
       { kind: 'amount' as const, label: 'Parent fee', value: `${childIntent.parentNetworkFeeSats.toLocaleString()} sats` },
       { kind: 'amount' as const, label: 'Added child fee', value: `${childIntent.childNetworkFeeSats.toLocaleString()} sats` },
-      { kind: 'amount' as const, label: 'Package fee', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
+      // The package total is the "Network fees" amount in the summary above; not repeated here.
       { kind: 'amount' as const, label: 'Quoted package rate', value: `${childIntent.packageFeeRate.toFixed(2)} sat/vB` },
-      { kind: 'address' as const, label: 'Delivery', value: parentIntent.delivery.address, description: 'Asset detaches to this address' },
+      {
+        kind: 'address' as const, label: 'Delivery', value: parentIntent.delivery.address,
+        description: parentIntent.delivery.mode === 'attached'
+          ? `Asset stays attached to a ${parentIntent.delivery.carrierValueSats.toLocaleString()}-sat UTXO at this address`
+          : 'Asset detaches to this address',
+      },
     ],
     notices: allProblems.length > 0
       ? []

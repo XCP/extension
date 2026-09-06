@@ -187,6 +187,7 @@ const MARKETPLACE_EXACT_INTENT = {
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
+  platformFeeSats: 6_250,
   expectedTxid: 'cd'.repeat(32),
   delivery: { mode: 'detached', address: '1FvyAqqELFiQyaEWdhFbWF8MZapKPZS8J7' },
   marketplaceExpiresAt: 2_000_003_600,

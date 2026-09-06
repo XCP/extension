@@ -438,7 +438,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       // for a multi-destination send that panel is the only place the payees appear at all.
       // Exact match: warning copy also mentions 'the transaction details', which makes a loose
       // locator ambiguous on any screen that carries one.
-      const details = approval.getByText(/^Transaction Details$/);
+      const details = approval.getByText(/^Transaction$/);
       await expect(details).toBeVisible({ timeout: 30_000 });
       await details.click();
       await expect(approval.getByText(/^Outputs \(/)).toBeVisible({ timeout: 10_000 });
@@ -498,7 +498,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
 
       // Expanded, for the same reason as above: the recipients list and the checks line live in
       // this panel, and they are precisely what was missing from this screen.
-      const psbtDetails = approval.getByText(/^Transaction Details$/);
+      const psbtDetails = approval.getByText(/^Transaction$/);
       await expect(psbtDetails).toBeVisible({ timeout: 30_000 });
       await psbtDetails.click();
 

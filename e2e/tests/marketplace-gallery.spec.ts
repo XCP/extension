@@ -279,6 +279,8 @@ interface Scenario {
     | 'Attach and list';
   /** Important semantic disclosures that must survive visual refactors. */
   expectedText?: string[];
+  /** Principal decision facts must be visible without expanding any details. */
+  initialText?: string[];
   /** False-positive warnings that would make an ordinary marketplace request look unsafe. */
   absentText?: string[];
 }
@@ -318,7 +320,7 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
     ];
     const { psbtHex, txid } = buildPsbt([funding], outputs);
     scenarios.push({
-      name: 'listing-attach-caution',
+      name: 'listing-attach',
       route: '/requests/psbt/approve',
       expectFooter: 'Sign transaction',
       record: seedRecord('mk-attach', {
@@ -827,17 +829,19 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
   }
 
   // --- exact offers: buyer authorization (caution) and seller acceptance (proved) -----------
-  {
+  for (const attached of [false, true]) {
+    const suffix = attached ? '-attached' : '';
     const offer = (accepting: boolean) => {
       const buyerAddr = accepting ? BUYER_EXT : wallet;
       const sellerAddr = accepting ? wallet : SELLER_A;
       const inputs: BuiltInput[] = [
-        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 250_000, signed: accepting },
+        { txid: BID_TXID, vout: 4, address: buyerAddr, value: 256_250 + (attached ? 330 : 0), signed: accepting },
         { txid: ASSET_TXID, vout: 7, address: sellerAddr, value: 546 },
       ];
       const outputs: BuiltOutput[] = [
-        { scriptHex: opReturnScript(detachPayload(buyerAddr), BID_TXID), value: 0 },
+        { scriptHex: attached ? scriptFor(buyerAddr) : opReturnScript(detachPayload(buyerAddr), BID_TXID), value: attached ? 330 : 0 },
         { scriptHex: scriptFor(sellerAddr), value: 250_046 },
+        { scriptHex: scriptFor(PLATFORM), value: 6_250 },
       ];
       const { psbtHex, txid } = buildPsbt(inputs, outputs);
       const intent = {
@@ -858,8 +862,11 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
         carrierValueSats: 546,
         sellerProceedsSats: 250_046,
         networkFeeSats: 500,
+        platformFeeSats: 6_250,
         expectedTxid: txid,
-        delivery: { mode: 'detached', address: buyerAddr },
+        delivery: attached
+          ? { mode: 'attached', address: buyerAddr, carrierValueSats: 330 }
+          : { mode: 'detached', address: buyerAddr },
         marketplaceExpiresAt: FUTURE + 3_600,
         bitcoinExpiresAt: null,
         bitcoinInvalidation: {
@@ -872,9 +879,12 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
     const authorize = offer(false);
     scenarios.push({
-      name: 'offer-authorize-caution',
+      name: `offer-authorize${suffix}`,
+      initialText: ['Offer to buy', 'You pay if accepted', '256,250 sats', 'Platform fee', 'Paid by the buyer'],
+      absentText: ['Returned to wallet', 'The seller can complete this sale at any time', 'What to review'],
+      expectedText: ['Platform fee', '6,250 sats', 'Paid by the buyer', '256,250 sats', 'Withdraw by spending your funding UTXO'],
       route: '/requests/psbt/approve',
-      expectFooter: 'Review',
+      expectFooter: 'Authorize offer',
       record: seedRecord('mk-authorize', {
         requestKey: 'xcp_signPsbt:mk-authorize',
         kind: 'sign-psbt',
@@ -890,7 +900,11 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
 
     const accept = offer(true);
     scenarios.push({
-      name: 'offer-accept-proved',
+      name: `offer-accept-proved${suffix}`,
+      initialText: ['You receive', '250,046 sats', 'Deducted from seller proceeds'],
+      // The seller does not pay the platform fee, so their screen never names it.
+      absentText: ['Returned to wallet', 'Cancellation', 'Withdraw by spending your funding UTXO', 'Platform fee', 'Fee recipient'],
+      expectedText: ['250,046 sats', 'Offer price', '250,000 sats'],
       route: '/requests/psbt/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-accept', {
@@ -912,7 +926,10 @@ function buildScenarios(wallet: string, pairedLegacy: string, walletId: string):
       [{ scriptHex: scriptFor(wallet), value: 249_046 }],
     );
     scenarios.push({
-      name: 'bundle-accept-cpfp-proved',
+      name: `bundle-accept-cpfp-proved${suffix}`,
+      initialText: ['You receive', '249,046 sats', 'Accept offer for 1 RAREPEPE'],
+      absentText: ['Returned to wallet', 'Platform fee', 'Paid by the buyer'],
+      expectedText: ['249,046 sats', 'Added child fee', '1,000 sats'],
       route: '/requests/psbts/approve',
       expectFooter: 'Accept offer',
       record: seedRecord('mk-bundle', {
@@ -1111,7 +1128,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       );
 
       const footer = approval.getByRole('button', {
-        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|prepare asset|attach and list)$/i,
+        name: /^(sign transaction|buy collectibles|accept offer|prepare funds|send bitcoin|review|blocked|awaiting verification|authorize listing|authorize reprice|authorize offer|prepare asset|attach and list)$/i,
       });
       await expect(footer).toBeVisible({ timeout: 60_000 });
       const footerLabel = (await footer.textContent())?.trim() ?? '';
@@ -1119,6 +1136,9 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
         stateMismatches.push(`${scenario.name}: footer reads "${footerLabel}", expected "${scenario.expectFooter}"`);
       }
 
+      for (const initialText of scenario.initialText ?? []) {
+        await expect(approval.getByText(initialText, { exact: true }).first()).toBeVisible();
+      }
       await captureApprovalSizes(approval, OUT_DIR, scenario.name);
 
       // Capture the paired signer disclosure at the top of the approval before opening lower
@@ -1136,7 +1156,7 @@ walletTest('captures every marketplace and provider-safety approval screen', asy
       }
 
       // Open the lower-level transaction surfaces for the companion detail capture.
-      for (const title of [/^Transaction Details$/, /^Linked Transaction Details$/, /^Compare payment details$/, /^Payout and fee details$/, /^Why signing is unavailable$/, /^What to review$/]) {
+      for (const title of [/^Transaction$/, /^Transactions$/, /^Compare payment details$/, /^Payout and fee details$/, /^Why signing is unavailable$/, /^What to review$/]) {
         const toggle = approval.getByText(title);
         if (await toggle.count()) await toggle.first().click();
       }

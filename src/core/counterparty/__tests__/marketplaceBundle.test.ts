@@ -28,6 +28,7 @@ const parentIntent = {
   carrierValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
+  platformFeeSats: 6_250,
   expectedTxid: PARENT_TXID,
   delivery: { mode: 'detached', address: BUYER },
   marketplaceExpiresAt: 2_000_003_600,
@@ -72,6 +73,7 @@ const base = () => {
       status: 'proved' as const,
       family: 'accept_exact_offer' as const,
       title: 'Accept exact offer',
+      summary: { label: 'Accept offer', description: '1 RAREPEPE' },
       facts: [],
       notices: [],
       blockers: [],
@@ -120,7 +122,35 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Added child fee', value: '1,000 sats' });
     expect(review.facts).toContainEqual({ kind: 'amount', label: 'Your proceeds after fee bump', value: '249,046 sats', emphasis: 'primary' });
+    expect(review.bundleSummary?.outcome).toEqual({ kind: 'amount', label: 'You receive', value: '249,046 sats', emphasis: 'primary' });
+    expect(review.bundleSummary?.action).toBe('Accept offer for 1 RAREPEPE');
     expect(review.notices[0]?.message).toMatch(/before either signature/i);
+    // The seller does not pay the platform fee, so neither the summary nor the facts list it.
+    expect(review.facts.some(field => field.label === 'Platform fee')).toBe(false);
+    expect(review.bundleSummary?.amounts.some(field => field.label === 'Platform fee')).toBe(false);
+    expect(review.bundleSummary?.amounts).toContainEqual({
+      kind: 'amount', label: 'Network fees', value: '1,500 sats',
+    });
+  });
+
+  it('does not describe attached delivery as a detach in the bundle', () => {
+    const request = base();
+    request.parentIntent.delivery = { mode: 'attached', address: BUYER, carrierValueSats: 330 };
+    const review = analyzeAcceptanceCpfpBundle(request);
+    expect(review.status).toBe('proved');
+    expect(review.facts).toContainEqual({
+      kind: 'address', label: 'Delivery', value: BUYER,
+      description: 'Asset stays attached to a 330-sat UTXO at this address',
+    });
+  });
+
+  it('does not invent a platform fee for a fee-free parent', () => {
+    const request = base();
+    request.parentIntent.platformFeeSats = 0;
+    const review = analyzeAcceptanceCpfpBundle(request);
+    expect(review.status).toBe('proved');
+    expect(review.bundleSummary?.amounts.some(field => field.label === 'Platform fee')).toBe(false);
+    expect(review.facts.some(field => field.label === 'Platform fee')).toBe(false);
   });
 
   it.each([
@@ -141,6 +171,12 @@ describe('exact acceptance plus CPFP atomic proof', () => {
     }],
     ['parent txid', {
       childInputs: [{ ...base().childInputs[0]!, txid: '13'.repeat(32) }],
+    }],
+    ['spending the platform output instead of seller proceeds', {
+      childInputs: [{ ...base().childInputs[0]!, vout: 2 }],
+    }],
+    ['charging the buyer platform fee again as a package fee', {
+      childIntent: { ...base().childIntent, packageFeeSats: 7_750 },
     }],
     ['parent value', {
       childInputs: [{ ...base().childInputs[0]!, value: 250_045 }],

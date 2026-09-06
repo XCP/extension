@@ -12,7 +12,7 @@ The original audit below reviewed 25 ordinary raw-transaction gallery images, se
 
 | Group | Examples | Assessment and direction |
 | --- | --- | --- |
-| Strongest | `send-divisible-bech32`, `checkout-buy-proved`, `listing-attach-caution` | Clear action or amount, understandable supporting facts, and a recognizable progression toward approval. Use these as references for information hierarchy, while retaining each action's actual conditions. |
+| Strongest | `send-divisible-bech32`, `checkout-buy-proved`, `listing-attach` | Clear action or amount, understandable supporting facts, and a recognizable progression toward approval. Use these as references for information hierarchy, while retaining each action's actual conditions. |
 | Strongest composition | Order give/receive cards | Two related amounts read as a trade instead of an opaque sentence. Preserve this composition. The slippage callout is a separate issue and does not make the give/receive structure wrong. |
 | Middle | MPMA, dispenser, issuance, paired prepare | Useful information is present, but grouping, field treatment, and density need a common grammar. MPMA must keep every recipient and quantity available. Paired prepare must keep the signing identities clear. |
 | Middle | CPFP | Lead with the user's net proceeds and place the fee explanation beneath them. Do not imply that gross returned value is the amount the user gains. |
