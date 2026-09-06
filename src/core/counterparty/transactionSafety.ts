@@ -305,7 +305,7 @@ export function analyzeTransactionSafety(
       message:
         `This funds an inscription: ${btcAmount} BTC goes to ${options.verifiedCommit.address.slice(0, 12)}…, ` +
         'an address derived from the inscription itself and spendable only by your key. ' +
-        'The follow-up reveal transaction publishes the content and returns the remainder.',
+        'The follow-up reveal transaction publishes the content. Review its destination and fees separately.',
     });
   }
 

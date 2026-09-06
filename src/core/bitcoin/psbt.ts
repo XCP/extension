@@ -19,6 +19,10 @@ export const MAX_PSBT_OUTPUTS = 1_000;
 const MAX_PSBT_BASE64_LENGTH = Math.ceil(MAX_PSBT_BYTES / 3) * 4 + 4;
 const MAX_TAPLEAVES_PER_INPUT = 128;
 const MAX_PSBT_SCRIPT_BYTES = 10_000;
+// BIP342 removes the legacy script-size cap. Bound Taproot leaf parsing by the
+// standard transaction weight ceiling; the total PSBT byte limit also applies.
+// This is a resource bound, not a check of the completed transaction's weight.
+const MAX_PSBT_TAPSCRIPT_BYTES = 400_000;
 
 function assertPsbtEncodedSize(length: number, encoding: 'hex' | 'base64'): void {
   const tooLarge = encoding === 'hex'
@@ -278,10 +282,13 @@ function assertPsbtComplexity(transaction: Transaction): void {
     const scripts = [
       input.redeemScript,
       input.witnessScript,
-      ...(input.tapLeafScript?.map(([, script]) => script) ?? []),
     ];
     if (scripts.some((script) => (script?.length ?? 0) > MAX_PSBT_SCRIPT_BYTES)) {
       throw new Error(`PSBT input ${index} contains an oversized script`);
+    }
+    // PSBT tapLeafScript values append one leaf-version byte to the script.
+    if (input.tapLeafScript?.some(([, script]) => script.length > MAX_PSBT_TAPSCRIPT_BYTES + 1)) {
+      throw new Error(`PSBT input ${index} contains an oversized Taproot script`);
     }
   }
 }
