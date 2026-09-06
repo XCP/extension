@@ -9,9 +9,11 @@
  * - Connection security analysis
  */
 
+import { normalizeAddressForComparison } from '@/core/bitcoin/address';
 import { generateRequestId } from '@/core/id';
 import { PROVIDER_ERROR_CODES, ProviderError } from '@/core/rpcErrors';
 import { analytics } from '@/platform/fathom';
+import { pairedGrantCovers } from '@/platform/provider/pairedGrant';
 import { connectionRateLimiter } from '@/platform/provider/rateLimiter';
 import { createWriteLock } from '@/platform/storage/mutex';
 import { type ApprovalResult, getApprovalService } from '@/services/approvalService';
@@ -166,11 +168,10 @@ export class ConnectionService extends BaseService {
     }
   }
 
+  /** True when the site's paired grant covers this wallet and either half of the granted pair. */
   async hasPairedAddressPermission(origin: string, walletId: string, address: string): Promise<boolean> {
     const capability = (await getWalletService().getSettings()).providerCapabilities?.[origin];
-    return capability?.pairedAddresses === true
-      && capability.walletId === walletId
-      && capability.address === address;
+    return pairedGrantCovers(capability, walletId, address);
   }
 
   /**
@@ -197,7 +198,9 @@ export class ConnectionService extends BaseService {
     const { origin, address, walletId, pairedAddresses } = grant;
 
     await analytics.track('connection_established');
-    await getWalletService().addConnectedWebsite(origin, pairedAddresses ? { walletId, address } : undefined);
+    await getWalletService().addConnectedWebsite(origin, pairedAddresses
+      ? await this.pairedIdentity(walletId, address)
+      : undefined);
 
     this.state.connectionCache.set(origin, {
       origin,
@@ -222,7 +225,29 @@ export class ConnectionService extends BaseService {
     walletId: string,
     address: string
   ): Promise<void> {
-    await getWalletService().setPairedAddressPermission(origin, { walletId, address });
+    await getWalletService().setPairedAddressPermission(origin, await this.pairedIdentity(walletId, address));
+  }
+
+  /**
+   * The other half of the active derivation index, recorded with the grant so it keeps covering
+   * the pair after the user switches which half is active. Undefined when the wallet cannot derive
+   * a pair (non-mnemonic, locked, unpaired format); the grant then covers its one address only.
+   */
+  private async pairedIdentity(
+    walletId: string,
+    address: string,
+  ): Promise<{ walletId: string; address: string; pairedAddress?: string }> {
+    try {
+      const pair = await getWalletService().getPairedAddresses();
+      const wanted = normalizeAddressForComparison(address);
+      const halves = [pair.legacy.address, pair.segwit.address];
+      // Only an address that is itself one half of the pair has a sibling to record.
+      if (!halves.some(candidate => normalizeAddressForComparison(candidate) === wanted)) return { walletId, address };
+      const sibling = halves.find(candidate => normalizeAddressForComparison(candidate) !== wanted);
+      return sibling === undefined ? { walletId, address } : { walletId, address, pairedAddress: sibling };
+    } catch {
+      return { walletId, address };
+    }
   }
 
   private async clearPairedAddressPermission(origin: string): Promise<void> {

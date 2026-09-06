@@ -963,7 +963,7 @@ export class WalletManager {
   }
 
   /** Persist a connection and its optional paired-address grant in one keychain write. */
-  public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string }): Promise<void> {
+  public addConnectedWebsite(origin: string, pairedIdentity?: { walletId: string; address: string; pairedAddress?: string }): Promise<void> {
     return this.mutateVault(async () => {
       const settings = this.getSettings();
       const providerCapabilities = { ...settings.providerCapabilities };
@@ -993,7 +993,7 @@ export class WalletManager {
   }
 
   /** A revoked connection cannot be recreated by an in-flight capability approval. */
-  public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string } | null): Promise<void> {
+  public setPairedAddressPermission(origin: string, identity: { walletId: string; address: string; pairedAddress?: string } | null): Promise<void> {
     return this.mutateVault(async () => {
       const settings = this.getSettings();
       if (identity && !settings.connectedWebsites.includes(origin)) {

@@ -39,6 +39,10 @@ vi.mock('@/services/walletService', () => ({
   getWalletService: vi.fn(() => ({
     isKeychainUnlocked: vi.fn().mockResolvedValue(true),
     getActiveAddress: vi.fn().mockResolvedValue({ address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' }),
+    getPairedAddresses: vi.fn().mockResolvedValue({
+      legacy: { address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', pubKey: '02', format: 'p2pkh', type: 'p2pkh' },
+      segwit: { address: 'bc1qsibling', pubKey: '02', format: 'p2wpkh', type: 'p2wpkh' },
+    }),
     // Connected-website access delegates to the walletManager mock so existing
     // getSettings/updateSettings drivers and assertions keep working.
     getSettings: () => walletManager.getSettings(),
@@ -445,6 +449,48 @@ describe('ConnectionService', () => {
       // Connection should succeed since there's no address validation
       expect(result).toEqual(['1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa']);
     }, 10000); // Increase timeout
+  });
+
+  describe('paired grant covers the whole derivation pair', () => {
+    it('records the sibling with the grant and honours either half afterwards', async () => {
+      let settings: any = { connectedWebsites: ['https://paired.com'] };
+      mockGetSettings.mockImplementation(() => settings);
+      mockUpdateSettings.mockImplementation(async (updates) => {
+        settings = { ...settings, ...updates };
+      });
+      mockApprovalService.requestApproval.mockResolvedValueOnce({
+        approved: true,
+        updatedParams: { pairedAddresses: true },
+      });
+      vi.spyOn(connectionService, 'hasPermission').mockResolvedValue(true);
+
+      await connectionService.requestPairedAddressPermission(
+        'https://paired.com',
+        '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        'wallet-123'
+      );
+
+      expect(settings.providerCapabilities['https://paired.com']).toEqual({
+        pairedAddresses: true,
+        walletId: 'wallet-123',
+        address: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+        pairedAddress: 'bc1qsibling',
+      });
+      // The user switches the extension to the SegWit sibling: the grant still applies.
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', 'bc1qsibling'
+      )).resolves.toBe(true);
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'
+      )).resolves.toBe(true);
+      // Another index or wallet never inherits it.
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-123', 'bc1qelsewhere'
+      )).resolves.toBe(false);
+      await expect(connectionService.hasPairedAddressPermission(
+        'https://paired.com', 'wallet-999', 'bc1qsibling'
+      )).resolves.toBe(false);
+    });
   });
 
   describe('requestPairedAddressPermission', () => {
