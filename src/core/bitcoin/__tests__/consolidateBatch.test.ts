@@ -31,6 +31,9 @@ import {
 const TEST_PRIVATE_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const TEST_ADDRESS = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';
 const FEE_ADDRESS = '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2';
+// BIP86 test vector: first receive address of the "abandon … about" account 0.
+const TAPROOT_FEE_ADDRESS = 'bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr';
+const TAPROOT_FEE_SCRIPT_HEX = '5120a60869f0dbcf1dc659c9cecbaf8050135ea9e8cdc487053f1dc6880949dc684c';
 
 const privateKeyBytes = hexToBytes(TEST_PRIVATE_KEY);
 const compressedPubkey = getPublicKey(privateKeyBytes, true);
@@ -311,6 +314,29 @@ describe('consolidateBareMultisigBatch', () => {
       expect(wire.outputs).toHaveLength(2);
       expect(wire.outputs[0]!.amount).toBe(BigInt(result.outputAmount));
       expect(bytesToHex(wire.outputs[1]!.script)).toBe(p2pkhScriptHex(FEE_ADDRESS));
+      expect(wire.outputs[1]!.amount).toBe(BigInt(result.serviceFee));
+    });
+
+    it('should size a Taproot service fee output at its real 43 bytes', async () => {
+      const batchData = createBatchData({
+        utxoCount: 5,
+        amountPerUtxo: 200_000,
+        feePercent: 5,
+        exemptionThreshold: 100_000,
+        feeAddress: TAPROOT_FEE_ADDRESS,
+      });
+
+      const result = await consolidateBareMultisigBatch(TEST_PRIVATE_KEY, TEST_ADDRESS, batchData, 10);
+
+      // P2PKH destination (34) plus P2TR fee output (43):
+      // (5 * 115 + 10 + 1 + 34 + 43) * 10 = 6630 network fee.
+      expect(result.networkFee).toBe(6630);
+      expect(result.serviceFee).toBe(49_668);
+      expect(result.outputAmount).toBe(1_000_000 - 6630 - 49_668);
+
+      const wire = parseWireTx(hexToBytes(result.signedTxHex));
+      expect(wire.outputs).toHaveLength(2);
+      expect(bytesToHex(wire.outputs[1]!.script)).toBe(TAPROOT_FEE_SCRIPT_HEX);
       expect(wire.outputs[1]!.amount).toBe(BigInt(result.serviceFee));
     });
 
