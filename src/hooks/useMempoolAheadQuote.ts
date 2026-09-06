@@ -21,6 +21,12 @@ export interface MempoolAheadState {
   isLoading: boolean;
 }
 
+/** What one answer was computed for, so an answer to an older question is never shown. */
+interface Answer {
+  key: string;
+  data: MempoolQuote | null;
+}
+
 /**
  * The swap quote after the orders already in the mempool have had their turn.
  *
@@ -55,21 +61,26 @@ export function useMempoolAheadQuote({
   feeBps?: number;
   enabled: boolean;
 }): MempoolAheadState {
-  const [state, setState] = useState<MempoolAheadState>({ data: null, isLoading: false });
+  const [answer, setAnswer] = useState<Answer | null>(null);
 
   const reserveA = pool?.reserve_a;
   const reserveB = pool?.reserve_b;
   const poolAssetA = pool?.asset_a;
   const poolKnown = pool !== undefined;
+  const active = enabled && poolKnown && /^\d+$/.test(quantity) && quantity !== "0";
+  // Everything the answer depends on. The effect below only ever sets state after a network
+  // round trip, so the question being asked is derived here rather than mirrored into state.
+  const key = active
+    ? [giveAsset, getAsset, quantity, poolAssetA ?? "", reserveA ?? "", reserveB ?? "", feeBps ?? ""].join("|")
+    : "";
 
   useEffect(() => {
-    if (!enabled || !poolKnown || !/^\d+$/.test(quantity) || quantity === "0") {
-      setState({ data: null, isLoading: false });
-      return;
-    }
+    if (!active) return;
 
     let cancelled = false;
-    setState((previous) => ({ data: previous.data, isLoading: true }));
+    const settle = (data: MempoolQuote | null) => {
+      if (!cancelled) setAnswer({ key, data });
+    };
 
     const read = async () => {
       const pendingAhead = (await fetchMempoolOpenOrders())
@@ -78,7 +89,7 @@ export function useMempoolAheadQuote({
         .filter((give) => give > 0n);
       if (cancelled) return;
       if (pendingAhead.length === 0) {
-        setState({ data: null, isLoading: false });
+        settle(null);
         return;
       }
 
@@ -107,24 +118,21 @@ export function useMempoolAheadQuote({
           }
         : null;
       if (!simPool && book.length === 0) {
-        setState({ data: null, isLoading: false });
+        settle(null);
         return;
       }
 
-      setState({
-        data: quoteAfterMempool({ pool: simPool, book }, pendingAhead, BigInt(quantity)),
-        isLoading: false,
-      });
+      settle(quoteAfterMempool({ pool: simPool, book }, pendingAhead, BigInt(quantity)));
     };
 
-    read().catch(() => {
-      if (!cancelled) setState({ data: null, isLoading: false });
-    });
+    read().catch(() => settle(null));
 
     return () => {
       cancelled = true;
     };
-  }, [enabled, poolKnown, quantity, giveAsset, getAsset, reserveA, reserveB, poolAssetA, feeBps]);
+  }, [active, key, quantity, giveAsset, getAsset, reserveA, reserveB, poolAssetA, feeBps]);
 
-  return state;
+  if (!active) return { data: null, isLoading: false };
+  const current = answer !== null && answer.key === key;
+  return { data: current ? answer.data : null, isLoading: !current };
 }
