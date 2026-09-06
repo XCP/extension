@@ -98,26 +98,26 @@ const DISPENSER_ADDRESS_SCRIPT = '76a914' + '11'.repeat(20) + '88ac';
 const DISPENSE_PAYMENT_SATS = 10_000;
 const PAYS_EXTERNAL = new Set(['dispense', 'btcpay']);
 /**
- * A real attach has three outputs — OP_RETURN, the 546-sat carrier the assets attach to, and
+ * A real attach has three outputs — OP_RETURN, the 546-sat asset UTXO the assets attach to, and
  * change — and its payload targets vout 1, which is where the fixture's attach points. Without
- * the dedicated carrier the change output doubled as the attached UTXO, a shape no composer
+ * the dedicated asset UTXO the change output doubled as the attached UTXO, a shape no composer
  * produces. attach-bad-vout is deliberately absent: its payload must keep pointing past the end.
  */
-const CARRIER_VALUE = 546;
-const HAS_ATTACH_CARRIER = new Set(['attach']);
+const ASSET_UTXO_VALUE = 546;
+const HAS_ATTACH_UTXO = new Set(['attach']);
 
 function rebuildForSigner(
   rawTxHex: string,
   changeAddress: string,
   payExternal = false,
-  attachCarrier = false,
+  attachUtxo = false,
 ): string {
   const { txid, vout } = scenarioFixtures.input;
   const txidLe = txid.match(/../g)!.reverse().join('');
   const opReturnScript = opReturnScriptOf(rawTxHex);
   const changeScript = Buffer.from(OutScript.encode(Address().decode(changeAddress))).toString('hex');
-  const extraCount = (payExternal ? 1 : 0) + (attachCarrier ? 1 : 0);
-  const extraValue = (payExternal ? DISPENSE_PAYMENT_SATS : 0) + (attachCarrier ? CARRIER_VALUE : 0);
+  const extraCount = (payExternal ? 1 : 0) + (attachUtxo ? 1 : 0);
+  const extraValue = (payExternal ? DISPENSE_PAYMENT_SATS : 0) + (attachUtxo ? ASSET_UTXO_VALUE : 0);
 
   return [
     le(2, 4),
@@ -131,8 +131,8 @@ function rebuildForSigner(
     ...(payExternal
       ? [le(DISPENSE_PAYMENT_SATS, 8), le(DISPENSER_ADDRESS_SCRIPT.length / 2, 1), DISPENSER_ADDRESS_SCRIPT]
       : []),
-    ...(attachCarrier
-      ? [le(CARRIER_VALUE, 8), le(changeScript.length / 2, 1), changeScript]
+    ...(attachUtxo
+      ? [le(ASSET_UTXO_VALUE, 8), le(changeScript.length / 2, 1), changeScript]
       : []),
     le(CHANGE_VALUE - extraValue, 8),
     le(changeScript.length / 2, 1), changeScript,
@@ -429,7 +429,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
       const id = `gallery-${name}`;
       const api = await createGalleryApi(context, page, id);
       await installScenarioStubs(api, name, signerAddress);
-      await seed(id, rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)));
+      await seed(id, rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_UTXO.has(name)));
       const approval = await openApproval(id);
       await assertScenarioFacts(approval, name);
       await captureApprovalSizes(approval, OUT_DIR, name);
@@ -481,7 +481,7 @@ walletTest('captures every provider approval screen', async ({ context, page, ex
           requestKey: `xcp_signPsbt:${id}`,
           kind: 'sign-psbt',
           status: 'pending',
-          psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_CARRIER.has(name)), signerAddress),
+          psbtHex: toPsbt(rebuildForSigner(rawTxHex, signerAddress, PAYS_EXTERNAL.has(name), HAS_ATTACH_UTXO.has(name)), signerAddress),
         }
       );
 

@@ -323,7 +323,7 @@ export function analyzeAcceptanceCpfpBundle(
         action: `Accept offer for ${parentReview.summary?.description ?? claim.asset}`,
         amounts: [
           { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
-          { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
+          { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.utxoValueSats.toLocaleString()} sats` },
           { kind: 'amount' as const, label: 'Network fees', value: `${childIntent.packageFeeSats.toLocaleString()} sats` },
         ],
         timing: 'Both network fees are already deducted from your final proceeds.',
@@ -337,7 +337,7 @@ export function analyzeAcceptanceCpfpBundle(
       },
       { kind: 'amount' as const, label: 'Offer price', value: `${parentIntent.priceSats.toLocaleString()} sats` },
       // The buyer-paid platform fee is not the seller's cost and is not listed here.
-      { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.carrierValueSats.toLocaleString()} sats` },
+      { kind: 'amount' as const, label: 'Your UTXO sats returned', value: `${parentIntent.utxoValueSats.toLocaleString()} sats` },
       {
         kind: 'amount' as const, label: 'Parent seller proceeds',
         value: `${childIntent.parentSellerProceedsSats.toLocaleString()} sats`,
@@ -349,7 +349,7 @@ export function analyzeAcceptanceCpfpBundle(
       {
         kind: 'address' as const, label: 'Delivery', value: parentIntent.delivery.address,
         description: parentIntent.delivery.mode === 'attached'
-          ? `Asset stays attached to a ${parentIntent.delivery.carrierValueSats.toLocaleString()}-sat UTXO at this address`
+          ? `Asset stays attached to a ${parentIntent.delivery.utxoValueSats.toLocaleString()}-sat UTXO at this address`
           : 'Asset detaches to this address',
       },
     ],

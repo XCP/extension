@@ -311,7 +311,7 @@ await xcpwallet.request({
       }],
       seller,
       priceSats: 250000,
-      carrierValueSats: 546,
+      utxoValueSats: 546,
       guaranteedSellerPaymentSats: 250546,
       delivery: { mode: 'buyer_selected_detach' },
       signingRequestExpiresAt: 1711130400,
@@ -323,8 +323,8 @@ await xcpwallet.request({
 ```
 
 The wallet independently checks the two-input/two-output template, null and unsigned buyer slot,
-exact attached outpoint and raw quantity, seller identity and carrier value, only input 1 requested
-with `SINGLE|ANYONECANPAY`, and exact carrier-plus-price payment at output 1. It also states that
+exact attached outpoint and raw quantity, seller identity and asset UTXO value, only input 1 requested
+with `SINGLE|ANYONECANPAY`, and exact asset UTXO-plus-price payment at output 1. It also states that
 buyer funding and the detach destination remain flexible. A false claim is blocked; an unavailable
 asset lookup asks the user to retry rather than treating the UTXO as empty. Marketplace expiry is
 displayed as service policy, not Bitcoin signature expiry.

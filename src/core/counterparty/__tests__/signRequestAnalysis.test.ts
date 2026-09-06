@@ -62,7 +62,7 @@ const LISTING_INTENT = parseMarketplaceIntent({
   }],
   seller: SIGNER,
   priceSats: 250_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   guaranteedSellerPaymentSats: 250_546,
   delivery: { mode: 'buyer_selected_detach' },
   signingRequestExpiresAt: 2_000_000_000,
@@ -79,8 +79,8 @@ const ATTACH_INTENT = parseMarketplaceIntent({
   assets: [{ asset: 'RAREPEPE', quantityRaw: '1' }],
   seller: SIGNER,
   expectedAttachedOutpoint: { txid: ATTACH_TXID, vout: 0 },
-  carrierAddress: SIGNER,
-  carrierValueSats: 546,
+  utxoAddress: SIGNER,
+  utxoValueSats: 546,
   networkFeeSats: 1_000,
   protocolFee: {
     asset: 'XCP',
@@ -110,7 +110,7 @@ const CHECKOUT_INTENT = parseMarketplaceIntent({
     sourceOutpoint: { txid: LISTING_TXID, vout: 4 },
     listingId: 'listing-1',
     seller: VAULT,
-    carrierValueSats: 546,
+    utxoValueSats: 546,
     priceSats: 250_000,
     sellerPaymentSats: 250_546,
   }],
@@ -139,7 +139,7 @@ const EXACT_AUTHORIZATION_INTENT = parseMarketplaceIntent({
   bidder: SIGNER,
   seller: VAULT,
   priceSats: 250_000,
-  carrierValueSats: 546,
+  utxoValueSats: 546,
   sellerProceedsSats: 250_046,
   networkFeeSats: 500,
   platformFeeSats: 6_250,
@@ -399,7 +399,7 @@ describe('the marketplace intent proof', () => {
   ) => run({
     marketplaceIntent: parseMarketplaceIntent({
       ...CHECKOUT_INTENT,
-      delivery: { mode: 'attached', address: SIGNER, carrierValueSats: 330 },
+      delivery: { mode: 'attached', address: SIGNER, utxoValueSats: 330 },
     }),
     inputs: [
       {
@@ -487,7 +487,7 @@ describe('the marketplace intent proof', () => {
     counterpartyDataHex: undefined,
     marketplaceIntent: parseMarketplaceIntent({
       ...(accepting ? EXACT_ACCEPTANCE_INTENT : EXACT_AUTHORIZATION_INTENT),
-      delivery: { mode: 'attached', address: SIGNER, carrierValueSats: 330 },
+      delivery: { mode: 'attached', address: SIGNER, utxoValueSats: 330 },
     }),
     inputs: [
       {
