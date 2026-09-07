@@ -12,7 +12,7 @@ import {
   type XcpPriceHistoryData,
   type XcpStats,
 } from "@/core/counterparty/price";
-import { formatAmount } from "@/core/format";
+import { displayLocale, formatAmount } from "@/core/format";
 import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
@@ -283,7 +283,7 @@ export default function XcpPricePage(): ReactElement {
                 <span className="text-sm font-medium text-gray-900">
                   {formatPrice(ath.usd)}
                   <span className="text-gray-400 font-normal">
-                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    {" "}· {new Date(`${ath.day}T00:00:00Z`).toLocaleDateString(displayLocale(), { year: "numeric", month: "short" })}
                   </span>
                 </span>
               </div>

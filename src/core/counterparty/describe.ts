@@ -20,6 +20,7 @@
 
 import { getFairminterPaymentModel } from '@/core/counterparty/fairminterModel';
 import { isTextualMimeType } from '@/core/counterparty/inscriptionEnvelope';
+import { formatAmount } from '@/core/format';
 import {
   type DisplayUnits,
   divide,
@@ -253,7 +254,7 @@ export function describeMessage(
           ? q(m.quantity, m.asset)
           : m.divisible
             ? fromSatoshis(String(m.quantity), { removeTrailingZeros: false })
-            : BigInt(String(m.quantity)).toLocaleString()
+            : formatAmount({ value: BigInt(String(m.quantity)).toString(), maximumFractionDigits: 0 })
         : null;
       // Two lines: the asset is the headline, the amount reads beneath it — a numeric asset
       // name and a quantity in one sentence are two long tokens fighting for the same line.
@@ -523,7 +524,8 @@ export function protocolFields(
       if (m.feeRequired != null && isGreaterThan(String(m.feeRequired), 0)) {
         add('BTC fee', amount(m.feeRequired, 'BTC', 'BTC'), 'amount');
       }
-      add('Expiry', m.expiration ? `${m.expiration.toLocaleString()} blocks` : undefined);
+      add('Expiry', m.expiration
+        ? `${formatAmount({ value: m.expiration, maximumFractionDigits: 0 })} blocks` : undefined);
       break;
 
     case 'dispenser':
@@ -556,7 +558,7 @@ export function protocolFields(
       if (m.softCap != null && isGreaterThan(String(m.softCap), 0)) {
         add('Soft cap', amount(m.softCap, m.asset), 'amount');
         add('Soft cap deadline', m.softCapDeadlineBlock
-          ? `Block ${m.softCapDeadlineBlock.toLocaleString()}` : undefined);
+          ? `Block ${formatAmount({ value: m.softCapDeadlineBlock, maximumFractionDigits: 0 })}` : undefined);
       }
       if (m.premintQuantity != null && isGreaterThan(String(m.premintQuantity), 0)) {
         add('Premint', amount(m.premintQuantity, m.asset), 'amount');
@@ -575,9 +577,11 @@ export function protocolFields(
         }[payment]);
       }
       add('Starts', m.startBlock === undefined ? undefined
-        : m.startBlock === 0 ? 'On confirmation' : `Block ${m.startBlock.toLocaleString()}`);
+        : m.startBlock === 0 ? 'On confirmation'
+        : `Block ${formatAmount({ value: m.startBlock, maximumFractionDigits: 0 })}`);
       add('Ends', m.endBlock === undefined ? undefined
-        : m.endBlock === 0 ? 'No end block' : `Block ${m.endBlock.toLocaleString()}`);
+        : m.endBlock === 0 ? 'No end block'
+        : `Block ${formatAmount({ value: m.endBlock, maximumFractionDigits: 0 })}`);
       if (m.mintedAssetCommissionInt != null) {
         add('Minted asset commission', `${toGroupedString(divide(String(m.mintedAssetCommissionInt), 1_000_000))}%`, 'amount');
       }
@@ -671,7 +675,7 @@ export function protocolFields(
       if (mime !== 'text/plain') {
         add('Content', 'Inscribed - this broadcast carries data, not a message', 'paragraph');
       }
-      if (m.value) add('Value', m.value.toLocaleString());
+      if (m.value) add('Value', formatAmount({ value: m.value }));
       if (m.feeFractionInt) {
         // Stored as an integer of 1e8; a feed's cut of what it settles.
         add('Fee fraction', `${(m.feeFractionInt / 1e6).toFixed(2)}%`);

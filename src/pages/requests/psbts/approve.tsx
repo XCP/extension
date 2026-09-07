@@ -13,6 +13,7 @@ import { Collapsible } from "@/components/ui/collapsible";
 import type { WarningItem } from "@/components/ui/warning-stack";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
+import { formatAmount } from "@/core/format";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtsRequest } from "@/hooks/useSignPsbtsRequest";
 
@@ -174,7 +175,7 @@ export default function ApprovePsbtsPage() {
               </p>
               <p className="mt-1 break-all text-gray-500">{item.txid}</p>
               <p className="mt-1 text-gray-700">
-                {t('psbts_approve_fee_sats', [String(item.psbtDetails.fee.toLocaleString())])}
+                {t('psbts_approve_fee_sats', [formatAmount({ value: item.psbtDetails.fee, maximumFractionDigits: 0 })])}
               </p>
             </div>
           ))}

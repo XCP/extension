@@ -9,6 +9,7 @@ import {
 } from '@/core/counterparty/describe';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
+import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
 /**
@@ -65,7 +66,8 @@ export function normalizeQuantity(
   // than 99999999.99999999 — a different amount than the one being signed. fromSatoshis is
   // BigNumber-backed and exact when handed the digits.
   if (divisible === true) return fromSatoshis(val.toString());
-  if (divisible === false) return val.toLocaleString();
+  const grouped = formatAmount({ value: val.toString(), maximumFractionDigits: 0 });
+  if (divisible === false) return grouped;
 
   // Divisibility unknown. Every caller on the local-unpack path passes only (quantity, asset), so
   // this is reached for every asset but BTC and XCP — and precisely when the API decode failed and
@@ -73,7 +75,7 @@ export function normalizeQuantity(
   // off by 1e8 for any divisible asset: 1.5 PEPECASH as "150,000,000 PEPECASH". Label it so an
   // unknown is visibly an unknown rather than a confident wrong number — "base units" because
   // that count is correct whichever way the divisibility resolves.
-  return `${val.toLocaleString()} (base units)`;
+  return `${grouped} (base units)`;
 }
 
 /**
@@ -276,8 +278,9 @@ function fromLocalUnpack(
       if (quantity == null) return '?';
       const divisible = divisibilityOf(asset);
       if (divisible === true) return fromSatoshis(String(quantity), { removeTrailingZeros: false });
-      if (divisible === false) return BigInt(String(quantity)).toLocaleString();
-      return `${BigInt(String(quantity)).toLocaleString()} (base units)`;
+      const whole = formatAmount({ value: BigInt(String(quantity)).toString(), maximumFractionDigits: 0 });
+      if (divisible === false) return whole;
+      return `${whole} (base units)`;
     },
     // The same value with nothing added, for the figures that get divided rather than displayed.
     // Undefined where divisibility is unknown: a derived rate computed on a guessed scale is wrong

@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PricePoint } from '@/core/bitcoin/price';
+import { displayLocale, formatAmount } from '@/core/format';
 import { type BigNumber, maximum, minimum, subtract, toBigNumber, toNumber } from "@/core/numeric";
 
 import { t } from '@/i18n';
@@ -171,20 +172,22 @@ export const PriceChart = memo(({
 
   // Format price for display
   const formatPrice = (price: number) => {
-    return `${currencySymbol}${price.toLocaleString('en-US', { maximumFractionDigits: priceDecimals })}`;
+    return `${currencySymbol}${formatAmount({ value: price, maximumFractionDigits: priceDecimals })}`;
   };
 
-  // Format time for display
+  // Format time for display. The tooltip needs its own date options, so it resolves the
+  // language the same way `@/core/format` does rather than pinning a literal.
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
+    const locale = displayLocale();
     if (timeFormat === 'date') {
-      return date.toLocaleDateString('en-US', {
+      return date.toLocaleDateString(locale, {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
       });
     }
-    return date.toLocaleString('en-US', {
+    return date.toLocaleString(locale, {
       month: 'short',
       day: 'numeric',
       hour: 'numeric',

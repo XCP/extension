@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { FiAlertTriangle } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import type { WarningItem } from '@/components/ui/warning-stack';
+import { formatAmount } from '@/core/format';
 import { divide, roundUp } from '@/core/numeric';
 
 import { t } from '@/i18n';
@@ -114,7 +115,7 @@ export function highFeeAttentionItem(feeSats: number, vsize?: number): WarningIt
     severity: 'warning',
     title: t('approval_approval_attention_unusually_high_network_fee'),
     description:
-      t('approval_approval_attention_this_transaction_pays_sats', [String(feeSats.toLocaleString())]) +
+      t('approval_approval_attention_this_transaction_pays_sats', [formatAmount({ value: feeSats, maximumFractionDigits: 0 })]) +
       `${feeRate === null ? '' : t('approval_approval_attention_about_sat_vb', [String(feeRate)])}. ` +
       t('approval_approval_attention_confirm_that_this_fee_is'),
   };

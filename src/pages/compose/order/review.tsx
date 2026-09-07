@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FaExchangeAlt } from "@/components/icons";
 import { ReviewScreen } from "@/components/screens/review-screen";
-import { formatPriceRatio } from "@/core/format";
+import { formatAmount, formatPriceRatio } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 
@@ -11,7 +11,8 @@ const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
   return blocks === 0
     ? t('common_never_expires')
-    : blocks === 1 ? "1 block" : `${blocks.toLocaleString()} blocks`;
+    : blocks === 1 ? "1 block"
+      : `${formatAmount({ value: blocks, maximumFractionDigits: 0 })} blocks`;
 };
 
 /**

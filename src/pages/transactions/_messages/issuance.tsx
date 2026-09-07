@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
-import { formatAmount } from "@/core/format";
+import { displayLocale, formatAmount } from "@/core/format";
 import { isGreaterThan } from "@/core/numeric";
 
 import { t } from '@/i18n';
@@ -122,7 +122,9 @@ export function issuance(tx: Transaction): Array<{ label: string; value: string 
     if (params.call_date) {
       fields.push({
         label: t('messages_issuance_call_date'),
-        value: new Date(params.call_date * 1000).toLocaleDateString(),
+        // A call date carries no time of day, so it takes the date alone rather than
+        // `formatDate`'s date-and-time — resolving the language the same way it does.
+        value: new Date(params.call_date * 1000).toLocaleDateString(displayLocale()),
       });
     }
     

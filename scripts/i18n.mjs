@@ -2,7 +2,8 @@
 //
 //   node scripts/i18n.mjs build    # public/_locales/en/messages.json -> src/i18n/en.generated.ts
 //   node scripts/i18n.mjs check    # every key used is defined, every key defined is used,
-//                                  # every locale has every key; exit 1 otherwise
+//                                  # every locale has every key, and no number is
+//                                  # formatted in a language nobody chose; exit 1 otherwise
 //   node scripts/i18n.mjs review <locale> [--machine] > review-<locale>.md
 //
 // `en/messages.json` is the source of truth. Each entry carries the message
@@ -71,6 +72,61 @@ function build() {
   console.log(`en.generated.ts: ${keys.length} messages`);
 }
 
+/**
+ * Numbers formatted in a language nobody chose.
+ *
+ * The catalog check above cannot see these: a number is not a message, so a
+ * figure written in the wrong language is invisible to every count on this
+ * page. Two shapes are wrong, for different reasons.
+ *
+ * A locale pinned to English renders 1.234,56 as 1,234.56 on a page that is
+ * not in English. And no locale at all is worse than it looks: `Intl` then
+ * follows the browser's REGIONAL FORMAT setting while every word on screen
+ * came from its UI LANGUAGE, and a reader can have those disagree — Japanese
+ * chrome around English digits, or the reverse.
+ *
+ * The fix for both is `formatAmount` from core/format, which resolves the
+ * language the wallet is actually reading in. The exception is a value bound
+ * for an input field, which must stay machine-formatted and has its own
+ * function: `formatForInput`.
+ *
+ * A site that genuinely must pin a locale says so with `i18n-number-ok` on
+ * the line or the one above it.
+ */
+const NUMBER_RULES = [
+  [/\.toLocale(?:String|DateString|TimeString)\(\s*\)/g, 'no locale at all: follows the browser\'s regional format, not the wallet\'s language'],
+  [/(?:toLocale(?:String|DateString|TimeString)|Intl\.[A-Za-z]+)\(\s*['"]en(?:-[A-Z]{2})?['"]/g, 'pinned to English on a page that is not always English'],
+];
+
+function numbersInNoLanguage() {
+  const findings = [];
+  for (const file of sourceFiles(SRC)) {
+    const rel = relative(SRC, file).replace(/\\/g, '/');
+    // core/format.ts is where the default is decided, so it is the one file
+    // allowed to name a locale.
+    if (rel === 'core/format.ts') continue;
+    const text = readFileSync(file, 'utf8');
+    const lines = text.split(/\r?\n/);
+    // Scan the code, not the prose. A doc comment explaining why a bare
+    // toLocaleString is wrong necessarily contains one, and a checker that
+    // cannot tell the difference teaches people to stop writing the
+    // explanation. Comments become spaces, so every offset still lines up.
+    const code = text
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+      .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+    for (const [pattern, why] of NUMBER_RULES) {
+      for (const match of code.matchAll(pattern)) {
+        const at = code.slice(0, match.index).split('\n').length;
+        const here = lines[at - 1] ?? '';
+        const above = lines[at - 2] ?? '';
+        if (here.includes('i18n-number-ok') || above.includes('i18n-number-ok')) continue;
+        findings.push(`  ${rel}:${at}  ${why}`);
+      }
+    }
+  }
+  return findings;
+}
+
 function check() {
   let failed = false;
   const used = usedKeys();
@@ -107,6 +163,12 @@ function check() {
     for (const key of missing.slice(0, 20)) console.log(`  missing ${key}`);
     for (const key of extra) console.log(`  stale ${key}`);
     for (const key of badPlaceholders) console.log(`  placeholders ${key}: en "${en[key].message}" vs "${messages[key].message}"`);
+  }
+  const numbers = numbersInNoLanguage();
+  if (numbers.length) {
+    failed = true;
+    console.error(`numbers formatted in a language nobody chose (${numbers.length}):`);
+    for (const line of numbers) console.error(line);
   }
   const generated = existsSync(GENERATED) ? readFileSync(GENERATED, 'utf8') : '';
   const generatedKeys = [...generated.matchAll(/^  "([^"]+)":/gm)].map((m) => m[1]);

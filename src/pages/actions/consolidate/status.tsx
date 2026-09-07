@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { type ConsolidationStatusResponse, consolidationApi } from "@/core/bitcoin/consolidationApi";
-import { formatAddress, formatAmount } from "@/core/format";
+import { displayLocale, formatAddress, formatAmount } from "@/core/format";
 
 import { t } from '@/i18n';
 
@@ -172,7 +172,7 @@ function ConsolidateStatusPage() {
                         {tx.status === 'confirmed' ? 'Confirmed' : 'Pending'}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {new Date(tx.timestamp).toLocaleDateString()}
+                        {new Date(tx.timestamp).toLocaleDateString(displayLocale())}
                       </span>
                     </div>
                   </div>

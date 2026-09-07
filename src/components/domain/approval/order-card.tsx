@@ -29,7 +29,7 @@ import { FiArrowDown } from '@/components/icons';
 import { fetchPoolQuote, type PoolQuote } from '@/core/counterparty/api';
 import type { CounterpartyMessage } from '@/core/counterparty/transaction';
 import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
-import { formatPriceRatio } from '@/core/format';
+import { formatAmount, formatPriceRatio } from '@/core/format';
 import { type BigNumber, divide, isGreaterThan, subtract, toBigNumber, toNumber } from '@/core/numeric';
 
 import { t } from '@/i18n';
@@ -315,7 +315,7 @@ export function OrderCard({ order }: { order: OrderAction }) {
           ? t('common_never_expires')
           : order.expiration === 1
             ? t('approval_order_card_expires_in_1_block')
-            : t('approval_order_card_expires_in_blocks', [String(order.expiration.toLocaleString())])}
+            : t('approval_order_card_expires_in_blocks', [formatAmount({ value: order.expiration, maximumFractionDigits: 0 })])}
       </p>
     </div>
   );

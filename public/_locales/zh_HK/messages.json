@@ -656,6 +656,24 @@
   "approval_order_card_you_receive_at_least": {
     "message": "你至少收到"
   },
+  "approval_psbt_each_single_anyonecanpay_signature_fixes": {
+    "message": "每個 SINGLE|ANYONECANPAY 簽名只鎖定相同索引的輸出。簽名後，其他輸入或輸出可能會被添加或更改。"
+  },
+  "approval_psbt_only_paired_outputs_are_fixed": {
+    "message": "僅鎖定配對的輸出"
+  },
+  "approval_psbt_other_funding_inputs_may_be": {
+    "message": "可能會添加其他資金輸入"
+  },
+  "approval_psbt_part_of_the_amount_shown": {
+    "message": "顯示為返還到你錢包的金額，有一部分可能在你簽名後被發往別處。"
+  },
+  "approval_psbt_some_of_your_funds_can": {
+    "message": "你的部分資金可能被轉往別處"
+  },
+  "approval_psbt_your_all_anyonecanpay_signature_fixes": {
+    "message": "你的 ALL|ANYONECANPAY 簽名鎖定當前所有輸出。它允許在不改變這些支付的前提下添加其他資金輸入。"
+  },
   "approval_verification_details_decoder_differences": {
     "message": "解碼器差異"
   },
@@ -2966,6 +2984,402 @@
   "market_you_don_t_have_any_3": {
     "message": "你沒有 LP 倉位"
   },
+  "marketplace_batch_after_confirmation_and_counterparty": {
+    "message": "在確認並經 Counterparty 驗證後"
+  },
+  "marketplace_batch_asset_source": {
+    "message": "資產來源"
+  },
+  "marketplace_batch_attach_and_list_asset": {
+    "message": "附加並上架 $1"
+  },
+  "marketplace_batch_attach_collectibles_for_listing": {
+    "message": "為上架附加 $1 個收藏品"
+  },
+  "marketplace_batch_attach_costs_are_paid_first": {
+    "message": "附加成本先行支付，收益需成交後才有。XCP 費用可能在確認時變動。"
+  },
+  "marketplace_batch_attach_fee": {
+    "message": "附加費用"
+  },
+  "marketplace_batch_attach_network_fee": {
+    "message": "附加的網絡費用"
+  },
+  "marketplace_batch_attach_transaction_only": {
+    "message": "僅附加交易"
+  },
+  "marketplace_batch_authorize_1_listing_reprice": {
+    "message": "授權 1 次上架改價"
+  },
+  "marketplace_batch_authorize_listing_reprices": {
+    "message": "授權 $1 次上架改價"
+  },
+  "marketplace_batch_authorize_marketplace_listings": {
+    "message": "授權 $1 個市場上架"
+  },
+  "marketplace_batch_broadcast": {
+    "message": "廣播"
+  },
+  "marketplace_batch_broadcast_now": {
+    "message": "立即廣播的內容"
+  },
+  "marketplace_batch_buyer_controls": {
+    "message": "由買家決定"
+  },
+  "marketplace_batch_combined_asking_prices": {
+    "message": "上架價格合計"
+  },
+  "marketplace_batch_create_1_listing_utxo": {
+    "message": "建立 1 個上架 UTXO"
+  },
+  "marketplace_batch_create_listing_utxos": {
+    "message": "建立 $1 個上架 UTXO"
+  },
+  "marketplace_batch_every_attach_proves_its_source": {
+    "message": "每筆附加都驗證其來源、乾淨的資金、新 UTXO、礦工費用和本地 Counterparty 訊息。XCP 費用在確認前始終取決於區塊。"
+  },
+  "marketplace_batch_every_fan_out_input_and": {
+    "message": "在本批次可以簽名之前，每一個扇出輸入和同錢包輸出都已驗證。此階段不會移動任何 Counterparty 資產。"
+  },
+  "marketplace_batch_every_listing_independently_guarantees_its": {
+    "message": "每個上架都獨立保證其賣家收款。每個靈活簽名在其已附加資產的 UTXO 被花費之前始終有效。"
+  },
+  "marketplace_batch_funding_fees_and_delivery_destination": {
+    "message": "資金、費用和交付地址"
+  },
+  "marketplace_batch_listing_activation": {
+    "message": "上架生效"
+  },
+  "marketplace_batch_listing_price": {
+    "message": "上架價格"
+  },
+  "marketplace_batch_new_utxos": {
+    "message": "新增 UTXO"
+  },
+  "marketplace_batch_not_broadcast_now": {
+    "message": "現在不會廣播。"
+  },
+  "marketplace_batch_prepare_1_collectible": {
+    "message": "準備 1 個收藏品"
+  },
+  "marketplace_batch_prepare_collectibles": {
+    "message": "準備 $1 個收藏品"
+  },
+  "marketplace_batch_quoted_xcp_fee": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_batch_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_batch_seller_wallet": {
+    "message": "賣家錢包"
+  },
+  "marketplace_batch_signature_invalidation": {
+    "message": "簽名失效"
+  },
+  "marketplace_batch_spend_each_attached_asset_utxo": {
+    "message": "花費每個已附加資產的 UTXO"
+  },
+  "marketplace_batch_spend_the_attached_asset_utxo": {
+    "message": "花費已附加資產的 UTXO"
+  },
+  "marketplace_batch_the_attach_transaction_is_broadcast": {
+    "message": "附加交易會先廣播。上架將在確認並對已附加資產完成獨立驗證後可用。"
+  },
+  "marketplace_batch_total_network_fees": {
+    "message": "網絡費用合計"
+  },
+  "marketplace_batch_total_quoted_xcp_fees": {
+    "message": "XCP 費用報價合計"
+  },
+  "marketplace_batch_transactions": {
+    "message": "交易數"
+  },
+  "marketplace_batch_utxo_returned": {
+    "message": "返還的 UTXO"
+  },
+  "marketplace_batch_xcp_fee_quote": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_batch_your_payout_if_all_sell": {
+    "message": "全部售出後你的收益"
+  },
+  "marketplace_batch_your_payout_if_sold": {
+    "message": "售出後你的收益"
+  },
+  "marketplace_batch_your_utxo_sats_returned": {
+    "message": "返還給你的 UTXO sats"
+  },
+  "marketplace_bundle_accept_btc_for_with_fee_bump": {
+    "message": "以 $1 BTC 接受 $2 並提高費用"
+  },
+  "marketplace_bundle_accept_offer_for": {
+    "message": "接受 $1 的報價"
+  },
+  "marketplace_bundle_added_child_fee": {
+    "message": "新增的子交易費用"
+  },
+  "marketplace_bundle_asset_detaches_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_bundle_asset_stays_attached_to_a": {
+    "message": "資產將保持附加在此地址的 $1 sats UTXO 上"
+  },
+  "marketplace_bundle_both_network_fees_are_already": {
+    "message": "兩筆網絡費用已從你的最終收益中扣除。"
+  },
+  "marketplace_bundle_delivery": {
+    "message": "交付地址"
+  },
+  "marketplace_bundle_network_fees": {
+    "message": "網絡費用"
+  },
+  "marketplace_bundle_offer_price": {
+    "message": "報價金額"
+  },
+  "marketplace_bundle_parent_fee": {
+    "message": "父交易費用"
+  },
+  "marketplace_bundle_parent_seller_proceeds": {
+    "message": "父交易的賣家收益"
+  },
+  "marketplace_bundle_quoted_package_rate": {
+    "message": "交易包費率報價"
+  },
+  "marketplace_bundle_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "marketplace_bundle_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_bundle_the_parent_completes_the_exact": {
+    "message": "父交易完成這筆精確的出售，子交易僅將你在父交易中的收益花回給你。在請求任一簽名之前，兩筆交易都已通過驗證。"
+  },
+  "marketplace_bundle_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_bundle_your_proceeds_after_fee_bump": {
+    "message": "提高費用後你的收益"
+  },
+  "marketplace_bundle_your_utxo_sats_returned": {
+    "message": "返還給你的 UTXO sats"
+  },
+  "marketplace_intent_accept_offer": {
+    "message": "接受報價"
+  },
+  "marketplace_intent_asset_detaches_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_intent_asset_source": {
+    "message": "資產來源"
+  },
+  "marketplace_intent_asset_stays_attached_to_sat_utxo": {
+    "message": "資產將保持附加在此地址下一個 $1 sats 的 UTXO 上"
+  },
+  "marketplace_intent_assets_detach_to_this_address": {
+    "message": "資產將分離到此地址"
+  },
+  "marketplace_intent_broadcast": {
+    "message": "廣播"
+  },
+  "marketplace_intent_buy_collectibles": {
+    "message": "購買收藏品"
+  },
+  "marketplace_intent_buyer_chooses_attached_or_detached_delivery": {
+    "message": "由買家選擇附加或分離交付"
+  },
+  "marketplace_intent_buyer_controls": {
+    "message": "由買家決定"
+  },
+  "marketplace_intent_buyer_funding": {
+    "message": "買家出資"
+  },
+  "marketplace_intent_buyer_funding_utxo": {
+    "message": "買家出資 UTXO"
+  },
+  "marketplace_intent_cancellation": {
+    "message": "取消方式"
+  },
+  "marketplace_intent_change": {
+    "message": "找零"
+  },
+  "marketplace_intent_collectibles_count": {
+    "message": "$1 件收藏品"
+  },
+  "marketplace_intent_deducted_from_seller_proceeds": {
+    "message": "從賣家收益中扣除"
+  },
+  "marketplace_intent_delist_without_a_transaction": {
+    "message": "無需交易即可下架"
+  },
+  "marketplace_intent_delivery": {
+    "message": "交付"
+  },
+  "marketplace_intent_fee_recipient": {
+    "message": "費用收款方"
+  },
+  "marketplace_intent_finalized_at_confirmation": {
+    "message": "確認時才最終確定"
+  },
+  "marketplace_intent_funding_fees_and_delivery_destination": {
+    "message": "資金、費用和交付地址"
+  },
+  "marketplace_intent_funding_input": {
+    "message": "出資輸入"
+  },
+  "marketplace_intent_funding_utxo": {
+    "message": "出資 UTXO"
+  },
+  "marketplace_intent_items": {
+    "message": "件數"
+  },
+  "marketplace_intent_items_with_asset_count": {
+    "message": "$1（$2 種資產）"
+  },
+  "marketplace_intent_list_for_sale": {
+    "message": "上架出售"
+  },
+  "marketplace_intent_marketplace_cancellation": {
+    "message": "市場取消方式"
+  },
+  "marketplace_intent_marketplace_expiry": {
+    "message": "市場有效期"
+  },
+  "marketplace_intent_network_fee": {
+    "message": "網絡費用"
+  },
+  "marketplace_intent_new_utxo_owner": {
+    "message": "新 UTXO 所有者"
+  },
+  "marketplace_intent_new_utxo_value": {
+    "message": "新 UTXO 金額"
+  },
+  "marketplace_intent_new_utxos": {
+    "message": "新 UTXO"
+  },
+  "marketplace_intent_none_requested": {
+    "message": "未設定"
+  },
+  "marketplace_intent_not_broadcast_now": {
+    "message": "現在不廣播。"
+  },
+  "marketplace_intent_notice_accept_exact_offer": {
+    "message": "你的簽名即可按此條件完成這筆出售，無需買家再次確認。如果買家已經花費了共用的出資 UTXO，廣播會失敗，你的資產仍歸你所有。"
+  },
+  "marketplace_intent_notice_authorize_exact_offer": {
+    "message": "簽名後，該賣家無需再次批准即可按此條件完成交易。以同一出資 UTXO 為支撐的其他報價互為備選：最先確認的那筆花費生效，其餘全部作廢。"
+  },
+  "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": {
+    "message": "所有輸出仍由本錢包控制。這些普通比特幣 UTXO 將為後續的 Counterparty 附加交易提供資金；此階段沒有資產移動。"
+  },
+  "marketplace_intent_notice_sighash_all_attached_delivery": {
+    "message": "SIGHASH_ALL 固定了每一個輸入、賣家付款、費用、找零輸出，以及上方顯示的由買家持有的獨立資產 UTXO。"
+  },
+  "marketplace_intent_notice_sighash_all_detach_destination": {
+    "message": "SIGHASH_ALL 固定了每一個輸入、賣家付款、費用、找零輸出，以及上方顯示的分離目標地址。"
+  },
+  "marketplace_intent_offer_price": {
+    "message": "報價金額"
+  },
+  "marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo": {
+    "message": "報價金額、平台費用，以及附加交付所需的 UTXO"
+  },
+  "marketplace_intent_offer_to_buy": {
+    "message": "出價購買"
+  },
+  "marketplace_intent_one_collectible": {
+    "message": "1 件收藏品"
+  },
+  "marketplace_intent_operation_expiry": {
+    "message": "操作有效期"
+  },
+  "marketplace_intent_paid_by_the_buyer": {
+    "message": "由買家支付"
+  },
+  "marketplace_intent_platform_fee": {
+    "message": "平台費用"
+  },
+  "marketplace_intent_quoted_xcp_fee": {
+    "message": "XCP 費用報價"
+  },
+  "marketplace_intent_reprice_listing": {
+    "message": "修改上架價格"
+  },
+  "marketplace_intent_sale_price": {
+    "message": "售價"
+  },
+  "marketplace_intent_sats_kept_with_your_asset": {
+    "message": "隨資產保留的 sats"
+  },
+  "marketplace_intent_seller_receives": {
+    "message": "賣家收到"
+  },
+  "marketplace_intent_seller_subtotal": {
+    "message": "賣家小計"
+  },
+  "marketplace_intent_signature_invalidation": {
+    "message": "簽名失效方式"
+  },
+  "marketplace_intent_spend_the_asset_utxo": {
+    "message": "花費該資產 UTXO"
+  },
+  "marketplace_intent_still_yours_separate_from_the_offer_cost": {
+    "message": "仍歸你所有，與報價成本分開計算"
+  },
+  "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
+    "message": "仍歸你所有，與購買成本和找零分開計算"
+  },
+  "marketplace_intent_title_accept_btc_for_asset": {
+    "message": "接受以 $1 BTC 出售 $2"
+  },
+  "marketplace_intent_title_attach_asset_for_listing": {
+    "message": "為上架附加 $1"
+  },
+  "marketplace_intent_title_authorize_btc_for_asset": {
+    "message": "授權以 $1 BTC 購買 $2"
+  },
+  "marketplace_intent_title_buy_collectibles_for_btc": {
+    "message": "以 $2 BTC 購買 $1 件收藏品"
+  },
+  "marketplace_intent_title_buy_one_collectible_for_btc": {
+    "message": "以 $1 BTC 購買 1 件收藏品"
+  },
+  "marketplace_intent_title_create_listing_utxos": {
+    "message": "建立 $1 個上架 UTXO"
+  },
+  "marketplace_intent_title_create_one_listing_utxo": {
+    "message": "建立 1 個上架 UTXO"
+  },
+  "marketplace_intent_title_list_asset_for_btc": {
+    "message": "將 1 $1 以 $2 BTC 上架"
+  },
+  "marketplace_intent_title_prepare_asset": {
+    "message": "準備 $1"
+  },
+  "marketplace_intent_title_reprice_asset_to_btc": {
+    "message": "將 1 $1 改價為 $2 BTC"
+  },
+  "marketplace_intent_unavailable": {
+    "message": "不可用"
+  },
+  "marketplace_intent_withdraw_by_spending_your_funding_utxo": {
+    "message": "花費你的出資 UTXO 即可撤回"
+  },
+  "marketplace_intent_you_pay": {
+    "message": "你支付"
+  },
+  "marketplace_intent_you_pay_if_accepted": {
+    "message": "如被接受你支付"
+  },
+  "marketplace_intent_you_receive": {
+    "message": "你收到"
+  },
+  "marketplace_intent_your_payout_if_sold": {
+    "message": "售出後的收益"
+  },
+  "marketplace_intent_your_utxo_sats_returned": {
+    "message": "返還的 UTXO sats"
+  },
   "menus_address_menu_address_actions": {
     "message": "地址操作"
   },
@@ -2980,6 +3394,24 @@
   },
   "message_approve_sign_message": {
     "message": "簽名消息"
+  },
+  "message_risk_a_signature_over_an_empty": {
+    "message": "對空消息的簽名只能證明你控制該地址，除此之外什麼也證明不了。"
+  },
+  "message_risk_control_characters_are_not_displayed": {
+    "message": "控制字符不會顯示，因此你簽名的消息比顯示的更長。"
+  },
+  "message_risk_it_includes_characters_that_can": {
+    "message": "其中包含可能重排或隱藏文本的字符，因此這裡顯示的內容可能不是你簽名的內容。只有在你信任此網站時才繼續。"
+  },
+  "message_risk_this_message_contains_control_characters": {
+    "message": "此消息包含控制字符"
+  },
+  "message_risk_this_message_contains_hidden_characters": {
+    "message": "此消息包含隱藏字符"
+  },
+  "message_risk_this_message_is_empty": {
+    "message": "此消息為空"
   },
   "messages_attach_attach_to_utxo": {
     "message": "附加到 UTXO"
@@ -3565,6 +3997,90 @@
   },
   "reset_supply_review_yes_permanent": {
     "message": "是，永久"
+  },
+  "safety_bitcoin_payment": {
+    "message": "比特幣支付"
+  },
+  "safety_blocked_sweep_transaction": {
+    "message": "已阻止：清掃交易"
+  },
+  "safety_btc_payment": {
+    "message": "BTC 支付"
+  },
+  "safety_btc_sent_to_an_unrecognized_script": {
+    "message": "BTC 將發送到無法識別的腳本"
+  },
+  "safety_btc_sent_to_external_address": {
+    "message": "BTC 將發送到外部地址"
+  },
+  "safety_counterparty_data_outputs": {
+    "message": "Counterparty 數據輸出"
+  },
+  "safety_danger_supply_destruction": {
+    "message": "危險：銷毀供應量"
+  },
+  "safety_data_output_embeds_a_recovery_key": {
+    "message": "$1 個數據輸出中嵌入了不屬於你的找回密鑰，其中的粉塵將可被他人花費。"
+  },
+  "safety_data_outputs_embed_a_recovery_key": {
+    "message": "$1 個數據輸出中嵌入了不屬於你的找回密鑰，其中的粉塵將可被他人花費。"
+  },
+  "safety_data_outputs_not_recoverable_by": {
+    "message": "數據輸出你無法找回"
+  },
+  "safety_detaching_transfers_every_asset_attached": {
+    "message": "分離會轉移附加到該 UTXO 的所有資產，而不是某個指定數量。簽名前請在交易詳情中核對接收地址。"
+  },
+  "safety_inscription_commit": {
+    "message": "銘文提交交易"
+  },
+  "safety_moves_everything_on_the_utxo": {
+    "message": "轉移該 UTXO 上的全部資產"
+  },
+  "safety_output_carries_this_transactions_message": {
+    "message": "$1 個輸出以裸多簽形式承載此交易的 Counterparty 消息（$2 sats）。這些 sats 不是給任何人的付款，之後可以用找回工具取回到你的錢包。"
+  },
+  "safety_outputs_carry_this_transactions_message": {
+    "message": "$1 個輸出以裸多簽形式承載此交易的 Counterparty 消息（$2 sats）。這些 sats 不是給任何人的付款，之後可以用找回工具取回到你的錢包。"
+  },
+  "safety_this_funds_an_inscription": {
+    "message": "這筆交易為銘文提供資金：$1 BTC 將發送到 $2，該地址由銘文本身推導而來，只有你的私鑰能夠花費。隨後的揭示交易會發佈內容，請另行核對它的接收地址和手續費。"
+  },
+  "safety_this_sends_btc_matching_the_declared": {
+    "message": "這會把 $1 BTC 發送到 $2，與該網站聲明的支付輸出一致。請確認地址正是你想要的那個。"
+  },
+  "safety_this_sends_btc_which_is_how": {
+    "message": "這會把 $1 BTC 發送到 $2，這正是此類交易的付款方式。請確認地址正是你想要的那個。"
+  },
+  "safety_this_transaction_could_not_be": {
+    "message": "無法將此交易識別為已知的 Counterparty 操作。它可能以本頁面無法讀取的形式攜帶協議數據。簽名前請仔細檢查。"
+  },
+  "safety_this_transaction_permanently_destroys_supply": {
+    "message": "此交易將永久銷毀供應量。該操作不可撤銷。請確認你清楚知道被銷毀的是什麼。"
+  },
+  "safety_this_transaction_sends_btc_to_addresses": {
+    "message": "此交易會把 $1 BTC 發送到 $2 個不屬於你的地址: $3。正常的 Counterparty 交易只會把 BTC 作為找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_address": {
+    "message": "此交易會把 $1 BTC 發送到一個不屬於你的地址: $2。正常的 Counterparty 交易只會把 BTC 作為找零退回你自己的地址。"
+  },
+  "safety_this_transaction_sends_btc_to_an_output": {
+    "message": "此交易會把 $1 BTC 發送到一個無法確定去向的輸出，因此它既無法顯示為地址，也無法確認屬於你。除非你清楚這個腳本的作用，否則不要簽名。"
+  },
+  "safety_this_transaction_sends_btc_to_outputs": {
+    "message": "此交易會把 $1 BTC 發送到 $2 個無法確定去向的輸出，因此它們既無法顯示為地址，也無法確認屬於你。除非你清楚這些腳本的作用，否則不要簽名。"
+  },
+  "safety_this_would_send_all_counterparty": {
+    "message": "這會把你地址上的全部 Counterparty 資產發送出去。網站無法請求清掃。如果你確實要清掃，請直接在錢包中操作。"
+  },
+  "safety_unknown_transaction_type": {
+    "message": "未知的交易類型"
+  },
+  "safety_unrecognized_message_type": {
+    "message": "無法識別的消息類型「$1」。簽名前請仔細核對交易詳情。"
+  },
+  "safety_unrecognized_transaction": {
+    "message": "無法識別的交易"
   },
   "screens_review_screen_go_back_to_edit_transaction": {
     "message": "返回編輯交易"

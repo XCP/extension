@@ -511,7 +511,7 @@ export default function ApprovePsbtPage() {
                     {t('psbt_approve_inputs', [String(indices.map((index) => `#${index}`).join(", "))])}
                   </p>
                 </div>
-                <p className="font-medium text-gray-700">{t('psbt_approve_sats', [String(value.toLocaleString())])}</p>
+                <p className="font-medium text-gray-700">{t('psbt_approve_sats', [formatAmount({ value, maximumFractionDigits: 0 })])}</p>
               </div>
             ))}
           </div>

@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useSettings } from '@/contexts/settings-context';
 import { getCounterpartyFeatureStatus } from '@/core/counterparty/capabilities';
+import { formatAmount } from '@/core/format';
 import {
   DEFAULT_ORDER_EXPIRATION,
   LEGACY_MAX_ORDER_EXPIRATION,
@@ -136,7 +137,7 @@ export function OrderSettings({
 
   const expirationLabel = (expiration === 0 && !usesLegacyExpirations)
     ? t('common_never_expires')
-    : t('settings_order_settings_blocks', [String(expiration.toLocaleString()), String(calculateDays(expiration))]);
+    : t('settings_order_settings_blocks', [formatAmount({ value: expiration, maximumFractionDigits: 0 }), String(calculateDays(expiration))]);
 
   const handleFeeRequiredChange = (value: string) => {
     // Only allow numbers

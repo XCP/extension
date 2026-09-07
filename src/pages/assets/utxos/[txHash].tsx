@@ -169,7 +169,9 @@ export default function UtxoPage(): ReactElement {
               <div className="flex justify-between">
                 <span className="text-sm text-gray-500">{t('utxos_txhash_confirmations')}</span>
                 <span className="text-sm text-gray-900">
-                  {btcTxData.confirmations ? btcTxData.confirmations.toLocaleString() : '0'}
+                  {btcTxData.confirmations
+                    ? formatAmount({ value: btcTxData.confirmations, maximumFractionDigits: 0 })
+                    : '0'}
                 </span>
               </div>
               {btcTxData.vout !== undefined && btcTxData.vout_list && btcTxData.vout_list[btcTxData.vout] && (

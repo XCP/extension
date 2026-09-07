@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatAmount, formatForInput, isComposableAmount } from '@/core/format';
+import { formatAmount, formatAmountExact, formatForInput, isComposableAmount } from '@/core/format';
 import { toBigNumber, toSatoshis } from '@/core/numeric';
 
 /**
@@ -103,5 +103,36 @@ describe('a number is read in the language the wallet is reading in', () => {
     // Outside an extension context `t('appLocale')` falls back to the English
     // catalog, so unit tests keep asserting the copy they always did.
     expect(formatAmount({ value: 1234.5 })).toBe('1,234.5');
+  });
+});
+
+describe('a figure someone is agreeing to is never abbreviated', () => {
+  it('shows a divisible asset to all eight places, padded', () => {
+    expect(formatAmountExact('1234')).toBe('1,234.00000000');
+    expect(formatAmountExact('0.5')).toBe('0.50000000');
+    expect(formatAmountExact('995269258.11111111')).toBe('995,269,258.11111111');
+  });
+
+  it('shows an indivisible asset with no fractional part at all', () => {
+    expect(formatAmountExact('1234', { divisible: false })).toBe('1,234');
+    expect(formatAmountExact('995269258', { divisible: false })).toBe('995,269,258');
+  });
+
+  it('never compacts, however large — a signature needs the digits', () => {
+    const exact = formatAmountExact('123200');
+    expect(exact).toBe('123,200.00000000');
+    expect(exact).not.toMatch(/[kKMB]/);
+  });
+
+  it('leaves compaction to the glanceable case, which is a different call', () => {
+    expect(formatAmount({ value: 123200, compact: true })).toMatch(/K|k/);
+  });
+
+  it('is a display format, so the parser refuses it', () => {
+    // The same guarantee the launchpad has: an exact DISPLAY amount is still
+    // grouped, so it cannot be mistaken for something a field can be parsed
+    // back from. That is formatForInput, and only formatForInput.
+    expect(isComposableAmount(formatAmountExact('1234'), 8)).toBe(false);
+    expect(isComposableAmount(formatForInput('1234', 8), 8)).toBe(true);
   });
 });

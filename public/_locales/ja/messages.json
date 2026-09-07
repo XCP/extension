@@ -656,6 +656,24 @@
   "approval_order_card_you_receive_at_least": {
     "message": "最低受取額"
   },
+  "approval_psbt_each_single_anyonecanpay_signature_fixes": {
+    "message": "各 SINGLE|ANYONECANPAY 署名は、同じインデックスの出力のみを固定します。署名後に他の入力や出力が追加・変更される可能性があります。"
+  },
+  "approval_psbt_only_paired_outputs_are_fixed": {
+    "message": "固定されるのは対応する出力のみです"
+  },
+  "approval_psbt_other_funding_inputs_may_be": {
+    "message": "他の資金入力が追加される可能性があります"
+  },
+  "approval_psbt_part_of_the_amount_shown": {
+    "message": "ウォレットに戻ると表示されている金額の一部は、署名後に別の宛先へ送られる可能性があります。"
+  },
+  "approval_psbt_some_of_your_funds_can": {
+    "message": "資金の一部が別の宛先に送られる可能性があります"
+  },
+  "approval_psbt_your_all_anyonecanpay_signature_fixes": {
+    "message": "あなたの ALL|ANYONECANPAY 署名は、現在の各出力を固定します。それらの支払いを変更せずに、他の資金入力を追加することを許可します。"
+  },
   "approval_verification_details_decoder_differences": {
     "message": "デコーダーの差異"
   },
@@ -2966,6 +2984,402 @@
   "market_you_don_t_have_any_3": {
     "message": "LP ポジションはありません"
   },
+  "marketplace_batch_after_confirmation_and_counterparty": {
+    "message": "承認と Counterparty による検証の後"
+  },
+  "marketplace_batch_asset_source": {
+    "message": "アセットの送信元"
+  },
+  "marketplace_batch_attach_and_list_asset": {
+    "message": "$1 をアタッチして出品"
+  },
+  "marketplace_batch_attach_collectibles_for_listing": {
+    "message": "$1 件のコレクティブルを出品用にアタッチ"
+  },
+  "marketplace_batch_attach_costs_are_paid_first": {
+    "message": "アタッチの費用は先に支払われ、受取額は売却が前提です。XCP 手数料は承認時に変動する可能性があります。"
+  },
+  "marketplace_batch_attach_fee": {
+    "message": "アタッチ手数料"
+  },
+  "marketplace_batch_attach_network_fee": {
+    "message": "アタッチのネットワーク手数料"
+  },
+  "marketplace_batch_attach_transaction_only": {
+    "message": "アタッチのトランザクションのみ"
+  },
+  "marketplace_batch_authorize_1_listing_reprice": {
+    "message": "1 件の出品価格変更を承認"
+  },
+  "marketplace_batch_authorize_listing_reprices": {
+    "message": "$1 件の出品価格変更を承認"
+  },
+  "marketplace_batch_authorize_marketplace_listings": {
+    "message": "$1 件のマーケットプレイス出品を承認"
+  },
+  "marketplace_batch_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "marketplace_batch_broadcast_now": {
+    "message": "今ブロードキャストする対象"
+  },
+  "marketplace_batch_buyer_controls": {
+    "message": "買い手が決めるもの"
+  },
+  "marketplace_batch_combined_asking_prices": {
+    "message": "出品価格の合計"
+  },
+  "marketplace_batch_create_1_listing_utxo": {
+    "message": "出品用 UTXO を 1 件作成"
+  },
+  "marketplace_batch_create_listing_utxos": {
+    "message": "$1 件の出品用 UTXO を作成"
+  },
+  "marketplace_batch_every_attach_proves_its_source": {
+    "message": "各アタッチは、その送信元、クリーンな資金、新しい UTXO、マイナー手数料、ローカルの Counterparty メッセージを検証します。XCP 手数料は承認までブロックに依存したままです。"
+  },
+  "marketplace_batch_every_fan_out_input_and": {
+    "message": "すべてのファンアウトの入力と同一ウォレット宛ての出力は、このバッチが署名される前に検証済みです。この段階では Counterparty のアセットは移動しません。"
+  },
+  "marketplace_batch_every_listing_independently_guarantees_its": {
+    "message": "各出品は、それぞれ独立して出品者への支払いを保証します。柔軟な各署名は、アタッチされたアセットの UTXO が消費されるまで有効なままです。"
+  },
+  "marketplace_batch_funding_fees_and_delivery_destination": {
+    "message": "資金、手数料、受け渡し先"
+  },
+  "marketplace_batch_listing_activation": {
+    "message": "出品の有効化"
+  },
+  "marketplace_batch_listing_price": {
+    "message": "出品価格"
+  },
+  "marketplace_batch_new_utxos": {
+    "message": "新しい UTXO"
+  },
+  "marketplace_batch_not_broadcast_now": {
+    "message": "今はブロードキャストされません。"
+  },
+  "marketplace_batch_prepare_1_collectible": {
+    "message": "コレクティブルを 1 件準備"
+  },
+  "marketplace_batch_prepare_collectibles": {
+    "message": "$1 件のコレクティブルを準備"
+  },
+  "marketplace_batch_quoted_xcp_fee": {
+    "message": "見積もりの XCP 手数料"
+  },
+  "marketplace_batch_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_batch_seller_wallet": {
+    "message": "出品者のウォレット"
+  },
+  "marketplace_batch_signature_invalidation": {
+    "message": "署名の無効化"
+  },
+  "marketplace_batch_spend_each_attached_asset_utxo": {
+    "message": "アタッチされた各アセットの UTXO を消費する"
+  },
+  "marketplace_batch_spend_the_attached_asset_utxo": {
+    "message": "アタッチされたアセットの UTXO を消費する"
+  },
+  "marketplace_batch_the_attach_transaction_is_broadcast": {
+    "message": "アタッチのトランザクションが先にブロードキャストされます。出品は、承認とアタッチされたアセットの独立した検証の後に利用可能になります。"
+  },
+  "marketplace_batch_total_network_fees": {
+    "message": "ネットワーク手数料の合計"
+  },
+  "marketplace_batch_total_quoted_xcp_fees": {
+    "message": "XCP 手数料の見積もり合計"
+  },
+  "marketplace_batch_transactions": {
+    "message": "トランザクション数"
+  },
+  "marketplace_batch_utxo_returned": {
+    "message": "返還される UTXO"
+  },
+  "marketplace_batch_xcp_fee_quote": {
+    "message": "XCP 手数料の見積もり"
+  },
+  "marketplace_batch_your_payout_if_all_sell": {
+    "message": "すべて売れた場合の受取額"
+  },
+  "marketplace_batch_your_payout_if_sold": {
+    "message": "売れた場合の受取額"
+  },
+  "marketplace_batch_your_utxo_sats_returned": {
+    "message": "返還されるあなたの UTXO の sats"
+  },
+  "marketplace_bundle_accept_btc_for_with_fee_bump": {
+    "message": "$2 を $1 BTC で受諾し、手数料を引き上げ"
+  },
+  "marketplace_bundle_accept_offer_for": {
+    "message": "$1 のオファーを受諾"
+  },
+  "marketplace_bundle_added_child_fee": {
+    "message": "追加する子トランザクションの手数料"
+  },
+  "marketplace_bundle_asset_detaches_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_bundle_asset_stays_attached_to_a": {
+    "message": "アセットはこのアドレスの $1 sats の UTXO にアタッチされたままになります"
+  },
+  "marketplace_bundle_both_network_fees_are_already": {
+    "message": "両方のネットワーク手数料は、最終的な受取額からすでに差し引かれています。"
+  },
+  "marketplace_bundle_delivery": {
+    "message": "受け渡し先"
+  },
+  "marketplace_bundle_network_fees": {
+    "message": "ネットワーク手数料"
+  },
+  "marketplace_bundle_offer_price": {
+    "message": "オファー価格"
+  },
+  "marketplace_bundle_parent_fee": {
+    "message": "親トランザクションの手数料"
+  },
+  "marketplace_bundle_parent_seller_proceeds": {
+    "message": "親トランザクションの受取額"
+  },
+  "marketplace_bundle_quoted_package_rate": {
+    "message": "パッケージの見積もりレート"
+  },
+  "marketplace_bundle_sat_vb": {
+    "message": "$1 sat/vB"
+  },
+  "marketplace_bundle_sats": {
+    "message": "$1 sats"
+  },
+  "marketplace_bundle_the_parent_completes_the_exact": {
+    "message": "親トランザクションが正確な売却を完了し、子トランザクションは親の受取額のみをあなた宛てに使用します。いずれの署名を要求する前にも、両方のトランザクションは検証済みです。"
+  },
+  "marketplace_bundle_you_receive": {
+    "message": "受け取る額"
+  },
+  "marketplace_bundle_your_proceeds_after_fee_bump": {
+    "message": "手数料引き上げ後の受取額"
+  },
+  "marketplace_bundle_your_utxo_sats_returned": {
+    "message": "返還されるあなたの UTXO の sats"
+  },
+  "marketplace_intent_accept_offer": {
+    "message": "オファーを承諾"
+  },
+  "marketplace_intent_asset_detaches_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_intent_asset_source": {
+    "message": "アセットの取得元"
+  },
+  "marketplace_intent_asset_stays_attached_to_sat_utxo": {
+    "message": "アセットはこのアドレスの $1 sats の UTXO にアタッチされたままです"
+  },
+  "marketplace_intent_assets_detach_to_this_address": {
+    "message": "アセットはこのアドレスにデタッチされます"
+  },
+  "marketplace_intent_broadcast": {
+    "message": "ブロードキャスト"
+  },
+  "marketplace_intent_buy_collectibles": {
+    "message": "コレクティブルを購入"
+  },
+  "marketplace_intent_buyer_chooses_attached_or_detached_delivery": {
+    "message": "買い手がアタッチかデタッチかを選びます"
+  },
+  "marketplace_intent_buyer_controls": {
+    "message": "買い手が決めるもの"
+  },
+  "marketplace_intent_buyer_funding": {
+    "message": "買い手の資金"
+  },
+  "marketplace_intent_buyer_funding_utxo": {
+    "message": "買い手の資金 UTXO"
+  },
+  "marketplace_intent_cancellation": {
+    "message": "取り消し方法"
+  },
+  "marketplace_intent_change": {
+    "message": "お釣り"
+  },
+  "marketplace_intent_collectibles_count": {
+    "message": "コレクティブル $1 点"
+  },
+  "marketplace_intent_deducted_from_seller_proceeds": {
+    "message": "売り手の受取額から差し引かれます"
+  },
+  "marketplace_intent_delist_without_a_transaction": {
+    "message": "トランザクションなしで出品を取り下げ"
+  },
+  "marketplace_intent_delivery": {
+    "message": "受け渡し"
+  },
+  "marketplace_intent_fee_recipient": {
+    "message": "手数料の受取人"
+  },
+  "marketplace_intent_finalized_at_confirmation": {
+    "message": "確認時に確定します"
+  },
+  "marketplace_intent_funding_fees_and_delivery_destination": {
+    "message": "資金、手数料、受け渡し先"
+  },
+  "marketplace_intent_funding_input": {
+    "message": "資金の入力"
+  },
+  "marketplace_intent_funding_utxo": {
+    "message": "資金の UTXO"
+  },
+  "marketplace_intent_items": {
+    "message": "点数"
+  },
+  "marketplace_intent_items_with_asset_count": {
+    "message": "$1（アセット $2 種類）"
+  },
+  "marketplace_intent_list_for_sale": {
+    "message": "出品する"
+  },
+  "marketplace_intent_marketplace_cancellation": {
+    "message": "マーケットプレイスでの取り消し"
+  },
+  "marketplace_intent_marketplace_expiry": {
+    "message": "マーケットプレイスの有効期限"
+  },
+  "marketplace_intent_network_fee": {
+    "message": "ネットワーク手数料"
+  },
+  "marketplace_intent_new_utxo_owner": {
+    "message": "新しい UTXO の所有者"
+  },
+  "marketplace_intent_new_utxo_value": {
+    "message": "新しい UTXO の金額"
+  },
+  "marketplace_intent_new_utxos": {
+    "message": "新しい UTXO"
+  },
+  "marketplace_intent_none_requested": {
+    "message": "指定なし"
+  },
+  "marketplace_intent_not_broadcast_now": {
+    "message": "今はブロードキャストしません。"
+  },
+  "marketplace_intent_notice_accept_exact_offer": {
+    "message": "あなたの署名でこの売却はそのまま成立し、買い手への確認は不要です。買い手が共有の資金 UTXO をすでに使っていた場合、ブロードキャストは失敗し、アセットはあなたのまま残ります。"
+  },
+  "marketplace_intent_notice_authorize_exact_offer": {
+    "message": "署名すると、この売り手は追加の承認なしにこの取引をそのまま成立させられます。同じ資金 UTXO を裏付けとする他のオファーは代替案です。最初に確認された使用が成立し、残りは無効になります。"
+  },
+  "marketplace_intent_notice_bulk_fanout_outputs_stay_in_wallet": {
+    "message": "すべての出力はこのウォレットの管理下に残ります。これらは通常の Bitcoin の UTXO で、後の Counterparty アタッチトランザクションの資金になります。この段階でアセットは移動しません。"
+  },
+  "marketplace_intent_notice_sighash_all_attached_delivery": {
+    "message": "SIGHASH_ALL により、すべての入力、売り手への支払い、手数料、お釣りの出力、そして上に表示された買い手所有のアセット UTXO が固定されます。"
+  },
+  "marketplace_intent_notice_sighash_all_detach_destination": {
+    "message": "SIGHASH_ALL により、すべての入力、売り手への支払い、手数料、お釣りの出力、そして上に表示されたデタッチ先が固定されます。"
+  },
+  "marketplace_intent_offer_price": {
+    "message": "オファー価格"
+  },
+  "marketplace_intent_offer_price_platform_fee_and_any_attached_delivery_utxo": {
+    "message": "オファー価格、プラットフォーム手数料、アタッチ受け渡し用の UTXO"
+  },
+  "marketplace_intent_offer_to_buy": {
+    "message": "購入オファー"
+  },
+  "marketplace_intent_one_collectible": {
+    "message": "コレクティブル 1 点"
+  },
+  "marketplace_intent_operation_expiry": {
+    "message": "操作の有効期限"
+  },
+  "marketplace_intent_paid_by_the_buyer": {
+    "message": "買い手が負担します"
+  },
+  "marketplace_intent_platform_fee": {
+    "message": "プラットフォーム手数料"
+  },
+  "marketplace_intent_quoted_xcp_fee": {
+    "message": "見積 XCP 手数料"
+  },
+  "marketplace_intent_reprice_listing": {
+    "message": "出品価格を変更"
+  },
+  "marketplace_intent_sale_price": {
+    "message": "販売価格"
+  },
+  "marketplace_intent_sats_kept_with_your_asset": {
+    "message": "アセットに残る sats"
+  },
+  "marketplace_intent_seller_receives": {
+    "message": "売り手が受け取る額"
+  },
+  "marketplace_intent_seller_subtotal": {
+    "message": "売り手への小計"
+  },
+  "marketplace_intent_signature_invalidation": {
+    "message": "署名の無効化"
+  },
+  "marketplace_intent_spend_the_asset_utxo": {
+    "message": "アセットの UTXO を使用する"
+  },
+  "marketplace_intent_still_yours_separate_from_the_offer_cost": {
+    "message": "引き続きあなたのもので、オファーの費用とは別です"
+  },
+  "marketplace_intent_still_yours_separate_from_the_purchase_cost_and_change": {
+    "message": "引き続きあなたのもので、購入費用やお釣りとは別です"
+  },
+  "marketplace_intent_title_accept_btc_for_asset": {
+    "message": "$1 BTC で $2 を承諾"
+  },
+  "marketplace_intent_title_attach_asset_for_listing": {
+    "message": "出品用に $1 をアタッチ"
+  },
+  "marketplace_intent_title_authorize_btc_for_asset": {
+    "message": "$1 BTC で $2 を承認"
+  },
+  "marketplace_intent_title_buy_collectibles_for_btc": {
+    "message": "コレクティブル $1 点を $2 BTC で購入"
+  },
+  "marketplace_intent_title_buy_one_collectible_for_btc": {
+    "message": "コレクティブル 1 点を $1 BTC で購入"
+  },
+  "marketplace_intent_title_create_listing_utxos": {
+    "message": "出品用 UTXO を $1 件作成"
+  },
+  "marketplace_intent_title_create_one_listing_utxo": {
+    "message": "出品用 UTXO を 1 件作成"
+  },
+  "marketplace_intent_title_list_asset_for_btc": {
+    "message": "1 $1 を $2 BTC で出品"
+  },
+  "marketplace_intent_title_prepare_asset": {
+    "message": "$1 を準備"
+  },
+  "marketplace_intent_title_reprice_asset_to_btc": {
+    "message": "1 $1 を $2 BTC に価格変更"
+  },
+  "marketplace_intent_unavailable": {
+    "message": "取得できません"
+  },
+  "marketplace_intent_withdraw_by_spending_your_funding_utxo": {
+    "message": "資金の UTXO を使うと取り下げられます"
+  },
+  "marketplace_intent_you_pay": {
+    "message": "支払額"
+  },
+  "marketplace_intent_you_pay_if_accepted": {
+    "message": "承諾された場合の支払額"
+  },
+  "marketplace_intent_you_receive": {
+    "message": "受け取る額"
+  },
+  "marketplace_intent_your_payout_if_sold": {
+    "message": "売れた場合の受取額"
+  },
+  "marketplace_intent_your_utxo_sats_returned": {
+    "message": "返還される UTXO の sats"
+  },
   "menus_address_menu_address_actions": {
     "message": "アドレスの操作"
   },
@@ -2980,6 +3394,24 @@
   },
   "message_approve_sign_message": {
     "message": "メッセージに署名"
+  },
+  "message_risk_a_signature_over_an_empty": {
+    "message": "空のメッセージへの署名は、そのアドレスを管理していることを証明するだけで、それ以上の意味はありません。"
+  },
+  "message_risk_control_characters_are_not_displayed": {
+    "message": "制御文字は表示されないため、署名するメッセージは表示されているものより長くなります。"
+  },
+  "message_risk_it_includes_characters_that_can": {
+    "message": "テキストの並びを変えたり隠したりできる文字が含まれているため、ここに表示されている内容と署名する内容が異なる可能性があります。このサイトを信頼できる場合にのみ続行してください。"
+  },
+  "message_risk_this_message_contains_control_characters": {
+    "message": "このメッセージには制御文字が含まれています"
+  },
+  "message_risk_this_message_contains_hidden_characters": {
+    "message": "このメッセージには非表示の文字が含まれています"
+  },
+  "message_risk_this_message_is_empty": {
+    "message": "このメッセージは空です"
   },
   "messages_attach_attach_to_utxo": {
     "message": "UTXO にアタッチ"
@@ -3565,6 +3997,90 @@
   },
   "reset_supply_review_yes_permanent": {
     "message": "はい（永久）"
+  },
+  "safety_bitcoin_payment": {
+    "message": "Bitcoin の支払い"
+  },
+  "safety_blocked_sweep_transaction": {
+    "message": "ブロック: スイープトランザクション"
+  },
+  "safety_btc_payment": {
+    "message": "BTC の支払い"
+  },
+  "safety_btc_sent_to_an_unrecognized_script": {
+    "message": "BTC が認識できないスクリプトに送金されます"
+  },
+  "safety_btc_sent_to_external_address": {
+    "message": "BTC が外部アドレスに送金されます"
+  },
+  "safety_counterparty_data_outputs": {
+    "message": "Counterparty データ出力"
+  },
+  "safety_danger_supply_destruction": {
+    "message": "危険: 供給量の破棄"
+  },
+  "safety_data_output_embeds_a_recovery_key": {
+    "message": "$1 件のデータ出力に、あなたのものではない回収用の鍵が埋め込まれています。そのダストは他人が使えてしまいます。"
+  },
+  "safety_data_outputs_embed_a_recovery_key": {
+    "message": "$1 件のデータ出力に、あなたのものではない回収用の鍵が埋め込まれています。そのダストは他人が使えてしまいます。"
+  },
+  "safety_data_outputs_not_recoverable_by": {
+    "message": "データ出力をあなたは回収できません"
+  },
+  "safety_detaching_transfers_every_asset_attached": {
+    "message": "デタッチはこの UTXO にアタッチされたすべてのアセットを移動します。数量の指定はありません。署名する前に、トランザクションの詳細で送信先を確認してください。"
+  },
+  "safety_inscription_commit": {
+    "message": "インスクリプションのコミット"
+  },
+  "safety_moves_everything_on_the_utxo": {
+    "message": "UTXO 上のすべてを移動します"
+  },
+  "safety_output_carries_this_transactions_message": {
+    "message": "$1 件の出力が、このトランザクションの Counterparty メッセージをベアマルチシグとして運んでいます（$2 sats）。この sats は誰かへの支払いではなく、後から回収ツールでウォレットに回収できます。"
+  },
+  "safety_outputs_carry_this_transactions_message": {
+    "message": "$1 件の出力が、このトランザクションの Counterparty メッセージをベアマルチシグとして運んでいます（$2 sats）。この sats は誰かへの支払いではなく、後から回収ツールでウォレットに回収できます。"
+  },
+  "safety_this_funds_an_inscription": {
+    "message": "これはインスクリプションへの資金供給です。$1 BTC が $2 に送られます。これはインスクリプション自体から導出されたアドレスで、あなたの秘密鍵でのみ使用できます。続くリビールトランザクションがコンテンツを公開します。その送信先と手数料は別途確認してください。"
+  },
+  "safety_this_sends_btc_matching_the_declared": {
+    "message": "これは $1 BTC を $2 に送金します。サイトが申告した支払い出力と一致しています。アドレスが意図したものかどうか確認してください。"
+  },
+  "safety_this_sends_btc_which_is_how": {
+    "message": "これは $1 BTC を $2 に送金します。この種類のトランザクションはこうして支払いを行います。アドレスが意図したものかどうか確認してください。"
+  },
+  "safety_this_transaction_could_not_be": {
+    "message": "このトランザクションを既知の Counterparty の操作として識別できませんでした。この画面が読み取れない形式でプロトコルデータを含んでいる可能性があります。署名する前によく確認してください。"
+  },
+  "safety_this_transaction_permanently_destroys_supply": {
+    "message": "このトランザクションは供給量を永久に破棄します。この操作は取り消せません。何が破棄されるのかを正確に理解した上で署名してください。"
+  },
+  "safety_this_transaction_sends_btc_to_addresses": {
+    "message": "このトランザクションは $1 BTC を、あなたのものではない $2 件のアドレスに送金します: $3。通常の Counterparty トランザクションは、お釣りとして自分のアドレスに BTC を返すだけです。"
+  },
+  "safety_this_transaction_sends_btc_to_an_address": {
+    "message": "このトランザクションは $1 BTC を、あなたのものではないアドレスに送金します: $2。通常の Counterparty トランザクションは、お釣りとして自分のアドレスに BTC を返すだけです。"
+  },
+  "safety_this_transaction_sends_btc_to_an_output": {
+    "message": "このトランザクションは $1 BTC を、送信先を特定できない出力に送金します。アドレスとして表示することも、あなたのものだと確認することもできません。このスクリプトの動作を理解していない限り、署名しないでください。"
+  },
+  "safety_this_transaction_sends_btc_to_outputs": {
+    "message": "このトランザクションは $1 BTC を、送信先を特定できない $2 件の出力に送金します。アドレスとして表示することも、あなたのものだと確認することもできません。これらのスクリプトの動作を理解していない限り、署名しないでください。"
+  },
+  "safety_this_would_send_all_counterparty": {
+    "message": "これはあなたのアドレスにあるすべての Counterparty アセットを送信します。ウェブサイトがスイープを要求することはできません。本当に実行するなら、ウォレットから直接行ってください。"
+  },
+  "safety_unknown_transaction_type": {
+    "message": "不明なトランザクションタイプ"
+  },
+  "safety_unrecognized_message_type": {
+    "message": "認識できないメッセージタイプ「$1」です。署名する前に、トランザクションの詳細をよく確認してください。"
+  },
+  "safety_unrecognized_transaction": {
+    "message": "認識できないトランザクション"
   },
   "screens_review_screen_go_back_to_edit_transaction": {
     "message": "戻ってトランザクションを編集"

@@ -13,6 +13,16 @@ export type { MessageKey } from '@/i18n/en.generated';
  * exactly as its manifest name does — and no runtime library, because the
  * platform already is one.
  *
+ * There is a `zh` catalog as well as `zh_CN`, and it is not redundant. That
+ * search order is the reason: exact locale, then the language without its
+ * region, then the default. Chrome's supported list names only `zh_CN` and
+ * `zh_TW` for Chinese, so `zh_HK`, `zh_SG`, `zh_MO` and a bare `zh` all miss
+ * the first step — and with no language-level catalog they fell straight
+ * through to ENGLISH. `zh` holds the Simplified text, so every Chinese reader
+ * the two regional files do not name gets Chinese rather than English.
+ * `zh_TW` still wins for Taiwan on the exact match, and `zh_HK` still wins
+ * wherever it is honoured.
+ *
  * `en/messages.json` is the source of truth. `scripts/i18n.mjs build` mirrors
  * it into `en.generated.ts` so a key is a type: a call site cannot name a
  * message that does not exist, and a message no call site names is reported.

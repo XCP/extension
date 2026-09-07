@@ -25,9 +25,14 @@ import { currentLocale, t } from '@/i18n';
  * If a runtime override is ever offered, this is the single place that has to
  * learn about it: clear `display` when the choice changes and every figure in
  * the wallet follows on the next render. Nothing else caches a locale.
+ *
+ * Exported because a handful of sites format a DATE, which wants the same
+ * answer and options `formatAmount` has no business taking. They call this
+ * rather than each restating the resolution, which is how two of them would
+ * eventually disagree.
  */
 let display: string | undefined;
-function displayLocale(): string {
+export function displayLocale(): string {
   display ??= currentLocale() || 'en';
   return display;
 }
@@ -148,6 +153,44 @@ export function formatForInput(
 export function isComposableAmount(value: string, decimals: number): boolean {
   if (value === '') return true;
   return new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`).test(value);
+}
+
+/**
+ * A Counterparty amount written in full, for a figure someone is agreeing to.
+ *
+ * Three roles, and the whole rule is knowing which one you are in:
+ *
+ *   1. A number bound for a transaction: formatForInput. No language, no
+ *      grouping, exact. The composer reads it back.
+ *   2. A number someone must CHECK: this one. Grouped and in their language
+ *      so it can be read, but never abbreviated and never rounded, because
+ *      the point is to compare it digit for digit against what will be
+ *      signed. Approval screens, confirmations, the balance a send comes
+ *      out of.
+ *   3. A number someone merely GLANCES at: formatAmount({ compact: true }).
+ *      123.2k XCP is better there, and losing precision is the feature.
+ *
+ * The line between 2 and 3 is not taste. Abbreviation is forbidden wherever
+ * the figure is the thing being authorized: "123.2k XCP" cannot be checked
+ * against a transaction, and a screen asking for a signature has to show the
+ * number that is being signed.
+ *
+ * Divisibility decides the shape. An indivisible asset has no fractional
+ * part and never shows one; a divisible asset shows all eight places,
+ * padded, so the precision is visible and two amounts line up under each
+ * other.
+ */
+export function formatAmountExact(
+  value: AmountFormatterOptions['value'],
+  options: { divisible?: boolean } = {},
+): string {
+  const decimals = options.divisible === false ? 0 : 8;
+  return formatAmount({
+    value,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+    compact: false,
+  });
 }
 
 /**

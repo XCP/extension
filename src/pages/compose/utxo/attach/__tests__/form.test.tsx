@@ -194,7 +194,17 @@ describe('UtxoAttachForm', () => {
     expect(continueButton).toBeDisabled();
   });
 
-  it('should keep continue button disabled for negative amount', async () => {
+  /**
+   * A negative amount used to reach the field and be refused downstream, with
+   * the button left disabled. It cannot reach the field at all now: the amount
+   * input accepts only what compose can read — digits and at most one period —
+   * so a minus sign is never a value the form holds.
+   *
+   * The assertion moved with the behaviour. Checking the button here would
+   * now pass for the wrong reason, because typing "-5" leaves a perfectly
+   * valid "5" behind; what is worth pinning is that the sign never lands.
+   */
+  it('never lets a minus sign into the amount at all', async () => {
     const user = userEvent.setup();
     render(
       <TestWrapper>
@@ -203,10 +213,12 @@ describe('UtxoAttachForm', () => {
     );
 
     const amountInput = screen.getByRole('textbox', { name: /Amount/i });
-    const continueButton = screen.getByRole('button', { name: /Continue/i });
 
-    await user.type(amountInput, '-5');
-    expect(continueButton).toBeDisabled();
+    await user.type(amountInput, '-');
+    expect(amountInput).toHaveValue('');
+
+    await user.type(amountInput, '5-0');
+    expect(amountInput).toHaveValue('50');
   });
 
   it('should show an error when the asset details fail to load', async () => {

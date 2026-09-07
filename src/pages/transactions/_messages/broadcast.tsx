@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Transaction } from "@/core/counterparty/api";
+import { formatDate } from "@/core/format";
 
 import { t } from '@/i18n';
 /**
@@ -57,7 +58,7 @@ export function broadcast(tx: Transaction): Array<{ label: string; value: string
   if (params.timestamp) {
     fields.push({
       label: t('messages_broadcast_timestamp'),
-      value: new Date(params.timestamp * 1000).toLocaleString(),
+      value: formatDate(params.timestamp),
     });
   }
   

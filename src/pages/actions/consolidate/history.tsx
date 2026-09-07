@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FaChevronRight, FaHistory, FiChevronDown } from "@/components/icons";
 import { type ConsolidationStatusResponse, consolidationApi } from "@/core/bitcoin/consolidationApi";
 import { fetchTransactionChainStatus } from "@/core/bitcoin/utxo";
-import { formatAmount } from "@/core/format";
+import { displayLocale, formatAmount } from "@/core/format";
 
 import { t } from '@/i18n';
 
@@ -158,7 +158,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
                         </div>
                       </div>
                       <div className="text-xs text-gray-500">
-                        {new Date(tx.timestamp).toLocaleDateString()}
+                        {new Date(tx.timestamp).toLocaleDateString(displayLocale())}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

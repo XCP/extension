@@ -39,7 +39,7 @@ export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }
   const changedDestination = intent.outputs.length === 1 && proof?.outputs.length === 1
     && declared?.address !== actual?.address;
   const lead = difference !== undefined && difference !== 0
-    ? t('approval_bitcoin_payment_card_transaction_pays_than_requested', [String(toNumber(toBigNumber(difference).abs()).toLocaleString()), String(toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats'), String(difference > 0 ? 'more' : 'less')])
+    ? t('approval_bitcoin_payment_card_transaction_pays_than_requested', [formatAmount({ value: toNumber(toBigNumber(difference).abs()), maximumFractionDigits: 0 }), String(toNumber(toBigNumber(difference).abs()) === 1 ? 'sat' : 'sats'), String(difference > 0 ? 'more' : 'less')])
     : changedDestination ? t('approval_bitcoin_payment_card_the_transaction_pays_a_different')
     : !proof ? reasons[0] ?? t('approval_bitcoin_payment_card_payment_outputs_could_not_be')
     : reasons[0] ?? t('approval_bitcoin_payment_card_the_transaction_does_not_match');
@@ -98,7 +98,7 @@ export function BitcoinPaymentCard({ intent, proof, failure, movement, outputs }
                 <div className="flex flex-wrap justify-between gap-2 border-t border-danger-200 pt-2">
                   <dt>{t('approval_bitcoin_payment_card_difference')}</dt>
                   <dd className="font-semibold tabular-nums">
-                    {actual.amountSats > declared.amountSats ? '+' : ''}{difference?.toLocaleString()} {toNumber(toBigNumber(difference ?? 0).abs()) === 1 ? 'sat' : 'sats'}
+                    {actual.amountSats > declared.amountSats ? '+' : ''}{difference === undefined ? '' : formatAmount({ value: difference, maximumFractionDigits: 0 })} {toNumber(toBigNumber(difference ?? 0).abs()) === 1 ? 'sat' : 'sats'}
                   </dd>
                 </div>
               </dl>
