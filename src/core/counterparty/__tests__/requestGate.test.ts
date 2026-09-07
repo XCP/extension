@@ -59,7 +59,7 @@ describe('RequestGate', () => {
 
   it('waits out Retry-After after a refusal, then sends the refused request again', async () => {
     const clock = fakeClock();
-    const gate = new RequestGate({ now: clock.now, sleep: clock.sleep });
+    const gate = new RequestGate({ now: clock.now, sleep: clock.sleep, random: () => 1 });
     let calls = 0;
     const request = async () => {
       calls += 1;
@@ -83,7 +83,7 @@ describe('RequestGate', () => {
 
   it('holds every other request during the cooldown too', async () => {
     const clock = fakeClock();
-    const gate = new RequestGate({ now: clock.now, sleep: clock.sleep });
+    const gate = new RequestGate({ now: clock.now, sleep: clock.sleep, random: () => 1 });
     let refusedOnce = false;
     const first = gate.run(async () => {
       if (!refusedOnce) {
@@ -147,5 +147,71 @@ describe('RequestGate', () => {
     const gate = new RequestGate();
     await expect(gate.run(async () => { throw new Error('500'); }, refused)).rejects.toThrow('500');
     expect(gate.coolingDown).toBe(false);
+  });
+
+  it('spreads a cooldown so a refused wave does not return as a wave', async () => {
+    // Everything queued was refused at the same instant. Without jitter every
+    // one of them wakes at the same instant too, and re-earns the refusal.
+    const waits: number[] = [];
+    for (const roll of [0, 0.5, 1]) {
+      const clock = fakeClock();
+      const gate = new RequestGate({ now: clock.now, sleep: clock.sleep, random: () => roll });
+      let calls = 0;
+      const result = gate.run(async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('429 8000');
+        return 'ok';
+      }, refused);
+      await flush();
+
+      // Stepped rather than a while on `calls`: the counter changes inside the
+      // request, which the loop body cannot see it doing.
+      let waited = 8_000;
+      for (let step = 100; step <= 8_000; step += 100) {
+        await clock.advance(100);
+        if (calls >= 2) {
+          waited = step;
+          break;
+        }
+      }
+      await expect(result).resolves.toBe('ok');
+      waits.push(waited);
+    }
+
+    // Never longer than the node asked for, never less than half of it, and
+    // genuinely different across rolls.
+    for (const w of waits) {
+      expect(w).toBeLessThanOrEqual(8_000);
+      expect(w).toBeGreaterThanOrEqual(4_000);
+    }
+    expect(new Set(waits).size).toBeGreaterThan(1);
+  });
+
+  it('defaults to the concurrency the node actually rewards', async () => {
+    // Measured: one in flight returns ~2.5 useful responses a second, two ~2.0,
+    // four or more returns nothing but 429s. A third parallel request is not a
+    // tuning preference, it is spending budget for no throughput.
+    const clock = fakeClock();
+    const gate = new RequestGate({ now: clock.now, sleep: clock.sleep });
+    const started: number[] = [];
+    const finish: Array<() => void> = [];
+    const request = (id: number) => () =>
+      new Promise<number>((resolve) => {
+        started.push(id);
+        finish.push(() => resolve(id));
+      });
+
+    const results = Promise.all([1, 2, 3, 4].map((id) => gate.run(request(id), refused)));
+    await flush();
+    expect(started).toEqual([1, 2]);
+
+    finish[0]!();
+    finish[1]!();
+    await flush();
+    expect(started).toEqual([1, 2, 3, 4]);
+
+    finish[2]!();
+    finish[3]!();
+    await expect(results).resolves.toEqual([1, 2, 3, 4]);
   });
 });

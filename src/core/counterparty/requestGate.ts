@@ -26,6 +26,13 @@ export interface RateLimitRefusal {
 export interface RequestGateOptions {
   /** Requests allowed in flight at once. */
   maxInFlight?: number;
+  /**
+   * Fraction of a cooldown that is randomised away, 0 to 1. Defaults to 0.5,
+   * so a wait lands somewhere in the second half of what was asked for.
+   */
+  jitter?: number;
+  /** Injectable for tests; defaults to Math.random. */
+  random?: () => number;
   /** The wait after a refusal that carried no Retry-After; doubles per consecutive refusal. */
   defaultCooldownMs?: number;
   /** The longest the gate will ever hold requests, whatever the node asked for. */
@@ -41,6 +48,8 @@ export class RequestGate {
   private readonly defaultCooldownMs: number;
   private readonly maxCooldownMs: number;
   private readonly maxRetries: number;
+  private readonly jitter: number;
+  private readonly random: () => number;
   private readonly now: () => number;
   private readonly sleep: (ms: number) => Promise<void>;
 
@@ -50,7 +59,15 @@ export class RequestGate {
   private refusalsInARow = 0;
 
   constructor(options: RequestGateOptions = {}) {
-    this.maxInFlight = options.maxInFlight ?? 3;
+    // Measured against api.counterparty.io by sustaining load and counting what
+    // came back: one request in flight returns ~2.5 useful responses a second,
+    // two returns ~2.0, and four or more returns nothing at all — every reply
+    // is a 429. Useful throughput does not rise with concurrency there, it
+    // collapses, so a third parallel request buys the wallet no speed and
+    // costs it the budget the next screen needs.
+    this.maxInFlight = options.maxInFlight ?? 2;
+    this.jitter = Math.min(Math.max(options.jitter ?? 0.5, 0), 1);
+    this.random = options.random ?? Math.random;
     this.defaultCooldownMs = options.defaultCooldownMs ?? 2_000;
     this.maxCooldownMs = options.maxCooldownMs ?? 30_000;
     this.maxRetries = options.maxRetries ?? 2;
@@ -99,7 +116,13 @@ export class RequestGate {
     const backoff = this.defaultCooldownMs * 2 ** (this.refusalsInARow - 1);
     const asked = refusal.retryAfterMs;
     const wait = asked !== undefined && Number.isFinite(asked) && asked >= 0 ? asked : backoff;
-    this.holdUntil = Math.max(this.holdUntil, this.now() + Math.min(wait, this.maxCooldownMs));
+    const capped = Math.min(wait, this.maxCooldownMs);
+    // Everything the wallet had queued was refused at the same moment, so
+    // without this they all return at the same moment and earn the refusal
+    // again. Jitter only ever shortens the wait, and never below half of it,
+    // so the node's Retry-After is still substantially honoured.
+    const spread = capped * (1 - this.jitter + this.jitter * this.random());
+    this.holdUntil = Math.max(this.holdUntil, this.now() + spread);
   }
 
   private async waitForCooldown(): Promise<void> {

@@ -109,11 +109,43 @@ function setInCache<T>(key: string, data: T): void {
 }
 
 /**
+ * The reads that have been sent and not yet answered, by cache key.
+ *
+ * The response cache above can only collapse a repeat once the first answer is
+ * back. It does nothing for the case that actually produces a 429 storm: a
+ * screen mounting and asking the same question several times in the same tick.
+ * Every one of those misses the empty cache and every one goes to the node.
+ *
+ * That is not hypothetical here. The refusals that started this work were
+ * seventy-odd 429s for a single URL — `/v2/addresses/mempool` for one address
+ * with one event filter — which is one question asked many times at once, not
+ * many questions. `fetchMempoolLedgerEvents` even documents the intent:
+ * "several parts of a screen ask this at once ... collapsing those into one
+ * call matters more than a few seconds of freshness." The cache could not
+ * deliver that. This does.
+ *
+ * The entry is dropped as soon as the request settles, so this shares work
+ * rather than storing it: a caller never receives an answer older than one it
+ * would have fetched itself, and a failure is never remembered. How long an
+ * answer stays good remains the response cache's business.
+ *
+ * `skipCache` callers join too, and should. Asking to skip the cache means
+ * "not a stored answer from up to a minute ago", not "open a second socket
+ * alongside the identical request already in the air".
+ */
+const inFlight = new Map<string, Promise<unknown>>();
+
+/**
  * Clear the API cache. Call after mutations (send, create order, etc.)
  * to ensure fresh data on next read.
  */
 export function clearApiCache(): void {
   cache.clear();
+  // A read already on its way was sent before the mutation, so its answer will
+  // not contain it. Dropping the entry does not cancel that request — its own
+  // caller still gets it — but it stops anyone who asks next from joining an
+  // answer that predates the thing they are refreshing to see.
+  inFlight.clear();
 }
 
 /**
@@ -123,6 +155,12 @@ export function clearApiCacheMatching(pattern: string): void {
   for (const key of cache.keys()) {
     if (key.includes(pattern)) {
       cache.delete(key);
+    }
+  }
+  // Same reasoning as clearApiCache, narrowed to the keys being invalidated.
+  for (const key of inFlight.keys()) {
+    if (key.includes(pattern)) {
+      inFlight.delete(key);
     }
   }
 }
@@ -575,7 +613,12 @@ async function cpApiGet<T = unknown>(
     }
   }
 
-  try {
+  // Join a request for the same thing that is already on its way, rather than
+  // opening a second one beside it.
+  const running = inFlight.get(cacheKey) as Promise<T> | undefined;
+  if (running) return running;
+
+  const started = (async () => {
     const response = await requestGate.run(
       () => apiClient.get<T | { error: string }>(url, { params: filteredParams }),
       rateLimitRefusal
@@ -593,6 +636,12 @@ async function cpApiGet<T = unknown>(
     setInCache(cacheKey, response.data as T);
 
     return response.data as T;
+  })();
+
+  inFlight.set(cacheKey, started);
+
+  try {
+    return await started;
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 
@@ -609,6 +658,10 @@ async function cpApiGet<T = unknown>(
     throw new CounterpartyApiError(message, path, {
       cause: error instanceof Error ? error : undefined,
     });
+  } finally {
+    // Only clear our own entry: a later caller may already have started the
+    // next request under the same key.
+    if (inFlight.get(cacheKey) === started) inFlight.delete(cacheKey);
   }
 }
 
