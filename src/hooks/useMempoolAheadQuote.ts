@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { parseRawInteger } from "@/core/amount-contract/amounts";
 import {
   fetchMempoolOpenOrders,
   fetchOpenBookOrders,
@@ -10,10 +11,9 @@ import {
   quoteAfterMempool,
   XCP_POOL_FEE_BPS,
 } from "@/core/counterparty/poolQuote";
-import { toBigNumber } from "@/core/numeric";
 
 /** A raw quantity as bigint, whether it arrived as a digit string or a number. */
-const rawBig = (value: string | number): bigint => BigInt(toBigNumber(value).toFixed(0));
+const rawBig = (value: string | number): bigint => parseRawInteger(value);
 
 export interface MempoolAheadState {
   /** Null until both the pending orders and, if any, the book have been read. */

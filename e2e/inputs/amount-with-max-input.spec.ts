@@ -121,51 +121,16 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await expect(input).toHaveValue(TEST_AMOUNTS.zero);
     });
 
-    /**
-     * These two asserted the opposite, and their comments said why: the
-     * component took anything and the form refused it downstream, "via form,
-     * not input mask".
-     *
-     * There is an input mask now, and it is the point of the change. What
-     * reaches this field is what Counterparty compose can read — digits and at
-     * most one period — because the alternative is a value that looks right on
-     * screen and means something else by the time it is signed. A sign or a
-     * letter never becomes a number the form has to reason about.
-     */
-    walletTest('refuses a minus sign outright', async ({ page }) => {
+    walletTest('preserves invalid negative and non-numeric drafts without composing', async ({ page }) => {
       const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.negative);
-      await input.blur();
-
-      expect(await input.inputValue()).not.toContain('-');
-
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
-    });
-
-    walletTest('refuses non-numeric input outright', async ({ page }) => {
-      const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.invalid);
-      await input.blur();
-
-      // Nothing in "abc" is a digit, so nothing lands.
-      expect(await input.inputValue()).toBe('');
-
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
-    });
-
-    /**
-     * The defect the mask exists for. On a browser whose locale writes a comma
-     * for the decimal point, "0,5" reached compose as 5 — ten times the
-     * amount, with the field still showing the number the user meant.
-     */
-    walletTest('reads a typed decimal comma as a decimal point', async ({ page }) => {
-      const input = getAmountInput(page);
-      await input.fill('0,5');
-      await input.blur();
-
-      expect(await input.inputValue()).toBe('0.5');
+      for (const draft of [TEST_AMOUNTS.negative, TEST_AMOUNTS.invalid, '0,5']) {
+        await input.fill('');
+        await input.pressSequentially(draft);
+        await input.blur();
+        await expect(input).toHaveValue(draft);
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('button[type="submit"]:has-text("Continue")')).toBeDisabled();
+      }
     });
   });
 
