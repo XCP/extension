@@ -253,10 +253,10 @@ export function DispenseForm({
       selectedDispenserIndex !== previousIndexRef.current &&
       selectedDispenser
     ) {
-      const currentNumber = validAmountDraft(numberOfDispenses, 0) ? Number(numberOfDispenses) : null;
+      const hasValidCount = validAmountDraft(numberOfDispenses, 0);
       
       // Check against new max
-      if (currentNumber !== null && currentNumber > maxDispenses && maxDispenses > 0) {
+      if (hasValidCount && isGreaterThan(numberOfDispenses, maxDispenses) && maxDispenses > 0) {
         setValidationError(`This dispenser allows at most ${maxDispenses} dispenses. Edit the amount or use Max.`);
       }
       
