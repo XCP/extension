@@ -4,6 +4,8 @@ import type { Order, OrderDetails } from "@/core/counterparty/api";
 import { formatAmount, formatAsset } from "@/core/format";
 import { getOrderBaseAmount, getOrderPricePerUnit, getTradingPair, isBuyOrder } from "@/core/tradingPair";
 
+import { t } from '@/i18n';
+
 interface MarketOrderCardProps {
   order: Order | OrderDetails;
   onClick?: () => void;
@@ -62,7 +64,7 @@ export function MarketOrderCard({
               </span>
               {" @ "}{formatAmount({ value: price, maximumFractionDigits: 8 })} {quoteDisplay}
             </span>
-            <span>{formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })} remaining</span>
+            <span>{t('dispenser_asset_dispenser_card_remaining', [String(formatAmount({ value: remainingAmount, maximumFractionDigits: 2 }))])}</span>
           </div>
         </div>
       </div>

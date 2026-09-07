@@ -73,6 +73,33 @@ does not record everything the tree needs. `lint`, `compile` and the test suite
 all run against your existing `node_modules`, so they pass either way — this is
 the only local check that catches a lockfile drift before CI does.
 
+## Languages
+
+The wallet reads in the language the browser does, through the platform's own
+`_locales` mechanism: English is the default, and Japanese and Chinese (Simplified,
+Traditional for Taiwan, Traditional for Hong Kong) ship alongside it. There is no
+in-wallet language setting. Chrome loads `_locales/<browser UI language>/messages.json`,
+falling back region → language → `en`, and the manifest name and description resolve
+the same way.
+
+- `public/_locales/en/messages.json` is the source of truth. Every entry carries the copy
+  and a `description` naming where it appears and what each `$1` stands for; that is what
+  a translator reads.
+- Code calls `t('key')` from `@/i18n`. The key is a type generated from the English
+  catalog, so a typo fails to compile. Outside an extension context (unit tests) `t`
+  returns the English copy.
+- `node scripts/i18n.mjs build` regenerates that type after editing the English file.
+  `node scripts/i18n.mjs check` fails on a key used but undefined, defined but unused,
+  missing from a locale, or carrying different placeholders than the English.
+- Adding a language: create `public/_locales/<locale>/messages.json` with the same keys
+  and only `message` (Chrome reads nothing else), list its keys in
+  `src/i18n/status/<locale>.json` under `machine` until a native reader has checked
+  them, and run `check`. `node scripts/i18n.mjs review <locale> --machine` prints the
+  unchecked strings as a Markdown table for that reader.
+- `zh_TW` and `zh_HK` are derived from `zh_CN` with OpenCC's regional phrase tables plus
+  the term glossary shared with the launchpad (its `scripts/i18n-derive-zh.mjs`).
+  Regenerate them the same way after changing `zh_CN` rather than editing them by hand.
+
 ## Build
 
 ```bash

@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import type { ApiResponse } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewDispenserClose component.
  */
@@ -33,9 +35,9 @@ export function ReviewDispenserClose({
   };
 
   const customFields = [
-    { label: "Asset", value: params.asset },
-    ...(params.open_address ? [{ label: "Dispenser", value: params.open_address }] : []),
-    ...(params.give_remaining_normalized ? [{ label: "Escrow Returned", value: `${params.give_remaining_normalized} ${params.asset}` }] : []),
+    { label: t('common_asset'), value: params.asset },
+    ...(params.open_address ? [{ label: t('common_dispenser'), value: params.open_address }] : []),
+    ...(params.give_remaining_normalized ? [{ label: t('close_review_escrow_returned'), value: `${params.give_remaining_normalized} ${params.asset}` }] : []),
   ];
 
   return (

@@ -1,6 +1,8 @@
 import { Component, type ComponentType, type ErrorInfo, type ReactNode } from 'react';
 import { BiError, FiRefreshCw } from '@/components/icons';
 
+import { t } from '@/i18n';
+
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
@@ -62,12 +64,12 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex items-center mb-4">
               <BiError className="text-2xl text-red-500 mr-3" aria-hidden="true" />
               <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Something went wrong
+                {t('layout_error_boundary_something_went_wrong')}
               </h1>
             </div>
 
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              An unexpected error occurred. Please try again.
+              {t('layout_error_boundary_an_unexpected_error_occurred_please')}
             </p>
 
             <button type="button"
@@ -75,7 +77,8 @@ export class ErrorBoundary extends Component<Props, State> {
               className="w-full flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <FiRefreshCw className="mr-2" aria-hidden="true" />
-              Try Again
+              
+              {t('common_try_again')}
             </button>
           </div>
         </div>

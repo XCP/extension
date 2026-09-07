@@ -18,6 +18,8 @@ import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 /** Maximum file size for inscriptions in KB */
 const INSCRIPTION_MAX_SIZE_KB = 400;
 
@@ -88,7 +90,7 @@ export function IssuanceForm({
   const handleFileChange = (file: File | null) => {
     setFileError(null);
     if (file && file.size > INSCRIPTION_MAX_SIZE_KB * 1024) {
-      setFileError(`File size must be less than ${INSCRIPTION_MAX_SIZE_KB}KB`);
+      setFileError(t('issuance_form_file_size_must_be_less', [String(INSCRIPTION_MAX_SIZE_KB)]));
       return;
     }
     setSelectedFile(file);
@@ -113,7 +115,7 @@ export function IssuanceForm({
           formData.set("mime_type", mimeType);
           formData.set("encoding", "taproot");
         } catch (_error) {
-          setFileError("Failed to process file");
+          setFileError(t('common_failed_to_process_file'));
           return;
         }
       }
@@ -181,9 +183,9 @@ export function IssuanceForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={getMaxAmount()}
-            label="Amount"
+            label={t('common_amount')}
             name="quantity"
-            description="The quantity of the asset to issue."
+            description={t('issuance_form_the_quantity_of_the_asset')}
             disabled={pending}
             disableMaxButton={false}
             onMaxClick={() => setAmount(getMaxAmount())}
@@ -192,7 +194,7 @@ export function IssuanceForm({
           <div className="grid grid-cols-3 gap-4">
             <CheckboxInput
               name="divisible"
-              label="Divisible"
+              label={t('common_divisible')}
               defaultChecked={isDivisible}
               onChange={(checked) => {
                 setIsDivisible(checked);
@@ -219,7 +221,7 @@ export function IssuanceForm({
             />
             <CheckboxInput
               name="lock"
-              label="Locked"
+              label={t('common_locked')}
               defaultChecked={isLocked}
               onChange={(checked) => setIsLocked(checked)}
               disabled={pending}
@@ -233,25 +235,25 @@ export function IssuanceForm({
               error={fileError}
               disabled={pending}
               maxSizeKB={INSCRIPTION_MAX_SIZE_KB}
-              helpText="Upload a file to inscribe as the asset's description. The file content will be stored permanently on-chain."
+              helpText={t('issuance_form_upload_a_file_to_inscribe')}
               showHelpText={showHelpText}
             />
           ) : (
             <TextAreaInput
               value={description}
               onChange={setDescription}
-              label="Description"
+              label={t('common_description')}
               rows={1}
               disabled={pending}
               showHelpText={showHelpText}
-              helpText="A textual description for the asset."
+              helpText={t('issuance_form_a_textual_description_for_the')}
             />
           )}
           
           {isSegwitAddress && (
             <SettingSwitch
-              label="Inscribe?"
-              description="Store message as a Taproot inscription (on-chain)"
+              label={t('common_inscribe')}
+              description={t('common_store_message_as_a_taproot')}
               checked={inscribeEnabled}
               onChange={setInscribeEnabled}
               showHelpText={showHelpText}

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
+import { t } from '@/i18n';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -21,7 +22,7 @@ function OnboardingPage() {
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps]);
@@ -42,7 +43,7 @@ function OnboardingPage() {
             id="onboarding-title"
             className="text-3xl mb-5 flex justify-between items-center"
           >
-            <span className="font-bold">XCP Wallet</span>
+            <span className="font-bold">{t('common_xcp_wallet')}</span>
             <span>{getDisplayVersion()}</span>
           </h1>
           <div className="space-y-4">
@@ -50,32 +51,35 @@ function OnboardingPage() {
               color="green"
               fullWidth
               onClick={handleCreateWallet}
-              aria-label="Create wallet"
+              aria-label={t('keychain_onboarding_create_wallet')}
             >
               <FaPlus className="size-4 mr-2" aria-hidden="true" />
-              Create Wallet
+              
+              {t('common_create_wallet')}
             </Button>
             <Button
               color="blue"
               fullWidth
               onClick={handleImportWallet}
-              aria-label="Import wallet"
+              aria-label={t('keychain_onboarding_import_wallet')}
             >
               <FiUpload className="size-4 mr-2" aria-hidden="true" />
-              Import Wallet
+              
+              {t('common_import_wallet')}
             </Button>
           </div>
         </div>
       </div>
       <div className="text-center text-xs p-4">
-        By continuing you agree to our{" "}
+        
+        {t('keychain_onboarding_by_continuing_you_agree_to')}{" "}
         <a
           href="https://www.xcp.io/terms"
           target="_blank"
           rel="noopener noreferrer"
           className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          Terms of Service
+          {t('common_terms_of_service')}
         </a>
         {" "}and{" "}
         <a
@@ -84,7 +88,7 @@ function OnboardingPage() {
           rel="noopener noreferrer"
           className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
-          Privacy Policy
+          {t('common_privacy_policy')}
         </a>
         .
       </div>

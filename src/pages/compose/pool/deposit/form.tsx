@@ -32,6 +32,7 @@ import {
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
+import { t } from '@/i18n';
 import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
 
 interface PoolDepositFormProps {
@@ -138,7 +139,7 @@ export function PoolDepositForm({
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {
-      setLocalError("Pool assets must be different.");
+      setLocalError(t('deposit_form_pool_assets_must_be_different'));
       return;
     }
 
@@ -170,7 +171,7 @@ export function PoolDepositForm({
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded underline"
             onClick={() => setShowSettings(false)}
           >
-            Deposit
+            {t('common_deposit')}
           </button>
           <button
             type="button"
@@ -180,13 +181,13 @@ export function PoolDepositForm({
               pool?.lp_asset ? "cursor-pointer" : "text-gray-400 cursor-not-allowed"
             }`}
           >
-            Withdraw
+            {t('common_withdraw')}
           </button>
         </div>
         <button
           type="button"
           onClick={() => setShowSettings(!showSettings)}
-          aria-label="Pool Settings"
+          aria-label={t('common_pool_settings')}
           className={`p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
             showSettings ? "bg-gray-100" : ""
           }`}
@@ -204,7 +205,7 @@ export function PoolDepositForm({
       ) : (
         <ComposerForm
           formAction={handleFormAction}
-          submitText="Review Deposit"
+          submitText={t('deposit_form_review_deposit')}
           submitDisabled={pending || submitDisabled}
         >
           {localError && <ErrorAlert message={localError} onClose={() => setLocalError(null)} />}
@@ -212,7 +213,7 @@ export function PoolDepositForm({
           <AssetSelectInput
             selectedAsset={assetA}
             onChange={setAssetA}
-            label="Asset A"
+            label={t('deposit_form_asset_a')}
             required
             showHelpText={showHelpText}
           />
@@ -227,7 +228,7 @@ export function PoolDepositForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={assetADetails?.spendableBalance ?? assetADetails?.availableBalance ?? "0"}
-            label="Amount"
+            label={t('common_amount')}
             name="quantity_a_display"
             disabled={pending || !assetA}
             isDivisible={isAssetADivisible}
@@ -236,7 +237,7 @@ export function PoolDepositForm({
           <AssetSelectInput
             selectedAsset={assetB}
             onChange={setAssetB}
-            label="Asset B"
+            label={t('deposit_form_asset_b')}
             required
             showHelpText={showHelpText}
           />
@@ -251,7 +252,7 @@ export function PoolDepositForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={assetBDetails?.spendableBalance ?? assetBDetails?.availableBalance ?? "0"}
-            label="Amount"
+            label={t('common_amount')}
             name="quantity_b_display"
             disabled={pending || !assetB}
             isDivisible={isAssetBDivisible}
@@ -262,14 +263,14 @@ export function PoolDepositForm({
                   className="text-xs text-blue-600 hover:text-blue-800"
                   onClick={() => setQuantityB(partnerQuantity.toString())}
                 >
-                  Use quote
+                  {t('deposit_form_use_quote')}
                 </button>
               ) : null
             }
           />
 
           {isLoadingQuote && (
-            <p className="text-sm text-gray-500">Loading pool quote...</p>
+            <p className="text-sm text-gray-500">{t('deposit_form_loading_pool_quote')}</p>
           )}
 
           {quoteError && (
@@ -284,33 +285,35 @@ export function PoolDepositForm({
 
           {partnerQuantity && !isFirstDeposit && (
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Quoted partner amount: {partnerQuantity.toString()} {assetB}
+              {t('deposit_form_quoted_partner_amount', [String(partnerQuantity.toString()), String(assetB)])}
             </div>
           )}
 
           {partnerQuantity && !isFirstDeposit && !partnerQuantityMatches && (
             <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
               {partnerQuantityIsHigh
-                ? "Only the pool-ratio amount will be deposited; extra is left unused."
+                ? t('deposit_form_only_the_pool_ratio_amount')
                 : partnerQuantityIsLow
-                  ? "This deposits less than the quoted ratio allows."
-                  : "Pool deposits use the current pool ratio."}
+                  ? t('deposit_form_this_deposits_less_than_the')
+                  : t('deposit_form_pool_deposits_use_the_current')}
             </div>
           )}
 
           {isZeroSupplyRestart && (
             <div className="rounded border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-              LP supply is zero. This deposit restarts the pool and may claim existing reserves.
+              {t('deposit_form_lp_supply_is_zero_this')}
             </div>
           )}
 
           {hasLpMinimum && (
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-              Minimum LP tokens:{" "}
+              
+              {t('deposit_form_minimum_lp_tokens')}{" "}
               <span className="font-medium text-gray-900">
                 {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
               </span>{" "}
-              after {slippage || "0"}% slippage.
+              
+              {t('deposit_form_after')} {slippage || "0"}{t('deposit_form_slippage')}
             </div>
           )}
 
@@ -320,15 +323,15 @@ export function PoolDepositForm({
                 value={lpAsset}
                 onChange={setLpAsset}
                 onValidationChange={setIsLpAssetValid}
-                label="LP Asset"
+                label={t('common_lp_asset')}
                 required={false}
                 showRandomNumeric
                 showHelpText={showHelpText}
-                helpText="Optional. Leave blank to auto-generate the LP asset."
+                helpText={t('deposit_form_optional_leave_blank_to_auto')}
               />
               {showHelpText && (
                 <Description className="mt-2 text-sm text-gray-500">
-                  The LP asset represents your share of the pool.
+                  {t('deposit_form_the_lp_asset_represents_your')}
                 </Description>
               )}
             </Field>

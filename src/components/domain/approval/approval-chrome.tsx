@@ -2,6 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { FiClock, FiGlobe } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
+import { t } from '@/i18n';
 /** One scrolling decision area and one persistent action area for every approval. */
 export function ApprovalLayout({ walletName, address, origin, children, footer, attention }: {
   walletName: string;
@@ -34,9 +35,9 @@ export function ApprovalRetry({ onRetry, retrying, error }: {
 }) {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-5 text-amber-950">
-      <p>Required information is unavailable. Retry the checks before signing.</p>
+      <p>{t('approval_approval_chrome_required_information_is_unavailable_retry')}</p>
       <Button color="gray" onClick={onRetry} disabled={retrying} fullWidth className="mt-3 min-h-11">
-        {retrying ? 'Verifying…' : 'Retry verification'}
+        {retrying ? t('common_verifying') : t('common_retry_verification')}
       </Button>
       {error && <p role="alert" className="mt-2">{error}</p>}
     </div>
@@ -51,14 +52,14 @@ export function ApprovalUnavailable({ message, onRetry, retrying }: {
 }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-      <h1 className="text-lg font-semibold leading-6 text-gray-900">Unable to review request</h1>
+      <h1 className="text-lg font-semibold leading-6 text-gray-900">{t('approval_approval_chrome_unable_to_review_request')}</h1>
       <p role="alert" className="text-sm leading-5 text-gray-700 [overflow-wrap:anywhere]">
-        {message || 'The request details are unavailable.'}
+        {message || t('approval_approval_chrome_the_request_details_are_unavailable')}
       </p>
       {onRetry && <Button color="gray" onClick={onRetry} disabled={retrying} fullWidth>
-        {retrying ? 'Verifying…' : 'Retry verification'}
+        {retrying ? t('common_verifying') : t('common_retry_verification')}
       </Button>}
-      <Button color="gray" onClick={() => window.close()} fullWidth>Close Window</Button>
+      <Button color="gray" onClick={() => window.close()} fullWidth>{t('approval_approval_chrome_close_window')}</Button>
     </div>
   );
 }
@@ -77,7 +78,7 @@ export function ApprovalLoading() {
     <div className="flex items-center justify-center h-dvh p-4">
       <div className="text-center">
         <div className="animate-spin rounded-full size-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-        <p className="text-gray-500">Loading transaction details…</p>
+        <p className="text-gray-500">{t('approval_approval_chrome_loading_transaction_details')}</p>
       </div>
     </div>
   );
@@ -90,12 +91,12 @@ export function ApprovalExpired({ message }: { message?: string | null }) {
       <div className="bg-gray-100 rounded-full p-4 mb-4">
         <FiClock className="size-8 text-gray-400" aria-hidden="true" />
       </div>
-      <p className="text-sm font-medium text-gray-700 mb-1">Request Expired</p>
+      <p className="text-sm font-medium text-gray-700 mb-1">{t('approval_approval_chrome_request_expired')}</p>
       <p className="text-xs text-gray-500 mb-6 text-center max-w-[240px]">
-        {message || 'This signing request is no longer available.'}
+        {message || t('approval_approval_chrome_this_signing_request_is_no')}
       </p>
       <Button color="gray" onClick={() => window.close()} className="min-w-[160px]">
-        Close Window
+        {t('approval_approval_chrome_close_window')}
       </Button>
     </div>
   );
@@ -106,7 +107,7 @@ export function ApprovalNoWallet() {
   return (
     <div className="flex items-center justify-center h-dvh p-4">
       <div className="text-center">
-        <p className="text-gray-500">Please unlock your wallet first</p>
+        <p className="text-gray-500">{t('common_please_unlock_your_wallet_first')}</p>
       </div>
     </div>
   );
@@ -145,7 +146,7 @@ export function ApprovalSiteBar({ origin }: { origin: string }) {
         ) : (
           <img
             src={faviconUrl}
-            alt={`${domain} favicon`}
+            alt={t('connect_approve_favicon', [String(domain)])}
             className="size-4 rounded-sm"
             onError={() => setFaviconError(true)}
           />
@@ -184,10 +185,10 @@ export function ApprovalFooter({
     <div data-testid="approval-footer" className="shrink-0 bg-white border-t border-gray-200 p-4 text-sm leading-5">
       <div className="max-w-md mx-auto flex flex-wrap gap-3">
         <Button color="gray" onClick={onCancel} disabled={busy} fullWidth className="min-h-11 flex-[1_1_5rem]">
-          Cancel
+          {t('common_cancel')}
         </Button>
         <Button color="blue" onClick={onSign} disabled={busy || blocked} fullWidth className="min-h-11 flex-[2_1_10rem] bg-blue-600 hover:bg-blue-700">
-          {busy ? (busyLabel ?? (isHardware ? 'Confirm on device…' : 'Signing…')) : blocked ? blockedLabel : signLabel}
+          {busy ? (busyLabel ?? (isHardware ? t('common_confirm_on_device') : t('common_signing'))) : blocked ? blockedLabel : signLabel}
         </Button>
       </div>
     </div>

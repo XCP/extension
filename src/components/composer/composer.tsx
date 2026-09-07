@@ -9,6 +9,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { useHeader } from "@/contexts/header-context";
 import type { ApiResponse } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
 /**
  * Compose operation types for internal wallet use
  */
@@ -104,7 +105,7 @@ function ComposerInner<T>({
         leftButton: {
           icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
-          ariaLabel: "Cancel transaction",
+          ariaLabel: t('composer_composer_cancel_transaction'),
         },
       };
     }
@@ -117,7 +118,7 @@ function ComposerInner<T>({
         rightButton: {
           icon: <FiX className="size-4" aria-hidden="true" />,
           onClick: handleCancel,
-          ariaLabel: "Cancel and return to index",
+          ariaLabel: t('composer_composer_cancel_and_return_to_index'),
         },
       };
     }
@@ -130,7 +131,7 @@ function ComposerInner<T>({
         rightButton: {
           icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
           onClick: reset,
-          ariaLabel: "Return to form",
+          ariaLabel: t('composer_composer_return_to_form'),
         },
       };
     }
@@ -142,7 +143,7 @@ function ComposerInner<T>({
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: headerCallbacks?.onToggleHelp || toggleHelpText,
-        ariaLabel: "Toggle help text",
+        ariaLabel: t('common_toggle_help_text'),
       },
     };
   }, [
@@ -176,7 +177,7 @@ function ComposerInner<T>({
   if (state.isComposing || state.isSigning) {
     return (
       <Spinner
-        message={state.isComposing ? "Composing transaction…" : "Signing and broadcasting…"}
+        message={state.isComposing ? t('composer_composer_composing_transaction') : t('composer_composer_signing_and_broadcasting')}
         className="min-h-[300px]"
       />
     );
@@ -199,8 +200,8 @@ function ComposerInner<T>({
             <div className="px-4 pt-4">
               <Banner
                 severity="warning"
-                title="Composed transaction differs from your request"
-                description="These differences are not dangerous on their own, but review them before signing."
+                title={t('composer_composer_composed_transaction_differs_from_your')}
+                description={t('composer_composer_these_differences_are_not_dangerous')}
               >
                 <ul className="mt-1 list-disc pl-4 space-y-0.5">
                   {state.verificationWarnings.map((warning, index) => (

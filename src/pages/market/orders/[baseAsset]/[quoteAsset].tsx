@@ -29,6 +29,8 @@ import {
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useInView } from "@/hooks/useInView";
 
+import { t } from '@/i18n';
+
 // Constants
 const FETCH_LIMIT = 20;
 const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown between refreshes
@@ -152,10 +154,10 @@ export default function AssetOrdersPage(): ReactElement {
   // Configure header with refresh button
   useEffect(() => {
     setHeaderProps({
-      title: "Orders",
+      title: t('baseasset_quoteasset_orders'),
       onBack: () => navigate("/market"),
       rightButton: {
-        ariaLabel: "Refresh orders",
+        ariaLabel: t('baseasset_quoteasset_refresh_orders'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
@@ -402,7 +404,7 @@ export default function AssetOrdersPage(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message={`Loading ${baseAsset}/${quoteAsset} orders…`} />;
+    return <Spinner message={t('baseasset_quoteasset_loading_orders', [String(baseAsset), String(quoteAsset)])} />;
   }
 
   // Only history tab has pagination - orders are loaded fully upfront for the order book
@@ -425,7 +427,7 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "buy" && marketStats && marketStats.bestBid !== null && (
                 <>
                   <CopyableStat
-                    label="Bid"
+                    label={t('baseasset_quoteasset_bid')}
                     value={formatOrderPrice(marketStats.bestBid, quoteAsset || "")}
                     rawValue={getRawOrderPrice(marketStats.bestBid)}
                     onCopy={copy}
@@ -433,7 +435,7 @@ export default function AssetOrdersPage(): ReactElement {
                   />
                   {marketStats.spread !== null ? (
                     <CopyableStat
-                      label="Spread"
+                      label={t('baseasset_quoteasset_spread')}
                       value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
                       rawValue={getRawOrderPrice(marketStats.spread)}
                       onCopy={copy}
@@ -441,7 +443,7 @@ export default function AssetOrdersPage(): ReactElement {
                     />
                   ) : (
                     <div>
-                      <span className="text-gray-500">Spread</span>
+                      <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   )}
@@ -450,11 +452,11 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "buy" && (!marketStats || marketStats.bestBid === null) && (
                 <>
                   <div>
-                    <span className="text-gray-500">Bid</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_bid')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Spread</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -462,7 +464,7 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "sell" && marketStats && marketStats.bestAsk !== null && (
                 <>
                   <CopyableStat
-                    label="Ask"
+                    label={t('baseasset_quoteasset_ask')}
                     value={formatOrderPrice(marketStats.bestAsk, quoteAsset || "")}
                     rawValue={getRawOrderPrice(marketStats.bestAsk)}
                     onCopy={copy}
@@ -470,7 +472,7 @@ export default function AssetOrdersPage(): ReactElement {
                   />
                   {marketStats.spread !== null ? (
                     <CopyableStat
-                      label="Spread"
+                      label={t('baseasset_quoteasset_spread')}
                       value={formatOrderPrice(marketStats.spread, quoteAsset || "")}
                       rawValue={getRawOrderPrice(marketStats.spread)}
                       onCopy={copy}
@@ -478,7 +480,7 @@ export default function AssetOrdersPage(): ReactElement {
                     />
                   ) : (
                     <div>
-                      <span className="text-gray-500">Spread</span>
+                      <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                       <div className="font-medium text-gray-900">—</div>
                     </div>
                   )}
@@ -487,11 +489,11 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "sell" && (!marketStats || marketStats.bestAsk === null) && (
                 <>
                   <div>
-                    <span className="text-gray-500">Ask</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_ask')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Spread</span>
+                    <span className="text-gray-500">{t('baseasset_quoteasset_spread')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -499,7 +501,7 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "history" && matchStats && (
                 <>
                   <CopyableStat
-                    label="Last"
+                    label={t('common_last')}
                     value={formatOrderPrice(matchStats.lastPrice, quoteAsset || "")}
                     rawValue={getRawOrderPrice(matchStats.lastPrice)}
                     onCopy={copy}
@@ -507,7 +509,7 @@ export default function AssetOrdersPage(): ReactElement {
                   />
                   {matchStats.avgPrice !== null && (
                     <CopyableStat
-                      label="Avg"
+                      label={t('common_avg')}
                       value={formatOrderPrice(matchStats.avgPrice, quoteAsset || "")}
                       rawValue={getRawOrderPrice(matchStats.avgPrice)}
                       onCopy={copy}
@@ -519,11 +521,11 @@ export default function AssetOrdersPage(): ReactElement {
               {tab === "history" && !matchStats && (
                 <>
                   <div>
-                    <span className="text-gray-500">Last</span>
+                    <span className="text-gray-500">{t('common_last')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                   <div>
-                    <span className="text-gray-500">Avg</span>
+                    <span className="text-gray-500">{t('common_avg')}</span>
                     <div className="font-medium text-gray-900">—</div>
                   </div>
                 </>
@@ -535,20 +537,20 @@ export default function AssetOrdersPage(): ReactElement {
           <div className="flex items-center justify-between mb-2">
             <div className="flex gap-1">
               <TabButton isActive={tab === "buy"} onClick={() => setTab("buy")}>
-                Buy
+                {t('common_buy')}
               </TabButton>
               <TabButton isActive={tab === "sell"} onClick={() => setTab("sell")}>
-                Sell
+                {t('common_sell')}
               </TabButton>
               <TabButton isActive={tab === "history"} onClick={() => setTab("history")}>
-                History
+                {t('common_history')}
               </TabButton>
             </div>
             <button type="button"
               onClick={() => navigate(`/market?tab=orders&mode=manage&search=${baseAsset}`)}
               className="text-xs text-blue-600 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded cursor-pointer"
             >
-              My Orders
+              {t('baseasset_quoteasset_my_orders')}
             </button>
           </div>
         </div>
@@ -560,9 +562,9 @@ export default function AssetOrdersPage(): ReactElement {
               <div className="space-y-1">
                 {/* Column headers */}
                 <div className="flex items-center text-xs text-gray-400 px-2 py-1">
-                  <div className="flex-1">Price</div>
-                  <div className="flex-1">Amount</div>
-                  <div className="flex-1 text-right">Total</div>
+                  <div className="flex-1">{t('common_price')}</div>
+                  <div className="flex-1">{t('common_amount')}</div>
+                  <div className="flex-1 text-right">{t('common_total')}</div>
                 </div>
                 {priceLevels.map((level) => {
                   const total = level.price * level.totalAmount;
@@ -576,7 +578,7 @@ export default function AssetOrdersPage(): ReactElement {
                   const formattedTotal = formatAmount({ value: total, minimumFractionDigits: 8, maximumFractionDigits: 8 });
 
                   // Build hover title with cumulative info
-                  const hoverTitle = `Avg: ${formatAmount({ value: avgPrice, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}\nSum: ${formatAmount({ value: level.cumulativeBase, maximumFractionDigits: 8 })} ${baseAsset}\nSum: ${formatAmount({ value: level.cumulativeQuote, minimumFractionDigits: 8, maximumFractionDigits: 8 })} ${quoteAsset}`;
+                  const hoverTitle = t('baseasset_quoteasset_avg_sum_sum', [String(formatAmount({ value: avgPrice, minimumFractionDigits: 8, maximumFractionDigits: 8 })), String(quoteAsset), String(formatAmount({ value: level.cumulativeBase, maximumFractionDigits: 8 })), String(baseAsset), String(formatAmount({ value: level.cumulativeQuote, minimumFractionDigits: 8, maximumFractionDigits: 8 })), String(quoteAsset)]);
 
                   return (
                     <OrderBookLevelCard
@@ -594,9 +596,9 @@ export default function AssetOrdersPage(): ReactElement {
               </div>
             ) : (
               <EmptyState
-                message={`No ${tab} orders for ${baseAsset}/${quoteAsset}`}
+                message={t('baseasset_quoteasset_no_orders_for', [String(tab), String(baseAsset), String(quoteAsset)])}
                 linkAction={{
-                  label: "Create New Order →",
+                  label: t('common_create_new_order'),
                   onClick: () => {
                     const params = new URLSearchParams({
                       type: tab,
@@ -623,7 +625,7 @@ export default function AssetOrdersPage(): ReactElement {
                 ))}
               </div>
             ) : (
-              <EmptyState message={`No ${baseAsset}/${quoteAsset} matches`} />
+              <EmptyState message={t('baseasset_quoteasset_no_matches', [String(baseAsset), String(quoteAsset)])} />
             )
           )}
 
@@ -635,7 +637,7 @@ export default function AssetOrdersPage(): ReactElement {
                   <Spinner className="py-4" />
                 </div>
               ) : (
-                <div className="text-xs text-gray-400 text-center">Scroll to load more…</div>
+                <div className="text-xs text-gray-400 text-center">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

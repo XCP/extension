@@ -10,6 +10,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 
+import { t } from '@/i18n';
+
 const PATHS = {
   BACK: "/settings",
 } as const;
@@ -45,12 +47,12 @@ export default function SecuritySettingsPage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Security",
+      title: t('common_security'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
-        ariaLabel: "Toggle help text",
+        ariaLabel: t('common_toggle_help_text'),
       },
     });
   }, [setHeaderProps, navigate]);
@@ -88,10 +90,10 @@ export default function SecuritySettingsPage(): ReactElement {
 
     try {
       if (newPassword.length < MIN_PASSWORD_LENGTH) {
-        throw new Error(`New password must be at least ${MIN_PASSWORD_LENGTH} characters long`);
+        throw new Error(t('settings_security_new_password_must_be_at', [String(MIN_PASSWORD_LENGTH)]));
       }
       if (newPassword !== confirmPassword) {
-        throw new Error("New passwords do not match");
+        throw new Error(t('settings_security_new_passwords_do_not_match'));
       }
       await updatePassword(currentPassword, newPassword);
       await lockKeychain();
@@ -99,10 +101,10 @@ export default function SecuritySettingsPage(): ReactElement {
       if (newPasswordRef.current) newPasswordRef.current.value = "";
       if (confirmPasswordRef.current) confirmPasswordRef.current.value = "";
       setFormReady(false);
-      setSuccess("Password successfully changed");
+      setSuccess(t('settings_security_password_successfully_changed'));
     } catch (err) {
       console.error("Error changing password:", err);
-      setError(err instanceof Error ? err.message : "Failed to change password");
+      setError(err instanceof Error ? err.message : t('settings_security_failed_to_change_password'));
     } finally {
       setIsLoading(false);
     }
@@ -122,7 +124,7 @@ export default function SecuritySettingsPage(): ReactElement {
   return (
     <section className="flex flex-col h-full p-4" aria-labelledby="security-settings-title">
       <h2 id="security-settings-title" className="sr-only">
-        Security Settings
+        {t('settings_security_security_settings')}
       </h2>
       
       <div className="flex flex-col items-center justify-center flex-grow">
@@ -137,35 +139,35 @@ export default function SecuritySettingsPage(): ReactElement {
           <div className="bg-white rounded-lg shadow-lg p-4 space-y-4">
             <PasswordInput
               innerRef={currentPasswordRef}
-              label="Current Password"
+              label={t('settings_security_current_password')}
               name="currentPassword"
               onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
-              helpText="Enter your current wallet password to authorize the change."
+              helpText={t('settings_security_enter_your_current_wallet_password')}
             />
 
             <PasswordInput
               innerRef={newPasswordRef}
-              label="New Password"
+              label={t('settings_security_new_password')}
               name="newPassword"
               onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
-              helpText={`Choose a new password that is at least ${MIN_PASSWORD_LENGTH} characters long.`}
+              helpText={t('settings_security_choose_a_new_password_that', [String(MIN_PASSWORD_LENGTH)])}
             />
 
             <PasswordInput
               innerRef={confirmPasswordRef}
-              label="Confirm New Password"
+              label={t('settings_security_confirm_new_password')}
               name="confirmPassword"
               onChange={() => checkFormReady()}
               onKeyDown={handleKeyDown}
               disabled={isLoading}
               showHelpText={shouldShowHelpText}
-              helpText="Re-enter your new password to confirm it was typed correctly."
+              helpText={t('settings_security_re_enter_your_new_password')}
             />
 
             <Button
@@ -173,15 +175,15 @@ export default function SecuritySettingsPage(): ReactElement {
               onClick={handlePasswordChange}
               fullWidth
               disabled={isLoading || !formReady}
-              aria-label="Change Password"
+              aria-label={t('settings_security_change_password')}
             >
-              {isLoading ? "Changing Password…" : "Change Password"}
+              {isLoading ? t('settings_security_changing_password') : t('settings_security_change_password')}
             </Button>
           </div>
           
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-yellow-800">
-              <strong>Security Tip:</strong> Use a strong, unique password that you don't use for any other accounts. Consider using a password manager.
+              <strong>{t('settings_security_security_tip')}</strong>  {t('settings_security_use_a_strong_unique_password')}
             </p>
           </div>
         </div>

@@ -10,6 +10,8 @@ import { useInView } from "@/hooks/useInView";
 import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 import { useSearchQuery } from "@/hooks/useSearchQuery";
 
+import { t } from '@/i18n';
+
 const PAGE_SIZE = 20;
 
 interface AssetListProps {
@@ -130,14 +132,14 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
     loadMore();
   }, [inView, activeAddress, hasMore, offset, appendAssets, isFetchingMore, initialLoaded]);
 
-  if (isLoading) return <Spinner message="Loading owned assets…" />;
+  if (isLoading) return <Spinner message={t('asset_asset_list_loading_owned_assets')} />;
 
   return (
     <div className="space-y-2">
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search assets…"
+        placeholder={t('common_search_assets')}
         name="asset-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
@@ -145,17 +147,17 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
       />
       {searchQuery ? (
         isSearching ? (
-          <Spinner message="Searching assets…" />
+          <Spinner message={t('common_searching_assets')} />
         ) : searchResults.length === 0 ? (
-          <div className="text-center py-4 text-gray-500">No results found</div>
+          <div className="text-center py-4 text-gray-500">{t('common_no_results_found')}</div>
         ) : (
           searchResults.map((asset) => <SearchResultCard key={asset.symbol} symbol={asset.symbol} navigationType="asset" />)
         )
       ) : ownedAssets.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center">
           <div className="bg-gray-50 rounded-lg p-6 max-w-sm w-full">
-            <div className="text-gray-600 text-lg font-medium mb-2">No Assets Owned</div>
-            <div className="text-gray-500 text-sm">This address hasn't issued any Counterparty assets.</div>
+            <div className="text-gray-600 text-lg font-medium mb-2">{t('asset_asset_list_no_assets_owned')}</div>
+            <div className="text-gray-500 text-sm">{t('asset_asset_list_this_address_hasn_t_issued')}</div>
           </div>
         </div>
       ) : (
@@ -168,7 +170,7 @@ export const AssetList = ({ refreshNonce, onRefreshed }: AssetListProps = {}): R
               isFetchingMore ? (
                 <Spinner className="py-4" />
               ) : (
-                <div className="text-sm text-gray-500">Scroll to load more…</div>
+                <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>
               )
             ) : null}
           </div>

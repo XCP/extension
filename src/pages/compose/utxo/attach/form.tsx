@@ -9,6 +9,8 @@ import type { AttachOptions } from "@/core/counterparty/compose";
 import { asDisplayUnits, isGreaterThan } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the UtxoAttachForm component, aligned with Composer's formAction.
  */
@@ -54,7 +56,7 @@ export function UtxoAttachForm({
   // simply had no balance. Seeded into local state so it stays dismissible.
   useEffect(() => {
     if (assetError) {
-      setValidationError('Could not load details for this asset.');
+      setValidationError(t('attach_form_could_not_load_details_for'));
     }
   }, [assetError]);
 
@@ -107,12 +109,12 @@ export function UtxoAttachForm({
             sourceAddress={activeAddress}
             maxAmount={assetDetails?.spendableBalance ?? assetDetails?.availableBalance ?? "0"}
             showHelpText={showHelpText}
-            label="Amount"
+            label={t('common_amount')}
             name="quantity"
             description={
               isDivisible
-                ? "Enter the amount to attach (up to 8 decimal places)."
-                : "Enter a whole number amount."
+                ? t('attach_form_enter_the_amount_to_attach')
+                : t('common_enter_a_whole_number_amount')
             }
             disabled={false}
             isDivisible={isDivisible}

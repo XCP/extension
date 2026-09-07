@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { useNavigate } from "react-router";
 import { AssetIcon } from "@/components/domain/asset/asset-icon";
 
+import { t } from '@/i18n';
+
 /**
  * Props interface for the SearchResultCard component
  */
@@ -71,7 +73,7 @@ export function SearchResultCard({
     <button type="button"
       className={`w-full text-left relative flex items-center p-3 bg-white rounded-lg shadow-sm cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${className}`}
       onClick={handleClick}
-      aria-label={`View ${symbol}`}
+      aria-label={t('asset_search_result_card_view', [String(symbol)])}
     >
       {/* Asset Icon */}
       <AssetIcon asset={symbol} size="lg" className="flex-shrink-0" />

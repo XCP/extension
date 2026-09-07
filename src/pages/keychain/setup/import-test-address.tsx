@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { useHeader } from '@/contexts/header-context';
 import { useWallet } from '@/contexts/wallet-context';
 
+import { t } from '@/i18n';
+
 function ImportTestAddressPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -24,7 +26,7 @@ function ImportTestAddressPage() {
     }
 
     setHeaderProps({
-      title: 'Import Test Address',
+      title: t('setup_import_test_address_import_test_address'),
       onBack: () => navigate('/keychain/wallets/add'),
     });
     
@@ -33,7 +35,7 @@ function ImportTestAddressPage() {
   
   const handleImportTestAddress = async () => {
     if (!addressToAdd.trim()) {
-      setError('Please enter an address');
+      setError(t('setup_import_test_address_please_enter_an_address'));
       return;
     }
     
@@ -48,7 +50,7 @@ function ImportTestAddressPage() {
       navigate('/');
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to import test address');
+      setError(err instanceof Error ? err.message : t('setup_import_test_address_failed_to_import_test_address'));
     } finally {
       setIsLoading(false);
     }
@@ -64,8 +66,8 @@ function ImportTestAddressPage() {
         <div className="space-y-4">
           <Banner
             severity="warning"
-            title="Development Mode"
-            description="This creates a watch-only wallet for testing. You cannot sign or broadcast transactions."
+            title={t('setup_import_test_address_development_mode')}
+            description={t('setup_import_test_address_this_creates_a_watch_only')}
           />
           
           {/* Input Field */}
@@ -73,13 +75,13 @@ function ImportTestAddressPage() {
             <div className="space-y-3">
               <div>
                 <label htmlFor="test-address" className="block text-sm font-medium text-gray-700 mb-1">
-                  Bitcoin Address
+                  {t('setup_import_test_address_bitcoin_address')}
                 </label>
                 <input
                   id="test-address"
                   type="text"
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
-                  placeholder="Enter any Bitcoin address…"
+                  placeholder={t('setup_import_test_address_enter_any_bitcoin_address')}
                   value={addressToAdd}
                   onChange={(e) => setAddressToAdd(e.target.value)}
                   onKeyDown={(e) => {
@@ -109,7 +111,7 @@ function ImportTestAddressPage() {
           fullWidth
           disabled={!addressToAdd || isLoading}
         >
-          {isLoading ? 'Importing…' : 'Import Test Address'}
+          {isLoading ? t('common_importing') : t('setup_import_test_address_import_test_address')}
         </Button>
       </div>
     </div>

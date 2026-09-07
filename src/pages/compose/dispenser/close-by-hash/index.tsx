@@ -2,6 +2,7 @@ import { useParams } from 'react-router';
 import { Composer } from "@/components/composer/composer";
 import type { DispenserOptions } from "@/core/counterparty/compose";
 import { composeDispenser } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { DispenserCloseByHashForm } from "@/pages/compose/dispenser/close-by-hash/form";
 import { ReviewDispenserCloseByHash } from "@/pages/compose/dispenser/close-by-hash/review";
 
@@ -13,7 +14,7 @@ function ComposeDispenserCloseByHashPage() {
       <Composer<DispenserOptions>
         composeType="dispenser"
         composeApiMethod={composeDispenser}
-        initialTitle="Close"
+        initialTitle={t('common_close')}
         FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={txHash} />}
         ReviewComponent={ReviewDispenserCloseByHash}
       />

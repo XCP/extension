@@ -10,6 +10,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 
+import { t } from '@/i18n';
 export default function ConnectHardware(): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -20,12 +21,12 @@ export default function ConnectHardware(): ReactElement {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Connect Trezor",
+      title: t('wallets_connect_hardware_connect_trezor'),
       onBack: () => navigate(-1),
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open("#", "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps, navigate]);
@@ -47,12 +48,12 @@ export default function ConnectHardware(): ReactElement {
       navigate("/index");
     } catch (err) {
       console.error('[ConnectHardware] Error:', err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to connect hardware wallet";
+      const errorMsg = err instanceof Error ? err.message : t('wallets_connect_hardware_failed_to_connect_hardware_wallet');
 
       if (errorMsg.includes("Taproot") || errorMsg.includes("P2TR")) {
-        setError("Taproot requires newer Trezor firmware. Please update your firmware or try a different account type.");
+        setError(t('wallets_connect_hardware_taproot_requires_newer_trezor_firmware'));
       } else if (errorMsg.includes("cancelled") || errorMsg.includes("Cancelled")) {
-        setError("Connection cancelled. Please try again when ready.");
+        setError(t('wallets_connect_hardware_connection_cancelled_please_try_again'));
       } else {
         setError(errorMsg);
       }
@@ -67,9 +68,9 @@ export default function ConnectHardware(): ReactElement {
       <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
         <Spinner />
         <div className="text-center mt-6">
-          <h2 className="text-lg font-semibold mb-2 text-gray-900">Connecting...</h2>
+          <h2 className="text-lg font-semibold mb-2 text-gray-900">{t('wallets_connect_hardware_connecting')}</h2>
           <p className="text-sm text-gray-600">
-            Select your account on your Trezor device
+            {t('wallets_connect_hardware_select_your_account_on_your')}
           </p>
         </div>
       </div>
@@ -83,38 +84,41 @@ export default function ConnectHardware(): ReactElement {
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#00854D]/10 flex items-center justify-center">
             <FiShield className="w-8 h-8 text-[#00854D]" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Connect Your Trezor</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">{t('wallets_connect_hardware_connect_your_trezor')}</h2>
           <p className="text-sm text-gray-600">
-            Your Trezor will discover your Bitcoin accounts and let you choose which one to use.
+            {t('wallets_connect_hardware_your_trezor_will_discover_your')}
           </p>
         </div>
 
         {error && <ErrorAlert message={error} onClose={() => setError("")} />}
 
         <div className="bg-gray-50 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Before connecting:</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-3">{t('wallets_connect_hardware_before_connecting')}</h3>
           <ul className="text-sm text-gray-600 space-y-2">
             <li className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">1</span>
-              Connect your Trezor via USB
+              
+              {t('wallets_connect_hardware_connect_your_trezor_via_usb')}
             </li>
             <li className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">2</span>
-              Unlock your device with PIN
+              
+              {t('wallets_connect_hardware_unlock_your_device_with_pin')}
             </li>
             <li className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">3</span>
-              Select your account when prompted
+              
+              {t('wallets_connect_hardware_select_your_account_when_prompted')}
             </li>
           </ul>
         </div>
 
         <Button onClick={handleConnect} className="w-full">
-          Connect Trezor
+          {t('wallets_connect_hardware_connect_trezor')}
         </Button>
 
         <p className="text-xs text-gray-500 text-center">
-          Your private keys never leave your Trezor device.
+          {t('wallets_connect_hardware_your_private_keys_never_leave')}
         </p>
       </div>
     </div>

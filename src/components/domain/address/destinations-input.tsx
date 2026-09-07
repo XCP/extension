@@ -6,6 +6,8 @@ import { validateBitcoinAddress } from "@/core/validation/bitcoin";
 import { type Destination, getDestinationLimitState, isMPMASupported, MAX_DESTINATIONS, parseMultiLineDestinations, validateDestinations } from "@/core/validation/destinations";
 import { useMultiAssetOwnerLookup } from "@/hooks/useAssetOwnerLookup";
 
+import { t } from '@/i18n';
+
 interface DestinationsInputProps {
   destinations: Destination[];
   onChange: (destinations: Destination[]) => void;
@@ -153,7 +155,7 @@ export function DestinationsInput({
   return (
     <Field>
       <Label className="text-sm font-medium text-gray-700">
-        Destination{destinations.length > 1 ? "s" : ""} {required && <span className="text-red-500">*</span>}
+        {destinations.length > 1 ? 'Destinations' : 'Destination'} {required && <span className="text-red-500">*</span>}
       </Label>
       
       {destinations.map((destination, index) => (
@@ -168,8 +170,8 @@ export function DestinationsInput({
             disabled={disabled}
             placeholder={
               index === 0 && destinations.length === 1
-                ? "Enter destination address"
-                : `Enter destination address ${index + 1}`
+                ? t('move_form_enter_destination_address')
+                : t('address_destinations_input_enter_destination_address', [String(index + 1)])
             }
             className={`block w-full p-2.5 rounded-md border bg-gray-50 outline-none focus-visible:ring-2 ${
               validationErrors[destination.id]
@@ -187,7 +189,7 @@ export function DestinationsInput({
           {/* Loading spinner, Add/Remove buttons */}
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
             {getLookupState(destination.id).isLookingUp ? (
-              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" role="status" aria-label="Looking up asset owner"></div>
+              <div className="animate-spin size-4 border-2 border-gray-500 border-t-transparent rounded-full" role="status" aria-label={t('address_destinations_input_looking_up_asset_owner')}></div>
             ) : ((index === 0 && showAddButton) || (index > 0 && canRemove)) ? (
               index === 0 && showAddButton ? (
                 <button
@@ -195,7 +197,7 @@ export function DestinationsInput({
                   onClick={addDestination}
                   disabled={disabled}
                   className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  aria-label="Add another destination"
+                  aria-label={t('address_destinations_input_add_another_destination')}
                 >
                   <FiPlus className="size-5" aria-hidden="true" />
                 </button>
@@ -205,7 +207,7 @@ export function DestinationsInput({
                   onClick={() => removeDestination(destination.id)}
                   disabled={disabled}
                   className="p-1 text-gray-500 hover:text-gray-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  aria-label={`Remove destination ${index + 1}`}
+                  aria-label={t('address_destinations_input_remove_destination', [String(index + 1)])}
                 >
                   <FiMinus className="size-5" aria-hidden="true" />
                 </button>
@@ -219,20 +221,20 @@ export function DestinationsInput({
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
           {destinations.length > 1
-            ? `Enter the addresses to send to. Each destination will receive the same amount. Duplicate addresses are not allowed. (${destinations.length}/${MAX_DESTINATIONS} destinations)`
+            ? t('address_destinations_input_enter_the_addresses_to_send', [String(destinations.length), String(MAX_DESTINATIONS)])
             : enableMPMA && asset !== "BTC"
-              ? `Enter the address to send to. Paste multiple addresses (one per line) to send to multiple destinations. (Max: ${MAX_DESTINATIONS})`
-              : "Enter recipient's address."}
+              ? t('address_destinations_input_enter_the_address_to_send', [String(MAX_DESTINATIONS)])
+              : t('common_enter_recipient_s_address')}
         </Description>
       )}
       {limitState === 'approaching' && (
         <p className="mt-1 text-sm text-orange-600">
-          Approaching destination limit: {destinations.length}/{MAX_DESTINATIONS}
+          {t('address_destinations_input_approaching_destination_limit', [String(destinations.length), String(MAX_DESTINATIONS)])}
         </p>
       )}
       {limitState === 'at-limit' && (
         <p className="mt-1 text-sm text-red-600">
-          Maximum destination limit reached: {MAX_DESTINATIONS}
+          {t('address_destinations_input_maximum_destination_limit_reached', [String(MAX_DESTINATIONS)])}
         </p>
       )}
     </Field>

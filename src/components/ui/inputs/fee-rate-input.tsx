@@ -15,6 +15,8 @@ import { maximum, toNumber } from "@/core/numeric";
 import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
 
+import { t } from '@/i18n';
+
 interface FeeRateInputProps {
   showHelpText?: boolean;
   disabled?: boolean;
@@ -173,7 +175,7 @@ export function FeeRateInput({
     
     // Handle empty input
     if (trimmed === "") {
-      setInternalError("Fee rate is required");
+      setInternalError(t('inputs_fee_rate_input_fee_rate_is_required'));
       onFeeRateChangeRef.current?.(null);
       return;
     }
@@ -183,14 +185,14 @@ export function FeeRateInput({
     
     if (!validation.isValid) {
       // Use the error message from validation or default
-      setInternalError(validation.error || "Invalid fee rate");
+      setInternalError(validation.error || t('inputs_fee_rate_input_invalid_fee_rate'));
       onFeeRateChangeRef.current?.(null);
       return;
     }
     
     const num = validation.satsPerVByte;
     if (num === undefined) {
-      setInternalError("Invalid fee rate");
+      setInternalError(t('inputs_fee_rate_input_invalid_fee_rate'));
       onFeeRateChangeRef.current?.(null);
       return;
     }
@@ -231,10 +233,11 @@ export function FeeRateInput({
     return (
       <Field>
         <Label className="block text-sm font-medium text-gray-700">
-          Fee Rate <span className="text-red-500">*</span>
+          
+          {t('inputs_fee_rate_input_fee_rate')} <span className="text-red-500">*</span>
         </Label>
         <div className="mt-1">
-          <p>Loading fee rates…</p>
+          <p>{t('inputs_fee_rate_input_loading_fee_rates')}</p>
         </div>
         {validInitialValue !== null && (
           <input type="hidden" name="sat_per_vbyte" value={validInitialValue.toString()} />
@@ -247,7 +250,8 @@ export function FeeRateInput({
     return (
       <Field>
         <Label className="block text-sm font-medium text-gray-700">
-          Fee Rate (Custom) <span className="text-red-500">*</span>
+          
+          {t('inputs_fee_rate_input_fee_rate_custom')} <span className="text-red-500">*</span>
         </Label>
         <div className="mt-1">
           <Input
@@ -260,7 +264,7 @@ export function FeeRateInput({
             required
             {...disabledProps}
             invalid={!!internalError}
-            aria-label="Custom Fee Rate"
+            aria-label={t('inputs_fee_rate_input_custom_fee_rate')}
             aria-invalid={!!internalError}
             aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
             className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
@@ -268,7 +272,7 @@ export function FeeRateInput({
         </div>
         {showHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            Unable to fetch fee rates. Please enter a custom fee rate (minimum 0.1 sat/vB).
+            {t('inputs_fee_rate_input_unable_to_fetch_fee_rates')}
           </Description>
         )}
         {internalError && (
@@ -283,7 +287,8 @@ export function FeeRateInput({
   return (
     <Field>
       <Label className="block text-sm font-medium text-gray-700">
-        Fee Rate <span className="text-red-500">*</span>
+        
+        {t('inputs_fee_rate_input_fee_rate')} <span className="text-red-500">*</span>
       </Label>
       <div className="mt-1">
         {selectedOption === "custom" ? (
@@ -298,14 +303,14 @@ export function FeeRateInput({
               required
               {...disabledProps}
               invalid={!!internalError}
-              aria-label="Custom Fee Rate"
+              aria-label={t('inputs_fee_rate_input_custom_fee_rate')}
               aria-invalid={!!internalError}
               aria-describedby={internalError ? "sat_per_vbyte-error" : undefined}
               className="block w-full p-2.5 rounded-md border border-gray-200 bg-gray-50 pr-16 outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500"
             />
             {feeRates && (
-              <Button variant="input" onClick={handleEscClick} aria-label="Reset to first preset" {...disabledProps}>
-                Esc
+              <Button variant="input" onClick={handleEscClick} aria-label={t('inputs_fee_rate_input_reset_to_first_preset')} {...disabledProps}>
+                {t('inputs_fee_rate_input_esc')}
               </Button>
             )}
           </div>
@@ -327,7 +332,7 @@ export function FeeRateInput({
                       <div className="flex justify-between">
                         <span>{value?.name}</span>
                         {value?.id !== "custom" && (
-                          <span className="text-gray-500">{value.value} sat/vB</span>
+                          <span className="text-gray-500">{t('common_sat_vb', [String(value.value)])}</span>
                         )}
                       </div>
                     )}
@@ -345,7 +350,7 @@ export function FeeRateInput({
                           <div className="flex justify-between">
                             <span className={selected ? "font-medium" : ""}>{option.name}</span>
                             {option.id !== "custom" && (
-                              <span className={focus ? "text-blue-100" : "text-gray-500"}>{option.value} sat/vB</span>
+                              <span className={focus ? "text-blue-100" : "text-gray-500"}>{t('common_sat_vb', [String(option.value)])}</span>
                             )}
                           </div>
                         )}
@@ -360,7 +365,7 @@ export function FeeRateInput({
       </div>
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          Populated with network rates (min 0.1 sat/vB).
+          {t('inputs_fee_rate_input_populated_with_network_rates_min')}
         </Description>
       )}
       {internalError && (

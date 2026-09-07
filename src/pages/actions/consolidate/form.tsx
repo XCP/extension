@@ -9,8 +9,8 @@ import {
   consolidationApi,
 } from "@/core/bitcoin/consolidationApi";
 import { formatAmount } from "@/core/format";
+import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
-
 export interface ConsolidationFormData {
   feeRateSatPerVByte: number;
   destinationAddress: string;
@@ -104,7 +104,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
         setError(
           err instanceof Error
             ? err.message
-            : "Failed to fetch consolidation data",
+            : t('consolidate_form_failed_to_fetch_consolidation_data'),
         );
       } finally {
         setIsLoading(false);
@@ -137,7 +137,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
   const handleSubmitInternal = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (formData.feeRateSatPerVByte <= 0) {
-      setError("Enter a valid fee rate before continuing.");
+      setError(t('consolidate_form_enter_a_valid_fee_rate'));
       return;
     }
     if (
@@ -145,7 +145,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
       formData.consolidationData.stamp_protection.included !==
         formData.includeProtectedStamps
     ) {
-      setError("Stamp protection status is still updating. Please try again.");
+      setError(t('consolidate_form_stamp_protection_status_is_still'));
       return;
     }
     onSubmit(formData);
@@ -173,17 +173,17 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
         {/* Mempool warning — only for recoveries the chain itself has not yet confirmed. */}
         {!isLoading && pendingRecoveries > 0 && (
           <div className="p-3 bg-amber-100 text-amber-700 rounded-md">
-            <strong>Warning:</strong> You have {pendingRecoveries} pending recovery transaction
-            {pendingRecoveries > 1 ? "s" : ""}. Please wait for{" "}
-            {pendingRecoveries > 1 ? "them" : "it"} to confirm before starting new ones.
+            <strong>{t('consolidate_form_warning')}</strong>  {t('consolidate_form_you_have')} {pendingRecoveries}  {t('consolidate_form_pending_recovery_transaction')}
+            {pendingRecoveries > 1 ? "s" : ""}{t('consolidate_form_please_wait_for')}{" "}
+            {pendingRecoveries > 1 ? "them" : "it"}  {t('consolidate_form_to_confirm_before_starting_new')}
           </div>
         )}
 
         {/* Always show the data section to prevent layout shift */}
         <div className="space-y-2">
-          <h2 className="font-semibold">Recoverable</h2>
+          <h2 className="font-semibold">{t('consolidate_form_recoverable')}</h2>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Bitcoin</span>
+            <span className="text-gray-600">{t('consolidate_form_total_bitcoin')}</span>
             <span className="font-medium">
               {isLoading ? (
                 <span className="text-gray-400">…</span>
@@ -199,7 +199,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total UTXOs</span>
+            <span className="text-gray-600">{t('consolidate_form_total_utxos')}</span>
             <span className="font-medium">
               {isLoading ? (
                 <span className="text-gray-400">…</span>
@@ -214,7 +214,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
             formData.consolidationData &&
             formData.consolidationData.summary.batches_required > 1 && (
               <div className="flex justify-between">
-                <span className="text-gray-600"># of Batches</span>
+                <span className="text-gray-600">{t('consolidate_form_of_batches')}</span>
                 <span className="font-medium">
                   {formData.consolidationData.summary.batches_required} txs
                 </span>
@@ -228,9 +228,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
             ?.requires_special_handling && (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
               <p className="text-sm text-amber-900">
-                <strong>Note:</strong> Some UTXOs require special handling. This
-                is normal for older Counterparty transactions and will be
-                handled automatically.
+                <strong>{t('common_note')}</strong>  {t('consolidate_form_some_utxos_require_special_handling')}
               </p>
             </div>
           )}
@@ -242,22 +240,18 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
                 htmlFor="includeProtectedStamps"
                 className="text-sm font-semibold text-amber-950 cursor-pointer"
               >
-                Include Stamp UTXOs in recovery
+                {t('consolidate_form_include_stamp_utxos_in_recovery')}
               </label>
               <p className="mt-1 text-sm text-amber-900">
-                Keep this off unless you knowingly intend to destroy Stamp
-                UTXOs.
+                {t('consolidate_form_keep_this_off_unless_you')}
               </p>
               {!formData.includeProtectedStamps &&
               formData.consolidationData?.stamp_protection.protected_utxos ? (
                 <p className="mt-1 text-sm font-medium text-amber-950">
-                  {formData.consolidationData.stamp_protection.protected_utxos}{" "}
-                  protected UTXO
-                  {formData.consolidationData.stamp_protection
+                  {t('consolidate_form_protected_utxo_excluded', [String(formData.consolidationData.stamp_protection.protected_utxos), String(" "), String(formData.consolidationData.stamp_protection
                     .protected_utxos === 1
                     ? " is"
-                    : "s are"}{" "}
-                  excluded.
+                    : "s are"), String(" ")])}
                 </p>
               ) : null}
             </div>
@@ -274,11 +268,11 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
         <DestinationInput
           value={formData.destinationAddress}
           onChange={handleDestinationChange}
-          label="Destination Address (Optional)"
-          placeholder="Leave empty to consolidate to source address"
+          label={t('consolidate_form_destination_address_optional')}
+          placeholder={t('consolidate_form_leave_empty_to_consolidate_to')}
           required={false}
           showHelpText={showHelpText}
-          helpText="If left empty, UTXOs will be consolidated to your source address."
+          helpText={t('consolidate_form_if_left_empty_utxos_will')}
         />
 
         <FeeRateInput
@@ -297,7 +291,7 @@ export function ConsolidationForm({ onSubmit, showHelpText }: ConsolidationFormP
             isLoading
           }
         >
-          {isLoading ? "Loading…" : "Continue to Review"}
+          {isLoading ? t('common_loading') : t('consolidate_form_continue_to_review')}
         </Button>
       </form>
     </div>

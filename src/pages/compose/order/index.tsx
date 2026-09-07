@@ -2,6 +2,7 @@ import { useParams, useSearchParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import { composeOrder } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { OrderForm } from "@/pages/compose/order/form";
 import { ReviewOrder } from "@/pages/compose/order/review";
 
@@ -22,7 +23,7 @@ function ComposeOrderPage() {
       <Composer<OrderOptions>
         composeType="order"
         composeApiMethod={composeOrder}
-        initialTitle="Dex Order"
+        initialTitle={t('compose_order_dex_order')}
         FormComponent={(props) => <OrderForm {...props} giveAsset={asset || ''} urlParams={urlParams} />}
         ReviewComponent={ReviewOrder}
       />

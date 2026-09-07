@@ -9,6 +9,8 @@ import { useInView } from "@/hooks/useInView";
 import { usePendingStatus } from "@/hooks/usePendingStatus";
 import { useRefreshSignal } from "@/hooks/useRefreshSignal";
 
+import { t } from '@/i18n';
+
 const PAGE_SIZE = 20;
 
 interface UtxoListProps {
@@ -159,10 +161,10 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
     );
   }, [balances, searchQuery]);
 
-  if (isInitialLoading) return <Spinner message="Loading UTXO balances…" />;
+  if (isInitialLoading) return <Spinner message={t('utxo_utxo_list_loading_utxo_balances')} />;
 
   if (balances.length === 0) {
-    return <div className="text-center py-4 text-gray-500">No UTXO-attached balances</div>;
+    return <div className="text-center py-4 text-gray-500">{t('utxo_utxo_list_no_utxo_attached_balances')}</div>;
   }
 
   return (
@@ -170,13 +172,13 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
       <SearchInput
         value={searchQuery}
         onChange={setSearchQuery}
-        placeholder="Search utxos…"
+        placeholder={t('utxo_utxo_list_search_utxos')}
         name="utxo-search"
         className="mt-0.5 mb-3"
         showClearButton={true}
       />
       {filteredBalances.length === 0 ? (
-        <div className="text-center py-4 text-gray-500">No matching UTXOs</div>
+        <div className="text-center py-4 text-gray-500">{t('utxo_utxo_list_no_matching_utxos')}</div>
       ) : (
         filteredBalances.map((token) => (
           <UtxoCard token={token} key={token.utxo} pendingStatus={pendingByUtxoLabel.get(token.utxo)} />
@@ -188,7 +190,7 @@ export const UtxoList = ({ refreshNonce, onRefreshed }: UtxoListProps = {}): Rea
             isFetchingMore ? (
               <Spinner className="py-4" />
             ) : (
-              <div className="text-sm text-gray-500">Scroll to load more…</div>
+              <div className="text-sm text-gray-500">{t('common_scroll_to_load_more')}</div>
             )
           ) : null}
         </div>

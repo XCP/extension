@@ -21,15 +21,17 @@ import { formatMoreOutputs } from "@/core/format";
 import { validateAmount } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
+import { t } from '@/i18n';
+
 // Define sweep type options
 // Note: FLAG_BINARY_MEMO (4) is handled automatically by normalize.ts based on memo content
 const FLAG_BALANCES = 1;
 const FLAG_OWNERSHIP = 2;
 
 const sweepTypeOptions = [
-  { id: 1, name: "Asset Balances Only", value: FLAG_BALANCES },
-  { id: 2, name: "Asset Ownership Only", value: FLAG_OWNERSHIP },
-  { id: 3, name: "Asset Balances & Ownership", value: FLAG_BALANCES | FLAG_OWNERSHIP },
+  { id: 1, name: t('sweep_form_asset_balances_only'), value: FLAG_BALANCES },
+  { id: 2, name: t('sweep_form_asset_ownership_only'), value: FLAG_OWNERSHIP },
+  { id: 3, name: t('sweep_form_asset_balances_ownership'), value: FLAG_BALANCES | FLAG_OWNERSHIP },
 ];
 
 interface SweepFormProps {
@@ -95,12 +97,13 @@ export function SweepForm({
           />
         )
       }
-      submitText="Sweep"
+      submitText={t('common_sweep')}
       submitDisabled={isSubmitDisabled}
     >
       <Field>
         <Label className="block text-sm font-medium text-gray-700">
-          Sweep Type <span className="text-red-500">*</span>
+          
+          {t('sweep_form_sweep_type')} <span className="text-red-500">*</span>
         </Label>
         <div className="mt-1 relative">
           {/* Hidden input for form submission */}
@@ -127,7 +130,7 @@ export function SweepForm({
         </div>
         {showHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            Choose whether to sweep asset balances only, asset ownership only, or both.
+            {t('sweep_form_choose_whether_to_sweep_asset')}
           </Description>
         )}
       </Field>
@@ -138,12 +141,12 @@ export function SweepForm({
         value={destination}
         onChange={setDestination}
         onValidationChange={setDestinationValid}
-        placeholder="Enter destination address for sweep"
+        placeholder={t('sweep_form_enter_destination_address_for_sweep')}
         required
         disabled={pending}
         showHelpText={showHelpText}
         name="destination_display"
-        helpText="Enter the address to sweep all assets to."
+        helpText={t('sweep_form_enter_the_address_to_sweep')}
         labelRight={
           enableMoreOutputs ? (
             <button
@@ -172,10 +175,10 @@ export function SweepForm({
           sourceAddress={activeAddress}
           maxAmount={btcBalance}
           showHelpText={showHelpText}
-          label="Add BTC"
+          label={t('common_add_btc')}
           placeholder="0.00000000 BTC"
           name="btc_output_display"
-          description="BTC to send alongside the sweep to the same destination."
+          description={t('sweep_form_btc_to_send_alongside_the')}
           disabled={pending}
           isDivisible={true}
           extraOutputCount={1}

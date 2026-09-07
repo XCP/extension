@@ -6,6 +6,8 @@ import {
 } from "@/core/bitcoin/price";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface PriceTickerProps {
   btc: number | null;
   xcp: number | null;
@@ -53,7 +55,7 @@ export function PriceTicker({
         onKeyDown={handleBtcKeyDown}
         role={onBtcClick ? "button" : undefined}
         tabIndex={onBtcClick ? 0 : undefined}
-        aria-label={onBtcClick ? "Bitcoin price" : undefined}
+        aria-label={onBtcClick ? t('price_price_ticker_bitcoin_price') : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -78,7 +80,7 @@ export function PriceTicker({
         onKeyDown={handleXcpKeyDown}
         role={onXcpClick ? "button" : undefined}
         tabIndex={onXcpClick ? 0 : undefined}
-        aria-label={onXcpClick ? "XCP price" : undefined}
+        aria-label={onXcpClick ? t('price_price_ticker_xcp_price') : undefined}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

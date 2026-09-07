@@ -5,6 +5,8 @@ import { formatAmount, formatAsset } from "@/core/format";
 import { divide, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewDispenser component.
  */
@@ -80,15 +82,15 @@ export function ReviewDispenser({
 
   const customFields = [
     {
-      label: "Escrow Amount",
+      label: t('common_escrow_amount'),
       value: `${escrowQuantity} ${displayAsset}`,
     },
     {
-      label: "Amount per Dispense",
+      label: t('common_amount_per_dispense'),
       value: `${giveQuantity} ${displayAsset}`,
     },
     {
-      label: "Per Dispense",
+      label: t('dispenser_review_per_dispense'),
       value: `${formatAmount({
         value: perDispenseBtc,
         minimumFractionDigits: 8,
@@ -97,7 +99,7 @@ export function ReviewDispenser({
       rightElement: perDispenseUsd ? <span className="text-gray-500">{perDispenseUsd}</span> : undefined,
     },
     {
-      label: "Bitcoin Total",
+      label: t('dispenser_review_bitcoin_total'),
       value: `${formatAmount({
         value: bitcoinTotalBtc,
         minimumFractionDigits: 8,

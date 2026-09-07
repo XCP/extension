@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { composePoolDeposit, type PoolDepositOptions } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { PoolDepositForm } from "@/pages/compose/pool/deposit/form";
 import { ReviewPoolDeposit } from "@/pages/compose/pool/deposit/review";
-
 export default function ComposePoolDepositPage() {
   const { assetA, assetB } = useParams<{ assetA?: string; assetB?: string }>();
 
@@ -12,7 +12,7 @@ export default function ComposePoolDepositPage() {
       <Composer<PoolDepositOptions>
         composeType="pooldeposit"
         composeApiMethod={composePoolDeposit}
-        initialTitle="Pool"
+        initialTitle={t('common_pool')}
         FormComponent={(props) => (
           <PoolDepositForm
             {...props}

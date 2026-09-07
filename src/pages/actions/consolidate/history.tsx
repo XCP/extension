@@ -4,6 +4,8 @@ import { type ConsolidationStatusResponse, consolidationApi } from "@/core/bitco
 import { fetchTransactionChainStatus } from "@/core/bitcoin/utxo";
 import { formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 interface ConsolidationHistoryProps {
   address: string;
 }
@@ -28,7 +30,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
         console.error("Failed to fetch consolidation history:", err);
         // Don't show error for 404s (no history)
         if (!err?.message?.includes('404')) {
-          setError("Failed to load recovery history");
+          setError(t('consolidate_history_failed_to_load_recovery_history'));
         }
       } finally {
         setIsLoading(false);
@@ -114,7 +116,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
       >
         <div className="flex items-center gap-2">
           <FaHistory className="text-gray-500 size-4" aria-hidden="true" />
-          <h2 className="text-sm font-medium text-gray-900">Recovery History</h2>
+          <h2 className="text-sm font-medium text-gray-900">{t('consolidate_history_recovery_history')}</h2>
         </div>
         {showHistory ? (
           <FiChevronDown className="text-gray-400 size-4" aria-hidden="true" />
@@ -131,7 +133,7 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
             </div>
           ) : !status || status.recent_consolidations.length === 0 ? (
             <div className="p-4 text-center text-gray-500 text-sm">
-              No recovery transactions yet
+              {t('consolidate_history_no_recovery_transactions_yet')}
             </div>
           ) : (
             <div className="p-4">
@@ -145,14 +147,14 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="text-sm font-medium text-gray-900">
-                          {formatAmount({
+                          {t('consolidate_history_btc_recovered', [String(formatAmount({
                             value: tx.amount_recovered,
                             minimumFractionDigits: 8,
                             maximumFractionDigits: 8,
-                          })} BTC recovered
+                          }))])}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                          Consolidated {tx.utxos_consolidated} UTXOs
+                          {t('consolidate_history_consolidated_utxos', [String(tx.utxos_consolidated)])}
                         </div>
                       </div>
                       <div className="text-xs text-gray-500">
@@ -171,11 +173,11 @@ export function ConsolidationHistory({ address }: ConsolidationHistoryProps) {
                       </a>
                       {tx.status === 'pending' ? (
                         <span className="px-1.5 py-0.5 text-xs bg-yellow-100 text-yellow-700 rounded">
-                          Pending
+                          {t('common_pending')}
                         </span>
                       ) : (
                         <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded">
-                          Confirmed
+                          {t('consolidate_history_confirmed')}
                         </span>
                       )}
                     </div>

@@ -32,6 +32,7 @@ import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useMempoolAheadQuote } from "@/hooks/useMempoolAheadQuote";
 import { usePool } from "@/hooks/usePool";
 import { usePoolSwapQuote } from "@/hooks/usePoolQuotes";
+import { t } from '@/i18n';
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
 
 interface SwapFormProps {
@@ -73,9 +74,9 @@ function toDisplayUnits(sats: number | string, divisible: boolean): string {
 /** "Pool", "3 orders", or "Pool + 3 orders" depending on where the fill comes from. */
 function routeLabel(quote: PoolQuote): string {
   const orders = quote.book_orders_matched ?? 0;
-  const orderText = `${orders} order${orders === 1 ? "" : "s"}`;
+  const orderText = orders === 1 ? "1 order" : `${orders} orders`;
   if ((quote.book_output ?? 0) <= 0) return "Pool";
-  return quote.pool_exists && (quote.pool_output ?? 0) > 0 ? `Pool + ${orderText}` : orderText;
+  return quote.pool_exists && (quote.pool_output ?? 0) > 0 ? t('swap_form_pool', [String(orderText)]) : orderText;
 }
 
 function DetailRow({
@@ -276,7 +277,7 @@ export function SwapForm({
   const priceRowText = quoteView?.price
     ? `1 ${giveAsset} ≈ ${quoteView.price} ${getAsset}`
     : isLoadingQuote
-      ? "Fetching quote…"
+      ? t('swap_form_fetching_quote')
       : `1 ${giveAsset || "—"} = —`;
 
   // The API reports impact as positive-when-worse; flip the sign so the label
@@ -304,7 +305,7 @@ export function SwapForm({
           />
         )
       }
-      submitText="Review Swap"
+      submitText={t('swap_form_review_swap')}
       submitDisabled={
         pending || submitDisabled || feeRate === null || !Number.isFinite(feeRate) || feeRate < 0.1
       }
@@ -315,12 +316,11 @@ export function SwapForm({
         <ErrorAlert message={validationError} onClose={() => setValidationError(null)} />
       )}
       {hasBtc && (
-        <ErrorAlert message="BTC pairs are not supported for swaps. Use a DEX order instead." />
+        <ErrorAlert message={t('swap_form_btc_pairs_are_not_supported')} />
       )}
       {noPool && (
         <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
-          No liquidity pool exists for {giveAsset}/{getAsset}. Swaps for this
-          pair can only fill from resting DEX orders.
+          {t('swap_form_no_liquidity_pool_exists_for', [String(giveAsset), String(getAsset)])}
         </div>
       )}
 
@@ -329,8 +329,8 @@ export function SwapForm({
         <AssetSelectInput
           selectedAsset={giveAsset}
           onChange={handleGiveAssetChange}
-          label="You Send"
-          description="Asset you are selling."
+          label={t('common_you_send')}
+          description={t('swap_form_asset_you_are_selling')}
           showHelpText={showHelpText}
           required
         />
@@ -344,15 +344,15 @@ export function SwapForm({
           showHelpText={showHelpText}
           sourceAddress={activeAddress}
           maxAmount={availableBalance}
-          label="Amount"
+          label={t('common_amount')}
           name="amount_display"
-          description={`Amount to sell. ${isGiveDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."}`}
+          description={isGiveDivisible ? t('common_amount_to_sell_enter_up') : t('common_amount_to_sell_enter_whole')}
           disabled={pending}
           isDivisible={isGiveDivisible}
           labelRight={
             availableBalance ? (
               <span className="text-xs text-gray-500 font-normal">
-                Balance: {formatAmount({ value: availableBalance, maximumFractionDigits: 8 })}
+                {t('swap_form_balance', [String(formatAmount({ value: availableBalance, maximumFractionDigits: 8 }))])}
               </span>
             ) : undefined
           }
@@ -364,7 +364,7 @@ export function SwapForm({
         <button
           type="button"
           onClick={handleFlip}
-          aria-label="Flip swap direction"
+          aria-label={t('swap_form_flip_swap_direction')}
           className="p-1 rounded text-gray-500 hover:text-gray-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <LuArrowDownUp className="size-4" aria-hidden="true" />
@@ -376,25 +376,27 @@ export function SwapForm({
         <AssetSelectInput
           selectedAsset={getAsset}
           onChange={handleGetAssetChange}
-          label="You Receive"
-          description="Asset you are buying."
+          label={t('common_you_receive')}
+          description={t('swap_form_asset_you_are_buying')}
           showHelpText={showHelpText}
           required
         />
         <div>
           <label htmlFor="swap-receive-estimate" className="text-sm font-medium text-gray-700 flex justify-between items-center">
-            <span>Amount <span className="text-red-500">*</span></span>
+            <span>{t('common_amount')} <span className="text-red-500">*</span></span>
             {signedImpact !== null && (
               <span className="text-xs font-normal">
                 <span className={impactClass}>
-                  Impact: {signedImpact > 0 ? "+" : ""}{formatAmount({ value: signedImpact, maximumFractionDigits: 2 })}%
+                  {t('swap_form_impact', [String(signedImpact > 0 ? "+" : ""), String(formatAmount({ value: signedImpact, maximumFractionDigits: 2 }))])}
                 </span>
                 {ahead && (
                   <span
                     className={mempoolDrop >= 3 ? "text-amber-600" : "text-gray-500"}
-                    title={`${ahead.pendingCount} unconfirmed ${ahead.pendingCount === 1 ? "order" : "orders"} on this pair in the same direction. If they confirm first, this swap gets about ${formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 })}% less than the quote. Auto slippage allows for it.`}
+                    title={ahead.pendingCount === 1
+                      ? t('swap_form_one_unconfirmed_order_on_this', [String(formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 }))])
+                      : t('swap_form_unconfirmed_orders_on_this_pair', [String(ahead.pendingCount), String(formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 }))])}
                   >
-                    {" · "}{ahead.pendingCount} ahead in mempool
+                    {" · "}{t('swap_form_ahead_in_mempool', [String(ahead.pendingCount)])}
                     {mempoolDrop > 0 && ` (−${formatAmount({ value: mempoolDrop, maximumFractionDigits: 1 })}%)`}
                   </span>
                 )}
@@ -408,7 +410,7 @@ export function SwapForm({
             placeholder={isGetDivisible ? "0.00000000" : "0"}
             disabled
             aria-live="polite"
-            aria-label="Estimated amount received"
+            aria-label={t('swap_form_estimated_amount_received')}
             className="mt-1 block w-full p-2.5 rounded-md border border-gray-300 bg-gray-100 text-gray-900 cursor-not-allowed"
           />
         </div>
@@ -431,7 +433,7 @@ export function SwapForm({
             <button
               type="button"
               onClick={() => setShowDetails((prev) => !prev)}
-              aria-label={showDetails ? "Hide swap details" : "Show swap details"}
+              aria-label={showDetails ? t('swap_form_hide_swap_details') : t('swap_form_show_swap_details')}
               aria-expanded={showDetails}
               className="shrink-0 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
@@ -444,27 +446,26 @@ export function SwapForm({
               <>
                 {quoteView.afterMempool !== null && (
                   <DetailRow
-                    label="After mempool"
+                    label={t('swap_form_after_mempool')}
                     value={`≈ ${formatAmount({ value: quoteView.afterMempool, maximumFractionDigits: 8 })} ${getAsset}`}
                   />
                 )}
                 <DetailRow
-                  label="Minimum received"
+                  label={t('swap_form_minimum_received')}
                   value={`${formatAmount({ value: quoteView.minReceived, maximumFractionDigits: 8 })} ${getAsset}`}
                 />
                 {minBelowMempool && (
                   <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
-                    Above what the pending orders would leave. If they confirm first, this swap rests for a
-                    block and refunds instead of filling — raise the slippage or use Auto.
+                    {t('swap_form_above_what_the_pending_orders')}
                   </div>
                 )}
                 {quoteView.poolFee && (
                   <DetailRow
-                    label={`Pool fee (${(quoteView.poolFee.bps / 100).toFixed(2)}%)`}
+                    label={t('swap_form_pool_fee', [String((quoteView.poolFee.bps / 100).toFixed(2))])}
                     value={quoteView.poolFee.amount ? `${quoteView.poolFee.amount} ${giveAsset}` : "—"}
                   />
                 )}
-                <DetailRow label="Route" value={quoteView.route} />
+                <DetailRow label={t('swap_form_route')} value={quoteView.route} />
               </>
             )}
             <div className="border-t border-gray-200 pt-3">

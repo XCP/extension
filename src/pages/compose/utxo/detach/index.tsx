@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { DetachOptions } from "@/core/counterparty/compose";
 import { composeDetach } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { UtxoDetachForm } from "@/pages/compose/utxo/detach/form";
 import { ReviewUtxoDetach } from "@/pages/compose/utxo/detach/review";
 
@@ -13,7 +14,7 @@ function ComposeUtxoDetachPage() {
       <Composer<DetachOptions>
         composeType="detach"
         composeApiMethod={composeDetach}
-        initialTitle="Detach UTXO"
+        initialTitle={t('utxo_detach_detach_utxo')}
         FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={txId || ""} />}
         ReviewComponent={ReviewUtxoDetach}
       />

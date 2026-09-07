@@ -5,6 +5,8 @@ import { fetchAddressDispensers } from "@/core/counterparty/api";
 import type { DispenseOptions } from "@/core/counterparty/compose";
 import { isValidBitcoinAddress } from "@/core/validation/bitcoin";
 
+import { t } from '@/i18n';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -85,7 +87,7 @@ export function DispenserInput({
         });
 
         if (!response.result || response.result.length === 0) {
-          const errorMsg = "No open dispenser found at this address.";
+          const errorMsg = t('dispenser_dispenser_input_no_open_dispenser_found_at');
           setError(errorMsg);
           if (onError) onError(errorMsg);
           return;
@@ -121,7 +123,7 @@ export function DispenserInput({
         setDispenserOptions(options);
       } catch (err) {
         console.error("Error fetching dispenser details:", err);
-        const errorMsg = "Error fetching dispenser details.";
+        const errorMsg = t('dispenser_dispenser_input_error_fetching_dispenser_details');
         setError(errorMsg);
         if (onError) onError(errorMsg);
       } finally {
@@ -166,7 +168,7 @@ export function DispenserInput({
           htmlFor="dispenserAddress" 
           className="block text-sm font-medium text-gray-700"
         >
-          Dispenser Address {required && <span className="text-red-500">*</span>}
+          {t('messages_dispense_dispenser_address')} {required && <span className="text-red-500">*</span>}
         </Label>
         <Input
           id="dispenserAddress"
@@ -182,7 +184,7 @@ export function DispenserInput({
         />
         {showHelpText && (
           <Description className="mt-2 text-sm text-gray-500">
-            Enter the dispenser address to send BTC to.
+            {t('dispenser_dispenser_input_enter_the_dispenser_address_to')}
           </Description>
         )}
       </Field>

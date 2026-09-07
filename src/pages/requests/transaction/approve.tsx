@@ -35,6 +35,8 @@ import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import type { DecodedTransactionInfo } from "@/hooks/useSignTransactionRequest";
 import { useSignTransactionRequest } from "@/hooks/useSignTransactionRequest";
 
+import { t } from '@/i18n';
+
 /**
  * Structured data for per-type visual renderers.
  *
@@ -89,7 +91,7 @@ export default function ApproveTransactionPage() {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Sign Transaction",
+      title: t('transaction_approve_sign_transaction'),
     });
   }, [setHeaderProps]);
 
@@ -103,7 +105,7 @@ export default function ApproveTransactionPage() {
       await handleApprove(showAttention);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Failed to sign request");
+      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
       setIsSigning(false);
     }
   };
@@ -213,12 +215,12 @@ export default function ApproveTransactionPage() {
     ...attention.filter(item => item.blocking),
     ...(verificationPassed === false && !verificationRepackProved && isStrictMode ? [{
       key: "verification-block", severity: "danger" as const,
-      title: "Transaction details did not verify", description: verificationWarning,
+      title: t('common_transaction_details_did_not_verify'), description: verificationWarning,
     }] : []),
     ...(decodedInfo.inputs.some(input => input.value === undefined || !input.address) ? [{
       key: "unresolved-input", severity: "warning" as const,
-      title: "Input details could not be verified",
-      description: "The wallet cannot confirm the input value or owner. Retry verification before signing.",
+      title: t('transaction_approve_input_details_could_not_be'),
+      description: t('transaction_approve_the_wallet_cannot_confirm_the'),
     }] : []),
   ];
 
@@ -226,12 +228,12 @@ export default function ApproveTransactionPage() {
     decodedInfo.counterpartyMessage?.messageType === "destroy" && txAction?.type === "fallback"
       ? txAction.description
       : approvalAttentionItems.some((item) => item.severity === "danger")
-        ? "Review transaction risk"
-        : "Review before signing";
+        ? t('common_review_transaction_risk')
+        : t('common_review_before_signing');
   const confirmLabel =
     decodedInfo.counterpartyMessage?.messageType === "destroy"
-      ? "Destroy supply"
-      : "Confirm and sign";
+      ? t('common_destroy_supply')
+      : t('common_confirm_and_sign');
   const handleApprovalAction = () => {
     if (requiresAttention) {
       setShowAttention(true);
@@ -252,10 +254,10 @@ export default function ApproveTransactionPage() {
           busy={isSigning}
           blocked={blockSigning || isRefreshing || Boolean(refreshError)}
           blockedLabel={
-            retryAvailable || isRefreshing || refreshError ? "Awaiting verification" : "Blocked"
+            retryAvailable || isRefreshing || refreshError ? t('common_awaiting_verification') : "Blocked"
           }
           isHardware={activeWallet.type === "hardware"}
-          signLabel={requiresAttention ? "Review" : "Sign transaction"}
+          signLabel={requiresAttention ? "Review" : t('common_sign_transaction')}
         />
       }
       attention={
@@ -263,7 +265,7 @@ export default function ApproveTransactionPage() {
         requiresAttention && (
           <ApprovalAttentionScreen
             title={attentionTitle}
-            description="Confirm the exceptional transaction behavior below before the wallet adds your signature."
+            description={t('transaction_approve_confirm_the_exceptional_transaction_behavior')}
             items={approvalAttentionItems}
             confirmLabel={confirmLabel}
             busy={isSigning}

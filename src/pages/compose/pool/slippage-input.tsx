@@ -4,6 +4,8 @@ import { isFiniteNumber, isGreaterThan, isLessThan } from "@/core/numeric";
 
 import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
 
+import { t } from '@/i18n';
+
 export { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 
 // Presets skew slightly above fast-chain DEXs: Counterparty's ~10-min blocks leave
@@ -55,10 +57,11 @@ export function SlippageInput({
     <Field>
       <div className="flex justify-between items-center mb-1">
         <Label className="text-sm font-medium text-gray-700">
-          Slippage Tolerance <span className="text-red-500">*</span>
+          
+          {t('pool_slippage_input_slippage_tolerance')} <span className="text-red-500">*</span>
         </Label>
         <span className="text-sm text-gray-500 tabular-nums">
-          {displayValue || "0"}%{autoOn && <span className="text-gray-400"> · auto</span>}
+          {displayValue || "0"}%{autoOn && <span className="text-gray-400">{t('pool_slippage_input_auto')}</span>}
         </span>
       </div>
 
@@ -72,7 +75,7 @@ export function SlippageInput({
               autoOn ? "bg-blue-500 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"
             }`}
           >
-            Auto
+            {t('pool_slippage_input_auto_2')}
           </button>
         )}
         {PRESETS.map((preset) => (
@@ -98,8 +101,8 @@ export function SlippageInput({
           inputMode="decimal"
           value={autoOn || isPreset ? "" : value}
           onChange={handleCustomChange}
-          placeholder="Custom %"
-          aria-label="Custom slippage percent"
+          placeholder={t('pool_slippage_input_custom')}
+          aria-label={t('pool_slippage_input_custom_slippage_percent')}
           className={`w-full px-3 py-2.5 pr-8 text-sm border rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
             autoOn || isPreset ? "border-gray-300" : "border-blue-500"
           }`}
@@ -110,25 +113,24 @@ export function SlippageInput({
       {autoOn && (
         <Description className="mt-2 text-sm text-gray-500">
           {resolvedValue
-            ? `Using ${resolvedValue}%, matched to this trade's price impact.`
-            : "Set from the quote's price impact once you enter an amount."}
+            ? t('pool_slippage_input_using_matched_to_this_trade', [String(resolvedValue)])
+            : t('pool_slippage_input_set_from_the_quote_s')}
         </Description>
       )}
 
       {showHelpText && (
         <Description className="mt-2 text-sm text-gray-500">
-          How far the pool ratio may move before the transaction fails. A higher
-          tolerance avoids failures if someone else trades the pool in the same block.
+          {t('pool_slippage_input_how_far_the_pool_ratio')}
         </Description>
       )}
       {isLow && (
         <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-800">
-          Very low — likely to fail if the pool changes before your transaction confirms.
+          {t('pool_slippage_input_very_low_likely_to_fail')}
         </div>
       )}
       {isHigh && (
         <div className="mt-2 rounded border border-yellow-200 bg-yellow-50 p-2 text-sm text-yellow-800">
-          Very high — you may receive noticeably less than quoted.
+          {t('pool_slippage_input_very_high_you_may_receive')}
         </div>
       )}
     </Field>

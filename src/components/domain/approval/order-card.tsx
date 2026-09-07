@@ -32,6 +32,7 @@ import type { ProviderVerificationResult } from '@/core/counterparty/unpack';
 import { formatPriceRatio } from '@/core/format';
 import { type BigNumber, divide, isGreaterThan, subtract, toBigNumber, toNumber } from '@/core/numeric';
 
+import { t } from '@/i18n';
 export interface OrderAction {
   giveAmount: string;
   giveAsset: string;
@@ -250,7 +251,7 @@ export function OrderCard({ order }: { order: OrderAction }) {
   return (
     <div className="mb-3">
       <div className="bg-gray-50 rounded-lg p-4">
-        <p className="text-xs text-gray-500 mb-1">You give</p>
+        <p className="text-xs text-gray-500 mb-1">{t('approval_order_card_you_give')}</p>
         <p className="text-xl font-bold text-gray-900">
           {order.giveAmount}{' '}
           <span className="text-base font-normal text-gray-500">{order.giveAsset}</span>
@@ -265,10 +266,10 @@ export function OrderCard({ order }: { order: OrderAction }) {
           type="button"
           onClick={() => setPriceFlipped((f) => !f)}
           className="text-xs text-gray-400 hover:text-gray-600 cursor-pointer transition-colors"
-          title="Click to flip price"
+          title={t('approval_order_card_click_to_flip_price')}
         >
           {order.normalizedGive === null || order.normalizedGet === null
-            ? 'Price unavailable'
+            ? t('approval_order_card_price_unavailable')
             : formatPriceRatio(
                 order.normalizedGive,
                 order.normalizedGet,
@@ -281,9 +282,9 @@ export function OrderCard({ order }: { order: OrderAction }) {
 
       <div
         className="bg-gray-50 rounded-lg p-4"
-        title={`Guaranteed by the transaction. If the market can't deliver this much, you keep your ${order.giveAsset}.`}
+        title={t('approval_order_card_guaranteed_by_the_transaction_if', [String(order.giveAsset)])}
       >
-        <p className="text-xs text-gray-500 mb-1">You receive at least</p>
+        <p className="text-xs text-gray-500 mb-1">{t('approval_order_card_you_receive_at_least')}</p>
         <p className="text-xl font-bold text-gray-900">
           {order.getAmount}{' '}
           <span className="text-base font-normal text-gray-500">{order.getAsset}</span>
@@ -292,29 +293,29 @@ export function OrderCard({ order }: { order: OrderAction }) {
           && impliedSlippage >= 0 && (
           <p
             className="text-xs text-gray-500 mt-1.5"
-            title="Estimated by your wallet from its own node, not supplied by the site."
+            title={t('approval_order_card_estimated_by_your_wallet_from')}
           >
-            ~{estimateDisplay} estimated
+            {t('approval_order_card_estimated', [String(estimateDisplay)])}
           </p>
         )}
         {impliedSlippage !== null && impliedSlippage < 0 && (
           <p className="text-xs text-red-600 mt-1.5">
-            The market has moved below this minimum. This order is likely to rest unfilled instead
-            of executing.
+            {t('approval_order_card_the_market_has_moved_below')}
           </p>
         )}
         {impliedSlippage !== null && impliedSlippage >= 0.05 && (
           <p className="text-xs text-amber-600 mt-1.5">
-            Accepts up to {(impliedSlippage * 100).toFixed(1)}% below the wallet's estimate —
-            confirm this matches your slippage.
+            {t('approval_order_card_accepts_up_to_below_the', [String((impliedSlippage * 100).toFixed(1))])}
           </p>
         )}
       </div>
 
       <p className="text-xs text-gray-400 text-center mt-2">
         {order.expiration === 0
-          ? 'Never expires'
-          : `Expires in ${order.expiration.toLocaleString()} block${order.expiration === 1 ? '' : 's'}`}
+          ? t('common_never_expires')
+          : order.expiration === 1
+            ? t('approval_order_card_expires_in_1_block')
+            : t('approval_order_card_expires_in_blocks', [String(order.expiration.toLocaleString())])}
       </p>
     </div>
   );

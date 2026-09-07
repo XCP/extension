@@ -12,6 +12,8 @@ import { formatAmount } from "@/core/format";
 import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewDispense component.
  */
@@ -148,15 +150,15 @@ export function ReviewDispense({
     if (allTriggeredDispensers.length > 1) {
       customFields.push(
         {
-          label: "Dispensers",
+          label: t('common_dispensers'),
           value: allTriggeredDispensers.length.toString()
         },
         {
-          label: "You Receive",
+          label: t('common_you_receive'),
           value: receivedAssets.join('\n')
         },
         {
-          label: "BTC Payment",
+          label: t('dispense_review_btc_payment'),
           value: `${btcAmount} BTC`,
           rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
         }
@@ -172,22 +174,22 @@ export function ReviewDispense({
       // Add dispenser TX hash first (after To:)
       if (dispenser.tx_hash) {
         customFields.push({
-          label: "Dispenser",
+          label: t('common_dispenser'),
           value: dispenser.tx_hash
         });
       }
 
       customFields.push(
         {
-          label: "# of Dispenses",
+          label: t('dispense_review_of_dispenses'),
           value: numberOfDispenses.toString()
         },
         {
-          label: "You Receive",
+          label: t('common_you_receive'),
           value: receivedAssets[0]
         },
         {
-          label: "BTC Payment",
+          label: t('dispense_review_btc_payment'),
           value: `${btcAmount} BTC`,
           rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
         }
@@ -201,12 +203,12 @@ export function ReviewDispense({
           value: fromSatoshis(tx.btc_amount, true),
           minimumFractionDigits: 8,
           maximumFractionDigits: 8
-        })} BTC${tx.fee_rate ? ` @ ${tx.fee_rate} sat/vB` : ''}`
+        })} BTC${tx.fee_rate ? t('dispense_review_sat_vb', [String(tx.fee_rate)]) : ''}`
       ).join('\n');
       
       customFields.push({
-        label: "⚠️ Race Condition Warning",
-        value: `${mempoolDispenses.length} pending transaction(s) competing for this dispenser:\n${competingTxs}\n\nThe dispenser may be depleted before your transaction confirms.`
+        label: t('dispense_review_race_condition_warning'),
+        value: t('dispense_review_pending_transaction_s_competing_for', [String(mempoolDispenses.length), String(competingTxs)])
       });
     }
   } else if (!isLoadingInfo && allTriggeredDispensers.length === 0) {
@@ -216,7 +218,7 @@ export function ReviewDispense({
       : null;
     customFields.push(
       {
-        label: "BTC Payment",
+        label: t('dispense_review_btc_payment'),
         value: `${btcAmount} BTC`,
         rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
       }

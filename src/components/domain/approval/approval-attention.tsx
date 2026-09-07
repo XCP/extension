@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import type { WarningItem } from '@/components/ui/warning-stack';
 import { divide, roundUp } from '@/core/numeric';
 
+import { t } from '@/i18n';
+
 interface ApprovalAttentionScreenProps {
   title: string;
   description: string;
@@ -81,10 +83,10 @@ export function ApprovalAttentionScreen({
         <div className="shrink-0 border-t border-gray-200 bg-white p-4 text-sm leading-5">
           <div className="mx-auto flex max-w-md flex-wrap gap-3">
             <Button color="gray" onClick={onBack} disabled={busy} fullWidth className="min-h-11 flex-[1_1_5rem]">
-              Back
+              {t('common_back')}
             </Button>
             <Button color="blue" onClick={onConfirm} disabled={busy} fullWidth className="min-h-11 flex-[2_1_10rem] bg-blue-600 hover:bg-blue-700">
-              {busy ? (isHardware ? 'Confirm on device…' : 'Signing…') : confirmLabel}
+              {busy ? (isHardware ? t('common_confirm_on_device') : t('common_signing')) : confirmLabel}
             </Button>
           </div>
         </div>
@@ -110,11 +112,11 @@ export function highFeeAttentionItem(feeSats: number, vsize?: number): WarningIt
   return {
     key: 'high-fee',
     severity: 'warning',
-    title: 'Unusually high network fee',
+    title: t('approval_approval_attention_unusually_high_network_fee'),
     description:
-      `This transaction pays ${feeSats.toLocaleString()} sats` +
-      `${feeRate === null ? '' : ` (about ${feeRate} sat/vB)`}. ` +
-      'Confirm that this fee is intentional.',
+      t('approval_approval_attention_this_transaction_pays_sats', [String(feeSats.toLocaleString())]) +
+      `${feeRate === null ? '' : t('approval_approval_attention_about_sat_vb', [String(feeRate)])}. ` +
+      t('approval_approval_attention_confirm_that_this_fee_is'),
   };
 }
 
@@ -123,9 +125,9 @@ export function verificationAttentionItem(message?: string): WarningItem {
   return {
     key: 'verification-warning',
     severity: 'warning',
-    title: 'The wallet could not reproduce every transaction field',
+    title: t('approval_approval_attention_the_wallet_could_not_reproduce'),
     description: message
-      ? `${message} Review this exception before signing.`
-      : 'Strict verification is disabled. Review this exception before signing.',
+      ? t('approval_approval_attention_review_this_exception_before_signing', [String(message)])
+      : t('approval_approval_attention_strict_verification_is_disabled_review'),
   };
 }

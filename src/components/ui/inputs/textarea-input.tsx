@@ -1,6 +1,8 @@
 import { Description, Field, Label, Textarea } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 
+import { t } from '@/i18n';
+
 interface TextAreaInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -73,17 +75,17 @@ export function TextAreaInput({
     const trimmed = val.trim();
     
     if (required && !trimmed) {
-      setError("This field is required");
+      setError(t('common_this_field_is_required'));
       return false;
     }
 
     if (minLength && trimmed.length < minLength) {
-      setError(`Minimum ${minLength} characters required`);
+      setError(t('inputs_textarea_input_minimum_characters_required', [String(minLength)]));
       return false;
     }
 
     if (maxLength && val.length > maxLength) {
-      setError(`Maximum ${maxLength} characters allowed`);
+      setError(t('inputs_textarea_input_maximum_characters_allowed', [String(maxLength)]));
       return false;
     }
 
@@ -167,7 +169,7 @@ export function TextAreaInput({
         
         {showCharCount && (
           <span className={`text-xs ${getCharCountColor()}`}>
-            {localValue.length}{maxLength ? ` / ${maxLength}` : ""} characters{(description || helpText) && ` - ${description || helpText}`}
+            {maxLength ? `${localValue.length} / ${maxLength} characters` : `${localValue.length} characters`}{(description || helpText) && ` - ${description || helpText}`}
           </span>
         )}
       </div>

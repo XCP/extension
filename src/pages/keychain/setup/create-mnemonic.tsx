@@ -10,6 +10,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { generateNewMnemonic } from "@/core/bitcoin/privateKey";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
 function CreateMnemonicPage() {
@@ -34,21 +35,21 @@ function CreateMnemonicPage() {
   const [state, formAction, isPending] = useActionState(
     async (_prevState: { error: string | null }, formData: FormData) => {
       if (!isRecoveryPhraseVisible) {
-        return { error: "Please view and save your recovery phrase first." };
+        return { error: t('setup_create_mnemonic_please_view_and_save_your') };
       }
 
       const password = formData.get("password") as string;
       if (!password) {
-        return { error: "Password is required." };
+        return { error: t('common_password_is_required') };
       }
 
       if (keychainExists) {
         const isValid = await verifyPassword(password);
         if (!isValid) {
-          return { error: "Password does not match." };
+          return { error: t('common_password_does_not_match') };
         }
       } else if (password.length < MIN_PASSWORD_LENGTH) {
-        return { error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` };
+        return { error: t('setup_create_mnemonic_password_must_be_at_least', [String(MIN_PASSWORD_LENGTH)]) };
       }
 
       try {
@@ -57,7 +58,7 @@ function CreateMnemonicPage() {
         window.location.hash = PATHS.SUCCESS;
         return { error: null };
       } catch {
-        return { error: "Failed to create wallet. Please try again." };
+        return { error: t('setup_create_mnemonic_failed_to_create_wallet_please') };
       }
     },
     { error: null }
@@ -71,12 +72,12 @@ function CreateMnemonicPage() {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Create Wallet",
+      title: t('common_create_wallet'),
       onBack: () => navigate(PATHS.BACK),
       rightButton: {
         icon: <FiRefreshCw className="size-4" aria-hidden="true" />,
         onClick: handleGenerateWallet,
-        ariaLabel: "Generate new recovery phrase",
+        ariaLabel: t('setup_create_mnemonic_generate_new_recovery_phrase'),
         disabled: isPending,
       },
     });
@@ -115,10 +116,10 @@ function CreateMnemonicPage() {
           <ErrorAlert message={state.error} onClose={() => setErrorDismissed(true)} />
         )}
         <h2 id="create-wallet-title" className="text-2xl font-bold mb-2">
-          Your Recovery Phrase
+          {t('setup_create_mnemonic_your_recovery_phrase')}
         </h2>
         <p className="mb-5" id="recovery-instructions">
-          Please write down this 12-word secret phrase.
+          {t('setup_create_mnemonic_please_write_down_this_12')}
         </p>
         <form
           action={formAction}
@@ -152,24 +153,24 @@ function CreateMnemonicPage() {
               <button type="button"
                 className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset rounded-md"
                 onClick={handleRevealPhrase}
-                aria-label="Reveal recovery phrase"
+                aria-label={t('setup_create_mnemonic_reveal_recovery_phrase')}
               >
                 <FaEyeSlash className="size-6 mb-2" aria-hidden="true" />
-                <p className="mb-2 font-bold">View 12-word Secret Phrase</p>
-                <p>Make sure no one is looking!</p>
+                <p className="mb-2 font-bold">{t('setup_create_mnemonic_view_12_word_secret_phrase')}</p>
+                <p>{t('setup_create_mnemonic_make_sure_no_one_is')}</p>
               </button>
             )}
           </div>
           {isRecoveryPhraseVisible && (
             <Banner
               severity="warning"
-              title="Keep this private"
-              description="Anyone with it can steal your funds."
+              title={t('common_keep_this_private')}
+              description={t('common_anyone_with_it_can_steal')}
             />
           )}
           <CheckboxInput
             name="confirmed"
-            label="I have saved my secret recovery phrase."
+            label={t('common_i_have_saved_my_secret')}
             disabled={!isRecoveryPhraseVisible || isPending}
             checked={isConfirmed}
             onChange={handleCheckboxChange}
@@ -179,7 +180,7 @@ function CreateMnemonicPage() {
               <PasswordInput
                 innerRef={passwordInputRef}
                 name="password"
-                placeholder={keychainExists ? "Confirm your password" : "Create a password"}
+                placeholder={keychainExists ? t('common_confirm_your_password') : t('common_create_a_password')}
                 disabled={isPending}
                 onChange={handlePasswordChange}
               />
@@ -188,7 +189,7 @@ function CreateMnemonicPage() {
                 fullWidth
                 disabled={!canSubmit}
               >
-                {isPending ? "Creating…" : "Continue"}
+                {isPending ? t('setup_create_mnemonic_creating') : "Continue"}
               </Button>
             </>
           )}
@@ -199,7 +200,7 @@ function CreateMnemonicPage() {
           variant="youtube"
           href="https://youtu.be/x-2KrLSq0mk"
         >
-          Watch Tutorial: How to Create a Wallet
+          {t('setup_create_mnemonic_watch_tutorial_how_to_create')}
         </Button>
       )}
     </section>

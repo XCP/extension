@@ -18,6 +18,7 @@ import {
 import { getXCPPrice } from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
 import { useFeeRates } from "@/hooks/useFeeRates";
+import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
 // Time range options (limited to 1h/24h due to CoinGecko API limitations)
@@ -76,11 +77,11 @@ export default function BtcPricePage(): ReactElement {
         const xcp = await getXCPPrice(statsData.price);
         setXcpPrice(xcp);
       } else {
-        setStatsError("Unable to load price");
+        setStatsError(t('common_unable_to_load_price'));
       }
     } catch (err) {
       console.error("Failed to load BTC stats:", err);
-      setStatsError("Unable to load price");
+      setStatsError(t('common_unable_to_load_price'));
     }
   }, []);
 
@@ -94,7 +95,7 @@ export default function BtcPricePage(): ReactElement {
     } catch (err) {
       console.error("Failed to load BTC price history:", err);
       setPriceHistory([]);
-      setChartError("Unable to load chart data");
+      setChartError(t('common_unable_to_load_chart_data'));
     } finally {
       setChartLoading(false);
     }
@@ -150,10 +151,10 @@ export default function BtcPricePage(): ReactElement {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Bitcoin Price",
+      title: t('market_btc_bitcoin_price'),
       onBack: () => navigate("/market"),
       rightButton: {
-        ariaLabel: "Refresh price",
+        ariaLabel: t('common_refresh_price'),
         icon: <FiRefreshCw className={`size-4 ${isRefreshing ? "animate-spin" : ""}`} aria-hidden="true" />,
         onClick: handleRefresh,
         disabled: isRefreshing,
@@ -169,7 +170,7 @@ export default function BtcPricePage(): ReactElement {
   };
 
   if (loading) {
-    return <Spinner message="Loading Bitcoin price…" />;
+    return <Spinner message={t('market_btc_loading_bitcoin_price')} />;
   }
 
   return (
@@ -210,7 +211,7 @@ export default function BtcPricePage(): ReactElement {
                   )}
                 </div>
               ) : (
-                <span className="text-xs text-gray-500 mt-1">Bitcoin ({currency.toUpperCase()})</span>
+                <span className="text-xs text-gray-500 mt-1">{t('market_btc_bitcoin', [String(currency.toUpperCase())])}</span>
               )}
             </div>
             <div className="text-right">
@@ -221,7 +222,7 @@ export default function BtcPricePage(): ReactElement {
                     onClick={() => loadStats(currency)}
                     className="text-xs text-blue-600 hover:text-blue-800 underline mt-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                   >
-                    Retry
+                    {t('common_retry')}
                   </button>
                 </div>
               ) : (
@@ -264,7 +265,7 @@ export default function BtcPricePage(): ReactElement {
             className="text-xs text-blue-600 hover:text-blue-800"
             onClick={() => analytics.track('buy_bitcoin')}
           >
-            Buy Bitcoin
+            {t('market_btc_buy_bitcoin')}
           </a>
         </div>
 
@@ -280,7 +281,7 @@ export default function BtcPricePage(): ReactElement {
                 onClick={() => loadChartData(range, currency)}
                 className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                Try Again
+                {t('common_try_again')}
               </button>
             </div>
           ) : (
@@ -300,7 +301,7 @@ export default function BtcPricePage(): ReactElement {
           {/* BTC/XCP Exchange Rate */}
           {stats && xcpPrice && xcpPrice > 0 && (
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <span className="text-sm text-gray-600">TX Fee Market</span>
+              <span className="text-sm text-gray-600">{t('market_btc_tx_fee_market')}</span>
               <span className="text-sm font-medium text-gray-900">
                 1 BTC = {formatAmount({ value: stats.price / xcpPrice, maximumFractionDigits: 0 })} XCP
               </span>
@@ -312,19 +313,19 @@ export default function BtcPricePage(): ReactElement {
             <div className="pt-2">
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-gray-50 rounded-md p-2 text-center">
-                  <span className="block text-xs text-gray-500">Fast</span>
+                  <span className="block text-xs text-gray-500">{t('market_btc_fast')}</span>
                   <span className="text-sm font-medium text-gray-900">{feeRates.fastestFee}</span>
-                  <span className="text-xs text-gray-400"> sat/vB</span>
+                  <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
                 <div className="bg-gray-50 rounded-md p-2 text-center">
-                  <span className="block text-xs text-gray-500">Medium</span>
+                  <span className="block text-xs text-gray-500">{t('market_btc_medium')}</span>
                   <span className="text-sm font-medium text-gray-900">{feeRates.halfHourFee}</span>
-                  <span className="text-xs text-gray-400"> sat/vB</span>
+                  <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
                 <div className="bg-gray-50 rounded-md p-2 text-center">
-                  <span className="block text-xs text-gray-500">Slow</span>
+                  <span className="block text-xs text-gray-500">{t('market_btc_slow')}</span>
                   <span className="text-sm font-medium text-gray-900">{feeRates.hourFee}</span>
-                  <span className="text-xs text-gray-400"> sat/vB</span>
+                  <span className="text-xs text-gray-400">{t('market_btc_sat_vb')}</span>
                 </div>
               </div>
             </div>

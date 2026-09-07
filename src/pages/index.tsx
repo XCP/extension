@@ -21,6 +21,8 @@ import { invalidateAddressBalances } from "@/core/balances/invalidate";
 import { fetchTokenBalances } from "@/core/counterparty/api";
 import { formatAddress } from "@/core/format";
 
+import { t } from '@/i18n';
+
 const COPY_FEEDBACK_DURATION = 2000;
 const PATHS = {
   SELECT_WALLET: "/keychain/wallets",
@@ -77,7 +79,7 @@ export default function HomePage(): ReactElement {
       leftButton: {
         label: activeWallet?.name || "Wallet",
         onClick: () => navigate(PATHS.SELECT_WALLET),
-        ariaLabel: "Select Wallet",
+        ariaLabel: t('app_select_wallet'),
       },
       rightButton: {
         icon: <FaLock aria-hidden="true" />,
@@ -85,7 +87,7 @@ export default function HomePage(): ReactElement {
           await lockKeychain();
           navigate(PATHS.UNLOCK_WALLET);
         },
-        ariaLabel: "Lock Keychain",
+        ariaLabel: t('common_lock_keychain'),
       },
     });
     return () => setHeaderProps(null);
@@ -143,7 +145,7 @@ export default function HomePage(): ReactElement {
   };
 
   const renderCurrentAddress = (): ReactElement => {
-    if (!activeAddress) return <div className="p-4">No address selected</div>;
+    if (!activeAddress) return <div className="p-4">{t('common_no_address_selected')}</div>;
     // Not a RadioGroup: there was one option, its onChange did nothing, and `checked` was always
     // true — it existed so the ternary would pick the selected styling. Copying the address is a
     // button, and saying so is what lets the keyboard reach it. The classes below are the branch
@@ -156,7 +158,7 @@ export default function HomePage(): ReactElement {
           type="button"
           className="block w-full rounded p-4 cursor-pointer text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
           onClick={handleCopyAddress}
-          aria-label="Current address"
+          aria-label={t('common_current_address')}
         >
           <div className="text-sm mb-1 font-medium">{activeAddress.name}</div>
           <div className="flex justify-center items-center">
@@ -173,7 +175,7 @@ export default function HomePage(): ReactElement {
             type="button"
             className="block py-6 px-3 -m-2 cursor-pointer hover:bg-white/5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={handleAddressSelection}
-            aria-label="Select another address"
+            aria-label={t('common_select_another_address')}
           >
             <FaChevronRight className="size-4" aria-hidden="true" />
           </button>
@@ -184,17 +186,17 @@ export default function HomePage(): ReactElement {
 
   const renderActionButtons = (): ReactElement => (
     <div className="grid grid-cols-3 gap-4 my-4">
-      <Button color="gray" onClick={() => navigate(PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label="Receive tokens">
+      <Button color="gray" onClick={() => navigate(PATHS.VIEW_ADDRESS)} className="flex-col !py-4" aria-label={t('app_receive_tokens')}>
         <FaQrcode className="text-xl mb-2" aria-hidden="true" />
-        <span>Receive</span>
+        <span>{t('app_receive')}</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(PATHS.SEND_BTC)} className="flex-col !py-4" aria-label="Send tokens">
+      <Button color="gray" onClick={() => navigate(PATHS.SEND_BTC)} className="flex-col !py-4" aria-label={t('app_send_tokens')}>
         <FaPaperPlane className="text-xl mb-2" aria-hidden="true" />
-        <span>Send</span>
+        <span>{t('common_send')}</span>
       </Button>
-      <Button color="gray" onClick={() => navigate(PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label="Transaction history">
+      <Button color="gray" onClick={() => navigate(PATHS.ADDRESS_HISTORY)} className="flex-col !py-4" aria-label={t('app_transaction_history')}>
         <FaHistory className="text-xl mb-2" aria-hidden="true" />
-        <span>History</span>
+        <span>{t('common_history')}</span>
       </Button>
     </div>
   );
@@ -207,26 +209,26 @@ export default function HomePage(): ReactElement {
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Assets" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Assets" })}
-            aria-label="View Assets"
+            aria-label={t('app_view_assets')}
           >
-            Assets
+            {t('common_assets')}
           </button>
           <button type="button"
             className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
             style={{ textDecoration: activeTab === "Balances" ? "underline" : "none" }}
             onClick={() => setSearchParams({ tab: "Balances" })}
-            aria-label="View Balances"
+            aria-label={t('app_view_balances')}
           >
-            Balances
+            {t('common_balances')}
           </button>
           {hasUtxos && (
             <button type="button"
               className="text-lg font-semibold bg-transparent p-0 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
               style={{ textDecoration: activeTab === "UTXOs" ? "underline" : "none" }}
               onClick={() => setSearchParams({ tab: "UTXOs" })}
-              aria-label="View UTXOs"
+              aria-label={t('app_view_utxos')}
             >
-              UTXOs
+              {t('app_utxos')}
             </button>
           )}
         </div>
@@ -234,9 +236,9 @@ export default function HomePage(): ReactElement {
           <button type="button"
             onClick={() => navigate(PATHS.BUY_XCP)}
             className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            aria-label="Get XCP"
+            aria-label={t('app_get_xcp')}
           >
-            Get XCP
+            {t('app_get_xcp')}
           </button>
           {/* Refresh rather than the pinned-assets shortcut, which moved to Settings. The thing
               people do at this screen while waiting on a transaction is look again, and there was
@@ -245,7 +247,7 @@ export default function HomePage(): ReactElement {
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-default"
-            aria-label="Refresh balances"
+            aria-label={t('app_refresh_balances')}
           >
             <FiRefreshCw
               className={`size-4 text-gray-600 ${isRefreshing ? "animate-spin" : ""}`}
@@ -258,9 +260,9 @@ export default function HomePage(): ReactElement {
   };
 
   const content = isLoading ? (
-    <div className="p-4">Loading wallet data…</div>
+    <div className="p-4">{t('app_loading_wallet_data')}</div>
   ) : !activeWallet || !activeAddress ? (
-    <div className="p-4">No wallet unlocked.</div>
+    <div className="p-4">{t('app_no_wallet_unlocked')}</div>
   ) : (
     <>
       {renderCurrentAddress()}
@@ -271,7 +273,7 @@ export default function HomePage(): ReactElement {
 
   return (
     <section className="flex flex-col h-full" aria-labelledby="index-title">
-      <h2 id="index-title" className="sr-only">Wallet Dashboard</h2>
+      <h2 id="index-title" className="sr-only">{t('app_wallet_dashboard')}</h2>
       <div className="flex flex-col flex-grow min-h-0">
         <div className="p-4 pb-0 flex-shrink-0">
           {content}

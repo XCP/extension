@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { OrderOptions } from "@/core/counterparty/compose";
 import { composeOrder } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { SwapForm } from "@/pages/compose/swap/form";
 import { ReviewSwap } from "@/pages/compose/swap/review";
 
@@ -17,7 +18,7 @@ function ComposeSwapPage() {
       <Composer<OrderOptions>
         composeType="order"
         composeApiMethod={composeOrder}
-        initialTitle="Swap"
+        initialTitle={t('common_swap')}
         FormComponent={(props) => (
           <SwapForm
             {...props}

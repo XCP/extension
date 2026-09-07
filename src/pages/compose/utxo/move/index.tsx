@@ -2,6 +2,7 @@ import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import type { MoveOptions } from "@/core/counterparty/compose";
 import { composeMove } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { UtxoMoveForm } from "@/pages/compose/utxo/move/form";
 import { ReviewUtxoMove } from "@/pages/compose/utxo/move/review";
 
@@ -13,7 +14,7 @@ function ComposeUtxoMovePage() {
       <Composer<MoveOptions>
         composeType="move"
         composeApiMethod={composeMove}
-        initialTitle="Move UTXO"
+        initialTitle={t('utxo_move_move_utxo')}
         FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={txId || ""} />}
         ReviewComponent={ReviewUtxoMove}
       />

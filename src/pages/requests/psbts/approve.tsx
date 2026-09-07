@@ -16,6 +16,7 @@ import { useWallet } from "@/contexts/wallet-context";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignPsbtsRequest } from "@/hooks/useSignPsbtsRequest";
 
+import { t } from '@/i18n';
 export default function ApprovePsbtsPage() {
   const { activeAddress, activeWallet } = useWallet();
   const { setHeaderProps } = useHeader();
@@ -40,18 +41,18 @@ export default function ApprovePsbtsPage() {
     // and the fee bump is a line item of the acceptance rather than a second act.
     const title =
       request?.bundleKind === "acceptance-cpfp"
-        ? "Accept Offer"
+        ? t('common_accept_offer')
         : request?.bundleKind === "attach-and-list"
-          ? "Attach and List"
+          ? t('psbts_approve_attach_and_list')
           : request?.bundleKind === "bulk-fanout"
-            ? "Prepare Funds"
+            ? t('psbts_approve_prepare_funds')
             : request?.bundleKind === "prepare-assets"
-              ? "Prepare Assets"
+              ? t('psbts_approve_prepare_assets')
               : request?.bundleKind === "bulk-attach"
-                ? "Attach Collectibles"
+                ? t('psbts_approve_attach_collectibles')
                 : request?.bundleKind === "bulk-listing"
-                  ? "Authorize Listings"
-                  : "Review Transaction Batch";
+                  ? t('psbts_approve_authorize_listings')
+                  : t('psbts_approve_review_transaction_batch');
     setHeaderProps({ title });
   }, [request?.bundleKind, setHeaderProps]);
 
@@ -63,7 +64,7 @@ export default function ApprovePsbtsPage() {
       await handleApprove(false);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Failed to sign request");
+      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
       setIsSigning(false);
     }
   };
@@ -95,14 +96,16 @@ export default function ApprovePsbtsPage() {
     );
   const signLabel =
     request.bundleKind === "attach-and-list"
-      ? "Attach and list"
+      ? t('psbts_approve_attach_and_list_2')
       : request.bundleKind === "bulk-listing"
-        ? `Authorize ${request.items.length} ${allReprice ? "reprice" : "listing"}${request.items.length === 1 ? "" : "s"}`
+        ? request.items.length === 1
+          ? (allReprice ? t('psbts_approve_authorize_1_reprice') : t('psbts_approve_authorize_1_listing'))
+          : (allReprice ? t('psbts_approve_authorize_reprices', [String(request.items.length)]) : t('psbts_approve_authorize_listings_2', [String(request.items.length)]))
         : request.bundleKind === "acceptance-cpfp"
-          ? "Accept offer"
+          ? t('common_accept_offer_2')
           : request.bundleKind === "bulk-fanout"
-            ? "Prepare funds"
-            : "Sign transactions";
+            ? t('psbts_approve_prepare_funds_2')
+            : t('psbts_approve_sign_transactions');
   const retry = decodedInfo.review.status === "retry" || Boolean(refreshError);
   const noticeItems: WarningItem[] = [
     ...(error ? [{ key: "signing-error", severity: "danger" as const, title: error }] : []),
@@ -116,7 +119,7 @@ export default function ApprovePsbtsPage() {
       .filter(notice => notice.severity !== "info")
       .map((notice, index) => ({
         key: `bundle-caution-${index}`, severity: notice.severity,
-        title: request.bundleKind === "attach-and-list" ? "Listing activates after confirmation" : notice.message,
+        title: request.bundleKind === "attach-and-list" ? t('psbts_approve_listing_activates_after_confirmation') : notice.message,
         ...(request.bundleKind === "attach-and-list" ? { description: notice.message } : {}),
       })) : []),
   ];
@@ -124,7 +127,7 @@ export default function ApprovePsbtsPage() {
     noticeItems.push({
       key: "bundle-unavailable",
       severity: retry ? "warning" : "danger",
-      title: retry ? "Required ledger information is unavailable" : "Marketplace terms did not verify",
+      title: retry ? t('psbts_approve_required_ledger_information_is_unavailable') : t('common_marketplace_terms_did_not_verify'),
     });
   }
   return (
@@ -140,7 +143,7 @@ export default function ApprovePsbtsPage() {
           blocked={blocked || isRefreshing || Boolean(refreshError)}
           blockedLabel={
             decodedInfo.review.status === "retry" || isRefreshing || refreshError
-              ? "Awaiting verification"
+              ? t('common_awaiting_verification')
               : "Blocked"
           }
           isHardware={activeWallet.type === "hardware"}
@@ -151,11 +154,11 @@ export default function ApprovePsbtsPage() {
       <ApprovalNotice items={noticeItems} blocked={decodedInfo.review.status === "blocked"} />
       {retry && (
         <Button color="gray" onClick={() => void handleRetry()} disabled={isRefreshing} fullWidth>
-          {isRefreshing ? "Verifying…" : "Retry verification"}
+          {isRefreshing ? t('common_verifying') : t('common_retry_verification')}
         </Button>
       )}
       <BundleReviewCard review={decodedInfo.review} />
-      <Collapsible compact variant="card" title="Transactions">
+      <Collapsible compact variant="card" title={t('common_transactions')}>
         <div className="space-y-3 text-xs">
           {decodedInfo.items.map((item, index) => (
             <div
@@ -171,12 +174,12 @@ export default function ApprovePsbtsPage() {
               </p>
               <p className="mt-1 break-all text-gray-500">{item.txid}</p>
               <p className="mt-1 text-gray-700">
-                Fee: {item.psbtDetails.fee.toLocaleString()} sats
+                {t('psbts_approve_fee_sats', [String(item.psbtDetails.fee.toLocaleString())])}
               </p>
             </div>
           ))}
           <p className="border-t border-gray-100 pt-3 text-gray-500">
-            The wallet returns this batch only after every requested signature succeeds.
+            {t('psbts_approve_the_wallet_returns_this_batch')}
           </p>
         </div>
       </Collapsible>

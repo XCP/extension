@@ -9,6 +9,8 @@ import { useSettings } from "@/contexts/settings-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 
+import { t } from '@/i18n';
+
 /**
  * Interface for an asset object returned from the search API.
  */
@@ -65,7 +67,7 @@ export default function AssetsPage(): ReactElement {
   // Configure header with dynamic back and help toggle
   useEffect(() => {
     setHeaderProps({
-      title: "Search Assets",
+      title: t('assets_search_assets'),
       onBack: searchQuery
         ? () => {
             setSearchQuery("");
@@ -75,7 +77,7 @@ export default function AssetsPage(): ReactElement {
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => setIsHelpTextOverride((prev) => !prev),
-        ariaLabel: "Toggle help text",
+        ariaLabel: t('common_toggle_help_text'),
       },
     });
   }, [setHeaderProps, navigate, searchQuery, setSearchParams]);
@@ -105,7 +107,7 @@ export default function AssetsPage(): ReactElement {
       } catch (err) {
         console.error("Error searching assets:", err);
         setSearchResults([]);
-        setError("Failed to search assets.");
+        setError(t('assets_failed_to_search_assets'));
       } finally {
         setIsSearching(false);
       }
@@ -135,11 +137,11 @@ export default function AssetsPage(): ReactElement {
    */
   const handleAddAsset = async (asset: string) => {
     if (!activeWallet) {
-      setError("No active wallet selected");
+      setError(t('assets_no_active_wallet_selected'));
       return;
     }
     if (pinnedAssets.length >= MAX_PINNED_ASSETS) {
-      setError(`You can only pin up to ${MAX_PINNED_ASSETS} assets.`);
+      setError(t('assets_you_can_only_pin_up', [String(MAX_PINNED_ASSETS)]));
       return;
     }
     if (pinnedAssets.includes(asset)) return;
@@ -151,7 +153,7 @@ export default function AssetsPage(): ReactElement {
       setError(null);
     } catch (err) {
       console.error("Error adding asset:", err);
-      setError("Failed to add asset.");
+      setError(t('assets_failed_to_add_asset'));
     }
   };
 
@@ -161,7 +163,7 @@ export default function AssetsPage(): ReactElement {
    */
   const handleRemoveAsset = async (asset: string) => {
     if (!activeWallet) {
-      setError("No active wallet selected");
+      setError(t('assets_no_active_wallet_selected'));
       return;
     }
 
@@ -172,7 +174,7 @@ export default function AssetsPage(): ReactElement {
       setError(null);
     } catch (err) {
       console.error("Error removing asset:", err);
-      setError("Failed to remove asset.");
+      setError(t('assets_failed_to_remove_asset'));
     }
   };
 
@@ -189,7 +191,7 @@ export default function AssetsPage(): ReactElement {
       setError(null);
     } catch (err) {
       console.error("Error updating asset order:", err);
-      setError("Failed to reorder assets.");
+      setError(t('common_failed_to_reorder_assets'));
     }
   };
 
@@ -256,10 +258,10 @@ export default function AssetsPage(): ReactElement {
             ref={searchInputRef}
             type="text"
             className="w-full p-2 pl-10 border rounded-lg"
-            placeholder="Search assets…"
+            placeholder={t('common_search_assets')}
             value={searchQuery}
             onChange={handleSearchChange}
-            aria-label="Search assets"
+            aria-label={t('assets_search_assets_2')}
           />
           <FaSearch
             className="absolute left-3 top-3 text-gray-400"
@@ -271,12 +273,11 @@ export default function AssetsPage(): ReactElement {
         {!searchQuery ? (
           <div className="h-full flex flex-col">
             <h2 className="text-lg font-semibold mb-2" id="select-assets-title">
-              Pinned Assets
+              {t('common_pinned_assets')}
             </h2>
             {shouldShowHelpText && (
               <p className="text-sm text-gray-500 mb-4">
-                Pin up to {MAX_PINNED_ASSETS} assets to the top of your main
-                screen.
+                {t('assets_pin_up_to_assets_to', [String(MAX_PINNED_ASSETS)])}
               </p>
             )}
             <div className="flex-1 overflow-y-auto mb-4">
@@ -304,7 +305,7 @@ export default function AssetsPage(): ReactElement {
                         color="gray"
                         onClick={() => handleRemoveAsset(asset)}
                         className="!p-2"
-                        aria-label={`Remove ${asset} from pinned`}
+                        aria-label={t('assets_remove_from_pinned', [String(asset)])}
                       >
                         <TbPinnedFilled aria-hidden="true" />
                       </Button>
@@ -316,11 +317,11 @@ export default function AssetsPage(): ReactElement {
           </div>
         ) : (
           <div>
-            <h2 className="text-lg font-semibold mb-2">Search Results</h2>
+            <h2 className="text-lg font-semibold mb-2">{t('common_search_results')}</h2>
             {isSearching ? (
-              <div className="text-center py-4">Searching…</div>
+              <div className="text-center py-4">{t('assets_searching')}</div>
             ) : searchResults.length === 0 ? (
-              <div className="text-center py-4">No results found</div>
+              <div className="text-center py-4">{t('common_no_results_found')}</div>
             ) : (
               <div className="space-y-2">
                 {searchResults.map((asset) => (
@@ -339,8 +340,8 @@ export default function AssetsPage(): ReactElement {
                       className="!p-2"
                       aria-label={
                         pinnedAssets.includes(asset.symbol)
-                          ? `Unpin ${asset.symbol}`
-                          : `Pin ${asset.symbol}`
+                          ? t('common_unpin', [String(asset.symbol)])
+                          : t('common_pin', [String(asset.symbol)])
                       }
                     >
                       {pinnedAssets.includes(asset.symbol) ? (

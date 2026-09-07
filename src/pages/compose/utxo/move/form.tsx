@@ -8,6 +8,8 @@ import { useComposer } from "@/contexts/composer-context-object";
 import type { MoveOptions } from "@/core/counterparty/compose";
 import { useUtxoSource } from "@/hooks/useUtxoSource";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the UtxoMoveForm component, aligned with Composer's formAction.
  */
@@ -67,7 +69,7 @@ export function UtxoMoveForm({
         value={destination}
         onChange={setDestination}
         onValidationChange={setDestinationValid}
-        placeholder="Enter destination address"
+        placeholder={t('move_form_enter_destination_address')}
         required
         disabled={false}
         showHelpText={showHelpText}

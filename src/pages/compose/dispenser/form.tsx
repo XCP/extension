@@ -14,6 +14,8 @@ import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { useTradingPair } from "@/hooks/useTradingPair";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the DispenserForm component, aligned with Composer's formAction.
  */
@@ -81,14 +83,14 @@ export const DispenserForm = memo(function DispenserForm({
   // Asset error effect
   useEffect(() => {
     if (assetError) {
-      setError({ message: assetError.message || "Failed to load asset details" });
+      setError({ message: assetError.message || t('dispenser_form_failed_to_load_asset_details') });
     }
   }, [assetError]);
   
   // Check if trying to create dispenser for BTC
   useEffect(() => {
     if (selectedAsset === "BTC") {
-      setError({ message: "Cannot create a dispenser for BTC" });
+      setError({ message: t('dispenser_form_cannot_create_a_dispenser_for') });
     } else if (error?.message === "Cannot create a dispenser for BTC") {
       setError(null);
     }
@@ -132,12 +134,12 @@ export const DispenserForm = memo(function DispenserForm({
   const handleFormAction = useCallback((formData: FormData) => {
     // Validate before submission
     if (!selectedAsset) {
-      setError({ message: "Select an asset to dispense" });
+      setError({ message: t('dispenser_form_select_an_asset_to_dispense') });
       return;
     }
 
     if (selectedAsset === "BTC") {
-      setError({ message: "Cannot create a dispenser for BTC" });
+      setError({ message: t('dispenser_form_cannot_create_a_dispenser_for') });
       return;
     }
     
@@ -145,7 +147,7 @@ export const DispenserForm = memo(function DispenserForm({
     const cleanGive = toBigNumber(giveQuantity || "0");
 
     if (!cleanEscrow.isNaN() && !cleanGive.isNaN() && cleanEscrow.isLessThan(cleanGive)) {
-      setError({ message: "Escrow quantity must be greater than or equal to give quantity" });
+      setError({ message: t('dispenser_form_escrow_quantity_must_be_greater') });
       return;
     }
     
@@ -218,8 +220,8 @@ export const DispenserForm = memo(function DispenserForm({
             <AssetSelectInput
               selectedAsset={selectedAsset}
               onChange={setSelectedAsset}
-              label="Asset"
-              description="Select the asset to dispense."
+              label={t('common_asset')}
+              description={t('dispenser_form_select_the_asset_to_dispense')}
               showHelpText={showHelpText}
               required
             />
@@ -234,11 +236,11 @@ export const DispenserForm = memo(function DispenserForm({
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
             maxAmount={availableBalance}
-            label="Escrow Amount"
+            label={t('common_escrow_amount')}
             name="escrow_quantity_display"
-            description={`Total amount to lock in the dispenser. ${
-              isDivisible ? "Enter up to 8 decimal places." : "Enter whole numbers only."
-            } Available: ${availableBalance}`}
+            description={isDivisible
+              ? t('dispenser_form_total_amount_to_lock_in', [String(availableBalance)])
+              : t('dispenser_form_total_amount_to_lock_in_2', [String(availableBalance)])}
             disabled={pending}
             autoFocus
             isDivisible={isDivisible}
@@ -248,16 +250,16 @@ export const DispenserForm = memo(function DispenserForm({
             onChange={setMainchainRate}
             tradingPairData={tradingPairData}
             showHelpText={showHelpText}
-            label="Price in Bitcoin"
+            label={t('dispenser_form_price_in_bitcoin')}
             name="mainchainrate_display"
-            priceDescription={isRefill ? "Price is fixed for refills." : "BTC required to trigger one dispense."}
+            priceDescription={isRefill ? t('dispenser_form_price_is_fixed_for_refills') : t('dispenser_form_btc_required_to_trigger_one')}
             showPairFlip={false}
             disabled={pending || isRefill}
           />
           {/* Hidden field to indicate mainchainrate is always in BTC for normalization */}
           <input type="hidden" name="mainchainrate_asset" value="BTC" />
           <TextField
-            label="Amount per Dispense"
+            label={t('common_amount_per_dispense')}
             id="give_quantity_display"
             name="give_quantity_display"
             type="text"
@@ -274,8 +276,10 @@ export const DispenserForm = memo(function DispenserForm({
             disabled={pending || isRefill}
             showHelpText={showHelpText}
             description={isRefill
-              ? "Amount per dispense is fixed for refills."
-              : `The quantity of the asset to dispense per transaction.${isDivisible ? " Enter up to 8 decimal places." : " Enter whole numbers only."}`}
+              ? t('dispenser_form_amount_per_dispense_is_fixed')
+              : isDivisible
+                ? t('dispenser_form_the_quantity_of_the_asset')
+                : t('dispenser_form_the_quantity_of_the_asset_2')}
           />
           
     </ComposerForm>

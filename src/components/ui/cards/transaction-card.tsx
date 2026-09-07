@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import type { Transaction } from "@/core/counterparty/api";
 import { formatDate, formatTimeAgo } from "@/core/format";
 
+import { t } from '@/i18n';
+
 /**
  * Props interface for the TransactionCard component
  */
@@ -86,7 +88,7 @@ export function TransactionCard({
       } ${isPending ? "opacity-75" : ""} ${className}`}
       role={onClick ? "button" : "article"}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={ariaLabel || `Transaction ${transaction.tx_hash}`}
+      aria-label={ariaLabel || t('cards_transaction_card_transaction', [String(transaction.tx_hash)])}
     >
       <div className={`rounded-lg shadow p-4 space-y-2 ${
         isPending 
@@ -104,7 +106,7 @@ export function TransactionCard({
             {/* Pending Badge */}
             {isPending && (
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                Pending
+                {t('common_pending')}
               </span>
             )}
           </div>
@@ -122,7 +124,7 @@ export function TransactionCard({
         <div className="text-xs text-gray-400 break-all flex items-center gap-1">
           <span>TX: {formatTxHash(transaction.tx_hash)}</span>
           {isPending && (
-            <span className="text-yellow-600 ml-2">(0 confirmations)</span>
+            <span className="text-yellow-600 ml-2">{t('cards_transaction_card_0_confirmations')}</span>
           )}
         </div>
         
@@ -130,12 +132,12 @@ export function TransactionCard({
         {transaction.source && transaction.destination && (
           <div className="text-xs text-gray-500">
             <div className="flex items-center gap-1">
-              <span className="text-gray-400">From:</span>
+              <span className="text-gray-400">{t('common_from')}</span>
               <span className="font-mono">{transaction.source.slice(0, 8)}…</span>
             </div>
             {transaction.destination !== transaction.source && (
               <div className="flex items-center gap-1">
-                <span className="text-gray-400">To:</span>
+                <span className="text-gray-400">{t('common_to')}</span>
                 <span className="font-mono">{transaction.destination.slice(0, 8)}…</span>
               </div>
             )}

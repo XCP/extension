@@ -7,6 +7,8 @@ import { useWallet, WalletProvider } from '@/contexts/wallet-context';
 import { getAutoLockTimeoutMs } from '@/core/settings';
 import { useIdleTimer } from '@/hooks/useIdleTimer';
 
+import { t } from '@/i18n';
+
 /**
  * Props for the AppProviders component.
  */
@@ -120,8 +122,8 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
       fallback={
         <div className="min-h-dvh flex items-center justify-center p-4">
           <div className="text-center">
-            <h2 className="text-lg font-semibold mb-2">Application Error</h2>
-            <p className="text-sm text-gray-600">Please refresh the page to continue.</p>
+            <h2 className="text-lg font-semibold mb-2">{t('app_providers_application_error')}</h2>
+            <p className="text-sm text-gray-600">{t('app_providers_please_refresh_the_page_to')}</p>
           </div>
         </div>
       }
@@ -130,8 +132,8 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
         fallback={
           <div className="min-h-dvh flex items-center justify-center p-4">
             <div className="text-center">
-              <h2 className="text-lg font-semibold mb-2">Settings Error</h2>
-              <p className="text-sm text-gray-600">Unable to load settings. Please refresh.</p>
+              <h2 className="text-lg font-semibold mb-2">{t('app_providers_settings_error')}</h2>
+              <p className="text-sm text-gray-600">{t('app_providers_unable_to_load_settings_please')}</p>
             </div>
           </div>
         }
@@ -141,8 +143,8 @@ export function AppProviders({ children }: AppProvidersProps): ReactElement {
               fallback={
                 <div className="min-h-dvh flex items-center justify-center p-4">
                   <div className="text-center">
-                    <h2 className="text-lg font-semibold mb-2">Wallet Error</h2>
-                    <p className="text-sm text-gray-600">Unable to load wallet. Please refresh.</p>
+                    <h2 className="text-lg font-semibold mb-2">{t('app_providers_wallet_error')}</h2>
+                    <p className="text-sm text-gray-600">{t('app_providers_unable_to_load_wallet_please')}</p>
                   </div>
                 </div>
               }

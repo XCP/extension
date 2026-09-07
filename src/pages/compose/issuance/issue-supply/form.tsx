@@ -13,6 +13,8 @@ import { asDisplayUnits, fromSatoshis, toBigNumber } from '@/core/numeric';
 import { MAX_SUPPLY } from "@/core/validation/amount";
 import { useAssetInfo } from "@/hooks/useAssetInfo";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the IssueSupplyForm component, aligned with Composer's formAction.
  */
@@ -85,20 +87,19 @@ export function IssueSupplyForm({
 
   // Early returns
   if (assetLoading) {
-    return <Spinner message="Loading asset details…" />;
+    return <Spinner message={t('common_loading_asset_details')} />;
   }
 
   if (assetError || !assetInfo) {
     return (
       <div className="p-4 text-red-500">
-        Unable to load asset details. Please ensure the asset exists and you have the necessary
-        permissions.
+        {t('common_unable_to_load_asset_details')}
       </div>
     );
   }
   
   if (asset === "BTC") {
-    return <div className="p-4 text-red-500">Cannot issue additional supply of BTC</div>;
+    return <div className="p-4 text-red-500">{t('issue_supply_form_cannot_issue_additional_supply_of')}</div>;
   }
 
   if (assetInfo.locked) {
@@ -106,7 +107,7 @@ export function IssueSupplyForm({
       <div className="p-4">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
           <p className="text-yellow-800">
-            This asset's supply is locked and cannot be increased.
+            {t('issue_supply_form_this_asset_s_supply_is')}
           </p>
         </div>
       </div>
@@ -141,16 +142,16 @@ export function IssueSupplyForm({
           showHelpText={showHelpText}
           sourceAddress={activeAddress}
           maxAmount={calculateMaxAmount()}
-          label="Amount"
+          label={t('common_amount')}
           name="quantity_display"
-          description={`Enter the amount of ${asset} to issue`}
+          description={t('issue_supply_form_enter_the_amount_of_to', [String(asset)])}
           disableMaxButton={true}
           isDivisible={assetInfo?.divisible ?? false}
         />
         
         <CheckboxInput
           name="lock_checkbox"
-          label="Lock Supply"
+          label={t('common_lock_supply')}
           checked={lock}
           onChange={setLock}
           disabled={pending}

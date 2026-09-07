@@ -4,6 +4,8 @@ import type { Transaction } from "@/core/counterparty/api";
 import { formatAmount } from "@/core/format";
 import { divide, isGreaterThan, isLessThan, multiply, subtract } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 /**
  * Interactive price display component for orders
  */
@@ -41,7 +43,7 @@ function PriceDisplay({
         type="button"
         onClick={() => setIsFlipped(!isFlipped)}
         className="p-1 hover:bg-gray-100 rounded-full transition-colors ml-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        aria-label="Flip price ratio"
+        aria-label={t('common_flip_price_ratio')}
       >
         <FaExchangeAlt className="size-3 text-gray-600" aria-hidden="true" />
       </button>
@@ -84,13 +86,13 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   
   const fields: Array<{ label: string; value: string | ReactNode }> = [
     {
-      label: "Type",
-      value: params.give_asset === "BTC" ? "Buy Order" : 
-             params.get_asset === "BTC" ? "Sell Order" : 
-             "Token Swap",
+      label: t('common_type'),
+      value: params.give_asset === "BTC" ? t('messages_order_buy_order') : 
+             params.get_asset === "BTC" ? t('messages_order_sell_order') : 
+             t('messages_order_token_swap'),
     },
     {
-      label: "Status",
+      label: t('common_status'),
       value: params.status === "open" ? "🟢 Open" :
              params.status === "filled" ? "✅ Filled" :
              params.status === "cancelled" ? "❌ Cancelled" :
@@ -98,7 +100,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
              params.status || "Unknown",
     },
     {
-      label: "Give",
+      label: t('common_give'),
       value: `${formatAmount({
         value: giveQuantity,
         minimumFractionDigits: giveIsDivisible ? 8 : 0,
@@ -106,7 +108,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
       })} ${params.give_asset}`,
     },
     {
-      label: "Get",
+      label: t('common_get'),
       value: `${formatAmount({
         value: getQuantity,
         minimumFractionDigits: getIsDivisible ? 8 : 0,
@@ -114,7 +116,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
       })} ${params.get_asset}`,
     },
     {
-      label: "Price",
+      label: t('common_price'),
       value: (
         <PriceDisplay
           giveAsset={params.give_asset}
@@ -130,7 +132,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   if (giveRemaining !== undefined && giveQuantity !== undefined
     && isLessThan(giveRemaining, giveQuantity)) {
     fields.push({
-      label: "Give Remaining",
+      label: t('messages_order_give_remaining'),
       value: `${formatAmount({
         value: giveRemaining,
         minimumFractionDigits: giveIsDivisible ? 8 : 0,
@@ -139,7 +141,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     });
     
     fields.push({
-      label: "Get Remaining",
+      label: t('messages_order_get_remaining'),
       value: `${formatAmount({
         value: getRemaining,
         minimumFractionDigits: getIsDivisible ? 8 : 0,
@@ -148,7 +150,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
     });
     
     if (fillPercentage !== null) fields.push({
-      label: "Fill Progress",
+      label: t('messages_order_fill_progress'),
       value: (
         <div className="flex items-center gap-2">
           <div className="flex-1 bg-gray-200 rounded-full h-2">
@@ -167,17 +169,19 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   if (params.expiration !== undefined) {
     if (params.expiration === 0) {
       fields.push({
-        label: "Expiration",
-        value: "Never expires",
+        label: t('common_expiration'),
+        value: t('common_never_expires'),
       });
     } else {
       const currentBlock = params.block_index || 0;
       const expiresAt = currentBlock + params.expiration;
       const blocksRemaining = expiresAt - currentBlock;
       
+      const blocksText = params.expiration === 1 ? "1 block" : `${params.expiration} blocks`;
+      const statusText = blocksRemaining > 0 ? `${blocksRemaining} remaining` : "Expired";
       fields.push({
-        label: "Expiration",
-        value: `${params.expiration} block${params.expiration === 1 ? "" : "s"} (${blocksRemaining > 0 ? `${blocksRemaining} remaining` : "Expired"})`,
+        label: t('common_expiration'),
+        value: `${blocksText} (${statusText})`,
       });
     }
   }
@@ -185,7 +189,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
   // Add fee details (use normalized values from API)
   if (params.fee_required_normalized !== undefined && isGreaterThan(params.fee_required_normalized, 0)) {
     fields.push({
-      label: "Fee Required",
+      label: t('common_fee_required'),
       value: `${formatAmount({
         value: params.fee_required_normalized,
         minimumFractionDigits: 8,
@@ -196,7 +200,7 @@ export function order(tx: Transaction): Array<{ label: string; value: string | R
 
   if (params.fee_provided_normalized !== undefined && isGreaterThan(params.fee_provided_normalized, 0)) {
     fields.push({
-      label: "Fee Provided",
+      label: t('messages_order_fee_provided'),
       value: `${formatAmount({
         value: params.fee_provided_normalized,
         minimumFractionDigits: 8,

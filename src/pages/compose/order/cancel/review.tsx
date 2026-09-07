@@ -1,5 +1,7 @@
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the ReviewCancel component.
  */
@@ -26,7 +28,7 @@ export function ReviewCancel({
   const { result } = apiResponse;
 
   const customFields = [
-    { label: "Order Hash", value: result.params.offer_hash },
+    { label: t('common_order_hash'), value: result.params.offer_hash },
   ];
 
   return (

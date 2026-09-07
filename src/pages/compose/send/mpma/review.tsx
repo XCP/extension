@@ -2,6 +2,8 @@ import type { ReactElement } from "react";
 import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 
+import { t } from '@/i18n';
+
 interface ReviewMPMAProps {
   apiResponse: any;
   onSign: () => void;
@@ -42,24 +44,24 @@ export function ReviewMPMA({
   // Build custom fields showing detailed breakdown
   const customFields: Array<{ label: string; value: string | number; rightElement?: React.ReactNode }> = [
     {
-      label: "Send",
+      label: t('common_send'),
       value: "",
       rightElement: (
         <div className="space-y-2 max-h-48 overflow-y-auto mt-2 w-full">
           {transactions.length === 0 ? (
-            <div className="text-xs text-gray-500">No sends</div>
+            <div className="text-xs text-gray-500">{t('mpma_review_no_sends')}</div>
           ) : (
             transactions.map((tx: { asset: string; destination: string; quantity: string | number; memo?: string }, idx: number) => (
               <div key={idx} className="text-xs border-b pb-1">
                 <div className="font-mono">
-                  Send #{idx + 1}: {tx.quantity} {tx.asset}
+                  {t('mpma_review_send', [String(idx + 1), String(tx.quantity), String(tx.asset)])}
                 </div>
                 <div className="text-gray-600 truncate">
                   to {tx.destination}
                 </div>
                 {tx.memo && (
                   <div className="text-gray-500">
-                    Memo: {tx.memo}
+                    {t('common_memo_2', [String(tx.memo)])}
                   </div>
                 )}
               </div>

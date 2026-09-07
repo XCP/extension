@@ -2,6 +2,8 @@ import { ReviewScreen } from "@/components/screens/review-screen";
 import { formatAmount } from "@/core/format";
 import { toBigNumber } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 interface ReviewIssuanceIssueSupplyProps {
   apiResponse: any;
   onSign: () => void;
@@ -31,9 +33,9 @@ export function ReviewIssuanceIssueSupply({
   });
 
   const customFields = [
-    { label: "Asset", value: result.params.asset },
-    { label: "Current Supply", value: currentSupply },
-    { label: "After Issuance", value: newTotalSupply },
+    { label: t('common_asset'), value: result.params.asset },
+    { label: t('issue_supply_review_current_supply'), value: currentSupply },
+    { label: t('issue_supply_review_after_issuance'), value: newTotalSupply },
   ];
 
   return (

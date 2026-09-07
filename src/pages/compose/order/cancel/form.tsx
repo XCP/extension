@@ -6,6 +6,8 @@ import { HashInput } from "@/components/ui/inputs/hash-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { CancelOptions } from "@/core/counterparty/compose";
 
+import { t } from '@/i18n';
+
 /**
  * Props for the CancelForm component, aligned with Composer's formAction.
  */
@@ -39,13 +41,13 @@ export function CancelForm({
           <HashInput
             value={offerHash}
             onChange={setOfferHash}
-            label="Order Hash"
+            label={t('common_order_hash')}
             name="offer_hash"
             hashType="offer"
-            placeholder="Enter order transaction hash"
+            placeholder={t('cancel_form_enter_order_transaction_hash')}
             required={true}
             showHelpText={showHelpText}
-            description="Transaction hash of the order to cancel. Found in your order history."
+            description={t('cancel_form_transaction_hash_of_the_order')}
             showCopyButton={true}
           />
           <input type="hidden" name="offer_hash" value={offerHash} />

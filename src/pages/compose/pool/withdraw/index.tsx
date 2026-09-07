@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { Composer } from "@/components/composer/composer";
 import { composePoolWithdraw, type PoolWithdrawOptions } from "@/core/counterparty/compose";
+import { t } from '@/i18n';
 import { PoolWithdrawForm } from "@/pages/compose/pool/withdraw/form";
 import { ReviewPoolWithdraw } from "@/pages/compose/pool/withdraw/review";
-
 export default function ComposePoolWithdrawPage() {
   const { lpAsset } = useParams<{ lpAsset: string }>();
   const asset = lpAsset ? decodeURIComponent(lpAsset) : "";
@@ -13,7 +13,7 @@ export default function ComposePoolWithdrawPage() {
       <Composer<PoolWithdrawOptions>
         composeType="poolwithdraw"
         composeApiMethod={composePoolWithdraw}
-        initialTitle="Pool"
+        initialTitle={t('common_pool')}
         FormComponent={(props) => <PoolWithdrawForm {...props} lpAsset={asset} />}
         ReviewComponent={ReviewPoolWithdraw}
       />

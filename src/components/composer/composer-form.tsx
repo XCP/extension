@@ -4,6 +4,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { FeeRateInput } from "@/components/ui/inputs/fee-rate-input";
 import { useComposer } from "@/contexts/composer-context-object";
 
+import { t } from '@/i18n';
 /**
  * Props for the ComposerForm component
  */
@@ -111,7 +112,7 @@ export function ComposerForm({
             fullWidth
             disabled={isSubmitting || submitDisabled || feeRateMissing}
           >
-            {isSubmitting ? "Submitting…" : submitText}
+            {isSubmitting ? t('composer_composer_form_submitting') : submitText}
           </Button>
         </form>
       </div>

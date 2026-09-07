@@ -6,6 +6,7 @@ import { PasswordInput } from "@/components/ui/inputs/password-input";
 import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
+import { t } from '@/i18n';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -30,7 +31,7 @@ function UnlockPage() {
       rightButton: {
         icon: <FiHelpCircle className="size-4" aria-hidden="true" />,
         onClick: () => window.open(PATHS.HELP_URL, "_blank"),
-        ariaLabel: "Help",
+        ariaLabel: t('common_help'),
       },
     });
   }, [setHeaderProps]);
@@ -46,12 +47,12 @@ function UnlockPage() {
     const password = passwordInputRef.current?.value ?? "";
 
     if (!password) {
-      setError("Password cannot be empty.");
+      setError(t('common_password_cannot_be_empty'));
       return;
     }
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+      setError(t('common_password_must_be_at_least', [String(MIN_PASSWORD_LENGTH)]));
       return;
     }
 
@@ -70,7 +71,7 @@ function UnlockPage() {
         err instanceof Error &&
           (err.message.includes("No wallet") || err.message.includes("Too many password attempts"))
           ? err.message
-          : "Invalid password. Please try again."
+          : t('keychain_unlock_invalid_password_please_try_again')
       );
     } finally {
       setIsUnlocking(false);
@@ -92,18 +93,18 @@ function UnlockPage() {
       <div className="flex-grow flex items-center justify-center p-4">
         <div className="w-full max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
           <h1 id="unlock-wallet-title" className="text-3xl mb-5 flex justify-between items-center">
-            <span className="font-bold">XCP Wallet</span>
+            <span className="font-bold">{t('common_xcp_wallet')}</span>
             <span>{getDisplayVersion()}</span>
           </h1>
           <form onSubmit={handleSubmit} className="space-y-4">
             <PasswordInput
               innerRef={passwordInputRef}
               name="password"
-              placeholder="Enter your password"
+              placeholder={t('common_enter_your_password')}
               onChange={handlePasswordChange}
               onKeyDown={handleKeyDown}
               disabled={isUnlocking}
-              aria-label="Password"
+              aria-label={t('keychain_unlock_password')}
               aria-invalid={!!error}
               aria-describedby={error ? "password-error" : undefined}
             />
@@ -116,9 +117,9 @@ function UnlockPage() {
               type="submit"
               fullWidth
               disabled={!passwordReady || isUnlocking}
-              aria-label={isUnlocking ? "Unlocking…" : "Unlock"}
+              aria-label={isUnlocking ? t('keychain_unlock_unlocking') : "Unlock"}
             >
-              {isUnlocking ? "Unlocking…" : "Unlock"}
+              {isUnlocking ? t('keychain_unlock_unlocking') : "Unlock"}
             </Button>
           </form>
         </div>

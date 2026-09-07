@@ -3,6 +3,7 @@ import logo from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import type { HeaderButtonProps, HeaderProps } from '@/contexts/header-context';
 
+import { t } from '@/i18n';
 /**
  * Header component renders a navigation bar with optional left and right buttons.
  */
@@ -59,13 +60,14 @@ export function Header({
           <Button
             onClick={handleLeftClick}
             variant="header"
-            aria-label="Go Back"
+            aria-label={t('layout_header_go_back')}
             disabled={leftButton?.disabled}
           >
             <span className="mr-1" aria-hidden="true">
               ←
             </span>
-            Back
+            
+            {t('common_back')}
           </Button>
         ) : (
           renderButton(leftButton)
@@ -75,7 +77,7 @@ export function Header({
       {/* Center Section */}
       <div className="col-span-2 flex justify-center items-center min-w-0">
         {useLogoTitle ? (
-          <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt="Logo" className="h-8" />
+          <img src={typeof logo === 'string' ? logo : (logo as any).src || logo} alt={t('layout_header_logo')} className="h-8" />
         ) : typeof title === 'string' ? (
           <h1 className="text-lg font-bold truncate">{title}</h1>
         ) : (

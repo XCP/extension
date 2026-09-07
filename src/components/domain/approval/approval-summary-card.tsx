@@ -9,6 +9,7 @@ import type { MarketplaceApprovalReview } from '@/core/counterparty/marketplaceI
 import { formatAmount } from '@/core/format';
 import { fromSatoshis } from '@/core/numeric';
 
+import { t } from '@/i18n';
 /**
  * Split a trailing address off a headline so the two can be set differently.
  *
@@ -134,7 +135,7 @@ export function ApprovalSummaryCard({
       )}
       {hasPaymentSummary && <ApprovalFacts fields={paymentSummary!} />}
       {hasPaymentSummary && hasHighFee && !deferCautions && (
-        <p className="mt-2 text-sm text-warning-600 text-center">Unusually high network fee. Double-check before signing.</p>
+        <p className="mt-2 text-sm text-warning-600 text-center">{t('approval_approval_summary_card_unusually_high_network_fee_double')}</p>
       )}
       {!hasPaymentSummary && primaryFacts.length > 0 && (
         <div className="mb-3 border-b border-gray-100 pb-3">
@@ -153,7 +154,7 @@ export function ApprovalSummaryCard({
       )}
       {protocolFee !== null && (
         <div className="mt-1.5 flex items-center justify-center gap-2 text-xs">
-          <span className="text-gray-500">Protocol Fee:</span>
+          <span className="text-gray-500">{t('approval_approval_summary_card_protocol_fee')}</span>
           <span className="text-sm font-medium text-purple-700">
             {protocolFee}
           </span>

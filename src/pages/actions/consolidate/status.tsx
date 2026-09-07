@@ -7,6 +7,8 @@ import { useWallet } from "@/contexts/wallet-context";
 import { type ConsolidationStatusResponse, consolidationApi } from "@/core/bitcoin/consolidationApi";
 import { formatAddress, formatAmount } from "@/core/format";
 
+import { t } from '@/i18n';
+
 function ConsolidateStatusPage() {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
@@ -18,7 +20,7 @@ function ConsolidateStatusPage() {
 
   useEffect(() => {
     setHeaderProps({
-      title: "Consolidation Status",
+      title: t('consolidate_status_consolidation_status'),
       onBack: () => navigate(-1),
     });
     return () => setHeaderProps(null);
@@ -33,7 +35,7 @@ function ConsolidateStatusPage() {
       setStatus(statusData);
     } catch (err) {
       console.error("Error fetching consolidation status:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch status");
+      setError(err instanceof Error ? err.message : t('consolidate_status_failed_to_fetch_status'));
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -62,7 +64,7 @@ function ConsolidateStatusPage() {
   if (!activeAddress) {
     return (
       <div className="p-4">
-        <p className="text-gray-600">No active address selected</p>
+        <p className="text-gray-600">{t('common_no_active_address_selected')}</p>
       </div>
     );
   }
@@ -82,7 +84,7 @@ function ConsolidateStatusPage() {
           <p className="text-red-700">{error}</p>
         </div>
         <Button onClick={handleRefresh} color="gray">
-          Try Again
+          {t('common_try_again')}
         </Button>
       </div>
     );
@@ -91,7 +93,7 @@ function ConsolidateStatusPage() {
   if (!status) {
     return (
       <div className="p-4">
-        <p className="text-gray-600">No consolidation data available</p>
+        <p className="text-gray-600">{t('common_no_consolidation_data_available')}</p>
       </div>
     );
   }
@@ -101,11 +103,11 @@ function ConsolidateStatusPage() {
       {/* Overview Card */}
       <div className="bg-white rounded-lg shadow-lg p-4">
         <div className="flex justify-between items-start mb-4">
-          <h2 className="font-semibold">Consolidation Overview</h2>
+          <h2 className="font-semibold">{t('consolidate_status_consolidation_overview')}</h2>
           <button type="button"
             onClick={handleRefresh}
             className={`p-2 hover:bg-gray-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${isRefreshing ? 'animate-spin' : ''}`}
-            aria-label="Refresh status"
+            aria-label={t('consolidate_status_refresh_status')}
           >
             <FiRefreshCw className="size-4 text-gray-600" aria-hidden="true" />
           </button>
@@ -113,23 +115,23 @@ function ConsolidateStatusPage() {
         
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
-            <span className="text-gray-600">Address:</span>
+            <span className="text-gray-600">{t('common_address')}</span>
             <span className="font-medium">{formatAddress(status.address, true)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Available UTXOs:</span>
+            <span className="text-gray-600">{t('consolidate_status_available_utxos')}</span>
             <span className="font-medium">{status.status.available_utxos}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Pending UTXOs:</span>
+            <span className="text-gray-600">{t('consolidate_status_pending_utxos')}</span>
             <span className="font-medium text-yellow-600">{status.status.pending_utxos}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Confirmed Consolidations:</span>
+            <span className="text-gray-600">{t('consolidate_status_confirmed_consolidations')}</span>
             <span className="font-medium text-green-600">{status.status.confirmed_consolidations}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Total Recovered:</span>
+            <span className="text-gray-600">{t('consolidate_status_total_recovered')}</span>
             <span className="font-medium">
               {formatAmount({
                 value: status.status.total_recovered_btc,
@@ -143,7 +145,7 @@ function ConsolidateStatusPage() {
         {status.status.pending_utxos > 0 && (
           <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
             <p className="text-xs text-yellow-800">
-              {status.status.pending_utxos} UTXOs are pending confirmation. Please wait before creating new consolidations.
+              {t('consolidate_status_utxos_are_pending_confirmation_please', [String(status.status.pending_utxos)])}
             </p>
           </div>
         )}
@@ -152,7 +154,7 @@ function ConsolidateStatusPage() {
       {/* Recent Consolidations */}
       {status.recent_consolidations.length > 0 && (
         <div className="bg-white rounded-lg shadow-lg p-4">
-          <h2 className="font-semibold mb-3">Recent Consolidations</h2>
+          <h2 className="font-semibold mb-3">{t('consolidate_status_recent_consolidations')}</h2>
           <div className="space-y-2">
             {status.recent_consolidations.filter(tx => tx.status !== 'replaced').map((tx) => (
               <div 
@@ -177,7 +179,7 @@ function ConsolidateStatusPage() {
                   <button type="button"
                     onClick={() => openInExplorer(tx.txid)}
                     className="p-1 hover:bg-gray-200 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    aria-label="View in explorer"
+                    aria-label={t('common_view_in_explorer')}
                   >
                     <FiExternalLink className="size-4 text-gray-600" aria-hidden="true" />
                   </button>
@@ -185,11 +187,11 @@ function ConsolidateStatusPage() {
                 
                 <div className="text-sm space-y-1">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">UTXOs Consolidated:</span>
+                    <span className="text-gray-600">{t('common_utxos_consolidated')}</span>
                     <span className="font-medium">{tx.utxos_consolidated}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Amount Recovered:</span>
+                    <span className="text-gray-600">{t('consolidate_status_amount_recovered')}</span>
                     <span className="font-medium">
                       {formatAmount({
                         value: tx.amount_recovered,
@@ -216,7 +218,7 @@ function ConsolidateStatusPage() {
             color="blue"
             fullWidth
           >
-            Start New Consolidation
+            {t('consolidate_status_start_new_consolidation')}
           </Button>
         )}
         <Button
@@ -224,7 +226,7 @@ function ConsolidateStatusPage() {
           color="gray"
           fullWidth
         >
-          Back to Wallet
+          {t('common_back_to_wallet')}
         </Button>
       </div>
     </div>

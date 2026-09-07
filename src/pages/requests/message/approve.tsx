@@ -14,6 +14,7 @@ import { getMessageSigningRisks } from "@/core/bitcoin/messageRisk";
 import { usePopupLifecycle } from "@/hooks/usePopupLifecycle";
 import { useSignMessageRequest } from "@/hooks/useSignMessageRequest";
 
+import { t } from '@/i18n';
 export default function ApproveMessagePage() {
   const { activeAddress, activeWallet } = useWallet();
   const { setHeaderProps } = useHeader();
@@ -34,7 +35,7 @@ export default function ApproveMessagePage() {
   // Configure header
   useEffect(() => {
     setHeaderProps({
-      title: "Sign Message",
+      title: t('common_sign_message'),
     });
   }, [setHeaderProps]);
 
@@ -46,7 +47,7 @@ export default function ApproveMessagePage() {
       await handleApprove(false);
       window.close();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Failed to sign request");
+      setError(failure instanceof Error ? failure.message : t('common_failed_to_sign_request'));
       setIsSigning(false);
     }
   };
@@ -78,7 +79,7 @@ export default function ApproveMessagePage() {
           busy={isSigning}
           blocked={false}
           isHardware={activeWallet.type === "hardware"}
-          signLabel="Sign message"
+          signLabel={t('message_approve_sign_message')}
         />
       }
     >
@@ -98,7 +99,7 @@ export default function ApproveMessagePage() {
 
       {/* Message content */}
       <div className="bg-white rounded-lg shadow-sm p-4">
-        <p className="text-lg leading-6 font-semibold text-gray-900 mb-3">Message to sign</p>
+        <p className="text-lg leading-6 font-semibold text-gray-900 mb-3">{t('message_approve_message_to_sign')}</p>
         <div className="bg-gray-50 rounded-lg p-3">
           <p className="text-sm leading-5 text-gray-900 whitespace-pre-wrap [overflow-wrap:anywhere]">
             {request.message}

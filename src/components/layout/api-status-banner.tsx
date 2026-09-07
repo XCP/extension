@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { FaTimes } from '@/components/icons';
 import { useApiStatus } from '@/contexts/api-status-context';
 
+import { t } from '@/i18n';
 /**
  * Displays a thin banner below the header when API errors occur.
  * Yellow for rate limiting (429), red for server errors (5xx).
@@ -17,8 +18,8 @@ export function ApiStatusBanner(): ReactElement | null {
 
   const displayMessage = message || (
     isRateLimited
-      ? 'API rate limited. Requests may be slow.'
-      : 'API error. Some features may be unavailable.'
+      ? t('layout_api_status_banner_api_rate_limited_requests_may')
+      : t('layout_api_status_banner_api_error_some_features_may')
   );
 
   return (
@@ -30,7 +31,7 @@ export function ApiStatusBanner(): ReactElement | null {
       <button type="button"
         onClick={dismiss}
         className="p-1 hover:opacity-75 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-white rounded"
-        aria-label="Dismiss"
+        aria-label={t('layout_api_status_banner_dismiss')}
       >
         <FaTimes className="size-3" aria-hidden="true" />
       </button>

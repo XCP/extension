@@ -3,6 +3,8 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import type { PricePoint } from '@/core/bitcoin/price';
 import { type BigNumber, maximum, minimum, subtract, toBigNumber, toNumber } from "@/core/numeric";
 
+import { t } from '@/i18n';
+
 interface PriceChartProps {
   data: PricePoint[];
   width?: number;
@@ -83,7 +85,7 @@ export const PriceChart = memo(({
       ctx.fillStyle = '#9ca3af';
       ctx.font = '14px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('No data available', width / 2, height / 2);
+      ctx.fillText(t('charts_price_chart_no_data_available'), width / 2, height / 2);
       return;
     }
 
@@ -216,7 +218,7 @@ export const PriceChart = memo(({
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
         role="img"
-        aria-label="Price chart"
+        aria-label={t('charts_price_chart_price_chart')}
       />
     </div>
   );

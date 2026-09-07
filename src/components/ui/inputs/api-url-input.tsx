@@ -4,6 +4,8 @@ import { FiRotateCcw } from '@/components/icons';
 import { DEFAULT_SETTINGS } from '@/core/settings';
 import { validateCounterpartyApi } from '@/core/validation/api';
 
+import { t } from '@/i18n';
+
 interface ApiUrlInputProps {
   value: string;
   onChange: (value: string) => void;
@@ -45,7 +47,7 @@ export const ApiUrlInput = ({
       // Clear success message after 3 seconds
       setTimeout(() => setShowSuccess(false), 3000);
     } else {
-      setError(result.error || "Failed to validate API");
+      setError(result.error || t('inputs_api_url_input_failed_to_validate_api'));
       setShowSuccess(false);
     }
     
@@ -96,7 +98,7 @@ export const ApiUrlInput = ({
           onClick={handleReset}
           disabled={disabled || isValidating || isDefault}
           className="p-2.5 rounded-md border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          aria-label="Reset API URL to default"
+          aria-label={t('inputs_api_url_input_reset_api_url_to_default')}
         >
           <FiRotateCcw className="size-5 text-gray-600" aria-hidden="true" />
         </button>
@@ -105,16 +107,16 @@ export const ApiUrlInput = ({
       {showHelpText && (
         <>
           {isValidating && (
-            <p className="text-sm text-gray-500">Validating API endpoint…</p>
+            <p className="text-sm text-gray-500">{t('inputs_api_url_input_validating_api_endpoint')}</p>
           )}
           {error && (
             <p className="text-sm text-red-500">❌ {error}</p>
           )}
           {showSuccess && !isValidating && (
-            <p className="text-sm text-green-500">✓ API endpoint validated and saved successfully</p>
+            <p className="text-sm text-green-500">{t('inputs_api_url_input_api_endpoint_validated_and_saved')}</p>
           )}
           {isDefault && !error && !isValidating && !showSuccess && (
-            <p className="text-sm text-gray-500">Using default API endpoint</p>
+            <p className="text-sm text-gray-500">{t('inputs_api_url_input_using_default_api_endpoint')}</p>
           )}
         </>
       )}
