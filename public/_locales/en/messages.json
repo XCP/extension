@@ -6801,11 +6801,11 @@
     "description": "Display preference control."
   },
   "safety_amount_syntax": {
-    "message": "Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.",
+    "message": "Use digits and a dot, up to 8 decimals. No commas.",
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "safety_amount_indivisible": {
-    "message": "This asset is indivisible. Enter whole digits only.",
+    "message": "Use whole numbers only. No decimals or commas.",
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "safety_amount_precision": {
@@ -6829,7 +6829,7 @@
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "safety_fee_invalid": {
-    "message": "Enter a valid fee rate using digits and a decimal point, with at most 8 decimal places and no grouping separators.",
+    "message": "Use digits and a dot, up to 8 decimals. No commas.",
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "safety_fee_minimum": {
@@ -6853,7 +6853,7 @@
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "safety_clipboard_lines": {
-    "message": "The pasted value contains line breaks. Enter a single value before continuing.",
+    "message": "Paste one value without line breaks, then try again.",
     "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
   },
   "common_custom": {

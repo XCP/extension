@@ -46,3 +46,35 @@ Validation: focused unit/integration tests, catalog integrity, TypeScript, lint,
 production build, and packaged Chromium tests for sequential invalid typing and
 cross-window preference changes. No live transactions are composed or signed by
 the browser regressions.
+
+## Fiat coverage and data limits
+
+USD remains the default for every interface language. Saved CNY, EUR, GBP, JPY,
+CAD and AUD are independent overrides. Market tickers and dispenser price views
+use the selected current BTC quote; current XCP estimates convert XCP/USD using
+the BTC/selected-fiat to BTC/USD ratio. Missing quotes show no estimate. A pending
+or late response in another currency cannot be relabeled as the current choice.
+Send, dispenser and dispense review estimates explicitly include an approximation
+mark and ISO currency code; the verified crypto quantity stays primary. Provider
+approval cards and order/swap reviews generally show protocol asset units only.
+
+BTC chart history requests the selected currency from CoinGecko, keyed by range
+and currency. Non-USD data has no USD-only fallback; availability depends on that
+provider. The BTC/XCP ratio uses two USD quotes so the fiat choice cannot change
+its units. Changing the saved currency resets the BTC view before loading it.
+
+XCP historical charts and historical summary statistics remain explicitly USD,
+as supplied by the XCP history endpoint. This PR does not invent dated CNY FX or
+claim all history is converted. Market order/pool asset prices remain BTC/XCP or
+their actual quoted asset. Current fiat estimates are approximate market data,
+not inputs to compose or proof of future execution value.
+
+The primary amount, indivisible amount, fee and clipboard guidance uses concise
+copy without fixed heights or clipping. Packaged Chromium checks the normal
+360px wallet at English, Japanese and all three explicit Chinese locales. Longer
+protocol diagnostics retain their details and are not forced into two lines.
+
+The stacked PR's base is PR399's branch. The repository currently runs PR CI only
+when targeting main/develop, so draft PR400 has no automatic checks until its
+base changes; the local focused and packaged-browser evidence is reported
+explicitly instead of claiming full CI coverage.

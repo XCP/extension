@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { FaBitcoin, FiChevronDown, FiRefreshCw } from "@/components/icons";
+import { FaBitcoin, FiRefreshCw } from "@/components/icons";
 import { PriceChart } from "@/components/ui/charts/price-chart";
 import { Spinner } from "@/components/ui/spinner";
 import { useHeader } from "@/contexts/header-context";
@@ -15,9 +15,9 @@ import {
   type PricePoint,
   type TimeRange,
 } from "@/core/bitcoin/price";
-import { getXCPPrice } from "@/core/counterparty/price";
 import { formatAmount } from "@/core/format";
 import { useFeeRates } from "@/hooks/useFeeRates";
+import { useMarketPrices } from "@/hooks/useMarketPrices";
 import { t } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 
@@ -27,21 +27,21 @@ const TIME_RANGES: { id: TimeRange; label: string }[] = [
   { id: "24h", label: "24H" },
 ];
 
-// Currency options (USD only for now - other currencies disabled due to API rate limits)
-// TODO: Re-enable when we have a more reliable price API: ['usd', 'eur', 'gbp', 'jpy', 'cad', 'aud', 'cny']
-const CURRENCIES: FiatCurrency[] = ['usd'];
-
 // Chart dimensions
 const CHART_HEIGHT = 200;
-const CURRENCY_CHANGE_COOLDOWN_MS = 5000; // 5 second cooldown between currency changes
 
 /**
- * BtcPrice displays Bitcoin price chart with time range and currency selection.
+ * BtcPrice displays Bitcoin history in the independently saved fiat currency.
  */
 export default function BtcPricePage(): ReactElement {
+  const { settings } = useSettings();
+  return <BtcPriceContent key={settings.fiat} currency={settings.fiat} />;
+}
+
+function BtcPriceContent({ currency }: { currency: FiatCurrency }): ReactElement {
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
-  const { settings, updateSettings } = useSettings();
+  const { btc: btcUsd, xcp: xcpUsd } = useMarketPrices('usd');
 
   // Data state
   const [stats, setStats] = useState<BtcStats | null>(null);
@@ -51,18 +51,12 @@ export default function BtcPricePage(): ReactElement {
   const [chartLoading, setChartLoading] = useState(false);
   const [chartError, setChartError] = useState<string | null>(null);
   const [statsError, setStatsError] = useState<string | null>(null);
-  const [xcpPrice, setXcpPrice] = useState<number | null>(null);
 
   // Fee rates from mempool.space
   const { feeRates } = useFeeRates();
 
-  // UI state - initialize currency from settings
+  // Time range is local to this currency view
   const [range, setRange] = useState<TimeRange>("24h");
-  const [currency, setCurrency] = useState<FiatCurrency>(settings.fiat);
-  const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
-
-  // Track last currency change time to prevent spam
-  const lastCurrencyChangeRef = useRef<number>(0);
 
   const currencySymbol = CURRENCY_INFO[currency].symbol;
 
@@ -73,9 +67,6 @@ export default function BtcPricePage(): ReactElement {
       const statsData = await getBtc24hStats(curr);
       if (statsData) {
         setStats(statsData);
-        // Load XCP price to calculate BTC/XCP rate
-        const xcp = await getXCPPrice(statsData.price);
-        setXcpPrice(xcp);
       } else {
         setStatsError(t('common_unable_to_load_price'));
       }
@@ -131,23 +122,6 @@ export default function BtcPricePage(): ReactElement {
     loadChartData(newRange as TimeRange, currency);
   }, [loadChartData, currency]);
 
-  // Handle currency change with cooldown to prevent API spam
-  const handleCurrencyChange = useCallback((newCurrency: FiatCurrency) => {
-    const now = Date.now();
-    if (now - lastCurrencyChangeRef.current < CURRENCY_CHANGE_COOLDOWN_MS) {
-      setShowCurrencyMenu(false);
-      return; // Still in cooldown
-    }
-    lastCurrencyChangeRef.current = now;
-    setCurrency(newCurrency);
-    setShowCurrencyMenu(false);
-    // Persist to settings
-    updateSettings({ fiat: newCurrency });
-    // Reload data with new currency
-    loadStats(newCurrency);
-    loadChartData(range, newCurrency);
-  }, [loadStats, loadChartData, range, updateSettings]);
-
   // Configure header
   useEffect(() => {
     setHeaderProps({
@@ -184,35 +158,7 @@ export default function BtcPricePage(): ReactElement {
                 <FaBitcoin className="text-orange-500 text-3xl" aria-hidden="true" />
                 <span className="text-xl font-semibold text-gray-900">BTC</span>
               </div>
-              {/* Currency Selector - only show if multiple currencies available */}
-              {CURRENCIES.length > 1 ? (
-                <div className="relative mt-1">
-                  <button type="button"
-                    onClick={() => setShowCurrencyMenu(!showCurrencyMenu)}
-                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                  >
-                    <span>{currency.toUpperCase()}</span>
-                    <FiChevronDown className="size-3" aria-hidden="true" />
-                  </button>
-                  {showCurrencyMenu && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[120px]">
-                      {CURRENCIES.map((c) => (
-                        <button type="button"
-                          key={c}
-                          onClick={() => handleCurrencyChange(c)}
-                          className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                            currency === c ? "font-medium text-gray-900" : "text-gray-600"
-                          }`}
-                        >
-                          {c.toUpperCase()} - {CURRENCY_INFO[c].symbol}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span className="text-xs text-gray-500 mt-1">{t('market_btc_bitcoin', [String(currency.toUpperCase())])}</span>
-              )}
+              <span className="text-xs text-gray-500 mt-1">{t('market_btc_bitcoin', [currency.toUpperCase()])}</span>
             </div>
             <div className="text-right">
               {statsError ? (
@@ -291,7 +237,8 @@ export default function BtcPricePage(): ReactElement {
               lineColor="#f97316"
               loading={chartLoading}
               className="w-full"
-              currencySymbol={currencySymbol}
+              currencySymbol={`${currency.toUpperCase()} `}
+              priceDecimals={CURRENCY_INFO[currency].decimals}
             />
           )}
         </div>
@@ -299,11 +246,11 @@ export default function BtcPricePage(): ReactElement {
         {/* Exchange Rate & Fee Rates */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mt-4">
           {/* BTC/XCP Exchange Rate */}
-          {stats && xcpPrice && xcpPrice > 0 && (
+          {btcUsd && xcpUsd && xcpUsd > 0 && (
             <div className="flex items-center justify-between pb-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">{t('market_btc_tx_fee_market')}</span>
               <span className="text-sm font-medium text-gray-900">
-                1 BTC = {formatAmount({ value: stats.price / xcpPrice, maximumFractionDigits: 0 })} XCP
+                1 BTC = {formatAmount({ value: btcUsd / xcpUsd, maximumFractionDigits: 0 })} XCP
               </span>
             </div>
           )}

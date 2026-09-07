@@ -435,6 +435,12 @@ export function formatFiatPrice(value: number, currency: FiatCurrency): string {
   return `${symbol}${formatAmount({ value, maximumFractionDigits: decimals })}`;
 }
 
+/** A secondary current-price estimate, with an unambiguous currency code. */
+export function formatFiatEstimate(value: AmountFormatterOptions['value'], currency: FiatCurrency): string {
+  const decimals = CURRENCY_INFO[currency].decimals;
+  return `≈ ${formatAmount({ value, minimumFractionDigits: decimals, maximumFractionDigits: decimals })} ${currency.toUpperCase()}`;
+}
+
 /**
  * Converts satoshis to a fiat value.
  *

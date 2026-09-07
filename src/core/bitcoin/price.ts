@@ -35,7 +35,7 @@ export const CURRENCY_INFO: Record<FiatCurrency, CurrencyInfo> = {
   jpy: { symbol: '¥', name: 'Japanese Yen', decimals: 0 },
   cad: { symbol: 'C$', name: 'Canadian Dollar', decimals: 2 },
   aud: { symbol: 'A$', name: 'Australian Dollar', decimals: 2 },
-  cny: { symbol: '¥', name: 'Chinese Yuan', decimals: 0 },
+  cny: { symbol: '¥', name: 'Chinese Yuan', decimals: 2 },
 };
 
 /**
@@ -150,7 +150,7 @@ export async function getBtcPrice(
  */
 export interface PricePoint {
   timestamp: number;  // Unix milliseconds
-  price: number;      // USD
+  price: number;      // Fiat units requested by the caller; XCP history is USD
 }
 
 /**

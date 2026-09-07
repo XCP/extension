@@ -5111,10 +5111,10 @@
     "message": "无法保存此设置，请重试。"
   },
   "safety_amount_syntax": {
-    "message": "请使用数字和英文小数点，最多保留8位小数，不要使用千位分隔符。"
+    "message": "仅限数字和小数点，最多8位小数。勿用逗号。"
   },
   "safety_amount_indivisible": {
-    "message": "此资产不可分割，请仅输入整数。"
+    "message": "仅限整数。勿用小数点或逗号。"
   },
   "safety_amount_precision": {
     "message": "小数位数超出此资产支持的精度。未进行舍入或提交。"
@@ -5132,7 +5132,7 @@
     "message": "Counterparty 无法精确编码此手续费或佣金比例。请选择其他比例。"
   },
   "safety_fee_invalid": {
-    "message": "请输入有效费率：使用数字和英文小数点，最多8位小数，不要使用千位分隔符。"
+    "message": "仅限数字和小数点，最多8位小数。勿用逗号。"
   },
   "safety_fee_minimum": {
     "message": "费率过低（最低：$1 sat/vB）"
@@ -5150,7 +5150,7 @@
     "message": "使用最大值前请输入有效费率。"
   },
   "safety_clipboard_lines": {
-    "message": "粘贴的值包含换行符。继续前请输入单个值。"
+    "message": "请重新粘贴一个不含换行的值。"
   },
   "common_custom": {
     "message": "自定义"

@@ -3,7 +3,7 @@ import { normalizeQuantity } from "@/components/domain/tx/tx-action-info";
 import { ReviewScreen } from "@/components/screens/review-screen";
 import { useComposer } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAmount } from "@/core/format";
+import { formatAmount, formatFiatEstimate } from "@/core/format";
 import { type BigNumber, fromSatoshis, multiply, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
@@ -129,7 +129,7 @@ export function ReviewSend({
         value: `${quantityDisplay} ${asset}`,
         rightElement: amountInFiat !== null ? (
           <span className="text-gray-500">
-            ${formatAmount({ value: amountInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {formatFiatEstimate(amountInFiat, settings.fiat)}
           </span>
         ) : undefined,
       },
@@ -143,7 +143,7 @@ export function ReviewSend({
           value: `${formatAmount({ value: btcVal, minimumFractionDigits: 8, maximumFractionDigits: 8 })} BTC`,
           rightElement: fiatVal !== null ? (
             <span className="text-gray-500">
-              ${formatAmount({ value: fiatVal, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatFiatEstimate(fiatVal, settings.fiat)}
             </span>
           ) : undefined,
         };

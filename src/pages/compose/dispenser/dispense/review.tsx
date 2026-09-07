@@ -8,7 +8,7 @@ import {
   describePayout,
   resolveDispensersAt,
 } from '@/core/counterparty/dispenseOutcome';
-import { formatAmount } from "@/core/format";
+import { formatAmount, formatFiatEstimate } from "@/core/format";
 import { divide, fromSatoshis, roundDown, toBigNumber } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
@@ -141,9 +141,9 @@ export function ReviewDispense({
     // why it must not be reimplemented here.
     const receivedAssets = payouts.map(describePayout);
     
-    // Format USD value for BTC payment
-    const usdDisplay = btcInFiat !== null
-      ? `$${formatAmount({ value: btcInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    // Format current fiat estimate for BTC payment
+    const fiatDisplay = btcInFiat !== null
+      ? formatFiatEstimate(btcInFiat, settings.fiat)
       : null;
 
     // If multiple dispensers trigger, show all assets
@@ -160,7 +160,7 @@ export function ReviewDispense({
         {
           label: t('dispense_review_btc_payment'),
           value: `${btcAmount} BTC`,
-          rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
+          rightElement: fiatDisplay ? <span className="text-gray-500">{fiatDisplay}</span> : undefined
         }
       );
     } else {
@@ -191,7 +191,7 @@ export function ReviewDispense({
         {
           label: t('dispense_review_btc_payment'),
           value: `${btcAmount} BTC`,
-          rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
+          rightElement: fiatDisplay ? <span className="text-gray-500">{fiatDisplay}</span> : undefined
         }
       );
     }
@@ -213,14 +213,14 @@ export function ReviewDispense({
     }
   } else if (!isLoadingInfo && allTriggeredDispensers.length === 0) {
     // Only show basic payment info if we couldn't fetch dispenser details or none trigger
-    const usdDisplay = btcInFiat !== null
-      ? `$${formatAmount({ value: btcInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const fiatDisplay = btcInFiat !== null
+      ? formatFiatEstimate(btcInFiat, settings.fiat)
       : null;
     customFields.push(
       {
         label: t('dispense_review_btc_payment'),
         value: `${btcAmount} BTC`,
-        rightElement: usdDisplay ? <span className="text-gray-500">{usdDisplay}</span> : undefined
+        rightElement: fiatDisplay ? <span className="text-gray-500">{fiatDisplay}</span> : undefined
       }
     );
   }

@@ -248,7 +248,7 @@ export default function XcpPricePage(): ReactElement {
               height={CHART_HEIGHT}
               lineColor="#0ea5e9"
               className="w-full"
-              currencySymbol="$"
+              currencySymbol="USD "
               priceDecimals={2}
               timeFormat="date"
             />

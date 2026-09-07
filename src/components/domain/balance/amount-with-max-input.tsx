@@ -209,7 +209,6 @@ export function AmountWithMaxInput({
           pattern={isDivisible ? '([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})' : '[0-9]+'}
           invalid={invalidDraft || hasError}
           aria-invalid={invalidDraft || hasError || undefined}
-          aria-describedby={invalidDraft ? `${name}-draft-error` : undefined}
           autoComplete="off"
           className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 outline-none focus-visible:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
             hasError || invalidDraft
@@ -230,7 +229,7 @@ export function AmountWithMaxInput({
           {t('common_max')}
         </Button>
       </div>
-      {invalidDraft && <p id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</p>}
+      {invalidDraft && <Description id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</Description>}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || (destinationCount > 1
