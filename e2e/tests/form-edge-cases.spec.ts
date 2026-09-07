@@ -247,10 +247,12 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     await amountInput.fill('-1');
     await amountInput.blur();
 
-    // Input accepts the value - validation happens on submission
-    // This tests that the form doesn't crash on negative input
-    const inputValue = await amountInput.inputValue();
-    expect(inputValue).toBeTruthy();
+    // The amount field takes only what compose can read, so the sign is
+    // dropped and the digit stands. This used to assert the opposite — that
+    // the value survived and was refused on submit — and the point of the
+    // test is unchanged either way: the form does not crash, and nothing
+    // negative can be sent.
+    expect(await amountInput.inputValue()).toBe('1');
   });
 
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {

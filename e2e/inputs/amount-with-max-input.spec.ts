@@ -121,36 +121,51 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await expect(input).toHaveValue(TEST_AMOUNTS.zero);
     });
 
-    walletTest('handles negative amount', async ({ page }) => {
+    /**
+     * These two asserted the opposite, and their comments said why: the
+     * component took anything and the form refused it downstream, "via form,
+     * not input mask".
+     *
+     * There is an input mask now, and it is the point of the change. What
+     * reaches this field is what Counterparty compose can read — digits and at
+     * most one period — because the alternative is a value that looks right on
+     * screen and means something else by the time it is signed. A sign or a
+     * letter never becomes a number the form has to reason about.
+     */
+    walletTest('refuses a minus sign outright', async ({ page }) => {
       const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.negative);
       await input.blur();
 
-      // Component accepts negative input - form should not allow submission
-      const value = await input.inputValue();
+      expect(await input.inputValue()).not.toContain('-');
 
-      // Verify the input accepted the value (component handles validation via form, not input mask)
-      expect(value).toContain('-');
-
-      // Submit button should be disabled for invalid input
       const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
       await expect(submitBtn).toBeDisabled({ timeout: 5000 });
     });
 
-    walletTest('handles non-numeric input', async ({ page }) => {
+    walletTest('refuses non-numeric input outright', async ({ page }) => {
       const input = getAmountInput(page);
       await input.fill(TEST_AMOUNTS.invalid);
       await input.blur();
 
-      // Component accepts non-numeric input - form should not allow submission
-      const value = await input.inputValue();
+      // Nothing in "abc" is a digit, so nothing lands.
+      expect(await input.inputValue()).toBe('');
 
-      // Verify the input accepted the value
-      expect(value).toBe(TEST_AMOUNTS.invalid);
-
-      // Submit button should be disabled for invalid input
       const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
       await expect(submitBtn).toBeDisabled({ timeout: 5000 });
+    });
+
+    /**
+     * The defect the mask exists for. On a browser whose locale writes a comma
+     * for the decimal point, "0,5" reached compose as 5 — ten times the
+     * amount, with the field still showing the number the user meant.
+     */
+    walletTest('reads a typed decimal comma as a decimal point', async ({ page }) => {
+      const input = getAmountInput(page);
+      await input.fill('0,5');
+      await input.blur();
+
+      expect(await input.inputValue()).toBe('0.5');
     });
   });
 
