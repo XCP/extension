@@ -1,12 +1,15 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import type { FiatCurrency } from '@/core/bitcoin/price';
 import { ReviewScreen } from './review-screen';
+
+const preferences = vi.hoisted(() => ({ fiat: 'usd' as FiatCurrency, btc: 50000, xcp: 10 }));
 
 // Mock useSettings hook
 vi.mock('@/contexts/settings-context', () => ({
   useSettings: () => ({
-    settings: { fiat: 'usd' },
+    settings: { fiat: preferences.fiat },
     updateSettings: vi.fn(),
     isLoading: false
   })
@@ -15,11 +18,11 @@ vi.mock('@/contexts/settings-context', () => ({
 // Mock useMarketPrices hook
 vi.mock('@/hooks/useMarketPrices', () => ({
   useMarketPrices: () => ({
-    btc: 50000,
-    xcp: 10,
+    btc: preferences.btc,
+    xcp: preferences.xcp,
     loading: false,
     error: null,
-    currency: 'usd'
+    currency: preferences.fiat
   })
 }));
 
@@ -65,6 +68,17 @@ describe('ReviewScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setDecodedMessage(null);
+    preferences.fiat = 'usd'; preferences.btc = 50000; preferences.xcp = 10;
+  });
+
+  it('labels both Bitcoin and protocol fee estimates with selected CNY', () => {
+    preferences.fiat = 'cny'; preferences.btc = 700000; preferences.xcp = 14;
+    render(<ReviewScreen apiResponse={{ result: { ...mockApiResponse.result, btc_fee: 1000, xcp_fee: 100000000 } }} onSign={vi.fn()} onBack={vi.fn()} error={null} isSigning={false} />);
+    expect(screen.getByText('0.00001000 BTC')).toBeInTheDocument();
+    expect(screen.getByText('1.00000000 XCP')).toBeInTheDocument();
+    expect(screen.getByText('≈ 7.00 CNY')).toBeInTheDocument();
+    expect(screen.getByText('≈ 14.00 CNY')).toBeInTheDocument();
+    expect(screen.queryByText('$7.00')).not.toBeInTheDocument();
   });
 
   describe('showing what the transaction encodes rather than what was echoed', () => {

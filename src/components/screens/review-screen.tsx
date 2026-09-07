@@ -4,7 +4,7 @@ import { Collapsible } from "@/components/ui/collapsible";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { useComposerOptional } from "@/contexts/composer-context-object";
 import { useSettings } from "@/contexts/settings-context";
-import { formatAddress, formatAmount } from "@/core/format";
+import { formatAddress, formatAmount, formatFiatEstimate } from "@/core/format";
 import { formatFeeRate, fromSatoshis } from "@/core/numeric";
 import { useMarketPrices } from "@/hooks/useMarketPrices";
 
@@ -186,7 +186,7 @@ export function ReviewScreen({
                 </span>
                 {xcpFeeInFiat !== null && (
                   <span className="text-gray-500">
-                    ${formatAmount({ value: xcpFeeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatFiatEstimate(xcpFeeInFiat, settings.fiat)}
                   </span>
                 )}
               </div>
@@ -216,7 +216,7 @@ export function ReviewScreen({
               </div>
               {feeInFiat !== null && (
                 <span className="text-gray-500">
-                  ${formatAmount({ value: feeInFiat, minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {formatFiatEstimate(feeInFiat, settings.fiat)}
                 </span>
               )}
             </div>
