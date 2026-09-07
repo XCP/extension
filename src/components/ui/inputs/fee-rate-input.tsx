@@ -10,7 +10,7 @@ import {
 } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatAmount } from "@/core/format";
+import { formatForInput } from "@/core/format";
 import { maximum, toNumber } from "@/core/numeric";
 import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
@@ -140,12 +140,9 @@ export function FeeRateInput({
     
     // Enforce maximum two decimal places during typing
     if (parts.length === 2 && parts[1]!.length > 2) {
-      const formattedValue = formatAmount({
-        value: num,
-        maximumFractionDigits: 2,
-        minimumFractionDigits: 0,
-        useGrouping: false,
-      });
+      // Machine format: validateFeeRate reads this back on the next line, and
+      // a decimal comma would be deleted as grouping — 1,5 sat/vB becoming 15.
+      const formattedValue = formatForInput(num, 2);
       setCustomInput(formattedValue);
       const validation = validateFeeRate(formattedValue, { minRate: 0.1, warnHighFee: false });
       onFeeRateChangeRef.current?.(
@@ -196,12 +193,8 @@ export function FeeRateInput({
     }
     
     // Format the final value and notify parent
-    const formattedValue = formatAmount({
-      value: num,
-      maximumFractionDigits: 2,
-      minimumFractionDigits: 0,
-      useGrouping: false,
-    });
+    // Machine format: toNumber reads this back on the next line.
+    const formattedValue = formatForInput(num, 2);
     setCustomInput(formattedValue);
     onFeeRateChangeRef.current?.(toNumber(formattedValue));
   };

@@ -3,7 +3,7 @@ import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "r
 import { Button } from "@/components/ui/button";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
-import { formatAmount } from "@/core/format";
+import { formatForInput, isComposableAmount } from "@/core/format";
 import { divide, fromSatoshis, multiply, roundDown, roundUp, toBigNumber, toNumber } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";
 
@@ -84,11 +84,16 @@ export function AmountWithMaxInput({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    // Block decimal input for non-divisible assets
-    if (!isDivisible && val.includes('.')) return;
-    // Limit to 8 decimal places for divisible assets
-    if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
+    // A comma is the decimal point to most of the world, and this field is
+    // read by a parser that treats it as a thousands separator and deletes
+    // it. So it becomes a period here, at the boundary, rather than being
+    // carried further: typing 0,5 means half, and used to compose as 5.
+    const val = e.target.value.replace(/,/g, '.');
+    // One gate, and it is the shape compose reads: digits, at most one
+    // period, at most eight places behind it for a divisible asset and none
+    // at all for an indivisible one. Anything else never becomes state, so
+    // nothing downstream has to decide what it meant.
+    if (!isComposableAmount(val, isDivisible ? 8 : 0)) return;
     onChange(val);
     setError(null);
   };
@@ -101,16 +106,14 @@ export function AmountWithMaxInput({
       // the user a figure their balance cannot cover, or leave a remainder behind.
       const maxNum = toBigNumber(maxAmount);
       if (!maxNum.isNaN()) {
-        // Use appropriate decimal places based on divisibility
-        // maximumFractionDigits controls precision, minimumFractionDigits=0 avoids trailing zeros
-        // useGrouping: false prevents commas in the value (e.g., "1000000" not "1,000,000")
-        const decimals = isDivisible ? 8 : 0;
-        const perDestination = formatAmount({
-          value: divide(maxNum, destinationCount),
-          maximumFractionDigits: decimals,
-          minimumFractionDigits: 0,
-          useGrouping: false
-        });
+        // formatForInput, not formatAmount: this goes into the field and comes
+        // back out through toBigNumber to compose. formatAmount writes for a
+        // reader, in the browser's own language, and turning off grouping does
+        // not turn off the decimal comma that comes with it.
+        const perDestination = formatForInput(
+          divide(maxNum, destinationCount),
+          isDivisible ? 8 : 0,
+        );
         onChange(perDestination);
       }
       return;

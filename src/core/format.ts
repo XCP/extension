@@ -3,7 +3,7 @@
  */
 
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
-import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
+import { type BigNumber, fromSatoshis, toBigNumber, toSatoshis } from '@/core/numeric';
 
 export interface AmountFormatterOptions {
   /**
@@ -78,6 +78,55 @@ export function formatAmount({
   ) => string;
 
   return format(exact);
+}
+
+/**
+ * A number on its way to a transaction, written the only way compose reads.
+ *
+ * Digits, at most one period, no grouping, no sign, no language. The reader
+ * of this string is `toBigNumber` on its way to an integer satoshi amount,
+ * and that round trip only survives a period decimal.
+ *
+ * `formatAmount` cannot do this job, and that is the bug. Given no locale it
+ * falls through to Intl's default, which is the BROWSER's locale — so on a
+ * French, German, Spanish, Portuguese or Russian browser it writes a comma
+ * for the decimal point. `toBigNumber` then deletes commas and spaces as
+ * thousands separators, because that is what they are in English. Put those
+ * two together and the field shows one number while compose receives
+ * another:
+ *
+ *     fee rate     shows "1,5"      composes as 15       (10x)
+ *     typed amount shows "0,5"      composes as 5        (10x)
+ *     Max amount   shows "1234,56"  composes as 123456   (100x)
+ *
+ * Deliberately not Intl. `BigNumber.toFixed` has no locale to get wrong,
+ * which is the whole point of having this as its own function: a value a
+ * field will be parsed back from is built here, and a value a person will
+ * read is built by `formatAmount`.
+ */
+export function formatForInput(
+  value: AmountFormatterOptions['value'],
+  maximumFractionDigits: number,
+): string {
+  const amount = toBigNumber(value ?? 0);
+  if (amount.isNaN() || !amount.isFinite()) return '';
+  const fixed = amount.toFixed(maximumFractionDigits);
+  // Trailing zeros only, and only behind a decimal point: "100" must not
+  // become "1".
+  return fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+}
+
+/**
+ * Is this exactly what compose can read? Digits, one optional period, up to
+ * `decimals` places. An empty field is allowed — it is not yet an amount.
+ *
+ * The gate is on the way IN, so nothing downstream has to decide what a
+ * stray character was supposed to mean.
+ */
+export function isComposableAmount(value: string, decimals: number): boolean {
+  if (value === '') return true;
+  const pattern = decimals > 0 ? `^\\d*(?:\\.\\d{0,${decimals}})?$` : '^\\d*$';
+  return new RegExp(pattern).test(value);
 }
 
 /**
