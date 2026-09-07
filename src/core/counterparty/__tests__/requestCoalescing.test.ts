@@ -128,6 +128,26 @@ describe('collapsing identical reads that are in flight together', () => {
 });
 
 describe('invalidation reaches requests that are still in the air', () => {
+  it.each(['all', 'matching'] as const)('keeps the post-mutation cached balance when an invalidated response finishes last (%s)', async scope => {
+    const address = '1AddressAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    const before = deferred<ReturnType<typeof page>>();
+    const current = [{ asset: 'XCP', quantity: 2, quantity_normalized: '0.00000002' }];
+    mockedApiClient.get.mockReturnValueOnce(before.promise as never);
+    mockedApiClient.get.mockResolvedValue(page(current) as never);
+
+    const oldRead = fetchTokenBalances(address);
+    await flush();
+    if (scope === 'all') clearApiCache();
+    else clearApiCacheMatching(address);
+
+    await expect(fetchTokenBalances(address)).resolves.toEqual(current);
+    before.settle(page([{ asset: 'XCP', quantity: 1, quantity_normalized: '0.00000001' }]));
+    await expect(oldRead).resolves.toMatchObject([{ quantity: 1 }]);
+
+    await expect(fetchTokenBalances(address)).resolves.toEqual(current);
+    expect(mockedApiClient.get).toHaveBeenCalledTimes(2);
+  });
+
   it('does not hand a post-mutation caller an answer that predates the mutation', async () => {
     const before = deferred<ReturnType<typeof page>>();
     mockedApiClient.get.mockReturnValueOnce(before.promise as never);

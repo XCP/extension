@@ -52,11 +52,6 @@ function rateLimitRefusal(error: unknown): RateLimitRefusal | null {
   };
 }
 
-/** Forget any cooldown the node imposed: a user pressing refresh means "try again now". */
-export function resetRequestPace(): void {
-  requestGate.reset();
-}
-
 /**
  * Generate a cache key from URL and params.
  * Params are sorted for consistent keys regardless of object property order.
@@ -632,16 +627,17 @@ async function cpApiGet<T = unknown>(
       );
     }
 
-    // Cache successful response
-    setInCache(cacheKey, response.data as T);
-
     return response.data as T;
   })();
 
   inFlight.set(cacheKey, started);
 
   try {
-    return await started;
+    const data = await started;
+    // Invalidation revokes ownership of this key. An older response may still
+    // reach its original caller, but cannot repopulate or overwrite the cache.
+    if (inFlight.get(cacheKey) === started) setInCache(cacheKey, data);
+    return data;
   } catch (error: unknown) {
     if (error instanceof CounterpartyApiError) throw error;
 

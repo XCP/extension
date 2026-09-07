@@ -38,7 +38,7 @@ export interface ApiError extends Error {
     data: unknown;
     status: number;
   };
-  /** Seconds the server asked us to wait, from a 429's Retry-After header. */
+  /** Seconds to wait from Retry-After delay-seconds or its HTTP-date deadline. */
   retryAfter?: number;
 }
 
@@ -142,6 +142,21 @@ function buildUrl(url: string, params?: Record<string, string | number | boolean
   }
 }
 
+/** Retry-After permits integer delay-seconds or an HTTP-date, not a numeric prefix. */
+function parseRetryAfter(value: string | null, now: number): number | undefined {
+  if (value === null) return undefined;
+  const header = value.trim();
+  if (/^\d+$/.test(header)) {
+    const seconds = Number(header);
+    return Number.isFinite(seconds) ? seconds : undefined;
+  }
+  // All HTTP-date forms begin with a weekday. Avoid Date.parse accepting
+  // malformed numeric delays such as "1.5" as a calendar date.
+  if (!/^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)/i.test(header)) return undefined;
+  const deadline = Date.parse(header);
+  return Number.isFinite(deadline) ? Math.max(0, (deadline - now) / 1000) : undefined;
+}
+
 /**
  * Create a timeout-aware fetch with AbortController
  */
@@ -195,8 +210,7 @@ async function fetchWithTimeout<T>(
 
     // Check for HTTP errors
     if (!response.ok) {
-      const retryAfterHeader = response.headers.get('Retry-After');
-      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
+      const retryAfter = parseRetryAfter(response.headers.get('Retry-After'), Date.now());
       // Emit API status for rate limiting or server errors
       const statusType = getStatusTypeFromCode(response.status);
       if (statusType) {

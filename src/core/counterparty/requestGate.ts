@@ -27,15 +27,15 @@ export interface RequestGateOptions {
   /** Requests allowed in flight at once. */
   maxInFlight?: number;
   /**
-   * Fraction of a cooldown that is randomised away, 0 to 1. Defaults to 0.5,
-   * so a wait lands somewhere in the second half of what was asked for.
+   * Additional fraction of a cooldown to randomise, 0 to 1. Defaults to 0.5.
+   * Jitter only adds time after the full server deadline.
    */
   jitter?: number;
   /** Injectable for tests; defaults to Math.random. */
   random?: () => number;
   /** The wait after a refusal that carried no Retry-After; doubles per consecutive refusal. */
   defaultCooldownMs?: number;
-  /** The longest the gate will ever hold requests, whatever the node asked for. */
+  /** Ceiling for generated backoff before jitter; never caps a server deadline. */
   maxCooldownMs?: number;
   /** How many times one request is sent again after being refused. */
   maxRetries?: number;
@@ -105,23 +105,17 @@ export class RequestGate {
     return this.holdUntil > this.now();
   }
 
-  /** Forget refusals and any cooldown: for tests, and for a user who insists on trying now. */
-  reset(): void {
-    this.holdUntil = 0;
-    this.refusalsInARow = 0;
-  }
-
   private noteRefusal(refusal: RateLimitRefusal): void {
     this.refusalsInARow += 1;
     const backoff = this.defaultCooldownMs * 2 ** (this.refusalsInARow - 1);
     const asked = refusal.retryAfterMs;
-    const wait = asked !== undefined && Number.isFinite(asked) && asked >= 0 ? asked : backoff;
-    const capped = Math.min(wait, this.maxCooldownMs);
+    const wait = asked !== undefined && Number.isFinite(asked) && asked >= 0
+      ? asked
+      : Math.min(backoff, this.maxCooldownMs);
     // Everything the wallet had queued was refused at the same moment, so
     // without this they all return at the same moment and earn the refusal
-    // again. Jitter only ever shortens the wait, and never below half of it,
-    // so the node's Retry-After is still substantially honoured.
-    const spread = capped * (1 - this.jitter + this.jitter * this.random());
+    // again. Jitter only adds time: Retry-After is a minimum server deadline.
+    const spread = wait * (1 + this.jitter * this.random());
     this.holdUntil = Math.max(this.holdUntil, this.now() + spread);
   }
 
@@ -129,7 +123,9 @@ export class RequestGate {
     for (;;) {
       const remaining = this.holdUntil - this.now();
       if (remaining <= 0) return;
-      await this.sleep(remaining);
+      // Long server deadlines must not overflow the platform's signed 32-bit
+      // timer delay. Sleeping in chunks preserves the complete deadline.
+      await this.sleep(Math.min(remaining, 2_147_483_647));
     }
   }
 
