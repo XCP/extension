@@ -122,8 +122,13 @@ const priceFetchers = [
   fetchFromMempool,
 ];
 
+function isUsablePrice(price: unknown): price is number {
+  return typeof price === 'number' && Number.isFinite(price) && price > 0;
+}
+
 /**
  * Fetches Bitcoin price concurrently from multiple APIs, returning the first successful result.
+ * No prior quote is reused when the providers fail.
  * @param fetchers - List of price fetcher functions.
  * @returns Bitcoin price in USD or null if all fail.
  */
@@ -133,7 +138,7 @@ export async function getBtcPrice(
   const promises = fetchers.map(async (fetcher) => {
     const data = await fetcher();
     const price = data.bitcoin?.usd;
-    if (typeof price !== "number" || Number.isNaN(price)) {
+    if (!isUsablePrice(price)) {
       throw new DataFetchError(`${fetcher.name} returned invalid price`, "price-fetcher");
     }
     return price;
@@ -282,8 +287,15 @@ async function fetchStatsFromCoinCap(): Promise<BtcStats> {
     });
   }
 
+  const price = toFiniteNumber(data.data.priceUsd);
+  if (!isUsablePrice(price)) {
+    throw new DataFetchError("Invalid response data", "coincap.io", {
+      endpoint: "/v2/assets/bitcoin",
+    });
+  }
+
   return {
-    price: toFiniteNumber(data.data.priceUsd) ?? Number.NaN,
+    price,
     change24h: toFiniteNumber(data.data.changePercent24Hr) ?? 0,
   };
 }
@@ -357,9 +369,11 @@ export async function getBtcPriceHistory(range: TimeRange, currency: FiatCurrenc
 }
 
 /**
- * Fetches current BTC price with 24h statistics with fallback sources
+ * Fetches current BTC price with 24h statistics with fallback sources.
+ * Cached current quotes are usable only within the 10 minute TTL. Expired
+ * statistics cannot be reused as spot prices or cross-currency conversion rates.
  * @param currency - Fiat currency for prices (default: usd)
- * @returns BTC stats including price and change percentage
+ * @returns Fresh BTC stats including price and change percentage, or null if unavailable
  */
 export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<BtcStats | null> {
   const cacheKey = `stats-${currency}`;
@@ -393,7 +407,7 @@ export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<Bt
 
       const price = data.bitcoin[currency];
       const change24h = data.bitcoin[`${currency}_24h_change`];
-      if (typeof price !== 'number' || typeof change24h !== 'number') {
+      if (!isUsablePrice(price) || typeof change24h !== 'number' || !Number.isFinite(change24h)) {
         // Fall through to the CoinCap fallback instead of caching undefineds
         throw new DataFetchError("Invalid response data", "coingecko.com", {
           endpoint: "/api/v3/simple/price",
@@ -418,13 +432,8 @@ export async function getBtc24hStats(currency: FiatCurrency = 'usd'): Promise<Bt
         }
       }
 
-      // Return stale cache if available (for stale-while-revalidate pattern)
-      const staleData = statsCache.getStale(cacheKey);
-      if (staleData !== null) {
-        console.log('[BTC Price] Using stale stats cache');
-        return staleData;
-      }
-
+      // History has a separate fallback policy. A failed current quote must not
+      // revive an expired price and mix it with fresh quotes to derive fiat FX.
       return null;
     }
   })();

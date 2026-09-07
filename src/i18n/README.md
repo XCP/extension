@@ -54,6 +54,12 @@ CAD and AUD are independent overrides. Market tickers and dispenser price views
 use the selected current BTC quote; current XCP estimates convert XCP/USD using
 the BTC/selected-fiat to BTC/USD ratio. Missing quotes show no estimate. A pending
 or late response in another currency cannot be relabeled as the current choice.
+Current BTC statistics reuse a quote only within the existing ten-minute TTL;
+a failed refresh returns unavailable. Expired statistics are never combined
+with a fresh USD quote to infer FX. Direct USD spot reads also return unavailable
+when all providers fail, without reusing a prior quote.
+Current quote readers reject non-finite and non-positive prices before display
+or conversion.
 Send, dispenser and dispense review estimates explicitly include an approximation
 mark and ISO currency code; the verified crypto quantity stays primary. Provider
 approval cards and order/swap reviews generally show protocol asset units only.
@@ -68,6 +74,8 @@ as supplied by the XCP history endpoint. This PR does not invent dated CNY FX or
 claim all history is converted. Market order/pool asset prices remain BTC/XCP or
 their actual quoted asset. Current fiat estimates are approximate market data,
 not inputs to compose or proof of future execution value.
+Dispenser history's Last and Avg fiat values are current fiat equivalents of
+the historical BTC amounts, not fiat prices recorded at the time of each trade.
 
 The primary amount, indivisible amount, fee and clipboard guidance uses concise
 copy without fixed heights or clipping. Packaged Chromium checks the normal

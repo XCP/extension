@@ -47,4 +47,16 @@ describe('current fiat quotes retain their currency identity', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current).toMatchObject({ btc: null, xcp: null, currency: 'cny' });
   });
+
+  it('clears prior CNY estimates when an expired quote cannot refresh despite a new USD quote', async () => {
+    const { result } = renderHook(() => useMarketPrices('cny'));
+    await waitFor(() => expect(result.current.xcp).toBe(14));
+
+    vi.mocked(getBtc24hStats).mockResolvedValue(null);
+    vi.mocked(getBtcPrice).mockResolvedValue(200000);
+    await act(async () => { await result.current.refetch(); });
+
+    expect(result.current).toMatchObject({ btc: null, xcp: null, currency: 'cny', loading: false });
+    expect(getXCPPrice).toHaveBeenLastCalledWith(200000);
+  });
 });
