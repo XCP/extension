@@ -121,36 +121,16 @@ walletTest.describe('AmountWithMaxInput Component', () => {
       await expect(input).toHaveValue(TEST_AMOUNTS.zero);
     });
 
-    walletTest('handles negative amount', async ({ page }) => {
+    walletTest('preserves invalid negative and non-numeric drafts without composing', async ({ page }) => {
       const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.negative);
-      await input.blur();
-
-      // Component accepts negative input - form should not allow submission
-      const value = await input.inputValue();
-
-      // Verify the input accepted the value (component handles validation via form, not input mask)
-      expect(value).toContain('-');
-
-      // Submit button should be disabled for invalid input
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
-    });
-
-    walletTest('handles non-numeric input', async ({ page }) => {
-      const input = getAmountInput(page);
-      await input.fill(TEST_AMOUNTS.invalid);
-      await input.blur();
-
-      // Component accepts non-numeric input - form should not allow submission
-      const value = await input.inputValue();
-
-      // Verify the input accepted the value
-      expect(value).toBe(TEST_AMOUNTS.invalid);
-
-      // Submit button should be disabled for invalid input
-      const submitBtn = page.locator('button[type="submit"]:has-text("Continue")');
-      await expect(submitBtn).toBeDisabled({ timeout: 5000 });
+      for (const draft of [TEST_AMOUNTS.negative, TEST_AMOUNTS.invalid, '0,5']) {
+        await input.fill('');
+        await input.pressSequentially(draft);
+        await input.blur();
+        await expect(input).toHaveValue(draft);
+        await expect(input).toHaveAttribute('aria-invalid', 'true');
+        await expect(page.locator('button[type="submit"]:has-text("Continue")')).toBeDisabled();
+      }
     });
   });
 
