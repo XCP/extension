@@ -148,8 +148,8 @@ export function extractInputsFromRawTx(signedTxHex: string): { txid: string; vou
     for (let i = 0; i < tx.inputsLength; i++) {
       const input = tx.getInput(i);
       if (input.txid) {
-        // txid bytes are in internal (reversed) order; reverse for standard display format
-        const txid = bytesToHex(Uint8Array.from(input.txid).reverse());
+        // btc-signer has already converted the wire outpoint to display order.
+        const txid = bytesToHex(input.txid);
         inputs.push({ txid, vout: input.index ?? 0 });
       }
     }
@@ -203,6 +203,11 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
       continue;
     }
 
+    // Acceptance is the spent-input boundary. Reserve locally before another request can
+    // select the inputs while public propagation is still pending. Keep settlement outside
+    // attempt's rejection handling: a local failure is not a reason to resend accepted bytes.
+    settleLocalState(signedTxHex);
+
     // Accepted somewhere. Feed the public relays not yet asked, so the transaction sits in the
     // mempools explorers and miners actually read, not only in the one node that answered first.
     // Their verdicts do not change the outcome: a relay that already has it, or is down, is noise.
@@ -212,7 +217,6 @@ export async function broadcastTransaction(signedTxHex: string): Promise<Transac
         .map(relay => attempt(relay, signedTxHex, RELAY_FANOUT_TIMEOUT_MS)),
     );
 
-    settleLocalState(signedTxHex);
     const txid = localTxid ?? result.txid;
     if (!txid) throw new Error('Transaction was accepted but its id could not be determined');
     return { txid };
