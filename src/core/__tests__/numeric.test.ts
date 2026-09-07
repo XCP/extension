@@ -134,9 +134,9 @@ describe('numeric utilities', () => {
     });
 
     it('should handle edge cases', () => {
-      expect(isValidPositiveNumber('0.', { allowZero: true })).toBe(true);
+      expect(isValidPositiveNumber('0.', { allowZero: true })).toBe(false);
       expect(isValidPositiveNumber('.1')).toBe(true);
-      expect(isValidPositiveNumber('1.')).toBe(true);
+      expect(isValidPositiveNumber('1.')).toBe(false);
     });
   });
 

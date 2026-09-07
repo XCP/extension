@@ -3,28 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 import { PriceWithSuggestInput } from './price-with-suggest-input';
 
-// Mock utilities
-vi.mock('@/core/format', () => ({
-  // The real formatter takes a string or BigNumber as readily as a number, and applies the
-  // fraction digits to all of them; a branch that stringifies instead diverges from it.
-  formatAmount: vi.fn((options) =>
-    Number(options.value).toFixed(options.maximumFractionDigits || 8)
-  )
-}));
-
-vi.mock('@/core/numeric', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/core/numeric')>()),
-  toBigNumber: vi.fn((v) => v),
-  isValidPositiveNumber: vi.fn((value, options) => {
-    if (value === '') return true;
-    const num = parseFloat(value);
-    if (Number.isNaN(num)) return false;
-    if (num < 0) return false;
-    if (!options?.allowZero && num === 0) return false;
-    return true;
-  })
-}));
-
 describe('PriceWithSuggestInput', () => {
   const defaultProps = {
     value: '',
@@ -66,14 +44,14 @@ describe('PriceWithSuggestInput', () => {
     expect(onChange).toHaveBeenCalledWith('123.456');
   });
 
-  it('should sanitize non-numeric characters', () => {
+  it('preserves invalid non-numeric drafts', () => {
     const onChange = vi.fn();
     render(<PriceWithSuggestInput {...defaultProps} onChange={onChange} />);
     
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: 'abc123.456xyz' } });
     
-    expect(onChange).toHaveBeenCalledWith('123.456');
+    expect(onChange).toHaveBeenCalledWith('abc123.456xyz');
   });
 
   it('should handle multiple decimal points', () => {
@@ -83,8 +61,8 @@ describe('PriceWithSuggestInput', () => {
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: '12.34.56' } });
     
-    // Should merge extra decimals
-    expect(onChange).toHaveBeenCalledWith('12.3456');
+    // Extra decimals remain visible and invalid
+    expect(onChange).toHaveBeenCalledWith('12.34.56');
   });
 
   it('should show Min button when trading pair data has last trade price', () => {
@@ -118,7 +96,7 @@ describe('PriceWithSuggestInput', () => {
     const minButton = screen.getByLabelText('Use suggested price from last trade');
     fireEvent.click(minButton);
     
-    expect(onChange).toHaveBeenCalledWith('100.50000000');
+    expect(onChange).toHaveBeenCalledWith('100.5');
   });
 
   it('should show help text when showHelpText is true', () => {
@@ -214,7 +192,7 @@ describe('PriceWithSuggestInput', () => {
     fireEvent.click(pairName);
     
     // Should calculate 1/2 = 0.5
-    expect(onChange).toHaveBeenCalledWith('0.50000000');
+    expect(onChange).toHaveBeenCalledWith('0.5');
   });
 
   it('should have correct input attributes', () => {

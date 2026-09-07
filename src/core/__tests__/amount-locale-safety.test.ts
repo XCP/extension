@@ -62,9 +62,9 @@ describe('a machine value is not written in anybody’s language', () => {
 
 describe('the gate on the way in is the shape compose reads', () => {
   it('takes digits, one period, and the precision the asset has', () => {
-    expect(isComposableAmount('', 8)).toBe(true);
+    expect(isComposableAmount('', 8)).toBe(false);
     expect(isComposableAmount('1', 8)).toBe(true);
-    expect(isComposableAmount('1.', 8)).toBe(true);
+    expect(isComposableAmount('1.', 8)).toBe(false);
     expect(isComposableAmount('0.00000001', 8)).toBe(true);
   });
 

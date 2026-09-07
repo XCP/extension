@@ -12,6 +12,7 @@ import type { DispenseOptions } from "@/core/counterparty/compose";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
 import { formatAmount } from "@/core/format";
 import { divide, fromSatoshis, isGreaterThan, isLessThanOrEqualToZero, multiply, roundDown, roundUp, subtract, toNumber } from "@/core/numeric";
+import { validAmountDraft } from "@/core/validation/transaction-amount";
 
 // ============================================================================
 // Types & Interfaces
@@ -250,12 +251,11 @@ export function DispenseForm({
       selectedDispenserIndex !== previousIndexRef.current &&
       selectedDispenser
     ) {
-      const currentNumber = parseInt(numberOfDispenses, 10) || 1;
+      const currentNumber = validAmountDraft(numberOfDispenses, 0) ? Number(numberOfDispenses) : null;
       
       // Check against new max
-      if (currentNumber > maxDispenses && maxDispenses > 0) {
-        setNumberOfDispenses(maxDispenses.toString());
-        setValidationError(null);
+      if (currentNumber !== null && currentNumber > maxDispenses && maxDispenses > 0) {
+        setValidationError(`This dispenser allows at most ${maxDispenses} dispenses. Edit the amount or use Max.`);
       }
       
       // Check if dispenser is empty

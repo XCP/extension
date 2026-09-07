@@ -3,10 +3,13 @@
  * Handles conversion of user-friendly values to API-compatible formats
  */
 
+import { parseRawInteger, rawToInput, serializeDecimal } from "@/core/amount-contract/amounts";
 import type { AssetInfo } from "@/core/counterparty/api";
 import { fetchAssetDetails } from "@/core/counterparty/api";
 import { isHexMemo, stripHexPrefix } from "@/core/counterparty/memo";
-import { toBigNumber, toSatoshis } from "@/core/numeric";
+import { CounterpartyApiError } from "@/core/errors";
+import { validateFeeRate } from "@/core/validation/fee";
+import { exactQuantity } from "@/core/validation/transaction-amount";
 
 /**
  * Converts form string values to proper booleans.
@@ -188,156 +191,76 @@ export async function normalizeFormData(
   assetInfoCache: AssetInfoCache;
 }> {
   const config = NORMALIZATION_CONFIG[composeType];
-  if (!config) {
-    // No normalization needed for this compose type
-    return {
-      normalizedData: Object.fromEntries(formData),
-      assetInfoCache: new Map()
-    };
-  }
-  
+  if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
   const rawData = Object.fromEntries(formData);
   const normalizedData: Record<string, any> = { ...rawData };
   const assetInfoCache: AssetInfoCache = new Map();
 
-  // MPMA carries parallel CSV lists, which the per-field table above cannot describe: each
-  // quantity is normalized by its own asset's divisibility. Base units must be resolved here,
-  // before compose, because message verification rebuilds the message from this same data
-  // (`pack/messages.ts`) — display units would make every quantity wrong by a factor of 1e8.
-  if (composeType === 'mpma'
-      && typeof rawData.assets === 'string' && typeof rawData.quantities === 'string') {
-    const assets = rawData.assets.split(',');
-    const quantities = rawData.quantities.split(',');
-    if (assets.length === quantities.length) {
-      const normalizedQuantities: string[] = [];
-      for (let i = 0; i < assets.length; i += 1) {
-        const assetName = assets[i]!.trim();
-        const value = quantities[i]!.toString();
-        // Always divisible, no lookup needed. (BTC is not sendable by MPMA; compose rejects it
-        // with a better error than an asset-info lookup failure would produce here.)
-        if (assetName === 'BTC' || assetName === 'XCP') {
-          normalizedQuantities.push(toSatoshis(value));
-          continue;
-        }
-        let assetInfo = assetInfoCache.get(assetName);
-        if (assetInfo === undefined) {
-          try {
-            const details = await fetchAssetDetails(assetName);
-            if (!details) {
-              throw new Error(`Asset "${assetName}" not found`);
-            }
-            assetInfo = details;
-            assetInfoCache.set(assetName, assetInfo);
-          } catch (error) {
-            // Fail fast: guessing divisibility would compose a quantity wrong by 1e8.
-            const message = error instanceof Error
-              ? error.message
-              : `Failed to fetch asset info for ${assetName}`;
-            throw new Error(message);
-          }
-        }
-        normalizedQuantities.push(assetInfo?.divisible
-          ? toSatoshis(value)
-          : toBigNumber(value).integerValue().toString());
-      }
-      normalizedData.quantities = normalizedQuantities.join(',');
-    }
+  if ('sat_per_vbyte' in rawData) {
+    const validation = validateFeeRate(String(rawData.sat_per_vbyte), { minRate: 0.1 });
+    if (!validation.isValid) throw new Error(validation.error);
+    normalizedData.sat_per_vbyte = serializeDecimal(String(rawData.sat_per_vbyte), { min: 0.1, max: 5000, maxDecimals: 8 });
   }
 
-  // Process quantity fields
-  for (const quantityField of config.quantityFields) {
-    const value = rawData[quantityField];
-    if (value === undefined || value === null || value === '') {
-      continue;
-    }
-    
-    // Get asset name from form data (use hidden fields for hardcoded assets like BTC)
-    const assetField = config.assetFields[quantityField];
-    const assetName = rawData[assetField!]?.toString();
-    if (!assetName) {
-      continue;
-    }
-    
-    // BTC and XCP are divisible by protocol definition, so their divisibility is not a fact to
-    // look up — the MPMA branch above already treats both that way. Requiring a lookup for XCP
-    // would also make a fairminter's lot_price depend on a network call to learn something fixed.
-    if (assetName === 'BTC' || assetName === 'XCP') {
-      normalizedData[quantityField] = toSatoshis(value.toString());
-      continue;
-    }
-
-    // A reset issuance is the one path that may change divisibility: core gates "cannot change
-    // divisibility" on `not reset` (`messages/issuance.py`), and the reset branch of `parse`
-    // records the message's own `divisible` on the new issuance. So the quantity here is scaled by
-    // the divisibility the user is choosing, not the one the asset has today — reading the ledger
-    // would scale a new divisible supply by the old indivisible rule and land 1e8 off. Same reason
-    // the fairminter branch below trusts the form.
-    if (composeType === 'issuance' && toBoolean(rawData['reset'])) {
-      const isDivisible = toBoolean(rawData['divisible']);
-      normalizedData[quantityField] = isDivisible
-        ? toSatoshis(value.toString())
-        : toBigNumber(value.toString()).integerValue().toString();
-      continue;
-    }
-
-    // For issuance of NEW assets, use the divisible field from the form
-    if (composeType === 'issuance' && !assetInfoCache.has(assetName)) {
-      try {
-        const details = await fetchAssetDetails(assetName);
-        if (details) {
-          assetInfoCache.set(assetName, details);
-        }
-      } catch {
-        // Asset doesn't exist yet (new issuance) - use form's divisible field
-        const isDivisible = toBoolean(rawData['divisible']);
-        if (isDivisible) {
-          normalizedData[quantityField] = toSatoshis(value.toString());
-        } else {
-          normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
-        }
-        continue;
+  const divisibility = async (asset: string): Promise<boolean> => {
+    if (asset === 'BTC' || asset === 'XCP') return true;
+    if (composeType === 'fairminter' || (composeType === 'issuance' && toBoolean(rawData.reset))) {
+      if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
+        throw new Error('Choose whether the issued asset is divisible.');
       }
+      return toBoolean(rawData.divisible);
     }
-
-    // For fairminter, the form provides divisibility - use it directly
-    // This handles both new assets (which don't exist yet) and existing assets
-    if (composeType === 'fairminter') {
-      const isDivisible = toBoolean(rawData['divisible']);
-      if (isDivisible) {
-        normalizedData[quantityField] = toSatoshis(value.toString());
-      } else {
-        normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
-      }
-      continue;
-    }
-
-    // Fetch asset info if not cached
-    let assetInfo = assetInfoCache.get(assetName);
-    if (assetInfo === undefined) {
+    if (!assetInfoCache.has(asset)) {
       try {
-        const details = await fetchAssetDetails(assetName);
-        if (!details) {
-          throw new Error(`Asset "${assetName}" not found`);
-        }
-        assetInfo = details;
-        assetInfoCache.set(assetName, assetInfo);
+        assetInfoCache.set(asset, await fetchAssetDetails(asset));
       } catch (error) {
-        // Fail fast - we need asset info to correctly normalize quantities
-        const message = error instanceof Error ? error.message : `Failed to fetch asset info for ${assetName}`;
-        throw new Error(message);
+        // A failed read is not evidence of a new asset. Only an actual 404
+        // or the documented null result may use the new-issuance choice.
+        if (composeType === 'issuance' && error instanceof CounterpartyApiError && error.statusCode === 404) {
+          assetInfoCache.set(asset, null);
+        } else throw error;
       }
     }
-
-    // Determine if asset is divisible
-    const isDivisible = assetInfo?.divisible ?? false;
-    
-    // Convert to satoshis if divisible, enforce integer if not
-    if (isDivisible) {
-      normalizedData[quantityField] = toSatoshis(value.toString());
-    } else {
-      // Non-divisible assets must be whole integers — truncate any decimals
-      normalizedData[quantityField] = toBigNumber(value.toString()).integerValue().toString();
+    const details = assetInfoCache.get(asset);
+    if (details === null && composeType === 'issuance') {
+      if (!['true', 'false', 'yes', 'no'].includes(String(rawData.divisible))) {
+        throw new Error('Choose whether the issued asset is divisible.');
+      }
+      return toBoolean(rawData.divisible);
     }
+    if (!details) throw new Error(`Asset "${asset}" not found`);
+    if (typeof details.divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    return details.divisible;
+  };
+
+  if (composeType === 'mpma' && ('assets' in rawData || 'quantities' in rawData)) {
+    const assets = String(rawData.assets ?? '').split(',');
+    const quantities = String(rawData.quantities ?? '').split(',');
+    if (assets.length !== quantities.length) throw new Error('Each destination must have exactly one asset and quantity.');
+    const normalized: string[] = [];
+    for (let i = 0; i < assets.length; i++) {
+      if (!assets[i]) throw new Error('An asset is required for each quantity.');
+      normalized.push(exactQuantity(quantities[i]!, await divisibility(assets[i]!), `Quantity ${i + 1}`));
+    }
+    normalizedData.quantities = normalized.join(',');
+  }
+
+  const optionalFairminterQuantities = new Set(['premint_quantity', 'max_mint_per_tx', 'max_mint_per_address', 'hard_cap', 'soft_cap', 'pool_quantity']);
+  for (const field of config.quantityFields) {
+    const value = rawData[field];
+    if (value === undefined) continue;
+    if (value === '' && composeType === 'fairminter' && optionalFairminterQuantities.has(field)) {
+      delete normalizedData[field]; // An omitted optional limit uses Core's default.
+      continue;
+    }
+    const asset = rawData[config.assetFields[field]!] as string | undefined;
+    if (!asset) throw new Error(`An asset is required to interpret ${field}.`);
+    normalizedData[field] = exactQuantity(String(value), await divisibility(asset), field);
+  }
+
+  // These form fields already use protocol base units, not display quantities.
+  for (const field of ['min_lp_quantity', 'min_quantity_a', 'min_quantity_b', 'fee_required', 'utxo_value', 'destination_vout']) {
+    if (field in rawData) normalizedData[field] = parseRawInteger(String(rawData[field])).toString();
   }
 
   // Process boolean fields (convert string 'true'/'false' to actual booleans)
@@ -370,4 +293,46 @@ export async function normalizeFormData(
   }
 
   return { normalizedData, assetInfoCache };
+}
+
+/** Called only after the transaction has been checked against normalizedData.
+ * Review quantities are reconstructed from that checked intent and the separate
+ * asset read used for scaling, never the composer's echoed *_normalized values.
+ */
+export function verifiedReviewParams(
+  composeType: string,
+  normalizedData: Record<string, any>,
+  assetInfoCache: AssetInfoCache = new Map(),
+): Record<string, unknown> {
+  const params: Record<string, unknown> = { ...normalizedData };
+  if (normalizedData.sourceAddress) params.source = normalizedData.sourceAddress;
+  const config = NORMALIZATION_CONFIG[composeType];
+  if (!config) throw new Error(`Unsupported compose type: ${composeType}`);
+  for (const field of config.quantityFields) {
+    if (!(field in normalizedData)) continue;
+    const assetField = config.assetFields[field]!;
+    const asset = normalizedData[assetField] as string;
+    const details = assetInfoCache.get(asset);
+    const divisible = asset === 'BTC' || asset === 'XCP'
+      ? true
+      : composeType === 'fairminter' || (composeType === 'issuance' && (normalizedData.reset || !details))
+        ? normalizedData.divisible
+        : details?.divisible;
+    if (typeof divisible !== 'boolean') throw new Error(`Asset "${asset}" divisibility is unknown`);
+    params[`${field}_normalized`] = rawToInput(normalizedData[field], divisible ? 8 : 0);
+    params[`${assetField}_info`] = { ...details, divisible };
+  }
+  if (composeType === 'mpma' || (composeType === 'send' && normalizedData.destinations)) {
+    const destinations = String(normalizedData.destinations).split(',');
+    const assets = composeType === 'mpma' ? String(normalizedData.assets).split(',') : destinations.map(() => normalizedData.asset);
+    const quantities = composeType === 'mpma' ? String(normalizedData.quantities).split(',') : destinations.map(() => normalizedData.quantity);
+    if (assets.length !== destinations.length || quantities.length !== destinations.length) throw new Error('Mismatched MPMA review data.');
+    params.asset_dest_quant_list = assets.map((asset, index) => [asset, destinations[index], quantities[index]]);
+    params.verified_asset_info = Object.fromEntries(assets.map(asset => [asset, {
+      ...assetInfoCache.get(asset),
+      divisible: asset === 'BTC' || asset === 'XCP' ? true : assetInfoCache.get(asset)?.divisible,
+    }]));
+    if (typeof normalizedData.memos === 'string') params.memos = normalizedData.memos.split(',');
+  }
+  return params;
 }

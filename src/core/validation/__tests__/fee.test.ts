@@ -84,10 +84,10 @@ describe('validateFeeRate', () => {
     });
 
     it('should reject NaN and Infinity', () => {
-      // NaN is converted to string "NaN" which toBigNumber converts to 0
+      // Non-finite values fail before any conversion or zero fallback.
       const nanResult = validateFeeRate(NaN);
       expect(nanResult.isValid).toBe(false);
-      expect(nanResult.error).toBe('Fee rate cannot be zero');
+      expect(nanResult.error).toBe('Fee rate must be a valid number');
 
       // Infinity keeps its numeric value which BigNumber detects as non-finite
       const infResult = validateFeeRate(Infinity);

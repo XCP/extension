@@ -140,7 +140,7 @@ describe('Compose Specialized Operations', () => {
         const url = actualCall[0] as string;
         const urlParams = new URLSearchParams(url.split('?')[1]);
         const actualParams = Object.fromEntries(urlParams.entries());
-        expect(actualParams.value).toBe(value);
+        expect(actualParams.value).toBe(String(Number(value)));
       }
     });
   });

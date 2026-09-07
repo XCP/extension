@@ -64,15 +64,13 @@ describe('normalizeFormData — reset issuance divisibility', () => {
     expect(result.normalizedData.divisible).toBe(false);
   });
 
-  it('truncates a fractional quantity when the reset makes the asset indivisible', async () => {
+  it('rejects a fractional quantity when the reset makes the asset indivisible', async () => {
     mockFetchAssetDetails.mockResolvedValue({ ...indivisibleAsset(), divisible: true });
 
-    const result = await normalizeFormData(
+    await expect(normalizeFormData(
       resetForm({ quantity: '7.9', divisible: 'false' }),
       'issuance'
-    );
-
-    expect(result.normalizedData.quantity).toBe('7');
+    )).rejects.toThrow('amount_precision');
   });
 
   it('still reads divisibility from the ledger for a non-reset reissuance', async () => {
