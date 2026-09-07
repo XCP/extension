@@ -1,13 +1,4 @@
 {
-  "appName": {
-    "message": "XCP Wallet"
-  },
-  "appDescription": {
-    "message": "面向比特币的 Counterparty 钱包"
-  },
-  "appLocale": {
-    "message": "zh-CN"
-  },
   "actions_address": {
     "message": "地址"
   },
@@ -355,6 +346,15 @@
   },
   "app_wallet_dashboard": {
     "message": "钱包面板"
+  },
+  "appDescription": {
+    "message": "面向比特币的 Counterparty 钱包"
+  },
+  "appLocale": {
+    "message": "zh-CN"
+  },
+  "appName": {
+    "message": "XCP Wallet"
   },
   "approval_approval_attention_about_sat_vb": {
     "message": "（约 $1 sat/vB）"
@@ -4222,6 +4222,66 @@
   },
   "sweep_review_flag": {
     "message": "标志"
+  },
+  "time_compact_days": {
+    "message": "$1天前"
+  },
+  "time_compact_hours": {
+    "message": "$1小时前"
+  },
+  "time_compact_minutes": {
+    "message": "$1分钟前"
+  },
+  "time_compact_weeks": {
+    "message": "$1周前"
+  },
+  "time_compact_years": {
+    "message": "$1年前"
+  },
+  "time_day_ago": {
+    "message": "1天前"
+  },
+  "time_days_ago": {
+    "message": "$1天前"
+  },
+  "time_hour_ago": {
+    "message": "1小时前"
+  },
+  "time_hours_ago": {
+    "message": "$1小时前"
+  },
+  "time_just_now": {
+    "message": "刚刚"
+  },
+  "time_minute_ago": {
+    "message": "1分钟前"
+  },
+  "time_minutes_ago": {
+    "message": "$1分钟前"
+  },
+  "time_month_ago": {
+    "message": "1个月前"
+  },
+  "time_months_ago": {
+    "message": "$1个月前"
+  },
+  "time_second_ago": {
+    "message": "1秒前"
+  },
+  "time_seconds_ago": {
+    "message": "$1秒前"
+  },
+  "time_week_ago": {
+    "message": "1周前"
+  },
+  "time_weeks_ago": {
+    "message": "$1周前"
+  },
+  "time_year_ago": {
+    "message": "1年前"
+  },
+  "time_years_ago": {
+    "message": "$1年前"
   },
   "transaction_approve_confirm_the_exceptional_transaction_behavior": {
     "message": "在钱包添加你的签名之前，请确认以下异常的交易行为。"

@@ -1,16 +1,4 @@
 {
-  "appName": {
-    "message": "XCP Wallet",
-    "description": "The extension name shown in the browser toolbar and store listing"
-  },
-  "appDescription": {
-    "message": "A Counterparty wallet for Bitcoin",
-    "description": "The one-line description in the store listing"
-  },
-  "appLocale": {
-    "message": "en",
-    "description": "BCP 47 tag of this catalog's language, read by the wallet to set the document language; every locale file must carry its own"
-  },
   "actions_address": {
     "message": "Address",
     "description": "pages/actions/index.tsx"
@@ -474,6 +462,18 @@
   "app_wallet_dashboard": {
     "message": "Wallet Dashboard",
     "description": "pages/index.tsx"
+  },
+  "appDescription": {
+    "message": "A Counterparty wallet for Bitcoin",
+    "description": "The one-line description in the store listing"
+  },
+  "appLocale": {
+    "message": "en",
+    "description": "BCP 47 tag of this catalog's language, read by the wallet to set the document language; every locale file must carry its own"
+  },
+  "appName": {
+    "message": "XCP Wallet",
+    "description": "The extension name shown in the browser toolbar and store listing"
   },
   "approval_approval_attention_about_sat_vb": {
     "message": "(about $1 sat/vB)",
@@ -5630,6 +5630,86 @@
   "sweep_review_flag": {
     "message": "Flag",
     "description": "pages/compose/sweep/review.tsx"
+  },
+  "time_compact_days": {
+    "message": "$1d ago",
+    "description": "Compact relative time in a tight row. $1 is a whole number of days."
+  },
+  "time_compact_hours": {
+    "message": "$1h ago",
+    "description": "Compact relative time in a tight row. $1 is a whole number of hours."
+  },
+  "time_compact_minutes": {
+    "message": "$1m ago",
+    "description": "Compact relative time in a tight row. $1 is a whole number of minutes."
+  },
+  "time_compact_weeks": {
+    "message": "$1w ago",
+    "description": "Compact relative time in a tight row. $1 is a whole number of weeks."
+  },
+  "time_compact_years": {
+    "message": "$1y ago",
+    "description": "Compact relative time in a tight row. $1 is a whole number of years."
+  },
+  "time_day_ago": {
+    "message": "1 day ago",
+    "description": "Relative time, exactly one day ago."
+  },
+  "time_days_ago": {
+    "message": "$1 days ago",
+    "description": "Relative time. $1 is a whole number of days, two or more."
+  },
+  "time_hour_ago": {
+    "message": "1 hour ago",
+    "description": "Relative time, exactly one hour ago."
+  },
+  "time_hours_ago": {
+    "message": "$1 hours ago",
+    "description": "Relative time. $1 is a whole number of hours, two or more."
+  },
+  "time_just_now": {
+    "message": "just now",
+    "description": "Relative time, under a minute ago. Timestamps throughout the wallet."
+  },
+  "time_minute_ago": {
+    "message": "1 minute ago",
+    "description": "Relative time, exactly one minute ago."
+  },
+  "time_minutes_ago": {
+    "message": "$1 minutes ago",
+    "description": "Relative time. $1 is a whole number of minutes, two or more."
+  },
+  "time_month_ago": {
+    "message": "1 month ago",
+    "description": "Relative time, exactly one month ago."
+  },
+  "time_months_ago": {
+    "message": "$1 months ago",
+    "description": "Relative time. $1 is a whole number of months, two or more."
+  },
+  "time_second_ago": {
+    "message": "1 second ago",
+    "description": "Relative time, exactly one second ago."
+  },
+  "time_seconds_ago": {
+    "message": "$1 seconds ago",
+    "description": "Relative time. $1 is a whole number of seconds, two or more."
+  },
+  "time_week_ago": {
+    "message": "1 week ago",
+    "description": "Relative time, exactly one week ago."
+  },
+  "time_weeks_ago": {
+    "message": "$1 weeks ago",
+    "description": "Relative time. $1 is a whole number of weeks, two or more."
+  },
+  "time_year_ago": {
+    "message": "1 year ago",
+    "description": "Relative time, exactly one year ago."
+  },
+  "time_years_ago": {
+    "message": "$1 years ago",
+    "description": "Relative time. $1 is a whole number of years, two or more."
   },
   "transaction_approve_confirm_the_exceptional_transaction_behavior": {
     "message": "Confirm the exceptional transaction behavior below before the wallet adds your signature.",

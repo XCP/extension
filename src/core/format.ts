@@ -3,7 +3,34 @@
  */
 
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
-import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
+import { type BigNumber, fromSatoshis, toBigNumber, toSatoshis } from '@/core/numeric';
+import { currentLocale, t } from '@/i18n';
+
+/**
+ * The language every figure on screen is written in.
+ *
+ * Not the same thing as the browser's default, which is what `Intl` reaches
+ * for when nobody hands it a locale. The words come from the browser's own message catalog, which
+ * it picks by UI LANGUAGE; the numbers were coming
+ * from the runtime default, which follows its REGIONAL FORMAT. Those are two
+ * different settings and a reader can have them disagree — Japanese chrome
+ * around English digits, or the reverse. This makes one of them decide, and
+ * it is the one that chose the words.
+ *
+ * Resolved once, because today it cannot change: the browser picked the
+ * catalog from its own UI language before any of this loaded, and the wallet
+ * offers no setting of its own. That is deliberate — one source of truth, and
+ * the same one the manifest's name and description already resolve through.
+ *
+ * If a runtime override is ever offered, this is the single place that has to
+ * learn about it: clear `display` when the choice changes and every figure in
+ * the wallet follows on the next render. Nothing else caches a locale.
+ */
+let display: string | undefined;
+function displayLocale(): string {
+  display ??= currentLocale() || 'en';
+  return display;
+}
 
 export interface AmountFormatterOptions {
   /**
@@ -41,7 +68,7 @@ export function formatAmount({
   minimumFractionDigits,
   compact = false,
   useGrouping = true,
-  locale,
+  locale = displayLocale(),
   signDisplay,
 }: AmountFormatterOptions): string {
   if (value === null || value === undefined) return "N/A";
@@ -78,6 +105,49 @@ export function formatAmount({
   ) => string;
 
   return format(exact);
+}
+
+/**
+ * A number on its way to a transaction, written the only way compose reads.
+ *
+ * Digits, at most one period, at most eight decimals, nothing else: no
+ * grouping, no sign, no spaces, no language. Counterparty takes integers and
+ * an asset is divisible or it is not, so this string's whole job is to
+ * survive `toBigNumber` and `toSatoshis` unchanged and mean what the user
+ * meant. Numbers anywhere else on screen are read by a person and get the
+ * page's language; a number that becomes a transaction gets none of it.
+ *
+ * Deliberately not `Intl`. `formatAmount` writes for a reader, and until now
+ * the Max button used it to fill a field — safe only by accident, because
+ * every locale the wallet ships (English, Japanese, all three Chinese) writes
+ * 1.5 the same way. The first comma-decimal language would have broken it
+ * silently: `toBigNumber` deletes commas and spaces as grouping, so a French
+ * "1234,56" would reach compose as 123456. A hundred times the amount, no
+ * parse error, no warning, and a signature on it.
+ *
+ * `BigNumber.toFixed` has no locale to get wrong, which is the point.
+ */
+export function formatForInput(
+  value: AmountFormatterOptions['value'],
+  maximumFractionDigits: number,
+): string {
+  const amount = toBigNumber(value ?? 0);
+  if (amount.isNaN() || !amount.isFinite()) return '';
+  const fixed = amount.toFixed(maximumFractionDigits);
+  // Trailing zeros only, and only behind a decimal point: "100" must not
+  // become "1".
+  return fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+}
+
+/**
+ * Is this exactly what compose can read? Digits, one optional period, up to
+ * `decimals` places. An empty field is allowed — it is not yet an amount.
+ *
+ * The gate is on the way IN, so nothing else downstream has to wonder.
+ */
+export function isComposableAmount(value: string, decimals: number): boolean {
+  if (value === '') return true;
+  return new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`).test(value);
 }
 
 /**
@@ -165,7 +235,7 @@ export function formatTxid(txid: string, shorten: boolean = true): string {
  * formatDate(1698777600) // "10/31/2023, 8:00:00 PM" (depending on locale)
  */
 export function formatDate(timestamp: number): string {
-  return new Date(timestamp * 1000).toLocaleString();
+  return new Date(timestamp * 1000).toLocaleString(displayLocale());
 }
 
 /**
@@ -191,29 +261,31 @@ export function formatTimeAgo(timestamp: number, compact: boolean = false): stri
   const months = Math.floor(days / 30);
   const years = Math.floor(days / 365);
 
+  const n = (value: number) => formatAmount({ value, maximumFractionDigits: 0 });
+
   if (compact) {
-    if (seconds < 60) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    if (weeks < 52) return `${weeks}w ago`;
-    return `${years}y ago`;
+    if (seconds < 60) return t('time_just_now');
+    if (minutes < 60) return t('time_compact_minutes', n(minutes));
+    if (hours < 24) return t('time_compact_hours', n(hours));
+    if (days < 7) return t('time_compact_days', n(days));
+    if (weeks < 52) return t('time_compact_weeks', n(weeks));
+    return t('time_compact_years', n(years));
   }
 
   if (seconds < 60) {
-    return seconds === 1 ? '1 second ago' : `${seconds} seconds ago`;
+    return seconds === 1 ? t('time_second_ago') : t('time_seconds_ago', n(seconds));
   } else if (minutes < 60) {
-    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+    return minutes === 1 ? t('time_minute_ago') : t('time_minutes_ago', n(minutes));
   } else if (hours < 24) {
-    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+    return hours === 1 ? t('time_hour_ago') : t('time_hours_ago', n(hours));
   } else if (days < 7) {
-    return days === 1 ? '1 day ago' : `${days} days ago`;
+    return days === 1 ? t('time_day_ago') : t('time_days_ago', n(days));
   } else if (weeks < 4) {
-    return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+    return weeks === 1 ? t('time_week_ago') : t('time_weeks_ago', n(weeks));
   } else if (months < 12) {
-    return months === 1 ? '1 month ago' : `${months} months ago`;
+    return months === 1 ? t('time_month_ago') : t('time_months_ago', n(months));
   } else {
-    return years === 1 ? '1 year ago' : `${years} years ago`;
+    return years === 1 ? t('time_year_ago') : t('time_years_ago', n(years));
   }
 }
 
@@ -226,7 +298,7 @@ export function formatTimeAgo(timestamp: number, compact: boolean = false): stri
  * formatDateToLocal(new Date(2023, 10, 15, 14, 30)) // "Nov 15, 2023, 02:30 PM"
  */
 export function formatDateToLocal(date: Date): string {
-  return date.toLocaleString('en-US', {
+  return date.toLocaleString(displayLocale(), {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -242,9 +314,9 @@ export function formatDateToLocal(date: Date): string {
  */
 export function formatFee(satoshis: number): string {
   if (satoshis < 1000) {
-    return `${satoshis} sats`;
+    return `${formatAmount({ value: satoshis, maximumFractionDigits: 0 })} sats`;
   } else if (satoshis < 100000) {
-    return `${(satoshis / 1000).toFixed(1)}k sats`;
+    return `${formatAmount({ value: satoshis / 1000, minimumFractionDigits: 1, maximumFractionDigits: 1 })}k sats`;
   } else {
     const btc = fromSatoshis(satoshis, true);
     return `${formatAmount({
@@ -296,8 +368,8 @@ export function formatAssetQuantity(
   showDecimals: boolean = true
 ): string {
   if (!isDivisible) {
-    // Non-divisible assets - just show the integer
-    return quantity.toString();
+    // Whole units, but still grouped: 995269258 is not a number anyone reads.
+    return formatAmount({ value: quantity, maximumFractionDigits: 0 });
   }
 
   // Divisible assets - convert from satoshis and format

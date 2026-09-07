@@ -1,13 +1,4 @@
 {
-  "appName": {
-    "message": "XCP Wallet"
-  },
-  "appDescription": {
-    "message": "Bitcoin 上の Counterparty ウォレット"
-  },
-  "appLocale": {
-    "message": "ja"
-  },
   "actions_address": {
     "message": "アドレス"
   },
@@ -355,6 +346,15 @@
   },
   "app_wallet_dashboard": {
     "message": "ウォレットのダッシュボード"
+  },
+  "appDescription": {
+    "message": "Bitcoin 上の Counterparty ウォレット"
+  },
+  "appLocale": {
+    "message": "ja"
+  },
+  "appName": {
+    "message": "XCP Wallet"
   },
   "approval_approval_attention_about_sat_vb": {
     "message": "（約 $1 sat/vB）"
@@ -4222,6 +4222,66 @@
   },
   "sweep_review_flag": {
     "message": "フラグ"
+  },
+  "time_compact_days": {
+    "message": "$1日前"
+  },
+  "time_compact_hours": {
+    "message": "$1時間前"
+  },
+  "time_compact_minutes": {
+    "message": "$1分前"
+  },
+  "time_compact_weeks": {
+    "message": "$1週間前"
+  },
+  "time_compact_years": {
+    "message": "$1年前"
+  },
+  "time_day_ago": {
+    "message": "1日前"
+  },
+  "time_days_ago": {
+    "message": "$1日前"
+  },
+  "time_hour_ago": {
+    "message": "1時間前"
+  },
+  "time_hours_ago": {
+    "message": "$1時間前"
+  },
+  "time_just_now": {
+    "message": "たった今"
+  },
+  "time_minute_ago": {
+    "message": "1分前"
+  },
+  "time_minutes_ago": {
+    "message": "$1分前"
+  },
+  "time_month_ago": {
+    "message": "1か月前"
+  },
+  "time_months_ago": {
+    "message": "$1か月前"
+  },
+  "time_second_ago": {
+    "message": "1秒前"
+  },
+  "time_seconds_ago": {
+    "message": "$1秒前"
+  },
+  "time_week_ago": {
+    "message": "1週間前"
+  },
+  "time_weeks_ago": {
+    "message": "$1週間前"
+  },
+  "time_year_ago": {
+    "message": "1年前"
+  },
+  "time_years_ago": {
+    "message": "$1年前"
   },
   "transaction_approve_confirm_the_exceptional_transaction_behavior": {
     "message": "ウォレットが署名を追加する前に、以下の例外的なトランザクション動作を確認してください。"
