@@ -8,6 +8,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { Spinner } from "@/components/ui/spinner";
 import { useComposer } from "@/contexts/composer-context-object";
+import { rawToInput } from "@/core/amount-contract/amounts";
 import type { PoolWithdrawOptions } from "@/core/counterparty/compose";
 import { applyPoolSlippage, resolvePoolSlippage } from "@/core/counterparty/pool";
 import { fromSatoshis, isGreaterThan, isLessThanOrEqualTo, isValidPositiveNumber } from "@/core/numeric";
@@ -39,14 +40,14 @@ export function PoolWithdrawForm({
   const [showSettings, setShowSettings] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const canQuote = !!pool && isGreaterThan(quantity || 0, 0);
+  const canQuote = !!pool && isValidPositiveNumber(quantity, { maxDecimals: 8 });
   // Readiness, not a default. `?? true` divides an indivisible reserve by 1e8 whenever details
   // are still loading or failed to load: a 10 RAREPEPE quote renders as 0.0000001 in both
   // "Estimated receive" and "Minimum received after slippage" — the figures the user checks
   // before accepting a slippage tolerance. The deposit form already guards the identical value
   // this way and blocks submit until both resolve.
-  const assetADetailsReady = assetADetails?.assetInfo?.asset === pool?.asset_a;
-  const assetBDetailsReady = assetBDetails?.assetInfo?.asset === pool?.asset_b;
+  const assetADetailsReady = assetADetails?.assetInfo?.asset === pool?.asset_a && typeof assetADetails?.assetInfo?.divisible === "boolean";
+  const assetBDetailsReady = assetBDetails?.assetInfo?.asset === pool?.asset_b && typeof assetBDetails?.assetInfo?.divisible === "boolean";
   const isAssetADivisible = assetADetailsReady ? assetADetails?.isDivisible : undefined;
   const isAssetBDivisible = assetBDetailsReady ? assetBDetails?.isDivisible : undefined;
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolWithdrawQuote({
@@ -75,8 +76,8 @@ export function PoolWithdrawForm({
   const submitDisabled = useMemo(() => {
     if (!pool) return true;
     if (!assetADetailsReady || !assetBDetailsReady) return true;
-    if (!isGreaterThan(quantity || 0, 0)) return true;
-    if (isGreaterThan(quantity, pool.quantity_normalized ?? pool.quantity)) return true;
+    if (!canQuote) return true;
+    if (isGreaterThan(quantity, rawToInput(pool.quantity, 8))) return true;
     if (canQuote && (isLoadingQuote || !quote?.pool_exists)) return true;
     if (!isSlippageValid) return true;
     return false;
@@ -157,14 +158,14 @@ export function PoolWithdrawForm({
 
           <AmountWithMaxInput
             asset={pool.lp_asset}
-            availableBalance={pool.quantity_normalized ?? pool.quantity.toString()}
+            availableBalance={rawToInput(pool.quantity, 8)}
             value={quantity}
             onChange={setQuantity}
             feeRate={feeRate}
             setError={setLocalError}
             showHelpText={showHelpText}
             sourceAddress={activeAddress}
-            maxAmount={pool.quantity_normalized ?? pool.quantity.toString()}
+            maxAmount={rawToInput(pool.quantity, 8)}
             label={t('withdraw_form_lp_tokens_to_withdraw')}
             name="quantity_display"
             disabled={pending}

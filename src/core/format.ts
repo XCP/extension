@@ -2,8 +2,9 @@
  * Formatting utilities for numbers, addresses, assets, and prices.
  */
 
+import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
-import { type BigNumber, fromSatoshis, toBigNumber, toSatoshis } from '@/core/numeric';
+import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
 import { currentLocale, t } from '@/i18n';
 
 /**
@@ -112,47 +113,23 @@ export function formatAmount({
   return format(exact);
 }
 
-/**
- * A number on its way to a transaction, written the only way compose reads.
- *
- * Digits, at most one period, at most eight decimals, nothing else: no
- * grouping, no sign, no spaces, no language. Counterparty takes integers and
- * an asset is divisible or it is not, so this string's whole job is to
- * survive `toBigNumber` and `toSatoshis` unchanged and mean what the user
- * meant. Numbers anywhere else on screen are read by a person and get the
- * page's language; a number that becomes a transaction gets none of it.
- *
- * Deliberately not `Intl`. `formatAmount` writes for a reader, and until now
- * the Max button used it to fill a field — safe only by accident, because
- * every locale the wallet ships (English, Japanese, all three Chinese) writes
- * 1.5 the same way. The first comma-decimal language would have broken it
- * silently: `toBigNumber` deletes commas and spaces as grouping, so a French
- * "1234,56" would reach compose as 123456. A hundred times the amount, no
- * parse error, no warning, and a signature on it.
- *
- * `BigNumber.toFixed` has no locale to get wrong, which is the point.
- */
-export function formatForInput(
-  value: AmountFormatterOptions['value'],
-  maximumFractionDigits: number,
-): string {
-  const amount = toBigNumber(value ?? 0);
-  if (amount.isNaN() || !amount.isFinite()) return '';
-  const fixed = amount.toFixed(maximumFractionDigits);
-  // Trailing zeros only, and only behind a decimal point: "100" must not
-  // become "1".
-  return fixed.includes('.') ? fixed.replace(/0+$/, '').replace(/\.$/, '') : fixed;
+/** Exact formatting for a validated/generated amount; this never repairs a draft. */
+export function formatForInput(value: AmountFormatterOptions['value'], decimals: number): string {
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) throw new RangeError('Invalid amount precision');
+  if (value === null || value === undefined) throw new Error('Amount is missing');
+  if (typeof value === 'number' && (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)) {
+    throw new Error('Amount must be exact and finite');
+  }
+  const text = typeof value === 'object' ? value.toFixed() : String(value);
+  const parsed = parseAmountDraft(text, { decimals: decimals as DecimalPlaces });
+  if (parsed.status !== 'valid') throw new Error('Amount is not an exact canonical decimal');
+  return parsed.canonical;
 }
 
-/**
- * Is this exactly what compose can read? Digits, one optional period, up to
- * `decimals` places. An empty field is allowed — it is not yet an amount.
- *
- * The gate is on the way IN, so nothing else downstream has to wonder.
- */
+/** Complete amounts only. Invalid/incomplete drafts stay in the field. */
 export function isComposableAmount(value: string, decimals: number): boolean {
-  if (value === '') return true;
-  return new RegExp(`^\\d*(?:\\.\\d{0,${decimals}})?$`).test(value);
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) return false;
+  return parseAmountDraft(value, { decimals: decimals as DecimalPlaces }).status === 'valid';
 }
 
 /**

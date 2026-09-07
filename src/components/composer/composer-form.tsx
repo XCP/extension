@@ -57,6 +57,8 @@ export function ComposerForm({
   const { state, showHelpText, clearError, feeRate, setFeeRate } = useComposer<unknown>();
   const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
+  const clipboardTarget = useRef<HTMLInputElement | null>(null);
+  const [clipboardError, setClipboardError] = useState<string | null>(null);
 
   // Determine if form is submitting
   const isSubmitting = isLocalSubmitting || state.isComposing;
@@ -78,11 +80,24 @@ export function ComposerForm({
         <form
           ref={formRef}
           className={formClassName}
+          onPasteCapture={(event) => {
+            if (!(event.target instanceof HTMLInputElement)) return;
+            if (!/[\r\n]/.test(event.clipboardData.getData('text/plain'))) return;
+            event.preventDefault();
+            clipboardTarget.current = event.target;
+            setClipboardError('The pasted value contains line breaks. Enter a single value before continuing.');
+          }}
+          onChangeCapture={(event) => {
+            if ((event.target as EventTarget) === clipboardTarget.current) {
+              clipboardTarget.current = null;
+              setClipboardError(null);
+            }
+          }}
           onSubmit={async (e) => {
             e.preventDefault();
             e.stopPropagation();
 
-            if (isLocalSubmitting || feeRateMissing) return;
+            if (isLocalSubmitting || submitDisabled || feeRateMissing || clipboardError || !e.currentTarget.checkValidity()) return;
 
             setIsLocalSubmitting(true);
             try {
@@ -96,6 +111,7 @@ export function ComposerForm({
           }}
         >
           {children}
+          {clipboardError && <ErrorAlert message={clipboardError} />}
           
           {showFeeRate && (
             <FeeRateInput
@@ -110,7 +126,7 @@ export function ComposerForm({
             type="submit"
             color="blue"
             fullWidth
-            disabled={isSubmitting || submitDisabled || feeRateMissing}
+            disabled={isSubmitting || submitDisabled || feeRateMissing || Boolean(clipboardError)}
           >
             {isSubmitting ? t('composer_composer_form_submitting') : submitText}
           </Button>

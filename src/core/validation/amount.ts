@@ -3,6 +3,7 @@
  * Handles validation for Bitcoin amounts, token quantities, and numeric inputs
  */
 
+import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
 import { BigNumber, fromSatoshis, toBigNumber } from '@/core/numeric';
 
 // Constants
@@ -56,7 +57,7 @@ export function validateAmount(
   }
 
   // Convert to string for processing
-  const amountStr = String(amount).trim();
+  const amountStr = String(amount);
 
   // Check for special values first
   if (amountStr === 'NaN' || amountStr === 'Infinity' || amountStr === '-Infinity') {
@@ -64,7 +65,7 @@ export function validateAmount(
   }
 
   // Check for invalid characters (no scientific notation allowed)
-  if (!/^-?\d*\.?\d*$/.test(amountStr) || amountStr === '' || amountStr === '-' || amountStr === '.') {
+  if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(amountStr) || amountStr === '' || amountStr === '-' || amountStr === '.') {
     return { isValid: false, error: 'Invalid amount format' };
   }
 
@@ -91,6 +92,12 @@ export function validateAmount(
   if (decimalPlaces !== null && decimalPlaces > decimals) {
     return { isValid: false, error: `Maximum ${decimals} decimal places allowed` };
   }
+
+  if (!Number.isInteger(decimals) || decimals < 0 || decimals > 8) {
+    return { isValid: false, error: 'Unsupported amount precision' };
+  }
+  const parsed = parseAmountDraft(amountStr, { decimals: decimals as DecimalPlaces });
+  if (parsed.status !== 'valid') return { isValid: false, error: parsed.status === 'invalid' && parsed.code === 'amount_range' ? 'Amount exceeds maximum supported supply' : `Maximum ${decimals} decimal places allowed` };
 
   // Convert to satoshis for Bitcoin amounts
   const satoshis = value.multipliedBy(SATOSHIS_PER_BTC).integerValue(BigNumber.ROUND_DOWN);
@@ -142,7 +149,7 @@ export function validateQuantity(
   }
 
   // Convert to string for processing
-  const quantityStr = String(quantity).trim();
+  const quantityStr = String(quantity);
 
   // Check for special values first
   if (quantityStr === 'NaN' || quantityStr === 'Infinity' || quantityStr === '-Infinity') {
@@ -150,7 +157,7 @@ export function validateQuantity(
   }
 
   // Check for invalid characters (no scientific notation allowed)
-  if (!/^-?\d*\.?\d*$/.test(quantityStr) || quantityStr === '' || quantityStr === '-' || quantityStr === '.') {
+  if (!/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(quantityStr) || quantityStr === '' || quantityStr === '-' || quantityStr === '.') {
     return { isValid: false, error: 'Invalid quantity format' };
   }
 
@@ -189,6 +196,13 @@ export function validateQuantity(
   const minQty = toBigNumber(minQuantity);
   if (value.isLessThan(minQty)) {
     return { isValid: false, error: `Quantity is below minimum (${minQuantity})` };
+  }
+
+  const exact = parseAmountDraft(quantityStr, { decimals: divisible ? 8 : 0 });
+  if (exact.status !== 'valid') {
+    return { isValid: false, error: exact.status === 'invalid' && exact.code === 'amount_range'
+      ? 'Quantity exceeds maximum Counterparty supply'
+      : 'Use whole digits and an optional decimal point with the asset precision' };
   }
 
   // Check maximum supply

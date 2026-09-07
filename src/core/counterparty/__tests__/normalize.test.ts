@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as numeric from '@/core/numeric';
 import { asDisplayUnits } from '@/core/numeric';
 import type { AssetInfo } from '../api';
 import * as api from '../api';
@@ -10,26 +9,11 @@ vi.mock('../api', () => ({
   fetchAssetDetails: vi.fn(),
 }));
 
-// Mock the numeric module
-vi.mock('@/core/numeric', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/core/numeric')>();
-  return {
-    ...actual,
-    toSatoshis: vi.fn(),
-  };
-});
-
 const mockFetchAssetDetails = vi.mocked(api.fetchAssetDetails);
-const mockToSatoshis = vi.mocked(numeric.toSatoshis);
 
 describe('normalize.ts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Setup default toSatoshis mock behavior
-    mockToSatoshis.mockImplementation((value: any) => {
-      const num = parseFloat(value.toString());
-      return Math.floor(num * 100000000).toString();
-    });
   });
 
   afterEach(() => {
@@ -38,16 +22,14 @@ describe('normalize.ts', () => {
 
   describe('normalizeFormData', () => {
     describe('BTC asset normalization', () => {
-      it('should normalize BTC amounts using toSatoshis', async () => {
+      it('should normalize BTC amounts exactly to base units', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'BTC');
 
-        mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('1.5');
         expect(result.normalizedData.quantity).toBe('150000000');
         expect(result.assetInfoCache.size).toBe(0); // BTC doesn't need asset info
       });
@@ -57,24 +39,18 @@ describe('normalize.ts', () => {
         formData.set('mainchainrate', '0.001');
         formData.set('mainchainrate_asset', 'BTC'); // Hidden field from dispenser form
 
-        mockToSatoshis.mockReturnValue('100000');
 
         const result = await normalizeFormData(formData, 'dispenser');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('0.001');
         expect(result.normalizedData.mainchainrate).toBe('100000');
       });
 
-      it('should skip mainchainrate normalization when mainchainrate_asset field is missing', async () => {
+      it('rejects mainchainrate when mainchainrate_asset field is missing', async () => {
         const formData = new FormData();
         formData.set('mainchainrate', '0.001');
         // No mainchainrate_asset field - this would be a form bug
 
-        const result = await normalizeFormData(formData, 'dispenser');
-
-        // Without the asset field, the value is not normalized
-        expect(mockToSatoshis).not.toHaveBeenCalled();
-        expect(result.normalizedData.mainchainrate).toBe('0.001');
+        await expect(normalizeFormData(formData, 'dispenser')).rejects.toThrow('asset is required');
       });
 
       it('normalizes fairminter lot_price as XCP, not as the asset being minted', async () => {
@@ -88,11 +64,9 @@ describe('normalize.ts', () => {
         formData.set('lot_price_asset', 'XCP');
         formData.set('asset', 'MYTOKEN');
 
-        mockToSatoshis.mockReturnValue('1000000');
 
         const result = await normalizeFormData(formData, 'fairminter');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('0.01');
         expect(result.normalizedData.lot_price).toBe('1000000');
       });
 
@@ -106,11 +80,9 @@ describe('normalize.ts', () => {
         formData.set('asset', 'LAUNCHCOIN');
         formData.set('divisible', 'true');
 
-        mockToSatoshis.mockReturnValue('3100000000000000');
 
         const result = await normalizeFormData(formData, 'fairminter');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('31000000');
         expect(result.normalizedData.pool_quantity).toBe('3100000000000000');
       });
     });
@@ -124,18 +96,18 @@ describe('normalize.ts', () => {
         supply_normalized: asDisplayUnits('1000000.00000000')
       };
 
-      it('should normalize divisible asset amounts using toSatoshis', async () => {
+      it('should normalize divisible asset amounts exactly to base units', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'PEPECASH');
 
         mockFetchAssetDetails.mockResolvedValue(mockDivisibleAsset);
-        mockToSatoshis.mockReturnValue('150000000');
+
 
         const result = await normalizeFormData(formData, 'send');
 
         expect(mockFetchAssetDetails).toHaveBeenCalledWith('PEPECASH');
-        expect(mockToSatoshis).toHaveBeenCalledWith('1.5');
+
         expect(result.normalizedData.quantity).toBe('150000000');
         expect(result.assetInfoCache.get('PEPECASH')).toEqual(mockDivisibleAsset);
       });
@@ -159,9 +131,6 @@ describe('normalize.ts', () => {
           .mockResolvedValueOnce(mockDivisibleAsset)
           .mockResolvedValueOnce(mockPepeCash);
 
-        mockToSatoshis
-          .mockReturnValueOnce('250000000')
-          .mockReturnValueOnce('100000');
 
         const result = await normalizeFormData(formData, 'order');
 
@@ -192,9 +161,6 @@ describe('normalize.ts', () => {
           .mockResolvedValueOnce(mockDivisibleAsset)
           .mockResolvedValueOnce(mockPoolAsset);
 
-        mockToSatoshis
-          .mockReturnValueOnce('150000000')
-          .mockReturnValueOnce('200000000');
 
         const result = await normalizeFormData(formData, 'pooldeposit');
 
@@ -221,7 +187,7 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockLpAsset);
-        mockToSatoshis.mockReturnValue('325000000');
+
 
         const result = await normalizeFormData(formData, 'poolwithdraw');
 
@@ -251,7 +217,7 @@ describe('normalize.ts', () => {
         const result = await normalizeFormData(formData, 'send');
 
         expect(mockFetchAssetDetails).toHaveBeenCalledWith('INDIVISIBLE');
-        expect(mockToSatoshis).not.toHaveBeenCalled();
+
         expect(result.normalizedData.quantity).toBe('150');
         expect(result.assetInfoCache.get('INDIVISIBLE')).toEqual(mockIndivisibleAsset);
       });
@@ -275,14 +241,13 @@ describe('normalize.ts', () => {
           .mockResolvedValueOnce(mockIndivisibleAsset)
           .mockResolvedValueOnce(mockDivisibleAsset);
 
-        mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'order');
 
         expect(result.normalizedData.give_quantity).toBe('100'); // Not normalized
         expect(result.normalizedData.get_quantity).toBe('150000000'); // Normalized
-        expect(mockToSatoshis).toHaveBeenCalledTimes(1);
-        expect(mockToSatoshis).toHaveBeenCalledWith('1.5');
+
+
       });
     });
 
@@ -303,9 +268,7 @@ describe('normalize.ts', () => {
         formData.set('get_asset', 'CACHED');
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis
-          .mockReturnValueOnce('100000000')
-          .mockReturnValueOnce('200000000');
+
 
         const result = await normalizeFormData(formData, 'order');
 
@@ -341,26 +304,20 @@ describe('normalize.ts', () => {
     });
 
     describe('Edge cases and validation', () => {
-      it('should skip normalization for undefined, null, or empty values', async () => {
+      it('rejects an empty quantity with unresolved asset metadata', async () => {
         const formData = new FormData();
         formData.set('quantity', '');
         formData.set('asset', 'PEPECASH');
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(result.normalizedData.quantity).toBe('');
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('not found');
       });
 
-      it('should skip normalization when asset field is missing', async () => {
+      it('rejects normalization when asset field is missing', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         // No asset field
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(result.normalizedData.quantity).toBe('1.5');
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('asset is required');
       });
 
       it('should handle very large numbers', async () => {
@@ -377,11 +334,10 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('99999999999999999');
+
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('999999999.99999999');
         expect(result.normalizedData.quantity).toBe('99999999999999999');
       });
 
@@ -399,11 +355,10 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('0');
+
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('0');
         expect(result.normalizedData.quantity).toBe('0');
       });
 
@@ -421,11 +376,10 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('1');
+
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('0.00000001');
         expect(result.normalizedData.quantity).toBe('1');
       });
     });
@@ -436,7 +390,6 @@ describe('normalize.ts', () => {
         formData.set('quantity', '1.5');
         formData.set('asset', 'BTC');
 
-        mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -450,9 +403,6 @@ describe('normalize.ts', () => {
         formData.set('get_quantity', '2.0');
         formData.set('get_asset', 'BTC');
 
-        mockToSatoshis
-          .mockReturnValueOnce('100000000')
-          .mockReturnValueOnce('200000000');
 
         const result = await normalizeFormData(formData, 'order');
 
@@ -465,7 +415,6 @@ describe('normalize.ts', () => {
         formData.set('quantity_per_unit', '0.5');
         formData.set('dividend_asset', 'BTC');
 
-        mockToSatoshis.mockReturnValue('50000000');
 
         const result = await normalizeFormData(formData, 'dividend');
 
@@ -489,26 +438,21 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('100000');
+
 
         const result = await normalizeFormData(formData, 'dispenser');
 
         expect(result.normalizedData.give_quantity).toBe('100'); // Indivisible
         expect(result.normalizedData.escrow_quantity).toBe('1000'); // Indivisible
         expect(result.normalizedData.mainchainrate).toBe('100000'); // Normalized to satoshis
-        expect(mockToSatoshis).toHaveBeenCalledWith('0.001');
+
       });
 
-      it('should handle unknown compose type without normalization', async () => {
+      it('rejects unknown compose types', async () => {
         const formData = new FormData();
         formData.set('unknown_field', '1.5');
 
-        const result = await normalizeFormData(formData, 'unknown');
-
-        expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(mockToSatoshis).not.toHaveBeenCalled();
-        expect(result.normalizedData.unknown_field).toBe('1.5');
-        expect(result.assetInfoCache.size).toBe(0);
+        await expect(normalizeFormData(formData, 'unknown')).rejects.toThrow('Unsupported compose type');
       });
 
       it('should handle compose types with no quantity fields', async () => {
@@ -519,14 +463,14 @@ describe('normalize.ts', () => {
         const result = await normalizeFormData(formData, 'sweep');
 
         expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(mockToSatoshis).not.toHaveBeenCalled();
+
         expect(result.normalizedData.flags).toBe('1');
         expect(result.normalizedData.destination).toBe('address123');
       });
     });
 
     describe('Asset divisible property edge cases', () => {
-      it('should handle asset info with undefined divisible property', async () => {
+      it('rejects unknown divisibility', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'UNDEFINED_DIVISIBLE');
@@ -541,12 +485,10 @@ describe('normalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(result.normalizedData.quantity).toBe('1'); // Treated as non-divisible (integer) when undefined
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('divisibility is unknown');
       });
 
-      it('should handle asset info with null divisible property', async () => {
+      it('rejects null divisibility', async () => {
         const formData = new FormData();
         formData.set('quantity', '1.5');
         formData.set('asset', 'NULL_DIVISIBLE');
@@ -561,9 +503,7 @@ describe('normalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(result.normalizedData.quantity).toBe('1'); // Treated as non-divisible (integer) when null
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('divisibility is unknown');
       });
     });
 
@@ -575,7 +515,6 @@ describe('normalize.ts', () => {
         formData.set('destination', 'address123');
         formData.set('memo', 'test memo');
 
-        mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -592,7 +531,6 @@ describe('normalize.ts', () => {
         formData.set('fee_per_kb', '10000');
         formData.set('allow_unconfirmed_inputs', 'true');
 
-        mockToSatoshis.mockReturnValue('150000000');
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -617,15 +555,14 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('99999999');
+
 
         const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('0.99999999');
         expect(result.normalizedData.quantity).toBe('99999999');
       });
 
-      it('should handle scientific notation in inputs', async () => {
+      it('rejects scientific notation in inputs', async () => {
         const formData = new FormData();
         formData.set('quantity', '1e-8'); // 0.00000001 in scientific notation
         formData.set('asset', 'PEPECASH');
@@ -639,15 +576,12 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('1');
 
-        const result = await normalizeFormData(formData, 'send');
 
-        expect(mockToSatoshis).toHaveBeenCalledWith('1e-8');
-        expect(result.normalizedData.quantity).toBe('1');
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('amount_syntax');
       });
 
-      it('should handle extremely large indivisible amounts', async () => {
+      it('rejects indivisible amounts above the Core limit', async () => {
         const formData = new FormData();
         formData.set('quantity', '18446744073709551615'); // Near uint64 max
         formData.set('asset', 'INDIVISIBLE');
@@ -662,10 +596,7 @@ describe('normalize.ts', () => {
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
 
-        const result = await normalizeFormData(formData, 'send');
-
-        expect(result.normalizedData.quantity).toBe('18446744073709551615');
-        expect(mockToSatoshis).not.toHaveBeenCalled();
+        await expect(normalizeFormData(formData, 'send')).rejects.toThrow('amount_range');
       });
     });
 
@@ -684,7 +615,7 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('10050000000');
+
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -727,7 +658,7 @@ describe('normalize.ts', () => {
         };
 
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis.mockReturnValue('1050000000');
+
 
         const result = await normalizeFormData(formData, 'send');
 
@@ -754,9 +685,7 @@ describe('normalize.ts', () => {
 
         // Simulate both calls returning the same asset info
         mockFetchAssetDetails.mockResolvedValue(mockAsset);
-        mockToSatoshis
-          .mockReturnValueOnce('100000000')
-          .mockReturnValueOnce('200000000');
+
 
         const result = await normalizeFormData(formData, 'order');
 
@@ -775,13 +704,12 @@ describe('normalize.ts', () => {
         formData.set('asset', 'NEWASSET'); // Asset doesn't exist yet
         formData.set('divisible', 'true');
 
-        mockToSatoshis.mockReturnValue('10050000000');
 
         const result = await normalizeFormData(formData, 'fairminter');
 
         // Should NOT fetch asset details - uses form's divisible value
         expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(mockToSatoshis).toHaveBeenCalledWith('100.5');
+
         expect(result.normalizedData.premint_quantity).toBe('10050000000');
       });
 
@@ -794,7 +722,7 @@ describe('normalize.ts', () => {
         const result = await normalizeFormData(formData, 'fairminter');
 
         expect(mockFetchAssetDetails).not.toHaveBeenCalled();
-        expect(mockToSatoshis).not.toHaveBeenCalled();
+
         expect(result.normalizedData.lot_size).toBe('1000');
       });
 
@@ -805,9 +733,6 @@ describe('normalize.ts', () => {
         formData.set('asset', 'NEWDIVISIBLE');
         formData.set('divisible', 'true');
 
-        mockToSatoshis
-          .mockReturnValueOnce('5050000000')
-          .mockReturnValueOnce('1025000000');
 
         const result = await normalizeFormData(formData, 'fairminter');
 
@@ -825,7 +750,6 @@ describe('normalize.ts', () => {
           formData.set('asset', 'BTC');
           formData.set('memo', '0xdeadbeef');
 
-          mockToSatoshis.mockReturnValue('10000000000');
 
           const result = await normalizeFormData(formData, 'send');
 
@@ -839,7 +763,6 @@ describe('normalize.ts', () => {
           formData.set('asset', 'BTC');
           formData.set('memo', 'cafebabe');
 
-          mockToSatoshis.mockReturnValue('10000000000');
 
           const result = await normalizeFormData(formData, 'send');
 
@@ -853,7 +776,6 @@ describe('normalize.ts', () => {
           formData.set('asset', 'BTC');
           formData.set('memo', 'hello world');
 
-          mockToSatoshis.mockReturnValue('10000000000');
 
           const result = await normalizeFormData(formData, 'send');
 
@@ -867,7 +789,6 @@ describe('normalize.ts', () => {
           formData.set('asset', 'BTC');
           formData.set('memo', '');
 
-          mockToSatoshis.mockReturnValue('10000000000');
 
           const result = await normalizeFormData(formData, 'send');
 

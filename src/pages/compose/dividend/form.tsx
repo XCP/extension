@@ -16,6 +16,8 @@ import {
   getDividendFeeXcp,
   getMaxDividendPerUnit,
 } from "@/core/counterparty/dividendModel";
+import { formatForInput } from "@/core/format";
+import { toBigNumber } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
 import { t } from '@/i18n';
@@ -99,16 +101,19 @@ export function DividendForm({
   // Handlers
   const calculateMaxAmountPerUnit = () => {
     if (!assetInfo?.assetInfo?.supply || !spendableDividendBalance) {
-      return "0";
+      return "";
     }
+    if (typeof assetInfo.assetInfo.divisible !== "boolean" || typeof dividendAssetInfo?.assetInfo?.divisible !== "boolean") return "";
 
-    return getMaxDividendPerUnit({
+    const maximum = getMaxDividendPerUnit({
       spendableBalance: spendableDividendBalance,
       assetSupply: assetInfo.assetInfo.supply,
       assetIsDivisible: assetInfo.assetInfo.divisible ?? false,
       dividendAsset: selectedDividendAsset,
       feeXcp,
     });
+    const decimals = dividendAssetInfo.assetInfo.divisible ? 8 : 0;
+    return formatForInput(toBigNumber(maximum).decimalPlaces(decimals, 1), decimals);
   };
 
   const handleDividendAssetChange = (newAsset: string) => {
@@ -189,7 +194,7 @@ export function DividendForm({
             description={[t('dividend_form_amount_of_to_be_paid', [String(selectedDividendAsset), String(asset)]), feeNote]
               .filter(Boolean)
               .join(" ")}
-            disableMaxButton={false}
+            disableMaxButton={typeof assetInfo?.assetInfo?.divisible !== "boolean" || typeof dividendAssetInfo?.assetInfo?.divisible !== "boolean"}
             isDivisible={dividendAssetInfo?.assetInfo?.divisible ?? true}
           />
 

@@ -1,11 +1,13 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
 import { type ChangeEvent, type ReactElement, type ReactNode, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { parseAmountDraft, rawToInput } from "@/core/amount-contract/amounts";
 import { estimateVsize } from "@/core/bitcoin/feeEstimation";
 import { selectUtxosForTransaction } from "@/core/counterparty/utxoSelection";
-import { formatForInput, isComposableAmount } from "@/core/format";
-import { divide, fromSatoshis, multiply, roundDown, roundUp, toBigNumber, toNumber } from "@/core/numeric";
+import { isComposableAmount } from "@/core/format";
+import { divide, fromSatoshis, multiply, roundDown, roundUp, toNumber } from "@/core/numeric";
 import { isDustAmount } from "@/core/validation/amount";
+import { validateFeeRate } from "@/core/validation/fee";
 
 import { t } from '@/i18n';
 
@@ -76,44 +78,39 @@ export function AmountWithMaxInput({
   extraOutputCount = 0,
 }: AmountWithMaxInputProps): ReactElement {
   const [isLoading, setIsLoading] = useState(false);
+  const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
+  const draftError = isDivisible
+    ? 'Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.'
+    : 'This asset is indivisible. Enter whole digits only.';
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    // A comma is a decimal point to most of the world, and this field is read
-    // by a parser that treats it as a thousands separator and deletes it. So
-    // it becomes a period here, at the boundary, rather than being carried any
-    // further: typing 0,5 means half, and used to arrive at compose as 5.
-    const val = e.target.value.replace(/,/g, '.');
-    // One gate, and it is the shape compose reads: digits, at most one period,
-    // at most eight places behind it for a divisible asset and none at all for
-    // an indivisible one. Anything else never becomes state, so nothing
-    // downstream has to decide what it meant.
-    if (!isComposableAmount(val, isDivisible ? 8 : 0)) return;
-    onChange(val);
+    // Retain the complete draft. Dropping '-' or '.' here lets the next
+    // keystroke turn an invalid amount into a different valid amount.
+    onChange(e.target.value);
     setError(null);
   };
 
   const handleMaxButtonClick = async () => {
     if (!sourceAddress?.address || disabled) return;
 
+    if (!Number.isSafeInteger(destinationCount) || destinationCount < 1) {
+      setError('The destination count must be a positive whole number.');
+      return;
+    }
     if (asset !== "BTC") {
-      // maxAmount is the whole balance as a decimal string; splitting it as a double would hand
-      // the user a figure their balance cannot cover, or leave a remainder behind.
-      const maxNum = toBigNumber(maxAmount);
-      if (!maxNum.isNaN()) {
-        // formatForInput, not formatAmount: this goes into the field and comes
-        // back out through toBigNumber to compose. A display format would write
-        // the decimal mark of whatever language the wallet is reading in.
-        const perDestination = formatForInput(
-          divide(maxNum, destinationCount),
-          isDivisible ? 8 : 0,
-        );
-        onChange(perDestination);
+      const maximum = parseAmountDraft(maxAmount, { decimals: isDivisible ? 8 : 0 });
+      if (maximum.status !== 'valid') {
+        setError('The available amount is not exact. Refresh the asset details before using Max.');
+        return;
       }
+      // Intentionally floor the derived split in base units, leaving a remainder.
+      onChange(rawToInput(maximum.raw / BigInt(destinationCount), isDivisible ? 8 : 0));
+      setError(null);
       return;
     }
 
-    if (feeRate === null || feeRate === undefined) {
-      setError(t('common_fee_rates_are_still_loading'));
+    if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate, { minRate: 0.1 }).isValid) {
+      setError("Enter a valid fee rate before using Max.");
       return;
     }
 
@@ -198,9 +195,24 @@ export function AmountWithMaxInput({
           id={name}
           value={value}
           onChange={handleInputChange}
+          onPaste={(event) => {
+            const pasted = event.clipboardData.getData('text/plain');
+            if (!/[\r\n]/.test(pasted)) return;
+            event.preventDefault();
+            // Text inputs remove line breaks before onChange. Keep those
+            // characters visible as escapes so "1\n2" cannot become 12.
+            const input = event.currentTarget;
+            const escaped = pasted.replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+            onChange(value.slice(0, input.selectionStart ?? 0) + escaped + value.slice(input.selectionEnd ?? value.length));
+          }}
+          inputMode={isDivisible ? 'decimal' : 'numeric'}
+          pattern={isDivisible ? '([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})' : '[0-9]+'}
+          invalid={invalidDraft || hasError}
+          aria-invalid={invalidDraft || hasError || undefined}
+          aria-describedby={invalidDraft ? `${name}-draft-error` : undefined}
           autoComplete="off"
           className={`mt-1 block w-full p-2.5 rounded-md border bg-gray-50 pr-16 outline-none focus-visible:ring-2 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-            hasError
+            hasError || invalidDraft
               ? "border-red-500 focus:border-red-500 focus-visible:ring-red-500"
               : "border-gray-300 focus:border-blue-500 focus-visible:ring-blue-500"
           }`}
@@ -218,6 +230,7 @@ export function AmountWithMaxInput({
           {t('common_max')}
         </Button>
       </div>
+      {invalidDraft && <p id={`${name}-draft-error`} className="mt-2 text-sm text-red-500" role="alert">{draftError}</p>}
       {showHelpText && (
         <Description id={`${name}-description`} className="mt-2 text-sm text-gray-500">
           {description || (destinationCount > 1

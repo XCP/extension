@@ -3,7 +3,8 @@
  * Handles fee rate validation, fee calculation, and fee-related checks
  */
 
-import { type BigNumber, multiply, roundUp, toBigNumber, toNumber } from "@/core/numeric";
+import { parseAmountDraft } from "@/core/amount-contract/amounts";
+import { multiply, roundUp, toBigNumber, toNumber } from "@/core/numeric";
 
 // Fee rate constants (in sat/vB)
 export const MIN_FEE_RATE = 1;
@@ -53,20 +54,15 @@ export function validateFeeRate(
     return { isValid: false, error: 'Fee rate is required' };
   }
 
-  // Parse the fee rate
-  let rate: BigNumber;
-  try {
-    // Convert to string first to handle decimals properly
-    const feeRateStr = typeof feeRate === 'string' ? feeRate : feeRate.toString();
-    rate = toBigNumber(feeRateStr);
-  } catch (_e) {
-    return { isValid: false, error: 'Invalid fee rate format' };
-  }
-
-  // Check for valid number
-  if (rate.isNaN() || !rate.isFinite()) {
+  if (typeof feeRate === 'number' && !Number.isFinite(feeRate)) {
     return { isValid: false, error: 'Fee rate must be a valid number' };
   }
+  if (String(feeRate).startsWith('-')) return { isValid: false, error: 'Fee rate cannot be negative' };
+  const parsed = parseAmountDraft(String(feeRate), { decimals: 8 });
+  if (parsed.status !== 'valid') {
+    return { isValid: false, error: 'Use digits and a decimal point with at most 8 decimal places for the fee rate. Do not use grouping separators.' };
+  }
+  const rate = toBigNumber(parsed.canonical);
 
   // Check for negative
   if (rate.isNegative()) {

@@ -63,7 +63,7 @@ import {
   verifyInscriptionEnvelope,
   verifyRevealTransaction,
 } from "@/core/counterparty/inscriptionEnvelope";
-import { normalizeFormData } from "@/core/counterparty/normalize";
+import { normalizeFormData, verifiedReviewParams } from "@/core/counterparty/normalize";
 import {
   checkOutputPolicy,
   type IntendedDestination,
@@ -259,12 +259,10 @@ export function ComposerProvider<T>({
 
     try {
 
-      // Normalize data based on compose type (skip for broadcast which doesn't need normalization)
-      let dataForApi: any = { ...userData, sourceAddress: activeAddress.address };
-      if (composeType !== 'broadcast') {
-        const { normalizedData } = await normalizeFormData(formData, composeType);
-        dataForApi = { ...normalizedData, sourceAddress: activeAddress.address };
-      }
+      // Normalization validates drafts and fee rates before any request. A
+      // broadcast has no scaled quantities, but its fee still uses this gate.
+      const { normalizedData, assetInfoCache } = await normalizeFormData(formData, composeType);
+      const dataForApi: Record<string, any> = { ...normalizedData, sourceAddress: activeAddress.address };
 
       // Check if aborted before API call
       if (signal.aborted) return;
@@ -473,6 +471,14 @@ export function ComposerProvider<T>({
           throw new Error(outputCheck.error || t('composer_context_transaction_pays_outputs_your_request'));
         }
       }
+
+      response = {
+        ...response,
+        result: {
+          ...response.result,
+          params: { ...response.result.params, ...verifiedReviewParams(composeType, dataForApi, assetInfoCache) },
+        },
+      };
 
       // Final abort check before state update
       if (signal.aborted) return;

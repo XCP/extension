@@ -27,15 +27,15 @@ export function ReviewMPMA({
   // — the review step showed neither recipients nor amounts. Its tests passed because the fixture
   // invented the field.
   //
-  // Quantities are therefore normalized here from the raw list, using the divisibility already in
-  // the response, the way the single-send review does.
+  // ComposerContext replaces this list with checked intent and supplies independently read
+  // divisibility for each asset. One echoed asset_info cannot describe a mixed-asset send.
   const transactions = (result.params.asset_dest_quant_list || []).map(
     (item: [string, string, string | number], index: number) => {
       const [asset, destination, quantity] = item;
       return {
         asset,
         destination,
-        quantity: normalizeQuantity(quantity, asset, result.params, 'asset'),
+        quantity: normalizeQuantity(quantity, asset, { asset_info: result.params.verified_asset_info?.[asset] }, 'asset'),
         memo: result.params.memos?.[index],
       };
     }

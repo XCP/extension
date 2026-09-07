@@ -11,6 +11,7 @@ import { FaCog } from "@/components/icons";
 import { ErrorAlert } from "@/components/ui/error-alert";
 import { PoolHeader } from "@/components/ui/headers/pool-header";
 import { useComposer } from "@/contexts/composer-context-object";
+import { parseAmountDraft } from "@/core/amount-contract/amounts";
 import type { TokenBalance } from "@/core/counterparty/api";
 import type { PoolDepositOptions } from "@/core/counterparty/compose";
 import {
@@ -26,8 +27,6 @@ import {
   isLessThan,
   isLessThanOrEqualTo,
   isValidPositiveNumber,
-  roundDown,
-  toSatoshis,
 } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
@@ -65,15 +64,19 @@ export function PoolDepositForm({
   const { data: assetBDetails } = useAssetDetails(assetB);
   const { data: pool, isLoading: isPoolLoading } = usePool(assetA, assetB);
 
-  const assetADetailsReady = assetADetails?.assetInfo?.asset === assetA;
-  const assetBDetailsReady = assetB ? assetBDetails?.assetInfo?.asset === assetB : false;
+  const assetADetailsReady = assetADetails?.assetInfo?.asset === assetA && typeof assetADetails.assetInfo.divisible === "boolean";
+  const assetBDetailsReady = assetB ? assetBDetails?.assetInfo?.asset === assetB && typeof assetBDetails.assetInfo.divisible === "boolean" : false;
   const isAssetADivisible = assetADetailsReady ? assetADetails.isDivisible : true;
   const isAssetBDivisible = assetBDetailsReady && assetBDetails ? assetBDetails.isDivisible : true;
   const bothAssetsSelected = Boolean(assetA && assetB && assetA !== assetB);
   // The pool doesn't exist yet — known as soon as both assets resolve, before any quote.
   const isNewPool = bothAssetsSelected && !isPoolLoading && pool === null;
-  const canQuote = assetA && assetB && assetA !== assetB && assetADetailsReady && isGreaterThan(quantityA || 0, 0);
-  const needsQuote = canQuote && isGreaterThan(quantityB || 0, 0);
+  const parsedA = parseAmountDraft(quantityA, { decimals: isAssetADivisible ? 8 : 0, minRaw: 1n });
+  const parsedB = parseAmountDraft(quantityB, { decimals: isAssetBDivisible ? 8 : 0, minRaw: 1n });
+  const validA = parsedA.status === "valid";
+  const validB = parsedB.status === "valid";
+  const canQuote = bothAssetsSelected && assetADetailsReady && assetBDetailsReady && validA;
+  const needsQuote = canQuote && validB;
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolDepositQuote({
     assetA,
     assetB,
@@ -91,12 +94,8 @@ export function PoolDepositForm({
       ? fromSatoshis(partnerQuantityRaw, { removeTrailingZeros: true })
       : partnerQuantityRaw.toString()
     : null;
-  const quantityARaw = quantityA
-    ? isAssetADivisible ? toSatoshis(quantityA) : roundDown(quantityA).toString()
-    : "0";
-  const quantityBRaw = quantityB
-    ? isAssetBDivisible ? toSatoshis(quantityB) : roundDown(quantityB).toString()
-    : "0";
+  const quantityARaw = parsedA.status === "valid" ? parsedA.raw.toString() : "0";
+  const quantityBRaw = parsedB.status === "valid" ? parsedB.raw.toString() : "0";
   const partnerQuantityMatches = partnerQuantityRaw === undefined || partnerQuantityRaw === null
     || isEqualTo(quantityBRaw, partnerQuantityRaw);
   const partnerQuantityIsLow = partnerQuantityRaw !== undefined && partnerQuantityRaw !== null
@@ -129,13 +128,13 @@ export function PoolDepositForm({
   const submitDisabled = useMemo(() => {
     if (!assetA || !assetB || assetA === assetB) return true;
     if (!assetADetailsReady || !assetBDetailsReady) return true;
-    if (!isGreaterThan(quantityA || 0, 0)) return true;
-    if (!isGreaterThan(quantityB || 0, 0)) return true;
+    if (!validA) return true;
+    if (!validB) return true;
     if (needsQuote && (isLoadingQuote || !quote)) return true;
     if (isFirstDeposit && lpAsset && !isLpAssetValid) return true;
     if (!isSlippageValid) return true;
     return false;
-  }, [assetA, assetB, assetADetailsReady, assetBDetailsReady, quantityA, quantityB, needsQuote, isLoadingQuote, quote, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
+  }, [assetA, assetB, assetADetailsReady, assetBDetailsReady, validA, validB, needsQuote, isLoadingQuote, quote, isFirstDeposit, lpAsset, isLpAssetValid, isSlippageValid]);
 
   const handleFormAction = (formData: FormData) => {
     if (assetA === assetB) {

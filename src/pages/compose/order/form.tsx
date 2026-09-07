@@ -11,7 +11,7 @@ import { ErrorAlert } from "@/components/ui/error-alert";
 import { PriceWithSuggestInput } from "@/components/ui/inputs/price-with-suggest-input";
 import { useComposer } from "@/contexts/composer-context-object";
 import type { OrderOptions } from "@/core/counterparty/compose";
-import { formatAmount } from "@/core/format";
+import { formatForInput, isComposableAmount } from "@/core/format";
 import { asDisplayUnits, toBigNumber } from '@/core/numeric';
 import { DEFAULT_ORDER_EXPIRATION } from "@/core/settings";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
@@ -137,9 +137,17 @@ export function OrderForm({
   const isBuy = activeTab === "buy";
   const isGiveAssetDivisible = giveAssetDetails?.isDivisible ?? true;
   const isGetAssetDivisible = getAssetDetails?.isDivisible ?? true;
-  const isQuoteAssetDivisible = quoteAssetDetails?.isDivisible ?? true;
   const availableBalance = giveAssetDetails?.spendableBalance ?? giveAssetDetails?.availableBalance ?? "0";
   const quoteAssetBalance = quoteAssetDetails?.spendableBalance ?? quoteAssetDetails?.availableBalance ?? "0";
+
+  const baseReady = giveAssetDetails?.assetInfo?.asset === baseAsset && typeof giveAssetDetails.assetInfo.divisible === "boolean";
+  const quoteReady = quoteAssetDetails?.assetInfo?.asset === quoteAsset && typeof quoteAssetDetails.assetInfo.divisible === "boolean";
+  const validPrice = isComposableAmount(price, 8) && toBigNumber(price).isGreaterThan(0);
+  const validAmount = isComposableAmount(amount, isGiveAssetDivisible ? 8 : 0) && toBigNumber(amount).isGreaterThan(0);
+  // Buying Max is derived: floor in the base asset's units, never in the quote asset's units.
+  const buyMaximum = validPrice && baseReady && quoteReady
+    ? formatForInput(toBigNumber(quoteAssetBalance).dividedBy(price).decimalPlaces(isGiveAssetDivisible ? 8 : 0, 1), isGiveAssetDivisible ? 8 : 0)
+    : "";
 
   // Trading pair data - for orders, swap direction depends on buy/sell
   const tradingPairGive = isBuy ? quoteAsset : baseAsset;
@@ -283,6 +291,7 @@ export function OrderForm({
       ) : (
         <ComposerForm
           formAction={(formData) => {
+            if (!validPrice || !validAmount || !baseReady || !quoteReady) return;
             // Store user-facing values for form persistence
             formData.set('amount', amount);
             formData.set('price', price);
@@ -302,8 +311,8 @@ export function OrderForm({
                 const giveQty = amountBN.multipliedBy(priceBN);
                 const getQty = amountBN;
                 
-                formData.set('give_quantity', giveQty.toString());
-                formData.set('get_quantity', getQty.toString());
+                formData.set('give_quantity', giveQty.toFixed());
+                formData.set('get_quantity', getQty.toFixed());
               } else {
                 // Selling: give base asset, get quote asset
                 // give_quantity = amount (in base asset)
@@ -311,8 +320,8 @@ export function OrderForm({
                 const giveQty = amountBN;
                 const getQty = amountBN.multipliedBy(priceBN);
                 
-                formData.set('give_quantity', giveQty.toString());
-                formData.set('get_quantity', getQty.toString());
+                formData.set('give_quantity', giveQty.toFixed());
+                formData.set('get_quantity', getQty.toFixed());
               }
             } else {
               // If amount or price is 0 or invalid, set quantities to 0
@@ -322,7 +331,7 @@ export function OrderForm({
             
             formAction(formData);
           }}
-          submitDisabled={!baseAsset}
+          submitDisabled={!baseAsset || !baseReady || !quoteReady || !validPrice || !validAmount}
         >
           {validationError && (
             <div className="mb-4">
@@ -361,12 +370,8 @@ export function OrderForm({
               setError={setValidationError}
               showHelpText={showHelpText}
               sourceAddress={activeAddress}
-              maxAmount={isBuy ? (toBigNumber(price).isGreaterThan(0) ? formatAmount({
-                value: toBigNumber(quoteAssetBalance).dividedBy(toBigNumber(price)).toNumber(),
-                maximumFractionDigits: isQuoteAssetDivisible ? 8 : 0,
-                minimumFractionDigits: 0
-              }) : "") : availableBalance}
-              disableMaxButton={isBuy && !toBigNumber(price).isGreaterThan(0)}
+              maxAmount={isBuy ? buyMaximum : availableBalance}
+              disableMaxButton={!baseReady || !quoteReady || (isBuy && !validPrice)}
               label={t('common_amount')}
               name="amount"
               description={isBuy

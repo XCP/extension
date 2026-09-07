@@ -78,7 +78,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -97,7 +97,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -165,7 +165,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -186,7 +186,7 @@ describe('ComposerContext', () => {
       // review screen renders `result.btc_fee`, so substituting it here is what makes them honest.
       expect(result.current.state.apiResponse).toEqual({
         ...apiResponse,
-        result: { ...apiResponse.result, btc_fee: 4840 },
+        result: { ...apiResponse.result, btc_fee: 4840, params: { ...apiResponse.result.params, amount: '100', address: 'bc1qtest', sourceAddress: OWN_ADDRESS, source: OWN_ADDRESS } },
       });
       expect(result.current.state.verificationWarnings.join(' ')).toContain('4840');
 
@@ -208,7 +208,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -236,7 +236,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -263,7 +263,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -287,7 +287,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -305,7 +305,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -372,7 +372,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -401,7 +401,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -421,7 +421,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={vi.fn()} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -487,7 +487,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -575,7 +575,7 @@ describe('ComposerContext', () => {
       const { result } = renderHook(() => useComposer(), {
         wrapper: ({ children }) => (
           <MemoryRouter>
-            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="test">
+            <ComposerProvider composeApi={mockComposeApi} initialTitle="Test" composeType="move">
               {children}
             </ComposerProvider>
           </MemoryRouter>
@@ -656,10 +656,10 @@ describe('a compose whose message is missing entirely', () => {
     const formData = new FormData();
     formData.set('destination', DESTINATION);
     formData.set('asset', 'BTC');
-    formData.set('quantity', '95160');
+    formData.set('quantity', '0.00095160');
 
     const { result } = composeWith('send', messagelessResponse({
-      destination: DESTINATION, asset: 'BTC', quantity: 95160,
+      destination: DESTINATION, asset: 'BTC', quantity: 9, quantity_normalized: '999', asset_info: { divisible: false },
     }));
 
     await act(async () => {
@@ -670,6 +670,7 @@ describe('a compose whose message is missing entirely', () => {
       expect(result.current.state.step).toBe('review');
     });
     expect(result.current.state.error).toBeNull();
+    expect(result.current.state.apiResponse?.result.params).toMatchObject({ quantity: '95160', quantity_normalized: '0.0009516', asset_info: { divisible: true } });
   });
 
   it('allows a current move-to-UTXO compose, whose protocol action is message-less', async () => {

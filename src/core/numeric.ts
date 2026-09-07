@@ -1,4 +1,5 @@
 import BigNumber from "bignumber.js";
+import { validAmountDraft } from "@/core/validation/transaction-amount";
 
 // Constants
 const SATOSHI_DIVISOR = 100000000;
@@ -110,38 +111,7 @@ export const isValidPositiveNumber = (
 ): boolean => {
   const { allowZero = false, maxDecimals = 8 } = options;
 
-  try {
-    // Check for formula injection attempts
-    if (/^[-=@+]/.test(value.trim())) {
-      return false;
-    }
-
-    // First check if it's a valid number format before converting
-    const testNum = new BigNumber(value);
-    if (testNum.isNaN()) {
-      return false;
-    }
-    
-    // Check for infinity (positive or negative)
-    if (!testNum.isFinite()) {
-      return false;
-    }
-    
-    const num = toBigNumber(value);
-    if (allowZero) {
-      if (num.isLessThan(0)) return false;
-    } else {
-      if (num.isLessThanOrEqualTo(0)) return false;
-    }
-
-    // Check decimal places
-    const decimalPlaces = value.includes(".") ? value.split(".")[1]!.length : 0;
-    if (decimalPlaces > maxDecimals) return false;
-
-    return true;
-  } catch {
-    return false;
-  }
+  return validAmountDraft(value, maxDecimals, allowZero);
 };
 
 /**

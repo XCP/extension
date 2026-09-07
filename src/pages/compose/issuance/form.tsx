@@ -14,7 +14,7 @@ import { useComposer } from "@/contexts/composer-context-object";
 import { isSegwitFormat } from '@/core/bitcoin/address';
 import type { IssuanceOptions } from "@/core/counterparty/compose";
 import { encodeInscriptionContent } from '@/core/counterparty/inscriptionEnvelope';
-import { asDisplayUnits, toBigNumber } from '@/core/numeric';
+import { asDisplayUnits } from '@/core/numeric';
 import { maxSupplyForDivisibility } from "@/core/validation/amount";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 
@@ -196,27 +196,7 @@ export function IssuanceForm({
               name="divisible"
               label={t('common_divisible')}
               defaultChecked={isDivisible}
-              onChange={(checked) => {
-                setIsDivisible(checked);
-                // Adjust amount if changing divisibility
-                if (amount) {
-                  const currentAmount = toBigNumber(amount);
-                  const newMax = toBigNumber(getMaxAmount());
-                  
-                  // If current amount exceeds new max, set to new max
-                  if (currentAmount.isGreaterThan(newMax)) {
-                    setAmount(newMax.toFixed());
-                  }
-                  // If switching from indivisible to divisible and amount is large,
-                  // convert it (e.g., 100000000 becomes 1.00000000)
-                  else if (checked && currentAmount.isGreaterThan("92233720")) {
-                    // If the value is suspiciously large for a divisible asset,
-                    // assume it was meant as satoshis and convert
-                    const converted = currentAmount.dividedBy("100000000");
-                    setAmount(converted.toFixed(8));
-                  }
-                }
-              }}
+              onChange={setIsDivisible}
               disabled={pending}
             />
             <CheckboxInput

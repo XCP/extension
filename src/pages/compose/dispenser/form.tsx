@@ -267,8 +267,6 @@ export const DispenserForm = memo(function DispenserForm({
             value={giveQuantity}
             onChange={(e) => {
               const val = e.target.value;
-              if (!isDivisible && val.includes('.')) return;
-              if (isDivisible && val.includes('.') && val.split('.')[1]!.length > 8) return;
               setGiveQuantity(val);
             }}
             required

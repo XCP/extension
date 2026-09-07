@@ -10,7 +10,6 @@ import {
 } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { formatForInput } from "@/core/format";
 import { maximum, toNumber } from "@/core/numeric";
 import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
@@ -64,9 +63,9 @@ export function FeeRateInput({
   const disabledProps = disabled === true ? { disabled: true } : {};
 
   // Calculate the current fee rate value based on selection
-  const parsedCustomInput = Number.parseFloat(customInput);
+  const customValidation = validateFeeRate(customInput, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
   const currentFeeRate = selectedOption === "custom"
-    ? (Number.isFinite(parsedCustomInput) ? parsedCustomInput : null)
+    ? (customValidation.isValid ? customValidation.satsPerVByte ?? null : null)
     : uniquePresetOptions.find((opt) => opt.id === selectedOption)?.value ?? null;
 
   useEffect(() => {
@@ -117,87 +116,33 @@ export function FeeRateInput({
     ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: currentFeeRate ?? 0 }]
     : [{ id: "custom", name: "Custom", value: currentFeeRate ?? 0 }];
 
-  const handleCustomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const trimmed = e.target.value.trim();
-    setInternalError(null);
-    
-    // Allow empty input temporarily while typing
-    if (trimmed === "") {
-      setCustomInput("");
-      onFeeRateChangeRef.current?.(null);
-      return;
-    }
-    
-    // Only allow valid numeric input with at most one decimal point
-    const parts = trimmed.split(".");
-    if (parts.length > 2) {
-      return; // Ignore input with multiple decimal points
-    }
-    
-    // Basic format check - allow typing but don't validate yet
-    const num = parseFloat(trimmed);
-    if (Number.isNaN(num)) {
-      return; // Ignore non-numeric input
-    }
-    
-    // Enforce maximum two decimal places during typing
-    if (parts.length === 2 && parts[1]!.length > 2) {
-      // Machine format: this value is re-read by validateFeeRate below.
-      const formattedValue = formatForInput(num, 2);
-      setCustomInput(formattedValue);
-      const validation = validateFeeRate(formattedValue, { minRate: 0.1, warnHighFee: false });
-      onFeeRateChangeRef.current?.(
-        validation.isValid && validation.satsPerVByte !== undefined
-          ? validation.satsPerVByte
-          : null
-      );
-      return;
-    }
-    
-    // Update the input value without minimum validation (allow temporary invalid values during editing)
-    setCustomInput(trimmed);
-    
-    // Use validation utility to check if value is valid before notifying parent
-    const validation = validateFeeRate(num, { minRate: 0.1, warnHighFee: false });
-    if (validation.isValid && validation.satsPerVByte !== undefined) {
-      onFeeRateChangeRef.current?.(validation.satsPerVByte);
-    } else {
-      onFeeRateChangeRef.current?.(null);
-    }
+  const setCustomDraft = (draft: string) => {
+    // Keep invalid and incomplete drafts visible; there is no previous valid
+    // fee to submit while the field contains different text.
+    setCustomInput(draft);
+    const validation = validateFeeRate(draft, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
+    setInternalError(draft && !validation.isValid ? validation.error ?? 'Invalid fee rate' : null);
+    onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
   };
 
-  const handleCustomInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const trimmed = e.target.value.trim();
-    
-    // Handle empty input
-    if (trimmed === "") {
-      setInternalError(t('inputs_fee_rate_input_fee_rate_is_required'));
-      onFeeRateChangeRef.current?.(null);
-      return;
-    }
-    
-    // Validate using the fee validation utility
-    const validation = validateFeeRate(trimmed, { minRate: 0.1, maxRate: 5000 });
-    
-    if (!validation.isValid) {
-      // Use the error message from validation or default
-      setInternalError(validation.error || t('inputs_fee_rate_input_invalid_fee_rate'));
-      onFeeRateChangeRef.current?.(null);
-      return;
-    }
-    
-    const num = validation.satsPerVByte;
-    if (num === undefined) {
-      setInternalError(t('inputs_fee_rate_input_invalid_fee_rate'));
-      onFeeRateChangeRef.current?.(null);
-      return;
-    }
-    
-    // Format the final value and notify parent
-    // Machine format: toNumber reads this back on the next line.
-    const formattedValue = formatForInput(num, 2);
-    setCustomInput(formattedValue);
-    onFeeRateChangeRef.current?.(toNumber(formattedValue));
+  const handleCustomInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomDraft(event.target.value);
+  };
+
+  const handleCustomInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
+    // Validation must not round, strip separators, clamp, or replace the draft.
+    const validation = validateFeeRate(event.target.value, { minRate: 0.1, maxRate: 5000 });
+    setInternalError(validation.isValid ? null : validation.error ?? 'Invalid fee rate');
+    onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
+  };
+
+  const handleCustomInputPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = event.clipboardData.getData('text/plain');
+    if (!/[\r\n]/.test(pasted)) return;
+    event.preventDefault();
+    const input = event.currentTarget;
+    const escaped = pasted.replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+    setCustomDraft(customInput.slice(0, input.selectionStart ?? 0) + escaped + customInput.slice(input.selectionEnd ?? customInput.length));
   };
 
   const handleOptionSelect = (option: { id: LocalFeeRateOption; name: string; value: number } | null) => {
@@ -253,6 +198,8 @@ export function FeeRateInput({
             value={customInput}
             onChange={handleCustomInputChange}
             onBlur={handleCustomInputBlur}
+            onPaste={handleCustomInputPaste}
+            pattern={'([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})'}
             required
             {...disabledProps}
             invalid={!!internalError}
@@ -292,6 +239,8 @@ export function FeeRateInput({
               value={customInput}
               onChange={handleCustomInputChange}
               onBlur={handleCustomInputBlur}
+            onPaste={handleCustomInputPaste}
+            pattern={'([0-9]+(\\.[0-9]{1,8})?|\\.[0-9]{1,8})'}
               required
               {...disabledProps}
               invalid={!!internalError}
