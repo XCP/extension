@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { FaLock } from "@/components/icons";
+import { DisplayPreferences } from '@/components/settings/display-preferences';
 import { Button } from "@/components/ui/button";
 import type { ActionSection } from "@/components/ui/lists/action-list";
 import { ActionList } from "@/components/ui/lists/action-list";
@@ -121,6 +122,7 @@ export default function SettingsPage(): ReactElement {
       <div className="flex-1 overflow-auto no-scrollbar">
         <div className="p-4">
           <ActionList sections={settingSections} />
+          <DisplayPreferences />
 
           <div className="mt-8">
             <h2 className="text-sm font-medium text-gray-500 px-4 mb-2">{t('settings_about_xcp_wallet')}</h2>

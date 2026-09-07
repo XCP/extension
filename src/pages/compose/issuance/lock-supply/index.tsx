@@ -24,7 +24,7 @@ function ComposeLockSupplyPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('common_lock_supply')}
-        FormComponent={(props) => <LockSupplyForm {...props} asset={asset} />}
+        renderForm={(props) => <LockSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceLockSupply}
       />
     </div>

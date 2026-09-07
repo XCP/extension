@@ -24,7 +24,7 @@ function ComposeUpdateDescriptionPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('issuance_update_description_update_asset')}
-        FormComponent={(props) => <UpdateDescriptionForm {...props} asset={asset} />}
+        renderForm={(props) => <UpdateDescriptionForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceUpdateDescription}
       />
     </div>

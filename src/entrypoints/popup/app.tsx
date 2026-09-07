@@ -8,6 +8,7 @@ import { KeychainLockedOnly } from '@/components/router/keychain-locked-only';
 import { KeychainOpenOrNew } from '@/components/router/keychain-open-or-new';
 import { NoKeychainOnly } from '@/components/router/no-keychain-only';
 import { useWallet } from '@/contexts/wallet-context';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import ActionsPage from '@/pages/actions';
 // Actions
 import ConsolidatePage from '@/pages/actions/consolidate';
@@ -103,6 +104,7 @@ function FullscreenLoading() {
 }
 
 export default function App() {
+  useLocaleRevision();
   const { keychainExists, keychainLocked, isLoading } = useWallet();
   const location = useLocation();
 

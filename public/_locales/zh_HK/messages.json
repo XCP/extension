@@ -1941,7 +1941,21 @@
     "message": "。在開始新的找回之前，請等待"
   },
   "consolidate_form_protected_utxo_excluded": {
-    "message": "已排除 $1$2 $3$4 個受保護的 UTXO。"
+    "message": "已排除 $p1$$p2$ $p3$$p4$ 個受保護的 UTXO。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
   },
   "consolidate_form_recoverable": {
     "message": "可找回"
@@ -1995,7 +2009,18 @@
     "message": "批量合併"
   },
   "consolidate_review_btc_utxos": {
-    "message": "$1$2 BTC（$3 個 UTXO）"
+    "message": "$p1$$p2$ BTC（$p3$ 個 UTXO）",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
   },
   "consolidate_review_consolidating": {
     "message": "合併對象:"
@@ -2268,7 +2293,15 @@
     "message": "剩餘 $1"
   },
   "dispenser_dispenser_card_per_dispense": {
-    "message": "每次 $1$2"
+    "message": "每次 $p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "dispenser_dispenser_card_remaining": {
     "message": "剩餘 $1"
@@ -2587,12 +2620,6 @@
   },
   "inputs_fee_rate_input_fee_rate_custom": {
     "message": "費率（自定義）"
-  },
-  "inputs_fee_rate_input_fee_rate_is_required": {
-    "message": "費率為必填項"
-  },
-  "inputs_fee_rate_input_invalid_fee_rate": {
-    "message": "費率無效"
   },
   "inputs_fee_rate_input_loading_fee_rates": {
     "message": "正在加載費率…"
@@ -4665,7 +4692,15 @@
     "message": "隱藏兌換詳情"
   },
   "swap_form_impact": {
-    "message": "價格影響: $1$2%"
+    "message": "價格影響: $p1$$p2$%",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "swap_form_minimum_received": {
     "message": "最少收到"
@@ -5050,5 +5085,74 @@
   },
   "withdraw_review_minimum_receive": {
     "message": "最少收到"
+  },
+  "display_preferences_title": {
+    "message": "語言與顯示"
+  },
+  "display_preferences_language": {
+    "message": "介面語言"
+  },
+  "display_preferences_numbers": {
+    "message": "數字格式"
+  },
+  "display_preferences_browser": {
+    "message": "瀏覽器語言"
+  },
+  "display_preferences_follow_language": {
+    "message": "跟隨介面語言"
+  },
+  "display_preferences_fiat": {
+    "message": "價格幣別"
+  },
+  "display_preferences_input_help": {
+    "message": "這些設定僅影響顯示。輸入數量時請使用數字 0–9 和英文小數點，不要使用千位分隔符。價格幣別獨立儲存。"
+  },
+  "display_preferences_save_failed": {
+    "message": "無法儲存此設定，請重試。"
+  },
+  "safety_amount_syntax": {
+    "message": "請使用數字和英文小數點，最多保留8位小數，不要使用千位分隔符。"
+  },
+  "safety_amount_indivisible": {
+    "message": "此資產不可分割，請僅輸入整數。"
+  },
+  "safety_amount_precision": {
+    "message": "小數位數超出此資產支援的精度。未進行捨入或提交。"
+  },
+  "safety_amount_range": {
+    "message": "數量超出允許範圍。請檢查資產數量後重試。"
+  },
+  "safety_amount_too_long": {
+    "message": "數量輸入過長。未進行截斷或提交。"
+  },
+  "safety_divisibility_unknown": {
+    "message": "無法確定資產精度。請重新整理資產詳情後繼續。"
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterparty 無法精確編碼此手續費或佣金比例。請選擇其他比例。"
+  },
+  "safety_fee_invalid": {
+    "message": "請輸入有效費率：使用數字和英文小數點，最多8位小數，不要使用千位分隔符。"
+  },
+  "safety_fee_minimum": {
+    "message": "費率過低（最低：$1 sat/vB）"
+  },
+  "safety_fee_maximum": {
+    "message": "費率過高（最高：$1 sat/vB）"
+  },
+  "safety_destination_count": {
+    "message": "接收地址數量必須為正整數。"
+  },
+  "safety_max_unavailable": {
+    "message": "無法確認可用數量的精確值。使用最大值前請重新整理資產詳情。"
+  },
+  "safety_max_fee": {
+    "message": "使用最大值前請輸入有效費率。"
+  },
+  "safety_clipboard_lines": {
+    "message": "貼上的值包含換行符。繼續前請輸入單一值。"
+  },
+  "common_custom": {
+    "message": "自訂"
   }
 }

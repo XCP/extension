@@ -1941,7 +1941,21 @@
     "message": "があります。新しい回収を始める前に"
   },
   "consolidate_form_protected_utxo_excluded": {
-    "message": "保護された UTXO $1$2 $3$4 件を除外しました。"
+    "message": "保護された UTXO $p1$$p2$ $p3$$p4$ 件を除外しました。",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
   },
   "consolidate_form_recoverable": {
     "message": "回収可能"
@@ -1995,7 +2009,18 @@
     "message": "バッチ統合"
   },
   "consolidate_review_btc_utxos": {
-    "message": "$1$2 BTC（UTXO $3 件）"
+    "message": "$p1$$p2$ BTC（UTXO $p3$ 件）",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
   },
   "consolidate_review_consolidating": {
     "message": "統合対象:"
@@ -2268,7 +2293,15 @@
     "message": "残り $1"
   },
   "dispenser_dispenser_card_per_dispense": {
-    "message": "1 回あたり $1$2"
+    "message": "1 回あたり $p1$$p2$",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "dispenser_dispenser_card_remaining": {
     "message": "残り $1"
@@ -2587,12 +2620,6 @@
   },
   "inputs_fee_rate_input_fee_rate_custom": {
     "message": "手数料率（カスタム）"
-  },
-  "inputs_fee_rate_input_fee_rate_is_required": {
-    "message": "手数料率は必須です"
-  },
-  "inputs_fee_rate_input_invalid_fee_rate": {
-    "message": "手数料率が無効です"
   },
   "inputs_fee_rate_input_loading_fee_rates": {
     "message": "手数料率を読み込み中…"
@@ -4665,7 +4692,15 @@
     "message": "スワップの詳細を隠す"
   },
   "swap_form_impact": {
-    "message": "影響: $1$2%"
+    "message": "影響: $p1$$p2$%",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "swap_form_minimum_received": {
     "message": "最低受取額"
@@ -5050,5 +5085,74 @@
   },
   "withdraw_review_minimum_receive": {
     "message": "最低受取額"
+  },
+  "display_preferences_title": {
+    "message": "言語と表示"
+  },
+  "display_preferences_language": {
+    "message": "表示言語"
+  },
+  "display_preferences_numbers": {
+    "message": "数値の表示形式"
+  },
+  "display_preferences_browser": {
+    "message": "ブラウザーの言語"
+  },
+  "display_preferences_follow_language": {
+    "message": "表示言語に合わせる"
+  },
+  "display_preferences_fiat": {
+    "message": "価格の表示通貨"
+  },
+  "display_preferences_input_help": {
+    "message": "これらの設定は表示にのみ適用されます。数量は半角数字 0–9 と小数点で入力し、桁区切りは使用しないでください。価格の表示通貨は個別に保存されます。"
+  },
+  "display_preferences_save_failed": {
+    "message": "設定を保存できませんでした。もう一度お試しください。"
+  },
+  "safety_amount_syntax": {
+    "message": "半角数字と小数点を使用し、小数点以下は8桁以内にしてください。桁区切りは使用しないでください。"
+  },
+  "safety_amount_indivisible": {
+    "message": "このアセットは分割できません。整数の半角数字のみを入力してください。"
+  },
+  "safety_amount_precision": {
+    "message": "数量の小数点以下の桁数が、このアセットで使用できる桁数を超えています。丸め処理や送信は行われていません。"
+  },
+  "safety_amount_range": {
+    "message": "数量が許容範囲外です。アセットの数量を確認して、もう一度お試しください。"
+  },
+  "safety_amount_too_long": {
+    "message": "数量の入力が長すぎます。省略や送信は行われていません。"
+  },
+  "safety_divisibility_unknown": {
+    "message": "アセットの小数精度を確認できません。アセット情報を更新してから続行してください。"
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterpartyはこの手数料またはコミッションの比率を正確に記録できません。別の比率を選択してください。"
+  },
+  "safety_fee_invalid": {
+    "message": "手数料率は半角数字と小数点を使用し、小数点以下8桁以内で入力してください。桁区切りは使用しないでください。"
+  },
+  "safety_fee_minimum": {
+    "message": "手数料率が低すぎます（最小: $1 sat/vB）"
+  },
+  "safety_fee_maximum": {
+    "message": "手数料率が高すぎます（最大: $1 sat/vB）"
+  },
+  "safety_destination_count": {
+    "message": "送信先の数は正の整数である必要があります。"
+  },
+  "safety_max_unavailable": {
+    "message": "利用可能な数量を正確に確認できません。Maxを使用する前にアセット情報を更新してください。"
+  },
+  "safety_max_fee": {
+    "message": "Maxを使用する前に有効な手数料率を入力してください。"
+  },
+  "safety_clipboard_lines": {
+    "message": "貼り付けた値に改行が含まれています。続行する前に単一の値を入力してください。"
+  },
+  "common_custom": {
+    "message": "カスタム"
   }
 }

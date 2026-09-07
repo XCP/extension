@@ -24,7 +24,7 @@ function ComposeOrderPage() {
         composeType="order"
         composeApiMethod={composeOrder}
         initialTitle={t('compose_order_dex_order')}
-        FormComponent={(props) => <OrderForm {...props} giveAsset={asset || ''} urlParams={urlParams} />}
+        renderForm={(props) => <OrderForm {...props} giveAsset={asset || ''} urlParams={urlParams} />}
         ReviewComponent={ReviewOrder}
       />
     </div>

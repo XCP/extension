@@ -55,6 +55,11 @@ function usedKeys() {
   return found;
 }
 
+// Chrome treats $1$2 as the named variable $1$, not two positional values.
+// Named placeholders also allow adjacent substitutions without inserting visible whitespace.
+const expandedMessage = entry => entry.message.replace(/\$([A-Za-z0-9_]+)\$/g,
+  (match, name) => entry.placeholders?.[name.toLowerCase()]?.content ?? match);
+
 function build() {
   const keys = Object.keys(en).sort((a, b) => a.localeCompare(b));
   const lines = [
@@ -62,7 +67,7 @@ function build() {
     '// The English catalog as a type, so a call site cannot name a message that does not exist, and',
     '// as a value, so unit tests outside an extension context read the English copy.',
     'export const EN = {',
-    ...keys.map((key) => `  ${JSON.stringify(key)}: ${JSON.stringify(en[key].message)},`),
+    ...keys.map((key) => `  ${JSON.stringify(key)}: ${JSON.stringify(expandedMessage(en[key]))},`),
     '} as const;',
     '',
     'export type MessageKey = keyof typeof EN;',
@@ -151,8 +156,8 @@ function check() {
     const extra = Object.keys(messages).filter((key) => !defined.has(key));
     const badPlaceholders = [...defined].filter((key) => {
       if (!(key in messages)) return false;
-      const want = (en[key].message.match(/\$\d/g) ?? []).sort().join('');
-      const have = (messages[key].message.match(/\$\d/g) ?? []).sort().join('');
+      const want = (expandedMessage(en[key]).match(/\$\d/g) ?? []).sort().join('');
+      const have = (expandedMessage(messages[key]).match(/\$\d/g) ?? []).sort().join('');
       return want !== have;
     });
     const status = readJson(join(STATUS_DIR, `${name}.json`), { machine: [] });
@@ -163,6 +168,17 @@ function check() {
     for (const key of missing.slice(0, 20)) console.log(`  missing ${key}`);
     for (const key of extra) console.log(`  stale ${key}`);
     for (const key of badPlaceholders) console.log(`  placeholders ${key}: en "${en[key].message}" vs "${messages[key].message}"`);
+  }
+  for (const name of ['en', ...locales]) {
+    const catalog = readJson(join(LOCALES_DIR, name, 'messages.json'), {});
+    for (const [key, entry] of Object.entries(catalog)) {
+      for (const [, variable] of entry.message.matchAll(/\$([A-Za-z0-9_]+)\$/g)) {
+        if (!entry.placeholders?.[variable.toLowerCase()]) {
+          console.error(`${name}: ${key} references undefined Chrome placeholder $${variable}$`);
+          failed = true;
+        }
+      }
+    }
   }
   const numbers = numbersInNoLanguage();
   if (numbers.length) {

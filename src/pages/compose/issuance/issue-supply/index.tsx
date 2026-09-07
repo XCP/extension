@@ -24,7 +24,7 @@ function ComposeIssueSupplyPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('common_issue_supply')}
-        FormComponent={(props) => <IssueSupplyForm {...props} initialParentAsset={asset} />}
+        renderForm={(props) => <IssueSupplyForm {...props} initialParentAsset={asset} />}
         ReviewComponent={ReviewIssuanceIssueSupply}
       />
     </div>

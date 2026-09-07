@@ -15,7 +15,7 @@ function ComposeFairmintPage() {
         composeType="fairmint"
         composeApiMethod={composeFairmint}
         initialTitle={t('fairminter_fairmint_fairmint')}
-        FormComponent={(props) => <FairmintForm {...props} asset={asset || ""} />}
+        renderForm={(props) => <FairmintForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewFairmint}
       />
     </div>

@@ -26,12 +26,14 @@ import {
   use,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from "react";
 import { onMessage } from 'webext-bridge/popup';
 import { type AppSettings, DEFAULT_SETTINGS } from "@/core/settings";
 import { withStateLock } from "@/core/wallet/stateLockManager";
+import { configureLocale } from '@/i18n';
 import { analytics } from "@/platform/fathom";
 import { watchKeychainRecord } from "@/platform/storage/walletStorage";
 import { getWalletService } from "@/services/walletService";
@@ -61,6 +63,10 @@ const SettingsContext = createContext<SettingsContextType | undefined>(undefined
 export function SettingsProvider({ children }: { children: ReactNode }): ReactElement {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoading, setIsLoading] = useState(true);
+
+  useLayoutEffect(() => {
+    configureLocale({ language: settings.language, numberLocale: settings.numberLocale });
+  }, [settings.language, settings.numberLocale]);
 
   /**
    * @param showLoading - False when re-reading settings that changed elsewhere. Every surface
@@ -126,7 +132,7 @@ export function SettingsProvider({ children }: { children: ReactNode }): ReactEl
       // On error, reload from storage to get the authoritative state.
       // This avoids race conditions with stale rollback values when
       // multiple rapid updates are attempted.
-      await loadSettings();
+      await loadSettings(false);
       throw error; // Re-throw to let component handle user feedback
     }
   }, [loadSettings]);

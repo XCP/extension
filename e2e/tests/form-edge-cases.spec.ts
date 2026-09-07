@@ -259,6 +259,45 @@ walletTest.describe('Form Edge Cases - Send Amount', () => {
     }
   });
 
+  walletTest('display preferences preserve an invalid draft across wallet surfaces', async ({ page, context }) => {
+    const amount = send.amountInput(page);
+    await amount.pressSequentially('1e5');
+    await expect(amount).toHaveValue('1e5');
+    const composeRequests: string[] = [];
+    context.on('request', request => {
+      if (/\/v2\/addresses\/.*\/compose\//.test(request.url())) composeRequests.push(request.url());
+    });
+    const settingsPage = await context.newPage();
+    try {
+      await settingsPage.goto(page.url().split('#')[0] + '#/settings');
+      const controls = settingsPage.locator('section[aria-label] select');
+      await expect(controls).toHaveCount(3);
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await controls.nth(0).selectOption('ja');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+      await expect(amount).toHaveValue('1e5');
+      await expect(amount).toHaveAttribute('aria-invalid', 'true');
+      await expect(page.getByText('半角数字と小数点を使用し、小数点以下は8桁以内にしてください。桁区切りは使用しないでください。')).toBeVisible();
+      await controls.nth(1).selectOption('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await expect(amount).toHaveValue('1e5');
+      await controls.nth(0).selectOption('zh-TW');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'zh-TW');
+      await expect(controls.nth(1)).toHaveValue('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await expect(amount).toHaveValue('1e5');
+      await settingsPage.reload();
+      await expect(controls.nth(0)).toHaveValue('zh-TW');
+      await expect(controls.nth(1)).toHaveValue('de-DE');
+      await expect(controls.nth(2)).toHaveValue('usd');
+      await amount.evaluate(input => (input as HTMLInputElement).form?.requestSubmit());
+      expect(composeRequests).toEqual([]);
+      await amount.fill('1.5');
+      await expect(amount).toHaveValue('1.5');
+      await expect(amount).not.toHaveAttribute('aria-invalid', 'true');
+    } finally { await settingsPage.close(); }
+  });
+
   walletTest('handles very small amount (below dust limit)', async ({ page }) => {
     await expect(send.recipientInput(page)).toBeVisible({ timeout: 5000 });
     await send.recipientInput(page).fill(TEST_ADDRESSES.mainnet.p2wpkh);

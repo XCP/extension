@@ -46,6 +46,7 @@ import {
   useState,
 } from "react";
 import { useNavigate } from "react-router";
+import { transactionErrorMessage } from '@/components/composer/transaction-error-message';
 import {
   ComposerContext,
   type ComposerState,
@@ -510,7 +511,7 @@ export function ComposerProvider<T>({
       if (isApiError(error) && error.response?.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
         errorMessage = (error.response.data as { error: string }).error;
       } else if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
       analytics.track(`compose_error_${classifyTransactionError(errorMessage)}`);
@@ -686,7 +687,7 @@ export function ComposerProvider<T>({
       console.error("Sign/broadcast error:", error);
       let errorMessage = t('composer_context_failed_to_sign_and_broadcast');
       if (error instanceof Error) {
-        errorMessage = error.message;
+        errorMessage = transactionErrorMessage(error) ?? error.message;
       }
 
       analytics.track(`broadcast_error_${classifyTransactionError(errorMessage)}`);

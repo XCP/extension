@@ -24,7 +24,7 @@ function ComposeTransferOwnershipPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('issuance_transfer_ownership_transfer_asset')}
-        FormComponent={(props) => <TransferOwnershipForm {...props} asset={asset} />}
+        renderForm={(props) => <TransferOwnershipForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceTransferOwnership}
       />
     </div>

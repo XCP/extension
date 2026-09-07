@@ -15,7 +15,7 @@ function ComposeOrderCancelPage() {
         composeType="cancel"
         composeApiMethod={composeCancel}
         initialTitle={t('common_cancel')}
-        FormComponent={(props) => <CancelForm {...props} initialHash={hash} />}
+        renderForm={(props) => <CancelForm {...props} initialHash={hash} />}
         ReviewComponent={ReviewCancel}
       />
     </div>

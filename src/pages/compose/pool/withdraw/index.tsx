@@ -14,7 +14,7 @@ export default function ComposePoolWithdrawPage() {
         composeType="poolwithdraw"
         composeApiMethod={composePoolWithdraw}
         initialTitle={t('common_pool')}
-        FormComponent={(props) => <PoolWithdrawForm {...props} lpAsset={asset} />}
+        renderForm={(props) => <PoolWithdrawForm {...props} lpAsset={asset} />}
         ReviewComponent={ReviewPoolWithdraw}
       />
     </div>

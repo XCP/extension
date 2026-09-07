@@ -1,5 +1,5 @@
 import { type ReactElement, useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { FiHelpCircle, FiRefreshCw, FiX } from "@/components/icons";
 import { SuccessScreen } from "@/components/screens/success-screen";
 import { Banner } from "@/components/ui/banner";
@@ -35,13 +35,16 @@ interface ComposerProps<T> {
   initialFormData?: T;
 
   // Components
-  FormComponent: (props: {
+  FormComponent?: (props: {
     formAction: (formData: FormData) => void | Promise<void>;
     initialFormData: T | null;
     error?: string | null;
     showHelpText?: boolean;
   }) => ReactElement;
-  ReviewComponent: (props: {
+  /** Render callbacks return elements; changing their identity must not remount their forms. */
+  renderForm?: ComposerProps<T>['FormComponent'];
+  renderReview?: ComposerProps<T>['ReviewComponent'];
+  ReviewComponent?: (props: {
     apiResponse: ApiResponse;
     onSign: () => void;
     onBack: () => void;
@@ -71,6 +74,8 @@ function ComposerInner<T>({
   initialFormData,
   FormComponent,
   ReviewComponent,
+  renderForm,
+  renderReview,
   headerCallbacks,
 }: ComposerInnerProps<T>): ReactElement {
   const navigate = useNavigate();
@@ -185,14 +190,19 @@ function ComposerInner<T>({
 
   return (
     <>
-      {state.step === "form" && (
+      {state.step === "form" && (renderForm ? renderForm({
+        formAction: handleFormAction,
+        initialFormData: state.formData ?? initialFormData ?? null,
+        error: state.error,
+        showHelpText,
+      }) : FormComponent && (
         <FormComponent
           formAction={handleFormAction}
           initialFormData={state.formData ?? initialFormData ?? null}
           error={state.error}
           showHelpText={showHelpText}
         />
-      )}
+      ))}
 
       {state.step === "review" && state.apiResponse && (
         <>
@@ -211,13 +221,19 @@ function ComposerInner<T>({
               </Banner>
             </div>
           )}
-          <ReviewComponent
+          {renderReview ? renderReview({
+            apiResponse: state.apiResponse,
+            onSign: signAndBroadcast,
+            onBack: goBack,
+            error: state.error,
+            isSigning: state.isSigning,
+          }) : ReviewComponent && <ReviewComponent
             apiResponse={state.apiResponse}
-            onSign={signAndBroadcast}
+            onSign={() => { void signAndBroadcast(); }}
             onBack={goBack}
             error={state.error}
             isSigning={state.isSigning}
-          />
+          />}
         </>
       )}
 
@@ -241,10 +257,14 @@ export function Composer<T>({
   initialFormData,
   FormComponent,
   ReviewComponent,
+  renderForm,
+  renderReview,
   headerCallbacks,
 }: ComposerProps<T>): ReactElement {
+  const { pathname } = useLocation();
   return (
     <ComposerProvider<T>
+      key={pathname}
       composeType={composeType}
       composeApi={composeApiMethod}
       initialTitle={initialTitle}
@@ -254,6 +274,8 @@ export function Composer<T>({
         initialFormData={initialFormData}
         FormComponent={FormComponent}
         ReviewComponent={ReviewComponent}
+        renderForm={renderForm}
+        renderReview={renderReview}
         headerCallbacks={headerCallbacks}
       />
     </ComposerProvider>

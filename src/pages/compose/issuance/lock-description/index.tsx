@@ -28,7 +28,7 @@ function ComposeLockDescriptionPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('common_lock_description')}
-        FormComponent={(props) => (
+        renderForm={(props) => (
           <LockDescriptionForm {...props} asset={asset} />
         )}
         ReviewComponent={ReviewLockDescription}

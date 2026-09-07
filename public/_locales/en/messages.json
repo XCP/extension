@@ -2588,8 +2588,22 @@
     "description": "pages/actions/consolidate/form.tsx"
   },
   "consolidate_form_protected_utxo_excluded": {
-    "message": "$1$2 protected UTXO $3$4 excluded.",
-    "description": "pages/actions/consolidate/form.tsx. $1 = formData.consolidationData.stamp_protection.protected_utxos; $2 = \" \"; $3 = formData.consolidationData.stamp_protection\r\n                    .protected_utxos === 1\r\n                    ? \" is\"\r\n                    : \"s are\"; $4 = \" \""
+    "message": "$p1$$p2$ protected UTXO $p3$$p4$ excluded.",
+    "description": "pages/actions/consolidate/form.tsx. $1 = formData.consolidationData.stamp_protection.protected_utxos; $2 = \" \"; $3 = formData.consolidationData.stamp_protection\r\n                    .protected_utxos === 1\r\n                    ? \" is\"\r\n                    : \"s are\"; $4 = \" \"",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      },
+      "p4": {
+        "content": "$4"
+      }
+    }
   },
   "consolidate_form_recoverable": {
     "message": "Recoverable",
@@ -2660,8 +2674,19 @@
     "description": "pages/actions/consolidate/review.tsx"
   },
   "consolidate_review_btc_utxos": {
-    "message": "$1$2 BTC ($3 UTXOs)",
-    "description": "pages/actions/consolidate/review.tsx. $1 = formatAmount({\r\n              value: totalBtc,\r\n              minimumFractionDigits: 8,\r\n              maximumFractionDigits: 8,\r\n            }); $2 = \" \"; $3 = totalUtxos"
+    "message": "$p1$$p2$ BTC ($p3$ UTXOs)",
+    "description": "pages/actions/consolidate/review.tsx. $1 = formatAmount({\r\n              value: totalBtc,\r\n              minimumFractionDigits: 8,\r\n              maximumFractionDigits: 8,\r\n            }); $2 = \" \"; $3 = totalUtxos",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      },
+      "p3": {
+        "content": "$3"
+      }
+    }
   },
   "consolidate_review_consolidating": {
     "message": "Consolidating:",
@@ -3024,8 +3049,16 @@
     "description": "components/domain/dispenser/asset-dispenser-card.tsx, components/domain/dispenser/manage-dispenser-card.tsx, components/domain/dispenser/market-dispenser-card.tsx, components/ui/cards/market-order-card.tsx. $1 = formatAmount({ value: remainingAmount, maximumFractionDigits: 2 })"
   },
   "dispenser_dispenser_card_per_dispense": {
-    "message": "$1$2 Per Dispense",
-    "description": "components/domain/dispenser/dispenser-card.tsx. $1 = formatAmount({\r\n                value: option.dispenser.give_quantity_normalized,\r\n                minimumFractionDigits: 0,\r\n                maximumFractionDigits: 8,\r\n              }); $2 = \" \""
+    "message": "$p1$$p2$ Per Dispense",
+    "description": "components/domain/dispenser/dispenser-card.tsx. $1 = formatAmount({\r\n                value: option.dispenser.give_quantity_normalized,\r\n                minimumFractionDigits: 0,\r\n                maximumFractionDigits: 8,\r\n              }); $2 = \" \"",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "dispenser_dispenser_card_remaining": {
     "message": "$1 Remaining",
@@ -3449,14 +3482,6 @@
   },
   "inputs_fee_rate_input_fee_rate_custom": {
     "message": "Fee Rate (Custom)",
-    "description": "components/ui/inputs/fee-rate-input.tsx"
-  },
-  "inputs_fee_rate_input_fee_rate_is_required": {
-    "message": "Fee rate is required",
-    "description": "components/ui/inputs/fee-rate-input.tsx"
-  },
-  "inputs_fee_rate_input_invalid_fee_rate": {
-    "message": "Invalid fee rate",
     "description": "components/ui/inputs/fee-rate-input.tsx"
   },
   "inputs_fee_rate_input_loading_fee_rates": {
@@ -6220,8 +6245,16 @@
     "description": "pages/compose/swap/form.tsx"
   },
   "swap_form_impact": {
-    "message": "Impact: $1$2%",
-    "description": "pages/compose/swap/form.tsx. $1 = signedImpact > 0 ? \"+\" : \"\"; $2 = formatAmount({ value: signedImpact, maximumFractionDigits: 2 })"
+    "message": "Impact: $p1$$p2$%",
+    "description": "pages/compose/swap/form.tsx. $1 = signedImpact > 0 ? \"+\" : \"\"; $2 = formatAmount({ value: signedImpact, maximumFractionDigits: 2 })",
+    "placeholders": {
+      "p1": {
+        "content": "$1"
+      },
+      "p2": {
+        "content": "$2"
+      }
+    }
   },
   "swap_form_minimum_received": {
     "message": "Minimum received",
@@ -6734,5 +6767,97 @@
   "withdraw_review_minimum_receive": {
     "message": "Minimum Receive",
     "description": "pages/compose/pool/withdraw/review.tsx"
+  },
+  "display_preferences_title": {
+    "message": "Language and display",
+    "description": "Display preference control."
+  },
+  "display_preferences_language": {
+    "message": "Interface language",
+    "description": "Display preference control."
+  },
+  "display_preferences_numbers": {
+    "message": "Number format",
+    "description": "Display preference control."
+  },
+  "display_preferences_browser": {
+    "message": "Browser language",
+    "description": "Display preference control."
+  },
+  "display_preferences_follow_language": {
+    "message": "Follow interface language",
+    "description": "Display preference control."
+  },
+  "display_preferences_fiat": {
+    "message": "Price currency",
+    "description": "Display preference control."
+  },
+  "display_preferences_input_help": {
+    "message": "These choices affect display only. Enter amounts with digits 0–9 and a period, without grouping separators. Price currency is saved independently.",
+    "description": "Display preference control."
+  },
+  "display_preferences_save_failed": {
+    "message": "Could not save this preference. Please try again.",
+    "description": "Display preference control."
+  },
+  "safety_amount_syntax": {
+    "message": "Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_amount_indivisible": {
+    "message": "This asset is indivisible. Enter whole digits only.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_amount_precision": {
+    "message": "The amount has more decimal places than this asset supports. Nothing was rounded or submitted.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_amount_range": {
+    "message": "The amount is outside the allowed range. Check the asset quantity and try again.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_amount_too_long": {
+    "message": "The amount is too long. Nothing was shortened or submitted.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_divisibility_unknown": {
+    "message": "Asset precision is unknown. Refresh the asset details before continuing.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_fraction_inexact": {
+    "message": "Counterparty cannot encode this fee or commission fraction exactly. Choose another fraction.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_fee_invalid": {
+    "message": "Enter a valid fee rate using digits and a decimal point, with at most 8 decimal places and no grouping separators.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_fee_minimum": {
+    "message": "Fee rate too low (minimum: $1 sat/vB)",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion. $1 is the exact fee-rate limit in sat/vB."
+  },
+  "safety_fee_maximum": {
+    "message": "Fee rate too high (maximum: $1 sat/vB)",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion. $1 is the exact fee-rate limit in sat/vB."
+  },
+  "safety_destination_count": {
+    "message": "The destination count must be a positive whole number.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_max_unavailable": {
+    "message": "The available amount is not exact. Refresh the asset details before using Max.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_max_fee": {
+    "message": "Enter a valid fee rate before using Max.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "safety_clipboard_lines": {
+    "message": "The pasted value contains line breaks. Enter a single value before continuing.",
+    "description": "Transaction input safety validation. Preserve ASCII digits/period requirements; no grouping or automatic conversion."
+  },
+  "common_custom": {
+    "message": "Custom",
+    "description": "Custom fee-rate option."
   }
 }

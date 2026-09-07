@@ -19,7 +19,7 @@ function ComposeSwapPage() {
         composeType="order"
         composeApiMethod={composeOrder}
         initialTitle={t('common_swap')}
-        FormComponent={(props) => (
+        renderForm={(props) => (
           <SwapForm
             {...props}
             initialGiveAsset={giveAsset ? decodeURIComponent(giveAsset) : ""}

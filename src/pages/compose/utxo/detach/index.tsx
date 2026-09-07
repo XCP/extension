@@ -15,7 +15,7 @@ function ComposeUtxoDetachPage() {
         composeType="detach"
         composeApiMethod={composeDetach}
         initialTitle={t('utxo_detach_detach_utxo')}
-        FormComponent={(props) => <UtxoDetachForm {...props} initialUtxo={txId || ""} />}
+        renderForm={(props) => <UtxoDetachForm {...props} initialUtxo={txId || ""} />}
         ReviewComponent={ReviewUtxoDetach}
       />
     </div>

@@ -2,40 +2,46 @@ import { EN, type MessageKey } from '@/i18n/en.generated';
 
 export type { MessageKey } from '@/i18n/en.generated';
 
-/**
- * The wallet's one translation call, over the platform's own mechanism.
- *
- * Strings live in `public/_locales/<locale>/messages.json`, the format
- * Chrome and Firefox load themselves: the browser picks the locale from its
- * own UI language (`zh_TW`, then `zh`, then `default_locale`), loads only
- * that file, and answers synchronously. There is no in-wallet language
- * setting by design — the wallet reads in the language the browser does,
- * exactly as its manifest name does — and no runtime library, because the
- * platform already is one.
- *
- * There is a `zh` catalog as well as `zh_CN`, and it is not redundant. That
- * search order is the reason: exact locale, then the language without its
- * region, then the default. Chrome's supported list names only `zh_CN` and
- * `zh_TW` for Chinese, so `zh_HK`, `zh_SG`, `zh_MO` and a bare `zh` all miss
- * the first step — and with no language-level catalog they fell straight
- * through to ENGLISH. `zh` holds the Simplified text, so every Chinese reader
- * the two regional files do not name gets Chinese rather than English.
- * `zh_TW` still wins for Taiwan on the exact match, and `zh_HK` still wins
- * wherever it is honoured.
- *
- * `en/messages.json` is the source of truth. `scripts/i18n.mjs build` mirrors
- * it into `en.generated.ts` so a key is a type: a call site cannot name a
- * message that does not exist, and a message no call site names is reported.
- * Outside an extension context (unit tests under jsdom) the English text is
- * returned directly, so tests keep asserting on the copy they always did.
- *
- * Substitutions are Chrome's positional `$1`, `$2`, passed as strings; the
- * English message documents what each stands for in its `description`.
- */
+import { languagePreference, numberLocalePreference } from '@/i18n/preferences';
+import ja from '../../public/_locales/ja/messages.json';
+import zhCN from '../../public/_locales/zh_CN/messages.json';
+import zhHK from '../../public/_locales/zh_HK/messages.json';
+import zhTW from '../../public/_locales/zh_TW/messages.json';
+
+const catalogs = { ja, 'zh-CN': zhCN, 'zh-TW': zhTW, 'zh-HK': zhHK };
+let language = languagePreference('auto');
+let numberLocale = numberLocalePreference('auto');
+const listeners = new Set<() => void>();
+
+/** Browser catalog by default; explicit choices use the same bundled catalogs. */
+export function configureLocale(preferences: { language?: unknown; numberLocale?: unknown }): void {
+  const nextLanguage = languagePreference(preferences.language);
+  const nextNumbers = numberLocalePreference(preferences.numberLocale);
+  if (nextLanguage === language && nextNumbers === numberLocale) return;
+  language = nextLanguage;
+  numberLocale = nextNumbers;
+  if (typeof document !== 'undefined') applyDocumentLocale();
+  listeners.forEach(listener => { listener(); });
+}
+
+export const localeSnapshot = (): string => `${language}:${numberLocale}`;
+export function subscribeLocale(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+/** Auto follows the resolved interface catalog. A saved override affects display only. */
+export function currentNumberLocale(): string {
+  return numberLocale === 'auto' ? currentLocale() : numberLocale;
+}
+
+/** Chrome positional substitutions are shared by platform and explicit catalogs. */
 export function t(key: MessageKey, substitutions?: string | readonly string[]): string {
   const subs = substitutions === undefined
     ? undefined
     : typeof substitutions === 'string' ? substitutions : [...substitutions];
+  if (language === 'en') return substitute(EN[key], subs);
+  if (language !== 'auto') return substitute(expandCatalogMessage(catalogs[language][key]) || EN[key], subs);
   const message = fromRuntime(key, subs);
   return message || substitute(EN[key], subs);
 }
@@ -52,6 +58,11 @@ function fromRuntime(key: MessageKey, subs?: string | string[]): string {
   } catch {
     return '';
   }
+}
+
+/** Resolve Chrome named placeholders before positional substitutions (including adjacent values). */
+export function expandCatalogMessage(entry: { message: string; placeholders?: Record<string, { content: string }> }): string {
+  return entry.message.replace(/\$([A-Za-z0-9_]+)\$/g, (match, name: string) => entry.placeholders?.[name.toLowerCase()]?.content ?? match);
 }
 
 function substitute(message: string, subs?: string | string[]): string {

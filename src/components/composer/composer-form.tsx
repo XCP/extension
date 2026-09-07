@@ -58,7 +58,7 @@ export function ComposerForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [isLocalSubmitting, setIsLocalSubmitting] = useState(false);
   const clipboardTarget = useRef<HTMLInputElement | null>(null);
-  const [clipboardError, setClipboardError] = useState<string | null>(null);
+  const [clipboardError, setClipboardError] = useState(false);
 
   // Determine if form is submitting
   const isSubmitting = isLocalSubmitting || state.isComposing;
@@ -85,12 +85,12 @@ export function ComposerForm({
             if (!/[\r\n]/.test(event.clipboardData.getData('text/plain'))) return;
             event.preventDefault();
             clipboardTarget.current = event.target;
-            setClipboardError('The pasted value contains line breaks. Enter a single value before continuing.');
+            setClipboardError(true);
           }}
           onChangeCapture={(event) => {
             if ((event.target as EventTarget) === clipboardTarget.current) {
               clipboardTarget.current = null;
-              setClipboardError(null);
+              setClipboardError(false);
             }
           }}
           onSubmit={async (e) => {
@@ -111,7 +111,7 @@ export function ComposerForm({
           }}
         >
           {children}
-          {clipboardError && <ErrorAlert message={clipboardError} />}
+          {clipboardError && <ErrorAlert message={t('safety_clipboard_lines')} />}
           
           {showFeeRate && (
             <FeeRateInput

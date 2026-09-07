@@ -5,37 +5,11 @@
 import { type DecimalPlaces, parseAmountDraft } from '@/core/amount-contract/amounts';
 import { CURRENCY_INFO, type FiatCurrency } from '@/core/bitcoin/price';
 import { type BigNumber, fromSatoshis, toSatoshis } from '@/core/numeric';
-import { currentLocale, t } from '@/i18n';
+import { currentNumberLocale, t } from '@/i18n';
 
-/**
- * The language every figure on screen is written in.
- *
- * Not the same thing as the browser's default, which is what `Intl` reaches
- * for when nobody hands it a locale. The words come from the browser's own message catalog, which
- * it picks by UI LANGUAGE; the numbers were coming
- * from the runtime default, which follows its REGIONAL FORMAT. Those are two
- * different settings and a reader can have them disagree — Japanese chrome
- * around English digits, or the reverse. This makes one of them decide, and
- * it is the one that chose the words.
- *
- * Resolved once, because today it cannot change: the browser picked the
- * catalog from its own UI language before any of this loaded, and the wallet
- * offers no setting of its own. That is deliberate — one source of truth, and
- * the same one the manifest's name and description already resolve through.
- *
- * If a runtime override is ever offered, this is the single place that has to
- * learn about it: clear `display` when the choice changes and every figure in
- * the wallet follows on the next render. Nothing else caches a locale.
- *
- * Exported because a handful of sites format a DATE, which wants the same
- * answer and options `formatAmount` has no business taking. They call this
- * rather than each restating the resolution, which is how two of them would
- * eventually disagree.
- */
-let display: string | undefined;
+/** Display follows interface language unless the user saved a number-format override. */
 export function displayLocale(): string {
-  display ??= currentLocale() || 'en';
-  return display;
+  return currentNumberLocale();
 }
 
 export interface AmountFormatterOptions {

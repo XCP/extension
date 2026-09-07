@@ -20,6 +20,8 @@ export const TRANSACTION_OVERHEAD = 10; // Fixed transaction overhead in vBytes
 export interface FeeValidationResult {
   isValid: boolean;
   error?: string;
+  errorCode?: 'fee_invalid' | 'fee_minimum' | 'fee_maximum';
+  limit?: number;
   satsPerVByte?: number;
   totalFee?: number;
   warning?: string;
@@ -79,6 +81,7 @@ export function validateFeeRate(
   if (rate.isLessThan(minRateBN)) {
     return { 
       isValid: false, 
+      errorCode: 'fee_minimum', limit: minRate,
       error: `Fee rate too low (minimum: ${minRate} sat/vB)` 
     };
   }
@@ -88,6 +91,7 @@ export function validateFeeRate(
   if (rate.isGreaterThan(maxRateBN)) {
     return { 
       isValid: false, 
+      errorCode: 'fee_maximum', limit: maxRate,
       error: `Fee rate too high (maximum: ${maxRate} sat/vB)` 
     };
   }

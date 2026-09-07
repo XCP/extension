@@ -13,7 +13,7 @@ export default function ComposePoolDepositPage() {
         composeType="pooldeposit"
         composeApiMethod={composePoolDeposit}
         initialTitle={t('common_pool')}
-        FormComponent={(props) => (
+        renderForm={(props) => (
           <PoolDepositForm
             {...props}
             initialAssetA={assetA ? decodeURIComponent(assetA) : undefined}

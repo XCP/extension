@@ -24,7 +24,7 @@ function ComposeResetSupplyPage() {
         composeType="issuance"
         composeApiMethod={composeIssuance}
         initialTitle={t('common_reset_supply')}
-        FormComponent={(props) => <ResetSupplyForm {...props} asset={asset} />}
+        renderForm={(props) => <ResetSupplyForm {...props} asset={asset} />}
         ReviewComponent={ReviewIssuanceResetSupply}
       />
     </div>

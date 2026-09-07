@@ -15,7 +15,7 @@ function ComposeDestroySupplyPage() {
         composeType="destroy"
         composeApiMethod={composeDestroy}
         initialTitle={t('common_destroy')}
-        FormComponent={(props) => (
+        renderForm={(props) => (
           <DestroySupplyForm
             {...props}
             initialAsset={asset || ""}

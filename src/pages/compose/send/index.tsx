@@ -15,7 +15,7 @@ function ComposeSendPage() {
         composeType="send"
         composeApiMethod={composeSendOrMPMA}
         initialTitle={t('common_send')}
-        FormComponent={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
+        renderForm={(props) => <SendForm {...props} initialAsset={asset || "BTC"} />}
         ReviewComponent={ReviewSend}
       />
     </div>

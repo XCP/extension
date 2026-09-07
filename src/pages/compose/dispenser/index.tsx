@@ -34,8 +34,8 @@ function ComposeDispenserPage() {
         composeApiMethod={composeDispenser}
         initialTitle={isRefill ? t('compose_dispenser_refill_dispenser') : "Dispenser"}
         initialFormData={initialFormData}
-        FormComponent={(props) => <DispenserForm {...props} asset={asset || ""} isRefill={isRefill} />}
-        ReviewComponent={(props) => <ReviewDispenser {...props} asset={asset || ""} />}
+        renderForm={(props) => <DispenserForm {...props} asset={asset || ""} isRefill={isRefill} />}
+        renderReview={(props) => <ReviewDispenser {...props} asset={asset || ""} />}
       />
     </div>
   );

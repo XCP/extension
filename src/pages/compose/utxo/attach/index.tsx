@@ -24,7 +24,7 @@ function ComposeUtxoAttachPage() {
         composeType="attach"
         composeApiMethod={composeAttach}
         initialTitle={t('utxo_attach_attach_utxo')}
-        FormComponent={(props) => (
+        renderForm={(props) => (
           <UtxoAttachForm
             {...props}
             initialAsset={asset}

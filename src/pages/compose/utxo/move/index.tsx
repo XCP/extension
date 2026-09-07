@@ -15,7 +15,7 @@ function ComposeUtxoMovePage() {
         composeType="move"
         composeApiMethod={composeMove}
         initialTitle={t('utxo_move_move_utxo')}
-        FormComponent={(props) => <UtxoMoveForm {...props} initialUtxo={txId || ""} />}
+        renderForm={(props) => <UtxoMoveForm {...props} initialUtxo={txId || ""} />}
         ReviewComponent={ReviewUtxoMove}
       />
     </div>

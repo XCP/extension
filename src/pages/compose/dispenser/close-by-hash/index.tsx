@@ -15,7 +15,7 @@ function ComposeDispenserCloseByHashPage() {
         composeType="dispenser"
         composeApiMethod={composeDispenser}
         initialTitle={t('common_close')}
-        FormComponent={(props) => <DispenserCloseByHashForm {...props} initialTxHash={txHash} />}
+        renderForm={(props) => <DispenserCloseByHashForm {...props} initialTxHash={txHash} />}
         ReviewComponent={ReviewDispenserCloseByHash}
       />
     </div>

@@ -15,7 +15,7 @@ function ComposeDispenserClosePage() {
         composeType="dispenser"
         composeApiMethod={composeDispenser}
         initialTitle={t('common_close')}
-        FormComponent={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
+        renderForm={(props) => <DispenserCloseForm {...props} initialAsset={asset} />}
         ReviewComponent={ReviewDispenserClose}
       />
     </div>

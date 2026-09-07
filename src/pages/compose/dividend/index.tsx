@@ -15,7 +15,7 @@ function ComposeDividendPage() {
         composeType="dividend"
         composeApiMethod={composeDividend}
         initialTitle={t('common_dividend')}
-        FormComponent={(props) => <DividendForm {...props} asset={asset || ""} />}
+        renderForm={(props) => <DividendForm {...props} asset={asset || ""} />}
         ReviewComponent={ReviewDividend}
       />
     </div>

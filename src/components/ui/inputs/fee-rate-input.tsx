@@ -9,11 +9,11 @@ import {
   ListboxOptions,
 } from "@headlessui/react";
 import { type ReactElement, useEffect, useRef, useState } from "react";
+import { feeErrorMessage } from '@/components/composer/transaction-error-message';
 import { Button } from "@/components/ui/button";
 import { maximum, toNumber } from "@/core/numeric";
 import { validateFeeRate } from "@/core/validation/fee";
 import { type FeeRateOption, useFeeRates } from "@/hooks/useFeeRates";
-
 import { t } from '@/i18n';
 
 interface FeeRateInputProps {
@@ -113,15 +113,15 @@ export function FeeRateInput({
   }, [selectedOption, feeRates, uniquePresetOptions]);
 
   const feeOptions: { id: LocalFeeRateOption; name: string; value: number; }[] = feeRates
-    ? [...uniquePresetOptions, { id: "custom", name: "Custom", value: currentFeeRate ?? 0 }]
-    : [{ id: "custom", name: "Custom", value: currentFeeRate ?? 0 }];
+    ? [...uniquePresetOptions, { id: "custom", name: t('common_custom'), value: currentFeeRate ?? 0 }]
+    : [{ id: "custom", name: t('common_custom'), value: currentFeeRate ?? 0 }];
 
   const setCustomDraft = (draft: string) => {
     // Keep invalid and incomplete drafts visible; there is no previous valid
     // fee to submit while the field contains different text.
     setCustomInput(draft);
     const validation = validateFeeRate(draft, { minRate: 0.1, maxRate: 5000, warnHighFee: false });
-    setInternalError(draft && !validation.isValid ? validation.error ?? 'Invalid fee rate' : null);
+    setInternalError(draft && !validation.isValid ? feeErrorMessage(validation) : null);
     onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
   };
 
@@ -132,7 +132,7 @@ export function FeeRateInput({
   const handleCustomInputBlur = (event: React.FocusEvent<HTMLInputElement>) => {
     // Validation must not round, strip separators, clamp, or replace the draft.
     const validation = validateFeeRate(event.target.value, { minRate: 0.1, maxRate: 5000 });
-    setInternalError(validation.isValid ? null : validation.error ?? 'Invalid fee rate');
+    setInternalError(validation.isValid ? null : feeErrorMessage(validation));
     onFeeRateChangeRef.current?.(validation.isValid ? validation.satsPerVByte ?? null : null);
   };
 
@@ -216,7 +216,7 @@ export function FeeRateInput({
         )}
         {internalError && (
           <p className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
-            {internalError}
+            {feeErrorMessage(customValidation)}
           </p>
         )}
       </Field>
@@ -311,7 +311,7 @@ export function FeeRateInput({
       )}
       {internalError && (
         <p className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
-          {internalError}
+          {feeErrorMessage(customValidation)}
         </p>
       )}
     </Field>

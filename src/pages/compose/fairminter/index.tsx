@@ -15,7 +15,7 @@ function ComposeFairminterPage() {
         composeType="fairminter"
         composeApiMethod={composeFairminter}
         initialTitle={t('compose_fairminter_fairminter')}
-        FormComponent={(props) => <FairminterForm {...props} asset={asset || ''} />}
+        renderForm={(props) => <FairminterForm {...props} asset={asset || ''} />}
         ReviewComponent={ReviewFairminter}
       />
     </div>

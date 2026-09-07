@@ -80,8 +80,8 @@ export function AmountWithMaxInput({
   const [isLoading, setIsLoading] = useState(false);
   const invalidDraft = value !== '' && !isComposableAmount(value, isDivisible ? 8 : 0);
   const draftError = isDivisible
-    ? 'Use digits and a decimal point, with at most 8 decimal places. Do not use grouping separators.'
-    : 'This asset is indivisible. Enter whole digits only.';
+    ? t('safety_amount_syntax')
+    : t('safety_amount_indivisible');
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     // Retain the complete draft. Dropping '-' or '.' here lets the next
@@ -94,13 +94,13 @@ export function AmountWithMaxInput({
     if (!sourceAddress?.address || disabled) return;
 
     if (!Number.isSafeInteger(destinationCount) || destinationCount < 1) {
-      setError('The destination count must be a positive whole number.');
+      setError(t('safety_destination_count'));
       return;
     }
     if (asset !== "BTC") {
       const maximum = parseAmountDraft(maxAmount, { decimals: isDivisible ? 8 : 0 });
       if (maximum.status !== 'valid') {
-        setError('The available amount is not exact. Refresh the asset details before using Max.');
+        setError(t('safety_max_unavailable'));
         return;
       }
       // Intentionally floor the derived split in base units, leaving a remainder.
@@ -110,7 +110,7 @@ export function AmountWithMaxInput({
     }
 
     if (feeRate === null || feeRate === undefined || !validateFeeRate(feeRate, { minRate: 0.1 }).isValid) {
-      setError("Enter a valid fee rate before using Max.");
+      setError(t('safety_max_fee'));
       return;
     }
 
