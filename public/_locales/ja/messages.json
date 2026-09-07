@@ -399,7 +399,7 @@
     "message": "リクエストを確認できません"
   },
   "approval_approval_notice_signing_blocked": {
-    "message": "署名はブロックされています"
+    "message": "署名できません"
   },
   "approval_approval_notice_this_request_could_not_be": {
     "message": "このリクエストを検証できませんでした"
@@ -948,7 +948,7 @@
     "message": "トランザクションを確認できません。戻ってもう一度お試しください。"
   },
   "balance_amount_with_max_input_amount_per_destination_after_fee": {
-    "message": "手数料控除後の宛先あたりの数量がダスト制限を下回っています。"
+    "message": "手数料控除後の宛先ごとの BTC が、ダスト下限を下回ります。"
   },
   "balance_amount_with_max_input_calculating_maximum_amount": {
     "message": "最大数量を計算中…"
@@ -963,7 +963,7 @@
     "message": "最大数量を計算できませんでした。もう一度お試しください。"
   },
   "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
-    "message": "トランザクション手数料をまかなう残高が不足しています。"
+    "message": "手数料を支払うための残高が不足しています。"
   },
   "balance_amount_with_max_input_source_address_is_required_to": {
     "message": "最大数量の計算には送信元アドレスが必要です"
@@ -1725,10 +1725,10 @@
     "message": "XCP Wallet"
   },
   "common_you_receive": {
-    "message": "受け取る額"
+    "message": "受取数量"
   },
   "common_you_send": {
-    "message": "送る額"
+    "message": "送付数量"
   },
   "common_your_balance": {
     "message": "あなたの残高"
@@ -2172,9 +2172,6 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "トランザクションはメンプールに入り、次のブロック以降で承認されます。統合された Bitcoin はトランザクションの承認後に利用できるようになります。"
   },
-  "deposit_form_after": {
-    "message": "後"
-  },
   "deposit_form_asset_a": {
     "message": "アセット A"
   },
@@ -2186,9 +2183,6 @@
   },
   "deposit_form_lp_supply_is_zero_this": {
     "message": "LP の発行量がゼロです。この預け入れはプールを再始動し、既存の準備金を取得する可能性があります。"
-  },
-  "deposit_form_minimum_lp_tokens": {
-    "message": "最低 LP トークン数:"
   },
   "deposit_form_only_the_pool_ratio_amount": {
     "message": "プールの比率に合う数量のみが預け入れられ、余剰分は使用されません。"
@@ -2203,25 +2197,22 @@
     "message": "プールへの預け入れは現在のプール比率を使用します。"
   },
   "deposit_form_quoted_partner_amount": {
-    "message": "見積もられた相手側の数量: $1 $2"
+    "message": "プール比率に必要な数量: $1 $2"
   },
   "deposit_form_review_deposit": {
     "message": "預け入れ内容を確認"
-  },
-  "deposit_form_slippage": {
-    "message": "% のスリッページ。"
   },
   "deposit_form_the_lp_asset_represents_your": {
     "message": "LP アセットはプールにおけるあなたのシェアを表します。"
   },
   "deposit_form_this_deposits_less_than_the": {
-    "message": "見積もられた比率で可能な量より少なく預け入れます。"
+    "message": "この数量では、見積もりのプール比率で預け入れられる量に届きません。"
   },
   "deposit_form_use_quote": {
     "message": "見積もりを使用"
   },
   "deposit_review_minimum_lp": {
-    "message": "最低 LP"
+    "message": "最低受取 LP 数量"
   },
   "destroy_supply_form_amount_to_destroy": {
     "message": "破棄する数量"
@@ -2631,7 +2622,7 @@
     "message": "最初のプリセットに戻す"
   },
   "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
-    "message": "手数料率を取得できません。カスタム手数料率を入力してください（最低 0.1 sat/vB）。"
+    "message": "手数料率を取得できません。手動で入力してください（最低 0.1 sat/vB）。"
   },
   "inputs_file_upload_input_choose_file": {
     "message": "ファイルを選択"
@@ -2787,10 +2778,10 @@
     "message": "ウォレットを選択"
   },
   "layout_api_status_banner_api_error_some_features_may": {
-    "message": "API エラー。一部の機能が利用できない可能性があります。"
+    "message": "API エラーが発生しました。一部の機能を利用できない場合があります。"
   },
   "layout_api_status_banner_api_rate_limited_requests_may": {
-    "message": "API のレート制限中です。リクエストが遅くなる可能性があります。"
+    "message": "API のリクエスト上限に達しました。しばらく待ってから再試行してください。"
   },
   "layout_api_status_banner_dismiss": {
     "message": "閉じる"
@@ -3825,10 +3816,7 @@
     "message": "$1 建ての単価"
   },
   "order_form_quote": {
-    "message": "クォート"
-  },
-  "order_form_select_the_asset_to": {
-    "message": "$1アセットを選択してください。"
+    "message": "価格表示用アセット"
   },
   "pool_pool_slippage_settings_done": {
     "message": "完了"
@@ -3846,19 +3834,19 @@
     "message": "カスタムスリッページ（%）"
   },
   "pool_slippage_input_how_far_the_pool_ratio": {
-    "message": "トランザクションが失敗するまでにプールの比率がどれだけ動いてよいか。許容値を高くすると、同じブロックで他の人がプールを取引しても失敗しにくくなります。"
+    "message": "許容するプール比率の変動幅です。高くすると実行されやすくなる一方、受取数量が減る場合があります。"
   },
   "pool_slippage_input_set_from_the_quote_s": {
     "message": "数量を入力すると、見積もりの価格影響から設定されます。"
   },
   "pool_slippage_input_slippage_tolerance": {
-    "message": "スリッページ許容値"
+    "message": "許容スリッページ"
   },
   "pool_slippage_input_using_matched_to_this_trade": {
     "message": "この取引の価格影響に合わせて $1% を使用しています。"
   },
   "pool_slippage_input_very_high_you_may_receive": {
-    "message": "非常に高い。見積もりよりかなり少ない額を受け取る可能性があります。"
+    "message": "許容値が高いため、受取数量が見積もりを大きく下回る可能性があります。"
   },
   "pool_slippage_input_very_low_likely_to_fail": {
     "message": "非常に低い。トランザクションの承認前にプールが変化すると失敗しやすくなります。"
@@ -4113,7 +4101,7 @@
     "message": "戻ってトランザクションを編集"
   },
   "screens_review_screen_raw_transaction": {
-    "message": "生トランザクション"
+    "message": "トランザクションデータ"
   },
   "screens_review_screen_review_transaction": {
     "message": "トランザクションの確認"
@@ -4662,7 +4650,7 @@
     "message": "保留中の注文が残す量を上回っています。それらが先に承認されると、このスワップは 1 ブロックの間待機してから約定せずに返金されます。スリッページを上げるか「自動」を使用してください。"
   },
   "swap_form_after_mempool": {
-    "message": "メンプール反映後"
+    "message": "先行注文の承認後（推定）"
   },
   "swap_form_ahead_in_mempool": {
     "message": "メンプールで $1 件が先行"
@@ -4680,7 +4668,7 @@
     "message": "BTC ペアはスワップに対応していません。代わりに DEX 注文を使用してください。"
   },
   "swap_form_estimated_amount_received": {
-    "message": "受取予定額"
+    "message": "受取数量の見積もり"
   },
   "swap_form_fetching_quote": {
     "message": "見積もりを取得中…"
@@ -4692,7 +4680,7 @@
     "message": "スワップの詳細を隠す"
   },
   "swap_form_impact": {
-    "message": "影響: $p1$$p2$%",
+    "message": "価格への影響: $p1$$p2$%",
     "placeholders": {
       "p1": {
         "content": "$1"
@@ -4703,10 +4691,10 @@
     }
   },
   "swap_form_minimum_received": {
-    "message": "最低受取額"
+    "message": "最低受取数量"
   },
   "swap_form_no_liquidity_pool_exists_for": {
-    "message": "$1/$2 の流動性プールは存在しません。このペアのスワップは、既存の DEX 注文からのみ約定できます。"
+    "message": "$1/$2 の流動性プールはありません。このペアのスワップは、注文板にある DEX 注文とのみ約定できます。"
   },
   "swap_form_one_unconfirmed_order_on_this": {
     "message": "このペアに同じ方向の未承認注文が 1 件あります。それが先に承認されると、このスワップの受取額は見積もりより約 $1% 少なくなります。自動スリッページはこれを考慮します。"
@@ -4733,13 +4721,13 @@
     "message": "約定"
   },
   "swap_review_immediately_or_cancels_next_block": {
-    "message": "即時。約定しなければ次のブロックでキャンセル"
+    "message": "承認時に約定。未約定分は期限切れ後に返却"
   },
   "swap_review_minimum_price": {
-    "message": "最低価格"
+    "message": "約定価格の限度"
   },
   "swap_review_minimum_received": {
-    "message": "最低受取額"
+    "message": "最低受取数量"
   },
   "sweep_form_asset_balances_only": {
     "message": "アセット残高のみ"
@@ -5066,25 +5054,19 @@
     "message": "ウォレットをリセットすると、すべてのウォレットデータが削除されます。この操作は元に戻せません。"
   },
   "withdraw_form_estimated_receive": {
-    "message": "受取予定額:"
+    "message": "受取数量の見積もり:"
   },
   "withdraw_form_loading_withdrawal_quote": {
     "message": "引き出しの見積もりを読み込み中..."
   },
   "withdraw_form_lp_tokens_to_withdraw": {
-    "message": "引き出す LP トークン数"
-  },
-  "withdraw_form_minimum_received_after": {
-    "message": "最低受取額（"
+    "message": "引き出しに使う LP 数量"
   },
   "withdraw_form_review_withdrawal": {
     "message": "引き出し内容を確認"
   },
-  "withdraw_form_slippage": {
-    "message": "% スリッページ後）:"
-  },
   "withdraw_review_minimum_receive": {
-    "message": "最低受取額"
+    "message": "最低受取数量"
   },
   "display_preferences_title": {
     "message": "言語と表示"
@@ -5114,7 +5096,7 @@
     "message": "半角数字と小数点のみ（小数8桁まで）。カンマ不可。"
   },
   "safety_amount_indivisible": {
-    "message": "整数のみ入力してください。小数点・カンマ不可。"
+    "message": "半角の整数のみ。小数点・カンマ不可。"
   },
   "safety_amount_precision": {
     "message": "数量の小数点以下の桁数が、このアセットで使用できる桁数を超えています。丸め処理や送信は行われていません。"
@@ -5144,15 +5126,42 @@
     "message": "送信先の数は正の整数である必要があります。"
   },
   "safety_max_unavailable": {
-    "message": "利用可能な数量を正確に確認できません。Maxを使用する前にアセット情報を更新してください。"
+    "message": "利用可能な数量を正確に確認できません。「最大」を使う前にアセット情報を更新してください。"
   },
   "safety_max_fee": {
-    "message": "Maxを使用する前に有効な手数料率を入力してください。"
+    "message": "「最大」を使う前に、有効な手数料率を入力してください。"
   },
   "safety_clipboard_lines": {
     "message": "改行なしで1つの値を貼り付けてください。"
   },
   "common_custom": {
     "message": "カスタム"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "購入するアセットを選択してください。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "売却するアセットを選択してください。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低受取 LP 数量（許容スリッページ $1%）:"
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低受取数量（許容スリッページ $1%）:"
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 ブロック"
+  },
+  "safety_slippage_invalid": {
+    "message": "0〜50%、小数2桁まで。カンマ不可。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最速"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1時間"
   }
 }

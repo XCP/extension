@@ -25,14 +25,13 @@ import {
   isEqualTo,
   isGreaterThan,
   isLessThan,
-  isLessThanOrEqualTo,
-  isValidPositiveNumber,
 } from "@/core/numeric";
 import { useAssetDetails } from "@/hooks/useAssetDetails";
 import { usePool } from "@/hooks/usePool";
 import { usePoolDepositQuote } from "@/hooks/usePoolQuotes";
 import { t } from '@/i18n';
 import { PoolSlippageSettings } from "@/pages/compose/pool/pool-slippage-settings";
+import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 
 interface PoolDepositFormProps {
   formAction: (formData: FormData) => void;
@@ -75,7 +74,8 @@ export function PoolDepositForm({
   const parsedB = parseAmountDraft(quantityB, { decimals: isAssetBDivisible ? 8 : 0, minRaw: 1n });
   const validA = parsedA.status === "valid";
   const validB = parsedB.status === "valid";
-  const canQuote = bothAssetsSelected && assetADetailsReady && assetBDetailsReady && validA;
+  const isSlippageValid = isValidSlippageDraft(slippage);
+  const canQuote = isSlippageValid && bothAssetsSelected && assetADetailsReady && assetBDetailsReady && validA;
   const needsQuote = canQuote && validB;
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolDepositQuote({
     assetA,
@@ -106,10 +106,8 @@ export function PoolDepositForm({
   const initialLpEstimate = calculateInitialLpEstimate(quantityARaw, quantityBRaw);
   const limitingLpEstimate = calculateLimitingLpEstimate(quote?.quantity_minted_estimate, partnerQuantityRaw, quantityBRaw);
   const lpEstimateForMinimum = isFirstDeposit || isZeroSupplyRestart ? initialLpEstimate : limitingLpEstimate;
-  const minLpQuantity = applyPoolSlippage(lpEstimateForMinimum, slippage);
+  const minLpQuantity = isSlippageValid ? applyPoolSlippage(lpEstimateForMinimum, slippage) : "";
   const hasLpMinimum = isGreaterThan(minLpQuantity, 0);
-  const isSlippageValid = isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
-    && isLessThanOrEqualTo(slippage, 50);
   const assetABalanceHeader: TokenBalance | null = assetADetailsReady && assetADetails
     ? {
         asset: assetA,
@@ -307,12 +305,10 @@ export function PoolDepositForm({
           {hasLpMinimum && (
             <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
               
-              {t('deposit_form_minimum_lp_tokens')}{" "}
+              {t('deposit_form_minimum_lp_with_slippage', [slippage])}{" "}
               <span className="font-medium text-gray-900">
                 {fromSatoshis(minLpQuantity, { removeTrailingZeros: true })}
-              </span>{" "}
-              
-              {t('deposit_form_after')} {slippage || "0"}{t('deposit_form_slippage')}
+              </span>
             </div>
           )}
 

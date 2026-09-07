@@ -22,8 +22,6 @@ import { formatAmount } from "@/core/format";
 import {
   fromSatoshis,
   isGreaterThan,
-  isLessThanOrEqualTo,
-  isValidPositiveNumber,
   toBigNumber,
 } from "@/core/numeric";
 import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
@@ -32,6 +30,7 @@ import { useMempoolAheadQuote } from "@/hooks/useMempoolAheadQuote";
 import { usePool } from "@/hooks/usePool";
 import { usePoolSwapQuote } from "@/hooks/usePoolQuotes";
 import { t } from '@/i18n';
+import { isValidSlippageDraft } from "@/pages/compose/pool/slippage-draft";
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
 
 interface SwapFormProps {
@@ -152,7 +151,8 @@ export function SwapForm({
 
   // ---- Quote ----
   const parsedAmount = parseAmountDraft(amount, { decimals: isGiveDivisible ? 8 : 0, minRaw: 1n });
-  const canQuote = pairUsable && giveDetailsReady && getDetails?.assetInfo?.asset === getAsset && typeof getDetails.assetInfo.divisible === "boolean" && parsedAmount.status === "valid";
+  const validSlippageSetting = slippageSetting === POOL_SLIPPAGE_AUTO || isValidSlippageDraft(slippageSetting);
+  const canQuote = validSlippageSetting && pairUsable && giveDetailsReady && getDetails?.assetInfo?.asset === getAsset && typeof getDetails.assetInfo.divisible === "boolean" && parsedAmount.status === "valid";
   const { data: quote, isLoading: isLoadingQuote, error: quoteError } = usePoolSwapQuote({
     giveAsset,
     getAsset,
@@ -183,12 +183,15 @@ export function SwapForm({
 
   // Auto reads the tolerance off this quote's own price impact plus what the mempool would take;
   // a stored percent is used as-is.
-  const slippage = resolvePoolSlippage(slippageSetting, quote?.price_impact, mempoolDrop);
+  const slippage = slippageSetting === POOL_SLIPPAGE_AUTO
+    ? resolvePoolSlippage(slippageSetting, quote?.price_impact, mempoolDrop)
+    : slippageSetting;
+  const isSlippageValid = isValidSlippageDraft(slippage);
 
   // Null until the quote produces actual output; all values in display units.
   const quoteView = useMemo<QuoteView | null>(() => {
     const estimatedSats = quote?.estimated_output ?? 0;
-    if (!quote || estimatedSats <= 0) return null;
+    if (!isSlippageValid || !quote || estimatedSats <= 0) return null;
 
     const estimated = toDisplayUnits(estimatedSats, isGetDivisible);
     const priceRatio = isGreaterThan(amount || 0, 0)
@@ -226,7 +229,7 @@ export function SwapForm({
         : null,
       route: routeLabel(quote),
     };
-  }, [quote, amount, slippage, isGetDivisible, isGiveDivisible, ahead]);
+  }, [quote, amount, slippage, isSlippageValid, isGetDivisible, isGiveDivisible, ahead]);
 
   // The guarantee is above what the mempool leaves: as priced, this swap rests for a block and
   // refunds instead of filling if the pending orders confirm first. Auto never lands here; a
@@ -237,9 +240,6 @@ export function SwapForm({
     && isGreaterThan(quoteView.minReceived, quoteView.afterMempool);
 
   // ---- Submission ----
-  const isSlippageValid =
-    isValidPositiveNumber(slippage, { allowZero: true, maxDecimals: 2 })
-    && isLessThanOrEqualTo(slippage, 50);
 
   const submitDisabled =
     !canQuote
@@ -270,7 +270,9 @@ export function SwapForm({
   // same as the pool deposit/withdraw settings panel.
   const handleSlippageChange = (next: string) => {
     setSlippageSetting(next);
-    void updateSettings({ defaultPoolSlippage: next });
+    if (next === POOL_SLIPPAGE_AUTO || isValidSlippageDraft(next)) {
+      void updateSettings({ defaultPoolSlippage: next });
+    }
   };
 
   const priceRowText = quoteView?.price

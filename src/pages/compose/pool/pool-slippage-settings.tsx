@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import { useSettings } from "@/contexts/settings-context";
 import { t } from '@/i18n';
 import { SlippageInput } from "@/pages/compose/pool/slippage-input";
+import { isValidSlippageDraft } from './slippage-draft';
 
 interface PoolSlippageSettingsProps {
   value: string;
@@ -25,7 +26,7 @@ export function PoolSlippageSettings({
 
   const handleChange = (next: string) => {
     onChange(next);
-    void updateSettings({ defaultPoolSlippage: next });
+    if (isValidSlippageDraft(next)) void updateSettings({ defaultPoolSlippage: next });
   };
 
   return (

@@ -1,10 +1,9 @@
 import { Description, Field, Input, Label } from "@headlessui/react";
-import type { ReactElement } from "react";
-import { isFiniteNumber, isGreaterThan, isLessThan } from "@/core/numeric";
-
+import { type ReactElement, useState } from "react";
+import { isGreaterThan, isLessThan } from "@/core/numeric";
 import { POOL_SLIPPAGE_AUTO } from "@/core/settings";
-
 import { t } from '@/i18n';
+import { isValidSlippageDraft } from './slippage-draft';
 
 export { DEFAULT_POOL_SLIPPAGE } from "@/core/settings";
 
@@ -40,17 +39,23 @@ export function SlippageInput({
 }: SlippageInputProps): ReactElement {
   const autoOn = value === POOL_SLIPPAGE_AUTO;
   const isPreset = (PRESETS as readonly string[]).includes(value);
+  const [customEditing, setCustomEditing] = useState(!autoOn && !isPreset);
   const displayValue = autoOn ? (resolvedValue ?? "") : value;
 
-  const showWarning = !autoOn && value.trim() !== "" && isFiniteNumber(value);
+  const validDraft = isValidSlippageDraft(value);
+  const invalidDraft = !autoOn && !validDraft;
+  const showWarning = !autoOn && validDraft;
   const isLow = showWarning && isLessThan(value, LOW_SLIPPAGE_THRESHOLD);
   const isHigh = showWarning && isGreaterThan(value, HIGH_SLIPPAGE_THRESHOLD);
 
   const handleCustomChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const next = event.target.value.trim();
-    // Accept only a decimal number (or empty); rejects letters and extra dots.
-    if (next !== "" && !/^\d*\.?\d*$/.test(next)) return;
-    onChange(next);
+    setCustomEditing(true);
+    onChange(event.target.value);
+  };
+
+  const selectPreset = (preset: string) => {
+    setCustomEditing(false);
+    onChange(preset);
   };
 
   return (
@@ -70,7 +75,7 @@ export function SlippageInput({
         {offerAuto && (
           <button
             type="button"
-            onClick={() => onChange(POOL_SLIPPAGE_AUTO)}
+            onClick={() => selectPreset(POOL_SLIPPAGE_AUTO)}
             className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               autoOn ? "bg-blue-500 text-white" : "bg-gray-100 hover:bg-gray-200 text-gray-700"
             }`}
@@ -82,7 +87,7 @@ export function SlippageInput({
           <button
             key={preset}
             type="button"
-            onClick={() => onChange(preset)}
+            onClick={() => selectPreset(preset)}
             className={`px-3 py-2 text-sm rounded-md transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               value === preset
                 ? "bg-blue-500 text-white"
@@ -99,8 +104,21 @@ export function SlippageInput({
         <Input
           type="text"
           inputMode="decimal"
-          value={autoOn || isPreset ? "" : value}
+          value={autoOn || (isPreset && !customEditing) ? "" : value}
           onChange={handleCustomChange}
+          onPaste={event => {
+            const pasted = event.clipboardData.getData('text/plain');
+            if (!/[\r\n]/.test(pasted)) return;
+            event.preventDefault();
+            const input = event.currentTarget;
+            const escaped = pasted.replace(/\r/g, '\\r').replace(/\n/g, '\\n');
+            setCustomEditing(true);
+            onChange(input.value.slice(0, input.selectionStart ?? 0) + escaped + input.value.slice(input.selectionEnd ?? input.value.length));
+          }}
+          aria-invalid={invalidDraft}
+          invalid={invalidDraft}
+          pattern={'([0-9]+(\\.[0-9]{1,2})?|\\.[0-9]{1,2})'}
+          required={customEditing}
           placeholder={t('pool_slippage_input_custom')}
           aria-label={t('pool_slippage_input_custom_slippage_percent')}
           className={`w-full px-3 py-2.5 pr-8 text-sm border rounded-md outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 ${
@@ -109,6 +127,12 @@ export function SlippageInput({
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">%</span>
       </div>
+
+      {invalidDraft && (
+        <Description role="alert" className="mt-2 text-sm text-red-500">
+          {t('safety_slippage_invalid')}
+        </Description>
+      )}
 
       {autoOn && (
         <Description className="mt-2 text-sm text-gray-500">

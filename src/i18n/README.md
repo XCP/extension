@@ -86,3 +86,19 @@ The stacked PR's base is PR399's branch. The repository currently runs PR CI onl
 when targeting main/develop, so draft PR400 has no automatic checks until its
 base changes; the local focused and packaged-browser evidence is reported
 explicitly instead of claiming full CI coverage.
+
+## Bounded wording review (saved; expanded layout pass paused)
+
+`review/critical-journeys-2026-09-07.json` lists the 181 exact keys read during
+an AI semantic wording review of Japanese and the three explicit Chinese
+catalogs. It records hashes, changed versus retained wording, primary references
+and outstanding gaps. This is not a native-speaker approval: every machine flag
+remains, and previously non-machine wording was protected.
+
+The user paused the expanded translation/layout work to prioritize API
+reliability and trade-history releases. The completed technical and safety checks
+are reported separately in the PR. The optional `XCP_LAYOUT_LOCALES` browser
+matrix is review tooling, not evidence that all localized flows have passed.
+Native SegWit/address-type labels and broader English protocol diagnostics remain
+queued. Do not treat this manifest or a passing catalog checker as approval to
+release every localized journey.

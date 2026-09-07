@@ -346,7 +346,7 @@ export function OrderForm({
                 selectedAsset={baseAsset}
                 onChange={handleBaseAssetChange}
                 label={t('common_asset')}
-                description={t('order_form_select_the_asset_to', [String(isBuy ? "buy" : "sell")])}
+                description={isBuy ? t('order_form_select_asset_to_buy') : t('order_form_select_asset_to_sell')}
                 showHelpText={showHelpText}
                 required
               />

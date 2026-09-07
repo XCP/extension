@@ -11,8 +11,7 @@ const formatExpiration = (expiration: unknown) => {
   const blocks = Number(expiration ?? DEFAULT_ORDER_EXPIRATION);
   return blocks === 0
     ? t('common_never_expires')
-    : blocks === 1 ? "1 block"
-      : `${formatAmount({ value: blocks, maximumFractionDigits: 0 })} blocks`;
+    : t('order_review_expiration_blocks', [formatAmount({ value: blocks, maximumFractionDigits: 0 })]);
 };
 
 /**

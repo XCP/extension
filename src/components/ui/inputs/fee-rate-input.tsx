@@ -113,7 +113,7 @@ export function FeeRateInput({
   }, [selectedOption, feeRates, uniquePresetOptions]);
 
   const feeOptions: { id: LocalFeeRateOption; name: string; value: number; }[] = feeRates
-    ? [...uniquePresetOptions, { id: "custom", name: t('common_custom'), value: currentFeeRate ?? 0 }]
+    ? [...uniquePresetOptions.map(option => ({ ...option, name: option.id === "fast" ? t('inputs_fee_rate_input_fastest') : option.id === "medium" ? t('inputs_fee_rate_input_thirty_minutes') : t('inputs_fee_rate_input_one_hour') })), { id: "custom", name: t('common_custom'), value: currentFeeRate ?? 0 }]
     : [{ id: "custom", name: t('common_custom'), value: currentFeeRate ?? 0 }];
 
   const setCustomDraft = (draft: string) => {
@@ -215,9 +215,9 @@ export function FeeRateInput({
           </Description>
         )}
         {internalError && (
-          <p className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
+          <Description className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
             {feeErrorMessage(customValidation)}
-          </p>
+          </Description>
         )}
       </Field>
     );
@@ -310,9 +310,9 @@ export function FeeRateInput({
         </Description>
       )}
       {internalError && (
-        <p className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
+        <Description className="text-red-500 text-sm mt-2" role="alert" id="sat_per_vbyte-error">
           {feeErrorMessage(customValidation)}
-        </p>
+        </Description>
       )}
     </Field>
   );

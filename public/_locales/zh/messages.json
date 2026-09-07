@@ -399,7 +399,7 @@
     "message": "无法审查请求"
   },
   "approval_approval_notice_signing_blocked": {
-    "message": "签名已被阻止"
+    "message": "已阻止签名"
   },
   "approval_approval_notice_this_request_could_not_be": {
     "message": "无法验证此请求"
@@ -411,7 +411,7 @@
     "message": "无法签名的原因"
   },
   "approval_approval_summary_card_protocol_fee": {
-    "message": "协议费用:"
+    "message": "协议手续费："
   },
   "approval_approval_summary_card_unusually_high_network_fee_double": {
     "message": "网络费用异常高。签名前请再次确认。"
@@ -948,7 +948,7 @@
     "message": "无法审查交易。请返回重试。"
   },
   "balance_amount_with_max_input_amount_per_destination_after_fee": {
-    "message": "扣除费用后每个接收方的数量低于粉尘限制。"
+    "message": "扣除手续费后，每个接收地址的 BTC 低于粉尘下限。"
   },
   "balance_amount_with_max_input_calculating_maximum_amount": {
     "message": "正在计算最大数量…"
@@ -963,7 +963,7 @@
     "message": "计算最大数量失败。请重试。"
   },
   "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
-    "message": "余额不足以支付交易费用。"
+    "message": "余额不足以支付交易手续费。"
   },
   "balance_amount_with_max_input_source_address_is_required_to": {
     "message": "计算最大数量需要来源地址"
@@ -1725,10 +1725,10 @@
     "message": "XCP Wallet"
   },
   "common_you_receive": {
-    "message": "你收到"
+    "message": "接收数量"
   },
   "common_you_send": {
-    "message": "你发送"
+    "message": "支付数量"
   },
   "common_your_balance": {
     "message": "你的余额"
@@ -2172,9 +2172,6 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "你的交易已进入内存池，将在接下来的区块中确认。合并后的比特币将在交易确认后可用。"
   },
-  "deposit_form_after": {
-    "message": "后"
-  },
   "deposit_form_asset_a": {
     "message": "资产 A"
   },
@@ -2186,9 +2183,6 @@
   },
   "deposit_form_lp_supply_is_zero_this": {
     "message": "LP 供应量为零。此次存入将重启流动性池，并可能获得现有储备。"
-  },
-  "deposit_form_minimum_lp_tokens": {
-    "message": "最少 LP 代币:"
   },
   "deposit_form_only_the_pool_ratio_amount": {
     "message": "只会按流动性池比率存入相应数量，多余部分不会使用。"
@@ -2203,25 +2197,22 @@
     "message": "存入流动性池按当前池比率进行。"
   },
   "deposit_form_quoted_partner_amount": {
-    "message": "报价的配对数量: $1 $2"
+    "message": "按池比例所需数量：$1 $2"
   },
   "deposit_form_review_deposit": {
     "message": "确认存入"
-  },
-  "deposit_form_slippage": {
-    "message": "% 滑点。"
   },
   "deposit_form_the_lp_asset_represents_your": {
     "message": "LP 资产代表你在流动性池中的份额。"
   },
   "deposit_form_this_deposits_less_than_the": {
-    "message": "此次存入少于报价比率允许的数量。"
+    "message": "此数量不足以按报价中的池比例全部存入。"
   },
   "deposit_form_use_quote": {
     "message": "使用报价"
   },
   "deposit_review_minimum_lp": {
-    "message": "最少 LP"
+    "message": "最低 LP 接收数量"
   },
   "destroy_supply_form_amount_to_destroy": {
     "message": "销毁数量"
@@ -2631,7 +2622,7 @@
     "message": "重置为第一个预设"
   },
   "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
-    "message": "无法获取费率。请输入自定义费率（最低 0.1 sat/vB）。"
+    "message": "无法获取费率。请手动输入（最低 0.1 sat/vB）。"
   },
   "inputs_file_upload_input_choose_file": {
     "message": "选择文件"
@@ -2787,10 +2778,10 @@
     "message": "选择钱包"
   },
   "layout_api_status_banner_api_error_some_features_may": {
-    "message": "API 错误。部分功能可能不可用。"
+    "message": "API 出错，部分功能可能暂时不可用。"
   },
   "layout_api_status_banner_api_rate_limited_requests_may": {
-    "message": "API 请求受限。请求可能较慢。"
+    "message": "API 请求过于频繁。请稍候再试。"
   },
   "layout_api_status_banner_dismiss": {
     "message": "关闭"
@@ -3827,9 +3818,6 @@
   "order_form_quote": {
     "message": "计价资产"
   },
-  "order_form_select_the_asset_to": {
-    "message": "选择要$1的资产。"
-  },
   "pool_pool_slippage_settings_done": {
     "message": "完成"
   },
@@ -3846,19 +3834,19 @@
     "message": "自定义滑点百分比"
   },
   "pool_slippage_input_how_far_the_pool_ratio": {
-    "message": "交易失败前允许流动性池比率变动的幅度。较高的容忍度可以避免同一区块内有人交易该池时导致失败。"
+    "message": "可接受的池比例最大变动幅度。提高容差可能有助于执行，但接收数量可能减少。"
   },
   "pool_slippage_input_set_from_the_quote_s": {
     "message": "输入数量后，将根据报价的价格影响自动设置。"
   },
   "pool_slippage_input_slippage_tolerance": {
-    "message": "滑点容忍度"
+    "message": "滑点容差"
   },
   "pool_slippage_input_using_matched_to_this_trade": {
     "message": "使用 $1%，与此交易的价格影响相匹配。"
   },
   "pool_slippage_input_very_high_you_may_receive": {
-    "message": "非常高，你收到的数量可能明显少于报价。"
+    "message": "容差过高，接收数量可能明显低于报价。"
   },
   "pool_slippage_input_very_low_likely_to_fail": {
     "message": "非常低，如果流动性池在你的交易确认前发生变化，很可能失败。"
@@ -4131,7 +4119,7 @@
     "message": "正在签名交易…"
   },
   "screens_review_screen_xcp_fee": {
-    "message": "XCP 费用:"
+    "message": "XCP 手续费："
   },
   "screens_success_screen_click_to_copy_transaction_id": {
     "message": "点击复制交易 ID"
@@ -4662,7 +4650,7 @@
     "message": "超出了待确认订单成交后剩余的数量。如果它们先确认，此兑换将挂单一个区块后退款而不是成交。请提高滑点或使用“自动”。"
   },
   "swap_form_after_mempool": {
-    "message": "内存池之后"
+    "message": "前序订单确认后（估算）"
   },
   "swap_form_ahead_in_mempool": {
     "message": "内存池中有 $1 笔在前"
@@ -4680,7 +4668,7 @@
     "message": "兑换不支持 BTC 交易对。请改用 DEX 订单。"
   },
   "swap_form_estimated_amount_received": {
-    "message": "预计收到数量"
+    "message": "预计接收数量"
   },
   "swap_form_fetching_quote": {
     "message": "正在获取报价…"
@@ -4703,10 +4691,10 @@
     }
   },
   "swap_form_minimum_received": {
-    "message": "最少收到"
+    "message": "最低接收数量"
   },
   "swap_form_no_liquidity_pool_exists_for": {
-    "message": "$1/$2 没有流动性池。此交易对的兑换只能由挂单中的 DEX 订单成交。"
+    "message": "$1/$2 没有流动性池。此交易对只能与订单簿中的 DEX 挂单成交。"
   },
   "swap_form_one_unconfirmed_order_on_this": {
     "message": "此交易对有 1 笔同方向的未确认订单。如果它先确认，此兑换将比报价少约 $1%。自动滑点已考虑到这一点。"
@@ -4733,13 +4721,13 @@
     "message": "成交"
   },
   "swap_review_immediately_or_cancels_next_block": {
-    "message": "立即成交，否则下一个区块取消"
+    "message": "确认时成交；未成交资产在到期后退回"
   },
   "swap_review_minimum_price": {
-    "message": "最低价格"
+    "message": "成交价格限制"
   },
   "swap_review_minimum_received": {
-    "message": "最少收到"
+    "message": "最低接收数量"
   },
   "sweep_form_asset_balances_only": {
     "message": "仅资产余额"
@@ -5066,25 +5054,19 @@
     "message": "重置钱包将删除所有钱包数据。此操作无法撤销。"
   },
   "withdraw_form_estimated_receive": {
-    "message": "预计收到:"
+    "message": "预计接收数量："
   },
   "withdraw_form_loading_withdrawal_quote": {
     "message": "正在加载取出报价..."
   },
   "withdraw_form_lp_tokens_to_withdraw": {
-    "message": "要取出的 LP 代币"
-  },
-  "withdraw_form_minimum_received_after": {
-    "message": "最少收到（"
+    "message": "用于赎回的 LP 数量"
   },
   "withdraw_form_review_withdrawal": {
     "message": "确认取出"
   },
-  "withdraw_form_slippage": {
-    "message": "% 滑点后）:"
-  },
   "withdraw_review_minimum_receive": {
-    "message": "最少收到"
+    "message": "最低接收数量"
   },
   "display_preferences_title": {
     "message": "语言与显示"
@@ -5111,10 +5093,10 @@
     "message": "无法保存此设置，请重试。"
   },
   "safety_amount_syntax": {
-    "message": "仅限数字和小数点，最多8位小数。勿用逗号。"
+    "message": "仅限半角数字和小数点，最多8位小数。勿用逗号。"
   },
   "safety_amount_indivisible": {
-    "message": "仅限整数。勿用小数点或逗号。"
+    "message": "仅限半角整数。勿用小数点或逗号。"
   },
   "safety_amount_precision": {
     "message": "小数位数超出此资产支持的精度。未进行舍入或提交。"
@@ -5132,7 +5114,7 @@
     "message": "Counterparty 无法精确编码此手续费或佣金比例。请选择其他比例。"
   },
   "safety_fee_invalid": {
-    "message": "仅限数字和小数点，最多8位小数。勿用逗号。"
+    "message": "仅限半角数字和小数点，最多8位小数。勿用逗号。"
   },
   "safety_fee_minimum": {
     "message": "费率过低（最低：$1 sat/vB）"
@@ -5144,15 +5126,42 @@
     "message": "接收地址数量必须为正整数。"
   },
   "safety_max_unavailable": {
-    "message": "无法确认可用数量的精确值。使用最大值前请刷新资产详情。"
+    "message": "无法确认可用数量。请刷新资产详情后再使用“最大”。"
   },
   "safety_max_fee": {
-    "message": "使用最大值前请输入有效费率。"
+    "message": "请先输入有效费率，再使用“最大”。"
   },
   "safety_clipboard_lines": {
     "message": "请重新粘贴一个不含换行的值。"
   },
   "common_custom": {
     "message": "自定义"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "选择要买入的资产。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "选择要卖出的资产。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低 LP 接收数量（滑点容差 $1%）："
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低接收数量（滑点容差 $1%）："
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 个区块"
+  },
+  "safety_slippage_invalid": {
+    "message": "请输入0–50%，最多2位小数。勿用逗号。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最快"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分钟"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1小时"
   }
 }

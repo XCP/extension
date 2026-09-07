@@ -399,7 +399,7 @@
     "message": "無法審查請求"
   },
   "approval_approval_notice_signing_blocked": {
-    "message": "簽名已被阻止"
+    "message": "已阻止簽名"
   },
   "approval_approval_notice_this_request_could_not_be": {
     "message": "無法驗證此請求"
@@ -411,7 +411,7 @@
     "message": "無法簽名的原因"
   },
   "approval_approval_summary_card_protocol_fee": {
-    "message": "協議費用:"
+    "message": "協議手續費："
   },
   "approval_approval_summary_card_unusually_high_network_fee_double": {
     "message": "網絡費用異常高。簽名前請再次確認。"
@@ -948,7 +948,7 @@
     "message": "無法審查交易。請返回重試。"
   },
   "balance_amount_with_max_input_amount_per_destination_after_fee": {
-    "message": "扣除費用後每個接收方的數量低於粉塵限制。"
+    "message": "扣除手續費後，每個接收地址的 BTC 低於粉塵下限。"
   },
   "balance_amount_with_max_input_calculating_maximum_amount": {
     "message": "正在計算最大數量…"
@@ -963,7 +963,7 @@
     "message": "計算最大數量失敗。請重試。"
   },
   "balance_amount_with_max_input_insufficient_balance_to_cover_transaction": {
-    "message": "餘額不足以支付交易費用。"
+    "message": "餘額不足以支付交易手續費。"
   },
   "balance_amount_with_max_input_source_address_is_required_to": {
     "message": "計算最大數量需要來源地址"
@@ -1725,10 +1725,10 @@
     "message": "XCP Wallet"
   },
   "common_you_receive": {
-    "message": "你收到"
+    "message": "接收數量"
   },
   "common_you_send": {
-    "message": "你發送"
+    "message": "支付數量"
   },
   "common_your_balance": {
     "message": "你的餘額"
@@ -2172,9 +2172,6 @@
   "consolidate_success_your_transactions_are_now_in": {
     "message": "你的交易已進入記憶池，將在接下來的區塊中確認。合併後的比特幣將在交易確認後可用。"
   },
-  "deposit_form_after": {
-    "message": "後"
-  },
   "deposit_form_asset_a": {
     "message": "資產 A"
   },
@@ -2186,9 +2183,6 @@
   },
   "deposit_form_lp_supply_is_zero_this": {
     "message": "LP 供應量為零。此次存入將重啓流動性池，並可能獲得現有儲備。"
-  },
-  "deposit_form_minimum_lp_tokens": {
-    "message": "最少 LP 代幣:"
   },
   "deposit_form_only_the_pool_ratio_amount": {
     "message": "只會按流動性池比率存入相應數量，多餘部分不會使用。"
@@ -2203,25 +2197,22 @@
     "message": "存入流動性池按當前池比率進行。"
   },
   "deposit_form_quoted_partner_amount": {
-    "message": "報價的配對數量: $1 $2"
+    "message": "按池比例所需數量：$1 $2"
   },
   "deposit_form_review_deposit": {
     "message": "確認存入"
-  },
-  "deposit_form_slippage": {
-    "message": "% 滑點。"
   },
   "deposit_form_the_lp_asset_represents_your": {
     "message": "LP 資產代表你在流動性池中的份額。"
   },
   "deposit_form_this_deposits_less_than_the": {
-    "message": "此次存入少於報價比率允許的數量。"
+    "message": "此數量不足以按報價中的池比例全部存入。"
   },
   "deposit_form_use_quote": {
     "message": "使用報價"
   },
   "deposit_review_minimum_lp": {
-    "message": "最少 LP"
+    "message": "最低 LP 接收數量"
   },
   "destroy_supply_form_amount_to_destroy": {
     "message": "銷毀數量"
@@ -2610,7 +2601,7 @@
     "message": "已解析為所有者地址"
   },
   "inputs_fee_rate_input_custom_fee_rate": {
-    "message": "自定義費率"
+    "message": "自訂費率"
   },
   "inputs_fee_rate_input_esc": {
     "message": "Esc"
@@ -2619,7 +2610,7 @@
     "message": "費率"
   },
   "inputs_fee_rate_input_fee_rate_custom": {
-    "message": "費率（自定義）"
+    "message": "費率（自訂）"
   },
   "inputs_fee_rate_input_loading_fee_rates": {
     "message": "正在加載費率…"
@@ -2631,7 +2622,7 @@
     "message": "重置為第一個預設"
   },
   "inputs_fee_rate_input_unable_to_fetch_fee_rates": {
-    "message": "無法獲取費率。請輸入自定義費率（最低 0.1 sat/vB）。"
+    "message": "無法取得費率。請手動輸入（最低 0.1 sat/vB）。"
   },
   "inputs_file_upload_input_choose_file": {
     "message": "選擇文件"
@@ -2787,10 +2778,10 @@
     "message": "選擇錢包"
   },
   "layout_api_status_banner_api_error_some_features_may": {
-    "message": "API 錯誤。部分功能可能不可用。"
+    "message": "API 發生錯誤，部分功能可能暫時無法使用。"
   },
   "layout_api_status_banner_api_rate_limited_requests_may": {
-    "message": "API 請求受限。請求可能較慢。"
+    "message": "API 請求過於頻繁。請稍候再試。"
   },
   "layout_api_status_banner_dismiss": {
     "message": "關閉"
@@ -3827,9 +3818,6 @@
   "order_form_quote": {
     "message": "計價資產"
   },
-  "order_form_select_the_asset_to": {
-    "message": "選擇要$1的資產。"
-  },
   "pool_pool_slippage_settings_done": {
     "message": "完成"
   },
@@ -3840,25 +3828,25 @@
     "message": "自動"
   },
   "pool_slippage_input_custom": {
-    "message": "自定義 %"
+    "message": "自訂 %"
   },
   "pool_slippage_input_custom_slippage_percent": {
-    "message": "自定義滑點百分比"
+    "message": "自訂滑點百分比"
   },
   "pool_slippage_input_how_far_the_pool_ratio": {
-    "message": "交易失敗前允許流動性池比率變動的幅度。較高的容忍度可以避免同一區塊內有人交易該池時導致失敗。"
+    "message": "可接受的池比例最大變動幅度。提高容差可能有助於執行，但接收數量可能減少。"
   },
   "pool_slippage_input_set_from_the_quote_s": {
     "message": "輸入數量後，將根據報價的價格影響自動設置。"
   },
   "pool_slippage_input_slippage_tolerance": {
-    "message": "滑點容忍度"
+    "message": "滑點容差"
   },
   "pool_slippage_input_using_matched_to_this_trade": {
     "message": "使用 $1%，與此交易的價格影響相匹配。"
   },
   "pool_slippage_input_very_high_you_may_receive": {
-    "message": "非常高，你收到的數量可能明顯少於報價。"
+    "message": "容差過高，接收數量可能明顯低於報價。"
   },
   "pool_slippage_input_very_low_likely_to_fail": {
     "message": "非常低，如果流動性池在你的交易確認前發生變化，很可能失敗。"
@@ -4131,7 +4119,7 @@
     "message": "正在簽名交易…"
   },
   "screens_review_screen_xcp_fee": {
-    "message": "XCP 費用:"
+    "message": "XCP 手續費："
   },
   "screens_success_screen_click_to_copy_transaction_id": {
     "message": "點擊複製交易 ID"
@@ -4662,7 +4650,7 @@
     "message": "超出了待確認訂單成交後剩餘的數量。如果它們先確認，此兌換將掛單一個區塊後退款而不是成交。請提高滑點或使用“自動”。"
   },
   "swap_form_after_mempool": {
-    "message": "記憶池之後"
+    "message": "前序訂單確認後（估算）"
   },
   "swap_form_ahead_in_mempool": {
     "message": "記憶池中有 $1 筆在前"
@@ -4680,7 +4668,7 @@
     "message": "兌換不支持 BTC 交易對。請改用 DEX 訂單。"
   },
   "swap_form_estimated_amount_received": {
-    "message": "預計收到數量"
+    "message": "預計接收數量"
   },
   "swap_form_fetching_quote": {
     "message": "正在獲取報價…"
@@ -4703,10 +4691,10 @@
     }
   },
   "swap_form_minimum_received": {
-    "message": "最少收到"
+    "message": "最低接收數量"
   },
   "swap_form_no_liquidity_pool_exists_for": {
-    "message": "$1/$2 沒有流動性池。此交易對的兌換隻能由掛單中的 DEX 訂單成交。"
+    "message": "$1/$2 沒有流動性池。此交易對只能與訂單簿中的 DEX 掛單成交。"
   },
   "swap_form_one_unconfirmed_order_on_this": {
     "message": "此交易對有 1 筆同方向的未確認訂單。如果它先確認，此兌換將比報價少約 $1%。自動滑點已考慮到這一點。"
@@ -4733,13 +4721,13 @@
     "message": "成交"
   },
   "swap_review_immediately_or_cancels_next_block": {
-    "message": "立即成交，否則下一個區塊取消"
+    "message": "確認時成交；未成交資產在到期後退回"
   },
   "swap_review_minimum_price": {
-    "message": "最低價格"
+    "message": "成交價格限制"
   },
   "swap_review_minimum_received": {
-    "message": "最少收到"
+    "message": "最低接收數量"
   },
   "sweep_form_asset_balances_only": {
     "message": "僅資產餘額"
@@ -5066,25 +5054,19 @@
     "message": "重置錢包將刪除所有錢包數據。此操作無法撤銷。"
   },
   "withdraw_form_estimated_receive": {
-    "message": "預計收到:"
+    "message": "預計接收數量："
   },
   "withdraw_form_loading_withdrawal_quote": {
     "message": "正在加載取出報價..."
   },
   "withdraw_form_lp_tokens_to_withdraw": {
-    "message": "要取出的 LP 代幣"
-  },
-  "withdraw_form_minimum_received_after": {
-    "message": "最少收到（"
+    "message": "用於贖回的 LP 數量"
   },
   "withdraw_form_review_withdrawal": {
     "message": "確認取出"
   },
-  "withdraw_form_slippage": {
-    "message": "% 滑點後）:"
-  },
   "withdraw_review_minimum_receive": {
-    "message": "最少收到"
+    "message": "最低接收數量"
   },
   "display_preferences_title": {
     "message": "語言與顯示"
@@ -5111,10 +5093,10 @@
     "message": "無法儲存此設定，請重試。"
   },
   "safety_amount_syntax": {
-    "message": "僅限數字和小數點，最多8位小數。勿用逗號。"
+    "message": "僅限半形數字和小數點，最多8位小數。勿用逗號。"
   },
   "safety_amount_indivisible": {
-    "message": "僅限整數。勿用小數點或逗號。"
+    "message": "僅限半形整數。勿用小數點或逗號。"
   },
   "safety_amount_precision": {
     "message": "小數位數超出此資產支援的精度。未進行捨入或提交。"
@@ -5132,7 +5114,7 @@
     "message": "Counterparty 無法精確編碼此手續費或佣金比例。請選擇其他比例。"
   },
   "safety_fee_invalid": {
-    "message": "僅限數字和小數點，最多8位小數。勿用逗號。"
+    "message": "僅限半形數字和小數點，最多8位小數。勿用逗號。"
   },
   "safety_fee_minimum": {
     "message": "費率過低（最低：$1 sat/vB）"
@@ -5144,15 +5126,42 @@
     "message": "接收地址數量必須為正整數。"
   },
   "safety_max_unavailable": {
-    "message": "無法確認可用數量的精確值。使用最大值前請重新整理資產詳情。"
+    "message": "無法確認可用數量。請重新整理資產詳情後再使用「最大」。"
   },
   "safety_max_fee": {
-    "message": "使用最大值前請輸入有效費率。"
+    "message": "請先輸入有效費率，再使用「最大」。"
   },
   "safety_clipboard_lines": {
     "message": "請重新貼上一個不含換行的值。"
   },
   "common_custom": {
     "message": "自訂"
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "選擇要買入的資產。"
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "選擇要賣出的資產。"
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "最低 LP 接收數量（滑點容差 $1%）："
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "最低接收數量（滑點容差 $1%）："
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 個區塊"
+  },
+  "safety_slippage_invalid": {
+    "message": "請輸入0–50%，最多2位小數。勿用逗號。"
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "最快"
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30分鐘"
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1小時"
   }
 }

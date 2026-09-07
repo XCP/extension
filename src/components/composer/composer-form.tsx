@@ -44,7 +44,7 @@ export function ComposerForm({
   children,
   formAction,
   header,
-  submitText = "Continue",
+  submitText,
   submitDisabled = false,
   showFeeRate = true,
   className = "space-y-4",
@@ -128,7 +128,7 @@ export function ComposerForm({
             fullWidth
             disabled={isSubmitting || submitDisabled || feeRateMissing || Boolean(clipboardError)}
           >
-            {isSubmitting ? t('composer_composer_form_submitting') : submitText}
+            {isSubmitting ? t('composer_composer_form_submitting') : submitText ?? t('common_continue')}
           </Button>
         </form>
       </div>

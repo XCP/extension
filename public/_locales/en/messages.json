@@ -2888,10 +2888,6 @@
     "message": "Your transactions are now in the mempool and will be confirmed in the next blocks. The consolidated Bitcoin will be available once the transactions are confirmed.",
     "description": "pages/actions/consolidate/success.tsx"
   },
-  "deposit_form_after": {
-    "message": "after",
-    "description": "pages/compose/pool/deposit/form.tsx"
-  },
   "deposit_form_asset_a": {
     "message": "Asset A",
     "description": "pages/compose/pool/deposit/form.tsx"
@@ -2906,10 +2902,6 @@
   },
   "deposit_form_lp_supply_is_zero_this": {
     "message": "LP supply is zero. This deposit restarts the pool and may claim existing reserves.",
-    "description": "pages/compose/pool/deposit/form.tsx"
-  },
-  "deposit_form_minimum_lp_tokens": {
-    "message": "Minimum LP tokens:",
     "description": "pages/compose/pool/deposit/form.tsx"
   },
   "deposit_form_only_the_pool_ratio_amount": {
@@ -2934,10 +2926,6 @@
   },
   "deposit_form_review_deposit": {
     "message": "Review Deposit",
-    "description": "pages/compose/pool/deposit/form.tsx"
-  },
-  "deposit_form_slippage": {
-    "message": "% slippage.",
     "description": "pages/compose/pool/deposit/form.tsx"
   },
   "deposit_form_the_lp_asset_represents_your": {
@@ -3709,7 +3697,7 @@
     "description": "components/layout/api-status-banner.tsx"
   },
   "layout_api_status_banner_api_rate_limited_requests_may": {
-    "message": "API rate limited. Requests may be slow.",
+    "message": "Too many API requests. Please wait before retrying.",
     "description": "components/layout/api-status-banner.tsx"
   },
   "layout_api_status_banner_dismiss": {
@@ -5092,10 +5080,6 @@
     "message": "Quote",
     "description": "pages/compose/order/form.tsx"
   },
-  "order_form_select_the_asset_to": {
-    "message": "Select the asset to $1.",
-    "description": "pages/compose/order/form.tsx. $1 = isBuy ? \"buy\" : \"sell\""
-  },
   "pool_pool_slippage_settings_done": {
     "message": "Done",
     "description": "pages/compose/pool/pool-slippage-settings.tsx"
@@ -5117,7 +5101,7 @@
     "description": "pages/compose/pool/slippage-input.tsx"
   },
   "pool_slippage_input_how_far_the_pool_ratio": {
-    "message": "How far the pool ratio may move before the transaction fails. A higher tolerance avoids failures if someone else trades the pool in the same block.",
+    "message": "Maximum pool-ratio change you accept. A higher tolerance may help execution, but can return fewer assets.",
     "description": "pages/compose/pool/slippage-input.tsx"
   },
   "pool_slippage_input_set_from_the_quote_s": {
@@ -6297,11 +6281,11 @@
     "description": "pages/compose/swap/review.tsx"
   },
   "swap_review_immediately_or_cancels_next_block": {
-    "message": "Immediately, or cancels next block",
+    "message": "On confirmation; unfilled assets are returned after expiry",
     "description": "pages/compose/swap/review.tsx"
   },
   "swap_review_minimum_price": {
-    "message": "Minimum Price",
+    "message": "Price limit",
     "description": "pages/compose/swap/review.tsx"
   },
   "swap_review_minimum_received": {
@@ -6752,16 +6736,8 @@
     "message": "LP Tokens to Withdraw",
     "description": "pages/compose/pool/withdraw/form.tsx"
   },
-  "withdraw_form_minimum_received_after": {
-    "message": "Minimum received after",
-    "description": "pages/compose/pool/withdraw/form.tsx"
-  },
   "withdraw_form_review_withdrawal": {
     "message": "Review Withdrawal",
-    "description": "pages/compose/pool/withdraw/form.tsx"
-  },
-  "withdraw_form_slippage": {
-    "message": "% slippage:",
     "description": "pages/compose/pool/withdraw/form.tsx"
   },
   "withdraw_review_minimum_receive": {
@@ -6859,5 +6835,41 @@
   "common_custom": {
     "message": "Custom",
     "description": "Custom fee-rate option."
+  },
+  "order_form_select_asset_to_buy": {
+    "message": "Select the asset to buy.",
+    "description": "pages/compose/order/form.tsx. Buy-side asset selector help; a complete sentence, not an inserted English verb."
+  },
+  "order_form_select_asset_to_sell": {
+    "message": "Select the asset to sell.",
+    "description": "pages/compose/order/form.tsx. Sell-side asset selector help."
+  },
+  "deposit_form_minimum_lp_with_slippage": {
+    "message": "Minimum LP tokens ($1% slippage):",
+    "description": "pages/compose/pool/deposit/form.tsx. $1 = canonical slippage percent; followed by the minimum LP quantity. Whole label permits natural word order."
+  },
+  "withdraw_form_minimum_with_slippage": {
+    "message": "Minimum received ($1% slippage):",
+    "description": "pages/compose/pool/withdraw/form.tsx. $1 = canonical slippage percent; followed by both independently scaled asset quantities."
+  },
+  "order_review_expiration_blocks": {
+    "message": "$1 blocks",
+    "description": "pages/compose/order/review.tsx. $1 = displayed block count. Protocol time unit, not minutes."
+  },
+  "safety_slippage_invalid": {
+    "message": "Use 0–50%, up to 2 decimals. No commas.",
+    "description": "pages/compose/pool/slippage-input.tsx. Existing wallet policy, canonical ASCII input; invalid complete drafts block parent compose and quotes."
+  },
+  "inputs_fee_rate_input_fastest": {
+    "message": "Fastest",
+    "description": "components/ui/inputs/fee-rate-input.tsx. Network fee recommendation preset, not a confirmation guarantee."
+  },
+  "inputs_fee_rate_input_thirty_minutes": {
+    "message": "30 Min",
+    "description": "components/ui/inputs/fee-rate-input.tsx. Network estimate preset."
+  },
+  "inputs_fee_rate_input_one_hour": {
+    "message": "1 Hour",
+    "description": "components/ui/inputs/fee-rate-input.tsx. Network estimate preset."
   }
 }

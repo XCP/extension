@@ -221,7 +221,7 @@ export function MPMAForm({
     <ComposerForm
       formAction={handleFormAction}
       submitDisabled={isSubmitDisabled}
-      submitText={isProcessing ? t('mpma_form_validating') : "Continue"}
+      submitText={isProcessing ? t('mpma_form_validating') : t('common_continue')}
     >
       {validationError && (
         <div className="mb-4">
