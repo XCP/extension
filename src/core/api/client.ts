@@ -38,6 +38,8 @@ export interface ApiError extends Error {
     data: unknown;
     status: number;
   };
+  /** Seconds the server asked us to wait, from a 429's Retry-After header. */
+  retryAfter?: number;
 }
 
 /**
@@ -46,12 +48,13 @@ export interface ApiError extends Error {
 function createApiError(
   message: string,
   code: ApiError['code'],
-  options?: { status?: number; response?: { data: unknown; status: number } }
+  options?: { status?: number; response?: { data: unknown; status: number }; retryAfter?: number }
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.code = code;
   error.status = options?.status;
   error.response = options?.response;
+  error.retryAfter = options?.retryAfter;
   return error;
 }
 
@@ -192,23 +195,24 @@ async function fetchWithTimeout<T>(
 
     // Check for HTTP errors
     if (!response.ok) {
+      const retryAfterHeader = response.headers.get('Retry-After');
+      const retryAfter = retryAfterHeader ? parseInt(retryAfterHeader, 10) : undefined;
       // Emit API status for rate limiting or server errors
       const statusType = getStatusTypeFromCode(response.status);
       if (statusType) {
-        const retryAfter = response.headers.get('Retry-After');
         emitApiStatus({
           type: statusType,
           statusCode: response.status,
           message: response.status === 429
             ? 'API rate limited. Requests may be slow.'
             : `API error (${response.status}). Some features may be unavailable.`,
-          retryAfter: retryAfter ? parseInt(retryAfter, 10) : undefined,
+          retryAfter,
         });
       }
       throw createApiError(
         `Request failed with status ${response.status}`,
         'HTTP_ERROR',
-        { status: response.status, response: { data, status: response.status } }
+        { status: response.status, response: { data, status: response.status }, retryAfter }
       );
     }
 

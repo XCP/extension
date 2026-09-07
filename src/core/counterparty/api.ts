@@ -8,6 +8,7 @@
  */
 
 import { apiClient } from '@/core/api/client';
+import { type RateLimitRefusal, RequestGate } from '@/core/counterparty/requestGate';
 import { CounterpartyApiError } from '@/core/errors';
 import { asBaseUnits, asDisplayUnits, type BaseUnits, type DisplayUnits, toBigNumber } from '@/core/numeric';
 import { getActiveSettings } from '@/core/settings';
@@ -29,6 +30,32 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
+
+// =============================================================================
+// PACE
+// =============================================================================
+
+/**
+ * Every Counterparty read goes through one gate, so a screen that asks ten questions at once is
+ * answered a few at a time, and a node that says 429 is obeyed by everyone until its Retry-After
+ * passes. See `requestGate.ts` for why.
+ */
+const requestGate = new RequestGate();
+
+/** A 429 from the API client, with the wait the node asked for when it said. */
+function rateLimitRefusal(error: unknown): RateLimitRefusal | null {
+  if (!error || typeof error !== 'object') return null;
+  const { status, retryAfter } = error as { status?: unknown; retryAfter?: unknown };
+  if (status !== 429) return null;
+  return {
+    retryAfterMs: typeof retryAfter === 'number' && Number.isFinite(retryAfter) ? retryAfter * 1000 : undefined,
+  };
+}
+
+/** Forget any cooldown the node imposed: a user pressing refresh means "try again now". */
+export function resetRequestPace(): void {
+  requestGate.reset();
+}
 
 /**
  * Generate a cache key from URL and params.
@@ -549,7 +576,10 @@ async function cpApiGet<T = unknown>(
   }
 
   try {
-    const response = await apiClient.get<T | { error: string }>(url, { params: filteredParams });
+    const response = await requestGate.run(
+      () => apiClient.get<T | { error: string }>(url, { params: filteredParams }),
+      rateLimitRefusal
+    );
 
     if (response.data && typeof response.data === 'object' && 'error' in response.data) {
       throw new CounterpartyApiError(

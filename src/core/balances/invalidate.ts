@@ -15,7 +15,7 @@
  */
 
 import { clearBalanceCache } from '@/core/bitcoin/balance';
-import { clearApiCacheMatching } from '@/core/counterparty/api';
+import { clearApiCacheMatching, resetRequestPace } from '@/core/counterparty/api';
 
 /**
  * Drop every cached balance for an address, so the next read goes to the network.
@@ -29,4 +29,6 @@ export function invalidateAddressBalances(address: string): void {
   if (!address) return;
   clearApiCacheMatching(address);
   clearBalanceCache(address);
+  // The same gesture also ends any cooldown a 429 imposed: the user is asking to try again now.
+  resetRequestPace();
 }
