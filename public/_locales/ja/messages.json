@@ -2748,7 +2748,7 @@
     "message": "現在の発行量"
   },
   "keychain_onboarding_by_continuing_you_agree_to": {
-    "message": "続行すると、次に同意したものとみなされます:"
+    "message": "続行すると、$1および$2に同意したものとみなされます。"
   },
   "keychain_onboarding_create_wallet": {
     "message": "ウォレットを作成"
@@ -2761,6 +2761,9 @@
   },
   "keychain_unlock_password": {
     "message": "パスワード"
+  },
+  "keychain_unlock_unlock": {
+    "message": "ロック解除"
   },
   "keychain_unlock_unlocking": {
     "message": "ロック解除中…"

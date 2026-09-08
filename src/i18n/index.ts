@@ -73,10 +73,11 @@ function substitute(message: string, subs?: string | string[]): string {
 
 /**
  * The language the wallet is actually reading in, as a BCP 47 tag: each catalog
- * carries its own `appLocale`, so the browser's own fallback chain (`zh_TW`,
- * then `zh`, then the default) answers this the same way it answers every
- * other message. The browser UI language alone would be wrong whenever the
- * wallet does not speak it and falls back to English.
+ * carries its own `appLocale`, so Chrome answers this with the catalog it
+ * selected, or the explicitly selected catalog answers it. Do not infer the
+ * catalog from getUILanguage(): Chrome's preferred extension locale can differ
+ * from its UI locale (for example Hong Kong wording with a zh-TW browser UI),
+ * and unsupported languages fall back to the wallet's English catalog.
  */
 export function currentLocale(): string {
   return t('appLocale');

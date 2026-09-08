@@ -7,6 +7,7 @@ import { useHeader } from "@/contexts/header-context";
 import { useWallet } from "@/contexts/wallet-context";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -15,6 +16,7 @@ const PATHS = {
 } as const;
 
 function UnlockPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { unlockKeychain } = useWallet();
@@ -117,9 +119,9 @@ function UnlockPage() {
               type="submit"
               fullWidth
               disabled={!passwordReady || isUnlocking}
-              aria-label={isUnlocking ? t('keychain_unlock_unlocking') : "Unlock"}
+              aria-label={isUnlocking ? t('keychain_unlock_unlocking') : t('keychain_unlock_unlock')}
             >
-              {isUnlocking ? t('keychain_unlock_unlocking') : "Unlock"}
+              {isUnlocking ? t('keychain_unlock_unlocking') : t('keychain_unlock_unlock')}
             </Button>
           </form>
         </div>

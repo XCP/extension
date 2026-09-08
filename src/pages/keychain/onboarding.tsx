@@ -4,6 +4,7 @@ import { FaPlus, FiHelpCircle, FiUpload } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { useHeader } from "@/contexts/header-context";
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { getDisplayVersion } from "@/platform/version";
 
 const PATHS = {
@@ -13,6 +14,7 @@ const PATHS = {
 } as const;
 
 function OnboardingPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
 
@@ -71,26 +73,29 @@ function OnboardingPage() {
         </div>
       </div>
       <div className="text-center text-xs p-4">
-        
-        {t('keychain_onboarding_by_continuing_you_agree_to')}{" "}
-        <a
-          href="https://www.xcp.io/terms"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          {t('common_terms_of_service')}
-        </a>
-        {" "}and{" "}
-        <a
-          href="https://www.xcp.io/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-        >
-          {t('common_privacy_policy')}
-        </a>
-        .
+        {t('keychain_onboarding_by_continuing_you_agree_to', ['{terms}', '{privacy}'])
+          .split(/(\{terms\}|\{privacy\})/)
+          .map(part => part === '{terms}' ? (
+            <a
+              key="terms"
+              href="https://www.xcp.io/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {t('common_terms_of_service')}
+            </a>
+          ) : part === '{privacy}' ? (
+            <a
+              key="privacy"
+              href="https://www.xcp.io/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {t('common_privacy_policy')}
+            </a>
+          ) : part)}
       </div>
     </section>
   );

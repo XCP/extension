@@ -3653,8 +3653,8 @@
     "description": "pages/compose/issuance/issue-supply/review.tsx"
   },
   "keychain_onboarding_by_continuing_you_agree_to": {
-    "message": "By continuing you agree to our",
-    "description": "pages/keychain/onboarding.tsx"
+    "message": "By continuing you agree to our $1 and $2.",
+    "description": "Complete onboarding agreement sentence. $1 is the Terms of Service link; $2 is the Privacy Policy link. Place both links naturally within the sentence, including locale-appropriate spacing and punctuation."
   },
   "keychain_onboarding_create_wallet": {
     "message": "Create wallet",
@@ -3671,6 +3671,10 @@
   "keychain_unlock_password": {
     "message": "Password",
     "description": "pages/keychain/unlock.tsx"
+  },
+  "keychain_unlock_unlock": {
+    "message": "Unlock",
+    "description": "Idle wallet unlock button text and accessible name; distinct from the pending Unlocking state."
   },
   "keychain_unlock_unlocking": {
     "message": "Unlocking…",

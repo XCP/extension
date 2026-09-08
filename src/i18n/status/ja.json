@@ -926,6 +926,7 @@
     "keychain_onboarding_import_wallet",
     "keychain_unlock_invalid_password_please_try_again",
     "keychain_unlock_password",
+    "keychain_unlock_unlock",
     "keychain_unlock_unlocking",
     "keychain_wallets_failed_to_select_wallet_please",
     "keychain_wallets_keychain",

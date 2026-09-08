@@ -7,7 +7,12 @@ Japanese and Chinese preference/safety messages remain listed in
 `status/<locale>.json` as machine drafts. A bounded primary-source terminology
 review is recorded below; native-speaker review remains outstanding.
 
-Settings saves three independent choices inside the encrypted keychain:
+The normal path is automatic: a new or existing keychain without an override
+uses Chrome's extension language selection, including onboarding and the locked
+screen. Users do not need to visit wallet settings to receive translations.
+This follows Chrome's UI/extension locale, not merely its preferred languages
+for websites. Settings also offers three independent choices inside the
+encrypted keychain:
 
 - Interface language: browser-resolved catalog by default, or English, Japanese,
   Simplified Chinese, Taiwan Traditional Chinese, or Hong Kong Traditional Chinese.
@@ -43,12 +48,38 @@ their original text. Exhaustive structured translation of protocol verification
 blockers remains follow-up work; the draft is not a claim that every diagnostic
 or module-initialized label supports live language switching.
 
-Earlier branch validation covered focused unit/integration tests, catalog
-integrity, TypeScript, lint, production build, and packaged Chromium tests for
-sequential invalid typing and cross-window preference changes. Validation of the
-current resumed changes is pending; this earlier evidence is not a claim that
-the current browser matrix or CI has passed. No live transactions are composed
-or signed by the browser regressions.
+Validation covers focused unit/integration tests, catalog integrity, TypeScript,
+lint, production build, and packaged Chromium tests for sequential invalid typing
+and cross-window preference changes. All 40 GitHub checks passed at `fa2ec3da`,
+including ten unit shards, twenty browser batches, CodeQL and hardware tests.
+See PR400 for the current revision's status; that result does not certify later
+changes. Browser regressions use fixtures and do not sign or broadcast live
+transactions.
+
+`e2e/tests/browser-language.spec.ts` exercises actual browser catalog selection
+without setting a wallet language: fresh onboarding, setup buttons, default
+settings, locking, an incorrect password and unlocking. It starts a distinct
+browser profile for each language and asserts both `chrome.i18n` and the rendered
+language. Playwright's page `locale` emulation is not used as a substitute for
+Chrome's native catalog selection.
+
+The six native-browser journeys passed locally for English, Japanese, Simplified
+Chinese, Taiwan Traditional, Hong Kong Traditional and German-to-English fallback.
+Nineteen focused onboarding/create/import tests also passed. Setup and unlock
+buttons now translate their idle labels, and the onboarding legal sentence owns
+the word order around fixed Terms and Privacy links. Password drafts, private-key
+drafts, selected address formats and existing authentication behavior are preserved.
+
+Chrome documents `zh_CN` and `zh_TW` as supported Chinese locale names, but its
+runtime may try a preferred extension locale before the resolved browser UI
+locale. In the current packaged Chromium on Windows, a Hong Kong preference
+resolves `getUILanguage()` to `zh-TW` while loading our `zh_HK` messages. The test
+records that behavior for the pinned browser; it does not claim a separately
+supported Hong Kong Chrome Web Store listing. The manual HK override remains
+deterministic. `appLocale` comes from the selected message catalog, so document
+language and default number formatting describe the text actually displayed.
+References: [Chrome i18n](https://developer.chrome.com/docs/extensions/reference/api/i18n#locales)
+and [Chromium extension locale selection](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/extensions/common/extension_l10n_util.cc).
 
 ## Fiat coverage and data limits
 

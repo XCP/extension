@@ -19,14 +19,8 @@ import { AddressFormat, DEFAULT_ADDRESS_FORMAT } from "@/core/bitcoin/address";
 import { MIN_PASSWORD_LENGTH } from "@/core/encryption/encryption";
 import { validatePrivateKeyFormat } from "@/core/validation/privateKey";
 import { t } from '@/i18n';
+import { useLocaleRevision } from '@/i18n/use-locale';
 import { analytics } from "@/platform/fathom";
-
-const ADDRESS_TYPES = [
-  { value: AddressFormat.P2PKH, label: t('setup_import_private_key_legacy'), hint: "1..." },
-  { value: AddressFormat.P2SH_P2WPKH, label: t('setup_import_private_key_nested_segwit'), hint: "3..." },
-  { value: AddressFormat.P2WPKH, label: t('setup_import_private_key_native_segwit'), hint: t('setup_import_private_key_bc1q') },
-  { value: AddressFormat.P2TR, label: t('setup_import_private_key_taproot'), hint: t('setup_import_private_key_bc1p') },
-] as const;
 
 const PATHS = {
   BACK: "/keychain/wallets/add",
@@ -34,6 +28,7 @@ const PATHS = {
 } as const;
 
 function ImportPrivateKeyPage() {
+  useLocaleRevision();
   const navigate = useNavigate();
   const { setHeaderProps } = useHeader();
   const { createPrivateKeyWallet, verifyPassword } = useWallet();
@@ -46,6 +41,13 @@ function ImportPrivateKeyPage() {
 
   const privateKeyInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
+
+  const addressTypes = [
+    { value: AddressFormat.P2PKH, label: t('setup_import_private_key_legacy'), hint: "1..." },
+    { value: AddressFormat.P2SH_P2WPKH, label: t('setup_import_private_key_nested_segwit'), hint: "3..." },
+    { value: AddressFormat.P2WPKH, label: t('setup_import_private_key_native_segwit'), hint: t('setup_import_private_key_bc1q') },
+    { value: AddressFormat.P2TR, label: t('setup_import_private_key_taproot'), hint: t('setup_import_private_key_bc1p') },
+  ] as const;
 
   const [state, formAction, isPending] = useActionState(
     async (_prevState: { error: string | null }, formData: FormData) => {
@@ -159,7 +161,7 @@ function ImportPrivateKeyPage() {
                 <Listbox value={addressFormat} onChange={setAddressFormat} disabled={isPending}>
                   <ListboxButton className="w-full p-2.5 text-left rounded-md border border-gray-200 bg-white outline-none focus:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-500 cursor-pointer disabled:cursor-not-allowed">
                     {({ value }) => {
-                      const selected = ADDRESS_TYPES.find((type) => type.value === value);
+                      const selected = addressTypes.find((type) => type.value === value);
                       return (
                         <div className="flex justify-between items-center">
                           <span>{selected?.label}</span>
@@ -169,7 +171,7 @@ function ImportPrivateKeyPage() {
                     }}
                   </ListboxButton>
                   <ListboxOptions className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
-                    {ADDRESS_TYPES.map((type) => (
+                    {addressTypes.map((type) => (
                       <ListboxOption
                         key={type.value}
                         value={type.value}
@@ -227,7 +229,7 @@ function ImportPrivateKeyPage() {
                 fullWidth
                 disabled={!canSubmit}
               >
-                {isPending ? t('common_importing') : "Continue"}
+                {isPending ? t('common_importing') : t('common_continue')}
               </Button>
             </>
           )}

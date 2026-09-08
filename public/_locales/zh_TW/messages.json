@@ -2748,7 +2748,7 @@
     "message": "當前供應量"
   },
   "keychain_onboarding_by_continuing_you_agree_to": {
-    "message": "繼續即表示你同意我們的"
+    "message": "繼續即表示你同意我們的$1及$2。"
   },
   "keychain_onboarding_create_wallet": {
     "message": "建立錢包"
@@ -2761,6 +2761,9 @@
   },
   "keychain_unlock_password": {
     "message": "密碼"
+  },
+  "keychain_unlock_unlock": {
+    "message": "解鎖"
   },
   "keychain_unlock_unlocking": {
     "message": "解鎖中…"
